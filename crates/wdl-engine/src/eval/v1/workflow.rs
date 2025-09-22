@@ -41,7 +41,6 @@ use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
-use wdl_analysis::types::PromotionKind;
 use wdl_analysis::types::Type;
 use wdl_ast::Ast;
 use wdl_ast::AstNode;
@@ -52,6 +51,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::v1::CallKeyword;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ScatterStatement;
@@ -340,7 +340,7 @@ impl Gather {
     fn new(capacity: usize, index: usize, value: Value) -> Self {
         if let Value::Call(call) = value {
             return Self::Call {
-                call_ty: call.ty().promote(PromotionKind::Scatter),
+                call_ty: call.ty().promote_scatter(),
                 outputs: call
                     .outputs()
                     .iter()
@@ -496,8 +496,66 @@ impl Subgraph {
                 }
 
                 match &graph[index] {
-                    WorkflowGraphNode::Conditional(_, exit)
-                    | WorkflowGraphNode::Scatter(_, exit) => {
+                    WorkflowGraphNode::Conditional(_, exit) => {
+                        // Split the conditional node to get all nodes within it
+                        let mut conditional_nodes = split(graph, nodes, index, *exit);
+
+                        // Create subgraphs for each conditional clause
+                        let clause_indices: Vec<NodeIndex> = graph
+                            .edges_directed(index, Direction::Outgoing)
+                            .filter_map(|edge| {
+                                let target = edge.target();
+                                if matches!(
+                                    &graph[target],
+                                    WorkflowGraphNode::ConditionalClause(..)
+                                ) {
+                                    Some(target)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        for idx in clause_indices {
+                            // Build a clause-specific subgraph by doing a BFS from the clause node
+                            // and collecting all nodes reachable before the exit
+                            let mut clause_subgraph = HashMap::new();
+                            let mut bfs = Bfs::new(graph, idx);
+                            while let Some(node) = {
+                                if bfs.stack.front() == Some(exit) {
+                                    bfs.stack.pop_front();
+                                }
+                                bfs.next(graph)
+                            } {
+                                // Don't include the clause entry or exit nodes
+                                if node == idx || node == *exit {
+                                    continue;
+                                }
+
+                                // Get the indegree from `conditional_nodes` if it exists there
+                                if let Some(&indegree) = conditional_nodes.get(&node) {
+                                    clause_subgraph.insert(node, indegree);
+                                }
+                            }
+
+                            // Adjust indegrees for nodes connected to the clause entry
+                            for edge in graph.edges_directed(idx, Direction::Outgoing) {
+                                if edge.target() != *exit
+                                    && let Some(indegree) = clause_subgraph.get_mut(&edge.target())
+                                {
+                                    *indegree = indegree.saturating_sub(1);
+                                }
+                            }
+
+                            split_recurse(graph, &mut clause_subgraph, subgraphs);
+                            subgraphs.insert(idx, Subgraph(clause_subgraph));
+                        }
+
+                        // Now recursively process the remaining nodes in the conditional
+                        split_recurse(graph, &mut conditional_nodes, subgraphs);
+                        subgraphs.insert(index, Subgraph(conditional_nodes));
+                    }
+                    WorkflowGraphNode::Scatter(_, exit) => {
                         let mut nodes = split(graph, nodes, index, *exit);
                         split_recurse(graph, &mut nodes, subgraphs);
                         subgraphs.insert(index, Subgraph(nodes));
@@ -618,6 +676,13 @@ impl WorkflowEvaluator {
         // We cannot evaluate a document with errors
         if document.has_errors() {
             return Err(anyhow!("cannot evaluate a document with errors").into());
+        }
+
+        // WDL v1.3 requires experimental features to be enabled
+        if let Some(SupportedVersion::V1(V1::Three)) = document.version()
+            && !self.config.experimental_features_enabled
+        {
+            return Err(anyhow!("WDL v1.3 requires enabling experimental features").into());
         }
 
         self.perform_evaluation(document, inputs, root_dir.as_ref(), workflow.name())
@@ -851,14 +916,10 @@ impl WorkflowEvaluator {
                             "evaluation of call statement has completed",
                         )
                     }
-                    WorkflowGraphNode::Conditional(stmt, _) => debug!(
+                    WorkflowGraphNode::Conditional(..) => debug!(
                         workflow_id = id.as_str(),
                         workflow_name = state.document.workflow().unwrap().name(),
                         document = state.document.uri().as_str(),
-                        expr = {
-                            let e = stmt.expr();
-                            e.text().to_string()
-                        },
                         "evaluation of conditional statement has completed",
                     ),
                     WorkflowGraphNode::Scatter(stmt, _) => {
@@ -962,7 +1023,9 @@ impl WorkflowEvaluator {
                         });
                         awaiting.insert(node);
                     }
-                    WorkflowGraphNode::ExitConditional(_) | WorkflowGraphNode::ExitScatter(_) => {
+                    WorkflowGraphNode::ConditionalClause(..)
+                    | WorkflowGraphNode::ExitConditional(_)
+                    | WorkflowGraphNode::ExitScatter(_) => {
                         // Handled directly in `evaluate_conditional` and `evaluate_scatter`
                         continue;
                     }
@@ -1223,97 +1286,260 @@ impl WorkflowEvaluator {
         stmt: &ConditionalStatement<SyntaxNode>,
         max_concurrency: u64,
     ) -> EvaluationResult<()> {
-        let expr = stmt.expr();
+        // Find the clause node indices by looking at outgoing edges from the entry node
+        let mut clause_nodes: Vec<(usize, NodeIndex)> = state
+            .graph
+            .edges_directed(entry, Direction::Outgoing)
+            .filter_map(|edge| {
+                let target = edge.target();
+                match &state.graph[target] {
+                    WorkflowGraphNode::ConditionalClause(_, idx, _) => Some((*idx, target)),
+                    _ => None,
+                }
+            })
+            .collect();
+
+        // Sort by clause index to ensure they're evaluated in order
+        clause_nodes.sort_by_key(|(idx, _)| *idx);
+
+        for (idx, clause_node) in clause_nodes {
+            let clause = stmt.clauses().nth(idx).expect("clause should exist");
+            let kind = clause.kind();
+
+            match kind {
+                ConditionalStatementClauseKind::If | ConditionalStatementClauseKind::ElseIf => {
+                    let expr = clause
+                        .expr()
+                        .unwrap_or_else(|| panic!("expression to exist for {kind}"));
+
+                    debug!(
+                        workflow_id = id.as_str(),
+                        workflow_name = state.document.workflow().unwrap().name(),
+                        document = state.document.uri().as_str(),
+                        expr = expr.text().to_string(),
+                        "evaluating conditional statement {kind}",
+                    );
+
+                    // Evaluate the conditional expression
+                    let value = Self::evaluate_expr(&state, parent, &expr)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+
+                    if value
+                        .coerce(None, &PrimitiveType::Boolean.into())
+                        .map_err(|e| {
+                            EvaluationError::new(
+                                state.document.clone(),
+                                if_conditional_mismatch(e, &value.ty(), expr.span()),
+                            )
+                        })?
+                        .unwrap_boolean()
+                    {
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = state.document.workflow().unwrap().name(),
+                            document = state.document.uri().as_str(),
+                            expr = expr.text().to_string(),
+                            "conditional statement {kind} branch was taken and subgraph will be \
+                             evaluated"
+                        );
+
+                        // Intentionally drop the write lock before evaluating the subgraph
+                        let scope = { state.scopes.write().await.alloc(parent) };
+
+                        // Evaluate this clause's subgraph
+                        Self::evaluate_subgraph(
+                            state.clone(),
+                            scope,
+                            state.subgraphs[&clause_node].clone(),
+                            max_concurrency,
+                            id,
+                        )
+                        .await?;
+
+                        // Promote all values in the scope to the parent scope
+                        let mut scopes = state.scopes.write().await;
+
+                        // Collect all names from all clauses
+                        let mut all_names: HashMap<String, Type> = HashMap::new();
+                        for clause in stmt.clauses() {
+                            if let Some(braced_scope_span) = clause.braced_scope_span() {
+                                let clause_scope = state
+                                    .document
+                                    .find_scope_by_position(braced_scope_span.start())
+                                    .expect("should have scope");
+
+                                for (name, n) in clause_scope.names() {
+                                    all_names.insert(name.to_string(), n.ty().clone());
+                                }
+                            }
+                        }
+
+                        let (parent, child) = scopes.parent_mut(scope);
+
+                        // First, promote all values that were defined in the taken branch
+                        let mut defined_names: HashSet<String> = HashSet::new();
+                        for (name, value) in child.local() {
+                            parent.insert(name.to_string(), value.clone());
+                            defined_names.insert(name.to_string());
+                        }
+
+                        // Then, set any names from other branches to `None`
+                        for (name, ty) in all_names {
+                            if !defined_names.contains(&name) {
+                                if let Type::Call(call_ty) = ty {
+                                    parent.insert(
+                                        name,
+                                        CallValue::new_unchecked(
+                                            call_ty.optional(),
+                                            Outputs::from_iter(call_ty.outputs().iter().map(
+                                                |(n, o)| {
+                                                    (n.clone(), Value::new_none(o.ty().optional()))
+                                                },
+                                            ))
+                                            .into(),
+                                        ),
+                                    );
+                                } else {
+                                    parent.insert(name, Value::new_none(ty.optional()));
+                                }
+                            }
+                        }
+
+                        scopes.free(scope);
+                        return Ok(());
+                    } else {
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = state.document.workflow().unwrap().name(),
+                            document = state.document.uri().as_str(),
+                            "conditional statement {kind} branch was not taken and subgraph will \
+                             be skipped"
+                        );
+                    }
+                }
+                ConditionalStatementClauseKind::Else => {
+                    debug!(
+                        workflow_id = id.as_str(),
+                        workflow_name = state.document.workflow().unwrap().name(),
+                        document = state.document.uri().as_str(),
+                        "conditional statement {kind} branch was taken and subgraph will be \
+                         evaluated"
+                    );
+
+                    // Intentionally drop the write lock before evaluating the subgraph
+                    let scope = { state.scopes.write().await.alloc(parent) };
+
+                    // Evaluate this clause's subgraph
+                    Self::evaluate_subgraph(
+                        state.clone(),
+                        scope,
+                        state.subgraphs[&clause_node].clone(),
+                        max_concurrency,
+                        id,
+                    )
+                    .await?;
+
+                    // Promote all values in the scope to the parent scope
+                    let mut scopes = state.scopes.write().await;
+
+                    // Collect all names from all clauses
+                    let mut all_names: HashMap<String, Type> = HashMap::new();
+                    for clause in stmt.clauses() {
+                        if let Some(braced_scope_span) = clause.braced_scope_span() {
+                            let clause_scope = state
+                                .document
+                                .find_scope_by_position(braced_scope_span.start())
+                                .expect("should have scope");
+
+                            for (name, n) in clause_scope.names() {
+                                all_names.insert(name.to_string(), n.ty().clone());
+                            }
+                        }
+                    }
+
+                    let (parent, child) = scopes.parent_mut(scope);
+
+                    // First, promote all values that were defined in the taken branch
+                    let mut defined_names: HashSet<String> = HashSet::new();
+                    for (name, value) in child.local() {
+                        parent.insert(name.to_string(), value.clone());
+                        defined_names.insert(name.to_string());
+                    }
+
+                    // Then, set any names from other branches to `None`
+                    for (name, ty) in all_names {
+                        if !defined_names.contains(&name) {
+                            if let Type::Call(call_ty) = ty {
+                                parent.insert(
+                                    name,
+                                    CallValue::new_unchecked(
+                                        call_ty.optional(),
+                                        Outputs::from_iter(call_ty.outputs().iter().map(
+                                            |(n, o)| {
+                                                (n.clone(), Value::new_none(o.ty().optional()))
+                                            },
+                                        ))
+                                        .into(),
+                                    ),
+                                );
+                            } else {
+                                parent.insert(name, Value::new_none(ty.optional()));
+                            }
+                        }
+                    }
+
+                    scopes.free(scope);
+                    return Ok(());
+                }
+            }
+        }
 
         debug!(
             workflow_id = id.as_str(),
             workflow_name = state.document.workflow().unwrap().name(),
             document = state.document.uri().as_str(),
-            expr = expr.text().to_string(),
-            "evaluating conditional statement",
+            "no conditional statement branch was taken"
         );
 
-        // Evaluate the conditional expression
-        let value = Self::evaluate_expr(&state, parent, &expr)
-            .await
-            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+        // All conditionals evaluated to false; set the expected names to `None` in the
+        // parent scope.
+        let mut scopes = state.scopes.write().await;
+        let parent = scopes.get_mut(parent);
 
-        if value
-            .coerce(None, &PrimitiveType::Boolean.into())
-            .map_err(|e| {
-                EvaluationError::new(
-                    state.document.clone(),
-                    if_conditional_mismatch(e, &value.ty(), expr.span()),
-                )
-            })?
-            .unwrap_boolean()
-        {
-            debug!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                "conditional statement branch was taken and subgraph will be evaluated"
-            );
+        // Collect all unique names across all clauses
+        let mut all_names: HashMap<String, Type> = HashMap::new();
+        for clause in stmt.clauses() {
+            if let Some(braced_scope_span) = clause.braced_scope_span() {
+                let scope = state
+                    .document
+                    .find_scope_by_position(braced_scope_span.start())
+                    .expect("should have scope");
 
-            // Intentionally drop the write lock before evaluating the subgraph
-            let scope = { state.scopes.write().await.alloc(parent) };
-
-            // Evaluate the subgraph
-            Self::evaluate_subgraph(
-                state.clone(),
-                scope,
-                state.subgraphs[&entry].clone(),
-                max_concurrency,
-                id,
-            )
-            .await?;
-
-            // Promote all values in the scope to the parent scope as optional
-            let mut scopes = state.scopes.write().await;
-            let (parent, child) = scopes.parent_mut(scope);
-            for (name, value) in child.local() {
-                parent.insert(name.to_string(), value.clone());
-            }
-
-            scopes.free(scope);
-        } else {
-            debug!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                "conditional statement branch was not taken and subgraph will be skipped"
-            );
-
-            // Conditional evaluated to false; set the expected names to `None` in the
-            // parent scope
-            let mut scopes = state.scopes.write().await;
-            let parent = scopes.get_mut(parent);
-            let scope = state
-                .document
-                .find_scope_by_position(
-                    stmt.braced_scope_span()
-                        .expect("should have braced scope span")
-                        .start(),
-                )
-                .expect("should have scope");
-
-            for (name, n) in scope.names() {
-                if let Type::Call(ty) = n.ty() {
-                    parent.insert(
-                        name.to_string(),
-                        CallValue::new_unchecked(
-                            ty.promote(PromotionKind::Conditional),
-                            Outputs::from_iter(
-                                ty.outputs()
-                                    .iter()
-                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().optional()))),
-                            )
-                            .into(),
-                        ),
-                    );
-                } else {
-                    parent.insert(name.to_string(), Value::new_none(n.ty().optional()));
+                for (name, n) in scope.names() {
+                    all_names.insert(name.to_string(), n.ty().clone());
                 }
+            }
+        }
+
+        // Set all names to `None` with appropriate types
+        for (name, ty) in all_names {
+            if let Type::Call(call_ty) = ty {
+                parent.insert(
+                    name,
+                    CallValue::new_unchecked(
+                        call_ty.optional(),
+                        Outputs::from_iter(
+                            call_ty
+                                .outputs()
+                                .iter()
+                                .map(|(n, o)| (n.clone(), Value::new_none(o.ty().optional()))),
+                        )
+                        .into(),
+                    ),
+                );
+            } else {
+                parent.insert(name, Value::new_none(ty.optional()));
             }
         }
 
@@ -1872,6 +2098,329 @@ workflow test {
             read_to_string(outputs_dir.join("calls/bar/outputs.json"))
                 .expect("failed to read bar `outputs.json`"),
             "{\n  \"x\": \"bar\",\n  \"y\": 1,\n  \"z\": []\n}"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_handles_conditional_with_different_variables() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.3
+
+task sayColor {
+    input {
+        String color
+    }
+
+    command <<<
+      echo "Hello, ~{color} color!"
+    >>>
+
+    output {
+        String out = read_string(stdout())
+    }
+}
+
+workflow foo {
+    input {
+        Boolean useRed = false
+        Boolean useGreen = false
+        Boolean useBlue = false
+    }
+
+    if (useRed) {
+        String my_variable = "foo"
+        String my_greeting = "Hello"
+        call sayColor { input: color = "red" }
+    } else if (useGreen) {
+        String my_variable = "bar"
+        String my_greeting = "Hi"
+        call sayColor { input: color = "green" }
+    } else if (useBlue) {
+        String my_variable = "baz"
+        call sayColor { input: color = "blue" }
+    } else {
+        String my_variable = "quux"
+        String my_greeting = "Salutations"
+        call sayColor { input: color = "unknown" }
+    }
+
+    output {
+        String variable = my_variable
+        String? greeting = my_greeting
+        String out = sayColor.out
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        // Analyze the source file
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path().to_path_buf())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
+            experimental_features_enabled: true,
+            ..Default::default()
+        };
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
+            .await
+            .unwrap();
+
+        let mut inputs = WorkflowInputs::default();
+        inputs.set("useBlue", true);
+        let outputs_dir = root_dir.path().join("outputs_blue");
+        let outputs = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useBlue");
+
+        assert_eq!(
+            outputs
+                .get("variable")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "baz"
+        );
+        assert!(
+            outputs.get("greeting").unwrap().is_none(),
+            "greeting should be `None`"
+        );
+        assert_eq!(
+            outputs.get("out").unwrap().clone().unwrap_string().as_str(),
+            "Hello, blue color!"
+        );
+
+        let mut inputs = WorkflowInputs::default();
+        inputs.set("useRed", true);
+        let outputs_dir = root_dir.path().join("outputs_red");
+        let outputs = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useRed");
+
+        assert_eq!(
+            outputs
+                .get("variable")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "foo"
+        );
+        assert_eq!(
+            outputs
+                .get("greeting")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "Hello"
+        );
+        assert_eq!(
+            outputs.get("out").unwrap().clone().unwrap_string().as_str(),
+            "Hello, red color!"
+        );
+
+        let mut inputs = WorkflowInputs::default();
+        inputs.set("useGreen", true);
+        let outputs_dir = root_dir.path().join("outputs_green");
+        let outputs = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useGreen");
+
+        assert_eq!(
+            outputs
+                .get("variable")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "bar"
+        );
+        assert_eq!(
+            outputs
+                .get("greeting")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "Hi"
+        );
+        assert_eq!(
+            outputs.get("out").unwrap().clone().unwrap_string().as_str(),
+            "Hello, green color!"
+        );
+
+        let inputs = WorkflowInputs::default();
+        let outputs_dir = root_dir.path().join("outputs_else");
+        let outputs = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with else");
+
+        assert_eq!(
+            outputs
+                .get("variable")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "quux"
+        );
+        assert_eq!(
+            outputs
+                .get("greeting")
+                .unwrap()
+                .clone()
+                .unwrap_string()
+                .as_str(),
+            "Salutations"
+        );
+        assert_eq!(
+            outputs.get("out").unwrap().clone().unwrap_string().as_str(),
+            "Hello, unknown color!"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_requires_experimental_features_for_v1_3() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.3
+
+workflow foo {
+    if (true) {
+        String x = "hello"
+    } else {
+        String x = "goodbye"
+    }
+
+    output {
+        String result = x
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path().to_path_buf())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        // Test without experimental features enabled (default)
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
+            .await
+            .unwrap();
+
+        let inputs = WorkflowInputs::default();
+        let outputs_dir = root_dir.path().join("outputs");
+        let result = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("WDL v1.3 requires enabling experimental features"),
+            "expected error message about experimental features, got: {:?}",
+            err
+        );
+
+        // Test with experimental features enabled
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
+            experimental_features_enabled: true,
+            ..Default::default()
+        };
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
+            .await
+            .unwrap();
+
+        let inputs = WorkflowInputs::default();
+        let outputs_dir = root_dir.path().join("outputs_experimental");
+        let result = evaluator
+            .evaluate(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await;
+
+        assert!(
+            result.is_ok(),
+            "expected success with experimental features enabled, got: {:?}",
+            result.err()
         );
     }
 

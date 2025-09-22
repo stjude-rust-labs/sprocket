@@ -1,10 +1,12 @@
 //! Conversion of a V1 AST to an analyzed document.
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 use std::hash::RandomState;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use indexmap::map::Entry as IndexMapEntry;
 use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
@@ -18,10 +20,12 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::TreeToken;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
@@ -54,8 +58,11 @@ use crate::config::Config;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
 use crate::diagnostics::Io;
+use crate::diagnostics::NameContext;
 use crate::diagnostics::call_input_type_mismatch;
 use crate::diagnostics::duplicate_workflow;
+use crate::diagnostics::else_if_not_supported;
+use crate::diagnostics::else_not_supported;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::import_cycle;
 use crate::diagnostics::import_failure;
@@ -66,6 +73,7 @@ use crate::diagnostics::invalid_relative_import;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
+use crate::diagnostics::no_common_type;
 use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_struct;
@@ -96,7 +104,6 @@ use crate::types::Coercible;
 use crate::types::CompoundType;
 use crate::types::Optional;
 use crate::types::PrimitiveType;
-use crate::types::PromotionKind;
 use crate::types::Type;
 use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
@@ -402,6 +409,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                 name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.name_span),
+                None,
             ));
         }
         return;
@@ -417,6 +425,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
+                    None,
                 ));
             }
             _ => {
@@ -544,6 +553,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
+                None,
             ));
             return;
         }
@@ -555,6 +565,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     name.text(),
                     Context::Task(name.span()),
                     Context::Workflow(s.name_span),
+                    None,
                 ));
                 return;
             }
@@ -797,6 +808,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
                 name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
+                None,
             ));
             return false;
         }
@@ -960,6 +972,12 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     &statement,
                 );
             }
+            WorkflowGraphNode::ConditionalClause(..) => {
+                // Conditional clause nodes are intermediate nodes used for subgraph splitting
+                // during evaluation. They don't need to be processed here as the
+                // conditional node already handles all clauses.
+                continue;
+            }
             WorkflowGraphNode::Scatter(statement, _) => {
                 let parent = scope_indexes
                     .get(&statement.inner().parent().expect("should have parent"))
@@ -997,11 +1015,54 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 );
             }
             WorkflowGraphNode::ExitConditional(statement) => {
-                let scope_index = scope_indexes
-                    .get(statement.inner())
-                    .copied()
-                    .expect("should have scope");
-                promote_scope(&mut scopes, scope_index, None, PromotionKind::Conditional);
+                let mut scope_union = ScopeUnion::new(&scopes);
+
+                for clause in statement.clauses() {
+                    let scope_index = scope_indexes
+                        .get(clause.inner())
+                        .copied()
+                        .expect("should have scope");
+
+                    scope_union.insert(
+                        scope_index,
+                        matches!(clause.kind(), ConditionalStatementClauseKind::Else),
+                    );
+                }
+
+                let parent_scope = {
+                    let index = scope_indexes
+                        .get(
+                            statement
+                                .clauses()
+                                .next()
+                                .expect("conditional statement does not have a clause")
+                                .inner(),
+                        )
+                        .copied()
+                        .expect("should have scope");
+                    scopes[index.0].parent.expect("should have parent")
+                };
+
+                match scope_union.resolve() {
+                    Ok(results) => {
+                        for (name, info) in results {
+                            match scopes[parent_scope.0].names.entry(name.clone()) {
+                                IndexMapEntry::Vacant(entry) => {
+                                    entry.insert(info);
+                                }
+                                IndexMapEntry::Occupied(entry) => {
+                                    document.analysis_diagnostics.push(name_conflict(
+                                        &name,
+                                        Context::Name(NameContext::Decl(info.span)),
+                                        Context::Name(NameContext::Decl(entry.get().span)),
+                                        None,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    Err(diagnostics) => document.analysis_diagnostics.extend(diagnostics),
+                }
             }
             WorkflowGraphNode::ExitScatter(statement) => {
                 let scope_index = scope_indexes
@@ -1013,7 +1074,6 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     &mut scopes,
                     scope_index,
                     Some(variable.text()),
-                    PromotionKind::Scatter,
                 );
             }
         }
@@ -1038,28 +1098,61 @@ fn add_conditional_statement(
     scope_indexes: &mut HashMap<SyntaxNode, ScopeIndex>,
     statement: &ConditionalStatement,
 ) {
-    let scope_index = add_scope(
-        scopes,
-        Scope::new(
-            Some(parent),
-            statement
-                .braced_scope_span()
-                .expect("should have braced scope span"),
-        ),
-    );
-    scope_indexes.insert(statement.inner().clone(), scope_index);
+    let version = document.version.expect("should have version");
+    if version < SupportedVersion::V1(V1::Three) {
+        for clause in statement.clauses() {
+            match clause.kind() {
+                ConditionalStatementClauseKind::ElseIf => {
+                    let else_span = clause
+                        .else_keyword()
+                        .expect("should have `else` keyword")
+                        .span();
+                    let if_span = clause
+                        .if_keyword()
+                        .expect("should have `if` keyword")
+                        .span();
+                    let span = Span::new(else_span.start(), if_span.end() - else_span.start());
+                    document
+                        .analysis_diagnostics
+                        .push(else_if_not_supported(version, span));
+                }
+                ConditionalStatementClauseKind::Else => {
+                    let span = clause
+                        .else_keyword()
+                        .expect("should have `else` keyword")
+                        .span();
+                    document.analysis_diagnostics.push(else_not_supported(version, span));
+                }
+                ConditionalStatementClauseKind::If => {}
+            }
+        }
+    }
 
-    // Evaluate the statement's expression; it is expected to be a boolean
-    let expr = statement.expr();
-    let mut context =
-        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
-    let mut evaluator = ExprTypeEvaluator::new(&mut context);
-    let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+    for clause in statement.clauses() {
+        let scope_index = add_scope(
+            scopes,
+            Scope::new(
+                Some(parent),
+                clause
+                    .braced_scope_span()
+                    .expect("should have braced scope span"),
+            ),
+        );
+        scope_indexes.insert(clause.inner().clone(), scope_index);
 
-    if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
-        document
-            .analysis_diagnostics
-            .push(if_conditional_mismatch(&ty, expr.span()));
+        let Some(expr) = clause.expr() else {
+            continue;
+        };
+        let mut context =
+            EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
+        let mut evaluator = ExprTypeEvaluator::new(&mut context);
+        let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+
+        if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
+            document
+                .analysis_diagnostics
+                .push(if_conditional_mismatch(&ty, expr.span()));
+        }
     }
 }
 
@@ -1330,8 +1423,105 @@ fn resolve_call_type(
     }
 }
 
-/// Promotes the names in the current to the parent scope.
-fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>, kind: PromotionKind) {
+/// A scope union.
+///
+/// A scope union takes the union of names within a number of given scopes and
+/// computes a set of common, output names for a (presumed parent) scope. This
+/// is useful when calculating common elements from, for example, an `if`
+/// statement within a workflow.
+pub struct ScopeUnion<'a> {
+    /// The scopes.
+    scopes: &'a [Scope],
+    /// The scope indices to process.
+    scope_indices: Vec<(ScopeIndex, bool)>,
+}
+
+impl<'a> ScopeUnion<'a> {
+    /// Creates a new scope union.
+    pub fn new(scopes: &'a [Scope]) -> Self {
+        Self {
+            scopes,
+            scope_indices: Vec::new(),
+        }
+    }
+
+    /// Adds a scope to the union.
+    pub fn insert(&mut self, scope_index: ScopeIndex, exhaustive: bool) {
+        self.scope_indices.push((scope_index, exhaustive));
+    }
+
+    /// Resolves the scope union to names and types that should be accessible
+    /// from the parent scope.
+    ///
+    /// Returns an error if any issues are encountered during resolving.
+    pub fn resolve(self) -> Result<Vec<(String, Name)>, Vec<Diagnostic>> {
+        let mut errors = Vec::new();
+        let mut ignored: HashSet<String> = HashSet::new();
+
+        // Gather all declaration names and reconcile types
+        let mut names: HashMap<String, Name> = HashMap::new();
+        for (scope_index, _) in &self.scope_indices {
+            for (name, info) in &self.scopes[scope_index.0].names {
+                if ignored.contains(name) {
+                    continue;
+                }
+
+                match names.entry(name.clone()) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(info.clone());
+                    }
+                    Entry::Occupied(mut entry) => {
+                        let Some(ty) = entry.get().ty.common_type(&info.ty) else {
+                            errors.push(no_common_type(
+                                &entry.get().ty,
+                                entry.get().span,
+                                &info.ty,
+                                info.span,
+                            ));
+                            names.remove(name);
+                            ignored.insert(name.clone());
+                            continue;
+                        };
+
+                        entry.get_mut().ty = ty;
+                    }
+                }
+            }
+        }
+
+        // Mark types as optional if not present in all clauses
+        for (scope_index, _) in &self.scope_indices {
+            let scope = &self.scopes[scope_index.0];
+            for (name, info) in &mut names {
+                if ignored.contains(name) {
+                    continue;
+                }
+
+                // If this name is not in the current clause's scope, mark as optional
+                if !scope.names.contains_key(name) {
+                    info.ty = info.ty.optional();
+                }
+            }
+        }
+
+        // If there's no `else` clause, mark all types as optional
+        let has_exhaustive = self.scope_indices.iter().any(|(_, exhaustive)| *exhaustive);
+        if !has_exhaustive {
+            for info in names.values_mut() {
+                info.ty = info.ty.optional();
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        Ok(names.into_iter().collect())
+    }
+}
+
+/// Promotes names from a scatter scope to the parent scope.
+fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>) {
     // We need to split the scopes as we want to read from one part of the slice and
     // write to another; the left side will contain the parent at its index and the
     // right side will contain the child scope at its index minus the parent's
@@ -1347,7 +1537,7 @@ fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>, ki
 
         parent.names.entry(name.clone()).or_insert_with(|| Name {
             span: *span,
-            ty: ty.promote(kind),
+            ty: ty.promote_scatter(),
         });
     }
 }
@@ -1673,5 +1863,132 @@ fn type_check_expr(
         document
             .analysis_diagnostics
             .push(non_empty_array_assignment(expected_span, expr.span()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn example_scope(names: Vec<(impl Into<String>, Type)>) -> Scope {
+        let mut scope = Scope::new(None, Span::new(0, 0));
+        for (name, ty) in names.into_iter() {
+            scope.insert(name, Span::new(0, 0), ty);
+        }
+        scope
+    }
+
+    fn example_scopes() -> Vec<Scope> {
+        // if (...) {
+        //   String a
+        //   String b
+        //   String always_available
+        // } else if (...) {
+        //   # If this clause executes, both `a` and `b` will be `None`.
+        //   String? b = None
+        //   String c = "bar"
+        //   String always_available = "bar"
+        // } else {
+        //   String a = "baz"
+        //   String b = "baz"
+        //   String c = "baz"
+        //   String always_available = "baz"
+        // }
+        // 
+        // Both `a` and `b` can be `None` or unevaluated, so they both promote as a
+        // `String?`. `c` is missing from the first scope, so it must also be
+        // marked as `String?`. `always_available` is always available, so it
+        // will be promoted as a `String`.
+        vec![
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+            example_scope(vec![
+                ("b", Type::Primitive(PrimitiveType::String, true)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+        ]
+    }
+
+    #[test]
+    fn smoke() {
+        let scopes = example_scopes();
+
+        // Test with else clause (exhaustive)
+        let mut scope_union = ScopeUnion::new(&scopes);
+        scope_union.insert(ScopeIndex(0), false);
+        scope_union.insert(ScopeIndex(1), false);
+        scope_union.insert(ScopeIndex(2), true);
+
+        let mut results = scope_union.resolve().expect("should resolve");
+        results.sort_by_key(|(name, _)| name.to_owned());
+
+        // `a` is missing from clause 1, so it's optional
+        let (name, info) = results.iter().find(|(n, _)| n == "a").unwrap();
+        assert_eq!(name, "a");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        // `b` is optional in clause 1, so it's optional
+        let (name, info) = results.iter().find(|(n, _)| n == "b").unwrap();
+        assert_eq!(name, "b");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        // `c` is missing from clause 0, so it's optional
+        let (name, info) = results.iter().find(|(n, _)| n == "c").unwrap();
+        assert_eq!(name, "c");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        // `always_available` is in all clauses with the same type, so it's non-optional
+        let (name, info) = results
+            .iter()
+            .find(|(n, _)| n == "always_available")
+            .unwrap();
+        assert_eq!(name, "always_available");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, false));
+    }
+
+    #[test]
+    fn type_conflicts() {
+        // Test scopes with type conflicts
+        // if (...) {
+        //   Int bad = 1
+        // } else {
+        //   String bad = "baz"
+        // }
+        //
+        // `bad` will return an error, as there is no common type between a `String`
+        // and an `Int`.
+        let bad_scopes = vec![
+            example_scope(vec![(
+                "bad",
+                Type::Primitive(PrimitiveType::Integer, false),
+            )]),
+            example_scope(vec![("bad", Type::Primitive(PrimitiveType::String, false))]),
+        ];
+
+        let mut scope_union = ScopeUnion::new(&bad_scopes);
+        scope_union.insert(ScopeIndex(0), false);
+        scope_union.insert(ScopeIndex(1), true);
+        let err = scope_union.resolve().expect_err("should error on bad");
+        assert_eq!(err.len(), 1);
+        assert!(err[0].message().contains("type mismatch"));
     }
 }

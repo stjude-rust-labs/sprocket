@@ -30,6 +30,7 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
+smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
