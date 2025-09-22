@@ -143,7 +143,7 @@ impl Rule for MatchingOutputMetaRule<'_> {
             "OutputSection",
             "RequirementsSection",
             "RuntimeSection",
-            "DescriptionLength"
+            "DescriptionLength",
         ]
     }
 }

@@ -48,7 +48,10 @@ impl Rule for DescriptionLengthRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Descriptions should be kept short so that they can always render in full. If a `description` is too long, it may be clipped in some contexts during documentation. `help` meta entries are permitted to be of any length, and may be a better place for long form text."
+        "Descriptions should be kept short so that they can always render in full. If a \
+         `description` is too long, it may be clipped in some contexts during documentation. \
+         `help` meta entries are permitted to be of any length, and may be a better place for long \
+         form text."
     }
 
     fn tags(&self) -> TagSet {
@@ -106,7 +109,9 @@ impl Visitor for DescriptionLengthRule {
             && let MetadataValue::Object(outputs_object) = outputs_item.value()
         {
             for output in outputs_object.items() {
-                if let MetadataValue::String(description) = output.value() && !description.is_empty() {
+                if let MetadataValue::String(description) = output.value()
+                    && !description.is_empty()
+                {
                     let mut text = String::new();
                     description
                         .text()
@@ -156,7 +161,9 @@ impl Visitor for DescriptionLengthRule {
         }
 
         for param in section.items() {
-            if let MetadataValue::String(description) = param.value() && !description.is_empty() {
+            if let MetadataValue::String(description) = param.value()
+                && !description.is_empty()
+            {
                 let mut text = String::new();
                 description
                     .text()

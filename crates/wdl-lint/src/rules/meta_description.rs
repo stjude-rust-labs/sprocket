@@ -82,7 +82,7 @@ impl Rule for MetaDescriptionRule {
             "RequirementsSection",
             "RuntimeSection",
             "MatchingOutputMeta",
-            "DescriptionLength"
+            "DescriptionLength",
         ]
     }
 }
