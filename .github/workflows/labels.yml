@@ -59,9 +59,9 @@ jobs:
           )
 
           if [[ $result == "true" ]]; then
-            gh pr edit $PR_NUMBER --remove-label "S-awaiting-CI"
+            gh pr edit $PR_NUMBER --remove-label "S-awaiting-pass-CI"
           else
-            gh pr edit $PR_NUMBER --add-label "S-awaiting-CI"
+            gh pr edit $PR_NUMBER --add-label "S-awaiting-pass-CI"
           fi
 
           echo "Finished!"
