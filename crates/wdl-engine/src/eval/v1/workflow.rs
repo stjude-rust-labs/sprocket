@@ -856,7 +856,7 @@ impl WorkflowEvaluator {
                         workflow_name = state.document.workflow().unwrap().name(),
                         document = state.document.uri().as_str(),
                         expr = {
-                            let e = stmt.expr();
+                            let e = stmt.r#if().expr();
                             e.text().to_string()
                         },
                         "evaluation of conditional statement has completed",
@@ -1223,7 +1223,7 @@ impl WorkflowEvaluator {
         stmt: &ConditionalStatement<SyntaxNode>,
         max_concurrency: u64,
     ) -> EvaluationResult<()> {
-        let expr = stmt.expr();
+        let expr = stmt.r#if().expr();
 
         debug!(
             workflow_id = id.as_str(),

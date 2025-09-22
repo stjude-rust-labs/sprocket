@@ -662,7 +662,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     .insert(statement.inner().clone(), (entry, exit));
 
                 // Add all of the statement's statements
-                for statement in statement.statements() {
+                for statement in statement.r#if().statements() {
                     self.add_workflow_statement(statement, Some((entry, exit)), graph, diagnostics);
                 }
 
@@ -835,7 +835,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 WorkflowGraphNode::Conditional(statement, _) => {
-                    self.add_expr_edges(from, statement.expr(), graph, diagnostics);
+                    self.add_expr_edges(from, statement.r#if().expr(), graph, diagnostics);
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);

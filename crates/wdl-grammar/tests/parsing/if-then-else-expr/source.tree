@@ -1,0 +1,176 @@
+RootNode@0..486
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.2"
+  Whitespace@11..13 "\n\n"
+  TaskDefinitionNode@13..195
+    TaskKeyword@13..17 "task"
+    Whitespace@17..18 " "
+    Ident@18..26 "sayColor"
+    Whitespace@26..27 " "
+    OpenBrace@27..28 "{"
+    Whitespace@28..33 "\n    "
+    InputSectionNode@33..67
+      InputKeyword@33..38 "input"
+      Whitespace@38..39 " "
+      OpenBrace@39..40 "{"
+      Whitespace@40..49 "\n        "
+      UnboundDeclNode@49..61
+        PrimitiveTypeNode@49..55
+          StringTypeKeyword@49..55 "String"
+        Whitespace@55..56 " "
+        Ident@56..61 "color"
+      Whitespace@61..66 "\n    "
+      CloseBrace@66..67 "}"
+    Whitespace@67..73 "\n\n    "
+    CommandSectionNode@73..130
+      CommandKeyword@73..80 "command"
+      Whitespace@80..81 " "
+      OpenHeredoc@81..84 "<<<"
+      LiteralCommandText@84..106 "\n        echo \"Hello, "
+      PlaceholderNode@106..114
+        PlaceholderOpen@106..108 "~{"
+        NameRefExprNode@108..113
+          Ident@108..113 "color"
+        CloseBrace@113..114 "}"
+      LiteralCommandText@114..127 " color!\"\n    "
+      CloseHeredoc@127..130 ">>>"
+    Whitespace@130..136 "\n\n    "
+    OutputSectionNode@136..193
+      OutputKeyword@136..142 "output"
+      Whitespace@142..143 " "
+      OpenBrace@143..144 "{"
+      Whitespace@144..153 "\n        "
+      BoundDeclNode@153..187
+        PrimitiveTypeNode@153..159
+          StringTypeKeyword@153..159 "String"
+        Whitespace@159..160 " "
+        Ident@160..163 "out"
+        Whitespace@163..164 " "
+        Assignment@164..165 "="
+        Whitespace@165..166 " "
+        CallExprNode@166..187
+          Ident@166..177 "read_string"
+          OpenParen@177..178 "("
+          CallExprNode@178..186
+            Ident@178..184 "stdout"
+            OpenParen@184..185 "("
+            CloseParen@185..186 ")"
+          CloseParen@186..187 ")"
+      Whitespace@187..192 "\n    "
+      CloseBrace@192..193 "}"
+    Whitespace@193..194 "\n"
+    CloseBrace@194..195 "}"
+  Whitespace@195..197 "\n\n"
+  WorkflowDefinitionNode@197..485
+    WorkflowKeyword@197..205 "workflow"
+    Whitespace@205..206 " "
+    Ident@206..209 "foo"
+    Whitespace@209..210 " "
+    OpenBrace@210..211 "{"
+    Whitespace@211..216 "\n    "
+    BoundDeclNode@216..238
+      PrimitiveTypeNode@216..223
+        BooleanTypeKeyword@216..223 "Boolean"
+      Whitespace@223..224 " "
+      Ident@224..230 "useRed"
+      Whitespace@230..231 " "
+      Assignment@231..232 "="
+      Whitespace@232..233 " "
+      LiteralBooleanNode@233..238
+        FalseKeyword@233..238 "false"
+    Whitespace@238..243 "\n    "
+    BoundDeclNode@243..267
+      PrimitiveTypeNode@243..250
+        BooleanTypeKeyword@243..250 "Boolean"
+      Whitespace@250..251 " "
+      Ident@251..259 "useGreen"
+      Whitespace@259..260 " "
+      Assignment@260..261 "="
+      Whitespace@261..262 " "
+      LiteralBooleanNode@262..267
+        FalseKeyword@262..267 "false"
+    Whitespace@267..272 "\n    "
+    BoundDeclNode@272..295
+      PrimitiveTypeNode@272..279
+        BooleanTypeKeyword@272..279 "Boolean"
+      Whitespace@279..280 " "
+      Ident@280..287 "useBlue"
+      Whitespace@287..288 " "
+      Assignment@288..289 "="
+      Whitespace@289..290 " "
+      LiteralBooleanNode@290..295
+        FalseKeyword@290..295 "false"
+    Whitespace@295..301 "\n\n    "
+    BoundDeclNode@301..454
+      PrimitiveTypeNode@301..307
+        StringTypeKeyword@301..307 "String"
+      Whitespace@307..308 " "
+      Ident@308..313 "color"
+      Whitespace@313..314 " "
+      Assignment@314..315 "="
+      Whitespace@315..316 " "
+      IfExprNode@316..454
+        IfKeyword@316..318 "if"
+        Whitespace@318..319 " "
+        NameRefExprNode@319..325
+          Ident@319..325 "useRed"
+        Whitespace@325..326 " "
+        ThenKeyword@326..330 "then"
+        Whitespace@330..340 " \n        "
+        LiteralStringNode@340..345
+          DoubleQuote@340..341 "\""
+          LiteralStringText@341..344 "red"
+          DoubleQuote@344..345 "\""
+        Whitespace@345..350 "\n    "
+        ElseKeyword@350..354 "else"
+        Whitespace@354..355 " "
+        IfKeyword@355..357 "if"
+        Whitespace@357..358 " "
+        NameRefExprNode@358..366
+          Ident@358..366 "useGreen"
+        Whitespace@366..367 " "
+        ThenKeyword@367..371 "then"
+        Whitespace@371..380 "\n        "
+        LiteralStringNode@380..387
+          DoubleQuote@380..381 "\""
+          LiteralStringText@381..386 "green"
+          DoubleQuote@386..387 "\""
+        Whitespace@387..392 "\n    "
+        ElseKeyword@392..396 "else"
+        Whitespace@396..397 " "
+        IfKeyword@397..399 "if"
+        Whitespace@399..400 " "
+        NameRefExprNode@400..407
+          Ident@400..407 "useBlue"
+        Whitespace@407..408 " "
+        ThenKeyword@408..412 "then"
+        Whitespace@412..421 "\n        "
+        LiteralStringNode@421..427
+          DoubleQuote@421..422 "\""
+          LiteralStringText@422..426 "blue"
+          DoubleQuote@426..427 "\""
+        Whitespace@427..432 "\n    "
+        ElseKeyword@432..436 "else"
+        Whitespace@436..445 "\n        "
+        LiteralStringNode@445..454
+          DoubleQuote@445..446 "\""
+          LiteralStringText@446..453 "unknown"
+          DoubleQuote@453..454 "\""
+    Whitespace@454..460 "\n\n    "
+    CallStatementNode@460..483
+      CallKeyword@460..464 "call"
+      Whitespace@464..465 " "
+      CallTargetNode@465..473
+        Ident@465..473 "sayColor"
+      Whitespace@473..474 " "
+      OpenBrace@474..475 "{"
+      Whitespace@475..476 " "
+      CallInputItemNode@476..481
+        Ident@476..481 "color"
+      Whitespace@481..482 " "
+      CloseBrace@482..483 "}"
+    Whitespace@483..484 "\n"
+    CloseBrace@484..485 "}"
+  Whitespace@485..486 "\n"
