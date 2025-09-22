@@ -1036,6 +1036,7 @@ fn add_conditional_statement(
         Scope::new(
             Some(parent),
             statement
+                .r#if()
                 .braced_scope_span()
                 .expect("should have braced scope span"),
         ),
@@ -1043,7 +1044,7 @@ fn add_conditional_statement(
     scope_indexes.insert(statement.inner().clone(), scope_index);
 
     // Evaluate the statement's expression; it is expected to be a boolean
-    let expr = statement.expr();
+    let expr = statement.r#if().expr();
     let mut context =
         EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
