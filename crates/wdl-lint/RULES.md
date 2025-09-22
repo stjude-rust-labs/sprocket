@@ -7,7 +7,7 @@ be out of sync with released packages.
 ## Lint Rules
 
 | Name                        | Tags                          | Description                                                                                         |
-| :-------------------------- | :---------------------------- | :-------------------------------------------------------------------------------------------------- |
+|:----------------------------|:------------------------------|:----------------------------------------------------------------------------------------------------|
 | `CallInputSpacing`          | Clarity, Spacing, Style       | Ensures proper spacing for call inputs                                                              |
 | `CommandSectionIndentation` | Clarity, Correctness, Spacing | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                      |
 | `CommentWhitespace`         | Spacing                       | Ensures that comments are properly spaced.                                                          |
@@ -17,6 +17,7 @@ be out of sync with released packages.
 | `DeclarationName`           | Naming                        | Ensures declaration names do not redundantly include their type name.                               |
 | `DeprecatedObject`          | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                                         |
 | `DeprecatedPlaceholder`     | Deprecated                    | Ensures that the deprecated placeholder options construct is not used.                              |
+| `DescriptionLength`         | DocRendering                  | Ensures that `description` meta entries are not too long for display in documentation.              |
 | `DoubleQuotes`              | Clarity, Style                | Ensures that strings are defined using double quotes.                                               |
 | `ElementSpacing`            | Spacing                       | Ensures proper blank space between elements                                                         |
 | `EndingNewline`             | Spacing, Style                | Ensures that documents end with a single newline character.                                         |
