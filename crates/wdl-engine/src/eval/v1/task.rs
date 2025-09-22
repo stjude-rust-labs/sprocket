@@ -1005,6 +1005,7 @@ impl TaskEvaluator {
                 ),
                 attempt,
                 attempt_dir.clone(),
+                root_dir.clone(),
             );
 
             let result = self
