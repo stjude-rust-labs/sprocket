@@ -1,0 +1,30 @@
+error: expected struct member name, but found string
+  ┌─ tests/parsing/struct-literal-with-string/source.wdl:8:41
+  │
+8 │     Runtime standard_runtime = Runtime {"gatk_docker": gatk_docker,
+  │                                         ^^^^^^^^^^^^^ unexpected string
+
+error: expected struct member name, but found string
+  ┌─ tests/parsing/struct-literal-with-string/source.wdl:9:41
+  │
+9 │                                         "cpu": small_task_cpu,
+  │                                         ^^^^^ unexpected string
+
+error: expected struct member name, but found string
+   ┌─ tests/parsing/struct-literal-with-string/source.wdl:10:41
+   │
+10 │                                         "machine_mem": small_task_mem * 1024,
+   │                                         ^^^^^^^^^^^^^ unexpected string
+
+error: expected struct member name, but found string
+   ┌─ tests/parsing/struct-literal-with-string/source.wdl:11:41
+   │
+11 │                                         "command_mem": (small_task_mem * 1024) - 512}
+   │                                         ^^^^^^^^^^^^^ unexpected string
+
+error: expected workflow statement, but found string
+   ┌─ tests/parsing/struct-literal-with-string/source.wdl:15:9
+   │
+15 │         "this is not legal either"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^ unexpected string
+

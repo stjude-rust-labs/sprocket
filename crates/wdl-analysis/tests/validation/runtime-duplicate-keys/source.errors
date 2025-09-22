@@ -1,0 +1,35 @@
+error: duplicate key `foo` in runtime section
+   ┌─ tests/validation/runtime-duplicate-keys/source.wdl:11:9
+   │
+ 7 │         foo: "first"
+   │         --- first key with this name is here
+   ·
+11 │         foo: "dup"
+   │         ^^^ this key is a duplicate
+
+error: duplicate key `bar` in runtime section
+   ┌─ tests/validation/runtime-duplicate-keys/source.wdl:12:9
+   │
+ 8 │         bar: "first"
+   │         --- first key with this name is here
+   ·
+12 │         bar: "dup"
+   │         ^^^ this key is a duplicate
+
+error: duplicate key `foo` in runtime section
+   ┌─ tests/validation/runtime-duplicate-keys/source.wdl:13:9
+   │
+ 7 │         foo: "first"
+   │         --- first key with this name is here
+   ·
+13 │         foo: "dup"
+   │         ^^^ this key is a duplicate
+
+error: conflicting key `container` in runtime section
+   ┌─ tests/validation/runtime-duplicate-keys/source.wdl:23:9
+   │
+22 │         docker: "foo"
+   │         ------ the conflicting alias is here
+23 │         container: "bar"
+   │         ^^^^^^^^^ this key conflicts with an alias
+

@@ -1,0 +1,6 @@
+error: task `my_task` does not have an output named `unknown`
+   ┌─ tests/analysis/unknown-call-output/source.wdl:12:24
+   │
+12 │     String x = my_task.unknown
+   │                        ^^^^^^^
+

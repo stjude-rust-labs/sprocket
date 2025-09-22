@@ -1,0 +1,24 @@
+error: an unterminated string was encountered
+  ┌─ tests/parsing/unterminated-metadata-string/source.wdl:8:12
+  │
+8 │         a: 'unterminated
+  │            ^ this quote is not matched
+
+error: expected `}`, but found end of input
+   ┌─ tests/parsing/unterminated-metadata-string/source.wdl:11:1
+   │
+ 5 │ task test {
+   │           - this `{` is not matched
+   ·
+11 │ 
+   │ ^ unexpected end of input
+
+error: expected `}`, but found end of input
+   ┌─ tests/parsing/unterminated-metadata-string/source.wdl:11:1
+   │
+ 6 │     meta {
+   │          - this `{` is not matched
+   ·
+11 │ 
+   │ ^ unexpected end of input
+

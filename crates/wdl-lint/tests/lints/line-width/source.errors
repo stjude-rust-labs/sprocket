@@ -1,0 +1,32 @@
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/line-width/source.wdl:14:1
+   │
+14 │             this is going to be a really long line that is almost certainly going to be longer than the maximum line length I would hope /
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: split the line into multiple lines
+
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/line-width/source.wdl:16:1
+   │
+16 │             this line is also going to be very very very long just to trip up our maximum line lint /
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: split the line into multiple lines
+
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/line-width/source.wdl:55:1
+   │
+55 │     command <<< this is a task that has a very very very long command section on the first line. >>>
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: split the line into multiple lines
+
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/line-width/source.wdl:62:1
+   │
+62 │ # Here is a very very very very very very very very very long comment that should absolutely eclipse 90 characters.
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: split the line into multiple lines
+

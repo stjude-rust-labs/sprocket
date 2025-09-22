@@ -1,0 +1,2 @@
+printf "data" > 'foo.data'
+printf "index" > 'foo.index'

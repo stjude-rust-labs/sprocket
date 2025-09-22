@@ -1,0 +1,39 @@
+RootNode@0..135
+  Comment@0..72 "## This is a test of  ..."
+  Whitespace@72..74 "\n\n"
+  VersionStatementNode@74..85
+    VersionKeyword@74..81 "version"
+    Whitespace@81..82 " "
+    Version@82..85 "1.2"
+  Whitespace@85..87 "\n\n"
+  WorkflowDefinitionNode@87..134
+    WorkflowKeyword@87..95 "workflow"
+    Whitespace@95..96 " "
+    Ident@96..100 "test"
+    Whitespace@100..101 " "
+    OpenBrace@101..102 "{"
+    Whitespace@102..107 "\n    "
+    CallStatementNode@107..132
+      CallKeyword@107..111 "call"
+      Whitespace@111..112 " "
+      CallTargetNode@112..115
+        Ident@112..115 "foo"
+      Whitespace@115..116 " "
+      OpenBrace@116..117 "{"
+      Whitespace@117..118 " "
+      CallInputItemNode@118..121
+        Ident@118..121 "foo"
+      Comma@121..122 ","
+      Whitespace@122..123 " "
+      CallInputItemNode@123..130
+        Ident@123..126 "bar"
+        Whitespace@126..127 " "
+        Assignment@127..128 "="
+        Whitespace@128..129 " "
+        LiteralIntegerNode@129..130
+          Integer@129..130 "1"
+      Whitespace@130..131 " "
+      CloseBrace@131..132 "}"
+    Whitespace@132..133 "\n"
+    CloseBrace@133..134 "}"
+  Whitespace@134..135 "\n"

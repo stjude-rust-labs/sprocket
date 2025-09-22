@@ -1,0 +1,12 @@
+error: expected type, but found `]`
+  ┌─ tests/parsing/empty-array-type/source.wdl:6:11
+  │
+6 │     Array[] a
+  │           ^ unexpected `]`
+
+error: expected struct member name, but found `}`
+  ┌─ tests/parsing/empty-array-type/source.wdl:7:1
+  │
+7 │ }
+  │ ^ unexpected `}`
+

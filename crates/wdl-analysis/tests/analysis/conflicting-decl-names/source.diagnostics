@@ -1,0 +1,108 @@
+error: conflicting output name `x`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:14:16
+   │
+ 8 │         Int x
+   │             - the input with the conflicting name is here
+   ·
+14 │         String x = "x"
+   │                ^ this output conflicts with a previously used name
+
+error: conflicting output name `y`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:15:16
+   │
+ 9 │         Int y = 0
+   │             - the input with the conflicting name is here
+   ·
+15 │         String y = "y"
+   │                ^ this output conflicts with a previously used name
+
+error: conflicting declaration name `x`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:20:9
+   │
+ 8 │         Int x
+   │             - the input with the conflicting name is here
+   ·
+20 │     Int x = y
+   │         ^ this declaration conflicts with a previously used name
+
+error: conflicting output name `x`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:33:16
+   │
+27 │         Int x
+   │             - the input with the conflicting name is here
+   ·
+33 │         String x = "x"
+   │                ^ this output conflicts with a previously used name
+
+error: conflicting output name `y`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:34:16
+   │
+28 │         Int y = 0
+   │             - the input with the conflicting name is here
+   ·
+34 │         String y = "y"
+   │                ^ this output conflicts with a previously used name
+
+error: conflicting declaration name `x`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:39:9
+   │
+27 │         Int x
+   │             - the input with the conflicting name is here
+   ·
+39 │     Int x = y
+   │         ^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `b`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:46:17
+   │
+29 │         String b
+   │                - the input with the conflicting name is here
+   ·
+46 │             Int b = 0
+   │                 ^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `x2`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:47:17
+   │
+42 │         Int x2 = 0
+   │             -- the declaration with the conflicting name is here
+   ·
+47 │             Int x2 = 0
+   │                 ^^ this declaration conflicts with a previously used name
+
+error: conflicting scatter variable name `x`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:52:14
+   │
+27 │         Int x
+   │             - the input with the conflicting name is here
+   ·
+52 │     scatter (x in [1, 2, 3]) {
+   │              ^ this scatter variable conflicts with a previously used name
+
+error: conflicting declaration name `z`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:53:13
+   │
+38 │     Int z = x
+   │         - the declaration with the conflicting name is here
+   ·
+53 │         Int z = x
+   │             ^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `nested`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:58:21
+   │
+56 │         scatter (nested in [1, 2, 3]) {
+   │                  ------ the scatter variable with the conflicting name is here
+57 │             scatter (baz in [1, 2, 3]) {
+58 │                 Int nested = 0
+   │                     ^^^^^^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `nested`
+   ┌─ tests/analysis/conflicting-decl-names/source.wdl:65:13
+   │
+58 │                 Int nested = 0
+   │                     ------ the declaration with the conflicting name is here
+   ·
+65 │         Int nested = 0
+   │             ^^^^^^ this declaration conflicts with a previously used name
+

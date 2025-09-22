@@ -1,0 +1,27 @@
+error: duplicate key `foo` in literal object
+   ┌─ tests/validation/literal-object-duplicate-keys/source.wdl:11:9
+   │
+ 7 │         foo: "first",
+   │         --- first key with this name is here
+   ·
+11 │         foo: "dup",
+   │         ^^^ this key is a duplicate
+
+error: duplicate key `bar` in literal object
+   ┌─ tests/validation/literal-object-duplicate-keys/source.wdl:12:9
+   │
+ 8 │         bar: "first",
+   │         --- first key with this name is here
+   ·
+12 │         bar: "dup",
+   │         ^^^ this key is a duplicate
+
+error: duplicate key `foo` in literal object
+   ┌─ tests/validation/literal-object-duplicate-keys/source.wdl:13:9
+   │
+ 7 │         foo: "first",
+   │         --- first key with this name is here
+   ·
+13 │         foo: "dup",
+   │         ^^^ this key is a duplicate
+

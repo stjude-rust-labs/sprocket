@@ -1,0 +1,240 @@
+RootNode@0..354
+  Comment@0..28 "# Test for infix expr ..."
+  Whitespace@28..30 "\n\n"
+  VersionStatementNode@30..41
+    VersionKeyword@30..37 "version"
+    Whitespace@37..38 " "
+    Version@38..41 "1.1"
+  Whitespace@41..43 "\n\n"
+  TaskDefinitionNode@43..353
+    TaskKeyword@43..47 "task"
+    Whitespace@47..48 " "
+    Ident@48..52 "test"
+    Whitespace@52..53 " "
+    OpenBrace@53..54 "{"
+    Whitespace@54..59 "\n    "
+    BoundDeclNode@59..84
+      PrimitiveTypeNode@59..66
+        BooleanTypeKeyword@59..66 "Boolean"
+      Whitespace@66..67 " "
+      Ident@67..68 "a"
+      Whitespace@68..69 " "
+      Assignment@69..70 "="
+      Whitespace@70..71 " "
+      LogicalOrExprNode@71..84
+        LiteralBooleanNode@71..75
+          TrueKeyword@71..75 "true"
+        Whitespace@75..76 " "
+        LogicalOr@76..78 "||"
+        Whitespace@78..79 " "
+        LiteralBooleanNode@79..84
+          FalseKeyword@79..84 "false"
+    Whitespace@84..89 "\n    "
+    BoundDeclNode@89..110
+      PrimitiveTypeNode@89..96
+        BooleanTypeKeyword@89..96 "Boolean"
+      Whitespace@96..97 " "
+      Ident@97..98 "b"
+      Whitespace@98..99 " "
+      Assignment@99..100 "="
+      Whitespace@100..101 " "
+      LogicalAndExprNode@101..110
+        NameRefExprNode@101..102
+          Ident@101..102 "a"
+        Whitespace@102..103 " "
+        LogicalAnd@103..105 "&&"
+        Whitespace@105..106 " "
+        LiteralBooleanNode@106..110
+          TrueKeyword@106..110 "true"
+    Whitespace@110..115 "\n    "
+    BoundDeclNode@115..133
+      PrimitiveTypeNode@115..122
+        BooleanTypeKeyword@115..122 "Boolean"
+      Whitespace@122..123 " "
+      Ident@123..124 "c"
+      Whitespace@124..125 " "
+      Assignment@125..126 "="
+      Whitespace@126..127 " "
+      EqualityExprNode@127..133
+        NameRefExprNode@127..128
+          Ident@127..128 "a"
+        Whitespace@128..129 " "
+        Equal@129..131 "=="
+        Whitespace@131..132 " "
+        NameRefExprNode@132..133
+          Ident@132..133 "b"
+    Whitespace@133..138 "\n    "
+    BoundDeclNode@138..160
+      PrimitiveTypeNode@138..145
+        BooleanTypeKeyword@138..145 "Boolean"
+      Whitespace@145..146 " "
+      Ident@146..147 "d"
+      Whitespace@147..148 " "
+      Assignment@148..149 "="
+      Whitespace@149..150 " "
+      InequalityExprNode@150..160
+        NameRefExprNode@150..151
+          Ident@150..151 "c"
+        Whitespace@151..152 " "
+        NotEqual@152..154 "!="
+        Whitespace@154..155 " "
+        LiteralBooleanNode@155..160
+          FalseKeyword@155..160 "false"
+    Whitespace@160..165 "\n    "
+    BoundDeclNode@165..182
+      PrimitiveTypeNode@165..172
+        BooleanTypeKeyword@165..172 "Boolean"
+      Whitespace@172..173 " "
+      Ident@173..174 "e"
+      Whitespace@174..175 " "
+      Assignment@175..176 "="
+      Whitespace@176..177 " "
+      LessExprNode@177..182
+        LiteralIntegerNode@177..178
+          Integer@177..178 "1"
+        Whitespace@178..179 " "
+        Less@179..180 "<"
+        Whitespace@180..181 " "
+        LiteralIntegerNode@181..182
+          Integer@181..182 "2"
+    Whitespace@182..187 "\n    "
+    BoundDeclNode@187..205
+      PrimitiveTypeNode@187..194
+        BooleanTypeKeyword@187..194 "Boolean"
+      Whitespace@194..195 " "
+      Ident@195..196 "f"
+      Whitespace@196..197 " "
+      Assignment@197..198 "="
+      Whitespace@198..199 " "
+      LessEqualExprNode@199..205
+        LiteralIntegerNode@199..200
+          Integer@199..200 "2"
+        Whitespace@200..201 " "
+        LessEqual@201..203 "<="
+        Whitespace@203..204 " "
+        LiteralIntegerNode@204..205
+          Integer@204..205 "2"
+    Whitespace@205..210 "\n    "
+    BoundDeclNode@210..227
+      PrimitiveTypeNode@210..217
+        BooleanTypeKeyword@210..217 "Boolean"
+      Whitespace@217..218 " "
+      Ident@218..219 "g"
+      Whitespace@219..220 " "
+      Assignment@220..221 "="
+      Whitespace@221..222 " "
+      GreaterExprNode@222..227
+        LiteralIntegerNode@222..223
+          Integer@222..223 "1"
+        Whitespace@223..224 " "
+        Greater@224..225 ">"
+        Whitespace@225..226 " "
+        LiteralIntegerNode@226..227
+          Integer@226..227 "2"
+    Whitespace@227..232 "\n    "
+    BoundDeclNode@232..250
+      PrimitiveTypeNode@232..239
+        BooleanTypeKeyword@232..239 "Boolean"
+      Whitespace@239..240 " "
+      Ident@240..241 "h"
+      Whitespace@241..242 " "
+      Assignment@242..243 "="
+      Whitespace@243..244 " "
+      GreaterEqualExprNode@244..250
+        LiteralIntegerNode@244..245
+          Integer@244..245 "2"
+        Whitespace@245..246 " "
+        GreaterEqual@246..248 ">="
+        Whitespace@248..249 " "
+        LiteralIntegerNode@249..250
+          Integer@249..250 "2"
+    Whitespace@250..255 "\n    "
+    BoundDeclNode@255..270
+      PrimitiveTypeNode@255..258
+        IntTypeKeyword@255..258 "Int"
+      Whitespace@258..259 " "
+      Ident@259..260 "i"
+      Whitespace@260..261 " "
+      Assignment@261..262 "="
+      Whitespace@262..263 " "
+      AdditionExprNode@263..270
+        LiteralIntegerNode@263..265
+          Integer@263..265 "30"
+        Whitespace@265..266 " "
+        Plus@266..267 "+"
+        Whitespace@267..268 " "
+        LiteralIntegerNode@268..270
+          Integer@268..270 "12"
+    Whitespace@270..275 "\n    "
+    BoundDeclNode@275..291
+      PrimitiveTypeNode@275..278
+        IntTypeKeyword@275..278 "Int"
+      Whitespace@278..279 " "
+      Ident@279..280 "j"
+      Whitespace@280..281 " "
+      Assignment@281..282 "="
+      Whitespace@282..283 " "
+      SubtractionExprNode@283..291
+        LiteralIntegerNode@283..285
+          Integer@283..285 "30"
+        Whitespace@285..286 " "
+        Minus@286..287 "-"
+        Whitespace@287..288 " "
+        NegationExprNode@288..291
+          Minus@288..289 "-"
+          LiteralIntegerNode@289..291
+            Integer@289..291 "12"
+    Whitespace@291..296 "\n    "
+    BoundDeclNode@296..311
+      PrimitiveTypeNode@296..299
+        IntTypeKeyword@296..299 "Int"
+      Whitespace@299..300 " "
+      Ident@300..301 "k"
+      Whitespace@301..302 " "
+      Assignment@302..303 "="
+      Whitespace@303..304 " "
+      MultiplicationExprNode@304..311
+        LiteralIntegerNode@304..306
+          Integer@304..306 "10"
+        Whitespace@306..307 " "
+        Asterisk@307..308 "*"
+        Whitespace@308..309 " "
+        LiteralIntegerNode@309..311
+          Integer@309..311 "10"
+    Whitespace@311..316 "\n    "
+    BoundDeclNode@316..331
+      PrimitiveTypeNode@316..319
+        IntTypeKeyword@316..319 "Int"
+      Whitespace@319..320 " "
+      Ident@320..321 "l"
+      Whitespace@321..322 " "
+      Assignment@322..323 "="
+      Whitespace@323..324 " "
+      DivisionExprNode@324..331
+        LiteralIntegerNode@324..326
+          Integer@324..326 "10"
+        Whitespace@326..327 " "
+        Slash@327..328 "/"
+        Whitespace@328..329 " "
+        LiteralIntegerNode@329..331
+          Integer@329..331 "10"
+    Whitespace@331..336 "\n    "
+    BoundDeclNode@336..351
+      PrimitiveTypeNode@336..339
+        IntTypeKeyword@336..339 "Int"
+      Whitespace@339..340 " "
+      Ident@340..341 "m"
+      Whitespace@341..342 " "
+      Assignment@342..343 "="
+      Whitespace@343..344 " "
+      ModuloExprNode@344..351
+        LiteralIntegerNode@344..346
+          Integer@344..346 "10"
+        Whitespace@346..347 " "
+        Percent@347..348 "%"
+        Whitespace@348..349 " "
+        LiteralIntegerNode@349..351
+          Integer@349..351 "10"
+    Whitespace@351..352 "\n"
+    CloseBrace@352..353 "}"
+  Whitespace@353..354 "\n"

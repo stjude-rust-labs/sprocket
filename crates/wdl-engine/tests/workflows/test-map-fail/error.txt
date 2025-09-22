@@ -1,0 +1,6 @@
+error: the map does not contain an entry for the specified key
+  ┌─ tests/workflows/test-map-fail/source.wdl:5:25
+  │
+5 │   Int c = string_to_int["c"]  # error - "c" is not a key in the map
+  │                         ^^^
+

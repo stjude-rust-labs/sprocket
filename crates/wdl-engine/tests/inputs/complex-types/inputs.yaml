@@ -1,0 +1,33 @@
+test.foo:
+  foo: 100
+  bar: "hello"
+  baz:
+    foo: "world"
+    bar: "!"
+    baz:
+      foo: False
+      bar: 100.5
+test.bar:
+  foo: "jam"
+  bar: "cakes"
+  baz:
+    foo: True
+    bar: 0.5
+test.baz:
+  foo: False
+  bar: 1234.1234
+test.my_call.foo:
+  foo: -1
+  bar: "dogs"
+  baz:
+    foo: "are"
+    bar: "good"
+    baz:
+      foo: True
+      bar: -1234.1234
+test.x: null
+test.y:
+  - 1
+  - 2.3
+  - 2.5
+  - 3

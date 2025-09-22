@@ -1,0 +1,6 @@
+# Fail if the attempt is not the 4th attempt (attempt = 3)
+if (( 3 != 3 )); then
+    exit 1
+fi
+
+echo 'attempt 3 was successful!' > done.txt

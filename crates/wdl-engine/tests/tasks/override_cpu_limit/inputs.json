@@ -1,0 +1,4 @@
+{
+    "hello_task.infile": "greetings.txt",
+    "hello_task.pattern": "hello.*"
+}

@@ -1,0 +1,19 @@
+{
+  "call_example.lines1": [
+    "default",
+    "default",
+    "default"
+  ],
+  "call_example.lines2": [
+    "hello",
+    "hello",
+    "hello",
+    "hello"
+  ],
+  "call_example.lines3": [
+    "hello",
+    "hello"
+  ],
+  "call_example.results1": null,
+  "call_example.results2": null
+}

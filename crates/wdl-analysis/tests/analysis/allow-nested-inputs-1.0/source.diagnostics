@@ -1,0 +1,6 @@
+warning: missing required call input `required` for task `my_task`
+   ┌─ tests/analysis/allow-nested-inputs-1.0/source.wdl:22:10
+   │
+22 │     call my_task
+   │          ^^^^^^^
+

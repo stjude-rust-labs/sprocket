@@ -1,0 +1,24 @@
+RootNode@0..87
+  Comment@0..45 "# This is a test of p ..."
+  Whitespace@45..47 "\n\n"
+  VersionStatementNode@47..58
+    VersionKeyword@47..54 "version"
+    Whitespace@54..55 " "
+    Version@55..58 "1.1"
+  Whitespace@58..60 "\n\n"
+  StructDefinitionNode@60..86
+    StructKeyword@60..66 "struct"
+    Whitespace@66..67 " "
+    Ident@67..70 "Foo"
+    Whitespace@70..71 " "
+    OpenBrace@71..72 "{"
+    Whitespace@72..77 "\n    "
+    MapTypeKeyword@77..80 "Map"
+    OpenBracket@80..81 "["
+    CloseBracket@81..82 "]"
+    Whitespace@82..83 " "
+    TypeRefNode@83..84
+      Ident@83..84 "a"
+    Whitespace@84..85 "\n"
+    CloseBrace@85..86 "}"
+  Whitespace@86..87 "\n"

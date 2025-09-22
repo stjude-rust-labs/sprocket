@@ -1,0 +1,8 @@
+printf "Hello Richard! You have 1 test result(s) available./n"
+
+if true; then
+  if [ "1000000" -gt 1000 ]; then
+    currency="USD"
+    printf "Please transfer $currency 500 to continue"
+  fi
+fi

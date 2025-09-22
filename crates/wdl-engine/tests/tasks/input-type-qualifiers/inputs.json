@@ -1,0 +1,10 @@
+{
+    "input_type_quantifiers.a": [],
+    "input_type_quantifiers.b": [
+        "A",
+        "B"
+    ],
+    "input_type_quantifiers.e": [
+        "C"
+    ]
+}

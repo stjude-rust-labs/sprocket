@@ -1,0 +1,8 @@
+note[PreambleFormatted]: preamble comments must start with `##` and have at least one space between the `##` and the comment text
+  ┌─ tests/lints/missing-comment-space/source.wdl:1:1
+  │
+1 │ ##This preamble comment is missing a space.
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = fix: either move this comment out of the preamble or change it to a preamble comment (i.e. a comment that starts with `##`)
+

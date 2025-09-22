@@ -1,0 +1,2 @@
+# This comment WILL be included within the command after it has been parsed
+echo 2

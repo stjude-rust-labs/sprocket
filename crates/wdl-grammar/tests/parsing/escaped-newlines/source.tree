@@ -1,0 +1,66 @@
+RootNode@0..333
+  Comment@0..69 "# This is a test of e ..."
+  Whitespace@69..71 "\n\n"
+  VersionStatementNode@71..82
+    VersionKeyword@71..78 "version"
+    Whitespace@78..79 " "
+    Version@79..82 "1.1"
+  Whitespace@82..84 "\n\n"
+  TaskDefinitionNode@84..206
+    TaskKeyword@84..88 "task"
+    Whitespace@88..89 " "
+    Ident@89..94 "first"
+    Whitespace@94..95 " "
+    OpenBrace@95..96 "{"
+    Whitespace@96..101 "\n    "
+    BoundDeclNode@101..128
+      PrimitiveTypeNode@101..107
+        StringTypeKeyword@101..107 "String"
+      Whitespace@107..108 " "
+      Ident@108..109 "x"
+      Whitespace@109..110 " "
+      Assignment@110..111 "="
+      Whitespace@111..112 " "
+      LiteralStringNode@112..128
+        DoubleQuote@112..113 "\""
+        LiteralStringText@113..127 "first \\\nsecond"
+        DoubleQuote@127..128 "\""
+    Whitespace@128..134 "\n\n    "
+    CommandSectionNode@134..204
+      CommandKeyword@134..141 "command"
+      Whitespace@141..142 " "
+      OpenHeredoc@142..145 "<<<"
+      LiteralCommandText@145..201 "\n        this line ha ..."
+      CloseHeredoc@201..204 ">>>"
+    Whitespace@204..205 "\n"
+    CloseBrace@205..206 "}"
+  Whitespace@206..208 "\n\n"
+  TaskDefinitionNode@208..332
+    TaskKeyword@208..212 "task"
+    Whitespace@212..213 " "
+    Ident@213..219 "second"
+    Whitespace@219..220 " "
+    OpenBrace@220..221 "{"
+    Whitespace@221..226 "\n    "
+    BoundDeclNode@226..253
+      PrimitiveTypeNode@226..232
+        StringTypeKeyword@226..232 "String"
+      Whitespace@232..233 " "
+      Ident@233..234 "x"
+      Whitespace@234..235 " "
+      Assignment@235..236 "="
+      Whitespace@236..237 " "
+      LiteralStringNode@237..253
+        SingleQuote@237..238 "'"
+        LiteralStringText@238..252 "first \\\nsecond"
+        SingleQuote@252..253 "'"
+    Whitespace@253..259 "\n\n    "
+    CommandSectionNode@259..330
+      CommandKeyword@259..266 "command"
+      Whitespace@266..267 " "
+      OpenBrace@267..268 "{"
+      LiteralCommandText@268..329 "\n        this line al ..."
+      CloseBrace@329..330 "}"
+    Whitespace@330..331 "\n"
+    CloseBrace@331..332 "}"
+  Whitespace@332..333 "\n"

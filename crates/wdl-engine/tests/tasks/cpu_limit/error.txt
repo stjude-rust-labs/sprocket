@@ -1,0 +1,4 @@
+failed to get constraints for task `hello_task`
+
+Caused by:
+    task requires at least 4200 CPUs

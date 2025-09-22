@@ -1,0 +1,12 @@
+error: expected expression, but found `)`
+  ┌─ tests/parsing/empty-conditional/source.wdl:6:9
+  │
+6 │     if () {
+  │         ^ unexpected `)`
+
+error: expected import statement, struct definition, task definition, or workflow definition, but found `}`
+  ┌─ tests/parsing/empty-conditional/source.wdl:9:1
+  │
+9 │ }
+  │ ^ unexpected `}`
+

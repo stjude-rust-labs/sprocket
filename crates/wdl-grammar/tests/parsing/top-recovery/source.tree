@@ -1,0 +1,46 @@
+RootNode@0..120
+  Comment@0..44 "# This is a test of t ..."
+  Whitespace@44..46 "\n\n"
+  VersionStatementNode@46..57
+    VersionKeyword@46..53 "version"
+    Whitespace@53..54 " "
+    Version@54..57 "1.1"
+  Whitespace@57..59 "\n\n"
+  StructDefinitionNode@59..84
+    StructKeyword@59..65 "struct"
+    Whitespace@65..66 " "
+    Ident@66..67 "A"
+    Whitespace@67..68 " "
+    OpenBrace@68..69 "{"
+    Whitespace@69..74 "\n    "
+    UnboundDeclNode@74..82
+      PrimitiveTypeNode@74..80
+        StringTypeKeyword@74..80 "String"
+      Whitespace@80..81 " "
+      Ident@81..82 "x"
+    Whitespace@82..83 "\n"
+    CloseBrace@83..84 "}"
+  Whitespace@84..86 "\n\n"
+  IntTypeKeyword@86..89 "Int"
+  Whitespace@89..90 " "
+  Ident@90..91 "i"
+  Whitespace@91..92 " "
+  Assignment@92..93 "="
+  Whitespace@93..94 " "
+  Integer@94..95 "0"
+  Whitespace@95..97 "\n\n"
+  StructDefinitionNode@97..119
+    StructKeyword@97..103 "struct"
+    Whitespace@103..104 " "
+    Ident@104..105 "B"
+    Whitespace@105..106 " "
+    OpenBrace@106..107 "{"
+    Whitespace@107..112 "\n    "
+    UnboundDeclNode@112..117
+      PrimitiveTypeNode@112..115
+        IntTypeKeyword@112..115 "Int"
+      Whitespace@115..116 " "
+      Ident@116..117 "y"
+    Whitespace@117..118 "\n"
+    CloseBrace@118..119 "}"
+  Whitespace@119..120 "\n"

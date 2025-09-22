@@ -1,0 +1,6 @@
+error: failed to import `foo.wdl`: No such file or directory (os error 2)
+  ┌─ tests/analysis/import-missing/source.wdl:4:8
+  │
+4 │ import "foo.wdl"
+  │        ^^^^^^^^^
+

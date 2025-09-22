@@ -1,0 +1,12 @@
+error: use of the `hints` section requires WDL version 1.2
+  ┌─ tests/validation/hints-unsupported/source.wdl:8:5
+  │
+8 │     hints {
+  │     ^^^^^
+
+error: use of the `hints` section requires WDL version 1.2
+   ┌─ tests/validation/hints-unsupported/source.wdl:18:5
+   │
+18 │     hints {
+   │     ^^^^^
+

@@ -1,0 +1,11 @@
+RootNode@0..101
+  Comment@0..77 "# This is a test of a ..."
+  Whitespace@77..79 "\n\n"
+  VersionStatementNode@79..95
+    VersionKeyword@79..86 "version"
+    Whitespace@86..87 " "
+    Version@87..95 "1-DEVEL."
+  Unknown@95..96 "~"
+  Ident@96..99 "bad"
+  Unknown@99..100 "~"
+  Whitespace@100..101 "\n"
