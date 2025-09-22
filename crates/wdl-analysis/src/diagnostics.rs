@@ -406,7 +406,7 @@ pub fn no_common_type(
     ))
     .with_label(format!("this is type `{actual}`"), actual_span)
     .with_label(
-        format!("all elements up until and including this one had a common type `{expected}`"),
+        format!("this and all prior elements had a common type `{expected}`"),
         expected_span,
     )
 }
