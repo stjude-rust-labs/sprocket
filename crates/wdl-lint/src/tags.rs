@@ -33,7 +33,7 @@ pub enum Tag {
     /// Rules associated with the use of deprecated language constructs.
     Deprecated,
 
-    /// Rules associeted with documentation.
+    /// Rules associated with documentation.
     Documentation,
 
     /// Rules associated with compatibility with documentation rendering.
