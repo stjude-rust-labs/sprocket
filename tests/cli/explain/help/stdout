@@ -74,6 +74,7 @@ Available tags:
   - Completeness
   - Correctness
   - Deprecated
+  - DocRendering
   - Documentation
   - Naming
   - Portability
