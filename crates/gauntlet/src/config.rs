@@ -15,10 +15,10 @@ pub use inner::Inner;
 const DEFAULT_CONFIG_DIR: &str = "wdl-gauntlet";
 
 /// The default name for the `wdl-gauntlet` configuration file.
-const DEFAULT_CONFIG_FILE: &str = "Gauntlet.toml";
+const DEFAULT_CONFIG_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/Gauntlet.toml");
 
 /// The default name for the `wdl-gauntlet --arena` configuration file.
-const DEFAULT_ARENA_CONFIG_FILE: &str = "Arena.toml";
+const DEFAULT_ARENA_CONFIG_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/Arena.toml");
 
 /// An error related to a [`Config`].
 #[derive(Debug)]
