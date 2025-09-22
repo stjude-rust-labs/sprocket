@@ -35,6 +35,9 @@ pub enum Tag {
 
     /// Rules associeted with documentation.
     Documentation,
+
+    /// Rules associated with compatibility with documentation rendering.
+    DocRendering,
 }
 
 /// An error for when an unknown tag is encountered.
@@ -64,6 +67,7 @@ impl std::str::FromStr for Tag {
             s if s.eq_ignore_ascii_case("sorting") => Ok(Self::Sorting),
             s if s.eq_ignore_ascii_case("deprecated") => Ok(Self::Deprecated),
             s if s.eq_ignore_ascii_case("documentation") => Ok(Self::Documentation),
+            s if s.eq_ignore_ascii_case("docrendering") => Ok(Self::DocRendering),
             _ => Err(UnknownTagError(s.to_string())),
         }
     }
@@ -82,6 +86,7 @@ impl std::fmt::Display for Tag {
             Self::Sorting => write!(f, "Sorting"),
             Self::Deprecated => write!(f, "Deprecated"),
             Self::Documentation => write!(f, "Documentation"),
+            Self::DocRendering => write!(f, "DocRendering"),
         }
     }
 }

@@ -27,6 +27,7 @@ Available rules:
   - DeclarationName
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DescriptionLength
   - DoubleQuotes
   - ElementSpacing
   - EndingNewline
