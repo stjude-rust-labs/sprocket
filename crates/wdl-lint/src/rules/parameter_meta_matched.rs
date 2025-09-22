@@ -133,6 +133,7 @@ impl Rule for ParameterMetaMatchedRule {
             "RequirementsSection",
             "RuntimeSection",
             "MatchingOutputMeta",
+            "DescriptionLength"
         ]
     }
 }
