@@ -27,7 +27,6 @@ use wdl_analysis::diagnostics::map_key_not_primitive;
 use wdl_analysis::diagnostics::missing_struct_members;
 use wdl_analysis::diagnostics::multiple_type_mismatch;
 use wdl_analysis::diagnostics::no_common_type;
-use wdl_analysis::diagnostics::no_common_type_if;
 use wdl_analysis::diagnostics::not_a_pair_accessor;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
@@ -1011,7 +1010,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Determine the common type of the true and false expressions
         // The value must be coerced to that type
         let ty = true_ty.common_type(&false_ty).ok_or_else(|| {
-            no_common_type_if(&true_ty, true_expr.span(), &false_ty, false_expr.span())
+            type_mismatch(&true_ty, true_expr.span(), &false_ty, false_expr.span())
         })?;
 
         Ok(value

@@ -414,22 +414,6 @@ pub fn no_common_type(
     )
 }
 
-/// Creates a "no common type" diagnostic for an if statement.
-///
-/// This is called if the return elements of an if statement do not match.
-pub fn no_common_type_if(
-    expected: &Type,
-    expected_span: Span,
-    actual: &Type,
-    actual_span: Span,
-) -> Diagnostic {
-    Diagnostic::error(format!(
-        "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist"
-    ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
-    .with_label(format!("this is type `{expected}`"), expected_span)
-}
-
 /// Creates a "multiple type mismatch" diagnostic.
 pub fn multiple_type_mismatch(
     expected: &[Type],
