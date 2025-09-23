@@ -59,7 +59,10 @@ impl Rule for DescriptionLengthRule {
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
-        Some(&[SyntaxKind::MetadataObjectItemNode])
+        Some(&[
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::MetadataObjectItemNode,
+        ])
     }
 
     fn related_rules(&self) -> &[&'static str] {
