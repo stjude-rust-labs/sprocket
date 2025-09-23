@@ -14,6 +14,7 @@ use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio_util::sync::CancellationToken;
+use tracing::Level;
 use tracing::trace;
 
 use super::COMMAND_FILE_NAME;
@@ -277,18 +278,15 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // If an LSF queue has been configured, specify it. Otherwise, the job will end
         // up on the cluster's default queue.
         if let Some(queue) = &self.backend_config.queue {
-            bsub_command.arg("-q");
-            bsub_command.arg(queue);
+            bsub_command.arg("-q").arg(queue);
+        }
+        if tracing::enabled!(Level::TRACE) {
+            // Pipe stdout and stderr so we can trace them. This should just be the LSF
+            // output like `<<Waiting for dispatch ...>>`.
+            bsub_command.stdout(Stdio::piped()).stderr(Stdio::piped());
         }
 
         bsub_command
-            // Pipe stdout and stderr so we can trace them. This should just be the LSF output like
-            // `<<Waiting for dispatch ...>>`.
-            //
-            // TODO ACF 2025-09-10: maybe only bother with this (and the loops consuming the output)
-            // in a verbose mode
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
             // TODO ACF 2025-09-10: make this configurable; hardcode turning off LSF email spam for
             // now though.
             .env("LSB_JOB_REPORT_MAIL", "N")
@@ -328,34 +326,36 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
         let mut bsub_child = bsub_command.spawn()?;
 
-        // Take the stdio pipes from the child process and consume them for tracing
-        // purposes.
-        //
-        // TODO ACF 2025-09-10: future extension could hook some progress reporting in
-        // here based on "waiting for dispatch", "starting", etc messages. More
-        // robust would probably be to drop the `-K` and use `bjobs` to monitor.
-        let bsub_stdout = bsub_child
-            .stdout
-            .take()
-            .ok_or_else(|| anyhow!("bsub child stdout missing"))?;
-        let task_name = self.name.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(bsub_stdout).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                trace!(stdout = line, task_name);
-            }
-        });
-        let bsub_stderr = bsub_child
-            .stderr
-            .take()
-            .ok_or_else(|| anyhow!("bsub child stderr missing"))?;
-        let task_name = self.name.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(bsub_stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                trace!(stderr = line, task_name);
-            }
-        });
+        if tracing::enabled!(Level::TRACE) {
+            // Take the stdio pipes from the child process and consume them for tracing
+            // purposes.
+            //
+            // TODO ACF 2025-09-10: future extension could hook some progress reporting in
+            // here based on "waiting for dispatch", "starting", etc messages. More
+            // robust would probably be to drop the `-K` and use `bjobs` to monitor.
+            let bsub_stdout = bsub_child
+                .stdout
+                .take()
+                .ok_or_else(|| anyhow!("bsub child stdout missing"))?;
+            let task_name = self.name.clone();
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(bsub_stdout).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    trace!(stdout = line, task_name);
+                }
+            });
+            let bsub_stderr = bsub_child
+                .stderr
+                .take()
+                .ok_or_else(|| anyhow!("bsub child stderr missing"))?;
+            let task_name = self.name.clone();
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(bsub_stderr).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    trace!(stderr = line, task_name);
+                }
+            });
+        }
 
         // Await the result of the `bsub` command, which will only exit on error or once
         // the containerized command has completed.
