@@ -25,7 +25,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 rust-version = "1.89.0"
 
 [workspace.dependencies]
-ammonia = "4.1.0"
+ammonia = "4.1.2"
 anyhow = "1.0.98"
 approx = "0.5.1"
 bimap = "0.6.3"

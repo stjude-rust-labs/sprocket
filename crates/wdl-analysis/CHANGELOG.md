@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.13.0 - 09-15-2025
 
+#### Changed
+
+* Added a better error message for array and map type resolution issues
+  ([#349](https://github.com/stjude-rust-labs/sprocket/pull/349)).
+
 #### Added
 
 * Added workspace symbols support for the WDL Language Server ([#588](https://github.com/stjude-rust-labs/wdl/pull/588)).
