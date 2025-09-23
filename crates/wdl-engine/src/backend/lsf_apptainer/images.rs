@@ -113,12 +113,11 @@ pub(crate) async fn sif_for_container(
         let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
         let mut sif_path = global_apptainer_images_dir(config)
             .await?
-            .join(sif_filename)
+            // Append `.sif` to the filename. It would be nice to use a method like
+            // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)
+            // instead, but it's not stable yet.
+            .join(format!("{sif_filename}.sif"))
             .to_path_buf();
-        // TODO ACF 2025-09-22: this will incorrectly edit filenames that already have dots in them,
-        // eg `ghcr.io/stjudecloud/minfi:1.48.0-6` became `ghcr.io/stjudecloud/minfi:1.48.sif`. Bad
-        // news and introduces the possibility of collisions
-        sif_path.set_extension("sif");
 
         Retry::spawn_notify(
             // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with
@@ -127,10 +126,15 @@ pub(crate) async fn sif_for_container(
             // overwhelming registries with repeated retries.
             ExponentialBackoff::from_millis(50)
                 .max_delay_millis(60_000)
-                .take(30),
+                .take(5),
             || async {
                 try_pull(&sif_path, &container)
                     .await
+                    // TODO ACF 2025-09-23: treating all errors as transient is not ideal, as it
+                    // means obviously-doomed pulls (like for an image that doesn't exist) don't
+                    // fail until we exhaust retries. `apptainer pull` doesn't have a well-defined
+                    // interface that tells us whether a failure is transient, but over time we
+                    // could apply some heuristics to its output to try improving our behavior here.
                     .map_err(RetryError::transient)
             },
             |e, _| {
