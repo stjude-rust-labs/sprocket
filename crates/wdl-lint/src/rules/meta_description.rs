@@ -58,14 +58,13 @@ impl Rule for MetaDescriptionRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Each task or workflow should have a description in the meta section. This description \
-         should be an explanation of the task or workflow. The description should be written in \
-         active voice and complete sentences. More detailed information can be included in the \
-         `help` key."
+        "Each task, workflow, and struct should have a description in the meta section. The \
+         description should be short, written in active voice, and be in complete sentences. More \
+         detailed information can be included in the `help` key."
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Documentation])
+        TagSet::new(&[Tag::Completeness, Tag::Documentation, Tag::SprocketDoc])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
