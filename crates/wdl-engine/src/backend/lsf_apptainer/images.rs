@@ -137,6 +137,10 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), anyhow::Error>
         apptainer_pull_command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+    } else {
+        apptainer_pull_command
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
     }
     let mut apptainer_pull_child = apptainer_pull_command
         .arg("pull")
