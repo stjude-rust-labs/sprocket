@@ -1,3 +1,14 @@
+//! Experimental LSF + Apptainer (aka Singularity) task execution backend.
+//!
+//! This experimental backend submits each task as an LSF job which invokes
+//! Apptainer to provide the appropriate container environment for the WDL
+//! command to execute.
+//!
+//! Due to the proprietary nature of LSF, and limited ability to install
+//! Apptainer locally or in CI, this is currently tested by hand; expect (and
+//! report) bugs! In follow-up work, we hope to build a limited test suite based
+//! on mocking CLI invocations and/or golden testing of generated
+//! `bsub`/`apptainer` scripts.
 use std::fmt::Write as _;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt as _;
@@ -58,7 +69,6 @@ const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
-    engine_config: Arc<Config>,
     backend_config: Arc<LsfApptainerBackendConfig>,
     name: String,
     spawn_request: TaskSpawnRequest,
@@ -477,9 +487,6 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
 
         // Truncate the request ID to fit in the LSF job name length limit.
-        //
-        // TODO ACF 2025-09-12: test to see whether LSF even accepts non-ascii job
-        // names...
         let request_id = request.id();
         let name = if request_id.len() > LSF_JOB_NAME_MAX_LENGTH {
             request_id
@@ -492,7 +499,6 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
         self.manager.send(
             LsfApptainerTaskRequest {
-                engine_config: self.engine_config.clone(),
                 backend_config: self.backend_config.clone(),
                 spawn_request: request,
                 name,
@@ -520,9 +526,13 @@ impl TaskExecutionBackend for LsfApptainerBackend {
     }
 }
 
+/// Configuration for the LSF + Apptainer backend.
+// TODO ACF 2025-09-12: add queue option for short tasks
+//
+// TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
+// name, env var names, etc.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LsfApptainerBackendConfig {
-    // TODO ACF 2025-09-12: add queue option for short tasks
     pub queue: Option<String>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
