@@ -39,6 +39,12 @@
 //! directory in a global variable. This should be replaced with something more
 //! robust, but currently fits the execution model of the `sprocket`
 //! CLI well enough to proceed.
+//!
+//! Since an ordinary `cargo test` runs each test executable once, and each
+//! executable can contain many targets, this hack has a particularly distorting
+//! effect on tests of this backend. Consider using `cargo nextest` to run each
+//! target in a separate process in order to eliminate cross-test target
+//! interference.
 
 use std::collections::HashMap;
 use std::path::Path;
