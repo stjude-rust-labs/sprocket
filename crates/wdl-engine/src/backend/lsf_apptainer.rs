@@ -68,7 +68,6 @@ struct LsfApptainerTaskRequest {
     cpu: f64,
     /// The requested memory reservation for the task, in bytes.
     memory: u64,
-    // TODO ACF 2025-09-11: support cancellation
     cancellation_token: CancellationToken,
 }
 
@@ -82,7 +81,12 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
     }
 
     async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
-        let container_sif = sif_for_container(&self.backend_config, &self.container).await?;
+        let container_sif = sif_for_container(
+            &self.backend_config,
+            &self.container,
+            self.cancellation_token.clone(),
+        )
+        .await?;
 
         let attempt_dir = self.spawn_request.attempt_dir();
 
@@ -347,7 +351,10 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
         // Await the result of the `bsub` command, which will only exit on error or once
         // the containerized command has completed.
-        let bsub_result = bsub_child.wait().await?;
+        let bsub_result = tokio::select! {
+            _ = self.cancellation_token.cancelled() => Err(anyhow!("task execution cancelled")),
+            result = bsub_child.wait() => result.map_err(Into::into),
+        }?;
 
         // Hang onto the container tmp dir until execution is complete.
         drop(container_temp_dir);

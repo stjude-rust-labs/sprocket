@@ -64,6 +64,7 @@ use tokio::sync::OnceCell;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
+use tokio_util::sync::CancellationToken;
 use tracing::error;
 use tracing::info;
 use tracing::trace;
@@ -101,6 +102,7 @@ pub(crate) async fn global_apptainer_images_dir(
 pub(crate) async fn sif_for_container(
     config: &LsfApptainerBackendConfig,
     container: &str,
+    cancellation_token: CancellationToken,
 ) -> Result<PathBuf, anyhow::Error> {
     let once = {
         let mut map = APPTAINER_IMAGES.lock().unwrap();
@@ -119,7 +121,7 @@ pub(crate) async fn sif_for_container(
             .join(format!("{sif_filename}.sif"))
             .to_path_buf();
 
-        Retry::spawn_notify(
+        let retry = Retry::spawn_notify(
             // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with
             // flakiness of the container registries. This is a finger-in-the-wind guess at some
             // reasonable parameters that shouldn't lead to us making our own problems worse by
@@ -131,8 +133,13 @@ pub(crate) async fn sif_for_container(
             |e, _| {
                 warn!(e = %e, "`apptainer pull` failed");
             },
-        )
-        .await?;
+        );
+
+        tokio::select! {
+            _ = cancellation_token.cancelled() => return Err(anyhow!("task execution cancelled")),
+            res = retry => res?,
+        };
+
         info!(sif_path = %sif_path.display(), container, "image pulled successfully");
         Ok(sif_path)
     })
