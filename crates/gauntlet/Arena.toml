@@ -1942,7 +1942,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
-message = "estimate.wdl:15:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "estimate.wdl:15:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/estimate.wdl/#L15"
 
 [[diagnostics]]
@@ -1987,7 +1987,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:115:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "fq.wdl:115:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L115"
 
 [[diagnostics]]
@@ -2202,7 +2202,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:402:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "gatk4.wdl:402:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L402"
 
 [[diagnostics]]
@@ -2217,12 +2217,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:424:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "gatk4.wdl:424:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L424"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:425:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "gatk4.wdl:425:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L425"
 
 [[diagnostics]]
@@ -2352,12 +2352,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:151:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "htseq.wdl:151:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L151"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:152:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "htseq.wdl:152:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L152"
 
 [[diagnostics]]
@@ -2377,17 +2377,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:44:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "htseq.wdl:44:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L44"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:48:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "htseq.wdl:48:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L48"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:9:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "htseq.wdl:9:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L9"
 
 [[diagnostics]]
@@ -2417,12 +2417,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:129:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:129:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L129"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:134:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:134:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L134"
 
 [[diagnostics]]
@@ -2447,12 +2447,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:191:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:191:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L191"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:204:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:204:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L204"
 
 [[diagnostics]]
@@ -2562,17 +2562,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:51:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:51:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L51"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:54:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:54:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L54"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:60:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:60:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L60"
 
 [[diagnostics]]
@@ -2582,12 +2582,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:77:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:77:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L77"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:9:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "kraken2.wdl:9:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L9"
 
 [[diagnostics]]
@@ -2637,17 +2637,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:10:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "mosdepth.wdl:10:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L10"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:11:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "mosdepth.wdl:11:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L11"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "mosdepth.wdl:19:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L19"
 
 [[diagnostics]]
@@ -2787,17 +2787,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:390:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "ngsderive.wdl:390:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L390"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:402:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "ngsderive.wdl:402:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L402"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:409:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "ngsderive.wdl:409:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L409"
 
 [[diagnostics]]
@@ -2982,7 +2982,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:32:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:32:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L32"
 
 [[diagnostics]]
@@ -3002,7 +3002,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:371:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:371:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L371"
 
 [[diagnostics]]
@@ -3087,7 +3087,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:495:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:495:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L495"
 
 [[diagnostics]]
@@ -3122,12 +3122,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:558:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:558:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L558"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:56:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:56:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L56"
 
 [[diagnostics]]
@@ -3137,12 +3137,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:57:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:57:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:58:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:58:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L58"
 
 [[diagnostics]]
@@ -3212,7 +3212,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:691:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:691:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L691"
 
 [[diagnostics]]
@@ -3287,7 +3287,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:813:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "picard.wdl:813:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L813"
 
 [[diagnostics]]
@@ -3417,7 +3417,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:21:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "qualimap.wdl:21:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L21"
 
 [[diagnostics]]
@@ -3462,7 +3462,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:7:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "qualimap.wdl:7:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L7"
 
 [[diagnostics]]
@@ -3482,7 +3482,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:97:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "qualimap.wdl:97:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L97"
 
 [[diagnostics]]
@@ -3602,7 +3602,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1067:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1067:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1067"
 
 [[diagnostics]]
@@ -3642,17 +3642,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1172:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1172:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1172"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1181:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1181:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1181"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1185:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1185:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1185"
 
 [[diagnostics]]
@@ -3667,27 +3667,27 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1199:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1199:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1199"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1201:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1201:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1201"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1203:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1203:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1203"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1204:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1204:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1211:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:1211:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1211"
 
 [[diagnostics]]
@@ -3782,12 +3782,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:280:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:280:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L280"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:287:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:287:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L287"
 
 [[diagnostics]]
@@ -3852,7 +3852,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:46:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:46:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L46"
 
 [[diagnostics]]
@@ -3897,17 +3897,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:519:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:519:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L519"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:530:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:530:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L530"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:534:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:534:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L534"
 
 [[diagnostics]]
@@ -3952,7 +3952,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:622:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:622:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L622"
 
 [[diagnostics]]
@@ -4002,57 +4002,57 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:773:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:773:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L773"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:774:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:774:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L774"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:775:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:775:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L775"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:776:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:776:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L776"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:777:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:777:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L777"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:778:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:778:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L778"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:784:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:784:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L784"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:787:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:787:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L787"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:791:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:791:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L791"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:795:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:795:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L795"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:799:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:799:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L799"
 
 [[diagnostics]]
@@ -4127,7 +4127,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:969:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:969:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L969"
 
 [[diagnostics]]
@@ -4142,7 +4142,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:9:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "samtools.wdl:9:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L9"
 
 [[diagnostics]]
@@ -4202,12 +4202,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:140:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:140:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L140"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:142:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:142:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L142"
 
 [[diagnostics]]
@@ -4217,117 +4217,117 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:149:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:149:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L149"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:150:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:150:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L150"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:151:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:151:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L151"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:156:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:156:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L156"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:157:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:157:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L157"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:158:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:158:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L158"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:159:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:159:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L159"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:160:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:160:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L160"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:161:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:161:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L161"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:173:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:173:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L173"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:200:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:200:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L200"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:33:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:33:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L33"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:34:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:34:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L34"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:363:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:363:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L363"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:366:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:366:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L366"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:367:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:367:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L367"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:368:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:368:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L368"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:371:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:371:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L371"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:38:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:38:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L38"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:408:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:408:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L408"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:412:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:412:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L412"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:427:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:427:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L427"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:464:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "star.wdl:464:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L464"
 
 [[diagnostics]]
@@ -4527,7 +4527,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:294:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "util.wdl:294:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L294"
 
 [[diagnostics]]
@@ -4607,12 +4607,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:54:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "util.wdl:54:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L54"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:64:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "util.wdl:64:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L64"
 
 [[diagnostics]]
@@ -4622,7 +4622,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:693:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "util.wdl:693:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L693"
 
 [[diagnostics]]
@@ -4722,7 +4722,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:33:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "chipseq-standard.wdl:33:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/chipseq/chipseq-standard.wdl/#L33"
 
 [[diagnostics]]
@@ -4732,7 +4732,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:28:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "dnaseq-core.wdl:28:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-core.wdl/#L28"
 
 [[diagnostics]]
@@ -4767,7 +4767,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:27:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "dnaseq-standard-fastq.wdl:27:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L27"
 
 [[diagnostics]]
@@ -4887,12 +4887,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:18:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "methylation-preprocess.wdl:18:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L18"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "methylation-preprocess.wdl:19:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L19"
 
 [[diagnostics]]
@@ -4927,57 +4927,57 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/markdups-post.wdl"
-message = "markdups-post.wdl:35:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "markdups-post.wdl:35:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/markdups-post.wdl/#L35"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:100:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:100:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L100"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:102:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:102:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L102"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:103:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:103:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L103"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:27:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:27:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L27"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:39:17: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:39:17: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L39"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:42:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:42:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L42"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:50:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:50:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L50"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:514:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:514:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L514"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:52:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:52:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L52"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:53:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:53:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L53"
 
 [[diagnostics]]
@@ -4987,27 +4987,27 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:61:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:61:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L61"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:62:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:62:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L62"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:63:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:63:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L63"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:64:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:64:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L64"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:65:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:65:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L65"
 
 [[diagnostics]]
@@ -5017,47 +5017,47 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:84:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:84:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L84"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:86:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:86:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L86"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:87:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:87:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L87"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:90:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:90:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L90"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:92:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:92:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L92"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:93:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:93:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L93"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:95:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:95:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L95"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:98:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:98:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L98"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:99:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "quality-check-standard.wdl:99:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L99"
 
 [[diagnostics]]
@@ -5067,12 +5067,12 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
-message = "qc-reference.wdl:22:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "qc-reference.wdl:22:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L22"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
-message = "qc-reference.wdl:23:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "qc-reference.wdl:23:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L23"
 
 [[diagnostics]]
@@ -5087,22 +5087,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
-message = "ESTIMATE.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "ESTIMATE.wdl:19:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/ESTIMATE.wdl/#L19"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
-message = "ESTIMATE.wdl:20:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "ESTIMATE.wdl:20:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/ESTIMATE.wdl/#L20"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:103:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:103:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L103"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:12:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:12:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L12"
 
 [[diagnostics]]
@@ -5117,17 +5117,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:30:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:30:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L30"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:31:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:31:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L31"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:35:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:35:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L35"
 
 [[diagnostics]]
@@ -5142,22 +5142,22 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:70:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:70:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L70"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:76:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-core.wdl:76:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L76"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:45:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-standard-fastq.wdl:45:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L45"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:49:13: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-standard-fastq.wdl:49:13: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L49"
 
 [[diagnostics]]
@@ -5187,7 +5187,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:29:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-standard.wdl:29:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard.wdl/#L29"
 
 [[diagnostics]]
@@ -5207,10 +5207,10 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:32:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-variant-calling.wdl:32:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L32"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:9:9: note[DescriptionLength]: this description may be clipped in documentation"
+message = "rnaseq-variant-calling.wdl:9:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L9"

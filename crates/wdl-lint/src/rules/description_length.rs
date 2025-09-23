@@ -25,7 +25,7 @@ const DESCRIPTION_MAX_LENGTH: usize = 140;
 
 /// Creates a description too long diagnostic.
 fn description_too_long(span: Span) -> Diagnostic {
-    Diagnostic::note("this description may be clipped in documentation")
+    Diagnostic::note("this description will be clipped in Sprocket documentation")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!(
@@ -44,14 +44,14 @@ impl Rule for DescriptionLengthRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that `description` meta entries are not too long for display in documentation."
+        "Ensures that `description` meta entries are not too long for display in Sprocket \
+         documentation."
     }
 
     fn explanation(&self) -> &'static str {
         "Descriptions should be kept short so that they can always render in full. If a \
-         `description` is too long, it may be clipped in some contexts during documentation. \
-         `help` meta entries are permitted to be of any length, and may be a better place for long \
-         form text."
+         `description` is too long, it will be clipped in some documentation contexts. `help` meta \
+         entries are never clipped and may be a better place for long form text."
     }
 
     fn tags(&self) -> TagSet {
