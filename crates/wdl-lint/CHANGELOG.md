@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* New `Tag::DocRendering` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
+* New `Tag::SprocketDoc` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
 * New lint rule `DescriptionLength` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
 
 ## 0.16.0 - 09-15-2025
