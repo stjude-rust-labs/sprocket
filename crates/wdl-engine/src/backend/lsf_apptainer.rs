@@ -415,8 +415,7 @@ impl LsfApptainerBackend {
 
 impl TaskExecutionBackend for LsfApptainerBackend {
     fn max_concurrency(&self) -> u64 {
-        // TODO ACF 2025-09-11: make this configurable
-        200
+        self.backend_config.max_scatter_concurrency
     }
 
     fn constraints(
@@ -520,7 +519,39 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 pub struct LsfApptainerBackendConfig {
     // TODO ACF 2025-09-12: add queue option for short tasks
     pub queue: Option<String>,
-    pub apptainer_images_dir: Option<PathBuf>,
+    /// The maximum number of scatter subtasks that can be evaluated
+    /// concurrently.
+    ///
+    /// By default, this is 200.
+    #[serde(default = "default_max_scatter_concurrency")]
+    pub max_scatter_concurrency: u64,
+    /// The directory in which temporary directories will be created containing
+    /// Apptainer `.sif` files.
+    ///
+    /// This should be a location that is accessible by all jobs on the LSF
+    /// cluster.
+    ///
+    /// By default, this is `~/.cache/sprocket-apptainer-images`.
+    #[serde(default = "default_apptainer_images_dir")]
+    pub apptainer_images_dir: PathBuf,
+}
+
+fn default_max_scatter_concurrency() -> u64 {
+    200
+}
+
+fn default_apptainer_images_dir() -> PathBuf {
+    PathBuf::from("~/.cache/sprocket-apptainer-images")
+}
+
+impl Default for LsfApptainerBackendConfig {
+    fn default() -> Self {
+        Self {
+            queue: None,
+            max_scatter_concurrency: default_max_scatter_concurrency(),
+            apptainer_images_dir: default_apptainer_images_dir(),
+        }
+    }
 }
 
 impl LsfApptainerBackendConfig {
