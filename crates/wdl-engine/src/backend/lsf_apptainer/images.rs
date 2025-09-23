@@ -64,7 +64,7 @@ use tokio::sync::OnceCell;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
-use tracing::Level;
+use tracing::error;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
@@ -111,7 +111,7 @@ pub(crate) async fn sif_for_container(
     let container = container.to_owned();
     once.get_or_try_init(|| async move {
         let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
-        let mut sif_path = global_apptainer_images_dir(config)
+        let sif_path = global_apptainer_images_dir(config)
             .await?
             // Append `.sif` to the filename. It would be nice to use a method like
             // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)
@@ -126,80 +126,102 @@ pub(crate) async fn sif_for_container(
             // overwhelming registries with repeated retries.
             ExponentialBackoff::from_millis(50)
                 .max_delay_millis(60_000)
-                .take(5),
-            || async {
-                try_pull(&sif_path, &container)
-                    .await
-                    // TODO ACF 2025-09-23: treating all errors as transient is not ideal, as it
-                    // means obviously-doomed pulls (like for an image that doesn't exist) don't
-                    // fail until we exhaust retries. `apptainer pull` doesn't have a well-defined
-                    // interface that tells us whether a failure is transient, but over time we
-                    // could apply some heuristics to its output to try improving our behavior here.
-                    .map_err(RetryError::transient)
-            },
+                .take(10),
+            || try_pull(&sif_path, &container),
             |e, _| {
                 warn!(e = %e, "`apptainer pull` failed");
             },
         )
         .await?;
-
+        info!(sif_path = %sif_path.display(), container, "image pulled successfully");
         Ok(sif_path)
     })
     .await
     .cloned()
 }
 
-async fn try_pull(sif_path: &Path, container: &str) -> Result<(), anyhow::Error> {
+/// Try once to use `apptainer pull` to build the `.sif` file.
+///
+/// The tricky thing about this function is determining whether a failure is
+/// transient or permanent. When in doubt, choose transient; the downside is a
+/// permanent failure may take longer to finally bring down an execution, but
+/// this is better for a long-running task than letting a transient failure
+/// bring it down before a retry.
+///
+/// `apptainer pull` doesn't have a well-defined interface for us to tell
+/// whether a failure is transient, but as we gain experience recognizing its
+/// output patterns, we can enhance the fidelity of the error handling.
+async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<anyhow::Error>> {
     info!(container, "pulling image");
-    let mut apptainer_pull_command = Command::new("apptainer");
-    if tracing::enabled!(Level::TRACE) {
-        apptainer_pull_command
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-    } else {
-        apptainer_pull_command
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-    }
-    let mut apptainer_pull_child = apptainer_pull_command
+    let mut apptainer_pull_child = Command::new("apptainer")
+        // Pipe the stdio handles, both for tracing and to inspect for telltale signs of permanent
+        // errors
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .arg("pull")
         .arg(&sif_path)
         .arg(format!("docker://{container}"))
-        .spawn()?;
+        .spawn()
+        // If the system can't handle spawning a process, we're better off failing quickly
+        .map_err(|e| RetryError::permanent(e.into()))?;
 
-    if tracing::enabled!(Level::TRACE) {
-        // Take the stdio pipes from the child process and consume them for tracing
-        // purposes.
-        let child_stdout = apptainer_pull_child
-            .stdout
-            .take()
-            .ok_or_else(|| anyhow!("apptainer pull child stdout missing"))?;
-        let stdout_container = container.to_owned();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(child_stdout).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                trace!(stdout = line, container = stdout_container);
-            }
-        });
-        let child_stderr = apptainer_pull_child
-            .stderr
-            .take()
-            .ok_or_else(|| anyhow!("apptainer pull child stderr missing"))?;
-        let stderr_container = container.to_owned();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(child_stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                trace!(stderr = line, container = stderr_container);
-            }
-        });
-    }
+    let is_permanent = Arc::new(Mutex::new(false));
 
-    let child_result = apptainer_pull_child.wait().await?;
+    let child_stdout = apptainer_pull_child
+        .stdout
+        .take()
+        .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stdout missing")))?;
+    let stdout_container = container.to_owned();
+    let _stdout_is_permanent = is_permanent.clone();
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(child_stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            trace!(stdout = line, container = stdout_container);
+        }
+    });
+    let child_stderr = apptainer_pull_child
+        .stderr
+        .take()
+        .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stderr missing")))?;
+    let stderr_container = container.to_owned();
+    let stderr_is_permanent = is_permanent.clone();
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(child_stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            // A collection of strings observed in `apptainer pull` stderr in unrecoverable
+            // conditions. Finding one of these in the output marks the attempt as a
+            // permanent failure.
+            let needles = ["manifest unknown", "403 (Forbidden)"];
+            for needle in needles {
+                if line.contains(needle) {
+                    error!(
+                        stderr = line,
+                        container = stderr_container,
+                        "`apptainer pull` failed"
+                    );
+                    *stderr_is_permanent.lock().unwrap() = true;
+                    break;
+                }
+            }
+            trace!(stderr = line, container = stderr_container);
+        }
+    });
+
+    let child_result = apptainer_pull_child
+        .wait()
+        .await
+        // Permanently error if something goes wrong trying to wait for the child process
+        .map_err(|e| RetryError::permanent(e.into()))?;
     if !child_result.success() {
-        Err(anyhow!(
+        let e = anyhow!(
             "`apptainer pull` failed with exit code {:?}",
             child_result.code()
-        ))?
+        );
+        if *is_permanent.lock().unwrap() {
+            Err(RetryError::permanent(e))
+        } else {
+            Err(RetryError::transient(e))
+        }
     } else {
         Ok(())
     }
