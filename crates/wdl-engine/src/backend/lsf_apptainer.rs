@@ -1,11 +1,13 @@
 use std::fmt::Write as _;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt as _;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
+use images::sif_for_container;
 use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::fs::{self};
@@ -28,6 +30,8 @@ use crate::TaskExecutionResult;
 use crate::config::Config;
 use crate::path::EvaluationPath;
 use crate::v1;
+
+mod images;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -78,6 +82,8 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
     }
 
     async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
+        let container_sif = sif_for_container(&self.backend_config, &self.container).await?;
+
         let attempt_dir = self.spawn_request.attempt_dir();
 
         // Create the host directory that will be mapped to the WDL working directory.
@@ -165,30 +171,6 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/bin/env bash")?;
 
-        // // Set up mounts for the inputs in an environment variable (ref:
-        // // https://apptainer.org/docs/user/1.3/bind_paths_and_mounts.html#mount-examples). Using an
-        // // environment variable rather than separate `--mount` arguments prevents
-        // tasks // with large numbers of inputs from exceeding the maximum
-        // number of // command line arguments.
-        // let inputs = self.spawn_request.inputs();
-        // if !inputs.is_empty() {
-        //     write!(&mut apptainer_command, "export APPTAINER_MOUNT=$'")?;
-        //     for input in inputs {
-        //         write!(
-        //             &mut apptainer_command,
-        //             "type=bind,src={host_path},dst={guest_path},ro\\n",
-        //             host_path = input
-        //                 .local_path()
-        //                 .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
-        //                 .display(),
-        //             guest_path = input
-        //                 .guest_path()
-        //                 .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
-        //         )?;
-        //     }
-        //     writeln!(&mut apptainer_command, "'")?;
-        // }
-
         // Set up any WDL-specified guest environment variables, using the
         // `APPTAINERENV_` prefix approach (ref:
         // https://apptainer.org/docs/user/1.3/environment_and_metadata.html#apptainerenv-prefix) to
@@ -254,11 +236,8 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
             wdl_stderr_path.display()
         )?;
-        // Specify the container as a positional argument.
-        //
-        // TODO ACF 2025-09-10: must implement caching for `.sif` files instead of using
-        // the `docker://` URI every time.
-        write!(&mut apptainer_command, "docker://{} ", self.container)?;
+        // Specify the container sif file as a positional argument.
+        write!(&mut apptainer_command, "{} ", container_sif.display())?;
         // Finally provide the instantiated WDL command, with its stdio handles
         // redirected to their respective guest paths.
         write!(
@@ -529,6 +508,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 pub struct LsfApptainerBackendConfig {
     // TODO ACF 2025-09-12: add queue option for short tasks
     pub queue: Option<String>,
+    pub apptainer_images_dir: Option<PathBuf>,
 }
 
 impl LsfApptainerBackendConfig {
