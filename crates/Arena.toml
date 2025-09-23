@@ -1942,11 +1942,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
-message = "estimate.wdl:15:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/estimate.wdl/#L15"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/estimate.wdl"
 message = 'estimate.wdl:39:34: note[ShellCheck]: Prefer escape over ending quote to make $ literal. Instead of "It costs $"5, use "It costs /$5".'
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/estimate.wdl/#L39"
 
@@ -1984,11 +1979,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/fastqc.wdl"
 message = "fastqc.wdl:67:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fastqc.wdl/#L67"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:115:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/fq.wdl/#L115"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -2202,11 +2192,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:402:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L402"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:408:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L408"
 
@@ -2214,16 +2199,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:416:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L416"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:424:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L424"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:425:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/gatk4.wdl/#L425"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2352,16 +2327,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:151:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L151"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:152:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L152"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:212:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L212"
 
@@ -2374,21 +2339,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:40:39: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L40"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:44:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L44"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:48:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L48"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:9:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/htseq.wdl/#L9"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -2417,16 +2367,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:129:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L129"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:134:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L134"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:160:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L160"
 
@@ -2444,16 +2384,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:177:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L177"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:191:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L191"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:204:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L204"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
@@ -2562,33 +2492,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:51:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L51"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:54:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L54"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:60:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L60"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
 message = "kraken2.wdl:73:29: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L73"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:77:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L77"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:9:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/kraken2.wdl/#L9"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
@@ -2634,21 +2539,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
 message = "md5sum.wdl:39:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/md5sum.wdl/#L39"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:10:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L10"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:11:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L11"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/mosdepth.wdl"
-message = "mosdepth.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/mosdepth.wdl/#L19"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
@@ -2784,21 +2674,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:369:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L369"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:390:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L390"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:402:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L402"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/ngsderive.wdl"
-message = "ngsderive.wdl:409:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/ngsderive.wdl/#L409"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -2982,11 +2857,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:32:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L32"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:333:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L333"
 
@@ -2999,11 +2869,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:367:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L367"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:371:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L371"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -3087,11 +2952,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:495:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L495"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:514:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L514"
 
@@ -3122,28 +2982,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:558:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L558"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:56:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L56"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:577:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L577"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:57:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L57"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:58:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L58"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -3209,11 +3049,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:684:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L684"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:691:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L691"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -3284,11 +3119,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:812:5: warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bam_to_fastq`"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L812"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/picard.wdl"
-message = "picard.wdl:813:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/picard.wdl/#L813"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -3417,11 +3247,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:21:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L21"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:64:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L64"
 
@@ -3462,11 +3287,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:7:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L7"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:89:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L89"
 
@@ -3479,11 +3299,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:96:5: warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bamqc`"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L96"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:97:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/qualimap.wdl/#L97"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -3602,11 +3417,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1067:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1067"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:110:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L110"
 
@@ -3642,21 +3452,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1172:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1172"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1181:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1181"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1185:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:118:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L118"
 
@@ -3664,31 +3459,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1194:20: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1194"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1199:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1199"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1201:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1201"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1203:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1203"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1204:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1204"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:1211:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L1211"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -3782,16 +3552,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:280:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L280"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:287:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L287"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:29:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L29"
 
@@ -3852,11 +3612,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:46:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L46"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:470:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L470"
 
@@ -3897,21 +3652,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:519:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L519"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:530:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L530"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:534:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L534"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:574:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L574"
 
@@ -3949,11 +3689,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:605:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L605"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:622:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L622"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -3999,61 +3734,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:763:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L763"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:773:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L773"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:774:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L774"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:775:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L775"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:776:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L776"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:777:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L777"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:778:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L778"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:784:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L784"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:787:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L787"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:791:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L791"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:795:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L795"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:799:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L799"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -4127,11 +3807,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:969:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L969"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:986:23: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L986"
 
@@ -4139,11 +3814,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:98:9: note[ShellCheck]: Instead of 'let expr', prefer (( expr )) ."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L98"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/samtools.wdl"
-message = "samtools.wdl:9:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/samtools.wdl/#L9"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
@@ -4202,133 +3872,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:140:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L140"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:142:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L142"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:147:5: note[ParameterMetaMatched]: parameter metadata in task `alignment` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:149:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L149"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:150:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L150"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:151:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L151"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:156:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:157:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L157"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:158:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L158"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:159:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L159"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:160:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L160"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:161:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L161"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:173:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L173"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:200:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L200"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:33:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L33"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:34:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L34"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:363:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L363"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:366:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L366"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:367:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L367"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:368:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L368"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:371:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L371"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:38:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L38"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:408:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L408"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:412:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L412"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:427:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L427"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:464:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/star.wdl/#L464"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
@@ -4527,11 +4072,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:294:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L294"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:30:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L30"
 
@@ -4607,23 +4147,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:54:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L54"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:64:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L64"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:686:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L686"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/util.wdl"
-message = "util.wdl:693:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L693"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -4721,19 +4246,9 @@ message = "util.wdl:90:30: note[ShellCheck]: Double quote to prevent globbing an
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/tools/util.wdl/#L90"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:33:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/chipseq/chipseq-standard.wdl/#L33"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
 message = "dnaseq-core.wdl:23:5: note[ParameterMetaMatched]: parameter metadata in workflow `dnaseq_core_experimental` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-core.wdl/#L23"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:28:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-core.wdl/#L28"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
@@ -4764,11 +4279,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
 message = "dnaseq-standard-fastq.wdl:21:5: note[ParameterMetaMatched]: parameter metadata in workflow `dnaseq_standard_fastq_experimental` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L21"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:27:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L27"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
@@ -4887,16 +4397,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:18:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L18"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
-message = "methylation-preprocess.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L19"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-preprocess.wdl"
 message = "methylation-preprocess.wdl:35:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L35"
 
@@ -4926,89 +4426,9 @@ message = "methylation-preprocess.wdl:56:20: note[ContainerUri]: container URI u
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/methylation/methylation-preprocess.wdl/#L56"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/markdups-post.wdl"
-message = "markdups-post.wdl:35:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/markdups-post.wdl/#L35"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:100:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L100"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:102:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L102"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:103:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L103"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:27:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L27"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:39:17: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L39"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:42:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L42"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:50:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L50"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:514:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L514"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:52:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L52"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:53:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L53"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:560:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L560"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:61:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L61"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:62:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L62"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:63:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L63"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:64:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L64"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:65:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L65"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -5016,64 +4436,9 @@ message = "quality-check-standard.wdl:80:5: note[ParameterMetaMatched]: paramete
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L80"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:84:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L84"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:86:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L86"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:87:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L87"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:90:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L90"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:92:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L92"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:93:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L93"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:95:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L95"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:98:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L98"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:99:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/qc/quality-check-standard.wdl/#L99"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
 message = "qc-reference.wdl:21:5: note[ParameterMetaMatched]: parameter metadata in workflow `qc_reference` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L21"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
-message = "qc-reference.wdl:22:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L22"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
-message = "qc-reference.wdl:23:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L23"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
@@ -5084,26 +4449,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/workflows/reference/qc-reference.wdl"
 message = "qc-reference.wdl:51:32: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/reference/qc-reference.wdl/#L51"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
-message = "ESTIMATE.wdl:19:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/ESTIMATE.wdl/#L19"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
-message = "ESTIMATE.wdl:20:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/ESTIMATE.wdl/#L20"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:103:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L103"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:12:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L12"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
@@ -5117,21 +4462,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:30:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L30"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:31:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L31"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:35:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L35"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
 message = "rnaseq-core.wdl:49:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L49"
 
@@ -5139,26 +4469,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
 message = "rnaseq-core.wdl:58:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L58"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:70:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L70"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:76:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-core.wdl/#L76"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:45:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L45"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:49:13: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L49"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
@@ -5187,11 +4497,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:29:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard.wdl/#L29"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:38:22: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-standard.wdl/#L38"
 
@@ -5204,13 +4509,3 @@ permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
 message = "rnaseq-variant-calling.wdl:19:5: note[ParameterMetaMatched]: parameter metadata in workflow `rnaseq_variant_calling` is out of order"
 permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L19"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:32:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L32"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:9:9: note[DescriptionLength]: this description may be clipped in documentation"
-permalink = "https://github.com/stjudecloud/workflows/blob/8377299f9d171af316f06570eedcd12e39600d72/workflows/rnaseq/rnaseq-variant-calling.wdl/#L9"
