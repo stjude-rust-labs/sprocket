@@ -44,7 +44,7 @@ impl Rule for DescriptionLengthRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that `description` meta entries are not too long for display in Sprocket \
+        "Ensures that description meta entries are not too long for display in Sprocket \
          documentation."
     }
 
