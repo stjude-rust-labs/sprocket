@@ -55,7 +55,7 @@ impl Rule for DescriptionLengthRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::DocRendering])
+        TagSet::new(&[Tag::SprocketDoc])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

@@ -74,10 +74,10 @@ Available tags:
   - Completeness
   - Correctness
   - Deprecated
-  - DocRendering
   - Documentation
   - Naming
   - Portability
   - Sorting
   - Spacing
+  - SprocketDoc
   - Style
