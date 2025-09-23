@@ -115,6 +115,9 @@ pub(crate) async fn sif_for_container(
             .await?
             .join(sif_filename)
             .to_path_buf();
+        // TODO ACF 2025-09-22: this will incorrectly edit filenames that already have dots in them,
+        // eg `ghcr.io/stjudecloud/minfi:1.48.0-6` became `ghcr.io/stjudecloud/minfi:1.48.sif`. Bad
+        // news and introduces the possibility of collisions
         sif_path.set_extension("sif");
 
         Retry::spawn_notify(
