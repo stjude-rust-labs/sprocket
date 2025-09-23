@@ -65,7 +65,9 @@ use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::Level;
+use tracing::info;
 use tracing::trace;
+use tracing::warn;
 
 use super::LsfApptainerBackendConfig;
 
@@ -115,18 +117,21 @@ pub(crate) async fn sif_for_container(
             .to_path_buf();
         sif_path.set_extension("sif");
 
-        Retry::spawn(
+        Retry::spawn_notify(
             // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with
             // flakiness of the container registries. This is a finger-in-the-wind guess at some
             // reasonable parameters that shouldn't lead to us making our own problems worse by
             // overwhelming registries with repeated retries.
             ExponentialBackoff::from_millis(50)
                 .max_delay_millis(60_000)
-                .take(5),
+                .take(30),
             || async {
                 try_pull(&sif_path, &container)
                     .await
                     .map_err(RetryError::transient)
+            },
+            |e, _| {
+                warn!(e = %e, "`apptainer pull` failed");
             },
         )
         .await?;
@@ -138,6 +143,7 @@ pub(crate) async fn sif_for_container(
 }
 
 async fn try_pull(sif_path: &Path, container: &str) -> Result<(), anyhow::Error> {
+    info!(container, "pulling image");
     let mut apptainer_pull_command = Command::new("apptainer");
     if tracing::enabled!(Level::TRACE) {
         apptainer_pull_command
