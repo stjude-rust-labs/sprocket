@@ -280,10 +280,15 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         if let Some(queue) = &self.backend_config.queue {
             bsub_command.arg("-q").arg(queue);
         }
+
         if tracing::enabled!(Level::TRACE) {
             // Pipe stdout and stderr so we can trace them. This should just be the LSF
             // output like `<<Waiting for dispatch ...>>`.
             bsub_command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        } else {
+            // If we're not tracing, send these outputs to null. The LSF report and errors
+            // will still go to the configured `-oo` and `-eo` files.
+            bsub_command.stdout(Stdio::null()).stderr(Stdio::null());
         }
 
         bsub_command
