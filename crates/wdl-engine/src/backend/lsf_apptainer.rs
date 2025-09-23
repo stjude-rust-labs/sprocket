@@ -239,11 +239,22 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         )?;
         // Specify the container sif file as a positional argument.
         write!(&mut apptainer_command, "{} ", container_sif.display())?;
-        // Finally provide the instantiated WDL command, with its stdio handles
-        // redirected to their respective guest paths.
+        // Provide the instantiated WDL command, with its stdio handles redirected to
+        // their respective guest paths.
         write!(
             &mut apptainer_command,
             "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\""
+        )?;
+        // The path for the Apptainer-level stdout and stderr.
+        let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
+        let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
+        // Redirect the output of Apptainer itself to these files. We run Apptainer with
+        // verbosity cranked up, so these should be helpful diagnosing failures.
+        writeln!(
+            &mut apptainer_command,
+            "> {stdout} 2> {stderr}",
+            stdout = apptainer_stdout_path.display(),
+            stderr = apptainer_stderr_path.display()
         )?;
 
         fs::write(&apptainer_command_path, apptainer_command)
