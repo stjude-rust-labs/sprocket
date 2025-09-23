@@ -8,7 +8,6 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use images::sif_for_container;
-use tempfile::TempDir;
 use tokio::fs::File;
 use tokio::fs::{self};
 use tokio::io::AsyncBufReadExt;
@@ -136,17 +135,11 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // for other inputs and outputs prevents this from being a capacity problem,
         // though potentially at the expense of execution speed if the
         // non-`/tmp` filesystem is significantly slower.
-        //
-        // TODO ACF 2025-09-10: make location of the tempdir configurable
-        //
-        // TODO ACF 2025-09-10: make the persistence of the tempdir configurable
-        //
-        // TODO ACF 2025-09-12: maybe these should be made in `_latest/tmp` rather than
-        // under each attempt dir. That way if the dirs are set to persist,
-        // someone who wants to keep around the results but clean up the temp
-        // files has just one directory to zap
-        let container_temp_dir = TempDir::new_in(attempt_dir)?;
-        let container_tmp_path = container_temp_dir.path().join("tmp").to_path_buf();
+        let container_tmp_path = self
+            .spawn_request
+            .temp_dir()
+            .join("container_tmp")
+            .to_path_buf();
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_tmp_path)
@@ -157,7 +150,11 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                     path = container_tmp_path.display()
                 )
             })?;
-        let container_var_tmp_path = container_temp_dir.path().join("var_tmp").to_path_buf();
+        let container_var_tmp_path = self
+            .spawn_request
+            .temp_dir()
+            .join("container_var_tmp")
+            .to_path_buf();
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_var_tmp_path)
@@ -355,9 +352,6 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             _ = self.cancellation_token.cancelled() => Err(anyhow!("task execution cancelled")),
             result = bsub_child.wait() => result.map_err(Into::into),
         }?;
-
-        // Hang onto the container tmp dir until execution is complete.
-        drop(container_temp_dir);
 
         Ok(TaskExecutionResult {
             // Under normal circumstances, the exit code of `bsub -K` is the exit code of its
