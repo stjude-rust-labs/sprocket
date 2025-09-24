@@ -96,7 +96,9 @@ impl Visitor for DescriptionLengthRule {
             let mut text = String::new();
             description
                 .text()
-                .expect("meta strings cannot be interpolated")
+                /// SAFETY: `meta` entries aren't interpolated, and we
+                /// just checked to ensure it's not empty above.
+                .unwrap()
                 .unescape_to(&mut text);
 
             if text.len() > DESCRIPTION_MAX_LENGTH {
