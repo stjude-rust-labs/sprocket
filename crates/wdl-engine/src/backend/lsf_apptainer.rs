@@ -620,10 +620,8 @@ fn default_max_scatter_concurrency() -> u64 {
 }
 
 fn default_apptainer_images_dir() -> PathBuf {
-    if let Some(home) = std::env::home_dir() {
-        home.join(".cache")
-            .join("sprocket-apptainer-images")
-            .to_path_buf()
+    if let Some(cache) = dirs::cache_dir() {
+        cache.join("sprocket-apptainer-images").to_path_buf()
     } else {
         std::env::temp_dir()
             .join("sprocket-apptainer-images")
