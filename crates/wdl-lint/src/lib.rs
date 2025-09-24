@@ -1,7 +1,5 @@
 //! Lint rules for Workflow Description Language (WDL) documents.
-//!
 #![doc = include_str!("../RULES.md")]
-//!
 //! # Definitions
 #![doc = include_str!("../DEFINITIONS.md")]
 //! # Examples

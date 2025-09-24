@@ -94,12 +94,9 @@ impl Visitor for DescriptionLengthRule {
             && !description.is_empty()
         {
             let mut text = String::new();
-            description
-                .text()
-                /// SAFETY: `meta` entries aren't interpolated, and we
-                /// just checked to ensure it's not empty above.
-                .unwrap()
-                .unescape_to(&mut text);
+            // SAFETY: `meta` entries aren't interpolated, and we
+            // just checked to ensure it's not empty above.
+            description.text().unwrap().unescape_to(&mut text);
 
             if text.len() > DESCRIPTION_MAX_LENGTH {
                 diagnostics.exceptable_add(
@@ -120,10 +117,9 @@ impl Visitor for DescriptionLengthRule {
                     && !description.is_empty()
                 {
                     let mut text = String::new();
-                    description
-                        .text()
-                        .expect("meta strings cannot be interpolated")
-                        .unescape_to(&mut text);
+                    // SAFETY: `meta` entries aren't interpolated, and we
+                    // just checked to ensure it's not empty above.
+                    description.text().unwrap().unescape_to(&mut text);
 
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
@@ -140,10 +136,9 @@ impl Visitor for DescriptionLengthRule {
                     && !description.is_empty()
                 {
                     let mut text = String::new();
-                    description
-                        .text()
-                        .expect("meta strings cannot be interpolated")
-                        .unescape_to(&mut text);
+                    // SAFETY: `meta` entries aren't interpolated, and we
+                    // just checked to ensure it's not empty above.
+                    description.text().unwrap().unescape_to(&mut text);
 
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
@@ -172,10 +167,9 @@ impl Visitor for DescriptionLengthRule {
                 && !description.is_empty()
             {
                 let mut text = String::new();
-                description
-                    .text()
-                    .expect("meta strings cannot be interpolated")
-                    .unescape_to(&mut text);
+                // SAFETY: `meta` entries aren't interpolated, and we
+                // just checked to ensure it's not empty above.
+                description.text().unwrap().unescape_to(&mut text);
 
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
@@ -192,10 +186,9 @@ impl Visitor for DescriptionLengthRule {
                 && !description.is_empty()
             {
                 let mut text = String::new();
-                description
-                    .text()
-                    .expect("meta strings cannot be interpolated")
-                    .unescape_to(&mut text);
+                // SAFETY: `meta` entries aren't interpolated, and we
+                // just checked to ensure it's not empty above.
+                description.text().unwrap().unescape_to(&mut text);
 
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
