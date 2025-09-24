@@ -62,6 +62,8 @@ impl Rule for DescriptionLengthRule {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::MetadataObjectItemNode,
+            SyntaxKind::MetadataSectionNode,
+            SyntaxKind::ParameterMetadataSectionNode,
         ])
     }
 
