@@ -291,6 +291,7 @@ impl Config {
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
                 self.clone(),
                 config.clone(),
+                events,
             ))),
         }
     }

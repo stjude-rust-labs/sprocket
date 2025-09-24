@@ -18,12 +18,15 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
+use crankshaft::events::Event;
 use images::sif_for_container;
+use nonempty::NonEmpty;
 use tokio::fs::File;
 use tokio::fs::{self};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
+use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::trace;
@@ -78,6 +81,13 @@ struct LsfApptainerTaskRequest {
     cpu: f64,
     /// The requested memory reservation for the task, in bytes.
     memory: u64,
+    /// The broadcast channel to update interested parties with the status of
+    /// executing tasks.
+    ///
+    /// This backend does not yet take advantage of the full Crankshaft
+    /// machinery, but we send rudimentary messages on this channel which helps
+    /// with UI presentation.
+    crankshaft_events: Option<broadcast::Sender<Event>>,
     cancellation_token: CancellationToken,
 }
 
@@ -91,6 +101,8 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
     }
 
     async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
+        let crankshaft_task_id = crankshaft::events::next_task_id();
+
         let container_sif = sif_for_container(
             &self.backend_config,
             &self.container,
@@ -341,6 +353,16 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
         let mut bsub_child = bsub_command.spawn()?;
 
+        crankshaft::events::send_event!(
+            self.crankshaft_events,
+            crankshaft::events::Event::TaskCreated {
+                id: crankshaft_task_id,
+                name: self.name.clone(),
+                tes_id: None,
+                token: self.cancellation_token.clone(),
+            },
+        );
+
         if tracing::enabled!(Level::TRACE) {
             // Take the stdio pipes from the child process and consume them for tracing
             // purposes.
@@ -375,9 +397,25 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // Await the result of the `bsub` command, which will only exit on error or once
         // the containerized command has completed.
         let bsub_result = tokio::select! {
-            _ = self.cancellation_token.cancelled() => Err(anyhow!("task execution cancelled")),
+            _ = self.cancellation_token.cancelled() => {
+                crankshaft::events::send_event!(
+                    self.crankshaft_events,
+                    crankshaft::events::Event::TaskCanceled {
+                        id: crankshaft_task_id
+                    },
+                );
+                Err(anyhow!("task execution cancelled"))
+            }
             result = bsub_child.wait() => result.map_err(Into::into),
         }?;
+
+        crankshaft::events::send_event!(
+            self.crankshaft_events,
+            crankshaft::events::Event::TaskCompleted {
+                id: crankshaft_task_id,
+                exit_statuses: NonEmpty::new(bsub_result.clone()),
+            }
+        );
 
         Ok(TaskExecutionResult {
             // Under normal circumstances, the exit code of `bsub -K` is the exit code of its
@@ -412,10 +450,15 @@ pub struct LsfApptainerBackend {
     engine_config: Arc<Config>,
     backend_config: Arc<LsfApptainerBackendConfig>,
     manager: TaskManager<LsfApptainerTaskRequest>,
+    crankshaft_events: Option<broadcast::Sender<Event>>,
 }
 
 impl LsfApptainerBackend {
-    pub fn new(engine_config: Arc<Config>, backend_config: Arc<LsfApptainerBackendConfig>) -> Self {
+    pub fn new(
+        engine_config: Arc<Config>,
+        backend_config: Arc<LsfApptainerBackendConfig>,
+        crankshaft_events: Option<broadcast::Sender<Event>>,
+    ) -> Self {
         Self {
             engine_config,
             backend_config,
@@ -424,6 +467,7 @@ impl LsfApptainerBackend {
             // potentially a path to pulling queue limits from LSF for these, but for now we just
             // throw jobs at the cluster.
             manager: TaskManager::new_unlimited(u64::MAX, u64::MAX),
+            crankshaft_events,
         }
     }
 }
@@ -505,6 +549,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 container,
                 cpu,
                 memory,
+                crankshaft_events: self.crankshaft_events.clone(),
                 cancellation_token,
             },
             completed_tx,
