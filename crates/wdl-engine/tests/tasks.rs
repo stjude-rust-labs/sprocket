@@ -144,6 +144,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                     )]
                     .into(),
                     suppress_env_specific_output: true,
+                    experimental_features_enabled: true,
                     ..Default::default()
                 }
             }),

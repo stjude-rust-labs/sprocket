@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
+use anyhow::bail;
 use crankshaft::events::Event;
 use images::sif_for_container;
 use nonempty::NonEmpty;
@@ -616,7 +617,10 @@ impl Default for LsfApptainerBackendConfig {
 }
 
 impl LsfApptainerBackendConfig {
-    pub fn validate(&self) -> Result<(), anyhow::Error> {
+    pub fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
+        if !engine_config.experimental_features_enabled {
+            bail!("LSF + Apptainer backend requires enabling experimental features");
+        }
         // TODO ACF 2025-09-12: what meaningful work to be done here? Maybe ensure the
         // queue exists, interrogate the queue for limits and match them up
         // against prospective future config options here?
