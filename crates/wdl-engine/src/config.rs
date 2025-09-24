@@ -193,6 +193,7 @@ pub struct Config {
     /// Experimental features are provided to users with heavy caveats about
     /// their stability and rough edges. Use at your own risk, but feedback
     /// is quite welcome.
+    #[serde(default)]
     pub experimental_features_enabled: bool,
 }
 
