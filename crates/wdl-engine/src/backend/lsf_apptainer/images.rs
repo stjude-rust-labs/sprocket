@@ -165,7 +165,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .arg("pull")
-        .arg(&sif_path)
+        .arg(sif_path)
         .arg(format!("docker://{container}"))
         .spawn()
         // If the system can't handle spawning a process, we're better off failing quickly

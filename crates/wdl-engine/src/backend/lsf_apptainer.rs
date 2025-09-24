@@ -1,3 +1,5 @@
+#![allow(clippy::missing_docs_in_private_items)]
+
 //! Experimental LSF + Apptainer (aka Singularity) task execution backend.
 //!
 //! This experimental backend submits each task as an LSF job which invokes
@@ -9,6 +11,7 @@
 //! report) bugs! In follow-up work, we hope to build a limited test suite based
 //! on mocking CLI invocations and/or golden testing of generated
 //! `bsub`/`apptainer` scripts.
+
 use std::fmt::Write as _;
 use std::fs::Permissions;
 use std::os::unix::fs::PermissionsExt as _;
@@ -415,7 +418,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             self.crankshaft_events,
             crankshaft::events::Event::TaskCompleted {
                 id: crankshaft_task_id,
-                exit_statuses: NonEmpty::new(bsub_result.clone()),
+                exit_statuses: NonEmpty::new(bsub_result),
             }
         );
 
@@ -447,6 +450,9 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
     }
 }
 
+/// The experimental LSF + Apptainer backend.
+///
+/// See the module-level documentation for details.
 #[derive(Debug)]
 pub struct LsfApptainerBackend {
     engine_config: Arc<Config>,
@@ -456,6 +462,7 @@ pub struct LsfApptainerBackend {
 }
 
 impl LsfApptainerBackend {
+    /// Create a new backend.
     pub fn new(
         engine_config: Arc<Config>,
         backend_config: Arc<LsfApptainerBackendConfig>,
@@ -580,6 +587,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 // name, env var names, etc.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LsfApptainerBackendConfig {
+    /// Which queue, if any, to specify when submitting jobs to LSF.
     pub queue: Option<String>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
@@ -617,6 +625,7 @@ impl Default for LsfApptainerBackendConfig {
 }
 
 impl LsfApptainerBackendConfig {
+    /// Validate that the backend is appropriately configured.
     pub fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
         if !engine_config.experimental_features_enabled {
             bail!("LSF + Apptainer backend requires enabling experimental features");
