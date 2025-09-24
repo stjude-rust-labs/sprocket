@@ -13,10 +13,11 @@
 //! `bsub`/`apptainer` scripts.
 
 use std::fmt::Write as _;
-use std::fs::Permissions;
 // This is a little goofy to be conditionally compiling, but for the moment it's nice if this
 // module at least compiles under Windows. We don't have a great setup for OS-specific variants
 // in `wdl_engine::Config`, so this is far less messy.
+#[cfg(unix)]
+use std::fs::Permissions;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::PathBuf;
