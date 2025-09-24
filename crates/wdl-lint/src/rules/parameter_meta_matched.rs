@@ -119,7 +119,7 @@ impl Rule for ParameterMetaMatchedRule {
             Tag::Completeness,
             Tag::Sorting,
             Tag::Documentation,
-            Tag::SprocketDoc,
+            Tag::SprocketCompatibility,
         ])
     }
 
