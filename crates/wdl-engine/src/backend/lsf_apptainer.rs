@@ -14,6 +14,10 @@
 
 use std::fmt::Write as _;
 use std::fs::Permissions;
+// This is a little goofy to be conditionally compiling, but for the moment it's nice if this
+// module at least compiles under Windows. We don't have a great setup for OS-specific variants
+// in `wdl_engine::Config`, so this is far less messy.
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt as _;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -134,6 +138,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                     path = wdl_command_path.display()
                 )
             })?;
+        #[cfg(unix)]
         fs::set_permissions(&wdl_command_path, Permissions::from_mode(0o777)).await?;
 
         // Create an empty file for the WDL command's stdout.
@@ -291,6 +296,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                     apptainer_command_path.display()
                 )
             })?;
+        #[cfg(unix)]
         fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o777)).await?;
 
         // The path for the LSF-level stdout and stderr. This primarily contains the job
@@ -627,6 +633,9 @@ impl Default for LsfApptainerBackendConfig {
 impl LsfApptainerBackendConfig {
     /// Validate that the backend is appropriately configured.
     pub fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
+        if cfg!(not(unix)) {
+            bail!("LSF + Apptainer backend is not supported on non-unix platforms");
+        }
         if !engine_config.experimental_features_enabled {
             bail!("LSF + Apptainer backend requires enabling experimental features");
         }
