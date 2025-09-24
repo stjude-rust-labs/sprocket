@@ -1128,19 +1128,33 @@ fn add_call_statement(
             for input in statement.inputs() {
                 let input_name = input.name();
 
-                let expected_ty = ty
+                let (expected_ty, required) = ty
                     .inputs()
                     .get(input_name.text())
-                    .map(|i| i.ty.clone())
+                    .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
                         document
                             .diagnostics
                             .push(unknown_call_io(&ty, &input_name, Io::Input));
-                        Type::Union
+                        (Type::Union, true)
                     });
 
                 match input.expr() {
                     Some(expr) => {
+                        // For WDL 1.2, we accept optional types for the input even if the input's
+                        // type is non-optional; if the runtime value is `None` for a non-optional
+                        // input, the default expression will be evaluated instead.
+                        let expected_ty = if !required
+                            && document
+                                .version
+                                .map(|v| v >= SupportedVersion::V1(V1::Two))
+                                .unwrap_or(false)
+                        {
+                            expected_ty.optional()
+                        } else {
+                            expected_ty
+                        };
+
                         type_check_expr(
                             config,
                             document,

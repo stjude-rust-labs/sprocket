@@ -43,6 +43,7 @@ use tempfile::TempDir;
 use tokio::fs;
 use walkdir::WalkDir;
 
+/// Finds tests at the given root directory.
 fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
     let mut tests: Vec<PathBuf> = Vec::new();
     for entry in starting_dir.read_dir().unwrap() {
@@ -61,17 +62,23 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
     tests
 }
 
+/// Gets the name of a test given the directory.
 fn get_test_name(path: &Path, test_root: &Path) -> String {
     let root_path = test_root.as_os_str().to_str().unwrap();
     path.as_os_str().to_str().unwrap()[root_path.len() + 1..].to_string()
 }
 
+/// Represents output of a test command.
 struct CommandOutput {
+    /// The stdout of the command.
     stdout: String,
+    /// The stderr of the command.
     stderr: String,
+    /// The command's exit code.
     exit_code: i32,
 }
 
+/// Runs a test given the test root directory.
 async fn run_test(test_path: &Path) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
         .await
@@ -82,6 +89,7 @@ async fn run_test(test_path: &Path) -> Result<()> {
     compare_test_results(test_path, working_test_directory.path(), &command_output).await
 }
 
+/// Sets up the working test directory by copying initial files.
 async fn setup_working_test_directory(test_path: &Path) -> Result<TempDir> {
     let inputs_directory = test_path.join("inputs");
     let working_test_directory = TempDir::new().context("failed to create temp directory")?;
@@ -93,6 +101,7 @@ async fn setup_working_test_directory(test_path: &Path) -> Result<TempDir> {
     Ok(working_test_directory)
 }
 
+/// Recursively copies the source path to the target path.
 async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     if !target.exists() {
         fs::create_dir_all(target)
@@ -120,10 +129,11 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-// while running tests, current_exe returns the path
-// /target/{profile}/deps/cli-some-hash the sprocket executable is just a couple
-// directories above this, so we just find it relative to that
+/// Gets the path to the sprocket test executable.
 fn get_sprocket_exe() -> Result<PathBuf> {
+    // While running tests, `current_exe` returns the path
+    // `target/{profile}/deps/cli-some-hash` the sprocket executable is just a
+    // couple of directories above this, so we just find it relative to that.
     let mut current_exe = current_exe().context("failed to find sprocket executable")?;
     current_exe.pop();
     current_exe.pop();
@@ -131,6 +141,7 @@ fn get_sprocket_exe() -> Result<PathBuf> {
     Ok(current_exe)
 }
 
+/// Runs sprocket for a test.
 async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
     let sprocket_exe = get_sprocket_exe()?;
     let args_path = test_path.join("args");
@@ -159,6 +170,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     })
 }
 
+/// Normalizes a string for OS platform differences.
 fn normalize_string(input: &str) -> String {
     input
         .replace("\r\n", "\n")
@@ -169,6 +181,7 @@ fn normalize_string(input: &str) -> String {
         .to_string()
 }
 
+/// Compares the contents in the expected file with the actual test results.
 async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let expected = fs::read_to_string(expected_path)
         .await
@@ -189,6 +202,7 @@ async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     Ok(())
 }
 
+/// Compares the contents of two text files.
 async fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
         .await
@@ -196,6 +210,8 @@ async fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
     compare_results(expected_path, &actual).await
 }
 
+/// Builds a list of entry paths in a directory relative to the directory's
+/// path.
 fn build_relative_path_list(path: &Path) -> Result<Vec<PathBuf>> {
     let mut path_list = Vec::new();
     if path.exists() {
@@ -214,6 +230,7 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<PathBuf>> {
     Ok(path_list)
 }
 
+/// Gets the paths only in the left side.
 fn get_paths_only_owned_by_left_side(left: &[PathBuf], right: &[PathBuf]) -> Vec<PathBuf> {
     left.iter()
         .filter(|entry| !right.contains(entry))
@@ -221,6 +238,7 @@ fn get_paths_only_owned_by_left_side(left: &[PathBuf], right: &[PathBuf]) -> Vec
         .collect()
 }
 
+/// Gets the paths only in the right side.
 fn get_paths_shared_by_left_and_right_sides(left: &[PathBuf], right: &[PathBuf]) -> Vec<PathBuf> {
     left.iter()
         .filter(|entry| right.contains(entry))
@@ -228,6 +246,7 @@ fn get_paths_shared_by_left_and_right_sides(left: &[PathBuf], right: &[PathBuf])
         .collect()
 }
 
+/// Recursively compares the contents of two paths.
 async fn recursive_compare(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let expected_relative_path_list = build_relative_path_list(expected_path)?;
     let actual_relative_path_list = build_relative_path_list(actual_path)?;
@@ -281,6 +300,7 @@ __UNEXPECTED_FILES_FOUND__
     Ok(())
 }
 
+/// Compares the result of the command output with the expected baseline.
 async fn compare_test_results(
     test_path: &Path,
     working_test_directory: &Path,
