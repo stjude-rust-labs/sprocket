@@ -1010,7 +1010,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Determine the common type of the true and false expressions
         // The value must be coerced to that type
         let ty = true_ty.common_type(&false_ty).ok_or_else(|| {
-            no_common_type(&true_ty, true_expr.span(), &false_ty, false_expr.span())
+            type_mismatch(&true_ty, true_expr.span(), &false_ty, false_expr.span())
         })?;
 
         Ok(value
