@@ -608,7 +608,9 @@ pub struct LsfApptainerBackendConfig {
     /// This should be a location that is accessible by all jobs on the LSF
     /// cluster.
     ///
-    /// By default, this is `~/.cache/sprocket-apptainer-images`.
+    /// By default, this is `$HOME/.cache/sprocket-apptainer-images`, or
+    /// `/tmp/sprocket-apptainer-images` if the home directory cannot be
+    /// determined.
     #[serde(default = "default_apptainer_images_dir")]
     pub apptainer_images_dir: PathBuf,
 }
@@ -618,7 +620,15 @@ fn default_max_scatter_concurrency() -> u64 {
 }
 
 fn default_apptainer_images_dir() -> PathBuf {
-    PathBuf::from("~/.cache/sprocket-apptainer-images")
+    if let Some(home) = std::env::home_dir() {
+        home.join(".cache")
+            .join("sprocket-apptainer-images")
+            .to_path_buf()
+    } else {
+        std::env::temp_dir()
+            .join("sprocket-apptainer-images")
+            .to_path_buf()
+    }
 }
 
 impl Default for LsfApptainerBackendConfig {
