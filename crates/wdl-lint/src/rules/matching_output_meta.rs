@@ -125,7 +125,11 @@ impl Rule for MatchingOutputMetaRule<'_> {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Documentation, Tag::SprocketCompatibility])
+        TagSet::new(&[
+            Tag::Completeness,
+            Tag::Documentation,
+            Tag::SprocketCompatibility,
+        ])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

@@ -36,7 +36,8 @@ pub enum Tag {
     /// Rules associated with documentation.
     Documentation,
 
-    /// Rules associated with keeping WDL compatible with other Sprocket commands (e.g. `doc`).
+    /// Rules associated with keeping WDL compatible with other Sprocket
+    /// commands (e.g. `doc`).
     SprocketCompatibility,
 }
 
