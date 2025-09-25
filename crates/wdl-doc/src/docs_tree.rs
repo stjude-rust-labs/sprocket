@@ -632,7 +632,8 @@ impl DocsTree {
             @for (category, workflows) in workflows_by_category {
                 li class="" {
                     div class="left-sidebar__row" {
-                        img src=(self.get_asset(base, "category-selected.svg")) class="left-sidebar__icon" alt="Category icon";
+                        img src=(self.get_asset(base, "category-selected.svg")) class="left-sidebar__icon block light:hidden" alt="Category icon";
+                        img src=(self.get_asset(base, "category-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="Category icon";
                         p class="text-slate-50" { (category) }
                     }
                     ul class="" {
@@ -655,7 +656,7 @@ impl DocsTree {
                                         PageType::Workflow(wf) => {
                                             div class="left-sidebar__indent -1" {}
                                             div class="left-sidebar__content-item-container crop-ellipsis"{
-                                                img x-bind:src="node.icon" class="left-sidebar__icon" alt="Workflow icon";
+                                                img x-bind:src="node.icon?.replace('.svg', '.light.svg')" class="left-sidebar__icon" alt="Workflow icon";
                                                 sprocket-tooltip content=(wf.render_name()) class="crop-ellipsis" x-bind:class="node.current ? 'text-slate-50' : 'group-hover:text-slate-50'" {
                                                     span {
                                                         (wf.render_name())
@@ -922,16 +923,20 @@ impl DocsTree {
                     }
                     div class="relative w-full h-10" {
                         input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";
-                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none" alt="Search icon";
-                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                        img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                        img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
                     }
                     div class="left-sidebar__tabs-container mt-4" {
                         button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon" alt="List icon";
+                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                            img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
                             p { "Workflows" }
                         }
                         button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-40 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon" alt="List icon";
+                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                            img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
                             p { "Full Directory" }
                         }
                     }
@@ -945,7 +950,8 @@ impl DocsTree {
                             a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700" {
                                 div class="left-sidebar__content-item-container crop-ellipsis" {
                                     div class="relative shrink-0" {
-                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon" alt="Directory icon";
+                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
+                                        img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
                                     }
                                     div class="text-slate-50" { (root.name()) }
                                 }
@@ -960,7 +966,8 @@ impl DocsTree {
                                     }
                                     div class="left-sidebar__content-item-container crop-ellipsis" {
                                         div class="relative left-sidebar__icon shrink-0" {
-                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                            img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                                         }
                                         div class="crop-ellipsis" x-text="node.display_name" {
                                         }
@@ -982,7 +989,8 @@ impl DocsTree {
                         }
                         // No results found icon
                         li x-show="search !== '' && searchedNodes.length === 0" class="flex place-content-center" {
-                            img src=(self.get_asset(base, "search.svg")) class="size-8" alt="Search icon";
+                            img src=(self.get_asset(base, "search.svg")) class="size-8 block light:hidden" alt="Search icon";
+                            img src=(self.get_asset(base, "search.light.svg")) class="size-8 hidden light:block" alt="Search icon";
                         }
                         // No results found message
                         li x-show="search !== '' && searchedNodes.length === 0" class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
@@ -1127,7 +1135,8 @@ impl DocsTree {
                 }
             } @else {
                 div class="main__section--empty" {
-                    img src=(self.get_asset(self.root_abs_path(), "missing-home.svg")) class="size-12" alt="Missing home icon";
+                    img src=(self.get_asset(self.root_abs_path(), "missing-home.svg")) class="size-12 block light:hidden" alt="Missing home icon";
+                    img src=(self.get_asset(self.root_abs_path(), "missing-home.light.svg")) class="size-12 hidden light:block" alt="Missing home icon";
                     h2 class="main__section-header" { "There's nothing to see on this page" }
                     p { "The markdown file for this page wasn't supplied." }
                 }
@@ -1165,19 +1174,22 @@ impl DocsTree {
                 x-on:click="collapseSidebar()"
                 x-bind:disabled="sidebarState === 'hidden'"
                 x-bind:class="getSidebarButtonClass('hidden')" {
-                img src=(assets.join("sidebar-icon-hide.svg").to_string_lossy()) alt="" {}
+                img src=(assets.join("sidebar-icon-hide.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                img src=(assets.join("sidebar-icon-hide.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
                 x-on:click="restoreSidebar()"
                 x-bind:disabled="sidebarState === 'normal'"
                 x-bind:class="getSidebarButtonClass('normal')" {
-                img src=(assets.join("sidebar-icon-default.svg").to_string_lossy()) alt="" {}
+                img src=(assets.join("sidebar-icon-default.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                img src=(assets.join("sidebar-icon-default.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
                 x-on:click="expandSidebar()"
                 x-bind:disabled="sidebarState === 'xl'"
                 x-bind:class="getSidebarButtonClass('xl')" {
-                    img src=(assets.join("sidebar-icon-expand.svg").to_string_lossy()) alt="" {}
+                    img src=(assets.join("sidebar-icon-expand.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                    img src=(assets.join("sidebar-icon-expand.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
                 }
         }
     }
@@ -1224,9 +1236,19 @@ impl DocsTree {
                             div class="flex gap-1 mb-3" x-show="showCenterButtons" {
                                 (self.render_sidebar_control_buttons(assets))
                             }
-                            @if let Some(breadcrumbs) = breadcrumbs {
-                                div class="layout__breadcrumbs" {
-                                    (breadcrumbs)
+                            div class="flex flex-row-reverse items-start justify-between" {
+                                button 
+                                x-on:click="
+                                document.documentElement.classList.toggle('light')
+                                localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
+                                "
+                                class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
+                                    "☀︎"
+                                }
+                                @if let Some(breadcrumbs) = breadcrumbs {
+                                    div class="layout__breadcrumbs" {
+                                        (breadcrumbs)
+                                    }
                                 }
                             }
                         }
