@@ -13,13 +13,6 @@
 //! `bsub`/`apptainer` scripts.
 
 use std::fmt::Write as _;
-// This is a little goofy to be conditionally compiling, but for the moment it's nice if this
-// module at least compiles under Windows. We don't have a great setup for OS-specific variants
-// in `wdl_engine::Config`, so this is far less messy.
-#[cfg(unix)]
-use std::fs::Permissions;
-#[cfg(unix)]
-use std::os::unix::fs::PermissionsExt as _;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -140,7 +133,11 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                 )
             })?;
         #[cfg(unix)]
-        fs::set_permissions(&wdl_command_path, Permissions::from_mode(0o777)).await?;
+        tokio::fs::set_permissions(
+            &wdl_command_path,
+            <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o770),
+        )
+        .await?;
 
         // Create an empty file for the WDL command's stdout.
         let wdl_stdout_path = attempt_dir.join(STDOUT_FILE_NAME);
@@ -298,7 +295,11 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                 )
             })?;
         #[cfg(unix)]
-        fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o777)).await?;
+        tokio::fs::set_permissions(
+            &wdl_command_path,
+            <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o770),
+        )
+        .await?;
 
         // The path for the LSF-level stdout and stderr. This primarily contains the job
         // report, as we redirect Apptainer and WDL output separately.
