@@ -30,10 +30,12 @@ use crate::path::EvaluationPath;
 
 mod docker;
 mod local;
+mod lsf_apptainer;
 mod tes;
 
 pub use docker::*;
 pub use local::*;
+pub use lsf_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
@@ -151,16 +153,29 @@ pub struct TaskSpawnRequest {
     attempt: u64,
     /// The attempt directory for the task's execution.
     attempt_dir: PathBuf,
+    /// The root directory for the evaluation.
+    root_dir: PathBuf,
+    /// The temp directory for the evaluation.
+    temp_dir: PathBuf,
 }
 
 impl TaskSpawnRequest {
     /// Creates a new task spawn request.
-    pub fn new(id: String, info: TaskSpawnInfo, attempt: u64, attempt_dir: PathBuf) -> Self {
+    pub fn new(
+        id: String,
+        info: TaskSpawnInfo,
+        attempt: u64,
+        attempt_dir: PathBuf,
+        root_dir: PathBuf,
+        temp_dir: PathBuf,
+    ) -> Self {
         Self {
             id,
             info,
             attempt,
             attempt_dir,
+            root_dir,
+            temp_dir,
         }
     }
 
@@ -209,6 +224,16 @@ impl TaskSpawnRequest {
     /// Gets the attempt directory for the task's execution.
     pub fn attempt_dir(&self) -> &Path {
         &self.attempt_dir
+    }
+
+    /// The root directory for the evaluation.
+    pub fn root_dir(&self) -> &Path {
+        &self.root_dir
+    }
+
+    /// The temp directory for the evaluation.
+    pub fn temp_dir(&self) -> &Path {
+        &self.temp_dir
     }
 }
 
@@ -330,6 +355,7 @@ impl<Req> TaskManagerState<Req> {
 }
 
 /// Responsible for managing tasks based on available host resources.
+#[derive(Debug)]
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
     tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,

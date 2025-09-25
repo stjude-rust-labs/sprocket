@@ -5231,6 +5231,7 @@ dependencies = [
  "sysinfo",
  "tempfile",
  "tokio",
+ "tokio-retry2 0.6.0",
  "tokio-util",
  "toml 0.9.6",
  "tracing",

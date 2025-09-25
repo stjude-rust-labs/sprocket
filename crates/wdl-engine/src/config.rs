@@ -19,6 +19,8 @@ use url::Url;
 
 use crate::DockerBackend;
 use crate::LocalBackend;
+use crate::LsfApptainerBackend;
+use crate::LsfApptainerBackendConfig;
 use crate::SYSTEM;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
@@ -185,6 +187,14 @@ pub struct Config {
     /// range of golden tests to be written.
     #[serde(default)]
     pub suppress_env_specific_output: bool,
+    /// (Experimental) Whether experimental features are enabled; default is
+    /// `false`.
+    ///
+    /// Experimental features are provided to users with heavy caveats about
+    /// their stability and rough edges. Use at your own risk, but feedback
+    /// is quite welcome.
+    #[serde(default)]
+    pub experimental_features_enabled: bool,
 }
 
 impl Config {
@@ -206,10 +216,15 @@ impl Config {
         }
 
         for backend in self.backends.values() {
-            backend.validate()?;
+            backend.validate(self)?;
         }
 
         self.storage.validate()?;
+
+        if self.suppress_env_specific_output && !self.experimental_features_enabled {
+            bail!("`suppress_env_specific_output` requires enabling experimental features");
+        }
+
         Ok(())
     }
 
@@ -286,6 +301,11 @@ impl Config {
             BackendConfig::Tes(config) => Ok(Arc::new(
                 TesBackend::new(self.clone(), config, events).await?,
             )),
+            BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                self.clone(),
+                config.clone(),
+                events,
+            ))),
         }
     }
 }
@@ -670,6 +690,10 @@ pub enum BackendConfig {
     Docker(DockerBackendConfig),
     /// Use the TES task execution backend.
     Tes(Box<TesBackendConfig>),
+    /// Use the experimental LSF + Apptainer task execution backend.
+    ///
+    /// Requires enabling experimental features.
+    LsfApptainer(Arc<LsfApptainerBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -680,11 +704,12 @@ impl Default for BackendConfig {
 
 impl BackendConfig {
     /// Validates the backend configuration.
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&self, engine_config: &Config) -> Result<()> {
         match self {
             Self::Local(config) => config.validate(),
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
+            Self::LsfApptainer(config) => config.validate(engine_config),
         }
     }
 
@@ -721,7 +746,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -729,7 +754,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }

@@ -19,6 +19,7 @@ except = []
 [run]
 backend = "first"
 suppress_env_specific_output = false
+experimental_features_enabled = false
 runs_dir = "runs"
 
 [run.http]
