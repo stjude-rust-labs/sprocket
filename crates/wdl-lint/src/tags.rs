@@ -33,8 +33,12 @@ pub enum Tag {
     /// Rules associated with the use of deprecated language constructs.
     Deprecated,
 
-    /// Rules associeted with documentation.
+    /// Rules associated with documentation.
     Documentation,
+
+    /// Rules associated with keeping WDL compatible with other Sprocket
+    /// commands (e.g. `doc`).
+    SprocketCompatibility,
 }
 
 /// An error for when an unknown tag is encountered.
@@ -64,6 +68,7 @@ impl std::str::FromStr for Tag {
             s if s.eq_ignore_ascii_case("sorting") => Ok(Self::Sorting),
             s if s.eq_ignore_ascii_case("deprecated") => Ok(Self::Deprecated),
             s if s.eq_ignore_ascii_case("documentation") => Ok(Self::Documentation),
+            s if s.eq_ignore_ascii_case("sprocketcompatibility") => Ok(Self::SprocketCompatibility),
             _ => Err(UnknownTagError(s.to_string())),
         }
     }
@@ -82,6 +87,7 @@ impl std::fmt::Display for Tag {
             Self::Sorting => write!(f, "Sorting"),
             Self::Deprecated => write!(f, "Deprecated"),
             Self::Documentation => write!(f, "Documentation"),
+            Self::SprocketCompatibility => write!(f, "SprocketCompatibility"),
         }
     }
 }

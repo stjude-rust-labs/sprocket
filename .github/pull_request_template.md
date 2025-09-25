@@ -17,3 +17,10 @@ For all contributors:
 - [ ] You have added an entry in the CHANGELOG (when appropriate).
 - [ ] You have updated the README or other documentation to account for these changes (when appropriate).
 - [ ] You have either (a) made a PR to the `next` branch in the sprocket.bio repository [if you are a Sprocket team member] or (b) have suggested any changes you _think_ need to be made to sprocket.bio in the description of your PR [if you are an external contributor].
+
+For PRs containing lint rule changes:
+
+- [ ] You have updated any and all effected entries within `RULES.md`.
+- [ ] You have added a test case in `crates/wdl-lint/tests/lints` that covers every
+      possible diagnostic emitted for the rule within the file where the rule
+      is implemented.

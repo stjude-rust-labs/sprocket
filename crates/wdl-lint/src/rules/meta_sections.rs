@@ -132,6 +132,7 @@ impl Rule for MetaSectionsRule {
             "RequirementsSection",
             "RuntimeSection",
             "MatchingOutputMeta",
+            "DescriptionLength",
         ]
     }
 }

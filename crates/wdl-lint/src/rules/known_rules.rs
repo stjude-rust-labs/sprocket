@@ -66,7 +66,7 @@ impl Rule for KnownRulesRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Clarity, Tag::Correctness])
+        TagSet::new(&[Tag::Clarity, Tag::Correctness, Tag::SprocketCompatibility])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
