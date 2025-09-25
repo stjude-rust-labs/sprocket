@@ -35,14 +35,14 @@ struct Cli {
     verbosity: Verbosity<WarnLevel>,
 
     /// Path to the configuration file.
-    #[arg(long, short)]
+    #[arg(long, short, global = true)]
     config: Option<PathBuf>,
 
     /// Skip searching for and loading configuration files.
     ///
     /// Only a configuration file specified as a command line argument will be
     /// used.
-    #[arg(long, short)]
+    #[arg(long, short, global = true)]
     skip_config_search: bool,
 }
 
