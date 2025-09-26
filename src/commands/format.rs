@@ -31,11 +31,11 @@ use crate::emit_diagnostics;
 #[command(author, version, about)]
 pub struct Args {
     /// Disables color output.
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub no_color: bool,
 
     /// The report mode for any emitted diagnostics.
-    #[arg(short = 'm', long, value_name = "MODE")]
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
     pub report_mode: Option<Mode>,
 
     /// Use tabs for indentation (default is spaces).
@@ -43,7 +43,7 @@ pub struct Args {
     pub with_tabs: bool,
 
     /// The number of spaces to use for indentation levels (default is 4).
-    #[arg(long, value_name = "SIZE", conflicts_with = "with_tabs", global = true)]
+    #[arg(short, long, value_name = "SIZE", conflicts_with = "with_tabs", global = true)]
     pub indentation_size: Option<usize>,
 
     /// The maximum line length (default is 90).
@@ -304,7 +304,7 @@ pub async fn format(args: Args) -> Result<()> {
 
     if errors > 0 {
         bail!(
-            "aborting due to previous {errors} diagnostic{s}",
+            "failing due to previous {errors} error{s}",
             s = if errors == 1 { "" } else { "s" }
         );
     }
