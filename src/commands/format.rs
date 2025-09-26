@@ -43,7 +43,13 @@ pub struct Args {
     pub with_tabs: bool,
 
     /// The number of spaces to use for indentation levels (default is 4).
-    #[arg(short, long, value_name = "SIZE", conflicts_with = "with_tabs", global = true)]
+    #[arg(
+        short,
+        long,
+        value_name = "SIZE",
+        conflicts_with = "with_tabs",
+        global = true
+    )]
     pub indentation_size: Option<usize>,
 
     /// The maximum line length (default is 90).
