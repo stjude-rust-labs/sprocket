@@ -302,6 +302,9 @@ pub struct Input {
     /// The type of the input.
     ty: Type,
     /// Whether or not the input is required.
+    ///
+    /// A required input is one that has a non-optional type and no default
+    /// expression.
     required: bool,
 }
 
