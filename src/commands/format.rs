@@ -137,11 +137,11 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args) -> Result<()> {
     let indent = Indent::try_new(args.with_tabs, args.indentation_size)
-        .with_context(|| "failed to create indentation configuration")?;
+        .context("failed to create indentation configuration")?;
 
     let max_line_length = match args.max_line_length {
         Some(length) => MaxLineLength::try_new(length)
-            .with_context(|| "failed to create max line length configuration")?,
+            .context("failed to create max line length configuration")?,
         None => MaxLineLength::default(),
     };
 
@@ -245,17 +245,18 @@ pub async fn format(args: Args) -> Result<()> {
                 );
             }
 
-            let (_source, formatted) = match format_document(
+            let (_source, formatted) = format_document(
                 &formatter,
                 result.document(),
                 args.report_mode.unwrap_or_default(),
                 args.no_color,
-            ) {
-                Ok(r) => r,
-                Err(e) => {
-                    bail!("could not view `{}`: {e}", result.document().path());
-                }
-            };
+            )
+            .with_context(|| {
+                format!(
+                    "could not view document `{path}`",
+                    path = result.document().path()
+                )
+            })?;
             print!("{}", formatted);
         }
         FormatSubcommand::Overwrite(s) => {
@@ -284,7 +285,10 @@ pub async fn format(args: Args) -> Result<()> {
 
                 if let Some(err) = result.error() {
                     errors += 1;
-                    warn!("error analyzing `{}`: {}", result.document().path(), err);
+                    warn!(
+                        "error analyzing `{path}`: {err:#}",
+                        path = result.document().path()
+                    );
                     continue;
                 }
 
