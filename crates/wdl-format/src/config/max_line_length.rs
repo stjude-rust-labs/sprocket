@@ -2,9 +2,15 @@
 
 use thiserror::Error;
 
+/// Error while creating a max line length configuration.
 #[derive(Error, Debug)]
 pub enum MaxLineLengthError {
-    #[error("`{0}` is outside the allowed range for the max line length: `{min}-{max}`", min = MIN_MAX_LINE_LENGTH, max = MAX_MAX_LINE_LENGTH)]
+    /// Suppplied value outside allowed range.
+    #[error(
+        "`{0}` is outside the allowed range for the max line length: `{min}-{max}`",
+        min = MIN_MAX_LINE_LENGTH,
+        max = MAX_MAX_LINE_LENGTH
+    )]
     OutsideAllowedRange(usize),
 }
 

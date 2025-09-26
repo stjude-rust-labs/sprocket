@@ -5,10 +5,13 @@ use thiserror::Error;
 use crate::SPACE;
 use crate::TAB;
 
+/// Error while creating indentation configuration.
 #[derive(Error, Debug)]
 pub enum IndentError {
+    /// Invalid options
     #[error("indentation with tabs cannot have a number of spaces")]
     InvalidConfiguration,
+    /// Too many spaces
     #[error("`{0}` is more than the maximum allowed number of spaces: `{max}`", max = MAX_SPACE_INDENT)]
     TooManySpaces(usize),
 }
