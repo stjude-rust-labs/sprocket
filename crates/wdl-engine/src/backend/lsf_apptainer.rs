@@ -266,13 +266,19 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
             wdl_stderr_path.display()
         )?;
+        // Add any user-configured extra arguments.
+        if let Some(args) = &self.backend_config.extra_apptainer_exec_args {
+            for arg in args {
+                write!(&mut apptainer_command, "{arg} ")?;
+            }
+        }
         // Specify the container sif file as a positional argument.
         write!(&mut apptainer_command, "{} ", container_sif.display())?;
         // Provide the instantiated WDL command, with its stdio handles redirected to
         // their respective guest paths.
         write!(
             &mut apptainer_command,
-            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\""
+            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\" "
         )?;
         // The path for the Apptainer-level stdout and stderr.
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
@@ -312,6 +318,11 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // up on the cluster's default queue.
         if let Some(queue) = &self.backend_config.queue {
             bsub_command.arg("-q").arg(queue);
+        }
+
+        // Add any user-configured extra arguments.
+        if let Some(args) = &self.backend_config.extra_bsub_args {
+            bsub_command.args(args);
         }
 
         bsub_command
@@ -597,12 +608,18 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 pub struct LsfApptainerBackendConfig {
     /// Which queue, if any, to specify when submitting jobs to LSF.
     pub queue: Option<String>,
+    /// Additional command-line arguments to pass to `bsub` when submitting jobs
+    /// to LSF.
+    pub extra_bsub_args: Option<Vec<String>>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
     ///
     /// By default, this is 200.
     #[serde(default = "default_max_scatter_concurrency")]
     pub max_scatter_concurrency: u64,
+    /// Additional command-line arguments to pass to `apptainer exec` when
+    /// executing tasks.
+    pub extra_apptainer_exec_args: Option<Vec<String>>,
     /// The directory in which temporary directories will be created containing
     /// Apptainer `.sif` files.
     ///
@@ -634,8 +651,10 @@ impl Default for LsfApptainerBackendConfig {
     fn default() -> Self {
         Self {
             queue: None,
+            extra_bsub_args: None,
             max_scatter_concurrency: default_max_scatter_concurrency(),
             apptainer_images_dir: default_apptainer_images_dir(),
+            extra_apptainer_exec_args: None,
         }
     }
 }
