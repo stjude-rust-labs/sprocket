@@ -1,1 +1,1 @@
-format --check file.wdl 
+format check file.wdl 
