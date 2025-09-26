@@ -96,7 +96,7 @@ pub async fn inner() -> anyhow::Result<()> {
         }
         Commands::Config(args) => commands::config::config(args, config),
         Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args.apply(config)),
+        Commands::Format(args) => commands::format::format(args.apply(config)).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Run(args) => commands::run::run(args.apply(config)).await,

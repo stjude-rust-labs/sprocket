@@ -1,10 +1,7 @@
 //! Implementation of the `format` subcommand.
 
-use std::ffi::OsStr;
 use std::fs;
 use std::io::IsTerminal;
-use std::io::Read;
-use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -12,27 +9,26 @@ use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
 use clap::Subcommand;
-use walkdir::WalkDir;
-use wdl::ast::Document;
+use tracing::info;
+use tracing::warn;
+use wdl::analysis::Document;
+use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
-use wdl::format::Config;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
+use crate::IGNORE_FILENAME;
 use crate::Mode;
 use crate::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
-#[command(
-    author,
-    version,
-    about,
-)]
+#[command(author, version, about)]
 pub struct Args {
     /// Disables color output.
     #[arg(long)]
@@ -77,101 +73,63 @@ impl Args {
     }
 }
 
-/// Source argument for all `format` subcommands.
+/// Vec of Source arguments (may be empty).
 #[derive(Parser, Debug, Clone)]
-pub struct SourceArg {
-    source: Option<Source>,
+pub struct OptionalSources {
+    /// Sources to format.
+    sources: Vec<Source>,
+}
+
+/// Source argument that is required.
+#[derive(Parser, Debug, Clone)]
+pub struct RequiredSource {
+    /// Source to format.
+    source: Source,
 }
 
 /// Subcommands for the `format` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum FormatSubcommand {
     /// Check if files are formatted correctly and print diff if not.
-    Check(SourceArg),
+    Check(OptionalSources),
 
     /// Format a document and send the result to STDOUT.
-    View(SourceArg),
+    View(RequiredSource),
 
     /// Reformat all WDL documents via overwriting.
-    Overwrite(SourceArg),
+    Overwrite(OptionalSources),
 }
 
 /// Formats a document.
-///
-/// If `check_only` is true, checks if the document is formatted correctly and
-/// prints the diff if not then exits. Else will format and overwrite the
-/// document.
-///
-/// If the document failed to parse, this emits the diagnostics and returns
-/// `Ok(count)` of the diagnostics to the caller.
-///
-/// A return value of `Ok(0)` indicates the document was formatted.
 fn format_document(
-    config: Config,
-    path: &Path,
-    report_mode: Mode,
+    formatter: &Formatter,
+    document: &Document,
+    mode: Mode,
     no_color: bool,
-    check_only: bool,
-) -> Result<usize> {
-    // let source = read_source(path)?;
-    // let (document, diagnostics) = Document::parse(&source);
-    // if !diagnostics.is_empty() {
-    //     emit_diagnostics(
-    //         path.as_os_str().to_str().expect("path is not UTF-8"),
-    //         source,
-    //         &diagnostics,
-    //         &[],
-    //         report_mode,
-    //         no_color,
-    //     )
-    //     .context("failed to emit diagnostics")?;
+) -> Result<(String, String)> {
+    let source = document.root().text().to_string();
+    let diagnostics = document
+        .diagnostics()
+        .iter()
+        .filter(|d| d.severity().is_error())
+        .collect::<Vec<_>>();
+    if !diagnostics.is_empty() {
+        let path = document.path();
+        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, no_color)?;
+        return Err(anyhow!("cannot format a malformed document"));
+    }
 
-    //     return Ok(diagnostics.len());
-    // }
-
-    // let document = Node::Ast(
-    //     document
-    //         .ast()
-    //         .into_v1()
-    //         .ok_or_else(|| anyhow!("only WDL 1.x documents are currently supported"))?,
-    // )
-    // .into_format_element();
-
-    // let formatter = Formatter::new(config);
-    // let formatted = formatter.format(&document)?;
-
-    // if check_only {
-    //     if formatted != source {
-    //         if !no_color && std::io::stderr().is_terminal() {
-    //             eprint!(
-    //                 "{}",
-    //                 pretty_assertions::StrComparison::new(&source, &formatted)
-    //             );
-    //         } else {
-    //             let diff = similar::TextDiff::from_lines(&source, &formatted);
-    //             eprint!("{}", diff.unified_diff());
-    //         }
-    //         return Ok(1);
-    //     }
-    //     println!("`{path}` is formatted correctly", path = path.display());
-    //     return Ok(0);
-    // }
-
-    // // Write file because check is not true
-    // fs::write(path, formatted)
-    //     .with_context(|| format!("failed to write `{path}`", path = path.display()))?;
-
-    Ok(0)
+    let ast = document
+        .root()
+        .ast()
+        .into_v1()
+        .expect("only WDL v1.x documents are supported");
+    let element = Node::Ast(ast).into_format_element();
+    Ok((source, formatter.format(&element)?))
 }
 
 /// Runs the `format` command.
-pub fn format(args: Args) -> Result<()> {
-    let source = match args.command {
-        FormatSubcommand::Check(s) => s.source,
-        FormatSubcommand::Overwrite(s) => s.source,
-        FormatSubcommand::View(s) => s.source,
-    };
-    let source = source.unwrap_or_default();
+pub async fn format(args: Args) -> Result<()> {
     let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
         Ok(indent) => indent,
         Err(e) => bail!("failed to create indentation configuration: {}", e),
@@ -189,42 +147,165 @@ pub fn format(args: Args) -> Result<()> {
         .indent(indent)
         .max_line_length(max_line_length)
         .build();
+    let formatter = Formatter::new(config);
 
-    let mut diagnostics = 0;
-    // if let Source::Directory(path) = source {
-    //     for entry in WalkDir::new(&path) {
-    //         let entry = entry.with_context(|| {
-    //             format!("failed to walk directory `{path}`", path = path.display())
-    //         })?;
-    //         let path = entry.path();
-    //         if !path.is_file() || path.extension().and_then(OsStr::to_str) != Some("wdl") {
-    //             continue;
-    //         }
+    let mut errors = 0;
+    match args.command {
+        FormatSubcommand::Check(s) => {
+            let mut sources = s.sources;
+            if sources.is_empty() {
+                sources.push(Source::default());
+            }
 
-    //         // diagnostics += format_document(
-    //         //     config,
-    //         //     path,
-    //         //     args.report_mode.unwrap_or_default(),
-    //         //     args.no_color,
-    //         //     args.mode.check,
-    //         // )?;
-    //     }
-    // } else if let Source::File(path) = source {
-    //     // diagnostics += format_document(
-    //     //     config,
-    //     //     &path.to_file_path().expect("should be local file path"),
-    //     //     args.report_mode.unwrap_or_default(),
-    //     //     args.no_color,
-    //     //     args.mode.check,
-    //     // )?;
-    // } else {
-    //     unreachable!()
-    // }
+            let results = match Analysis::default()
+                .extend_sources(sources.clone())
+                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
+                .run()
+                .await
+            {
+                Ok(results) => results,
+                Err(errors) => {
+                    // SAFETY: this is a non-empty, so it must always have a first
+                    // element.
+                    bail!(errors.into_iter().next().unwrap())
+                }
+            };
+            let sources = sources.iter().collect::<Vec<_>>();
+            let results = results.filter(sources.as_slice()).collect::<Vec<_>>();
+            for result in results {
+                info!("checking `{}`", result.document().path());
 
-    if diagnostics > 0 {
+                if let Some(err) = result.error() {
+                    errors += 1;
+                    warn!("error analyzing `{}`: {}", result.document().path(), err);
+                    continue;
+                }
+
+                let (source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    args.report_mode.unwrap_or_default(),
+                    args.no_color,
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!(
+                            "skipping format check for `{}`: {e}",
+                            result.document().path()
+                        );
+                        continue;
+                    }
+                };
+                if formatted != source {
+                    warn!("difference in `{}`", result.document().path());
+                    if !args.no_color && std::io::stderr().is_terminal() {
+                        eprint!(
+                            "{}",
+                            pretty_assertions::StrComparison::new(&source, &formatted)
+                        );
+                    } else {
+                        let diff = similar::TextDiff::from_lines(&source, &formatted);
+                        eprint!("{}", diff.unified_diff().header("input", "formatted"));
+                    }
+                    errors += 1;
+                } else {
+                    info!("`{}` is formatted correctly", result.document().path())
+                }
+            }
+        }
+        FormatSubcommand::View(s) => {
+            let source = s.source;
+            match &source {
+                Source::File(_) | Source::Remote(_) => {}
+                Source::Directory(p) => {
+                    bail!("`view` does not support directories: `{}`", p.display())
+                }
+            };
+
+            let results = match Analysis::default().add_source(source.clone()).run().await {
+                Ok(results) => results,
+                Err(errors) => {
+                    // SAFETY: this is a non-empty, so it must always have a first
+                    // element.
+                    bail!(errors.into_iter().next().unwrap())
+                }
+            };
+            let result = results.filter(&[&source]).next().unwrap();
+
+            if let Some(err) = result.error() {
+                bail!("error analyzing `{}`: {}", result.document().path(), err);
+            }
+
+            let (_source, formatted) = match format_document(
+                &formatter,
+                result.document(),
+                args.report_mode.unwrap_or_default(),
+                args.no_color,
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    bail!("could not view `{}`: {e}", result.document().path());
+                }
+            };
+            print!("{}", formatted);
+        }
+        FormatSubcommand::Overwrite(s) => {
+            let mut sources = s.sources;
+            if sources.is_empty() {
+                sources.push(Source::default());
+            }
+
+            let results = match Analysis::default()
+                .extend_sources(sources.clone())
+                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
+                .run()
+                .await
+            {
+                Ok(results) => results,
+                Err(errors) => {
+                    // SAFETY: this is a non-empty, so it must always have a first
+                    // element.
+                    bail!(errors.into_iter().next().unwrap())
+                }
+            };
+            let sources = sources.iter().collect::<Vec<_>>();
+            let results = results.filter(sources.as_slice()).collect::<Vec<_>>();
+            for result in results {
+                info!("formatting `{}`", result.document().path());
+
+                if let Some(err) = result.error() {
+                    errors += 1;
+                    warn!("error analyzing `{}`: {}", result.document().path(), err);
+                    continue;
+                }
+
+                let (_source, formatted) = match format_document(
+                    &formatter,
+                    result.document(),
+                    args.report_mode.unwrap_or_default(),
+                    args.no_color,
+                ) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        errors += 1;
+                        warn!("not overwriting `{}`: {e}", result.document().path());
+                        continue;
+                    }
+                };
+
+                fs::write(result.document().uri().to_file_path().unwrap(), formatted)
+                    .with_context(|| {
+                        format!("failed to overwrite `{}`", result.document().path())
+                    })?;
+            }
+        }
+    }
+
+    if errors > 0 {
         bail!(
-            "aborting due to previous {diagnostics} diagnostic{s}",
-            s = if diagnostics == 1 { "" } else { "s" }
+            "aborting due to previous {errors} diagnostic{s}",
+            s = if errors == 1 { "" } else { "s" }
         );
     }
 
