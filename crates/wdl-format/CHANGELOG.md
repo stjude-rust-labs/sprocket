@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* `MaxLineLength::try_new()` and `IndentationSize::try_new()` return appropriate errors ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
+
 ## 0.11.0 - 09-15-2025
 
 * Added support for sorting input sections ([#597](https://github.com/stjude-rust-labs/wdl/pull/597)).
