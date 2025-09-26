@@ -1,7 +1,17 @@
 //! Indentation within formatting configuration.
 
+use thiserror::Error;
+
 use crate::SPACE;
 use crate::TAB;
+
+#[derive(Error, Debug)]
+pub enum IndentError {
+    #[error("indentation with tabs cannot have a number of spaces")]
+    InvalidConfiguration,
+    #[error("`{0}` is more than the maximum allowed number of spaces: `{max}`", max = MAX_SPACE_INDENT)]
+    TooManySpaces(usize),
+}
 
 /// The default number of spaces to represent one indentation level.
 const DEFAULT_SPACE_INDENT: usize = 4;
@@ -27,18 +37,13 @@ impl Default for Indent {
 
 impl Indent {
     /// Attempts to create a new indentation level configuration.
-    pub fn try_new(tab: bool, num_spaces: Option<usize>) -> Result<Self, String> {
+    pub fn try_new(tab: bool, num_spaces: Option<usize>) -> Result<Self, IndentError> {
         match (tab, num_spaces) {
             (true, None) => Ok(Indent::Tabs),
-            (true, Some(_)) => {
-                Err("Indentation with tabs cannot have a number of spaces".to_string())
-            }
+            (true, Some(_)) => Err(IndentError::InvalidConfiguration),
             (false, Some(n)) => {
                 if n > MAX_SPACE_INDENT {
-                    Err(format!(
-                        "Indentation with spaces cannot have more than {MAX_SPACE_INDENT} \
-                         characters"
-                    ))
+                    Err(IndentError::TooManySpaces(n))
                 } else {
                     Ok(Indent::Spaces(n))
                 }

@@ -39,7 +39,7 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 
     /// Use tabs for indentation (default is spaces).
-    #[arg(long, global = true)]
+    #[arg(short = 't', long, global = true)]
     pub with_tabs: bool,
 
     /// The number of spaces to use for indentation levels (default is 4).
@@ -136,16 +136,12 @@ fn format_document(
 
 /// Runs the `format` command.
 pub async fn format(args: Args) -> Result<()> {
-    let indent = match Indent::try_new(args.with_tabs, args.indentation_size) {
-        Ok(indent) => indent,
-        Err(e) => bail!("failed to create indentation configuration: {}", e),
-    };
+    let indent = Indent::try_new(args.with_tabs, args.indentation_size)
+        .with_context(|| "failed to create indentation configuration")?;
 
     let max_line_length = match args.max_line_length {
-        Some(length) => match MaxLineLength::try_new(length) {
-            Ok(max_line_length) => max_line_length,
-            Err(e) => bail!("failed to create max line length configuration: {}", e),
-        },
+        Some(length) => MaxLineLength::try_new(length)
+            .with_context(|| "failed to create max line length configuration")?,
         None => MaxLineLength::default(),
     };
 
@@ -216,7 +212,7 @@ pub async fn format(args: Args) -> Result<()> {
                     }
                     errors += 1;
                 } else {
-                    info!("`{}` is formatted correctly", result.document().path())
+                    println!("`{}` is formatted correctly", result.document().path())
                 }
             }
         }
@@ -225,7 +221,10 @@ pub async fn format(args: Args) -> Result<()> {
             match &source {
                 Source::File(_) | Source::Remote(_) => {}
                 Source::Directory(p) => {
-                    bail!("`view` does not support directories: `{}`", p.display())
+                    bail!(
+                        "the `format view` command does not support formatting directory `{path}`",
+                        path = p.display()
+                    );
                 }
             };
 
@@ -240,7 +239,10 @@ pub async fn format(args: Args) -> Result<()> {
             let result = results.filter(&[&source]).next().unwrap();
 
             if let Some(err) = result.error() {
-                bail!("error analyzing `{}`: {}", result.document().path(), err);
+                bail!(
+                    "error analyzing `{path}`: {err:#}",
+                    path = result.document().path()
+                );
             }
 
             let (_source, formatted) = match format_document(
@@ -295,7 +297,10 @@ pub async fn format(args: Args) -> Result<()> {
                     Ok(r) => r,
                     Err(e) => {
                         errors += 1;
-                        warn!("not overwriting `{}`: {e}", result.document().path());
+                        warn!(
+                            "not overwriting document `{path}` due to error: {e:#}",
+                            path = result.document().path()
+                        );
                         continue;
                     }
                 };

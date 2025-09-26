@@ -1,5 +1,13 @@
 //! Configuration for max line length formatting.
 
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum MaxLineLengthError {
+    #[error("`{0}` is outside the allowed range for the max line length: `{min}-{max}`", min = MIN_MAX_LINE_LENGTH, max = MAX_MAX_LINE_LENGTH)]
+    OutsideAllowedRange(usize),
+}
+
 /// The default maximum line length.
 pub const DEFAULT_MAX_LINE_LENGTH: usize = 90;
 /// The minimum maximum line length.
@@ -15,15 +23,12 @@ impl MaxLineLength {
     /// Attempts to create a new `MaxLineLength` with the provided value.
     ///
     /// A value of `0` indicates no maximum.
-    pub fn try_new(value: usize) -> Result<Self, String> {
+    pub fn try_new(value: usize) -> Result<Self, MaxLineLengthError> {
         let val = match value {
             0 => Self(None),
             MIN_MAX_LINE_LENGTH..=MAX_MAX_LINE_LENGTH => Self(Some(value)),
             _ => {
-                return Err(format!(
-                    "The maximum line length must be between {MIN_MAX_LINE_LENGTH} and \
-                     {MAX_MAX_LINE_LENGTH} or 0"
-                ));
+                return Err(MaxLineLengthError::OutsideAllowedRange(value));
             }
         };
         Ok(val)
