@@ -1654,7 +1654,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "floor",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("value", PrimitiveType::Float, "The floating point number.")
+                        .parameter("value", PrimitiveType::Float, "the number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -1700,7 +1700,7 @@ workflow test_floor {
                 "ceil",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("value", PrimitiveType::Float, "The floating point number.")
+                        .parameter("value", PrimitiveType::Float, "the number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -1747,7 +1747,7 @@ workflow test_ceil {
                 "round",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::Float)
+                        .parameter("value", PrimitiveType::Float, "the number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(r#"
 Rounds a floating point number to the nearest integer based on standard rounding rules ("round half up").
@@ -1824,29 +1824,45 @@ workflow test_min {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Integer)
-                        .parameter(PrimitiveType::Integer)
+                        .parameter(
+                            "a",
+                            PrimitiveType::Integer,
+                            "the first number to compare.",
+                        )
+                        .parameter(
+                            "b",
+                            PrimitiveType::Integer,
+                            "the second number to compare.",
+                        )
                         .ret(PrimitiveType::Integer)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Integer)
-                        .parameter(PrimitiveType::Float)
+                        .parameter(
+                            "a",
+                            PrimitiveType::Integer,
+                            "the first number to compare.",
+                        )
+                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Float)
-                        .parameter(PrimitiveType::Integer)
-                        .ret(PrimitiveType::Float)
+                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
+                        .parameter(
+                            "b",
+                            PrimitiveType::Integer,
+                            "the second number to compare.",
+                        )
+                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Float)
-                        .parameter(PrimitiveType::Float)
+                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
@@ -1894,29 +1910,33 @@ workflow test_max {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Integer)
-                        .parameter(PrimitiveType::Integer)
+                        .parameter("a", PrimitiveType::Integer, "the first number to compare.")
+                        .parameter("b", PrimitiveType::Integer, "the second number to compare.")
                         .ret(PrimitiveType::Integer)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Integer)
-                        .parameter(PrimitiveType::Float)
+                        .parameter("a", PrimitiveType::Integer, "the first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Float)
-                        .parameter(PrimitiveType::Integer)
+                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
+                        .parameter(
+                            "b",
+                            PrimitiveType::Integer,
+                            "the second number to compare.",
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(PrimitiveType::Float)
-                        .parameter(PrimitiveType::Float)
+                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
@@ -1934,8 +1954,8 @@ workflow test_max {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::String)
-                        .parameter(PrimitiveType::String)
+                        .parameter("input", PrimitiveType::String, "the input string to search.")
+                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
                         .ret(Type::from(PrimitiveType::String).optional())
                         .definition(
                             r#"
@@ -1987,8 +2007,8 @@ workflow find_string {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::String)
-                        .parameter(PrimitiveType::String)
+                        .parameter("input", PrimitiveType::String, "the input string to search.")
+                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
@@ -2043,9 +2063,9 @@ workflow contains_string {
                 "sub",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::String)
-                        .parameter(PrimitiveType::String)
-                        .parameter(PrimitiveType::String)
+                        .parameter("input", PrimitiveType::String, "the input string.")
+                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
+                        .parameter("replace", PrimitiveType::String, "the replacement string.")
                         .ret(PrimitiveType::String)
                         .definition(
                             r#"
@@ -2124,8 +2144,18 @@ workflow test_basename {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter(PrimitiveType::File)
-                        .parameter(PrimitiveType::String)
+                        .parameter(
+                            "path",
+                            PrimitiveType::File,
+                            "Path of the file or directory to read. If the argument is a String, \
+                             it is assumed to be a local file path relative to the current \
+                             working directory of the task.",
+                        )
+                        .parameter(
+                            "suffix",
+                            PrimitiveType::String,
+                            "(Optional) Suffix to remove from the file name.",
+                        )
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION)
                         .build(),
@@ -2136,16 +2166,26 @@ workflow test_basename {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(PrimitiveType::String)
-                        .parameter(PrimitiveType::String)
+                        .parameter("path", PrimitiveType::String, "Path of the file or directory to read. If the argument is a String, it is assumed to be a local file path relative to the current working directory of the task.")
+                        .parameter("suffix", PrimitiveType::String, "(Optional) Suffix to remove from the file name.")
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(PrimitiveType::Directory)
-                        .parameter(PrimitiveType::String)
+                        .parameter(
+                            "path",
+                            PrimitiveType::Directory,
+                            "Path of the file or directory to read. If the argument is a String, \
+                             it is assumed to be a local file path relative to the current \
+                             working directory of the task.",
+                        )
+                        .parameter(
+                            "suffix",
+                            PrimitiveType::String,
+                            "(Optional) Suffix to remove from the file name.",
+                        )
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION)
                         .build(),
@@ -2227,21 +2267,30 @@ task resolve_paths_task {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::File)
-                        .parameter(PrimitiveType::String)
+                        .parameter(
+                            "base",
+                            PrimitiveType::File,
+                            "Either a path or an array of paths.",
+                        )
+                        .parameter(
+                            "relative",
+                            PrimitiveType::String,
+                            "A relative path or paths; only allowed if the first argument is a \
+                             File.",
+                        )
                         .ret(PrimitiveType::File)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::File)
-                        .parameter(array_string_non_empty.clone())
+                        .parameter("base", PrimitiveType::File, "Either a path or an array of paths.")
+                        .parameter("relative", array_string_non_empty.clone(), "A relative path or paths; only allowed if the first argument is a File.")
                         .ret(PrimitiveType::File)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(array_string_non_empty.clone())
+                        .parameter("paths", array_string_non_empty.clone(), "Either a path or an array of paths.")
                         .ret(PrimitiveType::File)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
@@ -2258,7 +2307,7 @@ task resolve_paths_task {
                 "glob",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::String)
+                        .parameter("pattern", PrimitiveType::String, "The glob string.")
                         .ret(array_file.clone())
                         .definition(
                             r#"
@@ -2364,15 +2413,15 @@ task file_sizes {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(Type::None)
-                        .parameter(PrimitiveType::String)
+                        .parameter("value", Type::None, "A file, directory, or a compound value containing files/directories, for which to determine the size.")
+                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter(Type::from(PrimitiveType::File).optional())
-                        .parameter(PrimitiveType::String)
+                        .parameter("value", Type::from(PrimitiveType::File).optional(), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
+                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
@@ -2383,24 +2432,33 @@ task file_sizes {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(Type::from(PrimitiveType::String).optional())
-                        .parameter(PrimitiveType::String)
+                        .parameter(
+                            "value",
+                            Type::from(PrimitiveType::String).optional(),
+                            "A file, directory, or a compound value containing files/directories, \
+                             for which to determine the size.",
+                        )
+                        .parameter(
+                            "unit",
+                            PrimitiveType::String,
+                            "(Optional) The unit of storage; defaults to 'B'.",
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter(Type::from(PrimitiveType::Directory).optional())
-                        .parameter(PrimitiveType::String)
+                        .parameter("value", Type::from(PrimitiveType::Directory).optional(), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
+                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .type_parameter("X", SizeableConstraint)
-                        .parameter(GenericType::Parameter("X"))
-                        .parameter(PrimitiveType::String)
+                        .parameter("value", GenericType::Parameter("X"), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
+                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
@@ -2497,7 +2555,7 @@ task echo_stderr {
                 "read_string",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the file to read.")
                         .ret(PrimitiveType::String)
                         .definition(
                             r#"
@@ -2546,7 +2604,7 @@ task read_string {
                 "read_int",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the file to read.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -2589,7 +2647,7 @@ task read_int {
                 "read_float",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the file to read.")
                         .ret(PrimitiveType::Float)
                         .definition(
                             r#"
@@ -2634,7 +2692,7 @@ task read_float {
                 "read_boolean",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the file to read.")
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
@@ -2679,7 +2737,7 @@ task read_bool {
                 "read_lines",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the file to read.")
                         .ret(array_string.clone())
                         .definition(
                             r#"
@@ -2735,7 +2793,7 @@ task grep {
                 "write_lines",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(array_string.clone())
+                        .parameter("array", array_string.clone(), "Array of strings to write.")
                         .ret(PrimitiveType::File)
                         .definition(
                             r#"
@@ -2838,22 +2896,35 @@ task read_tsv {
                 "read_tsv",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "The TSV file to read.")
                         .ret(array_array_string.clone())
                         .definition(READ_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::File)
-                        .parameter(PrimitiveType::Boolean)
+                        .parameter("file", PrimitiveType::File, "The TSV file to read.")
+                        .parameter(
+                            "header",
+                            PrimitiveType::Boolean,
+                            "(Optional) Whether to treat the file's first line as a header.",
+                        )
                         .ret(array_object.clone())
                         .definition(READ_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(PrimitiveType::File)
-                        .parameter(PrimitiveType::Boolean)
-                        .parameter(array_string.clone())
+                        .parameter("file", PrimitiveType::File, "The TSV file to read.")
+                        .parameter(
+                            "header",
+                            PrimitiveType::Boolean,
+                            "(Optional) Whether to treat the file's first line as a header.",
+                        )
+                        .parameter(
+                            "columns",
+                            array_string.clone(),
+                            "(Optional) An array of field names. If specified, then the second \
+                             parameter is also required.",
+                        )
                         .ret(array_object.clone())
                         .definition(READ_TSV_DEFINITION)
                         .build(),
@@ -2945,15 +3016,29 @@ task write_tsv {
                 "write_tsv",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(array_array_string.clone())
+                        .parameter(
+                            "data",
+                            array_array_string.clone(),
+                            "An array of rows, where each row is either an Array of column \
+                             values or a struct whose values are the column values.",
+                        )
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(array_array_string.clone())
-                        .parameter(PrimitiveType::Boolean)
-                        .parameter(array_string.clone())
+                        .parameter(
+                            "data",
+                            array_array_string.clone(),
+                            "An array of rows, where each row is either an Array of column \
+                             values or a struct whose values are the column values.",
+                        )
+                        .parameter(
+                            "header",
+                            PrimitiveType::Boolean,
+                            "(Optional) Whether to write a header row.",
+                        )
+                        .parameter("columns", array_string.clone(), "An array of column names. If the first argument is Array[Array[String]] and the second argument is true then it is required, otherwise it is optional. Ignored if the second argument is false.")
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
@@ -2961,9 +3046,18 @@ task write_tsv {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .required(1)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("S")))
-                        .parameter(PrimitiveType::Boolean)
-                        .parameter(array_string.clone())
+                        .parameter(
+                            "data",
+                            GenericArrayType::new(GenericType::Parameter("S")),
+                            "An array of rows, where each row is either an Array of column \
+                             values or a struct whose values are the column values.",
+                        )
+                        .parameter(
+                            "header",
+                            PrimitiveType::Boolean,
+                            "(Optional) Whether to write a header row.",
+                        )
+                        .parameter("columns", array_string.clone(), "An array of column names. If the first argument is Array[Array[String]] and the second argument is true then it is required, otherwise it is optional. Ignored if the second argument is false.")
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
@@ -2980,7 +3074,11 @@ task write_tsv {
                 "read_map",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter(
+                            "file",
+                            PrimitiveType::File,
+                            "Path of the two-column TSV file to read.",
+                        )
                         .ret(map_string_string.clone())
                         .definition(
                             r#"
@@ -3028,7 +3126,11 @@ task read_map {
                 "write_map",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(map_string_string.clone())
+                        .parameter(
+                            "map",
+                            map_string_string.clone(),
+                            "A Map, where each element will be a row in the generated file.",
+                        )
                         .ret(PrimitiveType::File)
                         .definition(
                             r#"
@@ -3081,7 +3183,7 @@ task write_map {
                 "read_json",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "Path of the JSON file to read.")
                         .ret(Type::Union)
                         .definition(
                             r#"
@@ -3147,7 +3249,11 @@ workflow read_person {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .type_parameter("X", JsonSerializableConstraint)
-                        .parameter(GenericType::Parameter("X"))
+                        .parameter(
+                            "value",
+                            GenericType::Parameter("X"),
+                            "A WDL value of a supported type.",
+                        )
                         .ret(PrimitiveType::File)
                         .definition(
                             r#"
@@ -3201,7 +3307,11 @@ workflow write_json_fail {
                 "read_object",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter(
+                            "file",
+                            PrimitiveType::File,
+                            "Path of the two-row TSV file to read.",
+                        )
                         .ret(Type::Object)
                         .definition(
                             r#"
@@ -3255,7 +3365,7 @@ task read_object {
                 "read_objects",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::File)
+                        .parameter("file", PrimitiveType::File, "The file to read.")
                         .ret(array_object.clone())
                         .definition(
                             r#"
@@ -3343,14 +3453,14 @@ task write_object {
                 "write_object",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(Type::Object)
+                        .parameter("object", Type::Object, "An object to write.")
                         .ret(PrimitiveType::File)
                         .definition(WRITE_OBJECT_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
-                        .parameter(GenericType::Parameter("S"))
+                        .parameter("object", GenericType::Parameter("S"), "An object to write.")
                         .ret(PrimitiveType::File)
                         .definition(WRITE_OBJECT_DEFINITION)
                         .build(),
@@ -3407,15 +3517,14 @@ task write_objects {
                 "write_objects",
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
-                        .parameter(array_object.clone())
+                        .parameter("objects", array_object.clone(), "The objects to write.")
                         .ret(PrimitiveType::File)
                         .definition(WRITE_OBJECTS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("S")))
-                        .ret(PrimitiveType::File)
+                        .parameter("objects", GenericArrayType::new(GenericType::Parameter("S")), "The objects to write.")                        .ret(PrimitiveType::File)
                         .definition(WRITE_OBJECTS_DEFINITION)
                         .build(),
                 ])
@@ -3432,8 +3541,16 @@ task write_objects {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveType::String)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
+                        .parameter(
+                            "prefix",
+                            PrimitiveType::String,
+                            "The prefix to prepend to each element in the array.",
+                        )
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("P")),
+                            "Array with a primitive element type.",
+                        )
                         .ret(array_string.clone())
                         .definition(
                             r#"
@@ -3479,8 +3596,16 @@ task prefix {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveType::String)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
+                        .parameter(
+                            "suffix",
+                            PrimitiveType::String,
+                            "The suffix to append to each element in the array.",
+                        )
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("P")),
+                            "Array with a primitive element type.",
+                        )
                         .ret(array_string.clone())
                         .definition(
                             r#"
@@ -3526,7 +3651,11 @@ task suffix {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("P")),
+                            "Array with a primitive element type.",
+                        )
                         .ret(array_string.clone())
                         .definition(
                             r#"
@@ -3571,8 +3700,7 @@ task quote {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .ret(array_string.clone())
+                        .parameter("array", GenericArrayType::new(GenericType::Parameter("P")), "The array of values.")                        .ret(array_string.clone())
                         .definition(
                             r#"
 Given an `Array[X]` `a`, returns a new `Array[String]` where each element `x` of `a` is converted to a `String` and then surrounded by single quotes (`'`). If `a` is empty, an empty array is returned.
@@ -3616,8 +3744,12 @@ task squote {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(PrimitiveType::String)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
+                        .parameter("separator", PrimitiveType::String, "Separator string.")
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("P")),
+                            "Array of strings to concatenate.",
+                        )
                         .ret(PrimitiveType::String)
                         .definition(
                             r#"
@@ -3661,7 +3793,7 @@ task sep {
                 "range",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::Integer)
+                        .parameter("n", PrimitiveType::Integer, "The length of array to create.")
                         .ret(array_int.clone())
                         .definition(
                             r#"
@@ -3705,9 +3837,13 @@ task range {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter(GenericArrayType::new(GenericArrayType::new(
-                            GenericType::Parameter("X"),
-                        )))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericArrayType::new(
+                                GenericType::Parameter("X"),
+                            )),
+                            "A M*N two-dimensional array.",
+                        )
                         .ret(GenericArrayType::new(GenericArrayType::new(
                             GenericType::Parameter("X"),
                         )))
@@ -3756,8 +3892,8 @@ task transpose {
                     FunctionSignature::builder()
                         .any_type_parameter("X")
                         .any_type_parameter("Y")
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .parameter(GenericArrayType::new(GenericType::Parameter("Y")))
+                        .parameter("a", GenericArrayType::new(GenericType::Parameter("X")), "The first array of length M.")
+                        .parameter("b", GenericArrayType::new(GenericType::Parameter("Y")), "The second array of length N.")
                         .ret(GenericArrayType::new(GenericPairType::new(
                             GenericType::Parameter("X"),
                             GenericType::Parameter("Y"),
@@ -3809,8 +3945,8 @@ task cross {
                     FunctionSignature::builder()
                         .any_type_parameter("X")
                         .any_type_parameter("Y")
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .parameter(GenericArrayType::new(GenericType::Parameter("Y")))
+                        .parameter("a", GenericArrayType::new(GenericType::Parameter("X")), "The first array of length M.")
+                        .parameter("b", GenericArrayType::new(GenericType::Parameter("Y")), "The second array of length N.")
                         .ret(GenericArrayType::new(GenericPairType::new(
                             GenericType::Parameter("X"),
                             GenericType::Parameter("Y"),
@@ -3863,10 +3999,14 @@ task zip {
                         .min_version(SupportedVersion::V1(V1::One))
                         .any_type_parameter("X")
                         .any_type_parameter("Y")
-                        .parameter(GenericArrayType::new(GenericPairType::new(
-                            GenericType::Parameter("X"),
-                            GenericType::Parameter("Y"),
-                        )))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericPairType::new(
+                                GenericType::Parameter("X"),
+                                GenericType::Parameter("Y"),
+                            )),
+                            "The Array of Pairs of length N to unzip.",
+                        )
                         .ret(GenericPairType::new(
                             GenericArrayType::new(GenericType::Parameter("X")),
                             GenericArrayType::new(GenericType::Parameter("Y")),
@@ -3916,8 +4056,17 @@ task unzip {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("P", PrimitiveTypeConstraint)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("P")))
-                        .parameter(GenericType::Parameter("P"))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("P")),
+                            "an array of any primitive type.",
+                        )
+                        .parameter(
+                            "value",
+                            GenericType::Parameter("P"),
+                            "a primitive value of the same type as the array. If the array's \
+                             type is optional, then the value may also be optional.",
+                        )
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
@@ -3964,8 +4113,12 @@ task contains {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .any_type_parameter("X")
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .parameter(PrimitiveType::Integer)
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("X")),
+                            "The array to split. May be empty.",
+                        )
+                        .parameter("size", PrimitiveType::Integer, "The desired length of the sub-arrays. Must be > 0.")
                         .ret(GenericArrayType::new(GenericArrayType::new(
                             GenericType::Parameter("X"),
                         )))
@@ -4014,9 +4167,13 @@ task chunk {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter(GenericArrayType::new(GenericArrayType::new(
-                            GenericType::Parameter("X")
-                        )))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericArrayType::new(
+                                GenericType::Parameter("X"),
+                            )),
+                            "A nested array to flatten.",
+                        )
                         .ret(GenericArrayType::new(GenericType::Parameter("X")))
                         .definition(
                             r#"
@@ -4063,8 +4220,12 @@ task flatten {
                     FunctionSignature::builder()
                         .any_type_parameter("X")
                         .required(1)
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
-                        .parameter(GenericType::UnqualifiedParameter("X"))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("X")),
+                            "Non-empty Array of optional values.",
+                        )
+                        .parameter("default", GenericType::UnqualifiedParameter("X"), "(Optional) The default value.")
                         .ret(GenericType::UnqualifiedParameter("X"))
                         .definition(
                             r#"
@@ -4108,7 +4269,11 @@ task select_first {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("X")),
+                            "Array of optional values.",
+                        )
                         .ret(GenericArrayType::new(GenericType::UnqualifiedParameter(
                             "X"
                         )))
@@ -4156,10 +4321,14 @@ task select_all {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        ))
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            ),
+                            "Map to convert to Pairs.",
+                        )
                         .ret(GenericArrayType::new(GenericPairType::new(
                             GenericType::Parameter("K"),
                             GenericType::Parameter("V")
@@ -4210,10 +4379,14 @@ task as_pairs {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericArrayType::new(GenericPairType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        )))
+                        .parameter(
+                            "pairs",
+                            GenericArrayType::new(GenericPairType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            )),
+                            "Array of Pairs to convert to a Map.",
+                        )
                         .ret(GenericMapType::new(
                             GenericType::Parameter("K"),
                             GenericType::Parameter("V")
@@ -4292,23 +4465,35 @@ task keys_map {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        ))
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            ),
+                            "Collection from which to extract keys.",
+                        )
                         .ret(GenericArrayType::new(GenericType::Parameter("K")))
                         .definition(KEYS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
-                        .parameter(GenericType::Parameter("S"))
+                        .parameter(
+                            "struct",
+                            GenericType::Parameter("S"),
+                            "Collection from which to extract keys.",
+                        )
                         .ret(array_string.clone())
                         .definition(KEYS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(Type::Object)
+                        .parameter(
+                            "object",
+                            Type::Object,
+                            "Collection from which to extract keys.",
+                        )
                         .ret(array_string.clone())
                         .definition(KEYS_DEFINITION)
                         .build(),
@@ -4356,44 +4541,56 @@ task contains_key_map {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        ))
-                        .parameter(GenericType::Parameter("K"))
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            ),
+                            "Collection to search for the key.",
+                        )
+                        .parameter("key", GenericType::Parameter("K"), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
                         .ret(PrimitiveType::Boolean)
                         .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(Type::Object)
-                        .parameter(PrimitiveType::String)
+                        .parameter("object", Type::Object, "Collection to search for the key.")
+                        .parameter("key", PrimitiveType::String, "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
                         .ret(PrimitiveType::Boolean)
                         .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            PrimitiveType::String,
-                            GenericType::Parameter("V")
-                        ))
-                        .parameter(array_string.clone())
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                PrimitiveType::String,
+                                GenericType::Parameter("V"),
+                            ),
+                            "Collection to search for the key.",
+                        )
+                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
                         .ret(PrimitiveType::Boolean)
                         .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", StructConstraint)
-                        .parameter(GenericType::Parameter("S"))
-                        .parameter(array_string.clone())
+                        .parameter(
+                            "struct",
+                            GenericType::Parameter("S"),
+                            "Collection to search for the key.",
+                        )
+                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
                         .ret(PrimitiveType::Boolean)
                         .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter(Type::Object)
-                        .parameter(array_string.clone())
+                        .parameter("object", Type::Object, "Collection to search for the key.")
+                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
                         .ret(PrimitiveType::Boolean)
                         .definition(CONTAINS_KEY_DEFINITION)
                         .build(),
@@ -4413,10 +4610,14 @@ task contains_key_map {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        ))
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            ),
+                            "Map from which to extract values.",
+                        )
                         .ret(GenericArrayType::new(GenericType::Parameter("V")))
                         .definition(
                             r#"
@@ -4464,10 +4665,14 @@ task values_map {
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("K", PrimitiveTypeConstraint)
                         .any_type_parameter("V")
-                        .parameter(GenericArrayType::new(GenericPairType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        )))
+                        .parameter(
+                            "pairs",
+                            GenericArrayType::new(GenericPairType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            )),
+                            "Array of Pairs to group.",
+                        )
                         .ret(GenericMapType::new(
                             GenericType::Parameter("K"),
                             GenericArrayType::new(GenericType::Parameter("V"))
@@ -4516,7 +4721,7 @@ task collect_by_key {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter(GenericType::Parameter("X"))
+                        .parameter("value", GenericType::Parameter("X"), "optional value of any type.")
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
@@ -4588,27 +4793,43 @@ task length_array {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter(GenericArrayType::new(GenericType::Parameter("X")))
+                        .parameter(
+                            "array",
+                            GenericArrayType::new(GenericType::Parameter("X")),
+                            "A collection or string whose elements are to be counted.",
+                        )
                         .ret(PrimitiveType::Integer)
                         .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .any_type_parameter("K")
                         .any_type_parameter("V")
-                        .parameter(GenericMapType::new(
-                            GenericType::Parameter("K"),
-                            GenericType::Parameter("V")
-                        ))
+                        .parameter(
+                            "map",
+                            GenericMapType::new(
+                                GenericType::Parameter("K"),
+                                GenericType::Parameter("V"),
+                            ),
+                            "A collection or string whose elements are to be counted.",
+                        )
                         .ret(PrimitiveType::Integer)
                         .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
-                        .parameter(Type::Object)
+                        .parameter(
+                            "object",
+                            Type::Object,
+                            "A collection or string whose elements are to be counted.",
+                        )
                         .ret(PrimitiveType::Integer)
                         .definition(LENGTH_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::String)
+                        .parameter(
+                            "string",
+                            PrimitiveType::String,
+                            "A collection or string whose elements are to be counted.",
+                        )
                         .ret(PrimitiveType::Integer)
                         .definition(LENGTH_DEFINITION)
                         .build(),
