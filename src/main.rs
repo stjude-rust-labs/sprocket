@@ -35,14 +35,14 @@ struct Cli {
     verbosity: Verbosity<WarnLevel>,
 
     /// Path to the configuration file.
-    #[arg(long, short)]
+    #[arg(long, short, global = true)]
     config: Option<PathBuf>,
 
     /// Skip searching for and loading configuration files.
     ///
     /// Only a configuration file specified as a command line argument will be
     /// used.
-    #[arg(long, short)]
+    #[arg(long, short, global = true)]
     skip_config_search: bool,
 }
 
@@ -96,7 +96,7 @@ pub async fn inner() -> anyhow::Result<()> {
         }
         Commands::Config(args) => commands::config::config(args, config),
         Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args.apply(config)),
+        Commands::Format(args) => commands::format::format(args.apply(config)).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Run(args) => commands::run::run(args.apply(config)).await,

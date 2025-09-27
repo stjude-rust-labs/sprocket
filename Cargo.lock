@@ -5252,6 +5252,7 @@ dependencies = [
  "libtest-mimic",
  "nonempty",
  "pretty_assertions",
+ "thiserror 2.0.16",
  "wdl-ast",
 ]
 

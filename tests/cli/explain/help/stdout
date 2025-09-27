@@ -5,17 +5,41 @@ Usage: sprocket explain [RULE]
     sprocket explain --definitions
 
 Arguments:
-  [RULE]  The name of the rule to explain
+  [RULE]
+          The name of the rule to explain
 
 Options:
-  -t, --tag <TAG>       List all rules with the given tag
-      --definitions     Display general WDL definitions
-      --list-all-rules  Lists all rules and exits
-      --list-all-tags   Lists all tags and exits
-  -v, --verbose...      Increase logging verbosity
-  -q, --quiet...        Decrease logging verbosity
-  -h, --help            Print help
-  -V, --version         Print version
+  -t, --tag <TAG>
+          List all rules with the given tag
+
+      --definitions
+          Display general WDL definitions
+
+      --list-all-rules
+          Lists all rules and exits
+
+      --list-all-tags
+          Lists all tags and exits
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
 
 Available rules:
   - CallInputSpacing
