@@ -1054,7 +1054,7 @@ fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) ->
         .collect::<Vec<_>>()
         .join(", ");
 
-    format!("{}{}", name, params)
+    format!("{}({})", name, params)
 }
 
 /// Formats metadata value to type.
