@@ -1824,26 +1824,14 @@ workflow test_min {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(
-                            "a",
-                            PrimitiveType::Integer,
-                            "the first number to compare.",
-                        )
-                        .parameter(
-                            "b",
-                            PrimitiveType::Integer,
-                            "the second number to compare.",
-                        )
+                        .parameter("a", PrimitiveType::Integer, "the first number to compare.",)
+                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
                         .ret(PrimitiveType::Integer)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter(
-                            "a",
-                            PrimitiveType::Integer,
-                            "the first number to compare.",
-                        )
+                        .parameter("a", PrimitiveType::Integer, "the first number to compare.",)
                         .parameter("b", PrimitiveType::Float, "the second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
@@ -1851,12 +1839,8 @@ workflow test_min {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter(
-                            "b",
-                            PrimitiveType::Integer,
-                            "the second number to compare.",
-                        )
-                         .ret(PrimitiveType::Float)
+                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
+                        .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
@@ -1925,11 +1909,7 @@ workflow test_max {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter(
-                            "b",
-                            PrimitiveType::Integer,
-                            "the second number to compare.",
-                        )
+                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
@@ -2166,8 +2146,18 @@ workflow test_basename {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter("path", PrimitiveType::String, "Path of the file or directory to read. If the argument is a String, it is assumed to be a local file path relative to the current working directory of the task.")
-                        .parameter("suffix", PrimitiveType::String, "(Optional) Suffix to remove from the file name.")
+                        .parameter(
+                            "path",
+                            PrimitiveType::String,
+                            "Path of the file or directory to read. If the argument is a String, \
+                             it is assumed to be a local file path relative to the current \
+                             working directory of the task."
+                        )
+                        .parameter(
+                            "suffix",
+                            PrimitiveType::String,
+                            "(Optional) Suffix to remove from the file name."
+                        )
                         .ret(PrimitiveType::String)
                         .definition(BASENAME_DEFINITION)
                         .build(),
@@ -2283,14 +2273,27 @@ task resolve_paths_task {
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("base", PrimitiveType::File, "Either a path or an array of paths.")
-                        .parameter("relative", array_string_non_empty.clone(), "A relative path or paths; only allowed if the first argument is a File.")
+                        .parameter(
+                            "base",
+                            PrimitiveType::File,
+                            "Either a path or an array of paths."
+                        )
+                        .parameter(
+                            "relative",
+                            array_string_non_empty.clone(),
+                            "A relative path or paths; only allowed if the first argument is a \
+                             File."
+                        )
                         .ret(PrimitiveType::File)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("paths", array_string_non_empty.clone(), "Either a path or an array of paths.")
+                        .parameter(
+                            "paths",
+                            array_string_non_empty.clone(),
+                            "Either a path or an array of paths."
+                        )
                         .ret(PrimitiveType::File)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
@@ -2413,15 +2416,33 @@ task file_sizes {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter("value", Type::None, "A file, directory, or a compound value containing files/directories, for which to determine the size.")
-                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
+                        .parameter(
+                            "value",
+                            Type::None,
+                            "A file, directory, or a compound value containing files/directories, \
+                             for which to determine the size."
+                        )
+                        .parameter(
+                            "unit",
+                            PrimitiveType::String,
+                            "(Optional) The unit of storage; defaults to 'B'."
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
-                        .parameter("value", Type::from(PrimitiveType::File).optional(), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
-                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
+                        .parameter(
+                            "value",
+                            Type::from(PrimitiveType::File).optional(),
+                            "A file, directory, or a compound value containing files/directories, \
+                             for which to determine the size."
+                        )
+                        .parameter(
+                            "unit",
+                            PrimitiveType::String,
+                            "(Optional) The unit of storage; defaults to 'B'."
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
@@ -2449,16 +2470,34 @@ task file_sizes {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .required(1)
-                        .parameter("value", Type::from(PrimitiveType::Directory).optional(), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
-                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
+                        .parameter(
+                            "value",
+                            Type::from(PrimitiveType::Directory).optional(),
+                            "A file, directory, or a compound value containing files/directories, \
+                             for which to determine the size."
+                        )
+                        .parameter(
+                            "unit",
+                            PrimitiveType::String,
+                            "(Optional) The unit of storage; defaults to 'B'."
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .required(1)
                         .type_parameter("X", SizeableConstraint)
-                        .parameter("value", GenericType::Parameter("X"), "A file, directory, or a compound value containing files/directories, for which to determine the size.")
-                        .parameter("unit", PrimitiveType::String, "(Optional) The unit of storage; defaults to 'B'.")
+                        .parameter(
+                            "value",
+                            GenericType::Parameter("X"),
+                            "A file, directory, or a compound value containing files/directories, \
+                             for which to determine the size."
+                        )
+                        .parameter(
+                            "unit",
+                            PrimitiveType::String,
+                            "(Optional) The unit of storage; defaults to 'B'."
+                        )
                         .ret(PrimitiveType::Float)
                         .definition(SIZE_DEFINITION)
                         .build(),
@@ -3019,8 +3058,8 @@ task write_tsv {
                         .parameter(
                             "data",
                             array_array_string.clone(),
-                            "An array of rows, where each row is either an Array of column \
-                             values or a struct whose values are the column values.",
+                            "An array of rows, where each row is either an Array of column values \
+                             or a struct whose values are the column values.",
                         )
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
@@ -3030,15 +3069,22 @@ task write_tsv {
                         .parameter(
                             "data",
                             array_array_string.clone(),
-                            "An array of rows, where each row is either an Array of column \
-                             values or a struct whose values are the column values.",
+                            "An array of rows, where each row is either an Array of column values \
+                             or a struct whose values are the column values.",
                         )
                         .parameter(
                             "header",
                             PrimitiveType::Boolean,
                             "(Optional) Whether to write a header row.",
                         )
-                        .parameter("columns", array_string.clone(), "An array of column names. If the first argument is Array[Array[String]] and the second argument is true then it is required, otherwise it is optional. Ignored if the second argument is false.")
+                        .parameter(
+                            "columns",
+                            array_string.clone(),
+                            "An array of column names. If the first argument is \
+                             Array[Array[String]] and the second argument is true then it is \
+                             required, otherwise it is optional. Ignored if the second argument \
+                             is false."
+                        )
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
@@ -3049,15 +3095,22 @@ task write_tsv {
                         .parameter(
                             "data",
                             GenericArrayType::new(GenericType::Parameter("S")),
-                            "An array of rows, where each row is either an Array of column \
-                             values or a struct whose values are the column values.",
+                            "An array of rows, where each row is either an Array of column values \
+                             or a struct whose values are the column values.",
                         )
                         .parameter(
                             "header",
                             PrimitiveType::Boolean,
                             "(Optional) Whether to write a header row.",
                         )
-                        .parameter("columns", array_string.clone(), "An array of column names. If the first argument is Array[Array[String]] and the second argument is true then it is required, otherwise it is optional. Ignored if the second argument is false.")
+                        .parameter(
+                            "columns",
+                            array_string.clone(),
+                            "An array of column names. If the first argument is \
+                             Array[Array[String]] and the second argument is true then it is \
+                             required, otherwise it is optional. Ignored if the second argument \
+                             is false."
+                        )
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
@@ -3524,7 +3577,12 @@ task write_objects {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
                         .type_parameter("S", PrimitiveStructConstraint)
-                        .parameter("objects", GenericArrayType::new(GenericType::Parameter("S")), "The objects to write.")                        .ret(PrimitiveType::File)
+                        .parameter(
+                            "objects",
+                            GenericArrayType::new(GenericType::Parameter("S")),
+                            "The objects to write."
+                        )
+                        .ret(PrimitiveType::File)
                         .definition(WRITE_OBJECTS_DEFINITION)
                         .build(),
                 ])
@@ -4536,65 +4594,107 @@ task contains_key_map {
         functions
             .insert(
                 "contains_key",
-                PolymorphicFunction::new(vec![
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("K", PrimitiveTypeConstraint)
-                        .any_type_parameter("V")
-                        .parameter(
-                            "map",
-                            GenericMapType::new(
+                PolymorphicFunction::new(
+                    vec![
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .type_parameter("K", PrimitiveTypeConstraint)
+                            .any_type_parameter("V")
+                            .parameter(
+                                "map",
+                                GenericMapType::new(
+                                    GenericType::Parameter("K"),
+                                    GenericType::Parameter("V"),
+                                ),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "key",
                                 GenericType::Parameter("K"),
-                                GenericType::Parameter("V"),
-                            ),
-                            "Collection to search for the key.",
-                        )
-                        .parameter("key", GenericType::Parameter("K"), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
-                        .ret(PrimitiveType::Boolean)
-                        .definition(CONTAINS_KEY_DEFINITION)
-                        .build(),
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("object", Type::Object, "Collection to search for the key.")
-                        .parameter("key", PrimitiveType::String, "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
-                        .ret(PrimitiveType::Boolean)
-                        .definition(CONTAINS_KEY_DEFINITION)
-                        .build(),
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Two))
-                        .any_type_parameter("V")
-                        .parameter(
-                            "map",
-                            GenericMapType::new(
+                                "The key to search for. If the first argument is a Map, then the \
+                                 key must be of the same type as the Map's key type. If the Map's \
+                                 key type is optional then the key may also be optional. If the \
+                                 first argument is a Map[String, Y], Struct, or Object, then the \
+                                 key may be either a String or Array[String]."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .parameter("object", Type::Object, "Collection to search for the key.")
+                            .parameter(
+                                "key",
                                 PrimitiveType::String,
-                                GenericType::Parameter("V"),
-                            ),
-                            "Collection to search for the key.",
-                        )
-                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
-                        .ret(PrimitiveType::Boolean)
-                        .definition(CONTAINS_KEY_DEFINITION)
-                        .build(),
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("S", StructConstraint)
-                        .parameter(
-                            "struct",
-                            GenericType::Parameter("S"),
-                            "Collection to search for the key.",
-                        )
-                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
-                        .ret(PrimitiveType::Boolean)
-                        .definition(CONTAINS_KEY_DEFINITION)
-                        .build(),
-                    FunctionSignature::builder()
-                        .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("object", Type::Object, "Collection to search for the key.")
-                        .parameter("keys", array_string.clone(), "The key to search for. If the first argument is a Map, then the key must be of the same type as the Map's key type. If the Map's key type is optional then the key may also be optional. If the first argument is a Map[String, Y], Struct, or Object, then the key may be either a String or Array[String].")
-                        .ret(PrimitiveType::Boolean)
-                        .definition(CONTAINS_KEY_DEFINITION)
-                        .build(),
-                ])
+                                "The key to search for. If the first argument is a Map, then the \
+                                 key must be of the same type as the Map's key type. If the Map's \
+                                 key type is optional then the key may also be optional. If the \
+                                 first argument is a Map[String, Y], Struct, or Object, then the \
+                                 key may be either a String or Array[String]."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .any_type_parameter("V")
+                            .parameter(
+                                "map",
+                                GenericMapType::new(
+                                    PrimitiveType::String,
+                                    GenericType::Parameter("V"),
+                                ),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a Map, then the \
+                                 key must be of the same type as the Map's key type. If the Map's \
+                                 key type is optional then the key may also be optional. If the \
+                                 first argument is a Map[String, Y], Struct, or Object, then the \
+                                 key may be either a String or Array[String]."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .type_parameter("S", StructConstraint)
+                            .parameter(
+                                "struct",
+                                GenericType::Parameter("S"),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a Map, then the \
+                                 key must be of the same type as the Map's key type. If the Map's \
+                                 key type is optional then the key may also be optional. If the \
+                                 first argument is a Map[String, Y], Struct, or Object, then the \
+                                 key may be either a String or Array[String]."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .parameter("object", Type::Object, "Collection to search for the key.")
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a Map, then the \
+                                 key must be of the same type as the Map's key type. If the Map's \
+                                 key type is optional then the key may also be optional. If the \
+                                 first argument is a Map[String, Y], Struct, or Object, then the \
+                                 key may be either a String or Array[String]."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                    ]
+                )
                 .into(),
             )
             .is_none()
@@ -4721,7 +4821,11 @@ task collect_by_key {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .any_type_parameter("X")
-                        .parameter("value", GenericType::Parameter("X"), "optional value of any type.")
+                        .parameter(
+                            "value",
+                            GenericType::Parameter("X"),
+                            "optional value of any type."
+                        )
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
