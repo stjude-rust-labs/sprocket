@@ -716,32 +716,29 @@ impl LsfApptainerBackendConfig {
         // values from that instead of directly from `requirements` and `hints`?
 
         // Specialized hardware gets priority.
-        if let Some(queue) = self.fpga_lsf_queue.as_deref() {
-            if let Some(true) = requirements
+        if let Some(queue) = self.fpga_lsf_queue.as_deref()
+            && let Some(true) = requirements
                 .get(wdl_ast::v1::TASK_REQUIREMENT_FPGA)
                 .and_then(Value::as_boolean)
-            {
-                return Some(queue);
-            }
+        {
+            return Some(queue);
         }
 
-        if let Some(queue) = self.gpu_lsf_queue.as_deref() {
-            if let Some(true) = requirements
+        if let Some(queue) = self.gpu_lsf_queue.as_deref()
+            && let Some(true) = requirements
                 .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
                 .and_then(Value::as_boolean)
-            {
-                return Some(queue);
-            }
+        {
+            return Some(queue);
         }
 
         // Then short tasks.
-        if let Some(queue) = self.short_task_lsf_queue.as_deref() {
-            if let Some(true) = hints
+        if let Some(queue) = self.short_task_lsf_queue.as_deref()
+            && let Some(true) = hints
                 .get(wdl_ast::v1::TASK_HINT_SHORT_TASK)
                 .and_then(Value::as_boolean)
-            {
-                return Some(queue);
-            }
+        {
+            return Some(queue);
         }
 
         // Finally the default queue. If this is `None`, `bsub` gets run without a queue
