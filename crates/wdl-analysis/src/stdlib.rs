@@ -4594,8 +4594,7 @@ task contains_key_map {
         functions
             .insert(
                 "contains_key",
-                PolymorphicFunction::new(
-                    vec![
+                PolymorphicFunction::new(vec![
                         FunctionSignature::builder()
                             .min_version(SupportedVersion::V1(V1::Two))
                             .type_parameter("K", PrimitiveTypeConstraint)
@@ -4693,8 +4692,7 @@ task contains_key_map {
                             .ret(PrimitiveType::Boolean)
                             .definition(CONTAINS_KEY_DEFINITION)
                             .build(),
-                    ]
-                )
+                    ])
                 .into(),
             )
             .is_none()
