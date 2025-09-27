@@ -17,7 +17,6 @@
 //!
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion)
 
-use std::fmt::format;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -1041,6 +1040,7 @@ fn build_struct_snippet(name: &str, members: &IndexMap<String, Type>) -> (String
     (label, snippet)
 }
 
+/// Builds a snippet for a stdlib functions with it's parameters.
 fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) -> String {
     if sig.parameters().is_empty() {
         return format!("{name}()");
