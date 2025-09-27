@@ -105,6 +105,9 @@ To bootstrap a development environment, please use the following commands.
 git clone git@github.com:stjude-rust-labs/sprocket.git
 cd sprocket
 
+# Initialize and update vendored submodules
+git submodule update --init --recursive
+
 # Build the crate in release mode
 cargo build --release
 
