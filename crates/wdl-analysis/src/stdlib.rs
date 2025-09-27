@@ -2127,9 +2127,9 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::File,
-                            "Path of the file or directory to read. If the argument is a String, \
-                             it is assumed to be a local file path relative to the current \
-                             working directory of the task.",
+                            "Path of the file or directory to read. If the argument is a \
+                             `String`, it is assumed to be a local file path relative to the \
+                             current working directory of the task.",
                         )
                         .parameter(
                             "suffix",
@@ -2149,9 +2149,9 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::String,
-                            "Path of the file or directory to read. If the argument is a String, \
-                             it is assumed to be a local file path relative to the current \
-                             working directory of the task."
+                            "Path of the file or directory to read. If the argument is a \
+                             `String`, it is assumed to be a local file path relative to the \
+                             current working directory of the task."
                         )
                         .parameter(
                             "suffix",
@@ -2167,9 +2167,9 @@ workflow test_basename {
                         .parameter(
                             "path",
                             PrimitiveType::Directory,
-                            "Path of the file or directory to read. If the argument is a String, \
-                             it is assumed to be a local file path relative to the current \
-                             working directory of the task.",
+                            "Path of the file or directory to read. If the argument is a \
+                             `String`, it is assumed to be a local file path relative to the \
+                             current working directory of the task.",
                         )
                         .parameter(
                             "suffix",
@@ -2832,7 +2832,7 @@ task grep {
                 "write_lines",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("array", array_string.clone(), "Array of strings to write.")
+                        .parameter("array", array_string.clone(), "`Array` of strings to write.")
                         .ret(PrimitiveType::File)
                         .definition(
                             r#"
@@ -3182,7 +3182,7 @@ task read_map {
                         .parameter(
                             "map",
                             map_string_string.clone(),
-                            "A Map, where each element will be a row in the generated file.",
+                            "A `Map`, where each element will be a row in the generated file.",
                         )
                         .ret(PrimitiveType::File)
                         .definition(
@@ -3806,7 +3806,7 @@ task squote {
                         .parameter(
                             "array",
                             GenericArrayType::new(GenericType::Parameter("P")),
-                            "Array of strings to concatenate.",
+                            "`Array` of strings to concatenate.",
                         )
                         .ret(PrimitiveType::String)
                         .definition(
@@ -4594,8 +4594,7 @@ task contains_key_map {
         functions
             .insert(
                 "contains_key",
-                PolymorphicFunction::new(
-                    vec![
+                PolymorphicFunction::new(vec![
                         FunctionSignature::builder()
                             .min_version(SupportedVersion::V1(V1::Two))
                             .type_parameter("K", PrimitiveTypeConstraint)
@@ -4698,8 +4697,7 @@ task contains_key_map {
                             .ret(PrimitiveType::Boolean)
                             .definition(CONTAINS_KEY_DEFINITION)
                             .build(),
-                    ]
-                )
+                    ])
                 .into(),
             )
             .is_none()
