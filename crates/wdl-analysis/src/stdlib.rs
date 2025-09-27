@@ -3054,37 +3054,37 @@ task write_tsv {
             .insert(
                 "write_tsv",
                 PolymorphicFunction::new(vec![
-                     FunctionSignature::builder()
-                         .parameter(
-                             "data",
-                             array_array_string.clone(),
-                             "An array of rows, where each row is either an `Array` of column values \
-                              or a struct whose values are the column values.",
-                         )
-                         .ret(PrimitiveType::File)
-                         .definition(WRITE_TSV_DEFINITION)
-                         .build(),
-                     FunctionSignature::builder()
-                         .min_version(SupportedVersion::V1(V1::Two))
-                         .parameter(
-                             "data",
-                             array_array_string.clone(),
-                             "An array of rows, where each row is either an `Array` of column values \
-                              or a struct whose values are the column values.",
-                         )
-                         .parameter(
-                             "header",
-                             PrimitiveType::Boolean,
-                             "(Optional) Whether to write a header row.",
-                         )
-                         .parameter(
-                             "columns",
-                             array_string.clone(),
-                             "An array of column names. If the first argument is \
-                              `Array[Array[String]]` and the second argument is true then it is \
-                              required, otherwise it is optional. Ignored if the second argument \
-                              is false."
-                         )
+                    FunctionSignature::builder()
+                        .parameter(
+                            "data",
+                            array_array_string.clone(),
+                            "An array of rows, where each row is either an `Array` of column \
+                             values or a struct whose values are the column values.",
+                        )
+                        .ret(PrimitiveType::File)
+                        .definition(WRITE_TSV_DEFINITION)
+                        .build(),
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Two))
+                        .parameter(
+                            "data",
+                            array_array_string.clone(),
+                            "An array of rows, where each row is either an `Array` of column \
+                             values or a struct whose values are the column values.",
+                        )
+                        .parameter(
+                            "header",
+                            PrimitiveType::Boolean,
+                            "(Optional) Whether to write a header row.",
+                        )
+                        .parameter(
+                            "columns",
+                            array_string.clone(),
+                            "An array of column names. If the first argument is \
+                             `Array[Array[String]]` and the second argument is true then it is \
+                             required, otherwise it is optional. Ignored if the second argument \
+                             is false."
+                        )
                         .ret(PrimitiveType::File)
                         .definition(WRITE_TSV_DEFINITION)
                         .build(),
@@ -3092,28 +3092,28 @@ task write_tsv {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .type_parameter("S", PrimitiveStructConstraint)
                         .required(1)
-                         .parameter(
-                             "data",
-                             GenericArrayType::new(GenericType::Parameter("S")),
-                             "An array of rows, where each row is either an `Array` of column values \
-                              or a struct whose values are the column values.",
-                         )
+                        .parameter(
+                            "data",
+                            GenericArrayType::new(GenericType::Parameter("S")),
+                            "An array of rows, where each row is either an `Array` of column \
+                             values or a struct whose values are the column values.",
+                        )
                         .parameter(
                             "header",
                             PrimitiveType::Boolean,
                             "(Optional) Whether to write a header row.",
                         )
-                         .parameter(
-                             "columns",
-                             array_string.clone(),
-                             "An array of column names. If the first argument is \
-                              `Array[Array[String]]` and the second argument is true then it is \
-                              required, otherwise it is optional. Ignored if the second argument \
-                              is false."
-                         )
-                         .ret(PrimitiveType::File)
-                         .definition(WRITE_TSV_DEFINITION)
-                         .build(),
+                        .parameter(
+                            "columns",
+                            array_string.clone(),
+                            "An array of column names. If the first argument is \
+                             `Array[Array[String]]` and the second argument is true then it is \
+                             required, otherwise it is optional. Ignored if the second argument \
+                             is false."
+                        )
+                        .ret(PrimitiveType::File)
+                        .definition(WRITE_TSV_DEFINITION)
+                        .build(),
                 ])
                 .into(),
             )
@@ -4594,105 +4594,112 @@ task contains_key_map {
         functions
             .insert(
                 "contains_key",
-                PolymorphicFunction::new(vec![
-                         FunctionSignature::builder()
-                             .min_version(SupportedVersion::V1(V1::Two))
-                             .type_parameter("K", PrimitiveTypeConstraint)
-                             .any_type_parameter("V")
-                             .parameter(
-                                 "map",
-                                 GenericMapType::new(
-                                     GenericType::Parameter("K"),
-                                     GenericType::Parameter("V"),
-                                 ),
-                                 "Collection to search for the key.",
-                             )
-                             .parameter(
-                                 "key",
-                                 GenericType::Parameter("K"),
-                                 "The key to search for. If the first argument is a `Map`, then the \
-                                  key must be of the same type as the `Map`'s key type. If the `Map`'s \
-                                  key type is optional then the key may also be optional. If the \
-                                  first argument is a `Map[String, Y]`, `Struct`, or `Object`, then the \
-                                  key may be either a `String` or `Array[String]`."
-                             )
+                PolymorphicFunction::new(
+                    vec![
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .type_parameter("K", PrimitiveTypeConstraint)
+                            .any_type_parameter("V")
+                            .parameter(
+                                "map",
+                                GenericMapType::new(
+                                    GenericType::Parameter("K"),
+                                    GenericType::Parameter("V"),
+                                ),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "key",
+                                GenericType::Parameter("K"),
+                                "The key to search for. If the first argument is a `Map`, then \
+                                 the key must be of the same type as the `Map`'s key type. If the \
+                                 `Map`'s key type is optional then the key may also be optional. \
+                                 If the first argument is a `Map[String, Y]`, `Struct`, or \
+                                 `Object`, then the key may be either a `String` or \
+                                 `Array[String]`."
+                            )
                             .ret(PrimitiveType::Boolean)
                             .definition(CONTAINS_KEY_DEFINITION)
                             .build(),
                         FunctionSignature::builder()
                             .min_version(SupportedVersion::V1(V1::Two))
-                             .parameter("object", Type::Object, "Collection to search for the key.")
-                             .parameter(
-                                 "key",
-                                 PrimitiveType::String,
-                                 "The key to search for. If the first argument is a `Map`, then the \
-                                  key must be of the same type as the `Map`'s key type. If the `Map`'s \
-                                  key type is optional then the key may also be optional. If the \
-                                  first argument is a `Map[String, Y]`, `Struct`, or `Object`, then the \
-                                  key may be either a `String` or `Array[String]`."
-                             )
-                            .ret(PrimitiveType::Boolean)
-                            .definition(CONTAINS_KEY_DEFINITION)
-                            .build(),
-                         FunctionSignature::builder()
-                             .min_version(SupportedVersion::V1(V1::Two))
-                             .any_type_parameter("V")
-                             .parameter(
-                                 "map",
-                                 GenericMapType::new(
-                                     PrimitiveType::String,
-                                     GenericType::Parameter("V"),
-                                 ),
-                                 "Collection to search for the key.",
-                             )
-                             .parameter(
-                                 "keys",
-                                 array_string.clone(),
-                                 "The key to search for. If the first argument is a `Map`, then the \
-                                  key must be of the same type as the `Map`'s key type. If the `Map`'s \
-                                  key type is optional then the key may also be optional. If the \
-                                  first argument is a `Map[String, Y]`, `Struct`, or `Object`, then the \
-                                  key may be either a `String` or `Array[String]`."
-                             )
-                            .ret(PrimitiveType::Boolean)
-                            .definition(CONTAINS_KEY_DEFINITION)
-                            .build(),
-                         FunctionSignature::builder()
-                             .min_version(SupportedVersion::V1(V1::Two))
-                             .type_parameter("S", StructConstraint)
-                             .parameter(
-                                 "struct",
-                                 GenericType::Parameter("S"),
-                                 "Collection to search for the key.",
-                             )
-                             .parameter(
-                                 "keys",
-                                 array_string.clone(),
-                                 "The key to search for. If the first argument is a `Map`, then the \
-                                  key must be of the same type as the `Map`'s key type. If the `Map`'s \
-                                  key type is optional then the key may also be optional. If the \
-                                  first argument is a `Map[String, Y]`, `Struct`, or `Object`, then the \
-                                  key may be either a `String` or `Array[String]`."
-                             )
+                            .parameter("object", Type::Object, "Collection to search for the key.")
+                            .parameter(
+                                "key",
+                                PrimitiveType::String,
+                                "The key to search for. If the first argument is a `Map`, then \
+                                 the key must be of the same type as the `Map`'s key type. If the \
+                                 `Map`'s key type is optional then the key may also be optional. \
+                                 If the first argument is a `Map[String, Y]`, `Struct`, or \
+                                 `Object`, then the key may be either a `String` or \
+                                 `Array[String]`."
+                            )
                             .ret(PrimitiveType::Boolean)
                             .definition(CONTAINS_KEY_DEFINITION)
                             .build(),
                         FunctionSignature::builder()
                             .min_version(SupportedVersion::V1(V1::Two))
-                             .parameter("object", Type::Object, "Collection to search for the key.")
-                             .parameter(
-                                 "keys",
-                                 array_string.clone(),
-                                 "The key to search for. If the first argument is a `Map`, then the \
-                                  key must be of the same type as the `Map`'s key type. If the `Map`'s \
-                                  key type is optional then the key may also be optional. If the \
-                                  first argument is a `Map[String, Y]`, `Struct`, or `Object`, then the \
-                                  key may be either a `String` or `Array[String]`."
-                             )
+                            .any_type_parameter("V")
+                            .parameter(
+                                "map",
+                                GenericMapType::new(
+                                    PrimitiveType::String,
+                                    GenericType::Parameter("V"),
+                                ),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a `Map`, then \
+                                 the key must be of the same type as the `Map`'s key type. If the \
+                                 `Map`'s key type is optional then the key may also be optional. \
+                                 If the first argument is a `Map[String, Y]`, `Struct`, or \
+                                 `Object`, then the key may be either a `String` or \
+                                 `Array[String]`."
+                            )
                             .ret(PrimitiveType::Boolean)
                             .definition(CONTAINS_KEY_DEFINITION)
                             .build(),
-                    ])
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .type_parameter("S", StructConstraint)
+                            .parameter(
+                                "struct",
+                                GenericType::Parameter("S"),
+                                "Collection to search for the key.",
+                            )
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a `Map`, then \
+                                 the key must be of the same type as the `Map`'s key type. If the \
+                                 `Map`'s key type is optional then the key may also be optional. \
+                                 If the first argument is a `Map[String, Y]`, `Struct`, or \
+                                 `Object`, then the key may be either a `String` or \
+                                 `Array[String]`."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                        FunctionSignature::builder()
+                            .min_version(SupportedVersion::V1(V1::Two))
+                            .parameter("object", Type::Object, "Collection to search for the key.")
+                            .parameter(
+                                "keys",
+                                array_string.clone(),
+                                "The key to search for. If the first argument is a `Map`, then \
+                                 the key must be of the same type as the `Map`'s key type. If the \
+                                 `Map`'s key type is optional then the key may also be optional. \
+                                 If the first argument is a `Map[String, Y]`, `Struct`, or \
+                                 `Object`, then the key may be either a `String` or \
+                                 `Array[String]`."
+                            )
+                            .ret(PrimitiveType::Boolean)
+                            .definition(CONTAINS_KEY_DEFINITION)
+                            .build(),
+                    ]
+                )
                 .into(),
             )
             .is_none()
