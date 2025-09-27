@@ -797,6 +797,35 @@ impl BindingKind {
     }
 }
 
+/// Representsa parameter to a standard library function.
+#[derive(Debug)]
+pub struct FunctionParameter {
+    /// The name of the parameter.
+    name: &'static str,
+    /// The type of the parameter.
+    ty: FunctionalType,
+    /// The description of the parameter.
+    description: &'static str,
+}
+
+impl FunctionParameter {
+    /// Gets the name of the parameter.
+    pub fn name(&self) -> &'static str {
+        self.name
+    }
+
+    /// Gets the type of the parameter.
+    pub fn ty(&self) -> &FunctionalType {
+        &self.ty
+    }
+
+    /// Gets the description of the parameter.
+    #[allow(dead_code)]
+    pub fn description(&self) -> &'static str {
+        self.description
+    }
+}
+
 /// Represents a WDL function signature.
 #[derive(Debug)]
 pub struct FunctionSignature {
@@ -806,8 +835,8 @@ pub struct FunctionSignature {
     type_parameters: Vec<TypeParameter>,
     /// The number of required parameters of the function.
     required: Option<usize>,
-    /// The parameter types of the function.
-    parameters: Vec<FunctionalType>,
+    /// The parameters of the function.
+    parameters: Vec<FunctionParameter>,
     /// The return type of the function.
     ret: FunctionalType,
     /// The function definition
@@ -831,8 +860,8 @@ impl FunctionSignature {
         &self.type_parameters
     }
 
-    /// Gets the types of the function's parameters.
-    pub fn parameters(&self) -> &[FunctionalType] {
+    /// Gets the function's parameters.
+    pub fn parameters(&self) -> &[FunctionParameter] {
         &self.parameters
     }
 
@@ -861,7 +890,7 @@ impl FunctionSignature {
 
     /// Gets the count of generic parameters for the function.
     pub fn generic_parameter_count(&self) -> usize {
-        self.parameters.iter().filter(|p| p.is_generic()).count()
+        self.parameters.iter().filter(|p| p.ty.is_generic()).count()
     }
 
     /// Returns an object that implements `Display` for formatting the signature
@@ -888,7 +917,7 @@ impl FunctionSignature {
                         f.write_char('<')?;
                     }
 
-                    write!(f, "{param}", param = parameter.display(self.params))?;
+                    write!(f, "{param}", param = parameter.ty.display(self.params))?;
 
                     if i >= required {
                         f.write_char('>')?;
@@ -916,7 +945,9 @@ impl FunctionSignature {
     ) -> TypeParameters<'_> {
         let mut parameters = TypeParameters::new(&self.type_parameters);
         for (parameter, argument) in self.parameters.iter().zip(arguments.iter()) {
-            parameter.infer_type_parameters(argument, &mut parameters, ignore_constraints);
+            parameter
+                .ty
+                .infer_type_parameters(argument, &mut parameters, ignore_constraints);
         }
 
         parameters
@@ -959,7 +990,7 @@ impl FunctionSignature {
         let mut coerced = false;
         let type_parameters = self.infer_type_parameters(arguments, false);
         for (i, (parameter, argument)) in self.parameters.iter().zip(arguments.iter()).enumerate() {
-            match parameter.realize(&type_parameters) {
+            match parameter.ty.realize(&type_parameters) {
                 Some(ty) => {
                     // If a coercion hasn't occurred yet, check for type equivalence
                     // For the purpose of this check, also accept equivalence of `T` if the
@@ -988,7 +1019,7 @@ impl FunctionSignature {
                     write!(
                         &mut expected,
                         "`{param}`",
-                        param = parameter.display(&type_parameters)
+                        param = parameter.ty.display(&type_parameters)
                     )
                     .unwrap();
 
@@ -1059,8 +1090,17 @@ impl FunctionSignatureBuilder {
     }
 
     /// Adds a parameter to the function signature.
-    pub fn parameter(mut self, ty: impl Into<FunctionalType>) -> Self {
-        self.0.parameters.push(ty.into());
+    pub fn parameter(
+        mut self,
+        name: &'static str,
+        ty: impl Into<FunctionalType>,
+        description: &'static str,
+    ) -> Self {
+        self.0.parameters.push(FunctionParameter {
+            name,
+            ty: ty.into(),
+            description,
+        });
         self
     }
 
@@ -1112,8 +1152,8 @@ impl FunctionSignatureBuilder {
         );
 
         // Ensure any generic type parameters indexes are in range for the parameters
-        for param in sig.parameters.iter() {
-            param.assert_type_parameters(&sig.type_parameters)
+        for parameter in sig.parameters.iter() {
+            parameter.ty.assert_type_parameters(&sig.type_parameters)
         }
 
         sig.ret().assert_type_parameters(&sig.type_parameters);
@@ -1614,7 +1654,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "floor",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::Float)
+                        .parameter("value", PrimitiveType::Float, "The floating point number.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -1660,7 +1700,7 @@ workflow test_floor {
                 "ceil",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter(PrimitiveType::Float)
+                        .parameter("value", PrimitiveType::Float, "The floating point number.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
