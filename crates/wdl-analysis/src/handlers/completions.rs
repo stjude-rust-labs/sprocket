@@ -17,6 +17,7 @@
 //!
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion)
 
+use std::fmt::format;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -748,11 +749,14 @@ fn add_stdlib_completions(items: &mut Vec<CompletionItem>) {
                 let params = TypeParameters::new(sig.type_parameters());
                 let detail = Some(format!("{name}{}", sig.display(&params)));
                 let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
+                let snippet = build_function_snippet(name, sig);
                 items.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::FUNCTION),
                     detail,
                     documentation: docs,
+                    insert_text_format: Some(InsertTextFormat::SNIPPET),
+                    insert_text: Some(snippet),
                     ..Default::default()
                 })
             }
@@ -761,11 +765,14 @@ fn add_stdlib_completions(items: &mut Vec<CompletionItem>) {
                     let params = TypeParameters::new(sig.type_parameters());
                     let detail = Some(format!("{name}{}", sig.display(&params)));
                     let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
+                    let snippet = build_function_snippet(name, sig);
                     items.push(CompletionItem {
                         label: name.to_string(),
                         kind: Some(CompletionItemKind::FUNCTION),
                         detail,
                         documentation: docs,
+                        insert_text_format: Some(InsertTextFormat::SNIPPET),
+                        insert_text: Some(snippet),
                         ..Default::default()
                     });
                 }
@@ -1032,6 +1039,22 @@ fn build_struct_snippet(name: &str, members: &IndexMap<String, Type>) -> (String
         .collect();
     let snippet = format!("{} {{\n{}\n}}", name, member_snippets.join(",\n"));
     (label, snippet)
+}
+
+fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) -> String {
+    if sig.parameters().is_empty() {
+        return format!("{name}()");
+    }
+
+    let params: String = sig
+        .parameters()
+        .iter()
+        .enumerate()
+        .map(|(i, p)| format!("${{{}:{}}}", i + 1, p.name()))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    format!("{}{}", name, params)
 }
 
 /// Formats metadata value to type.
