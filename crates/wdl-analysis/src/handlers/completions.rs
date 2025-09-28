@@ -1040,7 +1040,7 @@ fn build_struct_snippet(name: &str, members: &IndexMap<String, Type>) -> (String
     (label, snippet)
 }
 
-/// Builds a snippet for a stdlib functions with it's parameters.
+/// Builds a snippet for a stdlib functions with its parameters.
 fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) -> String {
     if sig.parameters().is_empty() {
         return format!("{name}()");

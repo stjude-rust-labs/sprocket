@@ -797,7 +797,7 @@ impl BindingKind {
     }
 }
 
-/// Representsa parameter to a standard library function.
+/// Represents a parameter to a standard library function.
 #[derive(Debug)]
 pub struct FunctionParameter {
     /// The name of the parameter.
