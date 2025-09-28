@@ -1654,7 +1654,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
                 "floor",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("value", PrimitiveType::Float, "the number to round.")
+                        .parameter("value", PrimitiveType::Float, "The number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -1700,7 +1700,7 @@ workflow test_floor {
                 "ceil",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("value", PrimitiveType::Float, "the number to round.")
+                        .parameter("value", PrimitiveType::Float, "The number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(
                             r#"
@@ -1747,7 +1747,7 @@ workflow test_ceil {
                 "round",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("value", PrimitiveType::Float, "the number to round.")
+                        .parameter("value", PrimitiveType::Float, "The number to round.")
                         .ret(PrimitiveType::Integer)
                         .definition(r#"
 Rounds a floating point number to the nearest integer based on standard rounding rules ("round half up").
