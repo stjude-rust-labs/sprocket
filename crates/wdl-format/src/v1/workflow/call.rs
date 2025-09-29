@@ -146,12 +146,7 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
             stream.end_word();
         }
 
-        // TODO: Make this check smarter in case a single input spans multiple lines or
-        // is interrupted
-        let single_line = inputs.len() == 1;
-        if !single_line {
-            stream.increment_indent();
-        }
+        stream.increment_indent();
 
         let mut commas = commas.iter();
         for input in inputs {
@@ -159,20 +154,14 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
 
             if let Some(comma) = commas.next() {
                 (comma).write(stream);
-            } else if !single_line {
+            } else {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
 
-            if !single_line {
-                stream.end_line();
-            }
+            stream.end_line();
         }
 
-        if !single_line {
-            stream.decrement_indent();
-        } else {
-            stream.end_word();
-        }
+        stream.decrement_indent();
         (&close_brace.expect("close brace")).write(stream);
         stream.end_line();
     }
