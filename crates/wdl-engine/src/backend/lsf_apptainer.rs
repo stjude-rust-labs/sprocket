@@ -315,7 +315,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             })?;
         #[cfg(unix)]
         tokio::fs::set_permissions(
-            &wdl_command_path,
+            &apptainer_command_path,
             <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o770),
         )
         .await?;
