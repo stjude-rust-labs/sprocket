@@ -12,6 +12,7 @@
 //! on mocking CLI invocations and/or golden testing of generated
 //! `bsub`/`apptainer` scripts.
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -42,6 +43,7 @@ use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
+use crate::Value;
 use crate::config::Config;
 use crate::path::EvaluationPath;
 use crate::v1;
@@ -266,13 +268,29 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
             wdl_stderr_path.display()
         )?;
+        // Add the `--nv` argument if a GPU is required by the task.
+        if let Some(true) = self
+            .spawn_request
+            .requirements()
+            .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
+            .and_then(Value::as_boolean)
+        {
+            write!(&mut apptainer_command, "--nv ")?;
+        }
+
+        // Add any user-configured extra arguments.
+        if let Some(args) = &self.backend_config.extra_apptainer_exec_args {
+            for arg in args {
+                write!(&mut apptainer_command, "{arg} ")?;
+            }
+        }
         // Specify the container sif file as a positional argument.
         write!(&mut apptainer_command, "{} ", container_sif.display())?;
         // Provide the instantiated WDL command, with its stdio handles redirected to
         // their respective guest paths.
         write!(
             &mut apptainer_command,
-            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\""
+            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\" "
         )?;
         // The path for the Apptainer-level stdout and stderr.
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
@@ -310,8 +328,16 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 
         // If an LSF queue has been configured, specify it. Otherwise, the job will end
         // up on the cluster's default queue.
-        if let Some(queue) = &self.backend_config.queue {
+        if let Some(queue) = self.backend_config.lsf_queue_for_task(
+            self.spawn_request.requirements(),
+            self.spawn_request.hints(),
+        ) {
             bsub_command.arg("-q").arg(queue);
+        }
+
+        // Add any user-configured extra arguments.
+        if let Some(args) = &self.backend_config.extra_bsub_args {
+            bsub_command.args(args);
         }
 
         bsub_command
@@ -595,14 +621,40 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 // name, env var names, etc.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LsfApptainerBackendConfig {
-    /// Which queue, if any, to specify when submitting jobs to LSF.
-    pub queue: Option<String>,
+    /// Which queue, if any, to specify when submitting normal jobs to LSF.
+    ///
+    /// This may be superseded by
+    /// [`short_task_lsf_queue`][Self::short_task_lsf_queue],
+    /// [`gpu_lsf_queue`][Self::gpu_lsf_queue], or
+    /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for corresponding tasks.
+    pub default_lsf_queue: Option<String>,
+    /// Which queue, if any, to specify when submitting [short
+    /// tasks](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#short_task) to LSF.
+    ///
+    /// This may be superseded by [`gpu_lsf_queue`][Self::gpu_lsf_queue] or
+    /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for tasks which require
+    /// specialized hardware.
+    pub short_task_lsf_queue: Option<String>,
+    /// Which queue, if any, to specify when submitting [tasks which require a
+    /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
+    /// to LSF.
+    pub gpu_lsf_queue: Option<String>,
+    /// Which queue, if any, to specify when submitting [tasks which require a
+    /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
+    /// to LSF.
+    pub fpga_lsf_queue: Option<String>,
+    /// Additional command-line arguments to pass to `bsub` when submitting jobs
+    /// to LSF.
+    pub extra_bsub_args: Option<Vec<String>>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
     ///
     /// By default, this is 200.
     #[serde(default = "default_max_scatter_concurrency")]
     pub max_scatter_concurrency: u64,
+    /// Additional command-line arguments to pass to `apptainer exec` when
+    /// executing tasks.
+    pub extra_apptainer_exec_args: Option<Vec<String>>,
     /// The directory in which temporary directories will be created containing
     /// Apptainer `.sif` files.
     ///
@@ -633,9 +685,14 @@ fn default_apptainer_images_dir() -> PathBuf {
 impl Default for LsfApptainerBackendConfig {
     fn default() -> Self {
         Self {
-            queue: None,
+            default_lsf_queue: None,
+            short_task_lsf_queue: None,
+            gpu_lsf_queue: None,
+            fpga_lsf_queue: None,
+            extra_bsub_args: None,
             max_scatter_concurrency: default_max_scatter_concurrency(),
             apptainer_images_dir: default_apptainer_images_dir(),
+            extra_apptainer_exec_args: None,
         }
     }
 }
@@ -653,5 +710,49 @@ impl LsfApptainerBackendConfig {
         // queue exists, interrogate the queue for limits and match them up
         // against prospective future config options here?
         Ok(())
+    }
+
+    /// Get the appropriate LSF queue for a task under this configuration.
+    ///
+    /// Specialized hardware requirements are prioritized over other
+    /// characteristics, with FPGA taking precedence over GPU.
+    fn lsf_queue_for_task(
+        &self,
+        requirements: &HashMap<String, Value>,
+        hints: &HashMap<String, Value>,
+    ) -> Option<&str> {
+        // TODO ACF 2025-09-26: what's the relationship between this code and
+        // `TaskExecutionConstraints`? Should this be there instead, or be pulling
+        // values from that instead of directly from `requirements` and `hints`?
+
+        // Specialized hardware gets priority.
+        if let Some(queue) = self.fpga_lsf_queue.as_deref()
+            && let Some(true) = requirements
+                .get(wdl_ast::v1::TASK_REQUIREMENT_FPGA)
+                .and_then(Value::as_boolean)
+        {
+            return Some(queue);
+        }
+
+        if let Some(queue) = self.gpu_lsf_queue.as_deref()
+            && let Some(true) = requirements
+                .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
+                .and_then(Value::as_boolean)
+        {
+            return Some(queue);
+        }
+
+        // Then short tasks.
+        if let Some(queue) = self.short_task_lsf_queue.as_deref()
+            && let Some(true) = hints
+                .get(wdl_ast::v1::TASK_HINT_SHORT_TASK)
+                .and_then(Value::as_boolean)
+        {
+            return Some(queue);
+        }
+
+        // Finally the default queue. If this is `None`, `bsub` gets run without a queue
+        // argument and the cluster's default is used.
+        self.default_lsf_queue.as_deref()
     }
 }
