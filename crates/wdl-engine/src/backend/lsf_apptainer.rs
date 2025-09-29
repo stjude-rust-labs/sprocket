@@ -268,6 +268,16 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
             wdl_stderr_path.display()
         )?;
+        // Add the `--nv` argument if a GPU is required by the task.
+        if let Some(true) = self
+            .spawn_request
+            .requirements()
+            .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
+            .and_then(Value::as_boolean)
+        {
+            write!(&mut apptainer_command, "--nv ")?;
+        }
+
         // Add any user-configured extra arguments.
         if let Some(args) = &self.backend_config.extra_apptainer_exec_args {
             for arg in args {
