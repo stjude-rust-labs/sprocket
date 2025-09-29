@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372))
+* Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378))
 
 ## 0.17.1 - 09-17-2025
 
