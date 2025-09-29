@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Always format call statement `input`s across multiple lines instead of trying to put single inputs on the same line as the `call` ([#377](https://github.com/stjude-rust-labs/sprocket/pull/377/)).
+
 #### Fixed
 
 * Fixed edge case in single quote to double quote conversion for literal strings ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
