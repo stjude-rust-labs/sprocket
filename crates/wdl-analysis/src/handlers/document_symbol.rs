@@ -360,11 +360,25 @@ fn conditional_to_symbol(
     }
 
     Ok(DocumentSymbol {
-        name: format!("if ({})", cond.r#if().expr().text()),
+        name: format!(
+            "if ({})",
+            cond.r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .text()
+        ),
         detail: None,
         kind: SymbolKind::OPERATOR,
         range: common::location_from_span(uri, cond.span(), lines)?.range,
-        selection_range: common::location_from_span(uri, cond.r#if().expr().span(), lines)?.range,
+        selection_range: common::location_from_span(
+            uri,
+            cond.r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .span(),
+            lines,
+        )?
+        .range,
         children: Some(children),
         tags: None,
         #[allow(deprecated)]

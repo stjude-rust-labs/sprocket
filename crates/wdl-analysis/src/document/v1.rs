@@ -1,10 +1,12 @@
 //! Conversion of a V1 AST to an analyzed document.
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 use std::hash::RandomState;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use indexmap::map::Entry as IndexMapEntry;
 use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
@@ -22,6 +24,7 @@ use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
@@ -66,6 +69,7 @@ use crate::diagnostics::invalid_relative_import;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
+use crate::diagnostics::no_common_type;
 use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_struct;
@@ -990,11 +994,44 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 );
             }
             WorkflowGraphNode::ExitConditional(statement) => {
-                let scope_index = scope_indexes
-                    .get(statement.inner())
-                    .copied()
-                    .expect("should have scope");
-                promote_scope(&mut scopes, scope_index, None, PromotionKind::Conditional);
+                let mut scope_union = ScopeUnion::new(&scopes);
+
+                for clause in statement.clauses() {
+                    let scope_index = scope_indexes
+                        .get(clause.inner())
+                        .copied()
+                        .expect("should have scope");
+
+                    if let Err(diagnostics) = scope_union.insert(
+                        scope_index,
+                        matches!(clause.kind(), ConditionalStatementClauseKind::Else),
+                    ) {
+                        document.diagnostics.extend(diagnostics);
+                    };
+                }
+
+                let parent_scope = {
+                    let index = scope_indexes
+                        .get(
+                            statement
+                                .clauses()
+                                .next()
+                                .expect("conditional statement does not have a clause")
+                                .inner(),
+                        )
+                        .copied()
+                        .expect("should have scope");
+                    scopes[index.0].parent.expect("should have parent")
+                };
+
+                for (name, info) in scope_union.resolve() {
+                    match scopes[parent_scope.0].names.entry(name) {
+                        IndexMapEntry::Vacant(entry) => {
+                            entry.insert(info);
+                        }
+                        IndexMapEntry::Occupied(_) => todo!(),
+                    }
+                }
             }
             WorkflowGraphNode::ExitScatter(statement) => {
                 let scope_index = scope_indexes
@@ -1031,29 +1068,32 @@ fn add_conditional_statement(
     scope_indexes: &mut HashMap<SyntaxNode, ScopeIndex>,
     statement: &ConditionalStatement,
 ) {
-    let scope_index = add_scope(
-        scopes,
-        Scope::new(
-            Some(parent),
-            statement
-                .r#if()
-                .braced_scope_span()
-                .expect("should have braced scope span"),
-        ),
-    );
-    scope_indexes.insert(statement.inner().clone(), scope_index);
+    for clause in statement.clauses() {
+        let scope_index = add_scope(
+            scopes,
+            Scope::new(
+                Some(parent),
+                clause
+                    .braced_scope_span()
+                    .expect("should have braced scope span"),
+            ),
+        );
+        scope_indexes.insert(clause.inner().clone(), scope_index);
 
-    // Evaluate the statement's expression; it is expected to be a boolean
-    let expr = statement.r#if().expr();
-    let mut context =
-        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
-    let mut evaluator = ExprTypeEvaluator::new(&mut context);
-    let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+        // Evaluate the statement's expression; it is expected to be a boolean
+        let Some(expr) = clause.expr() else {
+            continue;
+        };
+        let mut context =
+            EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
+        let mut evaluator = ExprTypeEvaluator::new(&mut context);
+        let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
 
-    if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
-        document
-            .diagnostics
-            .push(if_conditional_mismatch(&ty, expr.span()));
+        if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
+            document
+                .diagnostics
+                .push(if_conditional_mismatch(&ty, expr.span()));
+        }
     }
 }
 
@@ -1315,6 +1355,127 @@ fn resolve_call_type(
         ))
     } else {
         Some(CallType::new(kind, name.text(), specified, inputs, outputs))
+    }
+}
+
+/// A scope union.
+///
+/// A scope union takes the union of names within a number of given scopes and
+/// computes a set of common, output names for a (presumed parent) scope. This
+/// is useful when calculating common elements from, for example, an `if`
+/// statement within a workflow.
+pub struct ScopeUnion<'a> {
+    /// The scopes.
+    scopes: &'a [Scope],
+    /// The names and their current type.
+    names: HashMap<String, Name>,
+    /// Whether or not the exhaustive case (generally, `else`) has been seen.
+    exhaustive_seen: bool,
+    /// Names that are ignored because we have already encountered an error for
+    /// them.
+    ignored: HashSet<String>,
+}
+
+impl<'a> ScopeUnion<'a> {
+    /// Creates a new scope union.
+    ///
+    /// This initializes the names to an empty map.
+    pub fn new(scopes: &'a [Scope]) -> Self {
+        Self {
+            scopes,
+            names: Default::default(),
+            exhaustive_seen: false,
+            ignored: Default::default(),
+        }
+    }
+
+    /// Inserts a scope into the union.
+    pub fn insert(
+        &mut self,
+        scope_index: ScopeIndex,
+        exhaustive: bool,
+    ) -> Result<(), Vec<Diagnostic>> {
+        self.exhaustive_seen |= exhaustive;
+        let mut mark_as_optional = self.names.keys().cloned().collect::<HashSet<_>>();
+        let mut errors = Vec::new();
+        for (name, info) in self.scopes[scope_index.0].names.clone() {
+            mark_as_optional.remove(&name);
+            if self.ignored.contains(&name) {
+                continue;
+            }
+
+            match self.names.entry(name.clone()) {
+                Entry::Vacant(entry) => {
+                    // If the name doesn't exist in the map, insert the name's
+                    // type and span.
+                    entry.insert(info);
+                }
+                Entry::Occupied(mut entry) => {
+                    // If the name exists in the map, overwrite the entry with
+                    // the latest common type and the span of the last name
+                    // examined.
+                    let Some(ty) = entry.get().ty.common_type(&info.ty) else {
+                        errors.push(no_common_type(
+                            &entry.get().ty,
+                            entry.get().span,
+                            &info.ty,
+                            info.span,
+                        ));
+                        self.names.remove(&name);
+                        self.ignored.insert(name);
+                        continue;
+                    };
+
+                    *entry.get_mut() = Name {
+                        span: info.span,
+                        ty,
+                    };
+                }
+            }
+        }
+
+        // Mark any unseen names as optional.
+        for name in mark_as_optional {
+            let Entry::Occupied(mut entry) = self.names.entry(name) else {
+                // SAFETY: we only added names to the `mark_as_optional` set
+                // that already existed in the map, so this will never occur.
+                unreachable!("entry is guaranteed to exist here");
+            };
+
+            *entry.get_mut() = Name {
+                span: entry.get().span,
+                ty: entry.get().ty.optional(),
+            };
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Resolves the scope union to names and types that should be accessible
+    /// from the parent scope.
+    pub fn resolve(self) -> Vec<(String, Name)> {
+        self.names
+            .into_iter()
+            .map(|(name, info)| {
+                (
+                    name,
+                    Name {
+                        // If we haven't seen an exhaustive case, all types must be marked as
+                        // optional.
+                        ty: if self.exhaustive_seen {
+                            info.ty
+                        } else {
+                            info.ty.optional()
+                        },
+                        span: info.span,
+                    },
+                )
+            })
+            .collect()
     }
 }
 

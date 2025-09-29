@@ -394,7 +394,7 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     )
 }
 
-/// Creates a "no common type" diagnostic for arrays and maps.
+/// Creates a "no common type" diagnostic for arrays, maps, and scope unions.
 ///
 /// This is called if the elements of a map or an array do not have a common
 /// type.

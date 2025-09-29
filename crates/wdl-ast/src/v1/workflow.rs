@@ -759,8 +759,8 @@ impl<N: TreeNode> AstNode<N> for ConditionalStatementClause<N> {
 
 impl<N: TreeNode> ConditionalStatementClause<N> {
     /// Gets the expression of the conditional clause.
-    pub fn expr(&self) -> Expr<N> {
-        Expr::child(&self.0).expect("expected a conditional clause expression")
+    pub fn expr(&self) -> Option<Expr<N>> {
+        Expr::child(&self.0)
     }
 
     /// Gets the statements of the conditional clause body.
@@ -1477,7 +1477,13 @@ workflow test {
         // First workflow statement
         let conditional = statements[0].clone().unwrap_conditional();
         assert_eq!(
-            conditional.r#if().expr().unwrap_name_ref().name().text(),
+            conditional
+                .r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .unwrap_name_ref()
+                .name()
+                .text(),
             "do_thing"
         );
 

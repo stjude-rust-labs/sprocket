@@ -835,7 +835,15 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 WorkflowGraphNode::Conditional(statement, _) => {
-                    self.add_expr_edges(from, statement.r#if().expr(), graph, diagnostics);
+                    self.add_expr_edges(
+                        from,
+                        statement
+                            .r#if()
+                            .expr()
+                            .expect("expression to exist for `if` clause"),
+                        graph,
+                        diagnostics,
+                    );
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);
