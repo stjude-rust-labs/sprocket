@@ -36,7 +36,7 @@ struct Cli {
 
     /// Path to the configuration file.
     #[arg(long, short, global = true)]
-    config: Option<PathBuf>,
+    config: Vec<PathBuf>,
 
     /// Skip searching for and loading configuration files.
     ///
@@ -76,7 +76,7 @@ pub async fn inner() -> anyhow::Result<()> {
         }
     };
 
-    let config = Config::new(cli.config.as_deref(), cli.skip_config_search)?;
+    let config = Config::new(cli.config.iter().map(PathBuf::as_path), cli.skip_config_search)?;
     config
         .validate()
         .with_context(|| "validating provided configuration")?;
