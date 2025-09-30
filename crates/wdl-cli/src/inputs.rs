@@ -82,7 +82,6 @@ pub enum Input {
         /// exist at the time the inputs were processed.
         EvaluationPath,
     ),
-    /// A URL to the inputs file.
     /// A key-value pair representing an input.
     Pair {
         /// The key.

@@ -151,8 +151,11 @@ impl InputFile {
                     return Err(Error::UnsupportedFileExt(path.clone()));
                 };
 
-                // SAFETY: a parsed evaluation path always has a base, so should always have
-                // segments; always push an empty segment to treat it as a directory
+                // SAFETY: a parsed evaluation path always has a base, so `path_segments_mut`
+                // will never return an error; additionally, we must pop off a trailing `/` in
+                // the URL along with the "file name" part of the URL to get the parent; the
+                // final `push("")` call puts an empty segment on the URL so that any future
+                // `join` operation on the origin URL will treat it as a "directory".
                 let mut origin = url.clone();
                 origin
                     .path_segments_mut()
