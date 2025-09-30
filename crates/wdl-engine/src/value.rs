@@ -110,9 +110,9 @@ impl Value {
             v1::MetadataValue::Integer(v) => v.value().expect("number should be in range").into(),
             v1::MetadataValue::Float(v) => v.value().expect("number should be in range").into(),
             v1::MetadataValue::String(v) => PrimitiveValue::new_string(
-                v.text()
-                    .expect("metadata strings shouldn't have placeholders")
-                    .text(),
+                // `v.text()` will return `None` if the `LiteralString` is empty, so we call
+                // `unwrap_or_default()` to handle that case
+                v.text().map(|s| s.text().to_string()).unwrap_or_default(),
             )
             .into(),
             v1::MetadataValue::Null(_) => Self::new_none(Type::None),
