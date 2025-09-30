@@ -919,7 +919,10 @@ impl DocsTree {
                 // top navbar
                 div class="sticky px-4" {
                     a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8" alt="Logo";
+                        // Dark mode logo
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 light:hidden" alt="Logo";
+                        // Light logo (ensure we use logo with .light.svg suffix)
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
                     div class="relative w-full h-10" {
                         input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";
