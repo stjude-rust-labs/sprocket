@@ -17,6 +17,7 @@ use wdl::ast::v1::Decl;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
+use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
 use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
@@ -126,14 +127,20 @@ impl InputProcessor {
                 LiteralExpr::Boolean(v) => {
                     return Some((namespace.push(name), Value::Bool(v.value())));
                 }
-                LiteralExpr::String(v) => {
-                    if let Some(text) = v.text() {
-                        let mut buffer = String::new();
-                        text.unescape_to(&mut buffer);
-                        return Some((namespace.push(name), Value::String(buffer)));
-                    } else {
-                        return Some((namespace.push(name), Value::String(Default::default())));
-                    }
+                LiteralExpr::String(s) => {
+                    let merged_parts = s
+                        .parts()
+                        .map(|p| match p {
+                            StringPart::Placeholder(placeholder) => placeholder.text().to_string(),
+                            StringPart::Text(text) => {
+                                let mut buff = String::new();
+                                text.unescape_to(&mut buff);
+                                buff
+                            }
+                        })
+                        .collect::<String>();
+
+                    return Some((namespace.push(name), Value::String(merged_parts)));
                 }
                 LiteralExpr::Integer(v) => {
                     return Some((namespace.push(name), Value::from(v.value().unwrap_or(0))));
@@ -175,12 +182,19 @@ impl InputProcessor {
                     for item in m.items() {
                         let (k, v) = item.key_value();
                         let key_name: String = match k {
-                            Expr::Literal(LiteralExpr::String(k)) => {
-                                let text = k.text().expect("should have string text");
-                                let mut buffer = String::new();
-                                text.unescape_to(&mut buffer);
-                                buffer
-                            }
+                            Expr::Literal(LiteralExpr::String(k)) => k
+                                .parts()
+                                .map(|p| match p {
+                                    StringPart::Placeholder(placeholder) => {
+                                        placeholder.text().to_string()
+                                    }
+                                    StringPart::Text(text) => {
+                                        let mut buff = String::new();
+                                        text.unescape_to(&mut buff);
+                                        buff
+                                    }
+                                })
+                                .collect(),
                             _ => k.text().to_string(),
                         };
 
