@@ -126,7 +126,7 @@ impl InputFile {
                 let origin = if let Some(parent) = absolute.parent() {
                     parent.to_path_buf()
                 } else {
-                    origin
+                    absolute
                 };
 
                 // Read the contents from the local file
