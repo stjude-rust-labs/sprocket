@@ -394,7 +394,10 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     )
 }
 
-/// Creates a "no common type" diagnostic.
+/// Creates a "no common type" diagnostic for arrays and maps.
+///
+/// This is called if the elements of a map or an array do not have a common
+/// type.
 pub fn no_common_type(
     expected: &Type,
     expected_span: Span,
@@ -405,7 +408,10 @@ pub fn no_common_type(
         "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist"
     ))
     .with_label(format!("this is type `{actual}`"), actual_span)
-    .with_label(format!("this is type `{expected}`"), expected_span)
+    .with_label(
+        format!("this and all prior elements had a common type `{expected}`"),
+        expected_span,
+    )
 }
 
 /// Creates a "multiple type mismatch" diagnostic.

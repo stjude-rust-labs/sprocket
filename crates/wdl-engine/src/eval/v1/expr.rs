@@ -301,7 +301,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             LiteralExpr::Map(lit) => self.evaluate_literal_map(lit).await,
             LiteralExpr::Object(lit) => self.evaluate_literal_object(lit).await,
             LiteralExpr::Struct(lit) => self.evaluate_literal_struct(lit).await,
-            LiteralExpr::None(_) => Ok(Value::None),
+            LiteralExpr::None(_) => Ok(Value::new_none(Type::None)),
             LiteralExpr::Hints(lit) => self.evaluate_literal_hints(lit).await,
             LiteralExpr::Input(lit) => self.evaluate_literal_input(lit).await,
             LiteralExpr::Output(lit) => self.evaluate_literal_output(lit).await,
@@ -346,8 +346,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 }
             }
 
-            match evaluator.evaluate_expr(&expr).await? {
-                Value::None => {
+            match value {
+                Value::None(_) => {
                     if let Some(o) = placeholder.option().as_ref().and_then(|o| o.as_default()) {
                         buffer.push_str(
                             &evaluator
@@ -385,7 +385,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     if matches!(placeholder.option(), Some(PlaceholderOption::Sep(_)))
                         && v.as_slice()
                             .first()
-                            .map(|e| !matches!(e, Value::None | Value::Compound(_)))
+                            .map(|e| !matches!(e, Value::None(_) | Value::Compound(_)))
                             .unwrap_or(false) =>
                 {
                     let option = placeholder.option().unwrap().unwrap_sep();
@@ -400,7 +400,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
 
                         match e {
-                            Value::None => {}
+                            Value::None(_) => {}
                             Value::Primitive(v) => {
                                 write!(buffer, "{v}", v = v.raw(Some(&evaluator.context))).unwrap()
                             }
@@ -509,7 +509,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     match expected.common_type(&actual) {
                         Some(ty) => {
-                            value = value.coerce(&ty).map_err(|e| {
+                            value = value.coerce(Some(&self.context), &ty).map_err(|e| {
                                 runtime_type_mismatch(e, &ty, expected_span, &actual, expr.span())
                             })?;
                             expected = ty;
@@ -533,9 +533,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Vec::new()),
         };
 
-        Ok(Array::new(ArrayType::new(element_ty), values)
-            .expect("array elements should coerce")
-            .into())
+        Ok(
+            Array::new(Some(&self.context), ArrayType::new(element_ty), values)
+                .expect("array elements should coerce")
+                .into(),
+        )
     }
 
     /// Evaluates a literal pair expression.
@@ -546,9 +548,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).await?;
         let right = self.evaluate_expr(&right).await?;
-        Ok(Pair::new(PairType::new(left.ty(), right.ty()), left, right)
-            .expect("types should coerce")
-            .into())
+        Ok(Pair::new(
+            Some(&self.context),
+            PairType::new(left.ty(), right.ty()),
+            left,
+            right,
+        )
+        .expect("types should coerce")
+        .into())
     }
 
     /// Evaluates a literal map expression.
@@ -572,7 +579,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                 // The key type must be primitive
                 let key = match expected_key {
-                    Value::None => None,
+                    Value::None(_) => None,
                     Value::Primitive(key) => Some(key),
                     _ => {
                         return Err(map_key_not_primitive(key.span(), &expected_key.ty()));
@@ -591,15 +598,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     match expected_key_ty.common_type(&actual_key_ty) {
                         Some(ty) => {
-                            actual_key = actual_key.coerce(&ty).map_err(|e| {
-                                runtime_type_mismatch(
-                                    e,
-                                    &ty,
-                                    expected_key_span,
-                                    &actual_key_ty,
-                                    key.span(),
-                                )
-                            })?;
+                            actual_key =
+                                actual_key.coerce(Some(&self.context), &ty).map_err(|e| {
+                                    runtime_type_mismatch(
+                                        e,
+                                        &ty,
+                                        expected_key_span,
+                                        &actual_key_ty,
+                                        key.span(),
+                                    )
+                                })?;
                             expected_key_ty = ty;
                             expected_key_span = key.span();
                         }
@@ -616,15 +624,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     match expected_value_ty.common_type(&actual_value_ty) {
                         Some(ty) => {
-                            actual_value = actual_value.coerce(&ty).map_err(|e| {
-                                runtime_type_mismatch(
-                                    e,
-                                    &ty,
-                                    expected_value_span,
-                                    &actual_value_ty,
-                                    value.span(),
-                                )
-                            })?;
+                            actual_value =
+                                actual_value.coerce(Some(&self.context), &ty).map_err(|e| {
+                                    runtime_type_mismatch(
+                                        e,
+                                        &ty,
+                                        expected_value_span,
+                                        &actual_value_ty,
+                                        value.span(),
+                                    )
+                                })?;
                             expected_value_ty = ty;
                             expected_value_span = value.span();
                         }
@@ -640,7 +649,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
 
                     let actual_key = match actual_key {
-                        Value::None => None,
+                        Value::None(_) => None,
                         Value::Primitive(key) => Some(key),
                         _ => panic!("the key type is not primitive, but had a common type"),
                     };
@@ -653,9 +662,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Type::Union, Vec::new()),
         };
 
-        Ok(Map::new(MapType::new(key_ty, value_ty), elements)
-            .expect("map elements should coerce")
-            .into())
+        Ok(Map::new(
+            Some(&self.context),
+            MapType::new(key_ty, value_ty),
+            elements,
+        )
+        .expect("map elements should coerce")
+        .into())
     }
 
     /// Evaluates a literal object expression.
@@ -689,7 +702,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             match struct_ty.members().get(n.text()) {
                 Some(expected) => {
                     let value = self.evaluate_expr(&v).await?;
-                    let value = value.coerce(expected).map_err(|e| {
+                    let value = value.coerce(Some(&self.context), expected).map_err(|e| {
                         runtime_type_mismatch(e, expected, n.span(), &value.ty(), v.span())
                     })?;
 
@@ -707,7 +720,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             // Check for optional members that should be set to `None`
             if ty.is_optional() {
                 if !members.contains_key(n) {
-                    members.insert(n.clone(), Value::None);
+                    members.insert(n.clone(), Value::new_none(ty.clone()));
                 }
             } else {
                 // Check for a missing required member
@@ -768,7 +781,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let value = self.evaluate_expr(expr).await?;
         if let Some(expected) = task_hint_types(self.context.version(), name.text(), true) {
-            match expected.iter().find_map(|ty| value.coerce(ty).ok()) {
+            match expected
+                .iter()
+                .find_map(|ty| value.coerce(Some(&self.context), ty).ok())
+            {
                 Some(value) => {
                     return Ok(value);
                 }
@@ -951,7 +967,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // expression, depending on the result of the conditional expression
         let cond = self.evaluate_expr(&cond_expr).await?;
         let (value, true_ty, false_ty) = if cond
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| if_conditional_mismatch(&cond.ty(), cond_expr.span()))?
             .unwrap_boolean()
         {
@@ -994,10 +1010,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Determine the common type of the true and false expressions
         // The value must be coerced to that type
         let ty = true_ty.common_type(&false_ty).ok_or_else(|| {
-            no_common_type(&true_ty, true_expr.span(), &false_ty, false_expr.span())
+            type_mismatch(&true_ty, true_expr.span(), &false_ty, false_expr.span())
         })?;
 
-        Ok(value.coerce(&ty).expect("coercion should not fail"))
+        Ok(value
+            .coerce(Some(&self.context), &ty)
+            .expect("coercion should not fail"))
     }
 
     /// Evaluates a `logical not` expression.
@@ -1009,7 +1027,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let operand = expr.operand();
         let value = self.evaluate_expr(&operand).await?;
         Ok((!value
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| logical_not_mismatch(&value.ty(), operand.span()))?
             .unwrap_boolean())
         .into())
@@ -1070,7 +1088,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Evaluate the left-hand side first
         let left = self.evaluate_expr(&lhs).await?;
         if left
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| logical_or_mismatch(&left.ty(), lhs.span()))?
             .unwrap_boolean()
         {
@@ -1081,7 +1099,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Otherwise, evaluate the right-hand side
         let right = self.evaluate_expr(&rhs).await?;
         right
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| logical_or_mismatch(&right.ty(), rhs.span()))
     }
 
@@ -1095,7 +1113,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Evaluate the left-hand side first
         let left = self.evaluate_expr(&lhs).await?;
         if !left
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| logical_and_mismatch(&left.ty(), lhs.span()))?
             .unwrap_boolean()
         {
@@ -1106,7 +1124,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         // Otherwise, evaluate the right-hand side
         let right = self.evaluate_expr(&rhs).await?;
         right
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(Some(&self.context), &PrimitiveType::Boolean.into())
             .map_err(|_| logical_and_mismatch(&right.ty(), rhs.span()))
     }
 
@@ -1263,13 +1281,13 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .into(),
                 )
             }
-            (Value::Primitive(PrimitiveValue::String(_)), Value::None)
-            | (Value::None, Value::Primitive(PrimitiveValue::String(_)))
+            (Value::Primitive(PrimitiveValue::String(_)), Value::None(_))
+            | (Value::None(_), Value::Primitive(PrimitiveValue::String(_)))
                 if op == NumericOperator::Addition && self.placeholders > 0 =>
             {
                 // Allow string concatenation with `None` in placeholders, which evaluates to
                 // `None`
-                Some(Value::None)
+                Some(Value::new_none(Type::None))
             }
             _ => None,
         }
@@ -1305,7 +1323,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     match f.bind(self.context.version(), types) {
                         Ok(binding) => {
                             let context = CallContext::new(
-                                &self.context,
+                                &mut self.context,
                                 target.span(),
                                 arguments,
                                 binding.return_type().clone(),
@@ -1411,7 +1429,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("key type should be primitive");
 
                 let i = match self.evaluate_expr(&index).await? {
-                    Value::None if Type::None.is_coercible_to(&key_type.into()) => None,
+                    Value::None(_) if Type::None.is_coercible_to(&key_type.into()) => None,
                     Value::Primitive(i) if i.ty().is_coercible_to(&key_type.into()) => Some(i),
                     value => {
                         return Err(index_type_mismatch(
@@ -1475,6 +1493,7 @@ pub(crate) mod test {
     use std::fs;
     use std::path::Path;
 
+    use anyhow::Result;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use url::Url;
@@ -1489,8 +1508,8 @@ pub(crate) mod test {
     use super::*;
     use crate::ScopeRef;
     use crate::eval::Scope;
-    use crate::http::Downloader;
     use crate::http::Location;
+    use crate::http::Transferer;
     use crate::path::EvaluationPath;
 
     /// Represents a test environment.
@@ -1499,10 +1518,10 @@ pub(crate) mod test {
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
-        /// The working directory.
-        work_dir: TempDir,
-        /// The working directory path.
-        work_dir_path: EvaluationPath,
+        /// The test directory.
+        test_dir: TempDir,
+        /// The evaluation base directory.
+        base_dir: EvaluationPath,
         /// The current directory.
         temp_dir: TempDir,
     }
@@ -1520,8 +1539,8 @@ pub(crate) mod test {
             self.structs.insert(name, ty.into());
         }
 
-        pub fn work_dir(&self) -> Option<&EvaluationPath> {
-            Some(&self.work_dir_path)
+        pub fn base_dir(&self) -> &EvaluationPath {
+            &self.base_dir
         }
 
         pub fn temp_dir(&self) -> &Path {
@@ -1529,43 +1548,34 @@ pub(crate) mod test {
         }
 
         pub fn write_file(&self, name: &str, bytes: impl AsRef<[u8]>) {
-            fs::write(self.work_dir.path().join(name), bytes).expect("failed to create temp file");
+            fs::write(self.test_dir.path().join(name), bytes).expect("failed to create temp file");
         }
     }
 
     impl Default for TestEnv {
         fn default() -> Self {
-            let work_dir = TempDir::new().expect("failed to create work directory");
-            let work_dir_path = EvaluationPath::Local(work_dir.path().to_path_buf());
+            let test_dir = TempDir::new().expect("failed to create test directory");
+            let base_dir = EvaluationPath::Local(test_dir.path().to_path_buf());
 
             Self {
                 scopes: vec![Scope::default()],
                 structs: Default::default(),
+                test_dir,
+                base_dir,
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
-                work_dir,
-                work_dir_path,
             }
         }
     }
 
-    impl Downloader for TestEnv {
-        fn download<'a, 'b, 'c>(
-            &'a self,
-            url: &'b Url,
-        ) -> BoxFuture<'c, Result<crate::http::Location<'static>, Arc<anyhow::Error>>>
-        where
-            'a: 'c,
-            'b: 'c,
-            Self: 'c,
-        {
+    impl Transferer for TestEnv {
+        fn download<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Location>> {
             async {
                 // For tests, redirect requests to example.com to files relative to the work dir
                 if url.authority() == "example.com" {
                     return Ok(Location::Path(
-                        self.work_dir
+                        self.test_dir
                             .path()
-                            .join(url.path().strip_prefix('/').unwrap_or(url.path()))
-                            .into(),
+                            .join(url.path().strip_prefix('/').unwrap_or(url.path())),
                     ));
                 }
 
@@ -1574,13 +1584,16 @@ pub(crate) mod test {
             .boxed()
         }
 
-        fn size<'a, 'b, 'c>(&'a self, _: &'b Url) -> BoxFuture<'c, anyhow::Result<Option<u64>>>
-        where
-            'a: 'c,
-            'b: 'c,
-            Self: 'c,
-        {
+        fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+            unimplemented!()
+        }
+
+        fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             std::future::ready(Ok(Some(1234))).boxed()
+        }
+
+        fn apply_auth<'a>(&self, url: &'a Url) -> anyhow::Result<Cow<'a, Url>> {
+            Ok(Cow::Borrowed(url))
         }
     }
 
@@ -1639,8 +1652,8 @@ pub(crate) mod test {
                 .ok_or_else(|| unknown_type(name, span))
         }
 
-        fn work_dir(&self) -> Option<&EvaluationPath> {
-            self.env.work_dir()
+        fn base_dir(&self) -> &EvaluationPath {
+            self.env.base_dir()
         }
 
         fn temp_dir(&self) -> &Path {
@@ -1655,15 +1668,7 @@ pub(crate) mod test {
             self.stderr.as_ref()
         }
 
-        fn task(&self) -> Option<&Task> {
-            None
-        }
-
-        fn translate_path(&self, _path: &str) -> Option<Cow<'_, Path>> {
-            None
-        }
-
-        fn downloader(&self) -> &dyn Downloader {
+        fn transferer(&self) -> &dyn Transferer {
             self.env
         }
     }
@@ -1866,7 +1871,7 @@ pub(crate) mod test {
         env.insert_name("file", PrimitiveValue::new_file("bar"));
         env.insert_name("dir", PrimitiveValue::new_directory("baz"));
         env.insert_name("salutation", PrimitiveValue::new_string("hello"));
-        env.insert_name("name1", Value::None);
+        env.insert_name("name1", Value::new_none(Type::None));
         env.insert_name("name2", PrimitiveValue::new_string("Fred"));
         env.insert_name("spaces", PrimitiveValue::new_string("  "));
         env.insert_name("name", PrimitiveValue::new_string("Henry"));
@@ -3330,10 +3335,11 @@ pub(crate) mod test {
         let array_ty = ArrayType::new(PrimitiveType::Integer);
         let map_ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
 
-        env.insert_name("foo", Array::new(array_ty, [1, 2, 3, 4, 5]).unwrap());
+        env.insert_name("foo", Array::new(None, array_ty, [1, 2, 3, 4, 5]).unwrap());
         env.insert_name(
             "bar",
             Map::new(
+                None,
                 map_ty,
                 [
                     (PrimitiveValue::new_string("foo"), 1),
@@ -3411,11 +3417,12 @@ pub(crate) mod test {
 
         env.insert_name(
             "foo",
-            Pair::new(pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
+            Pair::new(None, pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
         );
         env.insert_name(
             "bar",
             Struct::new(
+                None,
                 struct_ty,
                 [
                     ("foo", 1.into()),

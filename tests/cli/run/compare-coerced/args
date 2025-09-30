@@ -1,0 +1,1 @@
+-qq run source.wdl -e compare_coerced

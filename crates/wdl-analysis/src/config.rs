@@ -46,6 +46,7 @@ impl Default for Config {
                 diagnostics: Default::default(),
                 fallback_version: None,
                 ignore_filename: None,
+                all_rules: Default::default(),
             }),
         }
     }
@@ -66,6 +67,11 @@ impl Config {
     /// Get this configuration's ignore filename.
     pub fn ignore_filename(&self) -> Option<&str> {
         self.inner.ignore_filename.as_deref()
+    }
+
+    /// Gets the list of all known rule identifiers.
+    pub fn all_rules(&self) -> &[String] {
+        &self.inner.all_rules
     }
 
     /// Return a new configuration with the previous [`DiagnosticsConfig`]
@@ -133,6 +139,18 @@ impl Config {
             inner: Arc::new(inner),
         }
     }
+
+    /// Returns a new configuration with the list of all known rule identifiers
+    /// replaced by the argument.
+    ///
+    /// This is used internally to populate the `#@ except:` snippet.
+    pub fn with_all_rules(&self, rules: Vec<String>) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.all_rules = rules;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
@@ -146,6 +164,9 @@ struct ConfigInner {
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
+    /// A list of all known rule identifiers.
+    #[serde(default)]
+    all_rules: Vec<String>,
 }
 
 /// Configuration for analysis diagnostics.

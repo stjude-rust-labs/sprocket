@@ -35,12 +35,14 @@ use regex::Regex;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config::BackendConfig;
 use wdl_engine::config::GenericBackendConfig;
@@ -55,7 +57,7 @@ static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// Regex used to replace temporary file names in task command files with
 /// consistent names for test baselines.
 static TEMP_FILENAME_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new("tmp[[:alnum:]]{6}").expect("invalid regex"));
+    LazyLock::new(|| Regex::new(r#"(tmp[\/\\])?tmp[[:alnum:]]{6}"#).expect("invalid regex"));
 
 /// Find tests to run.
 fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Error> {
@@ -173,6 +175,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
+<<<<<<< HEAD
         Ok(vec![("generic_local_docker".into(), {
             config::Config {
                 backends: [(
@@ -184,6 +187,38 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                 ..Default::default()
             }
         })])
+=======
+        Ok(vec![
+            ("local".into(), {
+                config::Config {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Local(Default::default()),
+                    )]
+                    .into(),
+                    suppress_env_specific_output: true,
+                    experimental_features_enabled: true,
+                    ..Default::default()
+                }
+            }),
+            // Currently we limit running the Docker backend to Linux as GitHub does not have
+            // Docker installed on macOS hosted runners and the Windows hosted runners
+            // are configured to use Windows containers
+            #[cfg(target_os = "linux")]
+            ("docker".into(), {
+                config::Config {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Docker(Default::default()),
+                    )]
+                    .into(),
+                    suppress_env_specific_output: true,
+                    experimental_features_enabled: true,
+                    ..Default::default()
+                }
+            }),
+        ])
+>>>>>>> origin/main
     }
 }
 
@@ -318,11 +353,18 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir))?;
 
+<<<<<<< HEAD
     let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
     let mut dir = TempDir::new().context("failed to create temporary directory")?;
     // dir.disable_cleanup(true);
+=======
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
+    let dir = TempDir::new().context("failed to create temporary directory")?;
+    info!(dir = %dir.path().display(), "test temp dir created");
+
+>>>>>>> origin/main
     match evaluator
-        .evaluate(result.document(), task, &inputs, dir.path(), |_| async {})
+        .evaluate(result.document(), task, &inputs, dir.path())
         .await
     {
         Ok(evaluated) => {

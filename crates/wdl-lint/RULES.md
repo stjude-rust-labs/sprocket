@@ -1,53 +1,52 @@
 # Rules
 
-This table documents all implemented `wdl` lint rules implemented on the `main`
-branch of the `stjude-rust-labs/wdl` repository. Note that the information may
-be out of sync with released packages.
+This table documets all implemented `sprocket` lin rules impleemnted on the `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released packages.
 
 ## Lint Rules
 
-| Name                        | Tags                          | Description                                                                                         |
-| :-------------------------- | :---------------------------- | :-------------------------------------------------------------------------------------------------- |
-| `CallInputSpacing`          | Clarity, Spacing, Style       | Ensures proper spacing for call inputs                                                              |
-| `CommandSectionIndentation` | Clarity, Correctness, Spacing | Ensures consistent indentation (no mixed spaces/tabs) within command sections.                      |
-| `CommentWhitespace`         | Spacing                       | Ensures that comments are properly spaced.                                                          |
-| `ConciseInput`              | Style                         | Ensures concise input assignments are used (implicit binding when available).                       |
-| `ConsistentNewlines`        | Clarity, Style                | Ensures that `\n` or `\r\n` newlines are used consistently within the file.                         |
-| `ContainerUri`              | Clarity, Portability          | Ensures that the value for the `container` key in `runtime`/`requirements` sections is well-formed. |
-| `DeclarationName`           | Naming                        | Ensures declaration names do not redundantly include their type name.                               |
-| `DeprecatedObject`          | Deprecated                    | Ensures that the deprecated `Object` construct is not used.                                         |
-| `DeprecatedPlaceholder`     | Deprecated                    | Ensures that the deprecated placeholder options construct is not used.                              |
-| `DoubleQuotes`              | Clarity, Style                | Ensures that strings are defined using double quotes.                                               |
-| `ElementSpacing`            | Spacing                       | Ensures proper blank space between elements                                                         |
-| `EndingNewline`             | Spacing, Style                | Ensures that documents end with a single newline character.                                         |
-| `ExpectedRuntimeKeys`       | Completeness, Deprecated      | Ensures that runtime sections have the appropriate keys.                                            |
-| `ExpressionSpacing`         | Spacing                       | Ensures that expressions are properly spaced.                                                       |
-| `HereDocCommands`           | Clarity                       | Ensures that tasks use heredoc syntax in command sections.                                          |
-| `ImportPlacement`           | Clarity, Sorting              | Ensures that imports are placed between the version statement and any document items.               |
-| `ImportSorted`              | Clarity, Style                | Ensures that imports are sorted lexicographically.                                                  |
-| `ImportWhitespace`          | Clarity, Spacing, Style       | Ensures that there is no extraneous whitespace between or within imports.                           |
-| `InputName`                 | Naming                        | Ensures input names are meaningful (e.g., not generic like 'input', 'in', or too short).            |
-| `InputSorted`               | Clarity, Sorting, Style       | Ensures that input declarations are sorted                                                          |
-| `KnownRules`                | Clarity                       | Ensures only known rules are used in lint directives.                                               |
-| `LineWidth`                 | Clarity, Spacing, Style       | Ensures that lines do not exceed a certain width.                                                   |
-| `LintDirectiveFormatted`    | Clarity, Correctness          | Ensures lint directives are correctly formatted.                                                    |
-| `LintDirectiveValid`        | Clarity, Correctness          | Ensures lint directives are placed correctly to have the intended effect.                           |
-| `MatchingOutputMeta`        | Completeness                  | Ensures that each output field is documented in the meta section under `meta.outputs`.              |
-| `MetaDescription`           | Completeness                  | Ensures the `meta` section contains a `description` key.                                            |
-| `MetaKeyValueFormatting`    | Style                         | Ensures that metadata objects and arrays are properly spaced.                                       |
-| `MetaSections`              | Clarity, Completeness         | Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections.            |
-| `OutputName`                | Naming                        | Ensures output names are meaningful (e.g., not generic like 'output', 'out', or too short).         |
-| `ParameterMetaMatched`      | Completeness, Sorting         | Ensures that inputs have a matching entry in a `parameter_meta` section.                            |
-| `PascalCase`                | Clarity, Naming, Style        | Ensures that structs are defined with PascalCase names.                                             |
-| `PreambleCommentPlacement`  | Clarity                       | Ensures that documents have correct comments in the preamble.                                       |
-| `PreambleFormatted`         | Clarity, Spacing, Style       | Ensures that documents have correct whitespace in the preamble.                                     |
-| `RedundantNone`             | Style, Clarity                | Ensures optional inputs don't have redundant `None` assignments.                                    |
-| `RequirementsSection`       | Completeness, Portability     | Ensures that >=v1.2 tasks have a requirements section.                                              |
-| `RuntimeSection`            | Completeness, Portability     | Ensures that <v1.2 tasks have a runtime section.                                                    |
-| `SectionOrdering`           | Sorting, Style                | Ensures that sections within tasks and workflows are sorted.                                        |
-| `ShellCheck`                | Correctness, Portability      | Ensures that command sections are free of shellcheck diagnostics.                                   |
-| `SnakeCase`                 | Clarity, Naming, Style        | Ensures that tasks, workflows, and variables are defined with snake_case names.                     |
-| `TodoComment`               | Completeness                  | Ensures that `TODO` statements are flagged for followup.                                            |
-| `TrailingComma`             | Style                         | Ensures that lists and objects in meta have a trailing comma.                                       |
-| `VersionStatementFormatted` | Style                         | Ensures the `version` statement is correctly formatted.                                             |
-| `Whitespace`                | Spacing, Style                | Ensures that a document does not contain undesired whitespace.                                      |
+| Name | Tags | Description |
+|:-|:-|:-|
+| `CallInputSpacing` | Spacing, Style | Detects unsorted input declarations |
+| `CommandSectionIndentation` | Spacing, Clarity, Correctness | Detects mixed indentation in a command section |
+| `CommentWhitespace` | Spacing, Style | Detects improperly spaced comments |
+| `ConciseInput` | Style | Detects a redundant input assignment |
+| `ConsistentNewlines` | Spacing, Clarity, Portability | Detects imports that are not sorted lexicographically |
+| `ContainerUri` | Clarity, Portability | Ensures that values for container keys within runtime/requirements sections are well-formed |
+| `DeclarationName` | Naming, Style, Clarity | A rule that identifies declaration names that include their type names |
+| `DeprecatedObject` | Deprecated | Detects the use of the deprecated Object types |
+| `DeprecatedPlaceholder` | Deprecated | Detects the use of a deprecated placeholder options |
+| `DescriptionLength` | SprocketCompatibility | Ensures that description meta entries are not too long for display in Sprocket documentation |
+| `DoubleQuotes` | Style, Clarity | Detects strings that are not defined with double quotes |
+| `ElementSpacing` | Spacing, Style | Detects unsorted input declarations |
+| `EndingNewline` | Spacing, Portability | Detects missing newline at the end of the document |
+| `ExpectedRuntimeKeys` | Completeness, Deprecated | Detects the use of deprecated, unknown, or missing runtime keys |
+| `ExpressionSpacing` | Spacing, Style | Detects improperly spaced expressions |
+| `HereDocCommands` | Clarity, Correctness | Detects curly command section for tasks |
+| `ImportPlacement` | Clarity | Detects incorrect import placements |
+| `ImportSorted` | Sorting | Detects imports that are not sorted lexicographically |
+| `ImportWhitespace` | Spacing, Style | Detects whitespace between imports |
+| `InputName` | Naming, Style | A lint rule for disallowed input names |
+| `InputSorted` | Sorting | Detects unsorted input declarations |
+| `KnownRules` | Clarity, Correctness, SprocketCompatibility | Detects unknown rules within lint directives |
+| `LineWidth` | Spacing, Style | Detects lines that exceed a certain width |
+| `LintDirectiveFormatted` | Clarity, Correctness, SprocketCompatibility | Detects a malformed lint directive |
+| `LintDirectiveValid` | Clarity, Correctness, SprocketCompatibility | Detects unknown rules within lint directives |
+| `MatchingOutputMeta` | Completeness, Documentation, SprocketCompatibility | Detects non-matching outputs |
+| `MetaDescription` | Completeness, Documentation, SprocketCompatibility | Detects unsorted input declarations |
+| `MetaKeyValueFormatting` | Spacing, Style | A lint rule for missing meta and parameter_meta sections |
+| `MetaSections` | Completeness, Clarity, Documentation | A lint rule for missing meta and parameter_meta sections |
+| `OutputName` | Naming, Style | A lint rule for disallowed output names |
+| `ParameterMetaMatched` | Completeness, Sorting, Documentation, SprocketCompatibility | Detects missing or extraneous entries in a parameter_meta section |
+| `PascalCase` | Naming, Style, Clarity | Detects structs defined without a PascalCase name |
+| `PreambleCommentPlacement` | Style, Clarity, SprocketCompatibility | A lint rule for flagging preamble comments which are outside the preamble |
+| `PreambleFormatted` | Spacing, Style, SprocketCompatibility | Detects incorrect comments in a document preamble |
+| `RedundantNone` | Style | A rule that identifies redundant `= None` assignments for optional inputs |
+| `RequirementsSection` | Completeness, Portability, Deprecated | Detects missing requirements sections for tasks |
+| `RuntimeSection` | Completeness, Portability | Detects missing runtime sections for tasks |
+| `SectionOrdering` | Style, Sorting | Detects section ordering issues |
+| `ShellCheck` | Correctness | Runs ShellCheck on a command section and reports diagnostics |
+| `SnakeCase` | Naming, Style, Clarity | Detects non-snake_cased identifiers |
+| `TodoComment` | Style | Detects remaining TODOs within comments |
+| `TrailingComma` | Style | Detects missing trailing commas |
+| `VersionStatementFormatted` | Spacing, Style | Detects incorrect formatting of the version statement |
+| `Whitespace` | Spacing, Style | Detects undesired whitespace |

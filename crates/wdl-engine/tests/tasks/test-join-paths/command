@@ -1,2 +1,1 @@
-mkdir 'mydir'
-echo -n "hello" > 'mydir/mydata.txt'
+cat 'mydata.txt'

@@ -726,4 +726,9 @@ impl DocumentGraph {
     ) -> impl Iterator<Item = NodeIndex> {
         Bfs::new(&self.inner, index).iter(&self.inner)
     }
+
+    /// Gets the inner stable dependency graph.
+    pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, ()> {
+        &self.inner
+    }
 }

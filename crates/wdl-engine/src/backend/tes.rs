@@ -3,14 +3,13 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
+use cloud_copy::UrlExt;
 use crankshaft::config::backend;
 use crankshaft::config::backend::tes::http::HttpAuthConfig;
 use crankshaft::engine::Task;
@@ -26,36 +25,37 @@ use crankshaft::engine::task::Resources;
 use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
-use futures::FutureExt;
-use futures::future::BoxFuture;
+use crankshaft::events::Event;
 use nonempty::NonEmpty;
+use secrecy::ExposeSecret;
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
+use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::InputKind;
-use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
-use crate::http::HttpDownloader;
-use crate::http::rewrite_url;
+use crate::hash::UrlDigestExt;
+use crate::hash::calculate_path_digest;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -66,14 +66,8 @@ use crate::v1::max_memory;
 use crate::v1::memory;
 use crate::v1::preemptible;
 
-/// The number of initial expected task names.
-///
-/// This controls the initial size of the bloom filter and how many names are
-/// prepopulated into the name generator.
-const INITIAL_EXPECTED_NAMES: usize = 1000;
-
 /// The root guest path for inputs.
-const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
+const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -163,7 +157,7 @@ impl TaskManagerRequest for TesTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the attempt directory
         let attempt_dir = self.inner.attempt_dir();
         fs::create_dir_all(attempt_dir).with_context(|| {
@@ -183,10 +177,13 @@ impl TaskManagerRequest for TesTaskRequest {
             )
         })?;
 
-        let task_dir = format!(
-            "{name}-{timestamp}/",
-            name = self.name,
-            timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
+        // SAFETY: currently `inputs` is required by configuration validation, so it
+        // should always unwrap
+        let inputs_url = Arc::new(
+            self.backend_config
+                .inputs
+                .clone()
+                .expect("should have inputs URL"),
         );
 
         // Start with the command file as an input
@@ -199,40 +196,90 @@ impl TaskManagerRequest for TesTaskRequest {
                 .build(),
         ];
 
-        for input in self.inner.inputs() {
-            // Currently, if the input is a directory with contents, we'll error evaluation
-            // TODO: in the future, we should be uploading the entire contents to cloud
-            // storage
-            if input.kind() == InputKind::Directory {
-                if let EvaluationPath::Local(path) = input.path()
-                    && let Ok(mut entries) = path.read_dir()
-                    && entries.next().is_some()
-                {
-                    bail!(
-                        "cannot upload contents of directory `{path}`: operation is not yet \
-                         supported",
-                        path = path.display()
+        // Spawn upload tasks for inputs available locally, and apply authentication to
+        // the URLs for remote inputs.
+        let mut uploads = JoinSet::new();
+        for (i, input) in self.inner.inputs().iter().enumerate() {
+            match input.path() {
+                EvaluationPath::Local(path) => {
+                    // Input is local, spawn an upload of it
+                    let path = path.to_path_buf();
+                    let transferer = self.inner.transferer().clone();
+                    let inputs_url = inputs_url.clone();
+                    uploads.spawn(async move {
+                        let url = inputs_url.join_digest(
+                            calculate_path_digest(&path).await.with_context(|| {
+                                format!(
+                                    "failed to calculate digest of `{path}`",
+                                    path = path.display()
+                                )
+                            })?,
+                        );
+                        transferer
+                            .upload(&path, &url)
+                            .await
+                            .with_context(|| {
+                                format!(
+                                    "failed to upload `{path}` to `{url}`",
+                                    path = path.display(),
+                                    url = url.display()
+                                )
+                            })
+                            .map(|_| (i, url))
+                    });
+                }
+                EvaluationPath::Remote(url) => {
+                    // Input is already remote, add it to the Crankshaft inputs list
+                    let url = match self.inner.transferer().apply_auth(url)? {
+                        Cow::Borrowed(_) => url.clone(),
+                        Cow::Owned(url) => url,
+                    };
+                    inputs.push(
+                        Input::builder()
+                            .path(
+                                input
+                                    .guest_path()
+                                    .expect("input should have guest path")
+                                    .as_str(),
+                            )
+                            .contents(Contents::Url(url))
+                            .ty(input.kind())
+                            .read_only(true)
+                            .build(),
                     );
                 }
-                continue;
             }
+        }
 
-            // TODO: for local files, upload to cloud storage rather than specifying the
-            // input contents directly
+        // Wait for any uploads to complete
+        while let Some(result) = uploads.join_next().await {
+            let (i, url) = result.context("upload task")??;
+            let input = &self.inner.inputs()[i];
+            let url = match self.inner.transferer().apply_auth(&url)? {
+                Cow::Borrowed(_) => url,
+                Cow::Owned(url) => url,
+            };
+
             inputs.push(
                 Input::builder()
-                    .path(input.guest_path().expect("should have guest path"))
-                    .contents(match input.path() {
-                        EvaluationPath::Local(path) => Contents::Path(path.clone()),
-                        EvaluationPath::Remote(url) => Contents::Url(
-                            rewrite_url(&self.config, Cow::Borrowed(url))?.into_owned(),
-                        ),
-                    })
+                    .path(
+                        input
+                            .guest_path()
+                            .expect("input should have guest path")
+                            .as_str(),
+                    )
+                    .contents(Contents::Url(url))
                     .ty(input.kind())
                     .read_only(true)
                     .build(),
             );
         }
+
+        let output_dir = format!(
+            "{name}-{timestamp}/",
+            name = self.name,
+            timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
+        );
 
         // SAFETY: currently `outputs` is required by configuration validation, so it
         // should always unwrap
@@ -241,24 +288,27 @@ impl TaskManagerRequest for TesTaskRequest {
             .outputs
             .as_ref()
             .expect("should have outputs URL")
-            .join(&task_dir)
+            .join(&output_dir)
             .expect("should join");
 
-        let mut work_dir_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(WORK_DIR_NAME).expect("should join")),
-        )?
-        .into_owned();
-        let stdout_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(STDOUT_FILE_NAME).expect("should join")),
-        )?
-        .into_owned();
-        let stderr_url = rewrite_url(
-            &self.config,
-            Cow::Owned(outputs_url.join(STDERR_FILE_NAME).expect("should join")),
-        )?
-        .into_owned();
+        let work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
+        let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
+        let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
+
+        let mut work_dir_url = match self.inner.transferer().apply_auth(&work_dir_url)? {
+            Cow::Borrowed(_) => work_dir_url,
+            Cow::Owned(url) => url,
+        };
+
+        let stdout_url = match self.inner.transferer().apply_auth(&stdout_url)? {
+            Cow::Borrowed(_) => stdout_url,
+            Cow::Owned(url) => url,
+        };
+
+        let stderr_url = match self.inner.transferer().apply_auth(&stderr_url)? {
+            Cow::Borrowed(_) => stderr_url,
+            Cow::Owned(url) => url,
+        };
 
         // The TES backend will output three things: the working directory contents,
         // stdout, and stderr.
@@ -281,7 +331,6 @@ impl TaskManagerRequest for TesTaskRequest {
         ];
 
         let mut preemptible = self.preemptible;
-        let mut spawned = Some(spawned);
         loop {
             let task = Task::builder()
                 .name(&self.name)
@@ -316,12 +365,7 @@ impl TaskManagerRequest for TesTaskRequest {
                 )
                 .build();
 
-            let statuses = match self
-                .backend
-                .run(task, spawned.take(), self.token.clone())
-                .map_err(|e| anyhow!("{e:#}"))?
-                .await
-            {
+            let statuses = match self.backend.run(task, self.token.clone())?.await {
                 Ok(statuses) => statuses,
                 Err(TaskRunError::Preempted) if preemptible > 0 => {
                     // Decrement the preemptible count and retry
@@ -341,7 +385,6 @@ impl TaskManagerRequest for TesTaskRequest {
             work_dir_url.path_segments_mut().unwrap().push("");
 
             return Ok(TaskExecutionResult {
-                inputs: self.inner.info.inputs,
                 exit_code: status.code().expect("should have exit code"),
                 work_dir: EvaluationPath::Remote(work_dir_url),
                 stdout: PrimitiveValue::new_file(stdout_url).into(),
@@ -368,7 +411,7 @@ pub struct TesBackend {
     /// The task manager for the backend.
     manager: TaskManager<TesTaskRequest>,
     /// The name generator for tasks.
-    generator: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
 }
 
 impl TesBackend {
@@ -376,7 +419,11 @@ impl TesBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(config: Arc<Config>, backend_config: &TesBackendConfig) -> Result<Self> {
+    pub async fn new(
+        config: Arc<Config>,
+        backend_config: &TesBackendConfig,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         info!("initializing TES backend");
 
         // There's no way to ask the TES service for its limits, so use the maximums
@@ -389,26 +436,22 @@ impl TesBackend {
         match &backend_config.auth {
             Some(TesBackendAuthConfig::Basic(config)) => {
                 http.auth = Some(HttpAuthConfig::Basic {
-                    username: config
-                        .username
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `username` in basic auth"))?,
-                    password: config
-                        .password
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `password` in basic auth"))?,
+                    username: config.username.clone(),
+                    password: config.password.inner().expose_secret().to_string(),
                 });
             }
             Some(TesBackendAuthConfig::Bearer(config)) => {
                 http.auth = Some(HttpAuthConfig::Bearer {
-                    token: config
-                        .token
-                        .clone()
-                        .ok_or_else(|| anyhow!("missing `token` in bearer auth"))?,
+                    token: config.token.inner().expose_secret().to_string(),
                 });
             }
             None => {}
         }
+
+        let names = Arc::new(Mutex::new(GeneratorIterator::new(
+            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+            INITIAL_EXPECTED_NAMES,
+        )));
 
         let backend = tes::Backend::initialize(
             backend::tes::Config::builder()
@@ -416,6 +459,8 @@ impl TesBackend {
                 .http(http)
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
+            names.clone(),
+            events,
         );
 
         let max_concurrency = backend_config.max_concurrency.unwrap_or(u64::MAX);
@@ -428,10 +473,7 @@ impl TesBackend {
             max_cpu,
             max_memory,
             manager,
-            generator: Arc::new(Mutex::new(GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ))),
+            names,
         })
     }
 }
@@ -486,43 +528,19 @@ impl TaskExecutionBackend for TesBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
-        Some(Path::new(GUEST_WORK_DIR))
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        Some(GUEST_INPUTS_DIR)
     }
 
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        _: &'b HttpDownloader,
-        inputs: &'c mut [crate::eval::Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async {
-            // Construct a trie for mapping input guest paths
-            let mut trie = InputTrie::default();
-            for input in inputs.iter() {
-                trie.insert(input)?;
-            }
-
-            for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
-                inputs[index].set_guest_path(guest_path);
-            }
-
-            Ok(())
-        }
-        .boxed()
+    fn needs_local_inputs(&self) -> bool {
+        false
     }
 
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -539,7 +557,7 @@ impl TaskExecutionBackend for TesBackend {
             "{id}-{generated}",
             id = request.id(),
             generated = self
-                .generator
+                .names
                 .lock()
                 .expect("generator should always acquire")
                 .next()
@@ -560,13 +578,9 @@ impl TaskExecutionBackend for TesBackend {
                 token,
                 preemptible,
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
     }
 }

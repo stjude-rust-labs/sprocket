@@ -4,32 +4,25 @@ use std::fs::File;
 use std::fs::Permissions;
 use std::fs::{self};
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use futures::FutureExt as _;
-use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tempfile::TempDir;
 use tokio::sync::oneshot;
-use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::Input;
-use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::ONE_MEGABYTE;
 use crate::PrimitiveValue;
@@ -43,10 +36,10 @@ use crate::config::Config;
 use crate::config::GenericBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::http::Downloader as _;
-use crate::http::HttpDownloader;
-use crate::http::Location;
 use crate::path::EvaluationPath;
+
+/// The root guest path for inputs.
+const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 
 /// Represents a generic task request.
 #[derive(Debug)]
@@ -74,7 +67,7 @@ impl TaskManagerRequest for GenericTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the working directory
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -171,35 +164,30 @@ impl TaskManagerRequest for GenericTaskRequest {
             )
             .await?;
 
-        let mut inputs = self
-            .inner
-            .inputs()
-            .into_iter()
-            .filter_map(|input| {
-                if let Some(guest_path) = input.guest_path() {
-                    let location = input.location().expect("all inputs should have localized");
-                    // TODO ACF 2025-08-26: I lifted this check from the Docker backend, but
-                    // I think this `exists()` check is the reason the Docker backend
-                    // doesn't line up with the spec which says "If the specified path does
-                    // not exist, it is an error unless the declaration is optional."
-                    if location.exists() {
-                        Some(
-                            crankshaft::engine::task::Input::builder()
-                                .contents(crankshaft::engine::task::input::Contents::Path(
-                                    location.into(),
-                                ))
-                                .path(guest_path)
-                                .ty(input.kind())
-                                .build(),
-                        )
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut inputs = vec![];
+        for input in self.inner.inputs().iter() {
+            let guest_path = input.guest_path().expect("input should have guest path");
+            let local_path = input.local_path().expect("input should be localized");
+
+            // The local path must exist for Docker to mount
+            if !local_path.exists() {
+                bail!(
+                    "cannot mount input `{path}` as it does not exist",
+                    path = local_path.display()
+                );
+            }
+
+            inputs.push(
+                crankshaft::engine::task::Input::builder()
+                    .path(guest_path.as_str())
+                    .contents(crankshaft::engine::task::input::Contents::Path(
+                        local_path.into(),
+                    ))
+                    .ty(input.kind())
+                    .read_only(true)
+                    .build(),
+            );
+        }
         inputs.push(
             crankshaft::engine::task::Input::builder()
                 .contents(crankshaft::engine::task::input::Contents::Path(
@@ -252,7 +240,6 @@ impl TaskManagerRequest for GenericTaskRequest {
             ))
             .build();
         let handle = backend.spawn(BACKEND_NAME, generic_task, self.token.clone())?;
-        spawned.send(()).ok();
 
         let res = handle.wait().await?;
 
@@ -264,7 +251,6 @@ impl TaskManagerRequest for GenericTaskRequest {
         }
 
         return Ok(TaskExecutionResult {
-            inputs: self.inner.info.inputs,
             exit_code: res
                 .last()
                 .code()
@@ -410,91 +396,11 @@ impl TaskExecutionBackend for GenericBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
-        None
-    }
-
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async move {
-            // Construct a trie for mapping input guest paths
-            let mut trie = InputTrie::default();
-            for input in inputs.iter() {
-                trie.insert(input)?;
-            }
-            &trie;
-
-            for (index, guest_path) in
-                trie.calculate_guest_paths(&self.backend_config.guest_inputs_dir)?
-            {
-                if let Some(input) = inputs.get_mut(index) {
-                    input.set_guest_path(guest_path);
-                } else {
-                    bail!("invalid index {} returned from trie", index);
-                }
-            }
-
-            let mut downloads = JoinSet::new();
-
-            for (idx, input) in inputs.iter_mut().enumerate() {
-                match input.path() {
-                    EvaluationPath::Local(path) => {
-                        input.set_location(Location::Path(path.clone().into()));
-                    }
-                    EvaluationPath::Remote(url) => {
-                        let downloader = downloader.clone();
-                        let url = url.clone();
-                        downloads.spawn(async move {
-                            let location_result = downloader.download(&url).await;
-
-                            match location_result {
-                                Ok(location) => Ok((idx, location.into_owned())),
-                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
-                            }
-                        });
-                    }
-                }
-            }
-
-            while let Some(result) = downloads.join_next().await {
-                match result {
-                    Ok(Ok((idx, location))) => {
-                        inputs
-                            .get_mut(idx)
-                            .expect("index from should be valid")
-                            .set_location(location);
-                    }
-                    Ok(Err(e)) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!(e);
-                    }
-                    Err(e) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!("download task failed: {e}");
-                    }
-                }
-            }
-
-            Ok(())
-        }
-        .boxed()
-    }
-
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<oneshot::Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -516,13 +422,21 @@ impl TaskExecutionBackend for GenericBackend {
                 memory,
                 token,
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
+    }
+
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        // TODO ACF 2025-09-29: whether and where to localize should be part of the
+        // generic backend config
+        Some(GUEST_INPUTS_DIR)
+    }
+
+    fn needs_local_inputs(&self) -> bool {
+        // TODO ACF 2025-09-29: whether and where to localize should be part of the
+        // generic backend config
+        true
     }
 }

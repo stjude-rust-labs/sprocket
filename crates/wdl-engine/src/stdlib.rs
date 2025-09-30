@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::future::BoxFuture;
+use path_clean::PathClean;
+use tempfile::TempPath;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -17,9 +18,12 @@ use wdl_ast::Span;
 
 use crate::Coercible;
 use crate::EvaluationContext;
+use crate::HostPath;
+use crate::PrimitiveValue;
 use crate::Value;
-use crate::http::Downloader;
+use crate::diagnostics::function_call_failed;
 use crate::http::Location;
+use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
 
@@ -78,10 +82,7 @@ mod write_tsv;
 mod zip;
 
 /// Ensures that the given path is a local path.
-fn ensure_local_path<'a>(
-    work_dir: Option<&EvaluationPath>,
-    path: &'a str,
-) -> Result<Cow<'a, Path>> {
+fn ensure_local_path<'a>(base_dir: &EvaluationPath, path: &'a str) -> Result<Cow<'a, Path>> {
     // If the path is a URL that isn't `file` schemed, bail out
     if !path::is_file_url(path) && path::is_url(path) {
         bail!("operation not supported for URL `{path}`");
@@ -92,12 +93,7 @@ fn ensure_local_path<'a>(
         return Ok(Path::new(path).into());
     }
 
-    // If the provided path is relative, we must have a working directory to join
-    // with
-    let work_dir = work_dir.with_context(|| {
-        format!("relative path `{path}` can only be used in a task output section")
-    })?;
-    match work_dir.join(path)? {
+    match base_dir.join(path)? {
         EvaluationPath::Local(path) => Ok(path.into()),
         EvaluationPath::Remote(url) => {
             bail!("operation not supported for URL `{url}`")
@@ -106,34 +102,76 @@ fn ensure_local_path<'a>(
 }
 
 /// Helper for downloading files in stdlib functions.
-pub(crate) async fn download_file<'a>(
-    downloader: &dyn Downloader,
-    work_dir: Option<&EvaluationPath>,
-    path: &'a str,
-) -> Result<Location<'a>> {
+pub(crate) async fn download_file(
+    transferer: &dyn Transferer,
+    base_dir: &EvaluationPath,
+    path: &HostPath,
+) -> Result<Location> {
     // If the path is a URL, download it
-    if let Some(url) = path::parse_url(path) {
-        return downloader
+    if let Some(url) = path::parse_url(path.as_str()) {
+        return transferer
             .download(&url)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"));
     }
 
-    if Path::new(path).is_absolute() {
-        return Ok(Location::Path(Path::new(path).into()));
+    let p = Path::new(path.as_str());
+    if p.is_absolute() {
+        return Ok(Location::Path(p.clean()));
     }
 
-    // If the provided path is relative, we must have a working directory to join to
-    let work_dir = work_dir.with_context(|| {
-        format!("relative path `{path}` can only be used in a task output section")
-    })?;
-    match work_dir.join(path)? {
-        EvaluationPath::Local(path) => Ok(Location::Path(path.into())),
-        EvaluationPath::Remote(url) => downloader
+    match base_dir.join(path.as_str())? {
+        EvaluationPath::Local(path) => Ok(Location::Path(path)),
+        EvaluationPath::Remote(url) => transferer
             .download(&url)
             .await
             .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}")),
     }
+}
+
+/// Helper for converting a temporary path to a value.
+///
+/// Notifies the provided context of the new temporary file so that a guest path
+/// can be mapped for it, if necessary.
+///
+/// Used by the `write_*` stdlib functions.
+pub(crate) fn temp_path_to_value(
+    context: CallContext<'_>,
+    path: TempPath,
+    function_name: &str,
+) -> Result<Value, Diagnostic> {
+    // Keep the temporary path
+    let path = path.keep().map_err(|e| {
+        function_call_failed(
+            function_name,
+            format!("failed to keep temporary file: {e}"),
+            context.call_site,
+        )
+    })?;
+
+    // Convert the path to a string
+    let path = HostPath::new(path.into_os_string().into_string().map_err(|path| {
+        function_call_failed(
+            function_name,
+            format!(
+                "path `{path}` cannot be represented as UTF-8",
+                path = Path::new(&path).display()
+            ),
+            context.call_site,
+        )
+    })?);
+
+    // Finally, notify that the file was created.
+    // For task evaluation, this will cause a guest path to be mapped.
+    context.context.notify_file_created(&path).map_err(|e| {
+        function_call_failed(
+            function_name,
+            format!("failed to keep temporary file: {e}"),
+            context.call_site,
+        )
+    })?;
+
+    Ok(PrimitiveValue::File(path).into())
 }
 
 /// Represents a function call argument.
@@ -153,7 +191,7 @@ impl CallArgument {
     /// Constructs a `None` call argument.
     pub const fn none() -> Self {
         Self {
-            value: Value::None,
+            value: Value::None(Type::None),
             span: Span::new(0, 0),
         }
     }
@@ -162,7 +200,7 @@ impl CallArgument {
 /// Represents function call context.
 pub struct CallContext<'a> {
     /// The evaluation context for the call.
-    context: &'a dyn EvaluationContext,
+    context: &'a mut dyn EvaluationContext,
     /// The call site span.
     call_site: Span,
     /// The arguments to the call.
@@ -174,7 +212,7 @@ pub struct CallContext<'a> {
 impl<'a> CallContext<'a> {
     /// Constructs a new call context given the call arguments.
     pub fn new(
-        context: &'a dyn EvaluationContext,
+        context: &'a mut dyn EvaluationContext,
         call_site: Span,
         arguments: &'a [CallArgument],
         return_type: Type,
@@ -187,9 +225,9 @@ impl<'a> CallContext<'a> {
         }
     }
 
-    /// Gets the working directory for the call.
-    pub fn work_dir(&self) -> Option<&EvaluationPath> {
-        self.context.work_dir()
+    /// Gets the base directory for the call.
+    pub fn base_dir(&self) -> &EvaluationPath {
+        self.context.base_dir()
     }
 
     /// Gets the temp directory for the call.
@@ -207,6 +245,16 @@ impl<'a> CallContext<'a> {
         self.context.stderr()
     }
 
+    /// Gets the transferer to use for evaluating expressions.
+    pub fn transferer(&self) -> &dyn Transferer {
+        self.context.transferer()
+    }
+
+    /// Gets the inner evaluation context.
+    pub fn inner(&self) -> &dyn EvaluationContext {
+        self.context
+    }
+
     /// Coerces an argument to the given type.
     ///
     /// # Panics
@@ -217,7 +265,7 @@ impl<'a> CallContext<'a> {
     fn coerce_argument(&self, index: usize, ty: impl Into<Type>) -> Value {
         self.arguments[index]
             .value
-            .coerce(&ty.into())
+            .coerce(Some(self.context), &ty.into())
             .expect("value should coerce")
     }
 

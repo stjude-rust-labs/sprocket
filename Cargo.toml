@@ -1,0 +1,190 @@
+[workspace]
+members = [
+    "crates/ci",
+    "crates/gauntlet",
+    "crates/wdl",
+    "crates/wdl-analysis",
+    "crates/wdl-ast",
+    "crates/wdl-cli",
+    "crates/wdl-doc",
+    "crates/wdl-engine",
+    "crates/wdl-format",
+    "crates/wdl-grammar",
+    "crates/wdl-lint",
+    "crates/wdl-lsp",
+]
+exclude = ["vendor"]
+resolver = "2"
+
+[workspace.package]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+authors = ["The Sprocket project contributors"]
+homepage = "https://sprocket.bio"
+repository = "https://github.com/stjude-rust-labs/sprocket"
+rust-version = "1.89.0"
+
+[workspace.dependencies]
+ammonia = "4.1.2"
+anyhow = "1.0.98"
+approx = "0.5.1"
+bimap = "0.6.3"
+blake3 = { version = "1.8.2", features = ["mmap"] }
+chrono = "0.4.41"
+clap = { version = "4.5.45", features = ["derive", "string"] }
+clap-verbosity-flag = { version = "3.0.3", features = ["tracing"] }
+clap_complete = "4.5.55"
+cloud-copy = { version = "0.3.0", features = ["cli"] }
+codespan-reporting = "0.12.0"
+colored = "3.0.0"
+convert_case = "0.8.0"
+crankshaft = { version = "0.5.0", path = "vendor/crankshaft/crankshaft", features = ["docker"] }
+dirs = "6.0.0"
+faster-hex = "0.10.0"
+figment = { version = "0.10.19", features = ["toml"] }
+fs_extra = "1.3.0"
+ftree = "1.2.0"
+futures = "0.3.31"
+git-testament = "0.2.6"
+git2 = "0.20.2"
+glob = "0.3.2"
+ignore = "0.4.23"
+indexmap = { version = "2.11.0", features = ["serde"] }
+indicatif = "0.18.0"
+itertools = "0.14.0"
+libc = "0.2"
+libtest-mimic = "^0.8.1"
+line-index = "0.1.2"
+logos = "0.15.0"
+lsp-types = "0.94.1"
+macropol = "0.1.3"
+maud = "0.27.0"
+nonempty = "0.12.0"
+notify = "8.2.0"
+opener = "0.8.1"
+ordered-float = "5.0.0"
+parking_lot = "0.12.3"
+paste = "1.0.15"
+path-clean = "1.0.1"
+pathdiff = "0.2.3"
+pest = { version = "2.8.1", features = ["pretty-print"] }
+petgraph = "0.8.1"
+pretty_assertions = "1.4.1"
+pulldown-cmark = "0.13.0"
+rand = "0.9.1"
+rayon = "1.11.0"
+regex = "1.11.1"
+reqwest = { version = "0.12.15", default-features = false, features = [
+    "rustls-tls",
+    "http2",
+    "charset",
+] }
+rev_buf_reader = "0.3.0"
+rowan = "0.16.1"
+secrecy = "0.10.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1.0.141", features = ["preserve_order"] }
+serde_with = "3.14.0"
+serde_yaml_ng = "0.10.0"
+shellexpand = "3.1.1"
+shlex = "1.3.0"
+similar = "2.7.0"
+strsim = "0.11.1"
+strum = { version = "0.27", features = ["derive"] }
+sysinfo = "0.37.0"
+tempfile = "3.21.0"
+thiserror = "2.0.12"
+tokio = { version = "1.47.1", features = ["full"] }
+tokio-retry2 = "0.6.0"
+tokio-util = "0.7.15"
+toml = "0.9.5"
+toml_edit = { version = "0.23.4", features = ["serde"] }
+tower-lsp = "0.20.0"
+tracing = "0.1.41"
+tracing-indicatif = "0.3.9"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+url = "2.5.4"
+urlencoding = "2.1.3"
+uuid = "1.18.0"
+walkdir = "2.5.0"
+wdl = { version = "0.18.1", path = "crates/wdl", features = ["cli", "codespan", "engine", "lsp", "doc"] }
+
+[workspace.lints.rust]
+missing_docs = "warn"
+nonstandard-style = "warn"
+rust-2018-idioms = "warn"
+rust-2021-compatibility = "warn"
+rust-2024-compatibility = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"
+
+[workspace.lints.clippy]
+missing_docs_in_private_items = "warn"
+# An explicit `new()` method offers a prominent and discoverable spot to hang documentation for what
+# constitutes a zero-configuration value of a particular type, and its uses are easier to find with
+# tooling like `rust-analyzer`. `Default` should be used when trait dispatch is actually helpful or
+# necessary to interact with a library.
+#
+# Ref: https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
+new_without_default = "allow"
+
+[package]
+name = "sprocket"
+version = "0.17.1"
+description = "A command line tool for working with Workflow Description Language (WDL) documents"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://sprocket.bio/overview.html"
+readme = "README.md"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+clap-verbosity-flag.workspace = true
+clap_complete.workspace = true
+cloud-copy.workspace = true
+codespan-reporting.workspace = true
+colored.workspace = true
+crankshaft.workspace = true
+dirs.workspace = true
+figment.workspace = true
+futures.workspace = true
+git-testament.workspace = true
+indexmap.workspace = true
+indicatif.workspace = true
+nonempty.workspace = true
+opener.workspace = true
+pest.workspace = true
+pretty_assertions.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+similar.workspace = true
+strum.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-indicatif.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+walkdir.workspace = true
+wdl.workspace = true
+
+[dev-dependencies]
+shlex.workspace = true
+tempfile.workspace = true
+walkdir.workspace = true
+
+[lints]
+workspace = true
+
+[[test]]
+name = "cli"
+harness = false

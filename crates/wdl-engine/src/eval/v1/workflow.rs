@@ -1,11 +1,9 @@
 //! Implementation of evaluation for V1 workflows.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Write;
 use std::fs;
-use std::future::Future;
 use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
@@ -29,6 +27,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
 use wdl_analysis::Document;
+use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::only_one_namespace;
 use wdl_analysis::diagnostics::recursive_workflow_call;
 use wdl_analysis::diagnostics::type_is_not_array;
@@ -56,8 +55,8 @@ use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ScatterStatement;
+use wdl_ast::version::V1;
 
-use super::ProgressKind;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
@@ -65,6 +64,7 @@ use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
+use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
 use crate::PrimitiveValue;
@@ -75,11 +75,11 @@ use crate::TaskExecutionBackend;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::config::Config;
+use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
-use crate::diagnostics::output_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
+use crate::http::HttpTransferer;
+use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
@@ -135,36 +135,23 @@ const SCATTER_INDEX_VAR: &str = "$idx";
 
 /// Used to evaluate expressions in workflows.
 struct WorkflowEvaluationContext<'a, 'b> {
-    /// The document being evaluated.
-    document: &'a Document,
+    /// The evaluation state.
+    state: &'a State,
     /// The scope being evaluated.
     scope: ScopeRef<'b>,
-    /// The workflow's temporary directory.
-    temp_dir: &'a Path,
-    /// The downloader for expression evaluation.
-    downloader: &'a HttpDownloader,
 }
 
 impl<'a, 'b> WorkflowEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
-    pub fn new(
-        document: &'a Document,
-        scope: ScopeRef<'b>,
-        temp_dir: &'a Path,
-        downloader: &'a HttpDownloader,
-    ) -> Self {
-        Self {
-            document,
-            scope,
-            temp_dir,
-            downloader,
-        }
+    pub fn new(state: &'a State, scope: ScopeRef<'b>) -> Self {
+        Self { state, scope }
     }
 }
 
 impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     fn version(&self) -> SupportedVersion {
-        self.document
+        self.state
+            .document
             .version()
             .expect("document should have a version")
     }
@@ -177,35 +164,19 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-        crate::resolve_type_name(self.document, name, span)
+        crate::resolve_type_name(&self.state.document, name, span)
     }
 
-    fn work_dir(&self) -> Option<&EvaluationPath> {
-        None
+    fn base_dir(&self) -> &EvaluationPath {
+        &self.state.base_dir
     }
 
     fn temp_dir(&self) -> &Path {
-        self.temp_dir
+        &self.state.temp_dir
     }
 
-    fn stdout(&self) -> Option<&Value> {
-        None
-    }
-
-    fn stderr(&self) -> Option<&Value> {
-        None
-    }
-
-    fn task(&self) -> Option<&Task> {
-        None
-    }
-
-    fn translate_path(&self, _path: &str) -> Option<Cow<'_, Path>> {
-        None
-    }
-
-    fn downloader(&self) -> &dyn Downloader {
-        self.downloader
+    fn transferer(&self) -> &dyn Transferer {
+        self.state.transferer.as_ref()
     }
 }
 
@@ -336,7 +307,7 @@ impl GatherArray {
     /// capacity of the array.
     fn new(index: usize, value: Value, capacity: usize) -> Self {
         let element_ty = value.ty();
-        let mut elements = vec![Value::None; capacity];
+        let mut elements = vec![Value::new_none(element_ty.optional()); capacity];
         elements[index] = value;
         Self {
             element_ty,
@@ -581,12 +552,16 @@ struct State {
     graph: DiGraph<WorkflowGraphNode<SyntaxNode>, ()>,
     /// The map from graph node index to subgraph.
     subgraphs: HashMap<NodeIndex, Subgraph>,
-    /// The workflow evaluation temp directory path.
+    /// The base directory for evaluation.
+    ///
+    /// This is the document's directory.
+    base_dir: EvaluationPath,
+    /// The workflow evaluation temp directory.
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-    /// The downloader for expression evaluation.
-    downloader: HttpDownloader,
+    /// The transferer for expression evaluation.
+    transferer: Arc<dyn Transferer>,
 }
 
 /// Represents a WDL V1 workflow evaluator.
@@ -600,8 +575,8 @@ pub struct WorkflowEvaluator {
     backend: Arc<dyn TaskExecutionBackend>,
     /// The cancellation token for cancelling workflow evaluation.
     token: CancellationToken,
-    /// The downloader for expression evaluation.
-    downloader: HttpDownloader,
+    /// The transferer for expression evaluation.
+    transferer: Arc<dyn Transferer>,
 }
 
 impl WorkflowEvaluator {
@@ -611,97 +586,55 @@ impl WorkflowEvaluator {
     /// This method creates a default task execution backend.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(config: Config, token: CancellationToken) -> Result<Self> {
+    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
         config.validate()?;
 
         let config = Arc::new(config);
-        let backend = config.create_backend().await?;
-        let downloader = HttpDownloader::new(config.clone())?;
+        let backend = config.create_backend(events.crankshaft().clone()).await?;
+        let transferer =
+            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
 
         Ok(Self {
             config,
             backend,
             token,
-            downloader,
+            transferer: Arc::new(transferer),
         })
     }
 
     /// Evaluates the workflow of the given document.
     ///
     /// Upon success, returns the outputs of the workflow.
-    pub async fn evaluate<P, R>(
+    pub async fn evaluate(
         &self,
         document: &Document,
         inputs: WorkflowInputs,
         root_dir: impl AsRef<Path>,
-        progress: P,
-    ) -> EvaluationResult<Outputs>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<Outputs> {
         let workflow = document
             .workflow()
             .context("document does not contain a workflow")?;
 
-        self.evaluate_with_progress(
-            document,
-            inputs,
-            root_dir.as_ref(),
-            workflow.name(),
-            Arc::new(progress),
-        )
-        .await
-    }
-
-    /// Evaluates the workflow of the given document with the given shared
-    /// progress callback.
-    async fn evaluate_with_progress<P, R>(
-        &self,
-        document: &Document,
-        inputs: WorkflowInputs,
-        root_dir: &Path,
-        id: &str,
-        progress: Arc<P>,
-    ) -> EvaluationResult<Outputs>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
         // We cannot evaluate a document with errors
         if document.has_errors() {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        progress(ProgressKind::WorkflowStarted { id }).await;
-
-        let result = self
-            .perform_evaluation(document, inputs, root_dir, id, progress.clone())
-            .await;
-
-        progress(ProgressKind::WorkflowCompleted {
-            id,
-            result: &result,
-        })
-        .await;
-
-        result
+        self.perform_evaluation(document, inputs, root_dir.as_ref(), workflow.name())
+            .await
     }
 
-    /// Evaluates the workflow of the given document with the given shared
-    /// progress callback.
-    async fn perform_evaluation<P, R>(
+    /// Performs the evaluation of the workflow of the given document.
+    ///
+    /// This method skips checking the document (and its transitive imports) for
+    /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    async fn perform_evaluation(
         &self,
         document: &Document,
         inputs: WorkflowInputs,
         root_dir: &Path,
         id: &str,
-        progress: Arc<P>,
-    ) -> EvaluationResult<Outputs>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<Outputs> {
         // Validate the inputs for the workflow
         let workflow = document
             .workflow()
@@ -778,7 +711,12 @@ impl WorkflowEvaluator {
             )
         })?;
 
-        let effective_output_dir = root_dir.to_path_buf();
+        let document_path = document.path();
+        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
+            format!("document `{document_path}` does not have a parent directory")
+        })?;
+
+        base_dir.make_absolute();
 
         let state = Arc::new(State {
             config: self.config.clone(),
@@ -789,9 +727,10 @@ impl WorkflowEvaluator {
             scopes: Default::default(),
             graph,
             subgraphs,
+            base_dir,
             temp_dir,
             calls_dir,
-            downloader: self.downloader.clone(),
+            transferer: self.transferer.clone(),
         });
 
         // Evaluate the root graph to completion
@@ -801,16 +740,8 @@ impl WorkflowEvaluator {
             subgraph,
             max_concurrency,
             Arc::new(id.to_string()),
-            progress,
         )
         .await?;
-
-        if let Some(cleanup_fut) = self
-            .backend
-            .cleanup(&effective_output_dir, state.token.clone())
-        {
-            cleanup_fut.await;
-        }
 
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
         if let Some(section) = definition.output() {
@@ -834,18 +765,13 @@ impl WorkflowEvaluator {
     /// The boxed future breaks the cycle that would otherwise exist when trying
     /// to have the Rust compiler create an opaque type for the future returned
     /// by an `async` method.
-    fn evaluate_subgraph<P, R>(
+    fn evaluate_subgraph(
         state: Arc<State>,
         scope: ScopeIndex,
         subgraph: Subgraph,
         max_concurrency: u64,
         id: Arc<String>,
-        progress: Arc<P>,
-    ) -> BoxFuture<'static, EvaluationResult<()>>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
             let token = state.token.clone();
             let mut futures = JoinSet::new();
@@ -855,7 +781,6 @@ impl WorkflowEvaluator {
                 subgraph,
                 max_concurrency,
                 id,
-                progress,
                 &mut futures,
             )
             .await
@@ -880,19 +805,14 @@ impl WorkflowEvaluator {
     ///
     /// This exists as a separate function from `evaluate_subgraph` so that we
     /// can gracefully cancel outstanding futures on error.
-    async fn perform_subgraph_evaluation<P, R>(
+    async fn perform_subgraph_evaluation(
         state: Arc<State>,
         scope: ScopeIndex,
         mut subgraph: Subgraph,
         max_concurrency: u64,
         id: Arc<String>,
-        progress: Arc<P>,
         futures: &mut JoinSet<EvaluationResult<NodeIndex>>,
-    ) -> EvaluationResult<()>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<()> {
         // The set of nodes being processed
         let mut processing: Vec<NodeIndex> = Vec::new();
         // The set of graph nodes being awaited on
@@ -984,7 +904,6 @@ impl WorkflowEvaluator {
                     WorkflowGraphNode::Conditional(stmt, _) => {
                         let id = id.clone();
                         let state = state.clone();
-                        let progress = progress.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
                             Self::evaluate_conditional(
@@ -994,7 +913,6 @@ impl WorkflowEvaluator {
                                 node,
                                 &stmt,
                                 max_concurrency,
-                                progress,
                             )
                             .await?;
                             Ok(node)
@@ -1004,7 +922,6 @@ impl WorkflowEvaluator {
                     WorkflowGraphNode::Scatter(stmt, _) => {
                         let id = id.clone();
                         let state = state.clone();
-                        let progress = progress.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
                             let token = state.token.clone();
@@ -1016,7 +933,6 @@ impl WorkflowEvaluator {
                                 node,
                                 &stmt,
                                 max_concurrency,
-                                progress,
                                 &mut futures,
                             )
                             .await
@@ -1039,10 +955,9 @@ impl WorkflowEvaluator {
                     WorkflowGraphNode::Call(stmt) => {
                         let id = id.clone();
                         let state = state.clone();
-                        let progress = progress.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            Self::evaluate_call(&id, state, scope, &stmt, progress).await?;
+                            Self::evaluate_call(&id, state, scope, &stmt).await?;
                             Ok(node)
                         });
                         awaiting.insert(node);
@@ -1079,7 +994,34 @@ impl WorkflowEvaluator {
 
         // Either use the specified input or evaluate the input's expression
         let (value, span) = match state.inputs.get(name.text()) {
-            Some(input) => (input.clone(), name.span()),
+            Some(input) => {
+                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // will invoke the default expression
+                if input.is_none()
+                    && !expected_ty.is_optional()
+                    && state
+                        .document
+                        .version()
+                        .map(|v| v >= SupportedVersion::V1(V1::Two))
+                        .unwrap_or(false)
+                    && let Some(expr) = decl.expr()
+                {
+                    debug!(
+                        workflow_id = id,
+                        workflow_name = state.document.workflow().unwrap().name(),
+                        document = state.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression",
+                    );
+
+                    (
+                        Self::evaluate_expr(state, Scopes::ROOT_INDEX, &expr).await?,
+                        expr.span(),
+                    )
+                } else {
+                    (input.clone(), name.span())
+                }
+            }
             None => {
                 if let Some(expr) = expr {
                     debug!(
@@ -1087,7 +1029,7 @@ impl WorkflowEvaluator {
                         workflow_name = state.document.workflow().unwrap().name(),
                         document = state.document.uri().as_str(),
                         input_name = name.text(),
-                        "evaluating input",
+                        "evaluating input default expression",
                     );
 
                     (
@@ -1096,15 +1038,42 @@ impl WorkflowEvaluator {
                     )
                 } else {
                     assert!(expected_ty.is_optional(), "type should be optional");
-                    (Value::None, name.span())
+                    (Value::new_none(expected_ty.clone()), name.span())
                 }
             }
         };
 
         // Coerce the value to the expected type
-        let value = value
-            .coerce(&expected_ty)
+        let mut value = value
+            .coerce(None, &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+
+        // Ensure paths exist for WDL 1.2+
+        if state
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
+                    value.ensure_path_exists(optional, state.base_dir.as_local())
+                })
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        state
+                            .document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        Some(Io::Input),
+                        name.span(),
+                    )
+                })?;
+        }
 
         // Write the value into the root scope
         state
@@ -1139,9 +1108,36 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let value = value.coerce(&expected_ty).map_err(|e| {
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+
+        // Ensure paths exist for WDL 1.2+
+        if state
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
+                    value.ensure_path_exists(optional, state.base_dir.as_local())
+                })
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        state
+                            .document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        None,
+                        name.span(),
+                    )
+                })?;
+        }
 
         state
             .scopes
@@ -1174,7 +1170,7 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(&expected_ty).map_err(|e| {
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
 
@@ -1187,14 +1183,14 @@ impl WorkflowEvaluator {
                     _ => unreachable!("only file and directory values should be visited"),
                 };
 
-                if !path::is_url(path) && Path::new(path.as_str()).is_relative() {
-                    bail!("relative path `{path}` cannot be a workflow output");
+                if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                    bail!("relative path `{path}` cannot be used as a workflow output");
                 }
 
-                value.ensure_path_exists(optional)
+                value.ensure_path_exists(optional, state.base_dir.as_local())
             })
             .map_err(|e| {
-                output_evaluation_failed(
+                decl_evaluation_failed(
                     e,
                     state
                         .document
@@ -1203,6 +1199,7 @@ impl WorkflowEvaluator {
                         .name(),
                     false,
                     name.text(),
+                    Some(Io::Output),
                     name.span(),
                 )
             })?;
@@ -1218,19 +1215,14 @@ impl WorkflowEvaluator {
     }
 
     /// Evaluates a workflow conditional statement.
-    async fn evaluate_conditional<P, R>(
+    async fn evaluate_conditional(
         id: Arc<String>,
         state: Arc<State>,
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ConditionalStatement<SyntaxNode>,
         max_concurrency: u64,
-        progress: Arc<P>,
-    ) -> EvaluationResult<()>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<()> {
         let expr = stmt.expr();
 
         debug!(
@@ -1247,7 +1239,7 @@ impl WorkflowEvaluator {
             .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
         if value
-            .coerce(&PrimitiveType::Boolean.into())
+            .coerce(None, &PrimitiveType::Boolean.into())
             .map_err(|e| {
                 EvaluationError::new(
                     state.document.clone(),
@@ -1273,7 +1265,6 @@ impl WorkflowEvaluator {
                 state.subgraphs[&entry].clone(),
                 max_concurrency,
                 id,
-                progress.clone(),
             )
             .await?;
 
@@ -1313,13 +1304,15 @@ impl WorkflowEvaluator {
                         CallValue::new_unchecked(
                             ty.promote(PromotionKind::Conditional),
                             Outputs::from_iter(
-                                ty.outputs().iter().map(|(n, _)| (n.clone(), Value::None)),
+                                ty.outputs()
+                                    .iter()
+                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().optional()))),
                             )
                             .into(),
                         ),
                     );
                 } else {
-                    parent.insert(name.to_string(), Value::None);
+                    parent.insert(name.to_string(), Value::new_none(n.ty().optional()));
                 }
             }
         }
@@ -1329,20 +1322,15 @@ impl WorkflowEvaluator {
 
     /// Evaluates a workflow scatter statement.
     #[allow(clippy::too_many_arguments)]
-    async fn evaluate_scatter<P, R>(
+    async fn evaluate_scatter(
         id: Arc<String>,
         state: Arc<State>,
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ScatterStatement<SyntaxNode>,
         max_concurrency: u64,
-        progress: Arc<P>,
         futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
-    ) -> EvaluationResult<()>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<()> {
         /// Awaits the next future in the set of futures.
         async fn await_next(
             futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
@@ -1425,18 +1413,10 @@ impl WorkflowEvaluator {
             {
                 let state = state.clone();
                 let subgraph = state.subgraphs[&entry].clone();
-                let progress = progress.clone();
                 let id = id.clone();
                 futures.spawn(async move {
-                    Self::evaluate_subgraph(
-                        state.clone(),
-                        scope,
-                        subgraph,
-                        max_concurrency,
-                        id,
-                        progress,
-                    )
-                    .await?;
+                    Self::evaluate_subgraph(state.clone(), scope, subgraph, max_concurrency, id)
+                        .await?;
 
                     Ok((i, scope))
                 });
@@ -1463,17 +1443,12 @@ impl WorkflowEvaluator {
     }
 
     /// Evaluates a workflow call statement.
-    async fn evaluate_call<P, R>(
+    async fn evaluate_call(
         id: &str,
         state: Arc<State>,
         scope: ScopeIndex,
         stmt: &CallStatement<SyntaxNode>,
-        progress: Arc<P>,
-    ) -> EvaluationResult<()>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+    ) -> EvaluationResult<()> {
         /// Abstracts evaluation for both task and workflow calls.
         enum Evaluator<'a> {
             /// Used to evaluate a task call.
@@ -1486,30 +1461,24 @@ impl WorkflowEvaluator {
             /// Runs evaluation with the given inputs.
             ///
             /// Returns the passed in context and the result of the evaluation.
-            async fn evaluate<P, R>(
+            async fn evaluate(
                 self,
                 caller_id: &str,
                 document: &Document,
                 inputs: Inputs,
                 root_dir: &Path,
                 callee_id: &str,
-                progress: &Arc<P>,
-            ) -> EvaluationResult<Outputs>
-            where
-                P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-                R: Future<Output = ()> + Send,
-            {
+            ) -> EvaluationResult<Outputs> {
                 match self {
                     Evaluator::Task(task, evaluator) => {
                         debug!(caller_id, callee_id, "evaluating call to task");
                         evaluator
-                            .evaluate_with_progress(
+                            .perform_evaluation(
                                 document,
                                 task,
                                 &inputs.unwrap_task_inputs(),
                                 root_dir,
                                 callee_id,
-                                progress.clone(),
                             )
                             .await?
                             .outputs
@@ -1517,12 +1486,11 @@ impl WorkflowEvaluator {
                     Evaluator::Workflow(evaluator) => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
                         evaluator
-                            .evaluate_with_progress(
+                            .perform_evaluation(
                                 document,
                                 inputs.unwrap_workflow_inputs(),
                                 root_dir,
                                 callee_id,
-                                progress.clone(),
                             )
                             .await
                     }
@@ -1602,7 +1570,7 @@ impl WorkflowEvaluator {
                         state.config.clone(),
                         state.backend.clone(),
                         state.token.clone(),
-                        state.downloader.clone(),
+                        state.transferer.clone(),
                     ),
                 ),
             ),
@@ -1613,7 +1581,7 @@ impl WorkflowEvaluator {
                         config: state.config.clone(),
                         backend: state.backend.clone(),
                         token: state.token.clone(),
-                        downloader: state.downloader.clone(),
+                        transferer: state.transferer.clone(),
                     }),
                 ),
                 _ => {
@@ -1649,14 +1617,7 @@ impl WorkflowEvaluator {
 
         // Finally, evaluate the task or workflow and return the outputs
         let outputs = evaluator
-            .evaluate(
-                id,
-                document,
-                inputs,
-                &state.calls_dir.join(&dir),
-                &call_id,
-                &progress,
-            )
+            .evaluate(id, document, inputs, &state.calls_dir.join(&dir), &call_id)
             .await
             .map_err(|mut e| {
                 if let EvaluationError::Source(e) = &mut e {
@@ -1698,10 +1659,8 @@ impl WorkflowEvaluator {
     ) -> Result<Value, Diagnostic> {
         let scopes = state.scopes.read().await;
         ExprEvaluator::new(WorkflowEvaluationContext::new(
-            &state.document,
+            state,
             scopes.reference(scope),
-            &state.temp_dir,
-            &state.downloader,
         ))
         .evaluate_expr(expr)
         .await
@@ -1724,10 +1683,8 @@ impl WorkflowEvaluator {
             let value = match input.expr() {
                 Some(expr) => {
                     let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
-                        &state.document,
+                        state,
                         scopes.reference(scope),
-                        &state.temp_dir,
-                        &state.downloader,
                     ));
 
                     evaluator.evaluate_expr(&expr).await?
@@ -1757,8 +1714,10 @@ mod test {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
+    use crankshaft::events::Event;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use tokio::sync::broadcast::error::RecvError;
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
@@ -1842,7 +1801,7 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
             .await
             .unwrap();
 
@@ -1853,6 +1812,7 @@ workflow test {
         inputs.set(
             "c",
             Array::new(
+                None,
                 ArrayType::new(PrimitiveType::String),
                 ["jam".to_string(), "cakes".to_string()],
             )
@@ -1864,7 +1824,6 @@ workflow test {
                 results.first().expect("should have result").document(),
                 inputs,
                 &outputs_dir,
-                |_| async {},
             )
             .await
             .map_err(|e| e.to_string())
@@ -1973,12 +1932,9 @@ workflow w {
         // Keep track of how many progress events we saw for evaluation
         #[derive(Default)]
         struct State {
+            tasks_created: AtomicUsize,
             tasks_started: AtomicUsize,
-            tasks_executions_started: AtomicUsize,
-            tasks_executions_completed: AtomicUsize,
             tasks_completed: AtomicUsize,
-            workflows_started: AtomicUsize,
-            workflows_completed: AtomicUsize,
         }
 
         // Use a progress callback that simply increments the appropriate counter
@@ -1991,8 +1947,35 @@ workflow w {
             ..Default::default()
         };
         let state = Arc::<State>::default();
-        let state_cloned = state.clone();
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new())
+        let events_state = state.clone();
+        let events = Events::crankshaft_only(100);
+        let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
+        let task = tokio::spawn(async move {
+            loop {
+                match crankshaft_rx.recv().await {
+                    Ok(event) => match event {
+                        Event::TaskCreated { name, tes_id, .. } => {
+                            assert!(name.starts_with("t-"));
+                            assert!(tes_id.is_none());
+                            events_state.tasks_created.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Event::TaskStarted { .. } => {
+                            events_state.tasks_started.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Event::TaskCompleted { exit_statuses, .. } => {
+                            assert_eq!(exit_statuses.len(), 1);
+                            assert_eq!(exit_statuses[0].code().expect("should have code"), 0);
+                            events_state.tasks_completed.fetch_add(1, Ordering::SeqCst);
+                        }
+                        _ => panic!("unexpected task event"),
+                    },
+                    Err(RecvError::Closed) => break,
+                    Err(e) => panic!("failed to receive event: {e}"),
+                }
+            }
+        });
+
+        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), events)
             .await
             .unwrap();
 
@@ -2007,57 +1990,19 @@ workflow w {
                     .document(),
                 WorkflowInputs::default(),
                 root_dir.path(),
-                move |kind| {
-                    match kind {
-                        ProgressKind::TaskStarted { id, .. } => {
-                            assert!(id.starts_with("t-"));
-                            state_cloned.tasks_started.fetch_add(1, Ordering::SeqCst);
-                        }
-                        ProgressKind::TaskRetried { .. } => panic!("task should not be retried"),
-                        ProgressKind::TaskExecutionStarted { id, .. } => {
-                            assert!(id.starts_with("t-"));
-                            state_cloned
-                                .tasks_executions_started
-                                .fetch_add(1, Ordering::SeqCst);
-                        }
-                        ProgressKind::TaskExecutionCompleted { id, .. } => {
-                            assert!(id.starts_with("t-"));
-                            state_cloned
-                                .tasks_executions_completed
-                                .fetch_add(1, Ordering::SeqCst);
-                        }
-                        ProgressKind::TaskCompleted { id, .. } => {
-                            assert!(id.starts_with("t-"));
-                            state_cloned.tasks_completed.fetch_add(1, Ordering::SeqCst);
-                        }
-                        ProgressKind::WorkflowStarted { id, .. } => {
-                            assert!(id == "w" || id.starts_with("other-w-"));
-                            state_cloned
-                                .workflows_started
-                                .fetch_add(1, Ordering::SeqCst);
-                        }
-                        ProgressKind::WorkflowCompleted { id, .. } => {
-                            assert!(id == "w" || id.starts_with("other-w-"));
-                            state_cloned
-                                .workflows_completed
-                                .fetch_add(1, Ordering::SeqCst);
-                        }
-                    }
-
-                    async {}
-                },
             )
             .await
             .map_err(|e| e.to_string())
             .expect("failed to evaluate workflow");
+
+        drop(evaluator);
+        task.await.expect("failed to await events task");
+
         assert_eq!(outputs.iter().count(), 0, "expected no outputs");
 
         // Ensure the counters are what is expected based on the WDL
+        assert_eq!(state.tasks_created.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_started.load(Ordering::SeqCst), 10);
-        assert_eq!(state.tasks_executions_started.load(Ordering::SeqCst), 10);
-        assert_eq!(state.tasks_executions_completed.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_completed.load(Ordering::SeqCst), 10);
-        assert_eq!(state.workflows_started.load(Ordering::SeqCst), 26);
-        assert_eq!(state.workflows_completed.load(Ordering::SeqCst), 26);
     }
 }

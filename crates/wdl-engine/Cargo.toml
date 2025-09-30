@@ -1,6 +1,6 @@
 [package]
 name = "wdl-engine"
-version = "0.7.0"
+version = "0.8.1"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -10,17 +10,22 @@ repository.workspace = true
 description = "Execution engine for Workflow Description Language (WDL) documents."
 documentation = "https://docs.rs/wdl-engine"
 
+[features]
+default = []
+codespan = ["wdl-ast/codespan"]
+codespan-reporting = ["codespan", "dep:codespan-reporting"]
+
 [dependencies]
-wdl-analysis = { version = "0.12.0", path = "../wdl-analysis" }
-wdl-ast = { version = "0.16.0", path = "../wdl-ast" }
-wdl-grammar = { version = "0.16.0", path = "../wdl-grammar" }
 anyhow = { workspace = true }
-crankshaft = { workspace = true }
+bimap = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+cloud-copy = { workspace = true }
 codespan-reporting = { workspace = true, optional = true }
+crankshaft = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 glob = { workspace = true }
-http-cache-stream-reqwest = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 libc = { workspace = true }
@@ -30,10 +35,9 @@ path-clean = { workspace = true }
 petgraph = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
-reqwest = { workspace = true }
-reqwest-middleware = { workspace = true }
-rev_buf_reader = "0.3.0"
+rev_buf_reader = { workspace = true }
 rowan = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml_ng = { workspace = true }
@@ -41,10 +45,14 @@ shellexpand = { workspace = true }
 sysinfo = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
+tokio-retry2 = { workspace = true }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-chrono = { workspace = true }
+walkdir = { workspace = true }
+wdl-analysis = { version = "0.13.0", path = "../wdl-analysis" }
+wdl-ast = { version = "0.17.0", path = "../wdl-ast" }
+wdl-grammar = { version = "0.17.0", path = "../wdl-grammar" }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -56,11 +64,6 @@ walkdir = { workspace = true }
 
 [lints]
 workspace = true
-
-[features]
-default = []
-codespan = ["wdl-ast/codespan"]
-codespan-reporting = ["codespan", "dep:codespan-reporting"]
 
 [[test]]
 name = "inputs"

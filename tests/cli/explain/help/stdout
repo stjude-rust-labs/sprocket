@@ -1,0 +1,107 @@
+Explains linting and validation rules
+
+Usage: sprocket explain [RULE]
+    sprocket explain --tag <TAG>
+    sprocket explain --definitions
+
+Arguments:
+  [RULE]
+          The name of the rule to explain
+
+Options:
+  -t, --tag <TAG>
+          List all rules with the given tag
+
+      --definitions
+          Display general WDL definitions
+
+      --list-all-rules
+          Lists all rules and exits
+
+      --list-all-tags
+          Lists all tags and exits
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
+Available rules:
+  - CallInputSpacing
+  - CommandSectionIndentation
+  - CommentWhitespace
+  - ConciseInput
+  - ConsistentNewlines
+  - ContainerUri
+  - DeclarationName
+  - DeprecatedObject
+  - DeprecatedPlaceholder
+  - DescriptionLength
+  - DoubleQuotes
+  - ElementSpacing
+  - EndingNewline
+  - ExpectedRuntimeKeys
+  - ExpressionSpacing
+  - HereDocCommands
+  - ImportPlacement
+  - ImportSorted
+  - ImportWhitespace
+  - InputName
+  - InputSorted
+  - KnownRules
+  - LineWidth
+  - LintDirectiveFormatted
+  - LintDirectiveValid
+  - MatchingOutputMeta
+  - MetaDescription
+  - MetaKeyValueFormatting
+  - MetaSections
+  - OutputName
+  - ParameterMetaMatched
+  - PascalCase
+  - PreambleCommentPlacement
+  - PreambleFormatted
+  - RedundantNone
+  - RequirementsSection
+  - RuntimeSection
+  - SectionOrdering
+  - ShellCheck
+  - SnakeCase
+  - TodoComment
+  - TrailingComma
+  - UnnecessaryFunctionCall
+  - UnusedCall
+  - UnusedDeclaration
+  - UnusedImport
+  - UnusedInput
+  - UsingFallbackVersion
+  - VersionStatementFormatted
+  - Whitespace
+
+Available tags:
+  - Clarity
+  - Completeness
+  - Correctness
+  - Deprecated
+  - Documentation
+  - Naming
+  - Portability
+  - Sorting
+  - Spacing
+  - SprocketCompatibility
+  - Style

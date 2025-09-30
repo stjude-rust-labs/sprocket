@@ -42,7 +42,7 @@ pub enum Error {
     Yaml(#[from] serde_yaml_ng::Error),
 }
 
-/// A [`Result`](std::result::Result) with an [`Error`].
+/// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An input file containing WDL values.

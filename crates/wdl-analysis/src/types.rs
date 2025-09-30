@@ -406,27 +406,29 @@ impl Coercible for Type {
             | (Self::Object, Self::OptionalObject)
             | (Self::OptionalObject, Self::OptionalObject) => true,
 
-            // Map[String, X] -> Object, Map[String, X] -> Object?, Map[String, X]? -> Object?
+            // Map[X, Y] -> Object, Map[X, Y] -> Object?, Map[X, Y]? -> Object? where: X -> String
+            //
             // Struct -> Object, Struct -> Object?, Struct? -> Object?
             (Self::Compound(src, false), Self::Object)
             | (Self::Compound(src, false), Self::OptionalObject)
             | (Self::Compound(src, _), Self::OptionalObject) => match src {
                 CompoundType::Map(src) => {
-                    matches!(src.key_type, Type::Primitive(PrimitiveType::String, _))
+                    src.key_type.is_coercible_to(&PrimitiveType::String.into())
                 }
                 CompoundType::Struct(_) => true,
                 _ => false,
             },
 
-            // Object -> Map[String, X], Object -> Map[String, X]?, Object? -> Map[String, X]? (if
-            // all object members are coercible to X)
-            // Object -> Struct, Object -> Struct?, Object? -> Struct? (if object keys match struct
-            // member names and object values must be coercible to struct member types)
+            // Object -> Map[X, Y], Object -> Map[X, Y]?, Object? -> Map[X, Y]? where: String -> X
+            // and all object members are coercible to Y
+            //
+            // Object -> Struct, Object -> Struct?, Object? -> Struct? where: object keys match
+            // struct member names and object values are coercible to struct member types
             (Self::Object, Self::Compound(target, _))
             | (Self::OptionalObject, Self::Compound(target, true)) => {
                 match target {
                     CompoundType::Map(target) => {
-                        matches!(target.key_type, Type::Primitive(PrimitiveType::String, _))
+                        Type::from(PrimitiveType::String).is_coercible_to(&target.key_type)
                     }
                     CompoundType::Struct(_) => {
                         // Note: checking object keys and values is a runtime constraint
@@ -586,25 +588,25 @@ impl Coercible for CompoundType {
     fn is_coercible_to(&self, target: &Self) -> bool {
         match (self, target) {
             // Array[X] -> Array[Y], Array[X] -> Array[Y]?, Array[X]? -> Array[Y]?, Array[X]+ ->
-            // Array[Y] (if X is coercible to Y)
+            // Array[Y] where: X -> Y
             (Self::Array(src), Self::Array(target)) => src.is_coercible_to(target),
 
-            // Pair[W, X] -> Pair[Y, Z], Pair[W, X] -> Pair[Y, Z]?, Pair[W, X]? -> Pair[Y, Z]? (if W
-            // is coercible to Y and X is coercible to Z)
+            // Pair[W, X] -> Pair[Y, Z], Pair[W, X] -> Pair[Y, Z]?, Pair[W, X]? -> Pair[Y, Z]?
+            // where: W -> Y and X -> Z
             (Self::Pair(src), Self::Pair(target)) => src.is_coercible_to(target),
 
-            // Map[W, X] -> Map[Y, Z], Map[W, X] -> Map[Y, Z]?, Map[W, X]? -> Map[Y, Z]? (if W is
-            // coercible to Y and X is coercible to Z)
+            // Map[W, X] -> Map[Y, Z], Map[W, X] -> Map[Y, Z]?, Map[W, X]? -> Map[Y, Z]? where: W ->
+            // Y and X -> Z
             (Self::Map(src), Self::Map(target)) => src.is_coercible_to(target),
 
-            // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? (if the two struct types have
-            // members with identical names and compatible types)
+            // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where: all member names match
+            // and all member types coerce
             (Self::Struct(src), Self::Struct(target)) => src.is_coercible_to(target),
 
-            // Map[String, X] -> Struct, Map[String, X] -> Struct?, Map[String, X]? -> Struct? (if
-            // `Map` keys match struct member name and all struct member types are coercible from X)
+            // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
+            // keys match member names, and Y -> member type
             (Self::Map(src), Self::Struct(target)) => {
-                if !matches!(src.key_type, Type::Primitive(PrimitiveType::String, _)) {
+                if !src.key_type.is_coercible_to(&PrimitiveType::String.into()) {
                     return false;
                 }
 
@@ -621,10 +623,10 @@ impl Coercible for CompoundType {
                 true
             }
 
-            // Struct -> Map[String, X], Struct -> Map[String, X]?, Struct? -> Map[String, X]? (if
-            // all struct members are coercible to X)
+            // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X
+            // and member types -> Y
             (Self::Struct(src), Self::Map(target)) => {
-                if !matches!(target.key_type, Type::Primitive(PrimitiveType::String, _)) {
+                if !Type::from(PrimitiveType::String).is_coercible_to(&target.key_type) {
                     return false;
                 }
 
@@ -1215,16 +1217,24 @@ mod test {
         assert!(Type::OptionalObject.is_coercible_to(&Type::OptionalObject));
         assert!(!Type::OptionalObject.is_coercible_to(&Type::Object));
 
-        // Object -> Map[String, X]
+        // Object? -> Map[String, X]
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(!Type::OptionalObject.is_coercible_to(&ty));
 
-        // Object -> Map[Int, X] (not a string key)
+        // Object? -> Map[File, X]
+        let ty = MapType::new(PrimitiveType::File, PrimitiveType::String).into();
+        assert!(!Type::OptionalObject.is_coercible_to(&ty));
+
+        // Object -> Map[Int, X] (key not coercible from string)
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::String).into();
         assert!(!Type::Object.is_coercible_to(&ty));
 
         // Object -> Map[String, X]?
         let ty = Type::from(MapType::new(PrimitiveType::String, PrimitiveType::String)).optional();
+        assert!(Type::Object.is_coercible_to(&ty));
+
+        // Object -> Map[File, X]?
+        let ty = Type::from(MapType::new(PrimitiveType::File, PrimitiveType::String)).optional();
         assert!(Type::Object.is_coercible_to(&ty));
 
         // Object? -> Map[String, X]?
@@ -1419,7 +1429,7 @@ mod test {
         assert!(type1.is_coercible_to(&type2));
         assert!(!type2.is_coercible_to(&type1));
 
-        // Map[String, X] -> Struct
+        // Map[String, Int] -> Struct
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         let type2 = StructType::new(
             "Foo",
@@ -1432,7 +1442,20 @@ mod test {
         .into();
         assert!(type1.is_coercible_to(&type2));
 
-        // Map[String, X] -> Struct (mismatched fields)
+        // Map[File, Int] -> Struct
+        let type1: Type = MapType::new(PrimitiveType::File, PrimitiveType::Integer).into();
+        let type2 = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::Integer),
+                ("bar", PrimitiveType::Integer),
+                ("baz", PrimitiveType::Integer),
+            ],
+        )
+        .into();
+        assert!(type1.is_coercible_to(&type2));
+
+        // Map[String, Int] -> Struct (mismatched fields)
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         let type2 = StructType::new(
             "Foo",
@@ -1445,7 +1468,7 @@ mod test {
         .into();
         assert!(!type1.is_coercible_to(&type2));
 
-        // Map[Int, X] -> Struct
+        // Map[Int, Int] -> Struct
         let type1: Type = MapType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
         let type2 = StructType::new(
             "Foo",
@@ -1458,25 +1481,43 @@ mod test {
         .into();
         assert!(!type1.is_coercible_to(&type2));
 
-        // Map[String, X] -> Object
+        // Map[String, Int] -> Object
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert!(type1.is_coercible_to(&Type::Object));
 
-        // Map[String, X] -> Object?
+        // Map[String, Int] -> Object?
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert!(type1.is_coercible_to(&Type::OptionalObject));
 
-        // Map[String, X]? -> Object?
+        // Map[String, Int]? -> Object?
         let type1: Type =
             Type::from(MapType::new(PrimitiveType::String, PrimitiveType::Integer)).optional();
         assert!(type1.is_coercible_to(&Type::OptionalObject));
 
-        // Map[String, X]? -> Object
+        // Map[File, Int] -> Object
+        let type1: Type = MapType::new(PrimitiveType::File, PrimitiveType::Integer).into();
+        assert!(type1.is_coercible_to(&Type::Object));
+
+        // Map[File, Int] -> Object?
+        let type1: Type = MapType::new(PrimitiveType::File, PrimitiveType::Integer).into();
+        assert!(type1.is_coercible_to(&Type::OptionalObject));
+
+        // Map[File, Int]? -> Object?
+        let type1: Type =
+            Type::from(MapType::new(PrimitiveType::File, PrimitiveType::Integer)).optional();
+        assert!(type1.is_coercible_to(&Type::OptionalObject));
+
+        // Map[String, Int]? -> Object
         let type1: Type =
             Type::from(MapType::new(PrimitiveType::String, PrimitiveType::Integer)).optional();
         assert!(!type1.is_coercible_to(&Type::Object));
 
-        // Map[Integer, X] -> Object
+        // Map[File, Int]? -> Object
+        let type1: Type =
+            Type::from(MapType::new(PrimitiveType::File, PrimitiveType::Integer)).optional();
+        assert!(!type1.is_coercible_to(&Type::Object));
+
+        // Map[Integer, Int] -> Object
         let type1: Type = MapType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
         assert!(!type1.is_coercible_to(&Type::Object));
     }
@@ -1585,7 +1626,7 @@ mod test {
         assert!(!type1.is_coercible_to(&type2));
         assert!(!type2.is_coercible_to(&type1));
 
-        // Struct -> Map[String, X]
+        // Struct -> Map[String, String]
         let type1: Type = StructType::new(
             "Foo",
             [
@@ -1596,6 +1637,19 @@ mod test {
         )
         .into();
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
+        assert!(type1.is_coercible_to(&type2));
+
+        // Struct -> Map[File, String]
+        let type1: Type = StructType::new(
+            "Foo",
+            [
+                ("foo", PrimitiveType::String),
+                ("bar", PrimitiveType::String),
+                ("baz", PrimitiveType::String),
+            ],
+        )
+        .into();
+        let type2 = MapType::new(PrimitiveType::File, PrimitiveType::String).into();
         assert!(type1.is_coercible_to(&type2));
 
         // Struct -> Map[String, X] (mismatched types)
@@ -1611,7 +1665,7 @@ mod test {
         let type2 = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         assert!(!type1.is_coercible_to(&type2));
 
-        // Struct -> Map[Int, X] (not a string key)
+        // Struct -> Map[Int, String] (key not coercible from String)
         let type1: Type = StructType::new(
             "Foo",
             [

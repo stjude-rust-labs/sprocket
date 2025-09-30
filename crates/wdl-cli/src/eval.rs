@@ -8,10 +8,10 @@ use wdl_analysis::Document;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::EvaluationResult;
+use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::Outputs;
 use wdl_engine::config::Config;
-use wdl_engine::v1::ProgressKind;
 use wdl_engine::v1::TaskEvaluator;
 use wdl_engine::v1::WorkflowEvaluator;
 
@@ -59,15 +59,11 @@ impl<'a> Evaluator<'a> {
     }
 
     /// Runs a WDL task or workflow evaluation.
-    pub async fn run<P, R>(
+    pub async fn run(
         mut self,
         token: CancellationToken,
-        progress: P,
-    ) -> EvaluationResult<Outputs>
-    where
-        P: Fn(ProgressKind<'_>) -> R + Send + Sync + 'static,
-        R: Future<Output = ()> + Send,
-    {
+        events: Events,
+    ) -> EvaluationResult<Outputs> {
         match self.inputs {
             Inputs::Task(ref mut inputs) => {
                 let task = self.document.task_by_name(self.name).ok_or_else(|| {
@@ -85,10 +81,10 @@ impl<'a> Evaluator<'a> {
                         .ok_or(anyhow!("unable to find origin path for key `{key}`"))
                 })?;
 
-                let evaluator = TaskEvaluator::new(self.config, token).await?;
+                let evaluator = TaskEvaluator::new(self.config, token, events).await?;
 
                 evaluator
-                    .evaluate(self.document, task, inputs, self.output_dir, progress)
+                    .evaluate(self.document, task, inputs, self.output_dir)
                     .await
                     .and_then(EvaluatedTask::into_result)
             }
@@ -113,9 +109,9 @@ impl<'a> Evaluator<'a> {
                         .ok_or(anyhow!("unable to find origin path for key `{key}`"))
                 })?;
 
-                let evaluator = WorkflowEvaluator::new(self.config, token).await?;
+                let evaluator = WorkflowEvaluator::new(self.config, token, events).await?;
                 evaluator
-                    .evaluate(self.document, inputs, self.output_dir, progress)
+                    .evaluate(self.document, inputs, self.output_dir)
                     .await
             }
         }

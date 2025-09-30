@@ -61,12 +61,12 @@ task a_task {
     input
         # Here is a comment between `input` and the open brace.
     {
+        AStruct a_struct  # This should not be higlighted, as it's not known within
         Object an_object
         String a_string
         Boolean a_boolean
-        Int an_integer
         Float a_float
-        AStruct a_struct  # This should not be higlighted, as it's not known within
+        Int an_integer
     # the TextMate language that it's a custom struct.
     }
 
@@ -149,12 +149,12 @@ workflow hello {
     }
 
     input {
+        AStruct a_struct  # This should not be higlighted, as it's not known within
         Object an_object
         String a_string
         Boolean a_boolean
-        Int an_integer
         Float a_float
-        AStruct a_struct  # This should not be higlighted, as it's not known within
+        Int an_integer
     # the TextMate language that it's a custom struct.
     }
 
@@ -162,7 +162,9 @@ workflow hello {
     }
 
     scatter (name in name_array) {
-        call say_task { greeting = greeting }
+        call say_task {
+            greeting = greeting,
+        }
     }
 
     if (some_condition_task) {

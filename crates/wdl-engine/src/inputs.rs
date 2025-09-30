@@ -15,21 +15,49 @@ use serde::ser::SerializeMap;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use wdl_analysis::Document;
+use wdl_analysis::document::Input;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Coercible as _;
+use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
+use wdl_ast::SupportedVersion;
+use wdl_ast::version::V1;
 
 use crate::Coercible;
 use crate::Value;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
+
+/// Checks that an input value matches the type of the input.
+fn check_input_type(document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
+    // For WDL 1.2, we accept optional values for the input even if the input's type
+    // is non-optional; if the runtime value is `None` for a non-optional input, the
+    // default expression will be evaluated instead
+    let expected_ty = if !input.required()
+        && document
+            .version()
+            .map(|v| v >= SupportedVersion::V1(V1::Two))
+            .unwrap_or(false)
+    {
+        input.ty().optional()
+    } else {
+        input.ty().clone()
+    };
+
+    let ty = value.ty();
+    if !ty.is_coercible_to(&expected_ty) {
+        bail!("expected type `{expected_ty}` for input `{name}`, but found `{ty}`");
+    }
+
+    Ok(())
+}
 
 /// Helper for replacing input paths with a path derived from joining the
 /// specified path with the input path.
@@ -51,13 +79,12 @@ fn join_paths<'a>(
         // Replace the value with `None` temporarily as we need to coerce the value
         // This is useful when this value is the only reference to shared data as this
         // would prevent internal cloning
-        let mut current = std::mem::replace(value, Value::None);
-        if let Ok(mut v) = current.coerce(&ty) {
+        let mut current = std::mem::replace(value, Value::None(value.ty()));
+        if let Ok(mut v) = current.coerce(None, &ty) {
             drop(current);
             v.visit_paths_mut(false, &mut |_, v| {
-                v.expand_path()?;
-                v.join_path_to(path);
-                v.ensure_path_exists(false)
+                v.expand_path(path)?;
+                v.ensure_path_exists(false, None)
             })?;
             current = v;
         }
@@ -150,13 +177,8 @@ impl TaskInputs {
                 .inputs()
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
-            let ty = value.ty();
-            if !ty.is_coercible_to(input.ty()) {
-                bail!(
-                    "expected type `{expected_ty}` for input `{name}`, but found `{ty}`",
-                    expected_ty = input.ty(),
-                );
-            }
+
+            check_input_type(document, name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -281,22 +303,19 @@ impl TaskInputs {
                     )
                 })?;
 
+                // Allow primitive values to implicitly convert to string
                 let actual = value.ty();
                 let expected = input.ty();
-                if let Some(expected_prim_ty) = expected.as_primitive()
-                    && expected_prim_ty == PrimitiveType::String
-                    && let Some(actual_prim_ty) = actual.as_primitive()
-                    && actual_prim_ty != PrimitiveType::String
+                if let Some(PrimitiveType::String) = expected.as_primitive()
+                    && let Some(actual) = actual.as_primitive()
+                    && actual != PrimitiveType::String
                 {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(());
                 }
-                if !actual.is_coercible_to(expected) {
-                    bail!(
-                        "expected type `{expected}` for input `{path}`, but found type `{actual}`",
-                    );
-                }
+
+                check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(())
             }
@@ -411,11 +430,7 @@ impl WorkflowInputs {
                 .inputs()
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
-            let expected_ty = input.ty();
-            let ty = value.ty();
-            if !ty.is_coercible_to(expected_ty) {
-                bail!("expected type `{expected_ty}` for input `{name}`, but found type `{ty}`");
-            }
+            check_input_type(document, name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -619,22 +634,19 @@ impl WorkflowInputs {
                     )
                 })?;
 
-                let expected = input.ty();
+                // Allow primitive values to implicitly convert to string
                 let actual = value.ty();
-                if let Some(expected_prim_ty) = expected.as_primitive()
-                    && expected_prim_ty == PrimitiveType::String
-                    && let Some(actual_prim_ty) = actual.as_primitive()
-                    && actual_prim_ty != PrimitiveType::String
+                let expected = input.ty();
+                if let Some(PrimitiveType::String) = expected.as_primitive()
+                    && let Some(actual) = actual.as_primitive()
+                    && actual != PrimitiveType::String
                 {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(());
                 }
-                if !actual.is_coercible_to(expected) {
-                    bail!(
-                        "expected type `{expected}` for input `{path}`, but found type `{actual}`"
-                    );
-                }
+
+                check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(())
             }

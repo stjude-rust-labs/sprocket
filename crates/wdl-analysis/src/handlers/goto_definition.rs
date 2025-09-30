@@ -10,7 +10,7 @@
 //! - Access expressions for struct members and call outputs
 //! - Global symbols (structs, tasks, workflows) across documents
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition)
 
 use std::sync::Arc;
 

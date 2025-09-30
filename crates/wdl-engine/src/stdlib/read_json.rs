@@ -35,13 +35,9 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
             .coerce_argument(0, PrimitiveType::File)
             .unwrap_file();
 
-        let file_path = download_file(
-            context.context.downloader(),
-            context.work_dir(),
-            path.as_str(),
-        )
-        .await
-        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
+        let file_path = download_file(context.transferer(), context.base_dir(), &path)
+            .await
+            .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
         // Note: `serde-json` does not support asynchronous readers, so we are
         // performing a synchronous read here
@@ -100,10 +96,6 @@ mod test {
         env.write_file(
             "object.json",
             r#"{ "foo": "bar", "bar": 12345, "baz": [1, 2, 3] }"#,
-        );
-        env.write_file(
-            "bad_object.json",
-            r#"{ "foo": "bar", "bar!": 12345, "baz": [1, 2, 3] }"#,
         );
 
         let diagnostic = eval_v1_expr(&env, V1::One, "read_json('empty.json')")
@@ -196,16 +188,6 @@ mod test {
                 .map(Value::unwrap_integer)
                 .collect::<Vec<_>>(),
             [1, 2, 3]
-        );
-
-        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_object.json')")
-            .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file \
-             `bad_object.json`: object key `bar!` is not a valid WDL identifier at line 1 column \
-             23",
         );
     }
 }

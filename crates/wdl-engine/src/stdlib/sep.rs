@@ -46,8 +46,8 @@ fn sep(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             }
 
             match v {
-                Value::None => {}
-                Value::Primitive(v) => write!(&mut s, "{v}", v = v.raw(Some(context.context)))
+                Value::None(_) => {}
+                Value::Primitive(v) => write!(&mut s, "{v}", v = v.raw(Some(context.inner())))
                     .expect("failed to write to a string"),
                 _ => panic!("expected an array of primitive values"),
             }

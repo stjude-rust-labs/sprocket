@@ -1,0 +1,7 @@
+{
+    "test.files": [
+        "a.txt",
+        "b.txt",
+        "c.txt"
+    ]
+}

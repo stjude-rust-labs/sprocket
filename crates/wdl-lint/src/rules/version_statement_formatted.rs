@@ -86,7 +86,7 @@ impl Rule for VersionStatementFormattedRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style])
+        TagSet::new(&[Tag::Style, Tag::Spacing])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

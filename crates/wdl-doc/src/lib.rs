@@ -46,10 +46,15 @@ use pulldown_cmark::Parser;
 use runnable::task;
 use runnable::workflow;
 use wdl_analysis::Analyzer;
+use wdl_analysis::Config as AnalysisConfig;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::version::V1;
+
+/// Start on the "Full Directory" left sidebar view instead of the
+/// "Workflows" view.
+const PREFER_FULL_DIRECTORY: bool = true;
 
 /// Install the theme dependencies using npm.
 pub fn install_theme(theme_dir: &Path) -> Result<()> {
@@ -143,10 +148,18 @@ impl Render for Css<'_> {
 ///
 /// Requires a relative path to the root where `style.css` and `index.js` files
 /// are expected.
-pub(crate) fn header<P: AsRef<Path>>(page_title: &str, root: P) -> Markup {
+pub(crate) fn header<P: AsRef<Path>>(
+    page_title: &str,
+    root: P,
+    script: &AdditionalScript,
+) -> Markup {
     let root = root.as_ref();
     html! {
         head {
+            @match script {
+                AdditionalScript::HeadOpen(s) => script { (PreEscaped(s)) }
+                _ => {}
+            }
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
             title { (page_title) }
@@ -157,19 +170,36 @@ pub(crate) fn header<P: AsRef<Path>>(page_title: &str, root: P) -> Markup {
             script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" {}
             script defer src=(root.join("index.js").to_string_lossy()) {}
             (Css(&root.join("style.css").to_string_lossy()))
+            @match script {
+                AdditionalScript::HeadClose(s) => script { (PreEscaped(s)) }
+                _ => {}
+            }
         }
     }
 }
 
 /// Returns a full HTML page, including the `DOCTYPE`, `html`, `head`, and
 /// `body` tags,
-pub(crate) fn full_page<P: AsRef<Path>>(page_title: &str, body: Markup, root: P) -> Markup {
+pub(crate) fn full_page<P: AsRef<Path>>(
+    page_title: &str,
+    body: Markup,
+    root: P,
+    script: &AdditionalScript,
+) -> Markup {
     html! {
         (DOCTYPE)
         html class="dark" {
-            (header(page_title, root))
+            (header(page_title, root, script))
             body class="body--base" {
+                @match script {
+                    AdditionalScript::BodyOpen(s) => script { (PreEscaped(s)) }
+                    _ => {}
+                }
                 (body)
+                @match script {
+                    AdditionalScript::BodyClose(s) => script { (PreEscaped(s)) }
+                    _ => {}
+                }
             }
         }
     }
@@ -258,10 +288,15 @@ impl VersionBadge {
 ///
 /// `workspace_root` should be an absolute path.
 async fn analyze_workspace(
-    analyzer: Analyzer<()>,
     workspace_root: impl AsRef<Path>,
+    config: AnalysisConfig,
 ) -> Result<Vec<wdl_analysis::AnalysisResult>> {
     let workspace = workspace_root.as_ref();
+    let analyzer = Analyzer::new(config, async |_, _, _, _| ());
+    analyzer
+        .add_directory(workspace)
+        .await
+        .with_context(|| "failed to add directory to analyzer".to_string())?;
     let results = analyzer
         .analyze(())
         .await
@@ -315,29 +350,110 @@ async fn analyze_workspace(
     Ok(results)
 }
 
+/// The location to embed an arbitrary JaveScript `<script>` tag into each HTML
+/// page.
+#[derive(Debug)]
+pub enum AdditionalScript {
+    /// Embed the contents immediately after the opening `<head>` tag.
+    HeadOpen(String),
+    /// Embed the contents immediately before the closing `</head>` tag.
+    HeadClose(String),
+    /// Embed the contents immediately after the opening `<body>` tag.
+    BodyOpen(String),
+    /// Embed the contents immediately before the closing `</body>` tag.
+    BodyClose(String),
+    /// Don't embed any script.
+    None,
+}
+
+/// Configuration for documentation generation.
+#[derive(Debug)]
+pub struct Config {
+    /// Configuration to use for analysis.
+    analysis_config: AnalysisConfig,
+    /// WDL workspace that should be documented.
+    workspace: PathBuf,
+    /// Output location for the documentation.
+    output_dir: PathBuf,
+    /// An optional markdown file to embed in the homepage.
+    homepage: Option<PathBuf>,
+    /// An optional custom theme directory.
+    custom_theme: Option<PathBuf>,
+    /// An optional custom logo to embed in the left sidebar.
+    custom_logo: Option<PathBuf>,
+    /// Optional JavaScript to embed in each HTML page.
+    additional_javascript: AdditionalScript,
+    /// Initialize pages on the "Full Directory" view instead of the "Workflows"
+    /// view of the left sidebar.
+    init_on_full_directory: bool,
+}
+
+impl Config {
+    /// Create a new documentation configuration.
+    pub fn new(
+        analysis_config: AnalysisConfig,
+        workspace: impl Into<PathBuf>,
+        output_dir: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            analysis_config,
+            workspace: workspace.into(),
+            output_dir: output_dir.into(),
+            homepage: None,
+            custom_theme: None,
+            custom_logo: None,
+            additional_javascript: AdditionalScript::None,
+            init_on_full_directory: PREFER_FULL_DIRECTORY,
+        }
+    }
+
+    /// Overwrite the config's homepage with the new value.
+    pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
+        self.homepage = homepage;
+        self
+    }
+
+    /// Overwrite the config's custom theme with the new value.
+    pub fn custom_theme(mut self, custom_theme: Option<PathBuf>) -> Self {
+        self.custom_theme = custom_theme;
+        self
+    }
+
+    /// Overwrite the config's custom logo with the new value.
+    pub fn custom_logo(mut self, custom_logo: Option<PathBuf>) -> Self {
+        self.custom_logo = custom_logo;
+        self
+    }
+
+    /// Overwrite the config's additional JS with the new value.
+    pub fn additional_javascript(mut self, additional_javascript: AdditionalScript) -> Self {
+        self.additional_javascript = additional_javascript;
+        self
+    }
+
+    /// Overwrite the config's init_on_full_directory with the new value.
+    pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
+        self.init_on_full_directory = prefer_full_directory;
+        self
+    }
+}
+
 /// Generate HTML documentation for a workspace.
 ///
 /// This function will generate HTML documentation for all WDL files in the
 /// workspace directory. This function will overwrite any existing files which
 /// conflict with the generated files, but will not delete any files that
 /// are already present.
-pub async fn document_workspace(
-    analyzer: Analyzer<()>,
-    workspace: impl AsRef<Path>,
-    output_dir: impl AsRef<Path>,
-    homepage: Option<impl AsRef<Path>>,
-    custom_theme: Option<impl AsRef<Path>>,
-    custom_logo: Option<impl Into<PathBuf>>,
-) -> Result<()> {
-    let workspace_abs_path = absolute(workspace.as_ref())
+pub async fn document_workspace(config: Config) -> Result<()> {
+    let workspace_abs_path = absolute(&config.workspace)
         .with_context(|| {
             format!(
                 "failed to resolve absolute path for workspace: `{}`",
-                workspace.as_ref().display()
+                config.workspace.display()
             )
         })?
         .clean();
-    let homepage = homepage.and_then(|p| absolute(p.as_ref()).ok());
+    let homepage = config.homepage.and_then(|p| absolute(p).ok());
 
     if !workspace_abs_path.is_dir() {
         bail!(
@@ -346,11 +462,11 @@ pub async fn document_workspace(
         );
     }
 
-    let docs_dir = absolute(output_dir.as_ref())
+    let docs_dir = absolute(&config.output_dir)
         .with_context(|| {
             format!(
                 "failed to resolve absolute path for output directory: `{}`",
-                output_dir.as_ref().display()
+                config.output_dir.display()
             )
         })?
         .clean();
@@ -363,7 +479,7 @@ pub async fn document_workspace(
         })?;
     }
 
-    let results = analyze_workspace(analyzer, workspace_abs_path.clone())
+    let results = analyze_workspace(&workspace_abs_path, config.analysis_config)
         .await
         .with_context(|| {
             format!(
@@ -374,8 +490,10 @@ pub async fn document_workspace(
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_homepage(homepage)
-        .maybe_custom_theme(custom_theme)?
-        .maybe_logo(custom_logo)
+        .maybe_custom_theme(config.custom_theme)?
+        .maybe_logo(config.custom_logo)
+        .additional_javascript(config.additional_javascript)
+        .prefer_full_directory(config.init_on_full_directory)
         .build()
         .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
 

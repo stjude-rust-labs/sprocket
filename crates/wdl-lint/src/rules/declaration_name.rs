@@ -52,7 +52,7 @@ impl Rule for DeclarationNameRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity])
+        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Naming])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

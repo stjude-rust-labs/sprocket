@@ -1,0 +1,8 @@
+error: type mismatch: expected type `Object`, but found type `String`
+   ┌─ tests/tasks/if-type-mismatch/source.wdl:14:49
+   │
+14 │     String out = if true then read_json(f) else "bar"
+   │                               ------------      ^^^^^ this is type `String`
+   │                               │                  
+   │                               this expects type `Object`
+

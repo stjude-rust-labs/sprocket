@@ -2,13 +2,11 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
@@ -23,11 +21,11 @@ use crankshaft::engine::task::Resources;
 use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
-use futures::FutureExt;
-use futures::future::BoxFuture;
+use crankshaft::events::Event;
 use nonempty::NonEmpty;
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
-use tokio::task::JoinSet;
+use tokio::sync::oneshot::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
@@ -35,26 +33,22 @@ use url::Url;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskExecutionEvents;
 use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::COMMAND_FILE_NAME;
-use crate::InputTrie;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::Value;
 use crate::WORK_DIR_NAME;
+use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::http::Downloader;
-use crate::http::HttpDownloader;
-use crate::http::Location;
 use crate::path::EvaluationPath;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -62,14 +56,8 @@ use crate::v1::max_cpu;
 use crate::v1::max_memory;
 use crate::v1::memory;
 
-/// The number of initial expected task names.
-///
-/// This controls the initial size of the bloom filter and how many names are
-/// prepopulated into the name generator.
-const INITIAL_EXPECTED_NAMES: usize = 1000;
-
 /// The root guest path for inputs.
-const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs";
+const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -118,7 +106,7 @@ impl TaskManagerRequest for DockerTaskRequest {
         self.memory
     }
 
-    async fn run(self, spawned: oneshot::Sender<()>) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the working directory
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -127,6 +115,22 @@ impl TaskManagerRequest for DockerTaskRequest {
                 path = work_dir.display()
             )
         })?;
+
+        // On Unix, the work directory must be group writable in case the container uses
+        // a different user/group; the Crankshaft docker backend will automatically add
+        // the current user's egid to the container
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            use std::fs::set_permissions;
+            use std::os::unix::fs::PermissionsExt;
+            set_permissions(&work_dir, Permissions::from_mode(0o770)).with_context(|| {
+                format!(
+                    "failed to set permissions for work directory `{path}`",
+                    path = work_dir.display()
+                )
+            })?;
+        }
 
         // Write the evaluated command to disk
         // This is done even for remote execution so that a copy exists locally
@@ -142,20 +146,25 @@ impl TaskManagerRequest for DockerTaskRequest {
         // the working directory and command
         let mut inputs = Vec::with_capacity(self.inner.inputs().len() + 2);
         for input in self.inner.inputs().iter() {
-            if let Some(guest_path) = input.guest_path() {
-                let location = input.location().expect("all inputs should have localized");
+            let guest_path = input.guest_path().expect("input should have guest path");
+            let local_path = input.local_path().expect("input should be localized");
 
-                if location.exists() {
-                    inputs.push(
-                        Input::builder()
-                            .path(guest_path)
-                            .contents(Contents::Path(location.into()))
-                            .ty(input.kind())
-                            .read_only(true)
-                            .build(),
-                    );
-                }
+            // The local path must exist for Docker to mount
+            if !local_path.exists() {
+                bail!(
+                    "cannot mount input `{path}` as it does not exist",
+                    path = local_path.display()
+                );
             }
+
+            inputs.push(
+                Input::builder()
+                    .path(guest_path.as_str())
+                    .contents(Contents::Path(local_path.into()))
+                    .ty(input.kind())
+                    .read_only(true)
+                    .build(),
+            );
         }
 
         // Add an input for the work directory
@@ -198,7 +207,7 @@ impl TaskManagerRequest for DockerTaskRequest {
             .name(self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .image(&self.container)
+                    .image(self.container)
                     .program(
                         self.config
                             .task
@@ -208,20 +217,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                     )
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
-                    .env({
-                        let mut final_env = indexmap::IndexMap::new();
-                        for (k, v) in self.inner.env() {
-                            let guest_path = self
-                                .inner
-                                .inputs()
-                                .iter()
-                                .find(|input| input.path().to_str() == Some(v))
-                                .and_then(|input| input.guest_path());
-
-                            final_env.insert(k.clone(), guest_path.unwrap_or(v).to_string());
-                        }
-                        final_env
-                    })
+                    .env(self.inner.env().clone())
                     .stdout(GUEST_STDOUT_PATH)
                     .stderr(GUEST_STDERR_PATH)
                     .build(),
@@ -238,18 +234,12 @@ impl TaskManagerRequest for DockerTaskRequest {
             )
             .build();
 
-        let statuses = self
-            .backend
-            .run(task, Some(spawned), self.token.clone())
-            .map_err(|e| anyhow!("{e:#}"))?
-            .await
-            .map_err(|e| anyhow!("{e:#}"))?;
+        let statuses = self.backend.run(task, self.token.clone())?.await?;
 
         assert_eq!(statuses.len(), 1, "there should only be one exit status");
         let status = statuses.first();
 
         Ok(TaskExecutionResult {
-            inputs: self.inner.info.inputs,
             exit_code: status.code().expect("should have exit code"),
             work_dir: EvaluationPath::Local(work_dir),
             stdout: PrimitiveValue::new_file(
@@ -285,7 +275,7 @@ pub struct DockerBackend {
     /// The task manager for the backend.
     manager: TaskManager<DockerTaskRequest>,
     /// The name generator for tasks.
-    generator: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
 }
 
 impl DockerBackend {
@@ -293,16 +283,26 @@ impl DockerBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(config: Arc<Config>, backend_config: &DockerBackendConfig) -> Result<Self> {
+    pub async fn new(
+        config: Arc<Config>,
+        backend_config: &DockerBackendConfig,
+        events: Option<broadcast::Sender<Event>>,
+    ) -> Result<Self> {
         info!("initializing Docker backend");
+
+        let names = Arc::new(Mutex::new(GeneratorIterator::new(
+            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+            INITIAL_EXPECTED_NAMES,
+        )));
 
         let backend = docker::Backend::initialize_default_with(
             backend::docker::Config::builder()
                 .cleanup(backend_config.cleanup)
                 .build(),
+            names.clone(),
+            events,
         )
         .await
-        .map_err(|e| anyhow!("{e:#}"))
         .context("failed to initialize Docker backend")?;
 
         let resources = *backend.resources();
@@ -327,10 +327,7 @@ impl DockerBackend {
             max_cpu,
             max_memory,
             manager,
-            generator: Arc::new(Mutex::new(GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ))),
+            names,
         })
     }
 }
@@ -415,88 +412,19 @@ impl TaskExecutionBackend for DockerBackend {
         })
     }
 
-    fn guest_work_dir(&self) -> Option<&Path> {
-        Some(Path::new(GUEST_WORK_DIR))
+    fn guest_inputs_dir(&self) -> Option<&'static str> {
+        Some(GUEST_INPUTS_DIR)
     }
 
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [crate::eval::Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd,
-    {
-        async move {
-            // Construct a trie for mapping input guest paths
-            let mut trie = InputTrie::default();
-            for input in inputs.iter() {
-                trie.insert(input)?;
-            }
-
-            for (index, guest_path) in trie.calculate_guest_paths(GUEST_INPUTS_DIR)? {
-                if let Some(input) = inputs.get_mut(index) {
-                    input.set_guest_path(guest_path);
-                } else {
-                    bail!("invalid index {} returned from trie", index);
-                }
-            }
-
-            // Localize all inputs
-            let mut downloads = JoinSet::new();
-            for (idx, input) in inputs.iter_mut().enumerate() {
-                match input.path() {
-                    EvaluationPath::Local(path) => {
-                        input.set_location(Location::Path(path.clone().into()));
-                    }
-                    EvaluationPath::Remote(url) => {
-                        let downloader = downloader.clone();
-                        let url = url.clone();
-                        downloads.spawn(async move {
-                            let location_result = downloader.download(&url).await;
-
-                            match location_result {
-                                Ok(location) => Ok((idx, location.into_owned())),
-                                Err(e) => bail!("failed to localize `{url}`: {e:?}"),
-                            }
-                        });
-                    }
-                }
-            }
-
-            while let Some(result) = downloads.join_next().await {
-                match result {
-                    Ok(Ok((idx, location))) => {
-                        inputs
-                            .get_mut(idx)
-                            .expect("index from should be valid")
-                            .set_location(location);
-                    }
-                    Ok(Err(e)) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!(e)
-                    }
-                    Err(e) => {
-                        // Futures are aborted when the `JoinSet` is dropped.
-                        bail!("download task failed: {e:?}")
-                    }
-                }
-            }
-
-            Ok(())
-        }
-        .boxed()
+    fn needs_local_inputs(&self) -> bool {
+        true
     }
 
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents> {
-        let (spawned_tx, spawned_rx) = oneshot::channel();
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -518,7 +446,7 @@ impl TaskExecutionBackend for DockerBackend {
             "{id}-{generated}",
             id = request.id(),
             generated = self
-                .generator
+                .names
                 .lock()
                 .expect("generator should always acquire")
                 .next()
@@ -537,60 +465,44 @@ impl TaskExecutionBackend for DockerBackend {
                 max_memory,
                 token,
             },
-            spawned_tx,
             completed_tx,
         );
 
-        Ok(TaskExecutionEvents {
-            spawned: spawned_rx,
-            completed: completed_rx,
-        })
+        Ok(completed_rx)
     }
 
     #[cfg(unix)]
-    fn cleanup<'a, 'b, 'c>(
+    fn cleanup<'a>(
         &'a self,
-        output_dir: &'b Path,
+        work_dir: &'a EvaluationPath,
         token: CancellationToken,
-    ) -> Option<BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
-        /// The guest path for the output directory.
-        const GUEST_OUT_DIR: &str = "/workflow_output";
+    ) -> Option<futures::future::BoxFuture<'a, ()>> {
+        use futures::FutureExt;
+        use tracing::debug;
 
+        /// The guest path for the work directory.
+        const GUEST_WORK_DIR: &str = "/mnt/work";
         /// Amount of CPU to reserve for the cleanup task.
         const CLEANUP_CPU: f64 = 0.1;
-
         /// Amount of memory to reserve for the cleanup task.
         const CLEANUP_MEMORY: f64 = 0.05;
 
+        // SAFETY: the work directory is always local for the Docker backend
+        let work_dir = work_dir.as_local().expect("path should be local");
+        assert!(work_dir.is_absolute(), "work directory should be absolute");
+
         let backend = self.inner.clone();
-        let generator = self.generator.clone();
-        let output_path = std::path::absolute(output_dir).expect("failed to get absolute path");
-        if !output_path.is_dir() {
-            info!("output directory does not exist: skipping cleanup");
-            return None;
-        }
+        let names = self.names.clone();
 
         Some(
             async move {
                 let result = async {
-                    let (uid, gid) = unsafe { (libc::getuid(), libc::getgid()) };
+                    let (uid, gid) = unsafe { (libc::geteuid(), libc::getegid()) };
                     let ownership = format!("{uid}:{gid}");
-                    let output_mount = Input::builder()
-                        .path(GUEST_OUT_DIR)
-                        .contents(Contents::Path(output_path.clone()))
-                        .ty(InputType::Directory)
-                        // need write access
-                        .read_only(false)
-                        .build();
 
                     let name = format!(
                         "docker-backend-cleanup-{id}",
-                        id = generator
+                        id = names
                             .lock()
                             .expect("generator should always acquire")
                             .next()
@@ -606,12 +518,17 @@ impl TaskExecutionBackend for DockerBackend {
                                 .args([
                                     "-R".to_string(),
                                     ownership.clone(),
-                                    GUEST_OUT_DIR.to_string(),
+                                    GUEST_WORK_DIR.to_string(),
                                 ])
-                                .work_dir("/")
                                 .build(),
                         ))
-                        .inputs([output_mount])
+                        .inputs([Input::builder()
+                            .path(GUEST_WORK_DIR)
+                            .contents(Contents::Path(work_dir.to_path_buf()))
+                            .ty(InputType::Directory)
+                            // need write access to chown
+                            .read_only(false)
+                            .build()])
                         .resources(
                             Resources::builder()
                                 .cpu(CLEANUP_CPU)
@@ -620,48 +537,34 @@ impl TaskExecutionBackend for DockerBackend {
                         )
                         .build();
 
-                    info!(
+                    debug!(
                         "running cleanup task `{name}` to change ownership of `{path}` to \
                          `{ownership}`",
-                        path = output_path.display(),
+                        path = work_dir.display(),
                     );
 
-                    let (spawned_tx, _) = oneshot::channel();
-                    let output_rx = backend
-                        .run(task, Some(spawned_tx), token)
-                        .map_err(|e| anyhow!("failed to submit cleanup task: {e}"))?;
-
-                    let statuses = output_rx
+                    let statuses = backend
+                        .run(task, token)
+                        .context("failed to submit cleanup task")?
                         .await
-                        .map_err(|e| anyhow!("failed to run cleanup task: {e}"))?;
+                        .context("failed to run cleanup task")?;
                     let status = statuses.first();
                     if status.success() {
                         Ok(())
                     } else {
                         bail!(
-                            "failed to chown output directory `{path}`",
-                            path = output_path.display()
+                            "failed to chown task work directory `{path}`",
+                            path = work_dir.display()
                         );
                     }
                 }
                 .await;
 
                 if let Err(e) = result {
-                    tracing::error!("cleanup task failed: {e:#}");
+                    tracing::error!("Docker backend cleanup failed: {e:#}");
                 }
             }
             .boxed(),
         )
-    }
-
-    #[cfg(not(unix))]
-    fn cleanup<'a, 'b, 'c>(&'a self, _: &'b Path, _: CancellationToken) -> Option<BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
-        tracing::debug!("cleanup task is not supported on this platform");
-        None
     }
 }

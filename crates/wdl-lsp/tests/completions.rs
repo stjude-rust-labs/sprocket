@@ -3,8 +3,10 @@
 mod common;
 
 use common::TestContext;
+use pretty_assertions::assert_eq;
 use tower_lsp::lsp_types::CompletionContext;
 use tower_lsp::lsp_types::CompletionItem;
+use tower_lsp::lsp_types::CompletionItemKind;
 use tower_lsp::lsp_types::CompletionParams;
 use tower_lsp::lsp_types::CompletionResponse;
 use tower_lsp::lsp_types::CompletionTriggerKind;
@@ -283,7 +285,7 @@ async fn should_complete_namespace_members() {
         panic!("expected a response, got none");
     };
 
-    assert_eq!(items.len(), 1);
+    assert_eq!(items.len(), 2);
     assert_contains(&items, "greet");
 }
 
@@ -454,4 +456,101 @@ async fn should_complete_versions() {
     assert_contains(&items, "1.0");
     assert_contains(&items, "1.1");
     assert_contains(&items, "1.2");
+}
+
+#[tokio::test]
+async fn should_complete_namespaced_task_as_snippet() {
+    let mut ctx = setup().await;
+
+    let response = completion_request(&mut ctx, "snippet_ns.wdl", Position::new(5, 8)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    let snippet_label = "lib.greet {...}";
+    let snippet_item = items.iter().find(|i| i.label == snippet_label);
+    assert!(
+        snippet_item.is_some(),
+        "completion items should have contained '{}'",
+        snippet_label
+    );
+
+    let snippet_item = snippet_item.unwrap();
+    assert_eq!(snippet_item.kind, Some(CompletionItemKind::SNIPPET));
+    assert!(snippet_item.insert_text.is_some());
+    let insert_text = snippet_item.insert_text.as_ref().unwrap();
+    let expected_snippet = "lib.greet {\n\tname = ${1}\n}";
+    assert_eq!(insert_text, expected_snippet);
+}
+
+#[tokio::test]
+async fn should_complete_local_task_as_snippet() {
+    let mut ctx = setup().await;
+
+    let response = completion_request(&mut ctx, "snippet_local.wdl", Position::new(12, 8)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    let snippet_label = "local {...}";
+    let snippet_item = items.iter().find(|i| i.label == snippet_label);
+    assert!(
+        snippet_item.is_some(),
+        "completion items should have contained '{}'",
+        snippet_label
+    );
+
+    let snippet_item = snippet_item.unwrap();
+    assert_eq!(snippet_item.kind, Some(CompletionItemKind::SNIPPET));
+    assert!(snippet_item.insert_text.is_some());
+    let insert_text = snippet_item.insert_text.as_ref().unwrap();
+    let expected_snippet = "local {\n\tname = ${1}\n}";
+    assert_eq!(insert_text, expected_snippet);
+}
+
+#[tokio::test]
+async fn should_complete_struct_literal_as_snippet() {
+    let mut ctx = setup().await;
+
+    let response = completion_request(&mut ctx, "snippet_struct.wdl", Position::new(8, 16)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    let snippet_label = "MyStruct { name, age }";
+    let snippet_item = items.iter().find(|i| i.label == snippet_label);
+    assert!(
+        snippet_item.is_some(),
+        "completion items should have contained '{}'",
+        snippet_label
+    );
+
+    let snippet_item = snippet_item.unwrap();
+    assert_eq!(snippet_item.kind, Some(CompletionItemKind::SNIPPET));
+    assert!(snippet_item.insert_text.is_some());
+    let insert_text = snippet_item.insert_text.as_ref().unwrap();
+    let expected_snippet = "MyStruct {\n\tname: ${1},\n\tage: ${2}\n}";
+    assert_eq!(insert_text, expected_snippet);
+}
+
+#[tokio::test]
+async fn should_complete_top_level_keyword_as_snippet() {
+    let mut ctx = setup().await;
+
+    let response = completion_request(&mut ctx, "snippet_keyword.wdl", Position::new(0, 0)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    let snippet_label = "task";
+    let snippet_item = items.iter().find(|i| i.label == snippet_label);
+    assert!(
+        snippet_item.is_some(),
+        "completion items should have contained '{}'",
+        snippet_label
+    );
+
+    let snippet_item = snippet_item.unwrap();
+    assert_eq!(snippet_item.kind, Some(CompletionItemKind::SNIPPET));
+    assert!(snippet_item.insert_text.is_some());
 }

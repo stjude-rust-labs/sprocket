@@ -34,7 +34,7 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("first argument should be a map");
 
     let key = match &context.arguments[1].value {
-        Value::None => None,
+        Value::None(_) => None,
         Value::Primitive(v) => Some(v.clone()),
         _ => unreachable!("expected a primitive value for second argument"),
     };

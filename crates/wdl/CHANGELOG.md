@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.18.1 - 09-17-2025
+
+#### Dependencies
+
+* Updated `wdl-engine` dependency to latest ([#607](https://github.com/stjude-rust-labs/wdl/pull/607)).
+
+## 0.18.0 - 09-15-2025
+
+#### Dependencies
+
+* Updated Crankshaft dependency to latest ([#593](https://github.com/stjude-rust-labs/wdl/pull/593)).
+* Updated dependencies to latest ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
+
 ## 0.17.0 - 08-13-2025
 
 ## 0.16.0 - 07-31-2025

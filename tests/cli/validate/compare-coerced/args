@@ -1,0 +1,1 @@
+validate source.wdl -e compare_coerced inputs.json

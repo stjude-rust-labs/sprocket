@@ -173,9 +173,7 @@ pub fn format_literal_string(element: &FormatElement, stream: &mut TokenStream<P
                             replacement.push(c);
                         }
                         '"' => {
-                            if let Some(pc) = prev_c
-                                && pc != '\\'
-                            {
+                            if prev_c.is_none_or(|c| c != '\\') {
                                 // This double quote sign is not escaped, so we need to escape
                                 // it. This happens when a single quoted string is re-formatted
                                 // as a double quoted string.

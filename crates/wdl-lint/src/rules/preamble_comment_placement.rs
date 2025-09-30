@@ -52,7 +52,7 @@ impl Rule for PreambleCommentPlacementRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Clarity])
+        TagSet::new(&[Tag::Clarity, Tag::Style, Tag::SprocketCompatibility])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

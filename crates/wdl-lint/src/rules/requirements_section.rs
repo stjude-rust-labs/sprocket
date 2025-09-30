@@ -60,7 +60,7 @@ impl Rule for RequirementsSectionRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Portability])
+        TagSet::new(&[Tag::Completeness, Tag::Portability, Tag::Deprecated])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

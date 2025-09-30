@@ -36,7 +36,7 @@ static IDENTIFIER_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// If the regex matches, we assume the value is a string.
 static ASSUME_STRING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     // SAFETY: this is checked statically with tests to always unwrap.
-    Regex::new(r"^[\w /~.]*$").unwrap()
+    Regex::new(r"^[^\[\]{}]*$").unwrap()
 });
 
 /// An error related to inputs.
@@ -69,7 +69,7 @@ pub enum Error {
     Deserialize(String),
 }
 
-/// A [`Result`](std::result::Result) with an [`Error`].
+/// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An input parsed from the command line.
@@ -516,11 +516,11 @@ mod tests {
         check_integer_value(&inputs, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error = Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz#bar"], None)
+        let error = Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
             .unwrap_err();
         assert!(matches!(
             error,
-            Error::Deserialize(value) if value == "baz#bar"
+            Error::Deserialize(value) if value == "baz[bar"
         ));
 
         // A missing file.
@@ -537,6 +537,56 @@ mod tests {
         assert!(matches!(
                 error,
                 Error::FileNotFound(path) if path.to_str().unwrap() == "./tests/fixtures/missing.json"));
+    }
+
+    #[test]
+    fn coalesce_special_characters() {
+        fn check_can_coalesce_string(value: &str) {
+            let inputs = Inputs::coalesce([format!("input={}", value)], None).unwrap();
+            let (_, input) = inputs.get("input").unwrap();
+            assert_eq!(input.as_str().unwrap(), value);
+        }
+        fn check_cannot_coalesce_string(value: &str) {
+            let error = Inputs::coalesce([format!("input={}", value)], None).unwrap_err();
+            assert!(matches!(
+                error,
+                Error::Deserialize(output) if output == value
+            ));
+        }
+
+        check_can_coalesce_string("can-coalesce-dashes");
+        check_can_coalesce_string("can\"coalesce\"quotes");
+        check_can_coalesce_string("can'coalesce'apostrophes");
+        check_can_coalesce_string("can;coalesce;semicolons");
+        check_can_coalesce_string("can:coalesce:colons");
+        check_can_coalesce_string("can*coalesce*stars");
+        check_can_coalesce_string("can,coalesce,commas");
+        check_can_coalesce_string("can?coalesce?question?mark");
+        check_can_coalesce_string("can|coalesce|pipe");
+        check_can_coalesce_string("can<coalesce>less<than>or>greater<than");
+        check_can_coalesce_string("can^coalesce^carrot");
+        check_can_coalesce_string("can#coalesce#pound#sign");
+        check_can_coalesce_string("can%coalesce%percent");
+        check_can_coalesce_string("can!coalesce!exclamation!marks");
+        check_can_coalesce_string("can\\coalesce\\backslashes");
+        check_can_coalesce_string("can@coalesce@at@sign");
+        check_can_coalesce_string("can(coalesce(parenthesis))");
+        check_can_coalesce_string("can coalesce السلام عليكم");
+        check_can_coalesce_string("can coalesce 你");
+        check_can_coalesce_string("can coalesce Dobrý den");
+        check_can_coalesce_string("can coalesce Hello");
+        check_can_coalesce_string("can coalesce שלום");
+        check_can_coalesce_string("can coalesce नमस्ते");
+        check_can_coalesce_string("can coalesce こんにちは");
+        check_can_coalesce_string("can coalesce 안녕하세요");
+        check_can_coalesce_string("can coalesce 你好");
+        check_can_coalesce_string("can coalesce Olá");
+        check_can_coalesce_string("can coalesce Здравствуйте");
+        check_can_coalesce_string("can coalesce Hola");
+        check_cannot_coalesce_string("cannot coalesce string with [");
+        check_cannot_coalesce_string("cannot coalesce string with ]");
+        check_cannot_coalesce_string("cannot coalesce string with {");
+        check_cannot_coalesce_string("cannot coalesce string with }");
     }
 
     #[test]

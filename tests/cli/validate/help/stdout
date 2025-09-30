@@ -1,0 +1,56 @@
+Validate a set of inputs against a task or workflow.
+
+This ensures that every required input is supplied, every supplied input is correctly typed, that no extraneous inputs are provided, and that any provided `File` or `Directory` inputs exist.
+
+It will not catch potential runtime errors that may occur when running the task or workflow.
+
+Usage: sprocket validate [OPTIONS] <PATH or URL> [INPUTS]...
+
+Arguments:
+  <PATH or URL>
+          The path or URL to a document containing the task or workflow to validate inputs against
+
+  [INPUTS]...
+          The inputs for the task or workflow.
+          
+          These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
+
+Options:
+  -e, --entrypoint <NAME>
+          The name of the task or workflow to validate inputs against.
+          
+          This argument is required if trying to validate a task or workflow without any inputs.
+          
+          If `entrypoint` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
+          
+          If `entrypoint` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
+
+      --no-color
+          Disables color output
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version

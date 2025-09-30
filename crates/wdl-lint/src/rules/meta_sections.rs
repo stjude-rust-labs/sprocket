@@ -112,7 +112,7 @@ impl Rule for MetaSectionsRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Clarity])
+        TagSet::new(&[Tag::Completeness, Tag::Clarity, Tag::Documentation])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -132,6 +132,7 @@ impl Rule for MetaSectionsRule {
             "RequirementsSection",
             "RuntimeSection",
             "MatchingOutputMeta",
+            "DescriptionLength",
         ]
     }
 }

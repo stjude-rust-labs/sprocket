@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added support for passing `None` for non-optional inputs with default
+  expressions in WDL 1.2 call statements ([#356](https://github.com/stjude-rust-labs/sprocket/pull/356)).
+* Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378), [#379](https://github.com/stjude-rust-labs/sprocket/pull/379))
+
+## 0.8.1 - 09-17-2025
+
+#### Fixed
+
+* Fixed incorrect assertion for the TES backend ([#606](https://github.com/stjude-rust-labs/wdl/pull/606)).
+* Fixed permissions issue in the Docker backend when a container runs with a
+  different user ([#605](https://github.com/stjude-rust-labs/wdl/pull/605)).
+
+## 0.8.0 - 09-15-2025
+
+#### Added
+
+* Added support for uploading inputs to the TES backend ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
+* Implemented coercion between `Map` <-> `Object`/`Struct` where the map key
+  type <-> `String` ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
+
+#### Changed
+
+* Replaced remote file downloading with using `cloud-copy` ([#599](https://github.com/stjude-rust-labs/wdl/pull/599)).
+* Changed how inputs are evaluated to prevent host paths from being observed in
+  evaluated command sections ([#589](https://github.com/stjude-rust-labs/wdl/pull/589)).
+* Removed evaluation progress callbacks in favor of Crankshaft events channel ([#583](https://github.com/stjude-rust-labs/wdl/pull/583)).
+
+#### Fixed
+
+* Use `IndexMap` for stable serialization of `Config` ([#602](https://github.com/stjude-rust-labs/wdl/pull/602)).
+* Fixed deserialization of `Object` to no longer require keys be WDL
+  identifiers ([#586](https://github.com/stjude-rust-labs/wdl/pull/586)).
+* Fixed a panic caused by an incorrect type calculation of non-empty array
+  literals ([#585](https://github.com/stjude-rust-labs/wdl/pull/585)).
+* Fixed incorrect common type calculations from `None` values ([#584](https://github.com/stjude-rust-labs/wdl/pull/584)).
+
 ## 0.7.0 - 08-13-2025
 
 #### Added

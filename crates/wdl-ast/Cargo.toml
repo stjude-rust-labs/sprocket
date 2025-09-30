@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version = "0.16.0"
+version = "0.17.0"
 authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true
@@ -10,14 +10,16 @@ homepage = "https://github.com/stjude-rust-labs/wdl"
 repository = "https://github.com/stjude-rust-labs/wdl"
 documentation = "https://docs.rs/wdl-ast"
 
-[dependencies]
-wdl-grammar = { path = "../wdl-grammar", version = "0.16.0" }
+[features]
+codespan = ["wdl-grammar/codespan"]
 
-macropol = "0.1.3"
-paste = "1.0.15"
+[dependencies]
+macropol = { workspace = true }
+paste = { workspace = true }
 rowan = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
+wdl-grammar = { path = "../wdl-grammar", version = "0.17.0" }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -25,9 +27,6 @@ codespan-reporting = { workspace = true }
 colored = { workspace = true }
 pretty_assertions = { workspace = true }
 rayon = { workspace = true }
-
-[features]
-codespan = ["wdl-grammar/codespan"]
 
 [lints]
 workspace = true

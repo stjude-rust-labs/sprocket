@@ -58,7 +58,7 @@ fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     for e in array.as_slice() {
         let pair = e.as_pair().expect("element should be a pair");
         let key = match pair.left() {
-            Value::None => None,
+            Value::None(_) => None,
             Value::Primitive(v) => Some(v.clone()),
             _ => unreachable!("expected a primitive type for the left value"),
         };

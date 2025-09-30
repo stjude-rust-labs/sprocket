@@ -49,7 +49,7 @@ impl Rule for TodoCommentRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness])
+        TagSet::new(&[Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {

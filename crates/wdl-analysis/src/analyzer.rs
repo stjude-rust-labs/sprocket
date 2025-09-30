@@ -22,10 +22,12 @@ use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
 use lsp_types::CompletionResponse;
+use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
+use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
@@ -41,6 +43,7 @@ use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::CompletionRequest;
+use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
@@ -51,6 +54,7 @@ use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
+use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
 /// Represents the kind of analysis progress being reported.
@@ -786,6 +790,52 @@ where
         rx.await.map_err(|_| {
             anyhow!(
                 "failed to receive semantic tokens response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Gets document symbols for a document.
+    pub async fn document_symbol(&self, document: Url) -> Result<Option<DocumentSymbolResponse>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::DocumentSymbol(DocumentSymbolRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send document symbol request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive document symbol request to analysis queue because the channel \
+                 has closed"
+            )
+        })
+    }
+
+    /// Gets document symbols for the workspace.
+    pub async fn workspace_symbol(&self, query: String) -> Result<Option<Vec<SymbolInformation>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::WorkspaceSymbol(WorkspaceSymbolRequest {
+                query,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send workspace symbol request to analysis queue because the \
+                     channel has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive workspace symbol response from analysis queue because the \
                  channel has closed"
             )
         })

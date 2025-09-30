@@ -51,7 +51,7 @@ impl Rule for RedundantNone {
     }
 
     fn tags(&self) -> crate::TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity])
+        TagSet::new(&[Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

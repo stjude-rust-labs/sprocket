@@ -255,6 +255,15 @@ impl Server {
         let exceptions = options.exceptions.clone();
         let ignore_name = options.ignore_filename.clone();
         let analyzer_client = client.clone();
+
+        let mut all_rules: Vec<_> = wdl_analysis::rules()
+            .iter()
+            .map(|r| r.id().to_string())
+            .chain(wdl_lint::rules().iter().map(|r| r.id().to_string()))
+            .collect();
+        all_rules.sort_unstable();
+        all_rules.dedup();
+
         // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
         // https://github.com/stjude-rust-labs/wdl/issues/517
         let analyzer_config = AnalysisConfig::default()
@@ -264,7 +273,8 @@ impl Server {
                     .iter()
                     .filter(|r| exceptions.contains(&r.id().into())),
             ))
-            .with_ignore_filename(ignore_name);
+            .with_ignore_filename(ignore_name)
+            .with_all_rules(all_rules);
 
         Self {
             client,
@@ -402,6 +412,7 @@ impl LanguageServer for Server {
                     }),
                     ..Default::default()
                 }),
+                workspace_symbol_provider: Some(OneOf::Left(true)),
                 diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
                     DiagnosticOptions {
                         inter_file_dependencies: true,
@@ -415,12 +426,17 @@ impl LanguageServer for Server {
                         ..Default::default()
                     },
                 )),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 document_formatting_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 completion_provider: Some(CompletionOptions {
                     resolve_provider: Some(false),
-                    trigger_characters: Some(vec![".".to_string(), "[".to_string()]),
+                    trigger_characters: Some(vec![
+                        ".".to_string(),
+                        "[".to_string(),
+                        "#".to_string(),
+                    ]),
                     ..Default::default()
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -896,6 +912,46 @@ impl LanguageServer for Server {
         let result = self
             .analyzer
             .semantic_tokens(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn document_symbol(
+        &self,
+        mut params: DocumentSymbolParams,
+    ) -> RpcResult<Option<DocumentSymbolResponse>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/documentSymbol` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .document_symbol(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> RpcResult<Option<Vec<SymbolInformation>>> {
+        debug!("received `workspace/symbol` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .workspace_symbol(params.query)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

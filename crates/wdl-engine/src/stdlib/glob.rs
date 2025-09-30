@@ -32,7 +32,7 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
-    let path = ensure_local_path(context.work_dir(), &path)
+    let path = ensure_local_path(context.base_dir(), &path)
         .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
 
     let path = path.to_str().ok_or_else(|| {
@@ -63,37 +63,36 @@ fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
 
         // Strip the CWD prefix if there is one
-        let path =
-            match path.strip_prefix(context.work_dir().and_then(|p| p.to_str()).unwrap_or("")) {
-                Ok(path) => {
-                    // Create a string from the stripped path
-                    path.to_str()
-                        .ok_or_else(|| {
-                            function_call_failed(
-                                FUNCTION_NAME,
-                                format!(
-                                    "path `{path}` cannot be represented as UTF-8",
-                                    path = path.display()
-                                ),
-                                context.call_site,
-                            )
-                        })?
-                        .to_string()
-                }
-                Err(_) => {
-                    // Convert the path directly to a string
-                    path.into_os_string().into_string().map_err(|path| {
+        let path = match path.strip_prefix(context.base_dir().to_str().unwrap_or("")) {
+            Ok(path) => {
+                // Create a string from the stripped path
+                path.to_str()
+                    .ok_or_else(|| {
                         function_call_failed(
                             FUNCTION_NAME,
                             format!(
                                 "path `{path}` cannot be represented as UTF-8",
-                                path = Path::new(&path).display()
+                                path = path.display()
                             ),
                             context.call_site,
                         )
                     })?
-                }
-            };
+                    .to_string()
+            }
+            Err(_) => {
+                // Convert the path directly to a string
+                path.into_os_string().into_string().map_err(|path| {
+                    function_call_failed(
+                        FUNCTION_NAME,
+                        format!(
+                            "path `{path}` cannot be represented as UTF-8",
+                            path = Path::new(&path).display()
+                        ),
+                        context.call_site,
+                    )
+                })?
+            }
+        };
 
         elements.push(PrimitiveValue::new_file(path).into());
     }
@@ -148,14 +147,8 @@ mod test {
         env.write_file("baz", "baz");
         env.write_file("foo", "foo");
         env.write_file("bar", "bar");
-        fs::create_dir_all(
-            env.work_dir()
-                .unwrap()
-                .join("nested")
-                .unwrap()
-                .unwrap_local(),
-        )
-        .expect("failed to create directory");
+        fs::create_dir_all(env.base_dir().join("nested").unwrap().unwrap_local())
+            .expect("failed to create directory");
         env.write_file("nested/bar", "bar");
         env.write_file("nested/baz", "baz");
 
@@ -184,13 +177,7 @@ mod test {
             V1::Two,
             &format!(
                 "glob('{url}')",
-                url = env
-                    .work_dir()
-                    .unwrap()
-                    .join("*")
-                    .unwrap()
-                    .unwrap_local()
-                    .display()
+                url = env.base_dir().join("*").unwrap().unwrap_local().display()
             ),
         )
         .await

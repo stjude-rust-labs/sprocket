@@ -1966,8 +1966,8 @@ impl<N: TreeNode> LiteralString<N> {
         self.0.children_with_tokens().filter_map(StringPart::cast)
     }
 
-    /// Gets the string text if the string is not interpolated (i.e.
-    /// has no placeholders).
+    /// Gets the string text if the string is not empty and is not interpolated
+    /// (i.e. has no placeholders).
     ///
     /// Returns `None` if the string is interpolated, as
     /// interpolated strings cannot be represented as a single
@@ -2538,7 +2538,7 @@ impl<N: TreeNode> AstNode<N> for DefaultOption<N> {
 pub struct TrueFalseOption<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TrueFalseOption<N> {
-    /// Gets the `true` and `false`` values to use for a placeholder
+    /// Gets the `true` and `false` values to use for a placeholder
     /// expression that evaluates to a boolean.
     ///
     /// The first value returned is the `true` value and the second

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-format"
-version = "0.10.0"
+version = "0.11.0"
 description = "Formatting of WDL (Workflow Description Language) documents"
 license.workspace = true
 edition.workspace = true
@@ -9,9 +9,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-wdl-ast = { path = "../wdl-ast", version = "0.16.0", features = ["codespan"] }
-
 nonempty.workspace = true
+thiserror.workspace = true
+wdl-ast = { path = "../wdl-ast", version = "0.17.0", features = ["codespan"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }

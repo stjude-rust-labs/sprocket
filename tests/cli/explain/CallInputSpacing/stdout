@@ -1,0 +1,4 @@
+CallInputSpacing [Spacing, Style]
+Ensures that call inputs are spaced appropriately.
+
+When making calls from a workflow, it is more readable and easier to edit if the supplied inputs are each on their own line. When there is more than one input to a call statement, the `input:` keyword should follow the opening brace ({) and a single space, then each input specification should occupy its own line. This does inflate the line count of a WDL document, but it is worth it for the consistent readability. An exception can be made (but does not have to be made), for calls with only a single parameter. In those cases, it is permissable to keep the input on the same line as the call.

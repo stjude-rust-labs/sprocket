@@ -116,7 +116,7 @@ mod test {
             .as_slice()
             .iter()
             .map(|v| match v {
-                Value::None => None,
+                Value::None(_) => None,
                 Value::Primitive(v) => Some(v.as_string().unwrap().as_str()),
                 _ => unreachable!("expected an optional primitive value"),
             })

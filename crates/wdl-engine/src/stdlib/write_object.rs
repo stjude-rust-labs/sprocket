@@ -1,7 +1,5 @@
 //! Implements the `write_object` function from the WDL standard library.
 
-use std::path::Path;
-
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tempfile::NamedTempFile;
@@ -16,9 +14,9 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
-use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
+use crate::stdlib::temp_path_to_value;
 use crate::stdlib::write_tsv::write_tsv_value;
 
 /// The name of the function defined in this file for use in diagnostics.
@@ -85,9 +83,9 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
                 }
 
                 match value {
-                    Value::None => {}
+                    Value::None(_) => {}
                     Value::Primitive(v) => {
-                        if !write_tsv_value(context.context, &mut writer, v)
+                        if !write_tsv_value(&mut writer, v, &context)
                             .await
                             .map_err(write_error)?
                         {
@@ -115,27 +113,7 @@ fn write_object(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnos
         writer.flush().await.map_err(write_error)?;
         drop(writer);
 
-        let path = path.keep().map_err(|e| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("failed to keep temporary file: {e}"),
-                context.call_site,
-            )
-        })?;
-
-        Ok(
-            PrimitiveValue::new_file(path.into_os_string().into_string().map_err(|path| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{path}` cannot be represented as UTF-8",
-                        path = Path::new(&path).display()
-                    ),
-                    context.call_site,
-                )
-            })?)
-            .into(),
-        )
+        temp_path_to_value(context, path, FUNCTION_NAME)
     }
     .boxed()
 }

@@ -194,7 +194,7 @@ impl Rule for ExpressionSpacingRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Spacing])
+        TagSet::new(&[Tag::Spacing, Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

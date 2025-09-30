@@ -3,6 +3,7 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::str::FromStr;
 
 use anyhow::Context;
@@ -126,6 +127,37 @@ impl EvaluationPath {
         }
     }
 
+    /// Consumes the path and returns its string representation
+    ///
+    /// Returns `None` if the path is local and cannot be represented in UTF-8.
+    pub fn into_string(self) -> Option<String> {
+        match self {
+            Self::Local(path) => path.into_os_string().into_string().ok(),
+            Self::Remote(url) => Some(url.into()),
+        }
+    }
+
+    /// Gets the parent of the given path.
+    ///
+    /// Returns `None` if the evaluation path isn't valid or has no parent.
+    pub fn parent_of(path: &str) -> Option<EvaluationPath> {
+        let path = path.parse().ok()?;
+        match path {
+            Self::Local(path) => path.parent().map(|p| Self::Local(p.to_path_buf())),
+            Self::Remote(mut url) => {
+                if url.path() == "/" {
+                    return None;
+                }
+
+                if let Ok(mut segments) = url.path_segments_mut() {
+                    segments.pop_if_empty().pop();
+                }
+
+                Some(Self::Remote(url))
+            }
+        }
+    }
+
     /// Gets the file name of the path.
     ///
     /// Returns `Ok(None)` if the path does not contain a file name (i.e. is
@@ -161,12 +193,22 @@ impl EvaluationPath {
 
         Display(self)
     }
+
+    /// Makes the evaluation path absolute if it is a local path.
+    pub fn make_absolute(&mut self) {
+        if let Self::Local(path) = self
+            && !path.is_absolute()
+            && let Ok(abs) = absolute(&path)
+        {
+            *path = abs;
+        }
+    }
 }
 
 impl FromStr for EvaluationPath {
     type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         // Store `file` schemed URLs as local paths.
         if is_file_url(s) {
             let url = s
@@ -186,17 +228,11 @@ impl FromStr for EvaluationPath {
     }
 }
 
-impl TryFrom<EvaluationPath> for String {
+impl TryFrom<&str> for EvaluationPath {
     type Error = anyhow::Error;
 
-    fn try_from(value: EvaluationPath) -> Result<Self, Self::Error> {
-        match value {
-            EvaluationPath::Local(path) => path
-                .into_os_string()
-                .into_string()
-                .map_err(|_| anyhow!("path cannot be represented as a UTF-8 string")),
-            EvaluationPath::Remote(url) => Ok(url.into()),
-        }
+    fn try_from(value: &str) -> Result<Self> {
+        value.parse()
     }
 }
 

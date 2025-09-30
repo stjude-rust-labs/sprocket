@@ -140,16 +140,16 @@ workflow seaseq {
     input {
         # group: reference_genome
         File reference
+        File gtf
         File? spikein_reference
         File? blacklist
-        File gtf
         Array[File]? bowtie_index
         Array[File]? spikein_bowtie_index
         Array[File]? motif_databases
+        Array[File]? sample_fastq
 
         # group: input_genomic_data
         Array[String]? sample_sraid
-        Array[File]? sample_fastq
 
         # group: analysis_parameter
         String? results_name
@@ -189,7 +189,9 @@ workflow seaseq {
     #1. Bowtie INDEX files if not provided
     if (!defined(bowtie_index)) {
         # create bowtie index when not provided
-        call bowtie.index as bowtie_idx { input: reference = reference }
+        call bowtie.index as bowtie_idx { input:
+            reference = reference,
+        }
     }
     #2. Make sure indexes are six else build indexes
     if (defined(bowtie_index)) {
@@ -203,7 +205,9 @@ workflow seaseq {
         ])
         if (length(int_bowtie_index) != 6) {
             # create bowtie index if 6 index files aren't provided
-            call bowtie.index as bowtie_idx_2 { input: reference = reference }
+            call bowtie.index as bowtie_idx_2 { input:
+                reference = reference,
+            }
         }
     }
     Array[File] actual_bowtie_index = select_first([
@@ -220,10 +224,12 @@ workflow seaseq {
     ]
     if (!defined(spikein_bowtie_index) && defined(spikein_reference)) {
         # create bowtie index on spikein genome
-        call bowtie.index as spikein_bowtie_idx { input: reference = select_first([
-            spikein_reference,
-            string_spikein,
-        ]) }
+        call bowtie.index as spikein_bowtie_idx { input:
+            reference = select_first([
+                spikein_reference,
+                string_spikein,
+            ]),
+        }
     }
 
     #4. Make sure indexes are six else build indexes for Spike-in DNA
@@ -235,10 +241,12 @@ workflow seaseq {
         ])
         if (length(int_spikein_bowtie_index) != 6) {
             # create bowtie index if 6 index files aren't provided
-            call bowtie.index as spikein_bowtie_idx_2 { input: reference = select_first([
-                spikein_reference,
-                string_spikein,
-            ]) }
+            call bowtie.index as spikein_bowtie_idx_2 { input:
+                reference = select_first([
+                    spikein_reference,
+                    string_spikein,
+                ]),
+            }
         }
     }
     Array[File] actual_spikein_bowtie_index = select_first([
@@ -251,10 +259,14 @@ workflow seaseq {
     # FASTA faidx and chromsizes and effective genome size
     call samtools.faidx as samtools_faidx {
         # create FASTA index and chrom sizes files
-        input: reference = reference }
+        input:
+        reference = reference,
+    }
     call util.effective_genome_size as egs {
         # effective genome size for FASTA
-        input: reference = reference }
+        input:
+        reference = reference,
+    }
 
     # Process FASTQs
     if (defined(sample_fastq)) {
@@ -360,15 +372,19 @@ workflow seaseq {
                     "") + "/QC/FastQC",
             }
 
-            call runspp.runspp as indv_runspp { input: bamfile = select_first([
-                indv_mapping.bklist_bam,
-                indv_mapping.sorted_bam,
-            ]) }
+            call runspp.runspp as indv_runspp { input:
+                bamfile = select_first([
+                    indv_mapping.bklist_bam,
+                    indv_mapping.sorted_bam,
+                ]),
+            }
 
-            call bedtools.bamtobed as indv_bamtobed { input: bamfile = select_first([
-                indv_mapping.bklist_bam,
-                indv_mapping.sorted_bam,
-            ]) }
+            call bedtools.bamtobed as indv_bamtobed { input:
+                bamfile = select_first([
+                    indv_mapping.bklist_bam,
+                    indv_mapping.sorted_bam,
+                ]),
+            }
 
             call util.evalstats as indv_summarystats { input:
                 fastq_type = "SEAseq Sample FASTQ",
@@ -494,15 +510,19 @@ workflow seaseq {
             default_location = sub(basename(fastqfiles[0]), ".fastq.gz|.fq.gz", "") + "/QC/FastQC",
         }
 
-        call runspp.runspp as uno_runspp { input: bamfile = select_first([
-            mapping.bklist_bam,
-            mapping.sorted_bam,
-        ]) }
+        call runspp.runspp as uno_runspp { input:
+            bamfile = select_first([
+                mapping.bklist_bam,
+                mapping.sorted_bam,
+            ]),
+        }
 
-        call bedtools.bamtobed as uno_bamtobed { input: bamfile = select_first([
-            mapping.bklist_bam,
-            mapping.sorted_bam,
-        ]) }
+        call bedtools.bamtobed as uno_bamtobed { input:
+            bamfile = select_first([
+                mapping.bklist_bam,
+                mapping.sorted_bam,
+            ]),
+        }
     }  # end if length(fastqfiles) == 1: one_fastq
 
     ### ---------------------------------------- ###
@@ -536,8 +556,9 @@ workflow seaseq {
             + "/" + basename(sample_bam, ".bam") + "_p9_kd-auto",
     }
 
-    call util.addreadme { input: default_location = sub(basename(sample_bam), ".sorted.b.*$",
-        "") + "/PEAKS" }
+    call util.addreadme { input:
+        default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS",
+    }
 
     call macs.macs as all { input:
         bamfile = sample_bam,
@@ -574,10 +595,12 @@ workflow seaseq {
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/BAM_Density",
     }
 
-    call bedtools.bamtobed as forsicerbed { input: bamfile = select_first([
-        merge_markdup.mkdupbam,
-        mapping.mkdup_bam,
-    ]) }
+    call bedtools.bamtobed as forsicerbed { input:
+        bamfile = select_first([
+            merge_markdup.mkdupbam,
+            mapping.mkdup_bam,
+        ]),
+    }
 
     call sicer.sicer { input:
         bedfile = forsicerbed.bedfile,
@@ -606,7 +629,9 @@ workflow seaseq {
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/STITCHED_peaks",
     }
 
-    call runspp.runspp { input: bamfile = sample_bam }
+    call runspp.runspp { input:
+        bamfile = sample_bam,
+    }
 
     call util.peaksanno { input:
         gtffile = gtf,
@@ -696,9 +721,13 @@ workflow seaseq {
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/BROAD_peaks",
     }
 
-    call bedtools.bamtobed as finalbed { input: bamfile = sample_bam }
+    call bedtools.bamtobed as finalbed { input:
+        bamfile = sample_bam,
+    }
 
-    call sortbed.sortbed { input: bedfile = finalbed.bedfile }
+    call sortbed.sortbed { input:
+        bedfile = finalbed.bedfile,
+    }
 
     call bedtools.intersect { input:
         fileA = macs.peakbedfile,

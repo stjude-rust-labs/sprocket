@@ -852,34 +852,37 @@ workflow chip {
     }
 
     input {
-        # group: runtime_environment
-        String docker = "encodedcc/chip-seq-pipeline:v2.2.2"
-        String singularity = "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
-        String conda = "encd-chip"
-        String conda_macs2 = "encd-chip-macs2"
-        String conda_spp = "encd-chip-spp"
 
-        # group: pipeline_metadata
-        String title = "Untitled"
-        String description = "No description"
+        # group: pipeline_parameter
+        String pipeline_type
 
         # group: reference_genome
         File? genome_tsv
-        String? genome_name
         File? ref_fa
         File? bwa_idx_tar
         File? bowtie2_idx_tar
         File? chrsz
         File? blacklist
         File? blacklist2
+        File? custom_aligner_idx_tar
+        File? peak_ppr1
+        File? peak_ppr2
+        File? peak_pooled
+        File? custom_align_py
+        String? genome_name
         String? mito_chr_name
         String? regex_bfilt_peak_chr_name
         String? gensz
-        File? custom_aligner_idx_tar
+        String? peak_caller
+        String? align_trimmomatic_java_heap
+        String? filter_picard_java_heap
+        String? gc_bias_picard_java_heap
 
         # group: input_genomic_data
         Boolean? paired_end
-        Array[Boolean] paired_ends = []
+        Boolean? ctl_paired_end
+        Int? xcor_exclusion_range_max
+        Int? cap_num_peak
         Array[File] fastqs_rep1_R1 = []
         Array[File] fastqs_rep1_R2 = []
         Array[File] fastqs_rep2_R1 = []
@@ -906,11 +909,6 @@ workflow chip {
         Array[File] peaks = []
         Array[File] peaks_pr1 = []
         Array[File] peaks_pr2 = []
-        File? peak_ppr1
-        File? peak_ppr2
-        File? peak_pooled
-        Boolean? ctl_paired_end
-        Array[Boolean] ctl_paired_ends = []
         Array[File] ctl_fastqs_rep1_R1 = []
         Array[File] ctl_fastqs_rep1_R2 = []
         Array[File] ctl_fastqs_rep2_R1 = []
@@ -934,89 +932,91 @@ workflow chip {
         Array[File] ctl_bams = []
         Array[File] ctl_nodup_bams = []
         Array[File] ctl_tas = []
+        Array[String] filter_chrs = []
+        Array[Boolean] paired_ends = []
+        Array[Boolean] ctl_paired_ends = []
+        Array[Int?] fraglen = []
+        # group: runtime_environment
+        String docker = "encodedcc/chip-seq-pipeline:v2.2.2"
+        String singularity = "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
+        String conda = "encd-chip"
+        String conda_macs2 = "encd-chip-macs2"
+        String conda_spp = "encd-chip-spp"
 
-        # group: pipeline_parameter
-        String pipeline_type
+        # group: pipeline_metadata
+        String title = "Untitled"
+        String description = "No description"
+
+        # group: alignment
+        String aligner = "bowtie2"
+        String trimmomatic_phred_score_format = "auto"
+        String dup_marker = "picard"
         Boolean align_only = false
         Boolean redact_nodup_bam = false
         Boolean true_rep_only = false
         Boolean enable_count_signal_track = false
         Boolean enable_jsd = true
         Boolean enable_gc_bias = true
-
-        # group: alignment
-        String aligner = "bowtie2"
-        File? custom_align_py
         Boolean use_bwa_mem_for_pe = false
-        Int bwa_mem_read_len_limit = 70
         Boolean use_bowtie2_local_mode = false
-        Int crop_length = 0
-        Int crop_length_tol = 2
-        String trimmomatic_phred_score_format = "auto"
-        Int xcor_trim_bp = 50
         Boolean use_filt_pe_ta_for_xcor = false
-        String dup_marker = "picard"
         Boolean no_dup_removal = false
-        Int mapq_thresh = 30
-        Array[String] filter_chrs = []
-        Int subsample_reads = 0
-        Int ctl_subsample_reads = 0
-        Int xcor_subsample_reads = 15000000
-        Int xcor_exclusion_range_min = -500
-        Int? xcor_exclusion_range_max
-        Int pseudoreplication_random_seed = 0
-
-        # group: peak_calling
-        Int ctl_depth_limit = 200000000
-        Float exp_ctl_depth_ratio_limit = 5.0
-        Array[Int?] fraglen = []
-        String? peak_caller
         Boolean always_use_pooled_ctl = true
+        Float exp_ctl_depth_ratio_limit = 5.0
         Float ctl_depth_ratio = 1.2
-        Int? cap_num_peak
         Float pval_thresh = 0.01
         Float fdr_thresh = 0.01
         Float idr_thresh = 0.05
-
-        # group: resource_parameter
-        Int align_cpu = 6
         Float align_bowtie2_mem_factor = 0.15
         Float align_bwa_mem_factor = 1.0
-        Int align_time_hr = 48
         Float align_bowtie2_disk_factor = 8.0
         Float align_bwa_disk_factor = 8.0
-        Int filter_cpu = 4
         Float filter_mem_factor = 0.4
-        Int filter_time_hr = 24
         Float filter_disk_factor = 8.0
-        Int bam2ta_cpu = 2
         Float bam2ta_mem_factor = 0.35
-        Int bam2ta_time_hr = 6
         Float bam2ta_disk_factor = 4.0
         Float spr_mem_factor = 20.0
         Float spr_disk_factor = 30.0
-        Int jsd_cpu = 4
         Float jsd_mem_factor = 0.1
-        Int jsd_time_hr = 6
         Float jsd_disk_factor = 2.0
-        Int xcor_cpu = 2
         Float xcor_mem_factor = 1.0
-        Int xcor_time_hr = 24
         Float xcor_disk_factor = 4.5
         Float subsample_ctl_mem_factor = 22.0
         Float subsample_ctl_disk_factor = 15.0
         Float macs2_signal_track_mem_factor = 12.0
-        Int macs2_signal_track_time_hr = 24
         Float macs2_signal_track_disk_factor = 80.0
-        Int call_peak_cpu = 6
         Float call_peak_spp_mem_factor = 5.0
         Float call_peak_macs2_mem_factor = 5.0
-        Int call_peak_time_hr = 72
         Float call_peak_spp_disk_factor = 5.0
         Float call_peak_macs2_disk_factor = 30.0
-        String? align_trimmomatic_java_heap
-        String? filter_picard_java_heap
-        String? gc_bias_picard_java_heap
+        Int bwa_mem_read_len_limit = 70
+        Int crop_length = 0
+        Int crop_length_tol = 2
+        Int xcor_trim_bp = 50
+        Int mapq_thresh = 30
+        Int subsample_reads = 0
+        Int ctl_subsample_reads = 0
+        Int xcor_subsample_reads = 15000000
+        Int xcor_exclusion_range_min = -500
+        Int pseudoreplication_random_seed = 0
+
+        # group: peak_calling
+        Int ctl_depth_limit = 200000000
+
+        # group: resource_parameter
+        Int align_cpu = 6
+        Int align_time_hr = 48
+        Int filter_cpu = 4
+        Int filter_time_hr = 24
+        Int bam2ta_cpu = 2
+        Int bam2ta_time_hr = 6
+        Int jsd_cpu = 4
+        Int jsd_time_hr = 6
+        Int xcor_cpu = 2
+        Int xcor_time_hr = 24
+        Int macs2_signal_track_time_hr = 24
+        Int call_peak_cpu = 6
+        Int call_peak_time_hr = 72
     }
 
     String pipeline_ver = "v2.2.2"
@@ -2358,26 +2358,26 @@ task align {
     input {
         Array[File] fastqs_R1  # [merge_id]
         Array[File] fastqs_R2
-        File? ref_fa
-        Int? trim_bp  # this is for R1 only
-        Int crop_length
-        Int crop_length_tol
-        String? trimmomatic_phred_score_format
+        RuntimeEnvironment runtime_environment
         String aligner
         String mito_chr_name
-        Int? multimapping
-        File? custom_align_py
-        File? idx_tar  # reference index tar
         Boolean paired_end
         Boolean use_bwa_mem_for_pe
-        Int bwa_mem_read_len_limit
         Boolean use_bowtie2_local_mode
-        String? trimmomatic_java_heap
-        Int cpu
         Float mem_factor
-        Int time_hr
         Float disk_factor
-        RuntimeEnvironment runtime_environment
+        Int crop_length
+        Int crop_length_tol
+        Int bwa_mem_read_len_limit
+        Int cpu
+        Int time_hr
+        File? ref_fa
+        File? custom_align_py
+        File? idx_tar  # reference index tar
+        String? trimmomatic_phred_score_format
+        String? trimmomatic_java_heap
+        Int? trim_bp  # this is for R1 only
+        Int? multimapping
     }
 
     Float input_file_size_gb = size(fastqs_R1, "G") + size(fastqs_R2, "G")
@@ -2501,23 +2501,23 @@ task align {
 
 task filter {
     input {
-        File? bam
-        Boolean paired_end
-        File? ref_fa
-        Boolean redact_nodup_bam
+        File chrsz  # 2-col chromosome sizes file
+        Array[String] filter_chrs  # chrs to be removed from final (nodup/filt) BAM
+        RuntimeEnvironment runtime_environment
         String dup_marker  # picard.jar MarkDuplicates (picard) or
+        String mito_chr_name
+        Boolean paired_end
+        Boolean redact_nodup_bam
+        Boolean no_dup_removal  # no dupe reads removal when filtering BAM
+        Float mem_factor
+        Float disk_factor
         # sambamba markdup (sambamba)
         Int mapq_thresh  # threshold for low MAPQ reads removal
-        Array[String] filter_chrs  # chrs to be removed from final (nodup/filt) BAM
-        File chrsz  # 2-col chromosome sizes file
-        Boolean no_dup_removal  # no dupe reads removal when filtering BAM
-        String mito_chr_name
         Int cpu
-        Float mem_factor
-        String? picard_java_heap
         Int time_hr
-        Float disk_factor
-        RuntimeEnvironment runtime_environment
+        File? bam
+        File? ref_fa
+        String? picard_java_heap
     }
 
     Float input_file_size_gb = size(bam, "G")
@@ -2572,16 +2572,16 @@ task filter {
 
 task bam2ta {
     input {
-        File? bam
-        Boolean paired_end
+        RuntimeEnvironment runtime_environment
         String mito_chr_name  # mito chromosome name
+        Boolean paired_end
+        Float mem_factor
+        Float disk_factor
         Int subsample  # number of reads to subsample TAGALIGN
         # this affects all downstream analysis
         Int cpu
-        Float mem_factor
         Int time_hr
-        Float disk_factor
-        RuntimeEnvironment runtime_environment
+        File? bam
     }
 
     Float input_file_size_gb = size(bam, "G")
@@ -2618,12 +2618,12 @@ task bam2ta {
 
 task spr {
     input {
-        File? ta
+        RuntimeEnvironment runtime_environment
         Boolean paired_end
-        Int pseudoreplication_random_seed
         Float mem_factor
         Float disk_factor
-        RuntimeEnvironment runtime_environment
+        Int pseudoreplication_random_seed
+        File? ta
     }
 
     Float input_file_size_gb = size(ta, "G")
@@ -2657,9 +2657,9 @@ task spr {
 task pool_ta {
     input {
         Array[File?] tas
-        Int? col  # number of columns in pooled TA
-        String? prefix  # basename prefix
         RuntimeEnvironment runtime_environment
+        String? prefix  # basename prefix
+        Int? col  # number of columns in pooled TA
     }
 
     command <<<
@@ -2687,20 +2687,20 @@ task pool_ta {
 
 task xcor {
     input {
-        File? ta
-        Boolean paired_end
+        RuntimeEnvironment runtime_environment
         String mito_chr_name
+        Boolean paired_end
+        Float mem_factor
+        Float disk_factor
         Int subsample  # number of reads to subsample TAGALIGN
+        Int cpu
+        Int time_hr
+        File? ta
         # this will be used for xcor only
         # will not affect any downstream analysis
         String? chip_seq_type
         Int? exclusion_range_min
         Int? exclusion_range_max
-        Int cpu
-        Float mem_factor
-        Int time_hr
-        Float disk_factor
-        RuntimeEnvironment runtime_environment
     }
 
     Float input_file_size_gb = size(ta, "G")
@@ -2744,13 +2744,13 @@ task jsd {
     input {
         Array[File?] nodup_bams
         Array[File?] ctl_bams
-        File? blacklist
+        RuntimeEnvironment runtime_environment
+        Float mem_factor
+        Float disk_factor
         Int mapq_thresh
         Int cpu
-        Float mem_factor
         Int time_hr
-        Float disk_factor
-        RuntimeEnvironment runtime_environment
+        File? blacklist
     }
 
     Float input_file_size_gb = size(nodup_bams, "G") + size(ctl_bams, "G")
@@ -2787,14 +2787,14 @@ task choose_ctl {
     input {
         Array[File?] tas
         Array[File?] ctl_tas
-        File? ta_pooled
-        File? ctl_ta_pooled
+        RuntimeEnvironment runtime_environment
         Boolean always_use_pooled_ctl  # always use pooled control for all exp rep.
         Float ctl_depth_ratio  # if ratio between controls is higher than this
+        Float exp_ctl_depth_ratio_limit
         # then always use pooled control for all exp rep.
         Int ctl_depth_limit
-        Float exp_ctl_depth_ratio_limit
-        RuntimeEnvironment runtime_environment
+        File? ta_pooled
+        File? ctl_ta_pooled
     }
 
     command <<<
@@ -2832,9 +2832,9 @@ task choose_ctl {
 
 task count_signal_track {
     input {
-        File? ta  # tag-align
         File chrsz  # 2-col chromosome sizes file
         RuntimeEnvironment runtime_environment
+        File? ta  # tag-align
     }
 
     Float mem_gb = 8.0
@@ -2865,12 +2865,12 @@ task count_signal_track {
 
 task subsample_ctl {
     input {
-        File? ta
+        RuntimeEnvironment runtime_environment
         Boolean paired_end
-        Int subsample
         Float mem_factor
         Float disk_factor
-        RuntimeEnvironment runtime_environment
+        Int subsample
+        File? ta
     }
 
     Float input_file_size_gb = size(ta, "G")
@@ -2901,23 +2901,23 @@ task subsample_ctl {
 
 task call_peak {
     input {
-        String peak_caller
-        String peak_type
-        Array[File?] tas  # [ta, control_ta]. control_ta is optional
-        Int fraglen  # fragment length from xcor
-        String gensz  # Genome size (sum of entries in 2nd column of
         # chr. sizes file, or hs for human, ms for mouse)
         File chrsz  # 2-col chromosome sizes file
-        Int cap_num_peak  # cap number of raw peaks called from MACS2
+        Array[File?] tas  # [ta, control_ta]. control_ta is optional
+        RuntimeEnvironment runtime_environment
+        String peak_caller
+        String peak_type
+        String gensz  # Genome size (sum of entries in 2nd column of
         Float pval_thresh  # p.value threshold for MACS2
-        Float? fdr_thresh  # FDR threshold for SPP
+        Float mem_factor
+        Float disk_factor
+        Int fraglen  # fragment length from xcor
+        Int cap_num_peak  # cap number of raw peaks called from MACS2
+        Int cpu
+        Int time_hr
         File? blacklist  # blacklist BED to filter raw peaks
         String? regex_bfilt_peak_chr_name
-        Int cpu
-        Float mem_factor
-        Int time_hr
-        Float disk_factor
-        RuntimeEnvironment runtime_environment
+        Float? fdr_thresh  # FDR threshold for SPP
     }
 
     Float input_file_size_gb = size(tas, "G")
@@ -2985,16 +2985,16 @@ task call_peak {
 
 task macs2_signal_track {
     input {
-        Array[File?] tas  # [ta, control_ta]. control_ta is optional
-        Int fraglen  # fragment length from xcor
-        String gensz  # Genome size (sum of entries in 2nd column of
         # chr. sizes file, or hs for human, ms for mouse)
         File chrsz  # 2-col chromosome sizes file
+        Array[File?] tas  # [ta, control_ta]. control_ta is optional
+        RuntimeEnvironment runtime_environment
+        String gensz  # Genome size (sum of entries in 2nd column of
         Float pval_thresh  # p.value threshold
         Float mem_factor
-        Int time_hr
         Float disk_factor
-        RuntimeEnvironment runtime_environment
+        Int fraglen  # fragment length from xcor
+        Int time_hr
     }
 
     Float input_file_size_gb = size(tas, "G")
@@ -3031,20 +3031,20 @@ task macs2_signal_track {
 
 task idr {
     input {
+        File chrsz  # 2-col chromosome sizes file
+        RuntimeEnvironment runtime_environment
         String prefix  # prefix for IDR output file
+        String regex_bfilt_peak_chr_name
+        String peak_type
+        String rank
+        Float idr_thresh
         File? peak1
         File? peak2
         File? peak_pooled
-        Float idr_thresh
         File? blacklist  # blacklist BED to filter raw peaks
-        String regex_bfilt_peak_chr_name
         # parameters to compute FRiP
         File? ta  # to calculate FRiP
         Int? fraglen  # fragment length from xcor
-        File chrsz  # 2-col chromosome sizes file
-        String peak_type
-        String rank
-        RuntimeEnvironment runtime_environment
     }
 
     command <<<
@@ -3090,18 +3090,18 @@ task idr {
 
 task overlap {
     input {
+        File chrsz  # 2-col chromosome sizes file
+        RuntimeEnvironment runtime_environment
         String prefix  # prefix for IDR output file
+        String regex_bfilt_peak_chr_name
+        String peak_type
         File? peak1
         File? peak2
         File? peak_pooled
         File? blacklist  # blacklist BED to filter raw peaks
-        String regex_bfilt_peak_chr_name
         # parameters to compute FRiP
         File? ta  # to calculate FRiP
         Int? fraglen  # fragment length from xcor (for FRIP)
-        File chrsz  # 2-col chromosome sizes file
-        String peak_type
-        RuntimeEnvironment runtime_environment
     }
 
     command <<<
@@ -3144,16 +3144,16 @@ task overlap {
 
 task reproducibility {
     input {
-        String prefix
+        File chrsz  # 2-col chromosome sizes file
         Array[File] peaks  # peak files from pair of true replicates
         # in a sorted order. for example of 4 replicates,
         # 1,2 1,3 1,4 2,3 2,4 3,4.
         # x,y means peak file from rep-x vs rep-y
         Array[File] peaks_pr  # peak files from pseudo replicates
-        File? peak_ppr  # Peak file from pooled pseudo replicate.
-        String peak_type
-        File chrsz  # 2-col chromosome sizes file
         RuntimeEnvironment runtime_environment
+        String prefix
+        String peak_type
+        File? peak_ppr  # Peak file from pooled pseudo replicate.
     }
 
     command <<<
@@ -3198,10 +3198,10 @@ task reproducibility {
 
 task gc_bias {
     input {
-        File? nodup_bam
         File ref_fa
-        String? picard_java_heap
         RuntimeEnvironment runtime_environment
+        File? nodup_bam
+        String? picard_java_heap
     }
 
     Float mem_factor = 0.3
@@ -3236,24 +3236,6 @@ task gc_bias {
 
 task qc_report {
     input {
-        # optional metadata
-        String pipeline_ver
-        String title  # name of sample
-        String description  # description for sample
-        String? genome
-        #String? encode_accession_id    # ENCODE accession ID of sample
-        # workflow params
-        Array[Boolean] paired_ends
-        Array[Boolean] ctl_paired_ends
-        String pipeline_type
-        String aligner
-        Boolean no_dup_removal
-        String peak_caller
-        Int cap_num_peak
-        Float idr_thresh
-        Float pval_thresh
-        Int xcor_trim_bp
-        Int xcor_subsample_reads
         # QCs
         Array[File] samstat_qcs
         Array[File] nodup_samstat_qcs
@@ -3265,29 +3247,47 @@ task qc_report {
         Array[File] ctl_lib_complexity_qcs
         Array[File] xcor_plots
         Array[File] xcor_scores
-        File? jsd_plot
         Array[File] jsd_qcs
         Array[File] idr_plots
         Array[File] idr_plots_pr
-        File? idr_plot_ppr
         Array[File] frip_qcs
         Array[File] frip_qcs_pr1
         Array[File] frip_qcs_pr2
-        File? frip_qc_pooled
-        File? frip_qc_ppr1
-        File? frip_qc_ppr2
         Array[File] frip_idr_qcs
         Array[File] frip_idr_qcs_pr
-        File? frip_idr_qc_ppr
         Array[File] frip_overlap_qcs
         Array[File] frip_overlap_qcs_pr
-        File? frip_overlap_qc_ppr
-        File? idr_reproducibility_qc
-        File? overlap_reproducibility_qc
         Array[File] gc_plots
         Array[File] peak_region_size_qcs
         Array[File] peak_region_size_plots
         Array[File] num_peak_qcs
+        #String? encode_accession_id    # ENCODE accession ID of sample
+        # workflow params
+        Array[Boolean] paired_ends
+        Array[Boolean] ctl_paired_ends
+        RuntimeEnvironment runtime_environment
+        # optional metadata
+        String pipeline_ver
+        String title  # name of sample
+        String description  # description for sample
+        String pipeline_type
+        String aligner
+        String peak_caller
+        Boolean no_dup_removal
+        Float idr_thresh
+        Float pval_thresh
+        Int cap_num_peak
+        Int xcor_trim_bp
+        Int xcor_subsample_reads
+        File? jsd_plot
+        File? idr_plot_ppr
+        File? frip_qc_pooled
+        File? frip_qc_ppr1
+        File? frip_qc_ppr2
+        File? frip_idr_qc_ppr
+        File? frip_overlap_qc_ppr
+        File? idr_reproducibility_qc
+        File? overlap_reproducibility_qc
         File? idr_opt_peak_region_size_qc
         File? idr_opt_peak_region_size_plot
         File? idr_opt_num_peak_qc
@@ -3295,7 +3295,7 @@ task qc_report {
         File? overlap_opt_peak_region_size_plot
         File? overlap_opt_num_peak_qc
         File? qc_json_ref
-        RuntimeEnvironment runtime_environment
+        String? genome
     }
 
     command <<<
@@ -3382,9 +3382,9 @@ task qc_report {
 ### workflow system tasks
 task read_genome_tsv {
     input {
+        RuntimeEnvironment runtime_environment
         File? genome_tsv
         String? null_s
-        RuntimeEnvironment runtime_environment
     }
 
     command <<<
@@ -3473,8 +3473,8 @@ task rounded_mean {
 
 task raise_exception {
     input {
-        String msg
         RuntimeEnvironment runtime_environment
+        String msg
     }
 
     command <<<

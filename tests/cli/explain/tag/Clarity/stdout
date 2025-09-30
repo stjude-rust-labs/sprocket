@@ -1,0 +1,15 @@
+Rules with the tag `Clarity`:
+  - CommandSectionIndentation
+  - ConsistentNewlines
+  - ContainerUri
+  - DeclarationName
+  - DoubleQuotes
+  - HereDocCommands
+  - ImportPlacement
+  - KnownRules
+  - LintDirectiveFormatted
+  - LintDirectiveValid
+  - MetaSections
+  - PascalCase
+  - PreambleCommentPlacement
+  - SnakeCase

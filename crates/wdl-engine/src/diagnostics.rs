@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use wdl_analysis::diagnostics::Io;
 use wdl_analysis::types::Type;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -152,17 +153,23 @@ pub fn function_call_failed(name: &str, error: impl fmt::Display, span: Span) ->
     Diagnostic::error(format!("call to function `{name}` failed: {error}")).with_highlight(span)
 }
 
-/// Creates an "output evaluation failed" diagnostic.
-pub fn output_evaluation_failed(
+/// Creates a "input/output/declaration evaluation failed" diagnostic.
+pub fn decl_evaluation_failed(
     e: anyhow::Error,
     name: &str,
     task: bool,
-    output: &str,
+    decl_name: &str,
+    io: Option<Io>,
     span: Span,
 ) -> Diagnostic {
     let e = e.context(format!(
-        "failed to evaluate output `{output}` for {kind} `{name}`",
-        kind = if task { "task" } else { "workflow" }
+        "failed to evaluate {decl_kind} `{decl_name}` for {kind} `{name}`",
+        kind = if task { "task" } else { "workflow" },
+        decl_kind = match io {
+            Some(Io::Input) => "input",
+            Some(Io::Output) => "output",
+            None => "declaration",
+        },
     ));
 
     Diagnostic::error(format!("{e:#}")).with_highlight(span)

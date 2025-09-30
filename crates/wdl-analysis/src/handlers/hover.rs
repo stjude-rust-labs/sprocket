@@ -3,7 +3,7 @@
 //! This module implements the LSP `textDocument/hover` functionality for WDL
 //! files.
 //!
-//! See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover
+//! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover)
 
 use anyhow::Result;
 use anyhow::bail;

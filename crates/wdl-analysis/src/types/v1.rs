@@ -744,7 +744,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 }
 
-                ArrayType::non_empty(expected).into()
+                ArrayType::new(expected).into()
             }
             // Treat empty array as `Array[Union]`
             None => ArrayType::new(Type::Union).into(),

@@ -49,7 +49,7 @@ impl Rule for HereDocCommandsRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Clarity])
+        TagSet::new(&[Tag::Clarity, Tag::Correctness])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

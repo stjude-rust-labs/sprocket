@@ -105,7 +105,7 @@ impl Rule for LineWidthRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Spacing])
+        TagSet::new(&[Tag::Style, Tag::Spacing])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
@@ -159,6 +159,15 @@ impl Visitor for LineWidthRule {
         _: &mut Diagnostics,
         reason: VisitReason,
         _: &v1::ParameterMetadataSection,
+    ) {
+        self.ignored_section = matches!(reason, VisitReason::Enter);
+    }
+
+    fn import_statement(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &v1::ImportStatement,
     ) {
         self.ignored_section = matches!(reason, VisitReason::Enter);
     }

@@ -70,7 +70,7 @@ impl Rule for OutputNameRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Naming])
+        TagSet::new(&[Tag::Naming, Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {

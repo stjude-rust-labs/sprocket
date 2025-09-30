@@ -10,18 +10,23 @@ use crate::types::v1::EvaluationContext;
 
 mod common;
 mod completions;
+mod document_symbol;
 mod find_all_references;
 mod goto_definition;
 mod hover;
 mod rename;
 mod semantic_tokens;
+pub(crate) mod snippets;
+mod workspace_symbol;
 
 pub use completions::*;
+pub use document_symbol::*;
 pub use find_all_references::*;
 pub use goto_definition::*;
 pub use hover::*;
 pub use rename::*;
 pub use semantic_tokens::*;
+pub use workspace_symbol::*;
 
 /// Context for evaluating expression types during LSP operations.
 ///

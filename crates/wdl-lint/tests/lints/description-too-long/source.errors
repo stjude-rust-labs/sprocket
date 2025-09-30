@@ -1,0 +1,40 @@
+note[DescriptionLength]: this description will be clipped in Sprocket documentation
+  ┌─ tests/lints/description-too-long/source.wdl:6:9
+  │
+6 │         description: "more than 140 characters if you include all these letter aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaas"
+  │         ^^^^^^^^^^^
+  │
+  = fix: shorten this string so it is less than or equal to 140 characters
+
+note[DescriptionLength]: this description will be clipped in Sprocket documentation
+  ┌─ tests/lints/description-too-long/source.wdl:8:13
+  │
+8 │             foo: "more than 140 characters if you include all these letter aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaas",
+  │             ^^^
+  │
+  = fix: shorten this string so it is less than or equal to 140 characters
+
+note[DescriptionLength]: this description will be clipped in Sprocket documentation
+   ┌─ tests/lints/description-too-long/source.wdl:10:17
+   │
+10 │                 description: "more than 140 characters if you include all these letter aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaas"
+   │                 ^^^^^^^^^^^
+   │
+   = fix: shorten this string so it is less than or equal to 140 characters
+
+note[DescriptionLength]: this description will be clipped in Sprocket documentation
+   ┌─ tests/lints/description-too-long/source.wdl:16:9
+   │
+16 │         plain: "more than 140 characters if you include all these letter aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaas"
+   │         ^^^^^
+   │
+   = fix: shorten this string so it is less than or equal to 140 characters
+
+note[DescriptionLength]: this description will be clipped in Sprocket documentation
+   ┌─ tests/lints/description-too-long/source.wdl:18:13
+   │
+18 │             description: "more than 140 characters if you include all these letter aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaas"
+   │             ^^^^^^^^^^^
+   │
+   = fix: shorten this string so it is less than or equal to 140 characters
+

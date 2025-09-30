@@ -4,7 +4,7 @@ version 1.1
 
 task t {
     # This path should not be localized or translated to a guest path
-    File relative_path = "relative.txt"
+    String relative_path = "relative.txt"
 
     input {
         File one

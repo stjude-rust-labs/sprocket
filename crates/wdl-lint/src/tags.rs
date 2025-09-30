@@ -1,7 +1,9 @@
 //! Definition of lint rule tags.
 
+use strum::VariantArray;
+
 /// A lint rule tag.
-#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(VariantArray, Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(u8)]
 pub enum Tag {
     /// Rules associated with having a complete document.
@@ -30,6 +32,13 @@ pub enum Tag {
 
     /// Rules associated with the use of deprecated language constructs.
     Deprecated,
+
+    /// Rules associated with documentation.
+    Documentation,
+
+    /// Rules associated with keeping WDL compatible with other Sprocket
+    /// commands (e.g. `doc`).
+    SprocketCompatibility,
 }
 
 /// An error for when an unknown tag is encountered.
@@ -58,6 +67,8 @@ impl std::str::FromStr for Tag {
             s if s.eq_ignore_ascii_case("correctness") => Ok(Self::Correctness),
             s if s.eq_ignore_ascii_case("sorting") => Ok(Self::Sorting),
             s if s.eq_ignore_ascii_case("deprecated") => Ok(Self::Deprecated),
+            s if s.eq_ignore_ascii_case("documentation") => Ok(Self::Documentation),
+            s if s.eq_ignore_ascii_case("sprocketcompatibility") => Ok(Self::SprocketCompatibility),
             _ => Err(UnknownTagError(s.to_string())),
         }
     }
@@ -75,6 +86,8 @@ impl std::fmt::Display for Tag {
             Self::Correctness => write!(f, "Correctness"),
             Self::Sorting => write!(f, "Sorting"),
             Self::Deprecated => write!(f, "Deprecated"),
+            Self::Documentation => write!(f, "Documentation"),
+            Self::SprocketCompatibility => write!(f, "SprocketCompatibility"),
         }
     }
 }
@@ -85,22 +98,15 @@ pub struct TagSet(u32);
 
 impl TagSet {
     /// Constructs a tag set from a slice of tags.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the provided slice is empty.
     pub const fn new(tags: &[Tag]) -> Self {
         if tags.is_empty() {
-            panic!("a tag set must be non-empty");
+            return Self(0);
         }
 
         let mut bits = 0u32;
         let mut i = 0;
         while i < tags.len() {
             bits |= Self::mask(tags[i]);
-            if matches!(tags[i], Tag::Naming | Tag::Spacing) {
-                bits |= Self::mask(Tag::Style);
-            }
             i += 1;
         }
         Self(bits)
@@ -109,6 +115,11 @@ impl TagSet {
     /// Unions two tag sets together.
     pub const fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
+    }
+
+    /// Intersects two tag sets.
+    pub const fn intersect(self, other: Self) -> Self {
+        Self(self.0 & other.0)
     }
 
     /// Checks if the tag is contained in the set.
@@ -153,5 +164,50 @@ impl std::fmt::Display for TagSet {
         let mut tags = self.iter().collect::<Vec<_>>();
         tags.sort();
         write!(f, "{tags:?}")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_unions() {
+        let a = TagSet::new(&[Tag::Clarity, Tag::Completeness]);
+        assert_eq!(a.count(), 2);
+        let b = TagSet::new(&[Tag::Clarity, Tag::Deprecated]);
+        assert_eq!(b.count(), 2);
+
+        let union = a.union(b);
+        assert_eq!(
+            union,
+            TagSet::new(&[Tag::Clarity, Tag::Completeness, Tag::Deprecated])
+        );
+        assert_eq!(union.count(), 3);
+    }
+
+    #[test]
+    fn it_intersects() {
+        let a = TagSet::new(&[Tag::Clarity, Tag::Completeness]);
+        assert_eq!(a.count(), 2);
+        let b = TagSet::new(&[Tag::Clarity, Tag::Deprecated]);
+        assert_eq!(b.count(), 2);
+
+        let intersection = a.intersect(b);
+
+        assert_eq!(intersection, TagSet::new(&[Tag::Clarity]));
+        assert_eq!(intersection.count(), 1);
+    }
+
+    #[test]
+    fn empty_slice_behaves() {
+        let a = TagSet::new(&[]);
+        assert_eq!(a.0, 0u32);
+
+        let b = TagSet::new(&[]);
+        assert_eq!(a, b);
+        assert_eq!(a, b.intersect(a));
+        assert_eq!(b, a.union(b));
+        assert_eq!(a.count(), 0);
     }
 }

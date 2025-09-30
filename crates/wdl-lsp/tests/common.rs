@@ -244,6 +244,10 @@ impl TestContext {
                     dynamic_registration: Some(false),
                     ..Default::default()
                 }),
+                document_symbol: Some(lsp_types::DocumentSymbolClientCapabilities {
+                    dynamic_registration: Some(false),
+                    ..Default::default()
+                }),
                 definition: Some(Default::default()),
                 references: Some(Default::default()),
                 ..Default::default()

@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::fmt;
 use std::future::Future;
 use std::ops::Add;
 use std::ops::Range;
@@ -24,17 +25,19 @@ use tracing::debug;
 
 use crate::Input;
 use crate::Value;
-use crate::http::HttpDownloader;
+use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
 mod docker;
 mod generic;
 mod local;
+mod lsf_apptainer;
 mod tes;
 
 pub use docker::*;
 pub use generic::*;
 pub use local::*;
+pub use lsf_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
@@ -48,6 +51,12 @@ pub(crate) const STDOUT_FILE_NAME: &str = "stdout";
 
 /// The default stderr file name.
 pub(crate) const STDERR_FILE_NAME: &str = "stderr";
+
+/// The number of initial expected task names.
+///
+/// This controls the initial size of the bloom filter and how many names are
+/// prepopulated into a name generator.
+const INITIAL_EXPECTED_NAMES: usize = 1000;
 
 /// Represents constraints applied to a task's execution.
 pub struct TaskExecutionConstraints {
@@ -86,7 +95,6 @@ pub struct TaskExecutionConstraints {
 }
 
 /// Represents information for spawning a task.
-#[derive(Debug)]
 pub struct TaskSpawnInfo {
     /// The command of the task.
     command: String,
@@ -98,6 +106,8 @@ pub struct TaskSpawnInfo {
     hints: Arc<HashMap<String, Value>>,
     /// The environment variables of the task.
     env: Arc<IndexMap<String, String>>,
+    /// The transferer to use for uploading inputs.
+    transferer: Arc<dyn Transferer>,
 }
 
 impl TaskSpawnInfo {
@@ -108,6 +118,7 @@ impl TaskSpawnInfo {
         requirements: Arc<HashMap<String, Value>>,
         hints: Arc<HashMap<String, Value>>,
         env: Arc<IndexMap<String, String>>,
+        transferer: Arc<dyn Transferer>,
     ) -> Self {
         Self {
             command,
@@ -115,7 +126,21 @@ impl TaskSpawnInfo {
             requirements,
             hints,
             env,
+            transferer,
         }
+    }
+}
+
+impl fmt::Debug for TaskSpawnInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TaskSpawnInfo")
+            .field("command", &self.command)
+            .field("inputs", &self.inputs)
+            .field("requirements", &self.requirements)
+            .field("hints", &self.hints)
+            .field("env", &self.env)
+            .field("transferer", &"<transferer>")
+            .finish()
     }
 }
 
@@ -130,16 +155,29 @@ pub struct TaskSpawnRequest {
     attempt: u64,
     /// The attempt directory for the task's execution.
     attempt_dir: PathBuf,
+    /// The root directory for the evaluation.
+    root_dir: PathBuf,
+    /// The temp directory for the evaluation.
+    temp_dir: PathBuf,
 }
 
 impl TaskSpawnRequest {
     /// Creates a new task spawn request.
-    pub fn new(id: String, info: TaskSpawnInfo, attempt: u64, attempt_dir: PathBuf) -> Self {
+    pub fn new(
+        id: String,
+        info: TaskSpawnInfo,
+        attempt: u64,
+        attempt_dir: PathBuf,
+        root_dir: PathBuf,
+        temp_dir: PathBuf,
+    ) -> Self {
         Self {
             id,
             info,
             attempt,
             attempt_dir,
+            root_dir,
+            temp_dir,
         }
     }
 
@@ -173,6 +211,11 @@ impl TaskSpawnRequest {
         &self.info.env
     }
 
+    /// Gets the transferer to use for uploading inputs.
+    pub fn transferer(&self) -> &Arc<dyn Transferer> {
+        &self.info.transferer
+    }
+
     /// Gets the attempt number for the task's execution.
     ///
     /// The attempt number starts at 0.
@@ -184,13 +227,21 @@ impl TaskSpawnRequest {
     pub fn attempt_dir(&self) -> &Path {
         &self.attempt_dir
     }
+
+    /// The root directory for the evaluation.
+    pub fn root_dir(&self) -> &Path {
+        &self.root_dir
+    }
+
+    /// The temp directory for the evaluation.
+    pub fn temp_dir(&self) -> &Path {
+        &self.temp_dir
+    }
 }
 
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
-    /// The inputs that were given to the task.
-    pub inputs: Vec<Input>,
     /// Stores the task process exit code.
     pub exit_code: i32,
     /// The task's working directory.
@@ -199,16 +250,6 @@ pub struct TaskExecutionResult {
     pub stdout: Value,
     /// The value of the task's stderr file.
     pub stderr: Value,
-}
-
-/// Represents events that can be awaited on during task execution.
-pub struct TaskExecutionEvents {
-    /// The event for when the task has spawned and is currently executing.
-    pub spawned: Receiver<()>,
-    /// The event for when the task has completed.
-    ///
-    /// Returns the execution result.
-    pub completed: Receiver<Result<TaskExecutionResult>>,
 }
 
 /// Represents a task execution backend.
@@ -226,49 +267,38 @@ pub trait TaskExecutionBackend: Send + Sync {
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
 
-    /// Gets the guest path the task working directory (e.g. `/mnt/work`).
+    /// Gets the guest (container) inputs directory of the backend.
     ///
-    /// Returns `None` if the task execution does not use a container.
-    fn guest_work_dir(&self) -> Option<&Path>;
+    /// Returns `None` if the backend does not execute tasks in a container.
+    ///
+    /// The returned path is expected to be Unix style and end with a backslash.
+    fn guest_inputs_dir(&self) -> Option<&'static str>;
 
-    /// Localizes the given set of inputs for the backend.
+    /// Determines if the backend needs local inputs.
     ///
-    /// This may involve downloading remote inputs to the host and updating the
-    /// input's guest paths.
-    fn localize_inputs<'a, 'b, 'c, 'd>(
-        &'a self,
-        downloader: &'b HttpDownloader,
-        inputs: &'c mut [Input],
-    ) -> BoxFuture<'d, Result<()>>
-    where
-        'a: 'd,
-        'b: 'd,
-        'c: 'd,
-        Self: 'd;
+    /// Backends that run tasks locally or from a shared file system will return
+    /// `true`.
+    fn needs_local_inputs(&self) -> bool;
 
     /// Spawns a task with the execution backend.
     ///
-    /// Returns the task execution event receives upon success.
+    /// Returns a oneshot receiver for awaiting the completion of the task.
     fn spawn(
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<TaskExecutionEvents>;
+    ) -> Result<Receiver<Result<TaskExecutionResult>>>;
 
-    /// Performs cleanup operations after top-level workflow or task evaluation
-    /// completes.
+    /// Performs cleanup operations after task execution completes.
     ///
     /// Returns `None` if no cleanup is required.
-    fn cleanup<'a, 'b, 'c>(
+    fn cleanup<'a>(
         &'a self,
-        _output_dir: &'b Path,
-        _token: CancellationToken,
-    ) -> Option<BoxFuture<'c, ()>>
-    where
-        'a: 'c,
-        'b: 'c,
-        Self: 'c,
-    {
+        work_dir: &'a EvaluationPath,
+        token: CancellationToken,
+    ) -> Option<BoxFuture<'a, ()>> {
+        let _ = work_dir;
+        let _ = token;
         None
     }
 }
@@ -282,10 +312,7 @@ trait TaskManagerRequest: Send + Sync + 'static {
     fn memory(&self) -> u64;
 
     /// Runs the request.
-    fn run(
-        self,
-        spawned: oneshot::Sender<()>,
-    ) -> impl Future<Output = Result<TaskExecutionResult>> + Send;
+    fn run(self) -> impl Future<Output = Result<TaskExecutionResult>> + Send;
 }
 
 /// Represents a response internal to the task manager.
@@ -309,11 +336,7 @@ struct TaskManagerState<Req> {
     /// The set of spawned tasks.
     spawned: JoinSet<TaskManagerResponse>,
     /// The queue of parked spawn requests.
-    parked: VecDeque<(
-        Req,
-        oneshot::Sender<()>,
-        oneshot::Sender<Result<TaskExecutionResult>>,
-    )>,
+    parked: VecDeque<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManagerState<Req> {
@@ -334,13 +357,10 @@ impl<Req> TaskManagerState<Req> {
 }
 
 /// Responsible for managing tasks based on available host resources.
+#[derive(Debug)]
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
-    tx: mpsc::UnboundedSender<(
-        Req,
-        oneshot::Sender<()>,
-        oneshot::Sender<Result<TaskExecutionResult>>,
-    )>,
+    tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManager<Req>
@@ -366,22 +386,13 @@ where
     }
 
     /// Sends a request to the task manager's queue.
-    fn send(
-        &self,
-        request: Req,
-        spawned: oneshot::Sender<()>,
-        completed: oneshot::Sender<Result<TaskExecutionResult>>,
-    ) {
-        self.tx.send((request, spawned, completed)).ok();
+    fn send(&self, request: Req, completed: oneshot::Sender<Result<TaskExecutionResult>>) {
+        self.tx.send((request, completed)).ok();
     }
 
     /// Runs the request queue.
     async fn run_request_queue(
-        mut rx: mpsc::UnboundedReceiver<(
-            Req,
-            oneshot::Sender<()>,
-            oneshot::Sender<Result<TaskExecutionResult>>,
-        )>,
+        mut rx: mpsc::UnboundedReceiver<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
         cpu: u64,
         max_cpu: u64,
         memory: u64,
@@ -397,10 +408,8 @@ where
                     "there can't be any parked requests if there are no spawned tasks"
                 );
                 match rx.recv().await {
-                    Some((req, spawned, completed)) => {
-                        Self::handle_spawn_request(
-                            &mut state, max_cpu, max_memory, req, spawned, completed,
-                        );
+                    Some((req, completed)) => {
+                        Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, completed);
                         continue;
                     }
                     None => break,
@@ -411,8 +420,8 @@ where
             tokio::select! {
                 request = rx.recv() => {
                     match request {
-                        Some((req, spawned, completed)) => {
-                            Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, spawned, completed);
+                        Some((req, completed)) => {
+                            Self::handle_spawn_request(&mut state, max_cpu, max_memory, req, completed);
                         }
                         None => break,
                     }
@@ -437,7 +446,6 @@ where
         max_cpu: u64,
         max_memory: u64,
         request: Req,
-        spawned: oneshot::Sender<()>,
         completed: oneshot::Sender<Result<TaskExecutionResult>>,
     ) {
         // Ensure the request does not exceed the maximum CPU
@@ -476,7 +484,7 @@ where
                     cpu_remaining = state.cpu,
                     memory_remaining = state.memory
                 );
-                state.parked.push_back((request, spawned, completed));
+                state.parked.push_back((request, completed));
                 return;
             }
 
@@ -494,7 +502,7 @@ where
             TaskManagerResponse {
                 cpu: request.cpu(),
                 memory: request.memory(),
-                result: request.run(spawned).await,
+                result: request.run().await,
                 tx: completed,
             }
         });
@@ -588,7 +596,7 @@ where
                 "expected the fit tasks to be at the front of the queue"
             );
             for _ in range {
-                let (request, spawned, completed) = state.parked.pop_front().unwrap();
+                let (request, completed) = state.parked.pop_front().unwrap();
 
                 debug!(
                     "unparking task with reservation of {cpu} CPU(s) and {memory} bytes of memory",
@@ -596,7 +604,7 @@ where
                     memory = request.memory(),
                 );
 
-                Self::handle_spawn_request(state, max_cpu, max_memory, request, spawned, completed);
+                Self::handle_spawn_request(state, max_cpu, max_memory, request, completed);
             }
         }
     }
