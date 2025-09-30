@@ -5,8 +5,8 @@ Community contributions rock and we are psyched you're reading this document!
 ## Quick links
 
 - Bug reports go [here][issues]
-- Feature requests are welcome and go [here](https://github.com/stjude-rust-labs/wdl/discussions/categories/feature-requests)
-- Lint rule proposals go [here](https://github.com/stjude-rust-labs/wdl/discussions/categories/rule-proposals)
+- Feature requests are welcome and go [here](https://github.com/stjude-rust-labs/sprocket/discussions/categories/feature-requests)
+- Lint rule proposals go [here](https://github.com/stjude-rust-labs/sprocket/discussions/categories/rule-proposals)
 
 ## How can I start contributing?
 
@@ -14,17 +14,17 @@ Community contributions rock and we are psyched you're reading this document!
 
 Sure!
 
-You can always open a [discussion](https://github.com/stjude-rust-labs/wdl/discussions/categories/rule-proposals) with a proposal for a new lint rule or other enhancement as well contributing to any open discussions. Ensure that you provide a clear and concise title and description of the desired addition. For lint rules in particular, WDL examples and/or links to the relevant portion of the WDL spec are extremely useful.
+You can always open a [discussion](https://github.com/stjude-rust-labs/sprocket/discussions/categories/rule-proposals) with a proposal for a new lint rule or other enhancement as well contributing to any open discussions. Ensure that you provide a clear and concise title and description of the desired addition. For lint rules in particular, WDL examples and/or links to the relevant portion of the WDL spec are extremely useful.
 
 We also welcome bug reports. If you discover a flaw in our codebase, please review the list of open issues to ensure that it is not a duplicate. Please also attempt to debug the issue locally and ensure that it is not a configuration issue. Once you have done both, please file a new issue providing the relevant information in the issue. Please provide the exact steps to reproduce the problem, specific example(s) that demonstrate the steps, and the behavior you observe as well as the behavior you expected to observe. For terminal-based use cases, a copy and paste of the command and error log (please use markdown formatting appropriately) is preferred. For interactive use cases (such as the VSCode extension), screenshots and/or GIFs are welcome ways to provide additional information to maintainers.
 
-We also appreciate feedback on our documentation. Feel free to look over any of our `*.md` files and note any issues you find. You can also explore our lint rule documentation by [installing `sprocket`](https://stjude-rust-labs.github.io/sprocket/installation.html) and reading the output of `sprocket explain`. (n.b.: we hope to replace `sprocket explain` with a website where each rule will have a dedicated page, but that has not been realized yet).
+We also appreciate feedback on our documentation. Feel free to look over any of our `*.md` files and note any issues you find. You can also explore our lint rule documentation by [installing `sprocket`](https://sprocket.bio/installation.html) and reading the output of `sprocket explain`. (n.b.: we hope to replace `sprocket explain` with a website where each rule will have a dedicated page, but that has not been realized yet).
 
 The maintainers reserve the right to close issues and discussions as deemed necessary as well as to delete comments and interactions within the repository.
 
 ### Your first code contribution
 
-We encourage you to reach out to the core team prior to writing up a pull request. **This is to ensure there isn't any wasted effort or duplication of work caused by miscommunication. Failure to do so may result in the rejection of the pull request.** You can get in touch with us via the [issues][issues] or hop over to the [discussions](https://github.com/stjude-rust-labs/wdl/discussions). We are also active on the [openwdl Slack workspace](https://openwdl.slack.com). (Discussion about this repo best belongs in the #sprocket channel 😃)
+We encourage you to reach out to the core team prior to writing up a pull request. **This is to ensure there isn't any wasted effort or duplication of work caused by miscommunication. Failure to do so may result in the rejection of the pull request.** You can get in touch with us via the [issues][issues] or hop over to the [discussions](https://github.com/stjude-rust-labs/sprocket/discussions). We are also active on the [openwdl Slack workspace](https://openwdl.slack.com). (Discussion about this repo best belongs in the #sprocket channel 😃)
 
 We encourage contributors to comment on open issues that they intend to work on to help avoid duplication of effort. If multiple individuals are interested in solving the same issue, we recommend reaching out to one another to gauge if there is potential for a collaboration.
 
@@ -63,13 +63,13 @@ We will try to keep a handful of [issues][issues] marked `good first issue` open
 
 ### What is gauntlet?
 
-[Gauntlet](https://github.com/stjude-rust-labs/wdl/tree/main/gauntlet) is the main driver of our CI. Take a look at the file [`Gauntlet.toml`](https://github.com/stjude-rust-labs/wdl/blob/main/Gauntlet.toml). The entries at the top are all GitHub repositories of WDL code. The remaining entries are diagnostics emitted while analyzing those repositories. These should remain relatively static between PRs, and any change in emitted diagnostics should be reviewed carefully.
+[Gauntlet](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/gauntlet) is the main driver of our CI. Take a look at the file [`Gauntlet.toml`](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/gauntlet/Gauntlet.toml). The entries at the top are all GitHub repositories of WDL code. The remaining entries are diagnostics emitted while analyzing those repositories. These should remain relatively static between PRs, and any change in emitted diagnostics should be reviewed carefully.
 
 In order to turn the Gauntlet CI green, run `cargo run --release --bin gauntlet -- --bless`. The `--bless` flag will save any changes to the `Gauntlet.toml` file. This should then be committed and included in your PR.
 
 ### What is arena?
 
-Arena is the alternate run mode of `gauntlet`. [`Arena.toml`](https://github.com/stjude-rust-labs/wdl/blob/main/Arena.toml) is very similar to `Gauntlet.toml`, except it has fewer repository entries and instead of analysis diagnostics it contains only lint diagnostics (which are not included in `Gauntlet.toml`).
+Arena is the alternate run mode of `gauntlet`. [`Arena.toml`](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/gunatlet/Arena.toml) is very similar to `Gauntlet.toml`, except it has fewer repository entries and instead of analysis diagnostics it contains only lint diagnostics (which are not included in `Gauntlet.toml`).
 
 In order to turn the Arena CI green, run `cargo run --release --bin gauntlet -- --arena --bless`. The `--bless` flag (in conjunction with the `--arena` flag) will save any changes to the `Arena.toml` file. This should then be committed and included in your PR.
 
@@ -132,10 +132,10 @@ When deciding which rules should link to which other rules, please consider thes
 
 ## Further reading
 
-* `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/wdl/blob/wdl-v0.8.0/wdl-ast/src/validation.rs#L50).
+* `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/sprocket/blob/129fe020c78ecdac7dc3ad1f1cec686eb3634117/crates/wdl-analysis/src/validation.rs#L44).
 * See [here](https://docs.rs/wdl/latest/wdl/grammar/type.SyntaxNode.html) for the `SyntaxNode` docs.
 * The PR which introduced `exceptable_nodes()` and `exceptable_add()` is [#162](https://github.com/stjude-rust-labs/wdl/pull/162).
 * That PR fixed issue [#135](https://github.com/stjude-rust-labs/wdl/issues/135)
 * The PR which introduced `related_rules()` is [#371](https://github.com/stjude-rust-labs/wdl/pull/371)
 
-[issues]: https://github.com/stjude-rust-labs/wdl/issues
+[issues]: https://github.com/stjude-rust-labs/sprocket/issues
