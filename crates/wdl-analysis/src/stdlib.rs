@@ -1824,29 +1824,29 @@ workflow test_min {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Integer, "the first number to compare.",)
-                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
+                        .parameter("a", PrimitiveType::Integer, "The first number to compare.",)
+                        .parameter("b", PrimitiveType::Integer, "The second number to compare.",)
                         .ret(PrimitiveType::Integer)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Integer, "the first number to compare.",)
-                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
+                        .parameter("a", PrimitiveType::Integer, "The first number to compare.",)
+                        .parameter("b", PrimitiveType::Float, "The second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
+                        .parameter("a", PrimitiveType::Float, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Integer, "The second number to compare.",)
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
+                        .parameter("a", PrimitiveType::Float, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "The second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MIN_DEFINITION)
                         .build(),
@@ -1894,29 +1894,29 @@ workflow test_max {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Integer, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Integer, "the second number to compare.")
+                        .parameter("a", PrimitiveType::Integer, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Integer, "The second number to compare.")
                         .ret(PrimitiveType::Integer)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Integer, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
+                        .parameter("a", PrimitiveType::Integer, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "The second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Integer, "the second number to compare.",)
+                        .parameter("a", PrimitiveType::Float, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Integer, "The second number to compare.",)
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .parameter("a", PrimitiveType::Float, "the first number to compare.")
-                        .parameter("b", PrimitiveType::Float, "the second number to compare.")
+                        .parameter("a", PrimitiveType::Float, "The first number to compare.")
+                        .parameter("b", PrimitiveType::Float, "The second number to compare.")
                         .ret(PrimitiveType::Float)
                         .definition(MAX_DEFINITION)
                         .build(),
@@ -1934,8 +1934,8 @@ workflow test_max {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("input", PrimitiveType::String, "the input string to search.")
-                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
+                        .parameter("input", PrimitiveType::String, "The input string to search.")
+                        .parameter("pattern", PrimitiveType::String, "The pattern to search for.")
                         .ret(Type::from(PrimitiveType::String).optional())
                         .definition(
                             r#"
@@ -1987,8 +1987,8 @@ workflow find_string {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .parameter("input", PrimitiveType::String, "the input string to search.")
-                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
+                        .parameter("input", PrimitiveType::String, "The input string to search.")
+                        .parameter("pattern", PrimitiveType::String, "The pattern to search for.")
                         .ret(PrimitiveType::Boolean)
                         .definition(
                             r#"
@@ -2043,9 +2043,9 @@ workflow contains_string {
                 "sub",
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
-                        .parameter("input", PrimitiveType::String, "the input string.")
-                        .parameter("pattern", PrimitiveType::String, "the pattern to search for.")
-                        .parameter("replace", PrimitiveType::String, "the replacement string.")
+                        .parameter("input", PrimitiveType::String, "The input string.")
+                        .parameter("pattern", PrimitiveType::String, "The pattern to search for.")
+                        .parameter("replace", PrimitiveType::String, "The replacement string.")
                         .ret(PrimitiveType::String)
                         .definition(
                             r#"
@@ -4117,12 +4117,12 @@ task unzip {
                         .parameter(
                             "array",
                             GenericArrayType::new(GenericType::Parameter("P")),
-                            "an array of any primitive type.",
+                            "An array of any primitive type.",
                         )
                         .parameter(
                             "value",
                             GenericType::Parameter("P"),
-                            "a primitive value of the same type as the array. If the array's \
+                            "A primitive value of the same type as the array. If the array's \
                              type is optional, then the value may also be optional.",
                         )
                         .ret(PrimitiveType::Boolean)
@@ -4827,7 +4827,7 @@ task collect_by_key {
                         .parameter(
                             "value",
                             GenericType::Parameter("X"),
-                            "optional value of any type."
+                            "Optional value of any type."
                         )
                         .ret(PrimitiveType::Boolean)
                         .definition(
