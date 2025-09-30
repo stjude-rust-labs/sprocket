@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added support for accepting input file paths by URL (#[386](https://github.com/stjude-rust-labs/sprocket/pull/386)).
+
 ## 0.6.1 - 09-17-2025
 
 #### Dependencies
