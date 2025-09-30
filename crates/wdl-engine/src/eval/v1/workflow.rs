@@ -994,7 +994,34 @@ impl WorkflowEvaluator {
 
         // Either use the specified input or evaluate the input's expression
         let (value, span) = match state.inputs.get(name.text()) {
-            Some(input) => (input.clone(), name.span()),
+            Some(input) => {
+                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // will invoke the default expression
+                if input.is_none()
+                    && !expected_ty.is_optional()
+                    && state
+                        .document
+                        .version()
+                        .map(|v| v >= SupportedVersion::V1(V1::Two))
+                        .unwrap_or(false)
+                    && let Some(expr) = decl.expr()
+                {
+                    debug!(
+                        workflow_id = id,
+                        workflow_name = state.document.workflow().unwrap().name(),
+                        document = state.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression",
+                    );
+
+                    (
+                        Self::evaluate_expr(state, Scopes::ROOT_INDEX, &expr).await?,
+                        expr.span(),
+                    )
+                } else {
+                    (input.clone(), name.span())
+                }
+            }
             None => {
                 if let Some(expr) = expr {
                     debug!(
@@ -1002,7 +1029,7 @@ impl WorkflowEvaluator {
                         workflow_name = state.document.workflow().unwrap().name(),
                         document = state.document.uri().as_str(),
                         input_name = name.text(),
-                        "evaluating input",
+                        "evaluating input default expression",
                     );
 
                     (

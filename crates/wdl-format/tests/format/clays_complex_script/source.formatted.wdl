@@ -162,7 +162,9 @@ workflow hello {
     }
 
     scatter (name in name_array) {
-        call say_task { greeting = greeting }
+        call say_task {
+            greeting = greeting,
+        }
     }
 
     if (some_condition_task) {

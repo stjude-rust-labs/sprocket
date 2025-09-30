@@ -28,6 +28,7 @@ pub struct Args {
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
+        hide_possible_values = true,
     )]
     pub except: Vec<String>,
 }

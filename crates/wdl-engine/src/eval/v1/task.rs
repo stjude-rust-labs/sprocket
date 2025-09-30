@@ -1126,11 +1126,40 @@ impl TaskEvaluator {
     ) -> Result<(), Diagnostic> {
         let name = decl.name();
         let decl_ty = decl.ty();
-        let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
+        let expected_ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
 
         // Evaluate the input if not provided one
         let (value, span) = match inputs.get(name.text()) {
-            Some(input) => (input.clone(), name.span()),
+            Some(input) => {
+                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // will invoke the default expression
+                if input.is_none()
+                    && !expected_ty.is_optional()
+                    && state
+                        .document
+                        .version()
+                        .map(|v| v >= SupportedVersion::V1(V1::Two))
+                        .unwrap_or(false)
+                    && let Some(expr) = decl.expr()
+                {
+                    debug!(
+                        task_id = id,
+                        task_name = state.task.name(),
+                        document = state.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression"
+                    );
+
+                    let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
+                        state,
+                        self.transferer.as_ref(),
+                        ROOT_SCOPE_INDEX,
+                    ));
+                    (evaluator.evaluate_expr(&expr).await?, expr.span())
+                } else {
+                    (input.clone(), name.span())
+                }
+            }
             None => match decl.expr() {
                 Some(expr) => {
                     debug!(
@@ -1138,7 +1167,7 @@ impl TaskEvaluator {
                         task_name = state.task.name(),
                         document = state.document.uri().as_str(),
                         input_name = name.text(),
-                        "evaluating input"
+                        "evaluating input default expression"
                     );
 
                     let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
@@ -1149,8 +1178,8 @@ impl TaskEvaluator {
                     (evaluator.evaluate_expr(&expr).await?, expr.span())
                 }
                 _ => {
-                    assert!(ty.is_optional(), "type should be optional");
-                    (Value::new_none(ty.clone()), name.span())
+                    assert!(expected_ty.is_optional(), "type should be optional");
+                    (Value::new_none(expected_ty.clone()), name.span())
                 }
             },
         };
@@ -1163,9 +1192,9 @@ impl TaskEvaluator {
                     self.transferer.as_ref(),
                     ROOT_SCOPE_INDEX,
                 )),
-                &ty,
+                &expected_ty,
             )
-            .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), span))?;
+            .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
 
         // Add any file or directory backend inputs
         state

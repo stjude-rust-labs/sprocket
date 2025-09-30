@@ -1,1 +1,1 @@
-format --overwrite file.wdl 
+format overwrite file.wdl 

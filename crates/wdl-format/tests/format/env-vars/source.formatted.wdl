@@ -19,7 +19,9 @@ workflow environment_variable_should_echo {
         String greeting
     }
 
-    call test { greeting }
+    call test {
+        greeting,
+    }
 
     output {
         String out = test.out

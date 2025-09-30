@@ -62,7 +62,7 @@ pub struct Common {
     /// default set.
     ///
     /// `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in
-    /// conjuction with this argument.
+    /// conjunction with this argument.
     #[clap(short, long, conflicts_with_all = ["only_lint_tag"])]
     pub all_lint_rules: bool,
 
