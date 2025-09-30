@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* `sprocket inputs` now correctly handles empty and interpolated String values ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
+
 ### Changed
 
 * `format` subcommand has been re-implemented with a new CL API ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
