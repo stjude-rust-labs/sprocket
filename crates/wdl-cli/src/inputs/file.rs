@@ -119,11 +119,11 @@ impl InputFile {
                     _ => return Err(Error::UnsupportedFileExt(path.clone())),
                 };
 
-                let origin = absolute(local).map_err(|e| Error::Io {
+                let absolute = absolute(local).map_err(|e| Error::Io {
                     path: path.clone(),
                     error: e,
                 })?;
-                let origin = if let Some(parent) = origin.parent() {
+                let origin = if let Some(parent) = absolute.parent() {
                     parent.to_path_buf()
                 } else {
                     origin
