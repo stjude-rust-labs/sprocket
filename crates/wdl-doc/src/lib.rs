@@ -185,10 +185,11 @@ pub(crate) fn full_page<P: AsRef<Path>>(
     body: Markup,
     root: P,
     script: &AdditionalScript,
+    init_light_mode: bool,
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data x-bind:class="localStorage.getItem('theme') === 'light' ? 'light' : ''" x-cloak {
+        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: 'dark' }" }) x-bind:class="localStorage.getItem('theme') === 'light' ? 'light' : DEFAULT_THEME" x-cloak {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {
@@ -377,6 +378,8 @@ pub struct Config {
     output_dir: PathBuf,
     /// An optional markdown file to embed in the homepage.
     homepage: Option<PathBuf>,
+    /// Initialize pages in light mode instead of the default dark mode.
+    init_light_mode: bool,
     /// An optional custom theme directory.
     custom_theme: Option<PathBuf>,
     /// An optional custom logo to embed in the left sidebar.
@@ -403,6 +406,7 @@ impl Config {
             workspace: workspace.into(),
             output_dir: output_dir.into(),
             homepage: None,
+            init_light_mode: false,
             custom_theme: None,
             custom_logo: None,
             alt_logo: None,
@@ -414,6 +418,12 @@ impl Config {
     /// Overwrite the config's homepage with the new value.
     pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
         self.homepage = homepage;
+        self
+    }
+
+    /// Overwrite the config's light mode default with the new value.
+    pub fn init_light_mode(mut self, init_light_mode: bool) -> Self {
+        self.init_light_mode = init_light_mode;
         self
     }
 
@@ -500,6 +510,7 @@ pub async fn document_workspace(config: Config) -> Result<()> {
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_homepage(homepage)
+        .init_light_mode(config.init_light_mode)
         .maybe_custom_theme(config.custom_theme)?
         .maybe_logo(config.custom_logo)
         .maybe_alt_logo(config.alt_logo)

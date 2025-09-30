@@ -38,6 +38,9 @@ pub struct Args {
     /// supplied, the default Sprocket logo will be used.
     #[arg(short, long, value_name = "SVG FILE")]
     pub alt_light_logo: Option<PathBuf>,
+    /// Initialize pages in light mode instead of the default dark mode.
+    #[arg(short, long)]
+    pub light_mode: bool,
     /// Initialize pages on the "Workflows" view instead of the "Full
     /// Directory" view of the left nav bar.
     #[arg(long)]
@@ -173,6 +176,7 @@ pub async fn doc(args: Args) -> Result<()> {
         .with_diagnostics_config(DiagnosticsConfig::except_all());
     let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
+        .init_light_mode(args.light_mode)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
         .additional_javascript(addl_js)

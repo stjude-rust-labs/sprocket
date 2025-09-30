@@ -236,6 +236,8 @@ pub struct DocsTreeBuilder {
     ///
     /// Users can toggle the view. This only impacts the initialized value.
     init_on_full_directory: bool,
+    /// Start in light mode instead of the default dark mode.
+    init_light_mode: bool,
 }
 
 impl DocsTreeBuilder {
@@ -252,6 +254,7 @@ impl DocsTreeBuilder {
             alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
+            init_light_mode: false,
         }
     }
 
@@ -326,6 +329,12 @@ impl DocsTreeBuilder {
         self
     }
 
+    /// Set whether light mode should be the initial view instead of dark mode.
+    pub fn init_light_mode(mut self, init_light_mode: bool) -> Self {
+        self.init_light_mode = init_light_mode;
+        self
+    }
+
     /// Build the docs tree.
     pub fn build(self) -> Result<DocsTree> {
         self.write_assets().with_context(|| {
@@ -348,6 +357,7 @@ impl DocsTreeBuilder {
             homepage: self.homepage,
             additional_javascript: self.additional_javascript,
             init_on_full_directory: self.init_on_full_directory,
+            init_light_mode: self.init_light_mode,
         })
     }
 
@@ -504,6 +514,8 @@ pub struct DocsTree {
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
     /// view of the left sidebar.
     init_on_full_directory: bool,
+    /// Initialize in light mode instead of the default dark mode.
+    init_light_mode: bool,
 }
 
 impl DocsTree {
@@ -1235,6 +1247,7 @@ impl DocsTree {
             ),
             self.root().path(),
             &self.additional_javascript,
+            self.init_light_mode,
         );
         std::fs::write(&index_path, html.into_string())
             .with_context(|| format!("failed to write homepage to `{}`", index_path.display()))?;
@@ -1365,6 +1378,7 @@ impl DocsTree {
             ),
             self.root_relative_to(base),
             &self.additional_javascript,
+            self.init_light_mode,
         );
         std::fs::write(&path, html.into_string())
             .with_context(|| format!("failed to write page at `{}`", path.display()))?;
