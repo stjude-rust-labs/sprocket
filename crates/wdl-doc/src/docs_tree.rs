@@ -1237,7 +1237,7 @@ impl DocsTree {
                                 (self.render_sidebar_control_buttons(assets))
                             }
                             div class="flex flex-row-reverse items-start justify-between" {
-                                button 
+                                button
                                 x-on:click="
                                 document.documentElement.classList.toggle('light')
                                 localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
