@@ -286,6 +286,8 @@ mod tests {
 
     #[tokio::test]
     async fn read_remote() {
+        // The URL is a gist of `fixtures/inputs_one.json`
+        // Create a new gist and substitute it here if the file contents need to change
         let inputs = InputFile::read(&"https://gist.githubusercontent.com/peterhuene/9990b86bf0c419e144326b0276bf6f14/raw/d4116ef8888ccd78e2967d7ad32e1aeb3e4ab734/inputs.json".parse().unwrap())
             .await
             .unwrap();
