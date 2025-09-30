@@ -222,7 +222,7 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(
-            err.to_string(),
+            err.to_string().replace("\\", "/"),
             "input file `tests/fixtures/nonmap_inputs.json` did not contain a map from strings to \
              values at the root"
         );
@@ -232,7 +232,7 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(
-            err.to_string(),
+            err.to_string().replace("\\", "/"),
             "input file `tests/fixtures/nonmap_inputs.yml` did not contain a map from strings to \
              values at the root"
         );
@@ -244,7 +244,7 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(
-            err.to_string(),
+            err.to_string().replace("\\", "/"),
             "unsupported input file `tests/fixtures/missing_ext`: the supported formats are JSON \
              (`.json`) or YAML (`.yaml` and `.yml`)"
         );
@@ -306,5 +306,16 @@ mod tests {
         let (origin, value) = &inner["quux"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "qil");
+    }
+
+    #[tokio::test]
+    async fn read_remote_missing() {
+        let err = InputFile::read(&"https://example.com/not-a-file.json".parse().unwrap())
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err.to_string().replace("\\", "/"),
+            "failed to read input file `https://example.com/not-a-file.json`: HTTP status client error (404 Not Found) for url (https://example.com/not-a-file.json)"
+        );
     }
 }

@@ -383,14 +383,14 @@ mod tests {
         let input = "./tests/fixtures/inputs_one.json".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap() == "tests/fixtures/inputs_one.json"
+            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_one.json"
         ));
 
         // A valid YAML file path.
         let input = "tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap() == "tests/fixtures/inputs_three.yml"
+            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
         ));
 
         // A missing file path.
@@ -398,7 +398,7 @@ mod tests {
             .parse::<Input>()
             .unwrap_err();
         assert_eq!(
-            err.to_string(),
+            err.to_string().replace("\\", "/"),
             "input file `tests/fixtures/missing.json` was not found"
         );
     }
@@ -537,7 +537,7 @@ mod tests {
         .await
         .unwrap_err();
         assert_eq!(
-            error.to_string(),
+            error.to_string().replace("\\", "/"),
             "input file `tests/fixtures/missing.json` was not found"
         );
     }
