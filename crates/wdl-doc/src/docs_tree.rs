@@ -26,8 +26,12 @@ use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
 
-/// Filename for the logo SVG expected to be in the "assets" directory.
+/// Filename for the dark theme logo SVG expected to be in the "assets"
+/// directory.
 const LOGO_FILE_NAME: &str = "logo.svg";
+/// Filename for the light theme logo SVG expected to be in the "assets"
+/// directory.
+const LIGHT_LOGO_FILE_NAME: &str = "logo.light.svg";
 
 /// The type of a page.
 #[derive(Debug)]
@@ -216,8 +220,14 @@ pub struct DocsTreeBuilder {
     homepage: Option<PathBuf>,
     /// An optional path to a custom theme to use for the docs.
     custom_theme: Option<PathBuf>,
-    /// The path to a custom logo to embed at the top of the left sidebar.
+    /// The path to a custom dark theme logo to embed at the top of the left
+    /// sidebar.
+    ///
+    /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used for both dark and light themes.
     logo: Option<PathBuf>,
+    /// The path to an alternate light theme custom logo to embed at the top of
+    /// the left sidebar.
+    alt_logo: Option<PathBuf>,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Start on the "Full Directory" left sidebar view instead of the
@@ -238,6 +248,7 @@ impl DocsTreeBuilder {
             homepage: None,
             custom_theme: None,
             logo: None,
+            alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
         }
@@ -287,6 +298,17 @@ impl DocsTreeBuilder {
     /// Set the custom logo for the left sidebar.
     pub fn logo(self, logo: impl Into<PathBuf>) -> Self {
         self.maybe_logo(Some(logo))
+    }
+
+    /// Set the alt (i.e. light mode) custom logo for the left sidebar with an option.
+    pub fn maybe_alt_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
+        self.alt_logo = logo.map(|l| l.into());
+        self
+    }
+
+    /// Set the alt (i.e. light mode) custom logo for the left sidebar.
+    pub fn alt_logo(self, logo: impl Into<PathBuf>) -> Self {
+        self.maybe_alt_logo(Some(logo))
     }
 
     /// Set the additional javascript for each page.
@@ -399,15 +421,64 @@ impl DocsTreeBuilder {
             std::fs::write(&path, bytes)
                 .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
         }
-        if let Some(supplied_logo) = &self.logo {
-            let logo_path = assets_dir.join(LOGO_FILE_NAME);
-            std::fs::copy(supplied_logo, &logo_path).with_context(|| {
-                format!(
-                    "failed to copy custom logo from `{}` to `{}`",
-                    supplied_logo.display(),
-                    logo_path.display()
-                )
-            })?;
+        // The above `get_assets()` call will write the default logos; then the
+        // following logic may overwrite those files with user supplied logos.
+        match (&self.logo, &self.alt_logo) {
+            (Some(dark_logo), Some(light_logo)) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(dark_logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy dark theme custom logo from `{}` to `{}`",
+                        dark_logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(light_logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy light theme custom logo from `{}` to `{}`",
+                        light_logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (Some(logo), None) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (None, Some(logo)) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (None, None) => {}
         }
 
         Ok(())
@@ -919,7 +990,8 @@ impl DocsTree {
                 // top navbar
                 div class="sticky px-4" {
                     a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8" alt="Logo";
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
+                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
                     div class="relative w-full h-10" {
                         input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";

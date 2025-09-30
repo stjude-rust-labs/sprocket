@@ -381,6 +381,8 @@ pub struct Config {
     custom_theme: Option<PathBuf>,
     /// An optional custom logo to embed in the left sidebar.
     custom_logo: Option<PathBuf>,
+    /// An optional alternate (light mode) custom logo to embed in the left sidebar.
+    alt_logo: Option<PathBuf>,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
@@ -402,6 +404,7 @@ impl Config {
             homepage: None,
             custom_theme: None,
             custom_logo: None,
+            alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: PREFER_FULL_DIRECTORY,
         }
@@ -422,6 +425,12 @@ impl Config {
     /// Overwrite the config's custom logo with the new value.
     pub fn custom_logo(mut self, custom_logo: Option<PathBuf>) -> Self {
         self.custom_logo = custom_logo;
+        self
+    }
+
+    /// Overwrite the config's alternate logo with the new value.
+    pub fn alt_logo(mut self, alt_logo: Option<PathBuf>) -> Self {
+        self.alt_logo = alt_logo;
         self
     }
 
@@ -492,6 +501,7 @@ pub async fn document_workspace(config: Config) -> Result<()> {
         .maybe_homepage(homepage)
         .maybe_custom_theme(config.custom_theme)?
         .maybe_logo(config.custom_logo)
+        .maybe_alt_logo(config.alt_logo)
         .additional_javascript(config.additional_javascript)
         .prefer_full_directory(config.init_on_full_directory)
         .build()
