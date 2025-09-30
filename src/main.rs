@@ -76,7 +76,10 @@ pub async fn inner() -> anyhow::Result<()> {
         }
     };
 
-    let config = Config::new(cli.config.iter().map(PathBuf::as_path), cli.skip_config_search)?;
+    let config = Config::new(
+        cli.config.iter().map(PathBuf::as_path),
+        cli.skip_config_search,
+    )?;
     config
         .validate()
         .with_context(|| "validating provided configuration")?;
