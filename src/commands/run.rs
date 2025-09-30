@@ -35,6 +35,7 @@ use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::SecretString;
+use wdl::engine::path::EvaluationPath;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -469,6 +470,7 @@ pub async fn run(args: Args) -> Result<()> {
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
     let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+        .await
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
@@ -481,8 +483,9 @@ pub async fn run(args: Args) -> Result<()> {
         inputs
     } else {
         // No inputs were provided
-        let origins =
-            OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
+        let origins = OriginPaths::Single(EvaluationPath::Local(
+            std::env::current_dir().context("failed to get current directory")?,
+        ));
 
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {
