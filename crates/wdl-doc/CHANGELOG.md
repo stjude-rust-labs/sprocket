@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed a panic on empty metadata string evaluation ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
+
 ## 0.8.0 - 09-15-2025
 
 #### Changed

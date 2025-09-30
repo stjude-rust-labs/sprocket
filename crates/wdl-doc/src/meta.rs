@@ -50,8 +50,7 @@ impl MetaMapExt for MetaMap {
             .get(DESCRIPTION_KEY)
             .map(|v| match v {
                 MetadataValue::String(s) => {
-                    let t = s.text().expect("meta string should not be interpolated");
-                    t.text().to_string()
+                    s.text().map(|t| t.text().to_string()).unwrap_or_default()
                 }
                 _ => "ERROR: description not of type String".to_string(),
             })
@@ -201,7 +200,7 @@ fn render_key_value(key: &str, value: &MetadataValue) -> Markup {
     let (ty, rhs_markup) = match value {
         MetadataValue::String(s) => (
             s.inner().kind(),
-            html! { code { (s.text().expect("meta string should not be interpolated").text()) } },
+            html! { code { (s.text().map(|t| t.text().to_string()).unwrap_or_default()) } },
         ),
         MetadataValue::Boolean(b) => (b.inner().kind(), html! { code { (b.text()) } }),
         MetadataValue::Integer(i) => (i.inner().kind(), html! { code { (i.text()) } }),
