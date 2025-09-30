@@ -381,7 +381,8 @@ pub struct Config {
     custom_theme: Option<PathBuf>,
     /// An optional custom logo to embed in the left sidebar.
     custom_logo: Option<PathBuf>,
-    /// An optional alternate (light mode) custom logo to embed in the left sidebar.
+    /// An optional alternate (light mode) custom logo to embed in the left
+    /// sidebar.
     alt_logo: Option<PathBuf>,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,

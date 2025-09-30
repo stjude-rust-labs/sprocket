@@ -223,7 +223,8 @@ pub struct DocsTreeBuilder {
     /// The path to a custom dark theme logo to embed at the top of the left
     /// sidebar.
     ///
-    /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used for both dark and light themes.
+    /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used
+    /// for both dark and light themes.
     logo: Option<PathBuf>,
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
@@ -300,7 +301,8 @@ impl DocsTreeBuilder {
         self.maybe_logo(Some(logo))
     }
 
-    /// Set the alt (i.e. light mode) custom logo for the left sidebar with an option.
+    /// Set the alt (i.e. light mode) custom logo for the left sidebar with an
+    /// option.
     pub fn maybe_alt_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
         self.alt_logo = logo.map(|l| l.into());
         self

@@ -34,7 +34,8 @@ pub struct Args {
     pub logo: Option<PathBuf>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
-    /// If not supplied, the `--logo` SVG will be used; or if that is also not supplied, the default Sprocket logo will be used.
+    /// If not supplied, the `--logo` SVG will be used; or if that is also not
+    /// supplied, the default Sprocket logo will be used.
     #[arg(short, long, value_name = "SVG FILE")]
     pub alt_light_logo: Option<PathBuf>,
     /// Initialize pages on the "Workflows" view instead of the "Full
