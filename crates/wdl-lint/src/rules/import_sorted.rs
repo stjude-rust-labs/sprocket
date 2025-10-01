@@ -5,7 +5,6 @@ use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
-use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
@@ -107,12 +106,12 @@ impl Visitor for ImportSortedRule {
                 .expect("import statement")
                 .uri()
                 .text()
-                .expect("import uri");
+                .expect("import uri should not be interpolated");
             let b_uri = ImportStatement::cast(b.clone())
                 .expect("import statement")
                 .uri()
                 .text()
-                .expect("import uri");
+                .expect("import uri should not be interpolated");
             a_uri.text().cmp(b_uri.text())
         });
 

@@ -39,6 +39,8 @@ workflow test {
         Baz baz
         Int? x
         Array[Float] y
+        String empty = ""
+        String interpolated = "weirdly nested string with interpolation: ~{empty}"
     }
 
     call foo as my_call

@@ -1930,6 +1930,35 @@ fn unescape_multiline_string(s: &str) -> String {
     result
 }
 
+/// Represents text of a [`LiteralString`] that contains no placeholders.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LiteralStringText<T: TreeToken = SyntaxToken> {
+    /// The entire string literal is represented with a single token.
+    Token(StringText<T>),
+    /// The string literal is empty.
+    Empty,
+}
+
+impl<T: TreeToken> LiteralStringText<T> {
+    /// Gets the text of the literal string.
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Token(token) => token.text(),
+            Self::Empty => "",
+        }
+    }
+
+    /// Unescapes the literal string text to the given buffer.
+    ///
+    /// If the string text contains invalid escape sequences, they are left
+    /// as-is.
+    pub fn unescape_to(&self, buffer: &mut String) {
+        if let Self::Token(token) = self {
+            token.unescape_to(buffer);
+        }
+    }
+}
+
 /// Represents a literal string.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiteralString<N: TreeNode = SyntaxNode>(pub(super) N);
@@ -1966,21 +1995,17 @@ impl<N: TreeNode> LiteralString<N> {
         self.0.children_with_tokens().filter_map(StringPart::cast)
     }
 
-    /// Gets the string text if the string is not empty and is not interpolated
-    /// (i.e. has no placeholders).
-    ///
-    /// Returns `None` if the string is interpolated, as
-    /// interpolated strings cannot be represented as a single
-    /// span of text.
-    pub fn text(&self) -> Option<StringText<N::Token>> {
+    /// Gets the string text as [`LiteralStringText`] if the string is not
+    /// interpolated (i.e. has no placeholders).
+    pub fn text(&self) -> Option<LiteralStringText<N::Token>> {
         let mut parts = self.parts();
-        if let Some(StringPart::Text(text)) = parts.next()
-            && parts.next().is_none()
-        {
-            return Some(text);
+        match parts.next() {
+            Some(StringPart::Text(part)) if parts.next().is_none() => {
+                Some(LiteralStringText::Token(part))
+            }
+            Some(_) => None,
+            None => Some(LiteralStringText::Empty),
         }
-
-        None
     }
 
     /// Strips leading whitespace from a multi-line string.
@@ -3750,6 +3775,57 @@ task test {
         assert!(!placeholder.has_tilde());
         assert_eq!(placeholder.expr().unwrap_name_ref().name().text(), "second");
         assert_eq!(parts[4].clone().unwrap_text().text(), "\n    ");
+    }
+
+    #[test]
+    fn literal_string_text() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.0
+
+task test {
+    String no_placeholders = "test"
+    String empty = ""
+    String placeholder = "~{empty}"
+}
+"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].name().text(), "test");
+
+        // Task declarations
+        let decls: Vec<_> = tasks[0].declarations().collect();
+        assert_eq!(decls.len(), 3);
+
+        // First declaration
+        assert_eq!(decls[0].ty().to_string(), "String");
+        assert_eq!(decls[0].name().text(), "no_placeholders");
+        let literal_string = decls[0].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_some());
+        let text = text.unwrap();
+        assert_eq!(text.text(), "test");
+
+        // Second declaration
+        assert_eq!(decls[1].ty().to_string(), "String");
+        assert_eq!(decls[1].name().text(), "empty");
+        let literal_string = decls[1].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_some());
+        let text = text.unwrap();
+        assert_eq!(text.text(), "");
+
+        // Third declaration
+        assert_eq!(decls[2].ty().to_string(), "String");
+        assert_eq!(decls[2].name().text(), "placeholder");
+        let literal_string = decls[2].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_none());
     }
 
     #[test]
