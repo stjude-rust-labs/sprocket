@@ -5,7 +5,7 @@ task task_inputs {
     Int i                 # a required input parameter
     String s = "hello"    # an input parameter with a default value
     File? f               # an optional input parameter
-    Directory? d = "/etc" # an optional input parameter with a default value
+    Directory? d = "/tmp" # an optional input parameter with a default value
   }
 
   command <<<

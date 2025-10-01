@@ -1020,6 +1020,8 @@ impl TaskEvaluator {
                     )
                 })?
                 .await
+                // TODO ACF 2025-08-01: this can reasonably hit if a backend error occurs and
+                // shouldn't just be a panic
                 .expect("failed to receive response from spawned task")
                 .map_err(|e| {
                     EvaluationError::new(

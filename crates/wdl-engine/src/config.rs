@@ -18,6 +18,7 @@ use tracing::warn;
 use url::Url;
 
 use crate::DockerBackend;
+use crate::GenericBackend;
 use crate::LocalBackend;
 use crate::LsfApptainerBackend;
 use crate::LsfApptainerBackendConfig;
@@ -306,6 +307,9 @@ impl Config {
                 config.clone(),
                 events,
             ))),
+            BackendConfig::Generic(config) => {
+                Ok(Arc::new(GenericBackend::new(self.clone(), config)?))
+            }
         }
     }
 }
@@ -694,6 +698,8 @@ pub enum BackendConfig {
     ///
     /// Requires enabling experimental features.
     LsfApptainer(Arc<LsfApptainerBackendConfig>),
+    /// Use the generic task execution backend.
+    Generic(GenericBackendConfig),
 }
 
 impl Default for BackendConfig {
@@ -710,6 +716,7 @@ impl BackendConfig {
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
             Self::LsfApptainer(config) => config.validate(engine_config),
+            Self::Generic(config) => config.validate(),
         }
     }
 
@@ -746,7 +753,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::Generic(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -754,7 +761,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::Generic(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }
@@ -788,6 +795,116 @@ pub struct LocalBackendConfig {
 }
 
 impl LocalBackendConfig {
+    /// Validates the local task execution backend configuration.
+    pub fn validate(&self) -> Result<()> {
+        if let Some(cpu) = self.cpu {
+            if cpu == 0 {
+                bail!("local backend configuration value `cpu` cannot be zero");
+            }
+
+            let total = SYSTEM.cpus().len() as u64;
+            if cpu > total {
+                bail!(
+                    "local backend configuration value `cpu` cannot exceed the virtual CPUs \
+                     available to the host ({total})"
+                );
+            }
+        }
+
+        if let Some(memory) = &self.memory {
+            let memory = convert_unit_string(memory).with_context(|| {
+                format!("local backend configuration value `memory` has invalid value `{memory}`")
+            })?;
+
+            if memory == 0 {
+                bail!("local backend configuration value `memory` cannot be zero");
+            }
+
+            let total = SYSTEM.total_memory();
+            if memory > total {
+                bail!(
+                    "local backend configuration value `memory` cannot exceed the total memory of \
+                     the host ({total} bytes)"
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents configuration for the generic task execution backend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct GenericBackendConfig {
+    /// The Crankshaft generic backend config.
+    #[serde(default)]
+    pub backend_config: crankshaft::config::backend::generic::Config,
+    /// Set the number of CPUs available for task execution.
+    ///
+    /// Defaults to the number of logical CPUs for the host.
+    ///
+    /// The value cannot be zero or exceed the host's number of CPUs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu: Option<u64>,
+
+    /// Set the total amount of memory for task execution as a unit string (e.g.
+    /// `2 GiB`).
+    ///
+    /// Defaults to the total amount of memory for the host.
+    ///
+    /// The value cannot be zero or exceed the host's total amount of memory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
+
+    #[serde(default = "default_guest_inputs_dir")]
+    pub guest_inputs_dir: Cow<'static, str>,
+    #[serde(default = "default_guest_work_dir")]
+    pub guest_work_dir: Cow<'static, str>,
+    #[serde(default = "default_guest_command_path")]
+    pub guest_command_path: Cow<'static, str>,
+    #[serde(default = "default_guest_stdout_path")]
+    pub guest_stdout_path: Cow<'static, str>,
+    #[serde(default = "default_guest_stderr_path")]
+    pub guest_stderr_path: Cow<'static, str>,
+}
+
+impl Default for GenericBackendConfig {
+    fn default() -> Self {
+        Self {
+            backend_config: Default::default(),
+            cpu: None,
+            memory: None,
+            guest_inputs_dir: default_guest_inputs_dir(),
+            guest_work_dir: default_guest_work_dir(),
+            guest_command_path: default_guest_command_path(),
+            guest_stdout_path: default_guest_stdout_path(),
+            guest_stderr_path: default_guest_stderr_path(),
+        }
+    }
+}
+
+const fn default_guest_inputs_dir() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/inputs")
+}
+
+const fn default_guest_work_dir() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/work")
+}
+
+const fn default_guest_command_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/command")
+}
+
+const fn default_guest_stdout_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/stdout")
+}
+
+const fn default_guest_stderr_path() -> Cow<'static, str> {
+    Cow::Borrowed("/mnt/task/stderr")
+}
+
+impl GenericBackendConfig {
     /// Validates the local task execution backend configuration.
     pub fn validate(&self) -> Result<()> {
         if let Some(cpu) = self.cpu {

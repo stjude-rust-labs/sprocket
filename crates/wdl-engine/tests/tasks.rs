@@ -45,6 +45,7 @@ use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config::BackendConfig;
+use wdl_engine::config::GenericBackendConfig;
 use wdl_engine::config::{self};
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TaskEvaluator;
@@ -133,9 +134,61 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
         let config = toml::from_str(&std::fs::read_to_string(file.path())?)?;
         configs_on_disk.push((config_name, config));
     }
+    #[rustfmt::skip]
+    let generic_backend_config = GenericBackendConfig {
+        backend_config: crankshaft::config::backend::generic::Config::builder()
+            .driver(
+                crankshaft::config::backend::generic::driver::Config::builder()
+                    .locale(crankshaft::config::backend::generic::driver::Locale::Local)
+                    .shell(crankshaft::config::backend::generic::driver::Shell::Bash)
+                    .build(),
+            )
+            .submit(
+                "docker run \
+                 -w {{cwd}} \
+                 --cpus {{cpu}} \
+                 --memory {{memory_mb}}MB \
+                 {{#each inputs}}
+                 --mount type=bind,src={{this.host_path}},dst={{guest_path}} \
+                 {{/each}}
+                 -d \
+                 {{container}} \
+                 bash -c \"{{command}} > {{stdout}} 2> {{stderr}}\"",
+            )
+            .job_id_regex(r#"([[:xdigit:]]+)"#)
+            .monitor(
+                "(stat=$(docker container inspect {{job_id}} --format \"\\{{.State.Status}}\"); \
+                 [ $stat == \"exited\" ])",
+            )
+            .get_exit_code("code=$(docker wait {{job_id}}); \
+                            docker container rm {{job_id}} &> /dev/null; \
+                            echo $code")
+            .kill("docker container kill {{job_id}}; \
+                   docker container rm {{job_id}}")
+            .build(),
+        ..Default::default()
+    };
+    // std::fs::write(
+    //     "/tmp/generic_config.toml",
+    //     toml::to_string_pretty(&generic_backend_config).unwrap(),
+    // )
+    // .unwrap();
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
     } else {
+<<<<<<< HEAD
+        Ok(vec![("generic_local_docker".into(), {
+            config::Config {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::Generic(generic_backend_config),
+                )]
+                .into(),
+                suppress_env_specific_output: true,
+                ..Default::default()
+            }
+        })])
+=======
         Ok(vec![
             ("local".into(), {
                 config::Config {
@@ -166,6 +219,7 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
                 }
             }),
         ])
+>>>>>>> origin/main
     }
 }
 
@@ -301,10 +355,16 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir_path))?;
 
+<<<<<<< HEAD
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new()).await?;
+    let mut dir = TempDir::new().context("failed to create temporary directory")?;
+    // dir.disable_cleanup(true);
+=======
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;
     info!(dir = %dir.path().display(), "test temp dir created");
 
+>>>>>>> origin/main
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())
         .await
