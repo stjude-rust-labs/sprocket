@@ -58,11 +58,11 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
         let a_uri = a
             .uri()
             .text()
-            .expect("import uri should not be empty or interpolated");
+            .expect("import uri should not be interpolated");
         let b_uri = b
             .uri()
             .text()
-            .expect("import uri should not be empty or interpolated");
+            .expect("import uri should not be interpolated");
         a_uri.text().cmp(b_uri.text())
     });
 
