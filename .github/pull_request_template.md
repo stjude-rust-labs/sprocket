@@ -4,7 +4,7 @@ Before submitting this PR, please make sure:
 
 For external contributors:
 
-- [ ] You have read the `wdl` crates' [CONTRIBUTING](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/CONTRIBUTING.md) guide in its entirety.
+- [ ] You have read the [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md) in its entirety.
 - [ ] You have not used AI on any parts of this pull request.
 
 For all contributors:

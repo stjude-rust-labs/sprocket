@@ -110,15 +110,15 @@ version, an update is required.
 
 ## 🖥️ Development
 
-The WDL specification requires that command scripts are run with the Bash shell, and
-therefore developing for the `wdl` crates will require `/bin/bash` be on your `$PATH`.
-Linux and Mac users should not need to do anything special to meet this requirement,
-but we recommend Windows users fulfill this criteria by installing
-[`Git BASH`](https://gitforwindows.org/).
+The WDL specification requires that command scripts are run with the Bash
+shell, and therefore developing for the `wdl` crates will require `/bin/bash`
+be on your `$PATH`. Linux and Mac users should not need to do anything special
+to meet this requirement, but we recommend Windows users fulfill this criteria
+by installing [`Git BASH`](https://gitforwindows.org/).
 
-There is an additional requirement for development of the `wdl-lint` crate, which
-expects the `shellcheck` binary be available on your `$PATH`. See instructions for
-installing ShellCheck [here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
+There is an additional requirement for development of the `wdl-lint` crate,
+which expects the `shellcheck` binary be available on your `$PATH`. See
+instructions for installing ShellCheck [here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
 
 To bootstrap a development environment, please use the following commands.
 
@@ -164,8 +164,8 @@ Note that the `wdl-engine` tests require a locally running Docker daemon.
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are all welcome! Feel free to read our
-[contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/CONTRIBUTING.md).
+Contributions, issues, and feature requests are all welcome! Feel free to read
+our [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/CONTRIBUTING.md).
 
 ## 📝 License and Legal
 
