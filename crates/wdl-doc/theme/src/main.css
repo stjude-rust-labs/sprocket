@@ -188,6 +188,9 @@
   .main__badge--success {
     @apply border-brand-emerald-400 bg-brand-emerald-950 text-brand-emerald-200;
   }
+  .main__badge--success .main__badge-text {
+    @apply text-brand-emerald-200;
+  }
   .main__badge--success::before {
     content: "✓";
     @apply text-[8px] rounded-full w-[10px] h-[10px] bg-brand-emerald-400 text-brand-emerald-950 flex items-center justify-center;
@@ -197,14 +200,14 @@
     @apply text-[10px] font-bold rounded-full w-[10px] h-[10px] bg-brand-red-400 text-red-950 flex items-center justify-center;
   }
   .main__button {
-    @apply px-2 py-1 rounded hover:cursor-pointer hover:bg-slate-100/10 text-slate-50 text-sm flex items-center gap-1.5 [&>b]:font-bold [&>b]:text-nowrap [&>b]:overflow-x-hidden [&>b]:text-ellipsis max-w-[max-content];
+    @apply px-2 py-1 rounded hover:cursor-pointer hover:bg-slate-800 text-slate-50 text-sm flex items-center gap-1.5 [&>b]:font-bold [&>b]:text-nowrap [&>b]:overflow-x-hidden [&>b]:text-ellipsis max-w-[max-content];
   }
   .metadata__warning {
     /* should render a grid with 2 columns, the first should shrink, and the second should take up the remaining space */
     @apply rounded-lg bg-brand-yellow-950 border border-brand-yellow-700 p-3 grid grid-cols-[auto_1fr] text-brand-yellow-50 items-center gap-2 text-sm mt-3;
   }
   .metadata__warning code {
-    @apply border-brand-yellow-700 bg-brand-yellow-950;
+    @apply border-brand-yellow-700 bg-brand-yellow-900;
   }
   /* RUN WITH component */
   .main__run-with-container {
@@ -390,7 +393,7 @@
     @apply flex flex-col gap-1.5 ml-4 border-l border-slate-600;
   }
   .right-sidebar__section-item {
-    @apply max-w-xs h-8 px-4 flex items-center rounded-sm text-sm text-slate-400 -ml-2 hover:text-slate-300 hover:bg-slate-400/30 cursor-pointer;
+    @apply max-w-xs h-8 px-4 flex items-center rounded-sm text-sm text-slate-400 -ml-2 hover:text-slate-300 hover:bg-slate-600/20 cursor-pointer;
   }
   .right-sidebar__section-item--active {
     @apply bg-slate-400/20 text-white;

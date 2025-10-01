@@ -1782,6 +1782,9 @@
   .opacity-40 {
     opacity: 40%;
   }
+  .opacity-50 {
+    opacity: 50%;
+  }
   .shadow {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -1872,6 +1875,11 @@
   .light\:hidden {
     .light & {
       display: none;
+    }
+  }
+  .light\:opacity-60 {
+    .light & {
+      opacity: 60%;
     }
   }
 }
@@ -2136,6 +2144,9 @@
     background-color: var(--color-brand-emerald-950);
     color: var(--color-brand-emerald-200);
   }
+  .main__badge--success .main__badge-text {
+    color: var(--color-brand-emerald-200);
+  }
   .main__badge--success::before {
     content: "✓";
     display: flex;
@@ -2180,10 +2191,7 @@
     }
     &:hover {
       @media (hover: hover) {
-        background-color: color-mix(in srgb, oklch(96.8% 0.007 247.896) 10%, transparent);
-        @supports (color: color-mix(in lab, red, red)) {
-          background-color: color-mix(in oklab, var(--color-slate-100) 10%, transparent);
-        }
+        background-color: var(--color-slate-800);
       }
     }
     &>b {
@@ -2218,7 +2226,7 @@
   }
   .metadata__warning code {
     border-color: var(--color-brand-yellow-700);
-    background-color: var(--color-brand-yellow-950);
+    background-color: var(--color-brand-yellow-900);
   }
   .main__run-with-container {
     margin-top: calc(var(--spacing) * 4);
@@ -2692,9 +2700,9 @@
     color: var(--color-slate-400);
     &:hover {
       @media (hover: hover) {
-        background-color: color-mix(in srgb, oklch(70.4% 0.04 256.788) 30%, transparent);
+        background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 20%, transparent);
         @supports (color: color-mix(in lab, red, red)) {
-          background-color: color-mix(in oklab, var(--color-slate-400) 30%, transparent);
+          background-color: color-mix(in oklab, var(--color-slate-600) 20%, transparent);
         }
       }
     }
