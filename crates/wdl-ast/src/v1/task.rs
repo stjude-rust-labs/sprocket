@@ -1018,22 +1018,6 @@ impl<N: TreeNode> CommandSection<N> {
         self.0.children_with_tokens().filter_map(CommandPart::cast)
     }
 
-    /// Gets the command text if the command is not interpolated (i.e. has no
-    /// placeholders).
-    ///
-    /// Returns `None` if the command is interpolated, as interpolated commands
-    /// cannot be represented as a single span of text.
-    pub fn text(&self) -> Option<CommandText<N::Token>> {
-        let mut parts = self.parts();
-        if let Some(CommandPart::Text(text)) = parts.next()
-            && parts.next().is_none()
-        {
-            return Some(text);
-        }
-
-        None
-    }
-
     /// Counts the leading whitespace of the command.
     ///
     /// If the command has mixed indentation, this will return None.
