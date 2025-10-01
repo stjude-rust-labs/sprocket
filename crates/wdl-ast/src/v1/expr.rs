@@ -1995,8 +1995,8 @@ impl<N: TreeNode> LiteralString<N> {
         self.0.children_with_tokens().filter_map(StringPart::cast)
     }
 
-    /// Gets the string text if the string is not interpolated (i.e. has no
-    /// placeholders).
+    /// Gets the string text as [`LiteralStringText`] if the string is not
+    /// interpolated (i.e. has no placeholders).
     pub fn text(&self) -> Option<LiteralStringText<N::Token>> {
         let mut parts = self.parts();
         match parts.next() {
