@@ -181,23 +181,7 @@ impl InputProcessor {
 
                     for item in m.items() {
                         let (k, v) = item.key_value();
-                        let key_name: String = match k {
-                            Expr::Literal(LiteralExpr::String(k)) => k
-                                .parts()
-                                .map(|p| match p {
-                                    StringPart::Placeholder(placeholder) => {
-                                        placeholder.text().to_string()
-                                    }
-                                    StringPart::Text(text) => {
-                                        let mut buff = String::new();
-                                        text.unescape_to(&mut buff);
-                                        buff
-                                    }
-                                })
-                                .collect(),
-                            _ => k.text().to_string(),
-                        };
-
+                        let key_name = k.text().to_string();
                         if let Some((_key, value)) =
                             self.expression(ty.clone(), Key::empty(), name, &v)
                         {
