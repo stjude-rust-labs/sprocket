@@ -46,6 +46,7 @@ use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config::BackendConfig;
 use wdl_engine::config::{self};
+use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TaskEvaluator;
 
 /// Regex used to remove both host and guest path prefixes.
@@ -291,13 +292,14 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     };
 
     let test_dir = absolute(test).expect("failed to get absolute directory");
+    let test_dir_path = EvaluationPath::Local(test_dir.clone());
 
     // Make any paths specified in the inputs file relative to the test directory
     let task = result
         .document()
         .task_by_name(&name)
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-    inputs.join_paths(task, |_| Ok(&test_dir))?;
+    inputs.join_paths(task, |_| Ok(&test_dir_path))?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;

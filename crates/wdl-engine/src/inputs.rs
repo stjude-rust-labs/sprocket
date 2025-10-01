@@ -31,6 +31,7 @@ use wdl_ast::version::V1;
 
 use crate::Coercible;
 use crate::Value;
+use crate::path::EvaluationPath;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
@@ -63,7 +64,7 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
 /// specified path with the input path.
 fn join_paths<'a>(
     inputs: &mut IndexMap<String, Value>,
-    path: impl Fn(&str) -> Result<&'a Path>,
+    path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
@@ -152,7 +153,7 @@ impl TaskInputs {
     pub fn join_paths<'a>(
         &mut self,
         task: &Task,
-        path: impl Fn(&str) -> Result<&'a Path>,
+        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             task.inputs().get(name).map(|input| input.ty().clone())
@@ -407,7 +408,7 @@ impl WorkflowInputs {
     pub fn join_paths<'a>(
         &mut self,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a Path>,
+        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
         join_paths(&mut self.inputs, path, |name| {
             workflow.inputs().get(name).map(|input| input.ty().clone())

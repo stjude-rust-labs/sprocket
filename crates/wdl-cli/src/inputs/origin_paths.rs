@@ -9,10 +9,8 @@
 //! inputs, we know the prefix to join to those paths to resolve the final
 //! location of each path.
 
-use std::path::Path;
-use std::path::PathBuf;
-
 use indexmap::IndexMap;
+use wdl_engine::path::EvaluationPath;
 
 /// An associated set of path origins for a set of input keys.
 ///
@@ -22,29 +20,17 @@ use indexmap::IndexMap;
 #[derive(Debug)]
 pub enum OriginPaths {
     /// A single origin path for all inputs.
-    Single(PathBuf),
+    Single(EvaluationPath),
     /// A dynamic mapping of input keys to origin paths.
-    Map(IndexMap<String, PathBuf>),
+    Map(IndexMap<String, EvaluationPath>),
 }
 
 impl OriginPaths {
     /// Attempts to retrieve the origin path for an input key.
-    pub fn get(&self, key: &str) -> Option<&Path> {
+    pub fn get(&self, key: &str) -> Option<&EvaluationPath> {
         match self {
-            OriginPaths::Single(path) => Some(path.as_path()),
-            OriginPaths::Map(paths) => paths.get(key).map(|p| p.as_path()),
+            OriginPaths::Single(path) => Some(path),
+            OriginPaths::Map(paths) => paths.get(key),
         }
-    }
-}
-
-impl From<PathBuf> for OriginPaths {
-    fn from(value: PathBuf) -> Self {
-        Self::Single(value)
-    }
-}
-
-impl From<IndexMap<String, PathBuf>> for OriginPaths {
-    fn from(value: IndexMap<String, PathBuf>) -> Self {
-        Self::Map(value)
     }
 }

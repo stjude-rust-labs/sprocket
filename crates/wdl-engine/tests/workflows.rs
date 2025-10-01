@@ -37,6 +37,7 @@ use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::config;
 use wdl_engine::config::BackendConfig;
+use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::WorkflowEvaluator;
 
 /// Find tests to run.
@@ -206,13 +207,14 @@ async fn run_test(test: &Path) -> Result<()> {
     };
 
     let test_dir = absolute(test).expect("failed to get absolute directory");
+    let test_dir_path = EvaluationPath::Local(test_dir.clone());
 
     // Make any paths specified in the inputs file relative to the test directory
     let workflow = result
         .document()
         .workflow()
         .context("document does not contain a workflow")?;
-    inputs.join_paths(workflow, |_| Ok(&test_dir))?;
+    inputs.join_paths(workflow, |_| Ok(&test_dir_path))?;
 
     for config in configs() {
         let dir = TempDir::new().context("failed to create temporary directory")?;

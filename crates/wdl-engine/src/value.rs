@@ -15,7 +15,6 @@ use anyhow::bail;
 use indexmap::IndexMap;
 use itertools::Either;
 use ordered_float::OrderedFloat;
-use path_clean::PathClean;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
@@ -51,6 +50,7 @@ use crate::HostPath;
 use crate::Outputs;
 use crate::TaskExecutionConstraints;
 use crate::path;
+use crate::path::EvaluationPath;
 
 /// Implemented on coercible values.
 pub trait Coercible: Sized {
@@ -1130,7 +1130,7 @@ impl PrimitiveValue {
     /// Performs expansions for file and directory paths.
     ///
     /// The path is also joined with the provided base path.
-    pub(crate) fn expand_path(&mut self, base_path: &Path) -> Result<()> {
+    pub(crate) fn expand_path(&mut self, base_path: &EvaluationPath) -> Result<()> {
         let path = match self {
             PrimitiveValue::File(path) => path,
             PrimitiveValue::Directory(path) => path,
@@ -1150,13 +1150,8 @@ impl PrimitiveValue {
         }
 
         // Perform the join
-        if let Ok(s) = base_path
-            .join(path.as_str())
-            .clean()
-            .into_os_string()
-            .into_string()
-        {
-            *Arc::make_mut(&mut path.0) = s;
+        if let Some(s) = base_path.join(path.as_str())?.to_str() {
+            *Arc::make_mut(&mut path.0) = s.to_string();
         }
 
         Ok(())

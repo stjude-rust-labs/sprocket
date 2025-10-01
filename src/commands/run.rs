@@ -35,6 +35,7 @@ use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::SecretString;
+use wdl::engine::path::EvaluationPath;
 
 use crate::Mode;
 use crate::emit_diagnostics;
@@ -77,14 +78,16 @@ const LATEST: &str = "_latest";
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
 pub struct Args {
-    /// A source WDL file or URL.
-    #[clap(value_name = "PATH or URL")]
+    /// The WDL source file to run.
+    ///
+    /// The source file may be specified by either a local file path or a URL.
+    #[clap(value_name = "SOURCE")]
     pub source: Source,
 
     /// The inputs for the task or workflow.
     ///
-    /// These inputs can be either paths to files containing inputs or key-value
-    /// pairs passed in on the command line.
+    /// An input can be either a local file path or URL to an input file or
+    /// key-value pairs passed in on the command line.
     pub inputs: Vec<String>,
 
     /// The name of the task or workflow to run.
@@ -469,6 +472,7 @@ pub async fn run(args: Args) -> Result<()> {
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
     let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+        .await
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
@@ -481,8 +485,9 @@ pub async fn run(args: Args) -> Result<()> {
         inputs
     } else {
         // No inputs were provided
-        let origins =
-            OriginPaths::from(std::env::current_dir().context("failed to get current directory")?);
+        let origins = OriginPaths::Single(EvaluationPath::Local(
+            std::env::current_dir().context("failed to get current directory")?,
+        ));
 
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {

@@ -1,0 +1,5 @@
+[run]
+backend = "first"
+
+[run.backends.first]
+type = "docker"

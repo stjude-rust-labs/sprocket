@@ -1,0 +1,1 @@
+-c first.toml -c second.toml -c third.toml config resolve
