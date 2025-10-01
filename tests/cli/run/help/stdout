@@ -1,15 +1,17 @@
 Runs a task or workflow
 
-Usage: sprocket run [OPTIONS] <PATH or URL> [INPUTS]...
+Usage: sprocket run [OPTIONS] <SOURCE> [INPUTS]...
 
 Arguments:
-  <PATH or URL>
-          A source WDL file or URL
+  <SOURCE>
+          The WDL source file to run.
+          
+          The source file may be specified by either a local file path or a URL.
 
   [INPUTS]...
           The inputs for the task or workflow.
           
-          These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
+          An input can be either a local file path or URL to an input file or key-value pairs passed in on the command line.
 
 Options:
   -e, --entrypoint <NAME>

@@ -78,14 +78,16 @@ const LATEST: &str = "_latest";
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
 pub struct Args {
-    /// A source WDL file or URL.
-    #[clap(value_name = "PATH or URL")]
+    /// The WDL source file to run.
+    ///
+    /// The source file may be specified by either a local file path or a URL.
+    #[clap(value_name = "SOURCE")]
     pub source: Source,
 
     /// The inputs for the task or workflow.
     ///
-    /// These inputs can be either paths to files containing inputs or key-value
-    /// pairs passed in on the command line.
+    /// An input can be either a local file path or URL to an input file or
+    /// key-value pairs passed in on the command line.
     pub inputs: Vec<String>,
 
     /// The name of the task or workflow to run.
