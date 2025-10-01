@@ -2,8 +2,6 @@
 
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::path::Path;
-use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
@@ -14,6 +12,7 @@ use serde_json::Value;
 use thiserror::Error;
 use wdl_analysis::Document;
 use wdl_engine::Inputs as EngineInputs;
+use wdl_engine::path::EvaluationPath;
 
 pub mod file;
 pub mod origin_paths;
@@ -42,13 +41,13 @@ static ASSUME_STRING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// An error related to inputs.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Failed to determine the current working directory.
+    #[error("failed to determine the current working directory")]
+    NoCurrentWorkingDirectory,
+
     /// A file error.
     #[error(transparent)]
     File(#[from] file::Error),
-
-    /// A file was specified on the command line but not found.
-    #[error("file `{0}` was not found")]
-    FileNotFound(PathBuf),
 
     /// Encountered an invalid key-value pair.
     #[error("invalid key-value pair `{pair}`: {reason}")]
@@ -81,9 +80,8 @@ pub enum Input {
         ///
         /// If this input is successfully created, the input is guaranteed to
         /// exist at the time the inputs were processed.
-        PathBuf,
+        EvaluationPath,
     ),
-
     /// A key-value pair representing an input.
     Pair {
         /// The key.
@@ -95,36 +93,36 @@ pub enum Input {
 }
 
 impl Input {
-    /// Attempts to return a reference to the inner [`Path`].
+    /// Attempts to return a reference to the inner [`EvaluationPath`].
     ///
     /// * If the input is a [`Input::File`], a reference to the inner path is
     ///   returned wrapped in [`Some`].
     /// * Otherwise, [`None`] is returned.
-    pub fn as_file(&self) -> Option<&Path> {
-        match self {
-            Input::File(p) => Some(p.as_path()),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the inner [`PathBuf`].
-    ///
-    /// * If the input is a [`Input::File`], the inner path buffer is returned
-    ///   wrapped in [`Some`].
-    /// * Otherwise, [`None`] is returned.
-    pub fn into_file(self) -> Option<PathBuf> {
+    pub fn as_file(&self) -> Option<&EvaluationPath> {
         match self {
             Input::File(p) => Some(p),
             _ => None,
         }
     }
 
-    /// Consumes `self` and returns the inner [`PathBuf`].
+    /// Consumes `self` and attempts to return the inner [`EvaluationPath`].
+    ///
+    /// * If the input is a [`Input::File`], the inner path buffer is returned
+    ///   wrapped in [`Some`].
+    /// * Otherwise, [`None`] is returned.
+    pub fn into_file(self) -> Option<EvaluationPath> {
+        match self {
+            Input::File(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner [`EvaluationPath`].
     ///
     /// # Panics
     ///
     /// If the input is not a [`Input::File`].
-    pub fn unwrap_file(self) -> PathBuf {
+    pub fn unwrap_file(self) -> EvaluationPath {
         match self {
             Input::File(p) => p,
             v => panic!("{v:?} is not an `Input::File`"),
@@ -199,10 +197,14 @@ impl FromStr for Input {
                 })
             }
             None => {
-                let path = PathBuf::from(s);
-
-                if !path.exists() {
-                    return Err(Error::FileNotFound(path));
+                let path: EvaluationPath = s.parse().map_err(|e| file::Error::Path {
+                    path: s.to_string(),
+                    error: e,
+                })?;
+                if let Some(path) = path.as_local()
+                    && !path.exists()
+                {
+                    return Err(file::Error::NotFound(path.to_path_buf()).into());
                 }
 
                 Ok(Input::File(path))
@@ -212,7 +214,7 @@ impl FromStr for Input {
 }
 
 /// The inner type for inputs (for convenience).
-type InputsInner = IndexMap<String, (PathBuf, Value)>;
+type InputsInner = IndexMap<String, (EvaluationPath, Value)>;
 
 /// A set of inputs parsed from the command line and compiled on top of one
 /// another.
@@ -226,24 +228,21 @@ pub struct Inputs {
 
 impl Inputs {
     /// Adds an input read from the command line.
-    fn add_input(&mut self, input: &str) -> Result<()> {
+    async fn add_input(&mut self, input: &str) -> Result<()> {
         match input.parse::<Input>()? {
             Input::File(path) => {
-                let inputs = InputFile::read(&path).map_err(Error::File)?;
+                let inputs = InputFile::read(&path).await.map_err(Error::File)?;
                 self.extend(inputs.into_inner());
             }
             Input::Pair { key, value } => {
-                // SAFETY: we expect that the current working directory is
-                // always available for the platforms that `wdl` will run
-                // within.
-                let cwd = std::env::current_dir().unwrap();
+                let cwd = std::env::current_dir().map_err(|_| Error::NoCurrentWorkingDirectory)?;
 
                 let key = if let Some(prefix) = &self.entrypoint {
                     format!("{prefix}.{key}")
                 } else {
                     key
                 };
-                self.insert(key, (cwd, value));
+                self.insert(key, (EvaluationPath::Local(cwd), value));
             }
         };
 
@@ -257,7 +256,7 @@ impl Inputs {
     /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
     /// common prefix specified. If `entrypoint` is `None` then all of the
     /// inputs in `iter` must be prefixed with the task or workflow name.
-    pub fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
+    pub async fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
@@ -274,7 +273,7 @@ impl Inputs {
         };
 
         for input in iter {
-            inputs.add_input(input.as_ref())?;
+            inputs.add_input(input.as_ref()).await?;
         }
 
         Ok(inputs)
@@ -333,9 +332,9 @@ impl Inputs {
                         (key, path)
                     }
                 })
-                .collect::<IndexMap<String, PathBuf>>();
+                .collect::<IndexMap<_, _>>();
 
-            (callee_name, inputs, OriginPaths::from(origins))
+            (callee_name, inputs, OriginPaths::Map(origins))
         }))
     }
 }
@@ -356,6 +355,8 @@ impl DerefMut for Inputs {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -381,26 +382,24 @@ mod tests {
         let input = "./tests/fixtures/inputs_one.json".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap() == "./tests/fixtures/inputs_one.json"
+            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_one.json"
         ));
 
         // A valid YAML file path.
-        let input = "./tests/fixtures/inputs_three.yml"
-            .parse::<Input>()
-            .unwrap();
+        let input = "tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap() == "./tests/fixtures/inputs_three.yml"
+            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
         ));
 
         // A missing file path.
         let err = "./tests/fixtures/missing.json"
             .parse::<Input>()
             .unwrap_err();
-        assert!(matches!(
-            err,
-            Error::FileNotFound(path) if path.to_str().unwrap() == "./tests/fixtures/missing.json"
-        ));
+        assert_eq!(
+            err.to_string().replace("\\", "/"),
+            "input file `tests/fixtures/missing.json` was not found"
+        );
     }
 
     #[test]
@@ -419,13 +418,10 @@ mod tests {
 
         // An invalid identifier for the key.
         let err = r#"foo$="bar""#.parse::<Input>().unwrap_err();
-        assert!(matches!(
-                err,
-                Error::InvalidPair {
-                    pair,
-                    reason
-                } if pair == r#"foo$="bar""# &&
-                reason == r"key `foo$` did not match the identifier regex (`^([a-zA-Z][a-zA-Z0-9_.]*)$`)"));
+        assert_eq!(
+            err.to_string(),
+            r#"invalid key-value pair `foo$="bar"`: key `foo$` did not match the identifier regex (`^([a-zA-Z][a-zA-Z0-9_.]*)$`)"#
+        );
 
         // A value that is valid despite that value not being valid as a key.
         let input = r#"foo="bar$""#.parse::<Input>().unwrap();
@@ -434,8 +430,8 @@ mod tests {
         assert_eq!(value.as_str().unwrap(), "bar$");
     }
 
-    #[test]
-    fn coalesce() {
+    #[tokio::test]
+    async fn coalesce() {
         // Helper functions.
         fn check_string_value(inputs: &Inputs, key: &str, value: &str) {
             let (_, input) = inputs.get(key).unwrap();
@@ -466,6 +462,7 @@ mod tests {
             ],
             Some("foo".to_string()),
         )
+        .await
         .unwrap();
 
         assert_eq!(inputs.len(), 5);
@@ -484,6 +481,7 @@ mod tests {
             ],
             Some("name_ex".to_string()),
         )
+        .await
         .unwrap();
 
         assert_eq!(inputs.len(), 5);
@@ -505,6 +503,7 @@ mod tests {
             ],
             None,
         )
+        .await
         .unwrap();
 
         assert_eq!(inputs.len(), 6);
@@ -517,11 +516,12 @@ mod tests {
 
         // An invalid key-value pair.
         let error = Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
+            .await
             .unwrap_err();
-        assert!(matches!(
-            error,
-            Error::Deserialize(value) if value == "baz[bar"
-        ));
+        assert_eq!(
+            error.to_string(),
+            "unable to deserialize `baz[bar` as a valid WDL value"
+        );
 
         // A missing file.
         let error = Inputs::coalesce(
@@ -533,60 +533,66 @@ mod tests {
             ],
             None,
         )
+        .await
         .unwrap_err();
-        assert!(matches!(
-                error,
-                Error::FileNotFound(path) if path.to_str().unwrap() == "./tests/fixtures/missing.json"));
+        assert_eq!(
+            error.to_string().replace("\\", "/"),
+            "input file `tests/fixtures/missing.json` was not found"
+        );
     }
 
-    #[test]
-    fn coalesce_special_characters() {
-        fn check_can_coalesce_string(value: &str) {
-            let inputs = Inputs::coalesce([format!("input={}", value)], None).unwrap();
+    #[tokio::test]
+    async fn coalesce_special_characters() {
+        async fn check_can_coalesce_string(value: &str) {
+            let inputs = Inputs::coalesce([format!("input={}", value)], None)
+                .await
+                .unwrap();
             let (_, input) = inputs.get("input").unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
-        fn check_cannot_coalesce_string(value: &str) {
-            let error = Inputs::coalesce([format!("input={}", value)], None).unwrap_err();
+        async fn check_cannot_coalesce_string(value: &str) {
+            let error = Inputs::coalesce([format!("input={}", value)], None)
+                .await
+                .unwrap_err();
             assert!(matches!(
                 error,
                 Error::Deserialize(output) if output == value
             ));
         }
 
-        check_can_coalesce_string("can-coalesce-dashes");
-        check_can_coalesce_string("can\"coalesce\"quotes");
-        check_can_coalesce_string("can'coalesce'apostrophes");
-        check_can_coalesce_string("can;coalesce;semicolons");
-        check_can_coalesce_string("can:coalesce:colons");
-        check_can_coalesce_string("can*coalesce*stars");
-        check_can_coalesce_string("can,coalesce,commas");
-        check_can_coalesce_string("can?coalesce?question?mark");
-        check_can_coalesce_string("can|coalesce|pipe");
-        check_can_coalesce_string("can<coalesce>less<than>or>greater<than");
-        check_can_coalesce_string("can^coalesce^carrot");
-        check_can_coalesce_string("can#coalesce#pound#sign");
-        check_can_coalesce_string("can%coalesce%percent");
-        check_can_coalesce_string("can!coalesce!exclamation!marks");
-        check_can_coalesce_string("can\\coalesce\\backslashes");
-        check_can_coalesce_string("can@coalesce@at@sign");
-        check_can_coalesce_string("can(coalesce(parenthesis))");
-        check_can_coalesce_string("can coalesce السلام عليكم");
-        check_can_coalesce_string("can coalesce 你");
-        check_can_coalesce_string("can coalesce Dobrý den");
-        check_can_coalesce_string("can coalesce Hello");
-        check_can_coalesce_string("can coalesce שלום");
-        check_can_coalesce_string("can coalesce नमस्ते");
-        check_can_coalesce_string("can coalesce こんにちは");
-        check_can_coalesce_string("can coalesce 안녕하세요");
-        check_can_coalesce_string("can coalesce 你好");
-        check_can_coalesce_string("can coalesce Olá");
-        check_can_coalesce_string("can coalesce Здравствуйте");
-        check_can_coalesce_string("can coalesce Hola");
-        check_cannot_coalesce_string("cannot coalesce string with [");
-        check_cannot_coalesce_string("cannot coalesce string with ]");
-        check_cannot_coalesce_string("cannot coalesce string with {");
-        check_cannot_coalesce_string("cannot coalesce string with }");
+        check_can_coalesce_string("can-coalesce-dashes").await;
+        check_can_coalesce_string("can\"coalesce\"quotes").await;
+        check_can_coalesce_string("can'coalesce'apostrophes").await;
+        check_can_coalesce_string("can;coalesce;semicolons").await;
+        check_can_coalesce_string("can:coalesce:colons").await;
+        check_can_coalesce_string("can*coalesce*stars").await;
+        check_can_coalesce_string("can,coalesce,commas").await;
+        check_can_coalesce_string("can?coalesce?question?mark").await;
+        check_can_coalesce_string("can|coalesce|pipe").await;
+        check_can_coalesce_string("can<coalesce>less<than>or>greater<than").await;
+        check_can_coalesce_string("can^coalesce^carrot").await;
+        check_can_coalesce_string("can#coalesce#pound#sign").await;
+        check_can_coalesce_string("can%coalesce%percent").await;
+        check_can_coalesce_string("can!coalesce!exclamation!marks").await;
+        check_can_coalesce_string("can\\coalesce\\backslashes").await;
+        check_can_coalesce_string("can@coalesce@at@sign").await;
+        check_can_coalesce_string("can(coalesce(parenthesis))").await;
+        check_can_coalesce_string("can coalesce السلام عليكم").await;
+        check_can_coalesce_string("can coalesce 你").await;
+        check_can_coalesce_string("can coalesce Dobrý den").await;
+        check_can_coalesce_string("can coalesce Hello").await;
+        check_can_coalesce_string("can coalesce שלום").await;
+        check_can_coalesce_string("can coalesce नमस्ते").await;
+        check_can_coalesce_string("can coalesce こんにちは").await;
+        check_can_coalesce_string("can coalesce 안녕하세요").await;
+        check_can_coalesce_string("can coalesce 你好").await;
+        check_can_coalesce_string("can coalesce Olá").await;
+        check_can_coalesce_string("can coalesce Здравствуйте").await;
+        check_can_coalesce_string("can coalesce Hola").await;
+        check_cannot_coalesce_string("cannot coalesce string with [").await;
+        check_cannot_coalesce_string("cannot coalesce string with ]").await;
+        check_cannot_coalesce_string("cannot coalesce string with {").await;
+        check_cannot_coalesce_string("cannot coalesce string with }").await;
     }
 
     #[test]
