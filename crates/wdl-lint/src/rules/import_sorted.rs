@@ -106,12 +106,12 @@ impl Visitor for ImportSortedRule {
                 .expect("import statement")
                 .uri()
                 .text()
-                .expect("import uri");
+                .expect("import uri should not be interpolated");
             let b_uri = ImportStatement::cast(b.clone())
                 .expect("import statement")
                 .uri()
                 .text()
-                .expect("import uri");
+                .expect("import uri should not be interpolated");
             a_uri.text().cmp(b_uri.text())
         });
 
