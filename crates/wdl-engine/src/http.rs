@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fs;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -103,6 +104,8 @@ struct HttpTransfererInner {
     copy_config: cloud_copy::Config,
     /// The HTTP client to use.
     client: HttpClient,
+    /// The path to the temporary directory for links/copies.
+    temp_dir: PathBuf,
     /// Stores the results of downloading files.
     downloads: Mutex<HashMap<Url, Arc<OnceCell<Location>>>>,
     /// Stores the results of uploading files.
@@ -133,6 +136,14 @@ impl HttpTransferer {
                 .join(DEFAULT_CACHE_SUBDIR)
                 .into(),
         };
+
+        let temp_dir = cache_dir.join("tmp");
+        fs::create_dir_all(&temp_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
 
         let client = HttpClient::new_with_cache(cache_dir);
 
@@ -175,6 +186,7 @@ impl HttpTransferer {
             config,
             copy_config,
             client,
+            temp_dir,
             downloads: Default::default(),
             uploads: Default::default(),
             cancel,
@@ -219,7 +231,7 @@ impl Transferer for HttpTransferer {
                             .context("failed to acquire transfer permit")?;
 
                         // Create a temporary path to where the download will go
-                        let temp_path = NamedTempFile::new()
+                        let temp_path = NamedTempFile::new_in(&self.0.temp_dir)
                             .context("failed to create temporary file")?
                             .into_temp_path();
 
