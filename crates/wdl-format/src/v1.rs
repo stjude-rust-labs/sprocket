@@ -1,6 +1,5 @@
 //! Formatting of WDL v1.x elements.
 
-use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 
 pub mod decl;
