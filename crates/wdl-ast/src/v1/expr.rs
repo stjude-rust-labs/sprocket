@@ -3778,6 +3778,57 @@ task test {
     }
 
     #[test]
+    fn literal_string_text() {
+        let (document, diagnostics) = Document::parse(
+            r#"
+version 1.0
+
+task test {
+    String no_placeholders = "test"
+    String empty = ""
+    String placeholder = "~{empty}"
+}
+"#,
+        );
+
+        assert!(diagnostics.is_empty());
+        let ast = document.ast();
+        let ast = ast.as_v1().expect("should be a V1 AST");
+        let tasks: Vec<_> = ast.tasks().collect();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].name().text(), "test");
+
+        // Task declarations
+        let decls: Vec<_> = tasks[0].declarations().collect();
+        assert_eq!(decls.len(), 3);
+
+        // First declaration
+        assert_eq!(decls[0].ty().to_string(), "String");
+        assert_eq!(decls[0].name().text(), "no_placeholders");
+        let literal_string = decls[0].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_some());
+        let text = text.unwrap();
+        assert_eq!(text.text(), "test");
+
+        // Second declaration
+        assert_eq!(decls[1].ty().to_string(), "String");
+        assert_eq!(decls[1].name().text(), "empty");
+        let literal_string = decls[1].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_some());
+        let text = text.unwrap();
+        assert_eq!(text.text(), "");
+
+        // Third declaration
+        assert_eq!(decls[2].ty().to_string(), "String");
+        assert_eq!(decls[2].name().text(), "placeholder");
+        let literal_string = decls[2].expr().unwrap_literal().unwrap_string();
+        let text = literal_string.text();
+        assert!(text.is_none());
+    }
+
+    #[test]
     fn literal_array() {
         let (document, diagnostics) = Document::parse(
             r#"
