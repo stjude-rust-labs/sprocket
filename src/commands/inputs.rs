@@ -123,14 +123,14 @@ impl InputProcessor {
                 LiteralExpr::Float(f) => match f.value() {
                     Some(f) => Some(Value::from(f)),
                     None if self.show_expressions => {
-                        Some(Value::from("Float (default = <out of range>)"))
+                        Some(Value::from("Float (default = <OUT OF RANGE>)"))
                     }
                     None => None,
                 },
                 LiteralExpr::Integer(i) => match i.value() {
                     Some(i) => Some(Value::Number(i.into())),
                     None if self.show_expressions => {
-                        Some(Value::from("Int (default = <out of range>"))
+                        Some(Value::from("Int (default = <OUT OF RANGE>"))
                     }
                     None => None,
                 },
