@@ -145,7 +145,7 @@ impl InputProcessor {
                                 }
                             })
                             .collect::<String>();
-                        Some(Value::String(merged_parts))
+                        Some(Value::String(format!("String (default = `{merged_parts}`")))
                     }
                 },
                 LiteralExpr::Array(a) => {
@@ -156,7 +156,7 @@ impl InputProcessor {
                         {
                             values.push(val);
                         } else {
-                            values.push(Value::from("<could not embed>"))
+                            values.push(Value::from("<omitted>"))
                         }
                     }
                     Some(Value::from(values))
@@ -169,12 +169,12 @@ impl InputProcessor {
                     if let Some(left) = self.expression(&l_ty, &left) {
                         map.insert("left".to_string(), left);
                     } else {
-                        map.insert("left".to_string(), Value::from("<could not embed>"));
+                        map.insert("left".to_string(), Value::from("<omitted>"));
                     }
                     if let Some(right) = self.expression(&r_ty, &right) {
                         map.insert("right".to_string(), right);
                     } else {
-                        map.insert("right".to_string(), Value::from("<could not embed>"));
+                        map.insert("right".to_string(), Value::from("<omitted>"));
                     }
                     Some(Value::Object(map))
                 }
@@ -187,7 +187,7 @@ impl InputProcessor {
                 return Some(value);
             } else {
                 // is a literal but too complex to embed
-                return Some(Value::String(format!("{ty} (default = <could not embed>)")));
+                return Some(Value::String(format!("{ty} (default = <omitted>)")));
             }
         };
 
@@ -249,7 +249,7 @@ impl InputProcessor {
                                 .push(name.text())
                                 .join()
                                 .expect("key to join"),
-                            Value::String(ty.to_string()),
+                            Value::String(format!("{ty} <REQUIRED>")),
                         );
                     } else if !self.hide_defaults {
                         self.results.insert(

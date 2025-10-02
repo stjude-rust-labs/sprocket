@@ -1,7 +1,7 @@
 {
-  "test.foo": "Foo (default = <could not embed>)",
-  "test.bar": "Bar (default = <could not embed>)",
-  "test.baz": "Baz (default = <could not embed>)",
+  "test.foo": "Foo (default = <omitted>)",
+  "test.bar": "Bar (default = <omitted>)",
+  "test.baz": "Baz (default = <omitted>)",
   "test.x": null,
   "test.y": [
     1.2,
@@ -9,6 +9,6 @@
     -0.1
   ],
   "test.empty": "",
-  "test.interpolated": "weirdly nested string with interpolation: ~{empty}",
-  "test.my_call.foo": "Foo"
+  "test.interpolated": "String (default = `weirdly nested string with interpolation: ~{empty}`",
+  "test.my_call.foo": "Foo <REQUIRED>"
 }
