@@ -1,4 +1,7 @@
 test.x: null
+test.required_file: File <REQUIRED>
+test.required_directory: Directory <REQUIRED>
+test.required_string: String <REQUIRED>
 test.y:
 - 1.2
 - 3.4

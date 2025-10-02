@@ -123,14 +123,14 @@ impl InputProcessor {
                 LiteralExpr::Float(f) => match f.value() {
                     Some(f) => Some(Value::from(f)),
                     None if self.show_expressions => {
-                        Some(Value::from("Float (default = <OUT OF RANGE>)"))
+                        Some(Value::from("Float (DEFAULT = <OUT OF RANGE>)"))
                     }
                     None => None,
                 },
                 LiteralExpr::Integer(i) => match i.value() {
                     Some(i) => Some(Value::Number(i.into())),
                     None if self.show_expressions => {
-                        Some(Value::from("Int (default = <OUT OF RANGE>"))
+                        Some(Value::from("Int (DEFAULT = <OUT OF RANGE>"))
                     }
                     None => None,
                 },
@@ -152,7 +152,7 @@ impl InputProcessor {
                             })
                             .collect::<String>();
                         Some(Value::String(format!(
-                            "String (default = `{merged_parts}`)"
+                            "String (DEFAULT = `{merged_parts}`)"
                         )))
                     }
                     None => None,
@@ -196,7 +196,7 @@ impl InputProcessor {
                 return Some(value);
             } else if self.show_expressions {
                 // literal but too complex to embed
-                return Some(Value::String(format!("{ty} (default = <OMITTED>)")));
+                return Some(Value::String(format!("{ty} (DEFAULT = <OMITTED>)")));
             } else {
                 return None;
             }
@@ -225,7 +225,7 @@ impl InputProcessor {
 
         if self.show_expressions {
             Some(Value::String(format!(
-                "{ty} (default = {expr})",
+                "{ty} (DEFAULT = {expr})",
                 ty = ty,
                 expr = expr.text()
             )))

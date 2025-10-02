@@ -55,6 +55,9 @@ workflow test {
             float: 1.2,
         }
         Int? x
+        File required_file
+        Directory required_directory
+        String required_string
         Array[Float] y = [1.2, 3.4, -0.1]
         String empty = ""
         String interpolated = "weirdly nested string with interpolation: ~{empty}"
