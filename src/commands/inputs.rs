@@ -165,7 +165,7 @@ impl InputProcessor {
                         {
                             values.push(val);
                         } else {
-                            values.push(Value::from("<omitted>"))
+                            values.push(Value::from("<OMITTED>"))
                         }
                     }
                     Some(Value::from(values))
@@ -178,12 +178,12 @@ impl InputProcessor {
                     if let Some(left) = self.expression(&l_ty, &left) {
                         map.insert("left".to_string(), left);
                     } else {
-                        map.insert("left".to_string(), Value::from("<omitted>"));
+                        map.insert("left".to_string(), Value::from("<OMITTED>"));
                     }
                     if let Some(right) = self.expression(&r_ty, &right) {
                         map.insert("right".to_string(), right);
                     } else {
-                        map.insert("right".to_string(), Value::from("<omitted>"));
+                        map.insert("right".to_string(), Value::from("<OMITTED>"));
                     }
                     Some(Value::Object(map))
                 }
@@ -196,7 +196,7 @@ impl InputProcessor {
                 return Some(value);
             } else if self.show_expressions {
                 // literal but too complex to embed
-                return Some(Value::String(format!("{ty} (default = <omitted>)")));
+                return Some(Value::String(format!("{ty} (default = <OMITTED>)")));
             } else {
                 return None;
             }

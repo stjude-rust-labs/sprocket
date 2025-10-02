@@ -1,7 +1,7 @@
 {
-  "test.foo": "Foo (default = <omitted>)",
-  "test.bar": "Bar (default = <omitted>)",
-  "test.baz": "Baz (default = <omitted>)",
+  "test.foo": "Foo (default = <OMITTED>)",
+  "test.bar": "Bar (default = <OMITTED>)",
+  "test.baz": "Baz (default = <OMITTED>)",
   "test.x": null,
   "test.y": [
     1.2,
@@ -11,5 +11,5 @@
   "test.empty": "",
   "test.interpolated": "String (default = `weirdly nested string with interpolation: ~{empty}`)",
   "test.my_call.foo": "Foo <REQUIRED>",
-  "test.my_call.map": "Map[String, String] (default = <omitted>)"
+  "test.my_call.map": "Map[String, String] (default = <OMITTED>)"
 }
