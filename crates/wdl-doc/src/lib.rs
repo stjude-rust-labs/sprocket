@@ -188,7 +188,7 @@ pub(crate) fn full_page<P: AsRef<Path>>(
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data x-bind:class="localStorage.getItem('theme') === 'light' ? 'light' : ''" x-cloak {
+        html x-data="{ DEFAULT_THEME: 'light' }" x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : ''" x-cloak {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {
