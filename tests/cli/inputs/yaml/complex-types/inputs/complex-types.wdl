@@ -23,6 +23,9 @@ struct Baz {
 task foo_task {
     input {
         Foo foo
+        Map[String, String] map = {
+            "key": "value"
+        }
     }
 
     command <<<>>>

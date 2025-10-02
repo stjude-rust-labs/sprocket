@@ -1,11 +1,7 @@
-test.foo: Foo (default = <omitted>)
-test.bar: Bar (default = <omitted>)
-test.baz: Baz (default = <omitted>)
 test.x: null
 test.y:
 - 1.2
 - 3.4
 - -0.1
 test.empty: ''
-test.interpolated: 'String (default = `weirdly nested string with interpolation: ~{empty}`'
 

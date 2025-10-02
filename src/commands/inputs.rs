@@ -122,30 +122,42 @@ impl InputProcessor {
                 LiteralExpr::Boolean(b) => Some(Value::Bool(b.value())),
                 LiteralExpr::Float(f) => match f.value() {
                     Some(f) => Some(Value::from(f)),
-                    None => Some(Value::from("Float (default = <out of range>)")),
+                    None if self.show_expressions => {
+                        Some(Value::from("Float (default = <out of range>)"))
+                    }
+                    None => None,
                 },
                 LiteralExpr::Integer(i) => match i.value() {
                     Some(i) => Some(Value::Number(i.into())),
-                    None => Some(Value::from("Int (default = <out of range>")),
+                    None if self.show_expressions => {
+                        Some(Value::from("Int (default = <out of range>"))
+                    }
+                    None => None,
                 },
                 LiteralExpr::None(_) => Some(Value::Null),
                 LiteralExpr::String(s) => match s.text() {
                     Some(text) => Some(Value::from(text.text())),
                     None => {
-                        let merged_parts = s
-                            .parts()
-                            .map(|p| match p {
-                                StringPart::Placeholder(placeholder) => {
-                                    placeholder.text().to_string()
-                                }
-                                StringPart::Text(text) => {
-                                    let mut buff = String::new();
-                                    text.unescape_to(&mut buff);
-                                    buff
-                                }
-                            })
-                            .collect::<String>();
-                        Some(Value::String(format!("String (default = `{merged_parts}`")))
+                        if self.show_expressions {
+                            let merged_parts = s
+                                .parts()
+                                .map(|p| match p {
+                                    StringPart::Placeholder(placeholder) => {
+                                        placeholder.text().to_string()
+                                    }
+                                    StringPart::Text(text) => {
+                                        let mut buff = String::new();
+                                        text.unescape_to(&mut buff);
+                                        buff
+                                    }
+                                })
+                                .collect::<String>();
+                            Some(Value::String(format!(
+                                "String (default = `{merged_parts}`)"
+                            )))
+                        } else {
+                            None
+                        }
                     }
                 },
                 LiteralExpr::Array(a) => {
@@ -185,9 +197,11 @@ impl InputProcessor {
         if let Some(literal) = expr.as_literal() {
             if let Some(value) = literal_to_value(literal) {
                 return Some(value);
-            } else {
-                // is a literal but too complex to embed
+            } else if self.show_expressions {
+                // literal but too complex to embed
                 return Some(Value::String(format!("{ty} (default = <omitted>)")));
+            } else {
+                return None;
             }
         };
 
