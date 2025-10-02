@@ -2,12 +2,13 @@
 name = "wdl-doc"
 version = "0.8.0"
 description = "Documentation generator for Workflow Description Language (WDL) documents."
+rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
-repository.workspace = true
-rust-version.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-doc"
+documentation = "https://docs.rs/wdl-doc"
 
 [dependencies]
 ammonia.workspace = true

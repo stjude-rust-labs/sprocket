@@ -51,7 +51,7 @@ The following are high-level guiding principles of the Sprocket project.
   concurrent jobs).
 - Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
-  [`wdl-lsp`](https://github.com/stjude-rust-labs/wdl/tree/main/wdl-lsp)).
+  [`wdl-lsp`](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp)).
 - Maintain an **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
 - Build on an **open, domain-tailored standard** to ensure the toolset remains
@@ -142,8 +142,8 @@ cargo doc
 Contributions, issues and feature requests are welcome! Feel free to check
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
 
-Most of the work for this binary happens over at [the `wdl` family of crates' repository](https://github.com/stjude-rust-labs/wdl).
-For more information about our contributor policies, please read the `wdl` [CONTRIBUTING guide](https://github.com/stjude-rust-labs/wdl/blob/main/CONTRIBUTING.md).
+Most of the work for this binary happens over at [the `wdl` crates]https://github.com/stjude-rust-labs/sprocket/tree/main/crates).
+For more information about our contributor policies, please read the [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md).
 
 ## 📝 License and Legal
 
