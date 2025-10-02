@@ -17,6 +17,7 @@ use wdl::ast::v1::Decl;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
+use wdl::ast::v1::PrimitiveTypeKind;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
 use wdl::ast::v1::Type;
@@ -72,7 +73,7 @@ impl Key {
         self
     }
 
-    /// Joins the key using `.` as the delimeter.
+    /// Joins the key using `.` as the delimiter.
     pub fn join(self) -> Option<String> {
         if self.0.is_empty() {
             return None;
@@ -115,146 +116,108 @@ impl InputProcessor {
     }
 
     /// Processes an expression.
-    fn expression(
-        &self,
-        ty: Type,
-        namespace: Key,
-        name: &str,
-        expr: &Expr,
-    ) -> Option<(Key, Value)> {
-        match expr {
-            Expr::Literal(l) if !self.hide_defaults => match l {
-                LiteralExpr::Boolean(v) => {
-                    return Some((namespace.push(name), Value::Bool(v.value())));
-                }
-                LiteralExpr::String(s) => {
-                    let merged_parts = s
-                        .parts()
-                        .map(|p| match p {
-                            StringPart::Placeholder(placeholder) => placeholder.text().to_string(),
-                            StringPart::Text(text) => {
-                                let mut buff = String::new();
-                                text.unescape_to(&mut buff);
-                                buff
-                            }
-                        })
-                        .collect::<String>();
-
-                    return Some((namespace.push(name), Value::String(merged_parts)));
-                }
-                LiteralExpr::Integer(v) => {
-                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0))));
-                }
-                LiteralExpr::Float(v) => {
-                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0.0))));
-                }
-                LiteralExpr::Struct(v) => {
-                    let map = v
-                        .items()
-                        .filter_map(|item| {
-                            let (name, value) = item.name_value();
-                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
-                        })
-                        .map(|(k, v)| (k.join().expect("key to join"), v))
-                        .collect::<Map<_, _>>();
-
-                    return Some((namespace.push(name), Value::Object(map)));
-                }
+    fn expression(&self, ty: &Type, expr: &Expr) -> Option<Value> {
+        let literal_to_value = |literal: &LiteralExpr| -> Option<Value> {
+            match literal {
+                LiteralExpr::Boolean(b) => Some(Value::Bool(b.value())),
+                LiteralExpr::Float(f) => match f.value() {
+                    Some(f) => Some(Value::from(f)),
+                    None => Some(Value::from("Float (default = <out of range>)")),
+                },
+                LiteralExpr::Integer(i) => match i.value() {
+                    Some(i) => Some(Value::Number(i.into())),
+                    None => Some(Value::from("Int (default = <out of range>")),
+                },
+                LiteralExpr::None(_) => Some(Value::Null),
+                LiteralExpr::String(s) => match s.text() {
+                    Some(text) => Some(Value::from(text.text())),
+                    None => {
+                        let merged_parts = s
+                            .parts()
+                            .map(|p| match p {
+                                StringPart::Placeholder(placeholder) => {
+                                    placeholder.text().to_string()
+                                }
+                                StringPart::Text(text) => {
+                                    let mut buff = String::new();
+                                    text.unescape_to(&mut buff);
+                                    buff
+                                }
+                            })
+                            .collect::<String>();
+                        Some(Value::String(merged_parts))
+                    }
+                },
                 LiteralExpr::Array(a) => {
                     let mut values = vec![];
-
-                    for item in a.elements() {
-                        if let Some((key, value)) =
-                            self.expression(ty.clone(), Key::empty(), name, &item)
+                    for elem in a.elements() {
+                        if let Some(val) =
+                            self.expression(&ty.as_array_type().unwrap().element_type(), &elem)
                         {
-                            values.push((key.join().expect("key to join"), value));
+                            values.push(val);
+                        } else {
+                            values.push(Value::from("<could not embed>"))
                         }
                     }
-
-                    return Some((
-                        namespace.push(name),
-                        Value::Array(values.into_iter().map(|(_, v)| v).collect()),
-                    ));
-                }
-                LiteralExpr::Map(m) => {
-                    let mut map = Map::new();
-
-                    for item in m.items() {
-                        let (k, v) = item.key_value();
-                        let key_name = k.text().to_string();
-                        if let Some((_key, value)) =
-                            self.expression(ty.clone(), Key::empty(), name, &v)
-                        {
-                            map.insert(key_name, value);
-                        }
-                    }
-
-                    return Some((namespace.push(name), Value::Object(map)));
+                    Some(Value::from(values))
                 }
                 LiteralExpr::Pair(p) => {
-                    let mut map = Map::new();
                     let (left, right) = p.exprs();
+                    let (l_ty, r_ty) = ty.as_pair_type().unwrap().types();
 
-                    if let Some((_key, value)) =
-                        self.expression(ty.clone(), Key::empty(), name, &left)
-                    {
-                        map.insert("left".to_string(), value);
+                    let mut map = Map::new();
+                    if let Some(left) = self.expression(&l_ty, &left) {
+                        map.insert("left".to_string(), left);
+                    } else {
+                        map.insert("left".to_string(), Value::from("<could not embed>"));
                     }
-
-                    if let Some((_key, value)) =
-                        self.expression(ty.clone(), Key::empty(), name, &right)
-                    {
-                        map.insert("right".to_string(), value);
+                    if let Some(right) = self.expression(&r_ty, &right) {
+                        map.insert("right".to_string(), right);
+                    } else {
+                        map.insert("right".to_string(), Value::from("<could not embed>"));
                     }
-
-                    return Some((namespace.push(name), Value::Object(map)));
+                    Some(Value::Object(map))
                 }
-                LiteralExpr::Object(v) => {
-                    let map = v
-                        .items()
-                        .filter_map(|item| {
-                            let (name, value) = item.name_value();
-                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
-                        })
-                        .map(|(k, v)| (k.join().expect("key to join"), v))
-                        .collect::<Map<_, _>>();
-
-                    return Some((namespace.push(name), Value::Object(map)));
-                }
-                LiteralExpr::None(_) => {
-                    return Some((namespace.push(name), Value::Null));
-                }
-                LiteralExpr::Hints(_) | LiteralExpr::Input(_) | LiteralExpr::Output(_) => {
-                    // These are not allowed in the input section.
-                    unreachable!("unexpected literal expression");
-                }
-            },
-            Expr::Negation(v) if !self.hide_defaults => {
-                if let Expr::Literal(literal) = v.operand() {
-                    if let LiteralExpr::Boolean(b) = literal {
-                        return Some((namespace.push(name), Value::Bool(!b.value())));
-                    } else if let LiteralExpr::Integer(n) = literal {
-                        return Some((
-                            namespace.push(name),
-                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
-                        ));
-                    } else if let LiteralExpr::Float(n) = literal {
-                        return Some((
-                            namespace.push(name),
-                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
-                        ));
-                    }
-                }
+                _ => None,
             }
-            _ => {}
+        };
+
+        if let Some(literal) = expr.as_literal() {
+            if let Some(value) = literal_to_value(literal) {
+                return Some(value);
+            } else {
+                // is a literal but too complex to embed
+                return Some(Value::String(format!("{ty} (default = <could not embed>)")));
+            }
+        };
+
+        // attempt to recover negation expressions for numbers
+        if let Some(negation) = expr.as_negation()
+            && let Some(prim_ty) = ty.as_primitive_type()
+            && matches!(
+                prim_ty.kind(),
+                PrimitiveTypeKind::Float | PrimitiveTypeKind::Integer
+            )
+        {
+            let positive_val = self.expression(ty, &negation.operand()).unwrap();
+            if let Some(num) = positive_val.as_number()
+                && let Some(i) = num.as_i64()
+            {
+                return Some(Value::from(-i));
+            }
+            if let Some(num) = positive_val.as_number()
+                && let Some(f) = num.as_f64()
+            {
+                return Some(Value::from(-f));
+            }
         }
 
         if self.show_expressions {
-            let mut value = ty.to_string();
-            value.push_str(" (default = ");
-            value.push_str(&expr.text().to_string());
-            value.push(')');
-            Some((namespace.push(name), Value::String(value)))
+            Some(Value::String(format!(
+                "{ty} (default = {expr})",
+                ty = ty,
+                expr = expr.text()
+            )))
         } else {
             None
         }
@@ -264,34 +227,14 @@ impl InputProcessor {
     fn input_section(&mut self, namespace: Key, input_section: InputSection) {
         for decl in input_section.declarations() {
             match decl {
-                Decl::Bound(decl) => {
+                Decl::Bound(decl) if !self.hide_defaults => {
                     let name = decl.name();
                     let ty = decl.ty();
                     let expr = decl.expr();
 
-                    if ty.is_optional() {
-                        if !self.hide_defaults {
-                            let mut value = ty.to_string();
-
-                            if self.show_expressions {
-                                value.push_str(" (default = ");
-                                value.push_str(&expr.text().to_string());
-                                value.push(')');
-                            }
-
-                            self.results.insert(
-                                namespace
-                                    .clone()
-                                    .push(name.text())
-                                    .join()
-                                    .expect("key to join"),
-                                Value::String(value),
-                            );
-                        }
-                    } else if let Some((key, value)) =
-                        self.expression(ty, namespace.clone(), name.text(), &expr)
-                    {
-                        self.results.insert(key.join().expect("key to join"), value);
+                    if let Some(value) = self.expression(&ty, &expr) {
+                        self.results
+                            .insert(namespace.clone().push(name.text()).join().unwrap(), value);
                     }
                 }
                 Decl::Unbound(decl) => {
@@ -309,7 +252,9 @@ impl InputProcessor {
                                 Value::Null,
                             );
                         }
+                        // don't insert
                     } else {
+                        // required input
                         self.results.insert(
                             namespace
                                 .clone()
@@ -319,6 +264,9 @@ impl InputProcessor {
                             Value::String(ty.to_string()),
                         );
                     }
+                }
+                _ => {
+                    // default input we shouldn't insert
                 }
             }
         }
@@ -453,7 +401,7 @@ pub async fn inputs(args: Args) -> Result<()> {
         .expect("the root source should always be included in the results")
         .document();
 
-    let mut inputs = InputProcessor::new(
+    let mut processor = InputProcessor::new(
         args.nested_inputs,
         args.show_expressions,
         args.hide_defaults,
@@ -477,7 +425,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                inputs.task(namespace, &task, &Default::default());
+                processor.task(namespace, &task, &Default::default());
             }
             (None, Some(analysis_wf)) => {
                 if analysis_wf.name() != name {
@@ -498,17 +446,17 @@ pub async fn inputs(args: Args) -> Result<()> {
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                inputs.workflow(namespace, document, analysis_wf, &ast_wf)?;
+                processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
             }
             (None, None) => bail!(
                 "no task or workflow with name `{name}` was found in document `{path}`",
                 path = document.path()
             ),
         }
-    } else if let Some(workflow) = document.workflow() {
-        let name = workflow.name().to_owned();
+    } else if let Some(analysis_wf) = document.workflow() {
+        let name = analysis_wf.name().to_owned();
 
-        if !workflow.allows_nested_inputs() && args.nested_inputs {
+        if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
             bail!("workflow `{name}` does not allow nested inputs");
         }
 
@@ -521,7 +469,7 @@ pub async fn inputs(args: Args) -> Result<()> {
             // be found, so this should always unwrap.
             .unwrap();
 
-        inputs.workflow(namespace, document, workflow, &ast_wf)?;
+        processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
     } else {
         let mut tasks = document.tasks();
         let first = tasks.next();
@@ -540,7 +488,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                 // SAFETY: the task should be present, so this should always unwrap.
                 .unwrap();
 
-            inputs.task(namespace, &task, &Default::default());
+            processor.task(namespace, &task, &Default::default());
         } else {
             bail!(
                 "document `{path}` contains no workflow or task",
@@ -549,7 +497,7 @@ pub async fn inputs(args: Args) -> Result<()> {
         }
     }
 
-    let inputs = inputs.into_inner();
+    let inputs = processor.into_inner();
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs)?;

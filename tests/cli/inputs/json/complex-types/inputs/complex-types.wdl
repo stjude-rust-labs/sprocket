@@ -34,11 +34,25 @@ workflow test {
     }
 
     input {
-        Foo foo
-        Bar bar
-        Baz baz
+        Foo foo = Foo {
+            foo: 42,
+            bar: "bar",
+            baz: bar,
+        }
+        Bar bar = Bar {
+            foo: "file.txt",
+            bar: "dir",
+            baz: Baz {
+                foo: true,
+                bar: 4.2,
+            }
+        }
+        Baz baz = Baz {
+            foo: false,
+            bar: 1.2,
+        }
         Int? x
-        Array[Float] y
+        Array[Float] y = [1.2, 3.4, -0.1]
         String empty = ""
         String interpolated = "weirdly nested string with interpolation: ~{empty}"
     }
