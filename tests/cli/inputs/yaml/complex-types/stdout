@@ -1,7 +1,21 @@
+test.foo:
+  int: 42
+  str: bar
+  bar: <OMITTED>
+test.bar:
+  file: file.txt
+  dir: dir
+  baz:
+    bool: true
+    float: 4.2
+test.baz:
+  bool: false
+  float: 1.2
 test.x: null
 test.required_file: File <REQUIRED>
 test.required_directory: Directory <REQUIRED>
 test.required_string: String <REQUIRED>
+test.default_string: I have a default value
 test.y:
 - 1.2
 - 3.4

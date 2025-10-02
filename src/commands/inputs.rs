@@ -17,10 +17,8 @@ use wdl::ast::v1::Decl;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
-use wdl::ast::v1::PrimitiveTypeKind;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
-use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
@@ -116,7 +114,7 @@ impl InputProcessor {
     }
 
     /// Processes an expression.
-    fn expression(&self, ty: &Type, expr: &Expr) -> Option<Value> {
+    fn expression(&self, expr: &Expr) -> Option<Value> {
         let literal_to_value = |literal: &LiteralExpr| -> Option<Value> {
             match literal {
                 LiteralExpr::Boolean(b) => Some(Value::Bool(b.value())),
@@ -160,9 +158,7 @@ impl InputProcessor {
                 LiteralExpr::Array(a) => {
                     let mut values = vec![];
                     for elem in a.elements() {
-                        if let Some(val) =
-                            self.expression(&ty.as_array_type().unwrap().element_type(), &elem)
-                        {
+                        if let Some(val) = self.expression(&elem) {
                             values.push(val);
                         } else {
                             values.push(Value::from("<OMITTED>"))
@@ -172,45 +168,75 @@ impl InputProcessor {
                 }
                 LiteralExpr::Pair(p) => {
                     let (left, right) = p.exprs();
-                    let (l_ty, r_ty) = ty.as_pair_type().unwrap().types();
 
                     let mut map = Map::new();
-                    if let Some(left) = self.expression(&l_ty, &left) {
+                    if let Some(left) = self.expression(&left) {
                         map.insert("left".to_string(), left);
                     } else {
                         map.insert("left".to_string(), Value::from("<OMITTED>"));
                     }
-                    if let Some(right) = self.expression(&r_ty, &right) {
+                    if let Some(right) = self.expression(&right) {
                         map.insert("right".to_string(), right);
                     } else {
                         map.insert("right".to_string(), Value::from("<OMITTED>"));
                     }
                     Some(Value::Object(map))
                 }
-                _ => None,
+                LiteralExpr::Map(m) => {
+                    let mut map = Map::new();
+                    for item in m.items() {
+                        let (key, val) = item.key_value();
+                        let key = if let Some(literal) = key.as_literal()
+                            && let Some(string) = literal.as_string()
+                            && let Some(text) = string.text()
+                        {
+                            text.text().to_string()
+                        } else {
+                            "OMITTED".to_string()
+                        };
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key, val);
+                        } else {
+                            map.insert(key, Value::from("<OMITTED>"));
+                        }
+                    }
+                    Some(Value::Object(map))
+                }
+                LiteralExpr::Struct(s) => {
+                    let mut map = Map::new();
+                    for item in s.items() {
+                        let (key, val) = item.name_value();
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key.text().to_string(), val);
+                        } else {
+                            map.insert(key.text().to_string(), Value::from("<OMITTED>"));
+                        }
+                    }
+                    Some(Value::Object(map))
+                }
+                LiteralExpr::Object(o) => {
+                    let mut map = Map::new();
+                    for item in o.items() {
+                        let (key, val) = item.name_value();
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key.text().to_string(), val);
+                        } else {
+                            map.insert(key.text().to_string(), Value::from("<OMITTED>"));
+                        }
+                    }
+                    Some(Value::Object(map))
+                }
+                _ => unreachable!("unexpected literal expression"),
             }
         };
 
         if let Some(literal) = expr.as_literal() {
-            if let Some(value) = literal_to_value(literal) {
-                return Some(value);
-            } else if self.show_expressions {
-                // literal but too complex to embed
-                return Some(Value::String(format!("{ty} (DEFAULT = <OMITTED>)")));
-            } else {
-                return None;
-            }
+            return literal_to_value(literal);
         };
 
         // attempt to recover negation expressions for numbers
-        if let Some(negation) = expr.as_negation()
-            && let Some(prim_ty) = ty.as_primitive_type()
-            && matches!(
-                prim_ty.kind(),
-                PrimitiveTypeKind::Float | PrimitiveTypeKind::Integer
-            )
-        {
-            let positive_val = self.expression(ty, &negation.operand()).unwrap();
+        if let Some(negation) = expr.as_negation() {
+            let positive_val = self.expression(&negation.operand())?;
             if let Some(num) = positive_val.as_number()
                 && let Some(i) = num.as_i64()
             {
@@ -222,16 +248,7 @@ impl InputProcessor {
                 return Some(Value::from(-f));
             }
         }
-
-        if self.show_expressions {
-            Some(Value::String(format!(
-                "{ty} (DEFAULT = {expr})",
-                ty = ty,
-                expr = expr.text()
-            )))
-        } else {
-            None
-        }
+        None
     }
 
     /// Processes an input section.
@@ -240,12 +257,20 @@ impl InputProcessor {
             match decl {
                 Decl::Bound(decl) if !self.hide_defaults => {
                     let name = decl.name();
-                    let ty = decl.ty();
                     let expr = decl.expr();
 
-                    if let Some(value) = self.expression(&ty, &expr) {
+                    if let Some(value) = self.expression(&expr) {
                         self.results
                             .insert(namespace.clone().push(name.text()).join().unwrap(), value);
+                    } else if self.show_expressions {
+                        self.results.insert(
+                            namespace.clone().push(name.text()).join().unwrap(),
+                            Value::from(format!(
+                                "{ty} (DEFAULT = `{expr}`)",
+                                ty = decl.ty(),
+                                expr = expr.text()
+                            )),
+                        );
                     }
                 }
                 Decl::Unbound(decl) => {

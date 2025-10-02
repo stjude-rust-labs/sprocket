@@ -58,6 +58,7 @@ workflow test {
         File required_file
         Directory required_directory
         String required_string
+        String default_string = "I have a default value"
         Array[Float] y = [1.2, 3.4, -0.1]
         String empty = ""
         String interpolated = "weirdly nested string with interpolation: ~{empty}"
