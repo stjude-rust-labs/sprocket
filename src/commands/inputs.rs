@@ -241,19 +241,7 @@ impl InputProcessor {
                     let name = decl.name();
                     let ty = decl.ty();
 
-                    if ty.is_optional() {
-                        if !self.hide_defaults {
-                            self.results.insert(
-                                namespace
-                                    .clone()
-                                    .push(name.text())
-                                    .join()
-                                    .expect("key to join"),
-                                Value::Null,
-                            );
-                        }
-                        // don't insert
-                    } else {
+                    if !ty.is_optional() {
                         // required input
                         self.results.insert(
                             namespace
@@ -262,6 +250,15 @@ impl InputProcessor {
                                 .join()
                                 .expect("key to join"),
                             Value::String(ty.to_string()),
+                        );
+                    } else if !self.hide_defaults {
+                        self.results.insert(
+                            namespace
+                                .clone()
+                                .push(name.text())
+                                .join()
+                                .expect("key to join"),
+                            Value::Null,
                         );
                     }
                 }
