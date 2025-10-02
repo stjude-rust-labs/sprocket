@@ -1,6 +1,11 @@
-test.foo: Foo
-test.bar: Bar
-test.baz: Baz
+test.foo: Foo (default = <could not embed>)
+test.bar: Bar (default = <could not embed>)
+test.baz: Baz (default = <could not embed>)
 test.x: null
-test.y: Array[Float]
+test.y:
+- 1.2
+- 3.4
+- -0.1
+test.empty: ''
+test.interpolated: 'weirdly nested string with interpolation: ~{empty}'
 

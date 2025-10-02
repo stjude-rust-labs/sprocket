@@ -4,23 +4,23 @@
 version 1.2
 
 struct Foo {
-    Int foo
-    String bar
-    Bar baz
+    Int int
+    String str
+    Bar bar
 }
 
 struct Bar {
-    File foo
-    Directory bar
+    File file
+    Directory dir
     Baz baz
 }
 
 struct Baz {
-    Boolean foo
-    Float bar
+    Boolean bool
+    Float float
 }
 
-task foo {
+task foo_task {
     input {
         Foo foo
     }
@@ -35,21 +35,21 @@ workflow test {
 
     input {
         Foo foo = Foo {
-            foo: 42,
-            bar: "bar",
-            baz: bar,
+            int: 42,
+            str: "bar",
+            bar: bar,
         }
         Bar bar = Bar {
-            foo: "file.txt",
-            bar: "dir",
+            file: "file.txt",
+            dir: "dir",
             baz: Baz {
-                foo: true,
-                bar: 4.2,
+                bool: true,
+                float: 4.2,
             }
         }
         Baz baz = Baz {
-            foo: false,
-            bar: 1.2,
+            bool: false,
+            float: 1.2,
         }
         Int? x
         Array[Float] y = [1.2, 3.4, -0.1]
@@ -57,5 +57,5 @@ workflow test {
         String interpolated = "weirdly nested string with interpolation: ~{empty}"
     }
 
-    call foo as my_call
+    call foo_task as my_call
 }
