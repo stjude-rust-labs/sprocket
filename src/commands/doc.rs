@@ -30,11 +30,20 @@ pub struct Args {
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
-    #[arg(short, long, value_name = "SVG FILE")]
+    #[arg(long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
+    /// Path to an alternate light mode SVG logo to embed on each page.
+    ///
+    /// If not supplied, the `--logo` SVG will be used; or if that is also not
+    /// supplied, the default Sprocket logo will be used.
+    #[arg(long, value_name = "SVG FILE")]
+    pub alt_light_logo: Option<PathBuf>,
+    /// Initialize pages in light mode instead of the default dark mode.
+    #[arg(short, long)]
+    pub light_mode: bool,
     /// Initialize pages on the "Workflows" view instead of the "Full
     /// Directory" view of the left nav bar.
-    #[arg(long)]
+    #[arg(short, long)]
     pub prioritize_workflows_view: bool,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
@@ -167,8 +176,10 @@ pub async fn doc(args: Args) -> Result<()> {
         .with_diagnostics_config(DiagnosticsConfig::except_all());
     let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
+        .init_light_mode(args.light_mode)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
+        .alt_logo(args.alt_light_logo)
         .additional_javascript(addl_js)
         .prefer_full_directory(!args.prioritize_workflows_view);
 

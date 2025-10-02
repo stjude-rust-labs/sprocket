@@ -118,12 +118,14 @@ impl MetaMapExt for MetaMap {
             @if let Some(on_click) = external_link_on_click {
                 button type="button" class="main__button" x-on:click=(on_click) {
                     b { "Go to External Documentation" }
-                    img src=(assets.join("link.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5";
+                    img src=(assets.join("link.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 block light:hidden";
+                    img src=(assets.join("link.light.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 hidden light:block";
                 }
             }
             @if let Some(warning) = warning_item {
                 div class="metadata__warning" {
-                    img src=(assets.join("information-circle.svg").to_string_lossy()) alt="Warning Icon" class="size-5";
+                    img src=(assets.join("information-circle.svg").to_string_lossy()) alt="Warning Icon" class="size-5 block light:hidden";
+                    img src=(assets.join("information-circle.light.svg").to_string_lossy()) alt="Warning Icon" class="size-5 hidden light:block";
                     p { (render_value(warning)) }
                 }
             }

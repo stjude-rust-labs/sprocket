@@ -163,7 +163,7 @@ impl Task {
 
         let markup = html! {
             div class="main__container" {
-                span class="text-violet-400" { "Task" }
+                span class="text-brand-violet-400" { "Task" }
                 h1 id="title" class="main__title" { code { (self.name()) } }
                 div class="markdown-body mb-4" {
                     (self.render_description(false))

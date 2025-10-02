@@ -1,1 +1,1 @@
-dev doc -l test-logo.svg
+dev doc --logo test-logo.svg
