@@ -184,6 +184,7 @@ impl InputProcessor {
                 }
                 LiteralExpr::Map(m) => {
                     let mut map = Map::new();
+                    let mut bad_key_counter = 0 as usize;
                     for item in m.items() {
                         let (key, val) = item.key_value();
                         let key = if let Some(literal) = key.as_literal()
@@ -192,7 +193,8 @@ impl InputProcessor {
                         {
                             text.text().to_string()
                         } else {
-                            "OMITTED".to_string()
+                            bad_key_counter += 1;
+                            format!("OMITTED_{bad_key_counter}")
                         };
                         if let Some(val) = self.expression(&val) {
                             map.insert(key, val);

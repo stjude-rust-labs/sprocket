@@ -23,8 +23,14 @@ struct Baz {
 task foo_task {
     input {
         Foo foo
-        Map[String, String] map = {
-            "key": "value"
+        Map[String, String] string_map = {
+            "key1": "value1",
+            "key2": "value2",
+        }
+        Map[Int, String] int_map = {
+            1: "one",
+            2: "two",
+            3: "three",
         }
     }
 

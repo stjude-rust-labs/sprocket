@@ -29,7 +29,13 @@
   "test.empty": "",
   "test.interpolated": "String (DEFAULT = `weirdly nested string with interpolation: ~{empty}`)",
   "test.my_call.foo": "Foo <REQUIRED>",
-  "test.my_call.map": {
-    "key": "value"
+  "test.my_call.string_map": {
+    "key1": "value1",
+    "key2": "value2"
+  },
+  "test.my_call.int_map": {
+    "OMITTED_1": "one",
+    "OMITTED_2": "two",
+    "OMITTED_3": "three"
   }
 }
