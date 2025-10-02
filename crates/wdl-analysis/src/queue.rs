@@ -35,7 +35,6 @@ use tracing::error;
 use tracing::info;
 use url::Url;
 use wdl_ast::Ast;
-use wdl_ast::AstToken;
 use wdl_ast::Node;
 use wdl_ast::Severity;
 use wdl_format::Formatter;

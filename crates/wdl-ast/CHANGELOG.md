@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Chore
+#### Changed
 
-* Documentation change to specify what happens when `text()` is called on an empty `LiteralString` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
+* `LiteralString::text()` method signature changed to return an `Option<LiteralStringText<N::Token>>` instead of `Option<StringText<N::Token>>` ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
+
+#### Removed
+
+* `CommandSection::text()` method was removed ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
 
 ## 0.17.0 - 09-15-2025
 

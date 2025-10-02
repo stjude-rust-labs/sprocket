@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use maud::Markup;
-use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::WorkflowDefinition;

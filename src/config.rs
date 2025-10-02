@@ -136,7 +136,10 @@ impl Default for RunConfig {
 
 impl Config {
     /// Create a new config instance by reading potential configurations.
-    pub fn new(path: Option<&Path>, skip_config_search: bool) -> Result<Self> {
+    pub fn new<'a>(
+        paths: impl IntoIterator<Item = &'a Path>,
+        skip_config_search: bool,
+    ) -> Result<Self> {
         // Check for a config file in the current directory
         // Start a new Figment instance with default values
         let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
@@ -185,8 +188,8 @@ impl Config {
             }
         }
 
-        // If provided, check command line config file
-        if let Some(path) = path {
+        // Merge the given files
+        for path in paths {
             if !path.exists() {
                 bail!(
                     "configuration file `{path}` does not exist",

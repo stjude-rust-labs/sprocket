@@ -7,7 +7,6 @@ use std::str::FromStr;
 use wdl_grammar::SyntaxNode;
 
 use crate::AstNode;
-use crate::AstToken;
 use crate::TreeNode;
 use crate::v1::LiteralString;
 
