@@ -17,6 +17,8 @@ use tokio::sync::broadcast;
 use tracing::warn;
 use url::Url;
 
+use crate::ApptainerBackend;
+use crate::ApptainerBackendConfig;
 use crate::DockerBackend;
 use crate::LocalBackend;
 use crate::LsfApptainerBackend;
@@ -302,6 +304,11 @@ impl Config {
                 TesBackend::new(self.clone(), config, events).await?,
             )),
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                self.clone(),
+                config.clone(),
+                events,
+            ))),
+            BackendConfig::Apptainer(config) => Ok(Arc::new(ApptainerBackend::new(
                 self.clone(),
                 config.clone(),
                 events,
@@ -694,6 +701,10 @@ pub enum BackendConfig {
     ///
     /// Requires enabling experimental features.
     LsfApptainer(Arc<LsfApptainerBackendConfig>),
+    /// Use the experimental Apptainer task execution backend.
+    ///
+    /// Requires enabling experimental features.
+    Apptainer(Arc<ApptainerBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -710,6 +721,7 @@ impl BackendConfig {
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
             Self::LsfApptainer(config) => config.validate(engine_config),
+            Self::Apptainer(config) => config.validate(engine_config),
         }
     }
 
@@ -746,7 +758,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::Apptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -754,7 +766,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::Apptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }

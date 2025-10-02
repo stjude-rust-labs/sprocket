@@ -28,11 +28,13 @@ use crate::Value;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
+mod apptainer;
 mod docker;
 mod local;
 mod lsf_apptainer;
 mod tes;
 
+pub use apptainer::*;
 pub use docker::*;
 pub use local::*;
 pub use lsf_apptainer::*;
