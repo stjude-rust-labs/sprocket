@@ -270,21 +270,57 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
     fn message(state: &State) -> String {
         let executing = state.executing.len();
         let ready = state.tasks.len() - executing;
-        format!(
-            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
-             task{s3}{sep}{tasks}",
-            c = state.completed,
-            completed = "completed".cyan(),
-            s1 = if state.completed == 1 { "" } else { "s" },
-            r = ready,
-            ready = "ready".cyan(),
-            s2 = if ready == 1 { "" } else { "s" },
-            e = executing,
-            executing = "executing".cyan(),
-            s3 = if executing == 1 { "" } else { "s" },
-            sep = if executing == 0 { "" } else { ": " },
-            tasks = Tasks(&state.executing)
-        )
+
+        // Build the message parts
+        let mut parts = Vec::new();
+
+        // Add completed tasks if any
+        if state.completed > 0 {
+            parts.push(format!(
+                "{c} {completed} task{s}",
+                c = state.completed,
+                completed = "completed".cyan(),
+                s = if state.completed == 1 { "" } else { "s" }
+            ));
+        }
+
+        // Add failed tasks if any
+        if state.failed > 0 {
+            parts.push(format!(
+                "{f} {failed} task{s}",
+                f = state.failed,
+                failed = "failed".red(),
+                s = if state.failed == 1 { "" } else { "s" }
+            ));
+        }
+
+        // Add ready tasks if any
+        if ready > 0 {
+            parts.push(format!(
+                "{r} {ready} task{s}",
+                r = ready,
+                ready = "ready".cyan(),
+                s = if ready == 1 { "" } else { "s" }
+            ));
+        }
+
+        // Add executing tasks if any
+        if executing > 0 {
+            parts.push(format!(
+                "{e} {executing} task{s}: {tasks}",
+                e = executing,
+                executing = "executing".cyan(),
+                s = if executing == 1 { "" } else { "s" },
+                tasks = Tasks(&state.executing)
+            ));
+        }
+
+        // Join all parts with commas, or show "no tasks" if empty
+        if parts.is_empty() {
+            " - no tasks".to_string()
+        } else {
+            format!(" - {}", parts.join(", "))
+        }
     }
 
     let mut state = State::default();
