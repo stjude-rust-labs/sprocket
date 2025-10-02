@@ -185,10 +185,11 @@ pub(crate) fn full_page<P: AsRef<Path>>(
     body: Markup,
     root: P,
     script: &AdditionalScript,
+    init_light_mode: bool,
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data="{ DEFAULT_THEME: 'light' }" x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : ''" x-cloak {
+        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: '' }" }) x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : ''" x-cloak {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {
@@ -377,10 +378,15 @@ pub struct Config {
     output_dir: PathBuf,
     /// An optional markdown file to embed in the homepage.
     homepage: Option<PathBuf>,
+    /// Initialize pages in light mode instead of the default dark mode.
+    init_light_mode: bool,
     /// An optional custom theme directory.
     custom_theme: Option<PathBuf>,
     /// An optional custom logo to embed in the left sidebar.
     custom_logo: Option<PathBuf>,
+    /// An optional alternate (light mode) custom logo to embed in the left
+    /// sidebar.
+    alt_logo: Option<PathBuf>,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
@@ -400,8 +406,10 @@ impl Config {
             workspace: workspace.into(),
             output_dir: output_dir.into(),
             homepage: None,
+            init_light_mode: false,
             custom_theme: None,
             custom_logo: None,
+            alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: PREFER_FULL_DIRECTORY,
         }
@@ -410,6 +418,12 @@ impl Config {
     /// Overwrite the config's homepage with the new value.
     pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
         self.homepage = homepage;
+        self
+    }
+
+    /// Overwrite the config's light mode default with the new value.
+    pub fn init_light_mode(mut self, init_light_mode: bool) -> Self {
+        self.init_light_mode = init_light_mode;
         self
     }
 
@@ -422,6 +436,12 @@ impl Config {
     /// Overwrite the config's custom logo with the new value.
     pub fn custom_logo(mut self, custom_logo: Option<PathBuf>) -> Self {
         self.custom_logo = custom_logo;
+        self
+    }
+
+    /// Overwrite the config's alternate logo with the new value.
+    pub fn alt_logo(mut self, alt_logo: Option<PathBuf>) -> Self {
+        self.alt_logo = alt_logo;
         self
     }
 
@@ -490,8 +510,10 @@ pub async fn document_workspace(config: Config) -> Result<()> {
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_homepage(homepage)
+        .init_light_mode(config.init_light_mode)
         .maybe_custom_theme(config.custom_theme)?
         .maybe_logo(config.custom_logo)
+        .maybe_alt_logo(config.alt_logo)
         .additional_javascript(config.additional_javascript)
         .prefer_full_directory(config.init_on_full_directory)
         .build()
