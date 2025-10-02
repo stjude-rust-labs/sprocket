@@ -137,28 +137,25 @@ impl InputProcessor {
                 LiteralExpr::None(_) => Some(Value::Null),
                 LiteralExpr::String(s) => match s.text() {
                     Some(text) => Some(Value::from(text.text())),
-                    None => {
-                        if self.show_expressions {
-                            let merged_parts = s
-                                .parts()
-                                .map(|p| match p {
-                                    StringPart::Placeholder(placeholder) => {
-                                        placeholder.text().to_string()
-                                    }
-                                    StringPart::Text(text) => {
-                                        let mut buff = String::new();
-                                        text.unescape_to(&mut buff);
-                                        buff
-                                    }
-                                })
-                                .collect::<String>();
-                            Some(Value::String(format!(
-                                "String (default = `{merged_parts}`)"
-                            )))
-                        } else {
-                            None
-                        }
+                    None if self.show_expressions => {
+                        let merged_parts = s
+                            .parts()
+                            .map(|p| match p {
+                                StringPart::Placeholder(placeholder) => {
+                                    placeholder.text().to_string()
+                                }
+                                StringPart::Text(text) => {
+                                    let mut buff = String::new();
+                                    text.unescape_to(&mut buff);
+                                    buff
+                                }
+                            })
+                            .collect::<String>();
+                        Some(Value::String(format!(
+                            "String (default = `{merged_parts}`)"
+                        )))
                     }
+                    None => None,
                 },
                 LiteralExpr::Array(a) => {
                     let mut values = vec![];
