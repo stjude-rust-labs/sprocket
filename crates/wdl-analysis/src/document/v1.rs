@@ -400,6 +400,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                 name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.name_span),
+                None,
             ));
         }
         return;
@@ -415,6 +416,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
+                    None,
                 ));
             }
             _ => {
@@ -542,6 +544,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
+                None,
             ));
             return;
         }
@@ -553,6 +556,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     name.text(),
                     Context::Task(name.span()),
                     Context::Workflow(s.name_span),
+                    None,
                 ));
                 return;
             }
@@ -795,6 +799,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
                 name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
+                None,
             ));
             return false;
         }
@@ -1819,5 +1824,118 @@ fn type_check_expr(
         document
             .diagnostics
             .push(non_empty_array_assignment(expected_span, expr.span()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn example_scope(names: Vec<(impl Into<String>, Type)>) -> Scope {
+        let mut scope = Scope::new(None, Span::new(0, 0));
+        for (name, ty) in names.into_iter() {
+            scope.insert(name, Span::new(0, 0), ty);
+        }
+        scope
+    }
+
+    fn example_scopes() -> Vec<Scope> {
+        // if (...) then {
+        //   String a
+        //   String b
+        //   String c
+        // } else if (...) then {
+        //   String a
+        //   String? b
+        // } else {
+        //   String a
+        //   String b
+        //   String c
+        // }
+        vec![
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+            ]),
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, true)),
+            ]),
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+            ]),
+        ]
+    }
+
+    /// Evaluates a scope union assuming all clauses are conditional (no
+    /// exhaustive case).
+    fn eval_if(scopes: &[Scope]) -> ScopeUnion<'_> {
+        let mut scope_union = ScopeUnion::new(scopes);
+        for n in 0..scopes.len() {
+            scope_union
+                .insert(ScopeIndex(n), false)
+                .expect("scope to insert");
+        }
+
+        scope_union
+    }
+
+    /// Evaluates a scope union assuming the last passed in scope is an `else`
+    /// (exhaustive) clause.
+    fn eval_if_with_else(scopes: &[Scope]) -> ScopeUnion<'_> {
+        let mut scope_union = ScopeUnion::new(scopes);
+        for n in 0..scopes.len() - 1 {
+            scope_union
+                .insert(ScopeIndex(n), false)
+                .expect("scope to insert");
+        }
+        scope_union
+            .insert(ScopeIndex(scopes.len() - 1), true)
+            .expect("scope to insert");
+        scope_union
+    }
+
+    #[test]
+    fn smoke() {
+        let scopes = example_scopes();
+
+        // An `if` statement with no `else` clause at the end.
+        let scope_union = eval_if(&scopes);
+        let mut results = scope_union.resolve();
+        results.sort_by_key(|(name, _)| name.to_owned());
+        let mut results = results.into_iter();
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "a");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "b");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "c");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        // An `if` statement with an `else` clause at the end.
+        let scope_union = eval_if_with_else(&scopes);
+        let mut results = scope_union.resolve();
+        results.sort_by_key(|(name, _)| name.to_owned());
+        let mut results = results.into_iter();
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "a");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, false));
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "b");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+
+        let (name, info) = results.next().unwrap();
+        assert_eq!(name, "c");
+        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
     }
 }

@@ -5090,6 +5090,7 @@ dependencies = [
  "reqwest",
  "rowan",
  "serde",
+ "smallvec",
  "tempfile",
  "tokio",
  "toml 0.9.7",
