@@ -1,10 +1,10 @@
 test.foo:
   int: 42
-  str: bar
+  str: some string
   bar: <OMITTED>
 test.bar:
-  file: file.txt
-  dir: dir
+  file: ./file.txt
+  dir: ~/dir/
   baz:
     bool: true
     float: 4.2

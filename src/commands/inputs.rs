@@ -35,10 +35,10 @@ pub struct Args {
 
     /// Show inputs with non-literal default values.
     #[arg(long)]
-    pub show_expressions: bool,
+    pub show_non_literals: bool,
 
     /// Hide inputs with default values.
-    #[arg(long, conflicts_with = "show_expressions")]
+    #[arg(long, conflicts_with = "show_non_literals")]
     pub hide_defaults: bool,
 
     /// Generate inputs for all tasks called in the workflow.  
@@ -121,14 +121,14 @@ impl InputProcessor {
                 LiteralExpr::Float(f) => match f.value() {
                     Some(f) => Some(Value::from(f)),
                     None if self.show_expressions => {
-                        Some(Value::from("Float (DEFAULT = <OUT OF RANGE>)"))
+                        Some(Value::from("Float <DEFAULT IS OUT OF RANGE>"))
                     }
                     None => None,
                 },
                 LiteralExpr::Integer(i) => match i.value() {
                     Some(i) => Some(Value::Number(i.into())),
                     None if self.show_expressions => {
-                        Some(Value::from("Int (DEFAULT = <OUT OF RANGE>"))
+                        Some(Value::from("Int <DEFAULT IS OUT OF RANGE>"))
                     }
                     None => None,
                 },
@@ -150,7 +150,7 @@ impl InputProcessor {
                             })
                             .collect::<String>();
                         Some(Value::String(format!(
-                            "String (DEFAULT = `{merged_parts}`)"
+                            "String <NON-LITERAL: `{merged_parts}`>"
                         )))
                     }
                     None => None,
@@ -160,6 +160,11 @@ impl InputProcessor {
                     for elem in a.elements() {
                         if let Some(val) = self.expression(&elem) {
                             values.push(val);
+                        } else if self.show_expressions {
+                            values.push(Value::String(format!(
+                                "<NON-LITERAL: `{expr}`>",
+                                expr = elem.text()
+                            )))
                         } else {
                             values.push(Value::from("<OMITTED>"))
                         }
@@ -172,11 +177,21 @@ impl InputProcessor {
                     let mut map = Map::new();
                     if let Some(left) = self.expression(&left) {
                         map.insert("left".to_string(), left);
+                    } else if self.show_expressions {
+                        map.insert(
+                            "left".to_string(),
+                            Value::String(format!("<NON-LITERAL: `{expr}`>", expr = left.text())),
+                        );
                     } else {
                         map.insert("left".to_string(), Value::from("<OMITTED>"));
                     }
                     if let Some(right) = self.expression(&right) {
                         map.insert("right".to_string(), right);
+                    } else if self.show_expressions {
+                        map.insert(
+                            "right".to_string(),
+                            Value::String(format!("<NON-LITERAL: `{expr}`>", expr = right.text())),
+                        );
                     } else {
                         map.insert("right".to_string(), Value::from("<OMITTED>"));
                     }
@@ -210,6 +225,14 @@ impl InputProcessor {
                         let (key, val) = item.name_value();
                         if let Some(val) = self.expression(&val) {
                             map.insert(key.text().to_string(), val);
+                        } else if self.show_expressions {
+                            map.insert(
+                                key.text().to_string(),
+                                Value::String(format!(
+                                    "<NON-LITERAL: `{expr}`>",
+                                    expr = val.text()
+                                )),
+                            );
                         } else {
                             map.insert(key.text().to_string(), Value::from("<OMITTED>"));
                         }
@@ -222,6 +245,14 @@ impl InputProcessor {
                         let (key, val) = item.name_value();
                         if let Some(val) = self.expression(&val) {
                             map.insert(key.text().to_string(), val);
+                        } else if self.show_expressions {
+                            map.insert(
+                                key.text().to_string(),
+                                Value::String(format!(
+                                    "<NON-LITERAL: `{expr}`>",
+                                    expr = val.text()
+                                )),
+                            );
                         } else {
                             map.insert(key.text().to_string(), Value::from("<OMITTED>"));
                         }
@@ -268,7 +299,7 @@ impl InputProcessor {
                         self.results.insert(
                             namespace.clone().push(name.text()).join().unwrap(),
                             Value::from(format!(
-                                "{ty} (DEFAULT = `{expr}`)",
+                                "{ty} <NON-LITERAL: `{expr}`>",
                                 ty = decl.ty(),
                                 expr = expr.text()
                             )),
@@ -438,7 +469,7 @@ pub async fn inputs(args: Args) -> Result<()> {
 
     let mut processor = InputProcessor::new(
         args.nested_inputs,
-        args.show_expressions,
+        args.show_non_literals,
         args.hide_defaults,
     );
 

@@ -45,12 +45,12 @@ workflow test {
     input {
         Foo foo = Foo {
             int: 42,
-            str: "bar",
+            str: "some string",
             bar: bar,
         }
         Bar bar = Bar {
-            file: "file.txt",
-            dir: "dir",
+            file: "./file.txt",
+            dir: "~/dir/",
             baz: Baz {
                 bool: true,
                 float: 4.2,

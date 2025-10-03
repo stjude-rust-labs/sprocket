@@ -1,12 +1,12 @@
 {
   "test.foo": {
     "int": 42,
-    "str": "bar",
-    "bar": "<OMITTED>"
+    "str": "some string",
+    "bar": "<NON-LITERAL: `bar`>"
   },
   "test.bar": {
-    "file": "file.txt",
-    "dir": "dir",
+    "file": "./file.txt",
+    "dir": "~/dir/",
     "baz": {
       "bool": true,
       "float": 4.2
@@ -27,7 +27,7 @@
     -0.1
   ],
   "test.empty": "",
-  "test.interpolated": "String (DEFAULT = `weirdly nested string with interpolation: ~{empty}`)",
+  "test.interpolated": "String <NON-LITERAL: `weirdly nested string with interpolation: ~{empty}`>",
   "test.my_call.foo": "Foo <REQUIRED>",
   "test.my_call.string_map": {
     "key1": "value1",
