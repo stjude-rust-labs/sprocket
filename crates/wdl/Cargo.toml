@@ -6,8 +6,8 @@ description = "Lexing, parsing, validation, linting, documentation, analysis, an
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
-homepage = "https://github.com/stjude-rust-labs/wdl"
-repository = "https://github.com/stjude-rust-labs/wdl"
+homepage.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl"
 documentation = "https://docs.rs/wdl"
 readme = "../README.md"
 

@@ -1,8 +1,8 @@
 # Rules
 
-This table documents all implemented `wdl` analysis rules implemented on the `main`
-branch of the `stjude-rust-labs/wdl` repository. Note that the information may
-be out of sync with released packages.
+This table documents all implemented `wdl` analysis rules implemented on the 
+`main` branch of the `stjude-rust-labs/sprocket` repository. Note that the 
+information may be out of sync with released packages.
 
 ## Analysis Rules
 

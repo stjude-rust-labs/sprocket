@@ -1,13 +1,13 @@
 [package]
 name = "wdl-ast"
 version = "0.17.0"
+description = "An abstract syntax tree for Workflow Description Language (WDL) documents"
 authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "An abstract syntax tree for Workflow Description Language (WDL) documents"
-homepage = "https://github.com/stjude-rust-labs/wdl"
-repository = "https://github.com/stjude-rust-labs/wdl"
+homepage.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-ast"
 documentation = "https://docs.rs/wdl-ast"
 
 [features]

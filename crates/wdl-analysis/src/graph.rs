@@ -453,10 +453,16 @@ impl DocumentGraphNode {
 
             let code = resp.status();
             if !code.is_success() {
-                bail!("server returned HTTP status {code}");
+                bail!(
+                    "server response for `{uri}` was {code} ({message})",
+                    code = code.as_u16(),
+                    message = code.canonical_reason().unwrap_or("unknown")
+                );
             }
 
-            resp.text().await.context("failed to read response body")
+            resp.text()
+                .await
+                .with_context(|| format!("failed to read response body for `{uri}`"))
         })
     }
 }

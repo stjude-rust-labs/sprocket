@@ -1,13 +1,13 @@
 [package]
 name = "wdl-engine"
 version = "0.8.1"
+description = "Execution engine for Workflow Description Language (WDL) documents."
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
-repository.workspace = true
-description = "Execution engine for Workflow Description Language (WDL) documents."
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-engine"
 documentation = "https://docs.rs/wdl-engine"
 
 [features]

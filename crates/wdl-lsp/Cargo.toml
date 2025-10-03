@@ -1,13 +1,13 @@
 [package]
 name = "wdl-lsp"
 version = "0.13.0"
+description = "Language Server Protocol implementation for WDL"
 license.workspace = true
 rust-version.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
-repository.workspace = true
-description = "Language Server Protocol implementation for WDL"
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp"
 documentation = "https://docs.rs/wdl-lsp"
 
 [dependencies]

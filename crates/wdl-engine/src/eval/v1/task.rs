@@ -1816,9 +1816,15 @@ impl TaskEvaluator {
 
         if enabled!(Level::DEBUG) {
             for input in state.backend_inputs.as_slice() {
-                match (input.path().as_local().is_some(), input.guest_path()) {
-                    (true, None) => {}
-                    (true, Some(guest_path)) => {
+                match (
+                    input.path().as_local().is_some(),
+                    input.local_path(),
+                    input.guest_path(),
+                ) {
+                    // Input is unmapped and either local or remote and not downloaded
+                    (true, _, None) | (false, None, None) => {}
+                    // Input is local and was mapped to a guest path
+                    (true, _, Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
@@ -1827,20 +1833,29 @@ impl TaskEvaluator {
                             path = input.path().display(),
                         );
                     }
-                    (false, None) => {
+                    // Input is remote and was downloaded to a local path
+                    (false, Some(local_path), None) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
                             document = state.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}`",
                             path = input.path().display(),
-                            local_path = input
-                                .local_path()
-                                .expect("input should be localized")
-                                .display()
+                            local_path = local_path.display()
                         );
                     }
-                    (false, Some(guest_path)) => {
+                    // Input is remote and was not downloaded, but mapped to a guest path
+                    (false, None, Some(guest_path)) => {
+                        debug!(
+                            task_id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "task input `{path}` mapped to `{guest_path}`",
+                            path = input.path().display(),
+                        );
+                    }
+                    // Input is remote and was both downloaded and mapped to a guest path
+                    (false, Some(local_path), Some(guest_path)) => {
                         debug!(
                             task_id,
                             task_name = state.task.name(),
@@ -1848,10 +1863,7 @@ impl TaskEvaluator {
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
                             path = input.path().display(),
-                            local_path = input
-                                .local_path()
-                                .expect("input should be localized")
-                                .display(),
+                            local_path = local_path.display(),
                         );
                     }
                 }

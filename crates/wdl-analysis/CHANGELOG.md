@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
 * Added snippets for standard library auto-completions ([#373](https://github.com/stjude-rust-labs/sprocket/pull/373)).
+
+#### Fixed
+
+* Improved an error message for when downloading a remote WDL source file to
+  include a reference to the URL being downloaded ([#396](https://github.com/stjude-rust-labs/sprocket/pull/396)).
 
 ## 0.13.0 - 09-15-2025
 

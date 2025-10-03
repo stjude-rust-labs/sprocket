@@ -6,7 +6,7 @@ license.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
-repository.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-analysis"
 description = "Analysis of Workflow Description Language (WDL) documents."
 documentation = "https://docs.rs/wdl-analysis"
 
