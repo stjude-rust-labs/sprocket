@@ -10,7 +10,7 @@ Options:
   -n, --name <NAME>
           The name of the task or workflow for which to generate inputs
 
-      --show-expressions
+      --show-non-literals
           Show inputs with non-literal default values
 
       --hide-defaults

@@ -1,0 +1,3 @@
+{
+  "nested_access.my_experiments": "Array[Experiment]+ <REQUIRED>"
+}
