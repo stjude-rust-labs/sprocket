@@ -7,6 +7,7 @@ This table documets all implemented `sprocket` lin rules impleemnted on the `mai
 | Name | Tags | Description |
 |:-|:-|:-|
 | `CallInputSpacing` | Spacing, Style | Detects unsorted input declarations |
+| `CallInputUnnecessary` | Deprecated, Style | Suggest to remove unncessary input: keyword when document version is >= 1.2 |
 | `CommandSectionIndentation` | Spacing, Clarity, Correctness | Detects mixed indentation in a command section |
 | `CommentWhitespace` | Spacing, Style | Detects improperly spaced comments |
 | `ConciseInput` | Style | Detects a redundant input assignment |
