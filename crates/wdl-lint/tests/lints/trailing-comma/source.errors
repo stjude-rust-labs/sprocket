@@ -1,3 +1,11 @@
+note[CallInputUnnecessary]: the 'input:' keyword is unnecessary for WDL version 1.2 and later
+  ┌─ tests/lints/trailing-comma/source.wdl:7:16
+  │
+7 │     call foo { input:
+  │                ^^^^^
+  │
+  = fix: remove the 'input:' keyword from the call statement
+
 note[TrailingComma]: extraneous whitespace and/or comments before trailing comma
    ┌─ tests/lints/trailing-comma/source.wdl:12:29
    │  
@@ -7,6 +15,14 @@ note[TrailingComma]: extraneous whitespace and/or comments before trailing comma
    │ ╰────────^
    │  
    = fix: remove the extraneous content before the trailing comma
+
+note[CallInputUnnecessary]: the 'input:' keyword is unnecessary for WDL version 1.2 and later
+   ┌─ tests/lints/trailing-comma/source.wdl:18:24
+   │
+18 │     call foo as foo2 { input:
+   │                        ^^^^^
+   │
+   = fix: remove the 'input:' keyword from the call statement
 
 note[TrailingComma]: item missing trailing comma
    ┌─ tests/lints/trailing-comma/source.wdl:25:30

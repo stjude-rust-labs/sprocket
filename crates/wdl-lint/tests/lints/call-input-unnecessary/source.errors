@@ -1,0 +1,16 @@
+note[LineWidth]: line exceeds maximum width of 90
+  ┌─ tests/lints/call-input-unnecessary/source.wdl:1:1
+  │
+1 │ #@ except: PreambleFormatted, MatchingOutputMeta, MetaDescription, ParameterMetaMatched, RequirementsSection, PreambleCommentPlacement, TrailingComma, CallInputSpacing, LintDirectiveValid, EndingNewline
+  │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  │
+  = fix: split the line into multiple lines
+
+note[CallInputUnnecessary]: the 'input:' keyword is unnecessary for WDL version 1.2 and later
+   ┌─ tests/lints/call-input-unnecessary/source.wdl:54:21
+   │
+54 │     call example1 { input:
+   │                     ^^^^^
+   │
+   = fix: remove the 'input:' keyword from the call statement
+

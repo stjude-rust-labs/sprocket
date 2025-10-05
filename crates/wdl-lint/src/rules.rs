@@ -1,6 +1,7 @@
 //! Module for the lint rules.
 
 mod call_input_spacing;
+mod call_input_unnecessary;
 mod command_section_indentation;
 mod comment_whitespace;
 mod concise_input;
@@ -46,6 +47,7 @@ mod version_statement_formatted;
 mod whitespace;
 
 pub use call_input_spacing::*;
+pub use call_input_unnecessary::*;
 pub use command_section_indentation::*;
 pub use comment_whitespace::*;
 pub use concise_input::*;
