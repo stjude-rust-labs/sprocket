@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `doc` and `format` now work if analysis errors **and not parse errors** are encountered ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
 * `sprocket inputs` now correctly handles empty and interpolated String values ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
 
 ### Changed

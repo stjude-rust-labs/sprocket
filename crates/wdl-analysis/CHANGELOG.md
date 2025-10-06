@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `Document.diagnostics` was split into `parse_diagnostics` and `analysis_diagnostics` ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
+    * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is returned as an `Iterator` now instead of a slice.
+
 #### Added
 
 * Added snippets for standard library auto-completions ([#373](https://github.com/stjude-rust-labs/sprocket/pull/373)).
