@@ -34,8 +34,8 @@
     "key2": "value2"
   },
   "test.my_call.int_map": {
-    "OMITTED_1": "one",
-    "OMITTED_2": "two",
-    "OMITTED_3": "three"
+    "<OMITTED_1>": "one",
+    "<OMITTED_2>": "two",
+    "<OMITTED_3>": "three"
   }
 }

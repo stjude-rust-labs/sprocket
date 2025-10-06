@@ -209,7 +209,7 @@ impl InputProcessor {
                             text.text().to_string()
                         } else {
                             bad_key_counter += 1;
-                            format!("OMITTED_{bad_key_counter}")
+                            format!("<OMITTED_{bad_key_counter}>")
                         };
                         if let Some(val) = self.expression(&val) {
                             map.insert(key, val);
