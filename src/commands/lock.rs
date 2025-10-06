@@ -24,7 +24,7 @@ const LOCK_FILE: &str = "sprocket.lock";
 #[derive(Parser, Debug)]
 pub struct Args {
     /// A source WDL document, directory, or URL.
-    #[clap(value_name = "PATH or URL")]
+    #[clap(value_name = "SOURCE")]
     pub source: Option<Source>,
 
     /// Output directory for the lock file.

@@ -26,8 +26,8 @@ use wdl::cli::analysis::Source;
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL document or URL.
-    #[arg(value_name = "PATH or URL")]
+    /// A source WDL document, directory, or URL.
+    #[arg(value_name = "SOURCE")]
     pub source: Source,
 
     /// The name of the task or workflow for which to generate inputs.

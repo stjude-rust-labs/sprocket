@@ -19,7 +19,7 @@ use crate::Mode;
 pub struct Args {
     /// The path or URL to a document containing the task or workflow to
     /// validate inputs against.
-    #[clap(value_name = "PATH or URL")]
+    #[clap(value_name = "SOURCE")]
     pub source: Source,
 
     /// The name of the task or workflow to validate inputs against.
