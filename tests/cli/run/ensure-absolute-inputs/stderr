@@ -1,0 +1,5 @@
+error: failed to initialize Docker backend
+
+Caused by:
+    0: failed to connect to the local Docker daemon
+    1: Socket not found: /var/run/docker.sock
