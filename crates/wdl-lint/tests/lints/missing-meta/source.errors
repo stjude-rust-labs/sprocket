@@ -6,11 +6,3 @@ note[MetaSections]: task `test` is missing a `meta` section
   │
   = fix: add the missing section
 
-note[ShellCheck]: running `shellcheck` on command section
-  ┌─ tests/lints/missing-meta/source.wdl:8:5
-  │
-8 │     command <<<>>>
-  │     ^^^^^^^ could not find `shellcheck` executable.
-  │
-  = fix: install shellcheck (https://www.shellcheck.net) or disable this lint.
-

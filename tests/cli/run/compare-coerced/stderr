@@ -1,7 +1,0 @@
-error: failed to initialize Docker backend
-
-Caused by:
-    0: failed to retrieve local Docker daemon information
-    1: Error in the hyper legacy client: client error (Connect)
-    2: client error (Connect)
-    3: Permission denied (os error 13)

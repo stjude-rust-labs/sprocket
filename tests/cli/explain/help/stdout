@@ -43,7 +43,6 @@ Options:
 
 Available rules:
   - CallInputSpacing
-  - CallInputUnnecessary
   - CommandSectionIndentation
   - CommentWhitespace
   - ConciseInput
