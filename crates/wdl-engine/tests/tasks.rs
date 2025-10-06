@@ -262,9 +262,9 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     }
 
     let path = result.document().path();
-    let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
-        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
-        None => result.document().diagnostics().into(),
+    let diagnostics = match result.error() {
+        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))],
+        None => result.document().diagnostics().cloned().collect(),
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {

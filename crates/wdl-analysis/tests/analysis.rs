@@ -13,7 +13,6 @@
 //! The `source.diagnostics` file may be automatically generated or updated by
 //! setting the `BLESS` environment variable when running this test.
 
-use std::borrow::Cow;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -124,15 +123,15 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
     for result in results {
         // Attempt to strip the CWD from the result path
         let path = result.document().path();
-        let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
-            Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
-            None => result.document().diagnostics().into(),
+        let diagnostics = match result.error() {
+            Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))],
+            None => result.document().diagnostics().cloned().collect(),
         };
 
         if !diagnostics.is_empty() {
             let source = result.document().root().text().to_string();
             let file = SimpleFile::new(path, &source);
-            for diagnostic in diagnostics.as_ref() {
+            for diagnostic in diagnostics {
                 term::emit(
                     &mut buffer,
                     &CodespanConfig::default(),

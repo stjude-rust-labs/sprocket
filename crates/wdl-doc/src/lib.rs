@@ -321,12 +321,12 @@ async fn analyze_workspace(
             ));
         }
         if r.document()
-            .diagnostics()
+            .parse_diagnostics()
             .iter()
             .any(|d| d.severity() == wdl_ast::Severity::Error)
         {
             return Err(anyhow!(
-                "WDL document `{}` has analysis errors",
+                "WDL document `{}` has parse errors",
                 r.document().uri(),
             ));
         }

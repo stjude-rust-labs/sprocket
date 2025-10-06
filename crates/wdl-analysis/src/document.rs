@@ -477,8 +477,10 @@ struct DocumentData {
     workflow: Option<Workflow>,
     /// The structs in the document.
     structs: IndexMap<String, Struct>,
-    /// The diagnostics for the document.
-    diagnostics: Vec<Diagnostic>,
+    /// The diagnostics from parsing.
+    parse_diagnostics: Vec<Diagnostic>,
+    /// The diagnostics from analysis.
+    analysis_diagnostics: Vec<Diagnostic>,
 }
 
 impl DocumentData {
@@ -500,7 +502,8 @@ impl DocumentData {
             tasks: Default::default(),
             workflow: Default::default(),
             structs: Default::default(),
-            diagnostics,
+            parse_diagnostics: diagnostics,
+            analysis_diagnostics: Default::default(),
         }
     }
 }
@@ -585,11 +588,11 @@ impl Document {
         if let Some(severity) = config.diagnostics_config().unused_import {
             let DocumentData {
                 namespaces,
-                diagnostics,
+                analysis_diagnostics,
                 ..
             } = &mut data;
 
-            diagnostics.extend(
+            analysis_diagnostics.extend(
                 namespaces
                     .iter()
                     .filter(|(_, ns)| !ns.used && !ns.excepted)
@@ -699,9 +702,22 @@ impl Document {
         self.data.structs.get(name)
     }
 
+    /// Gets the parse diagnostics for the document.
+    pub fn parse_diagnostics(&self) -> &[Diagnostic] {
+        &self.data.parse_diagnostics
+    }
+
     /// Gets the analysis diagnostics for the document.
-    pub fn diagnostics(&self) -> &[Diagnostic] {
-        &self.data.diagnostics
+    pub fn analysis_diagnostics(&self) -> &[Diagnostic] {
+        &self.data.analysis_diagnostics
+    }
+
+    /// Gets all diagnostics for the document (both from parsing and analysis).
+    pub fn diagnostics(&self) -> impl Iterator<Item = &Diagnostic> {
+        self.data
+            .parse_diagnostics
+            .iter()
+            .chain(self.data.analysis_diagnostics.iter())
     }
 
     /// Sorts the diagnostics for the document.
@@ -712,11 +728,12 @@ impl Document {
     pub fn sort_diagnostics(&mut self) -> Self {
         let data = &mut self.data;
         let inner = Arc::get_mut(data).expect("should only have one reference");
-        inner.diagnostics.sort();
+        inner.parse_diagnostics.sort();
+        inner.analysis_diagnostics.sort();
         Self { data: data.clone() }
     }
 
-    /// Extends the diagnostics for the document.
+    /// Extends the analysis diagnostics for the document.
     ///
     /// # Panics
     ///
@@ -724,7 +741,7 @@ impl Document {
     pub fn extend_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) -> Self {
         let data = &mut self.data;
         let inner = Arc::get_mut(data).expect("should only have one reference");
-        inner.diagnostics.extend(diagnostics);
+        inner.analysis_diagnostics.extend(diagnostics);
         Self { data: data.clone() }
     }
 
@@ -804,8 +821,9 @@ impl Document {
     pub fn has_errors(&self) -> bool {
         // Check this document for errors
         if self
-            .diagnostics()
+            .parse_diagnostics()
             .iter()
+            .chain(self.analysis_diagnostics())
             .any(|d| d.severity() == Severity::Error)
         {
             return true;

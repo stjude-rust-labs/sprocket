@@ -908,14 +908,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -924,14 +927,17 @@ workflow test {
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].document.id().as_ref(), id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
     }
@@ -963,14 +969,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -998,14 +1007,14 @@ workflow something_else {
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() != id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
 
         // Analyze again and ensure the analysis result id is unchanged
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() == id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 
     #[tokio::test]
@@ -1035,14 +1044,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -1069,7 +1081,7 @@ workflow test {
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() != id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 
     #[tokio::test]
@@ -1115,9 +1127,9 @@ workflow test {
         // Analyze the documents
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 3);
-        assert!(results[0].document.diagnostics().is_empty());
-        assert!(results[1].document.diagnostics().is_empty());
-        assert!(results[2].document.diagnostics().is_empty());
+        assert!(results[0].document.diagnostics().next().is_none());
+        assert!(results[1].document.diagnostics().next().is_none());
+        assert!(results[2].document.diagnostics().next().is_none());
 
         // Analyze the documents again
         let results = analyzer.analyze(()).await.unwrap();

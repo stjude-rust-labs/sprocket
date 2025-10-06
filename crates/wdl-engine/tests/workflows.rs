@@ -14,7 +14,6 @@
 //! The expected files may be automatically generated or updated by setting the
 //! `BLESS` environment variable when running this test.
 
-use std::borrow::Cow;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -189,9 +188,9 @@ async fn run_test(test: &Path) -> Result<()> {
     }
 
     let path = result.document().path();
-    let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
-        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
-        None => result.document().diagnostics().into(),
+    let diagnostics = match result.error() {
+        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))],
+        None => result.document().diagnostics().cloned().collect(),
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
