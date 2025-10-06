@@ -31,6 +31,7 @@ use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 use tracing::trace;
 use tracing::warn;
 
@@ -728,16 +729,31 @@ impl Default for LsfApptainerBackendConfig {
 
 impl LsfApptainerBackendConfig {
     /// Validate that the backend is appropriately configured.
-    pub fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
+    pub async fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
         if cfg!(not(unix)) {
             bail!("LSF + Apptainer backend is not supported on non-unix platforms");
         }
         if !engine_config.experimental_features_enabled {
             bail!("LSF + Apptainer backend requires enabling experimental features");
         }
-        // TODO ACF 2025-09-12: what meaningful work to be done here? Maybe ensure the
-        // queue exists, interrogate the queue for limits and match them up
-        // against prospective future config options here?
+
+        // Do what we can to validate options that are dependent on the dynamic
+        // environment. These are a bit fraught, particularly if the behavior of
+        // the external tools changes based on where a job gets dispatched, but
+        // querying from the perspective of the current node allows
+        // us to get better error messages in circumstances typical to a cluster.
+        if let Some(queue) = &self.default_lsf_queue {
+            validate_lsf_queue("default", queue).await?;
+        }
+        if let Some(queue) = &self.short_task_lsf_queue {
+            validate_lsf_queue("short_task", queue).await?;
+        }
+        if let Some(queue) = &self.gpu_lsf_queue {
+            validate_lsf_queue("gpu", queue).await?;
+        }
+        if let Some(queue) = &self.fpga_lsf_queue {
+            validate_lsf_queue("fpga", queue).await?;
+        }
         Ok(())
     }
 
@@ -783,5 +799,31 @@ impl LsfApptainerBackendConfig {
         // Finally the default queue. If this is `None`, `bsub` gets run without a queue
         // argument and the cluster's default is used.
         self.default_lsf_queue.as_deref()
+    }
+}
+
+async fn validate_lsf_queue(name: &str, queue: &str) -> Result<(), anyhow::Error> {
+    match tokio::time::timeout(
+        // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but we
+        // don't want things to run away on a misconfigured system
+        std::time::Duration::from_secs(10),
+        Command::new("bqueues").arg(queue).output(),
+    )
+    .await
+    {
+        Ok(output) => {
+            let output = output.context("validating LSF queue")?;
+            if !output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                error!(%stdout, %stderr, %queue, "failed to validate {name}_lsf_queue");
+                Err(anyhow!("failed to validate {name}_lsf_queue `{queue}`"))
+            } else {
+                Ok(())
+            }
+        }
+        Err(_) => Err(anyhow!(
+            "timed out trying to validate {name}_lsf_queue `{queue}`"
+        )),
     }
 }
