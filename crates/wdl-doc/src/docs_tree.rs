@@ -735,13 +735,14 @@ impl DocsTree {
                                     } else {
                                         "workflow-unselected.svg"
                                     },
-                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-700/50 is-scrolled-to' : 'hover:bg-slate-800'" {
+                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
                                 @if let Some(page) = node.page() {
                                     @match page.page_type() {
                                         PageType::Workflow(wf) => {
                                             div class="left-sidebar__indent -1" {}
                                             div class="left-sidebar__content-item-container crop-ellipsis"{
-                                                img x-bind:src="node.icon?.replace('.svg', '.light.svg')" class="left-sidebar__icon" alt="Workflow icon";
+                                                img x-bind:src="node.icon" class="left-sidebar__icon light:hidden" alt="Workflow icon";
+                                                img x-bind:src="node.icon?.replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Workflow icon";
                                                 sprocket-tooltip content=(wf.render_name()) class="crop-ellipsis" x-bind:class="node.current ? 'text-slate-50' : 'group-hover:text-slate-50'" {
                                                     span {
                                                         (wf.render_name())
@@ -1033,7 +1034,7 @@ impl DocsTree {
                     ul x-show="! showWorkflows || search != ''" class="left-sidebar__content" {
                         // Root node for the directory tree
                         sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700" {
+                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
                                 div class="left-sidebar__content-item-container crop-ellipsis" {
                                     div class="relative shrink-0" {
                                         img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
