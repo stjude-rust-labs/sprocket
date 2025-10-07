@@ -1713,10 +1713,10 @@
   .border-b-slate-50 {
     border-bottom-color: var(--color-slate-50);
   }
-  .bg-slate-700\/50 {
-    background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 50%, transparent);
+  .bg-slate-600\/50 {
+    background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-slate-700) 50%, transparent);
+      background-color: color-mix(in oklab, var(--color-slate-600) 50%, transparent);
     }
   }
   .px-4 {
@@ -1825,17 +1825,13 @@
       }
     }
   }
-  .hover\:bg-slate-700 {
+  .hover\:bg-slate-700\/40 {
     &:hover {
       @media (hover: hover) {
-        background-color: var(--color-slate-700);
-      }
-    }
-  }
-  .hover\:bg-slate-800 {
-    &:hover {
-      @media (hover: hover) {
-        background-color: var(--color-slate-800);
+        background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 40%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-slate-700) 40%, transparent);
+        }
       }
     }
   }
@@ -2027,7 +2023,7 @@
     }
   }
   .layout__breadcrumb-inactive {
-    color: var(--color-slate-400);
+    color: var(--color-slate-500);
   }
   .main__container {
     display: flex;
@@ -2526,7 +2522,10 @@
     border-radius: var(--radius-md);
     &:hover {
       @media (hover: hover) {
-        background-color: var(--color-slate-700);
+        background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 40%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-slate-700) 40%, transparent);
+        }
       }
     }
     &:hover {
@@ -2535,10 +2534,18 @@
       }
     }
   }
+  .left-sidebar__row.left-sidebar__row--unclickable {
+    cursor: default;
+    &:hover {
+      @media (hover: hover) {
+        background-color: transparent;
+      }
+    }
+  }
   .left-sidebar__row--active {
-    background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 40%, transparent);
+    background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-slate-700) 40%, transparent);
+      background-color: color-mix(in oklab, var(--color-slate-600) 50%, transparent);
     }
     color: var(--color-slate-50);
   }
@@ -2664,7 +2671,10 @@
     color: var(--color-slate-400);
     &:hover {
       @media (hover: hover) {
-        background-color: var(--color-slate-800);
+        background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 40%, transparent);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--color-slate-700) 40%, transparent);
+        }
       }
     }
     &:hover {
@@ -2674,7 +2684,10 @@
     }
   }
   .right-sidebar__section-header--active {
-    background-color: var(--color-slate-700);
+    background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-slate-600) 50%, transparent);
+    }
     color: var(--color-white);
   }
   .right-sidebar__section-items {
@@ -2700,9 +2713,9 @@
     color: var(--color-slate-400);
     &:hover {
       @media (hover: hover) {
-        background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 20%, transparent);
+        background-color: color-mix(in srgb, oklch(37.2% 0.044 257.287) 40%, transparent);
         @supports (color: color-mix(in lab, red, red)) {
-          background-color: color-mix(in oklab, var(--color-slate-600) 20%, transparent);
+          background-color: color-mix(in oklab, var(--color-slate-700) 40%, transparent);
         }
       }
     }
@@ -2713,9 +2726,9 @@
     }
   }
   .right-sidebar__section-item--active {
-    background-color: color-mix(in srgb, oklch(70.4% 0.04 256.788) 20%, transparent);
+    background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-slate-400) 20%, transparent);
+      background-color: color-mix(in oklab, var(--color-slate-600) 50%, transparent);
     }
     color: var(--color-white);
   }
