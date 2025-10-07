@@ -2534,6 +2534,14 @@
       }
     }
   }
+  .left-sidebar__row.left-sidebar__row--unclickable {
+    cursor: default;
+    &:hover {
+      @media (hover: hover) {
+        background-color: transparent;
+      }
+    }
+  }
   .left-sidebar__row--active {
     background-color: color-mix(in srgb, oklch(44.6% 0.043 257.281) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {

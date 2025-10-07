@@ -339,6 +339,9 @@
   .left-sidebar__row {
     @apply flex flex-row items-center gap-x-1 h-8 w-full rounded-md hover:bg-slate-700/40 hover:text-slate-50 cursor-pointer;
   }
+  .left-sidebar__row.left-sidebar__row--unclickable {
+    @apply hover:bg-transparent cursor-default;
+  }
   .left-sidebar__row--active {
     /* currently viewed page */
     @apply bg-slate-600/50 text-slate-50;

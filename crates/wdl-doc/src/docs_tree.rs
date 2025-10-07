@@ -716,7 +716,7 @@ impl DocsTree {
         html! {
             @for (category, workflows) in workflows_by_category {
                 li class="" {
-                    div class="left-sidebar__row" {
+                    div class="left-sidebar__row left-sidebar__row--unclickable" {
                         img src=(self.get_asset(base, "category-selected.svg")) class="left-sidebar__icon block light:hidden" alt="Category icon";
                         img src=(self.get_asset(base, "category-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="Category icon";
                         p class="text-slate-50" { (category) }
