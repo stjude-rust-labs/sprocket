@@ -26,8 +26,12 @@ use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
 
-/// Filename for the logo SVG expected to be in the "assets" directory.
+/// Filename for the dark theme logo SVG expected to be in the "assets"
+/// directory.
 const LOGO_FILE_NAME: &str = "logo.svg";
+/// Filename for the light theme logo SVG expected to be in the "assets"
+/// directory.
+const LIGHT_LOGO_FILE_NAME: &str = "logo.light.svg";
 
 /// The type of a page.
 #[derive(Debug)]
@@ -216,8 +220,15 @@ pub struct DocsTreeBuilder {
     homepage: Option<PathBuf>,
     /// An optional path to a custom theme to use for the docs.
     custom_theme: Option<PathBuf>,
-    /// The path to a custom logo to embed at the top of the left sidebar.
+    /// The path to a custom dark theme logo to embed at the top of the left
+    /// sidebar.
+    ///
+    /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used
+    /// for both dark and light themes.
     logo: Option<PathBuf>,
+    /// The path to an alternate light theme custom logo to embed at the top of
+    /// the left sidebar.
+    alt_logo: Option<PathBuf>,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Start on the "Full Directory" left sidebar view instead of the
@@ -225,6 +236,8 @@ pub struct DocsTreeBuilder {
     ///
     /// Users can toggle the view. This only impacts the initialized value.
     init_on_full_directory: bool,
+    /// Start in light mode instead of the default dark mode.
+    init_light_mode: bool,
 }
 
 impl DocsTreeBuilder {
@@ -238,8 +251,10 @@ impl DocsTreeBuilder {
             homepage: None,
             custom_theme: None,
             logo: None,
+            alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
+            init_light_mode: false,
         }
     }
 
@@ -289,6 +304,18 @@ impl DocsTreeBuilder {
         self.maybe_logo(Some(logo))
     }
 
+    /// Set the alt (i.e. light mode) custom logo for the left sidebar with an
+    /// option.
+    pub fn maybe_alt_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
+        self.alt_logo = logo.map(|l| l.into());
+        self
+    }
+
+    /// Set the alt (i.e. light mode) custom logo for the left sidebar.
+    pub fn alt_logo(self, logo: impl Into<PathBuf>) -> Self {
+        self.maybe_alt_logo(Some(logo))
+    }
+
     /// Set the additional javascript for each page.
     pub fn additional_javascript(mut self, js: AdditionalScript) -> Self {
         self.additional_javascript = js;
@@ -299,6 +326,12 @@ impl DocsTreeBuilder {
     /// the "Workflows" view of the left sidebar.
     pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
         self.init_on_full_directory = prefer_full_directory;
+        self
+    }
+
+    /// Set whether light mode should be the initial view instead of dark mode.
+    pub fn init_light_mode(mut self, init_light_mode: bool) -> Self {
+        self.init_light_mode = init_light_mode;
         self
     }
 
@@ -324,6 +357,7 @@ impl DocsTreeBuilder {
             homepage: self.homepage,
             additional_javascript: self.additional_javascript,
             init_on_full_directory: self.init_on_full_directory,
+            init_light_mode: self.init_light_mode,
         })
     }
 
@@ -399,15 +433,64 @@ impl DocsTreeBuilder {
             std::fs::write(&path, bytes)
                 .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
         }
-        if let Some(supplied_logo) = &self.logo {
-            let logo_path = assets_dir.join(LOGO_FILE_NAME);
-            std::fs::copy(supplied_logo, &logo_path).with_context(|| {
-                format!(
-                    "failed to copy custom logo from `{}` to `{}`",
-                    supplied_logo.display(),
-                    logo_path.display()
-                )
-            })?;
+        // The above `get_assets()` call will write the default logos; then the
+        // following logic may overwrite those files with user supplied logos.
+        match (&self.logo, &self.alt_logo) {
+            (Some(dark_logo), Some(light_logo)) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(dark_logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy dark theme custom logo from `{}` to `{}`",
+                        dark_logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(light_logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy light theme custom logo from `{}` to `{}`",
+                        light_logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (Some(logo), None) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (None, Some(logo)) => {
+                let logo_path = assets_dir.join(LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+                let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
+                std::fs::copy(logo, &logo_path).with_context(|| {
+                    format!(
+                        "failed to copy custom logo from `{}` to `{}`",
+                        logo.display(),
+                        logo_path.display()
+                    )
+                })?;
+            }
+            (None, None) => {}
         }
 
         Ok(())
@@ -431,6 +514,8 @@ pub struct DocsTree {
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
     /// view of the left sidebar.
     init_on_full_directory: bool,
+    /// Initialize in light mode instead of the default dark mode.
+    init_light_mode: bool,
 }
 
 impl DocsTree {
@@ -631,8 +716,9 @@ impl DocsTree {
         html! {
             @for (category, workflows) in workflows_by_category {
                 li class="" {
-                    div class="left-sidebar__row" {
-                        img src=(self.get_asset(base, "category-selected.svg")) class="left-sidebar__icon" alt="Category icon";
+                    div class="left-sidebar__row left-sidebar__row--unclickable" {
+                        img src=(self.get_asset(base, "category-selected.svg")) class="left-sidebar__icon block light:hidden" alt="Category icon";
+                        img src=(self.get_asset(base, "category-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="Category icon";
                         p class="text-slate-50" { (category) }
                     }
                     ul class="" {
@@ -649,13 +735,14 @@ impl DocsTree {
                                     } else {
                                         "workflow-unselected.svg"
                                     },
-                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-700/50 is-scrolled-to' : 'hover:bg-slate-800'" {
+                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
                                 @if let Some(page) = node.page() {
                                     @match page.page_type() {
                                         PageType::Workflow(wf) => {
                                             div class="left-sidebar__indent -1" {}
                                             div class="left-sidebar__content-item-container crop-ellipsis"{
-                                                img x-bind:src="node.icon" class="left-sidebar__icon" alt="Workflow icon";
+                                                img x-bind:src="node.icon" class="left-sidebar__icon light:hidden" alt="Workflow icon";
+                                                img x-bind:src="node.icon?.replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Workflow icon";
                                                 sprocket-tooltip content=(wf.render_name()) class="crop-ellipsis" x-bind:class="node.current ? 'text-slate-50' : 'group-hover:text-slate-50'" {
                                                     span {
                                                         (wf.render_name())
@@ -918,20 +1005,25 @@ impl DocsTree {
                 // top navbar
                 div class="sticky px-4" {
                     a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8" alt="Logo";
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
+                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
                     div class="relative w-full h-10" {
                         input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";
-                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none" alt="Search icon";
-                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                        img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                        img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
                     }
                     div class="left-sidebar__tabs-container mt-4" {
-                        button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon" alt="List icon";
+                        button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
+                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                            img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
                             p { "Workflows" }
                         }
-                        button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-40 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon" alt="List icon";
+                        button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-50 light:opacity-60 hover:opacity-80' : ''" {
+                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                            img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
                             p { "Full Directory" }
                         }
                     }
@@ -942,10 +1034,11 @@ impl DocsTree {
                     ul x-show="! showWorkflows || search != ''" class="left-sidebar__content" {
                         // Root node for the directory tree
                         sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700" {
+                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
                                 div class="left-sidebar__content-item-container crop-ellipsis" {
                                     div class="relative shrink-0" {
-                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon" alt="Directory icon";
+                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
+                                        img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
                                     }
                                     div class="text-slate-50" { (root.name()) }
                                 }
@@ -960,7 +1053,8 @@ impl DocsTree {
                                     }
                                     div class="left-sidebar__content-item-container crop-ellipsis" {
                                         div class="relative left-sidebar__icon shrink-0" {
-                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                            img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                                         }
                                         div class="crop-ellipsis" x-text="node.display_name" {
                                         }
@@ -982,7 +1076,8 @@ impl DocsTree {
                         }
                         // No results found icon
                         li x-show="search !== '' && searchedNodes.length === 0" class="flex place-content-center" {
-                            img src=(self.get_asset(base, "search.svg")) class="size-8" alt="Search icon";
+                            img src=(self.get_asset(base, "search.svg")) class="size-8 block light:hidden" alt="Search icon";
+                            img src=(self.get_asset(base, "search.light.svg")) class="size-8 hidden light:block" alt="Search icon";
                         }
                         // No results found message
                         li x-show="search !== '' && searchedNodes.length === 0" class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
@@ -1127,7 +1222,8 @@ impl DocsTree {
                 }
             } @else {
                 div class="main__section--empty" {
-                    img src=(self.get_asset(self.root_abs_path(), "missing-home.svg")) class="size-12" alt="Missing home icon";
+                    img src=(self.get_asset(self.root_abs_path(), "missing-home.svg")) class="size-12 block light:hidden" alt="Missing home icon";
+                    img src=(self.get_asset(self.root_abs_path(), "missing-home.light.svg")) class="size-12 hidden light:block" alt="Missing home icon";
                     h2 class="main__section-header" { "There's nothing to see on this page" }
                     p { "The markdown file for this page wasn't supplied." }
                 }
@@ -1152,6 +1248,7 @@ impl DocsTree {
             ),
             self.root().path(),
             &self.additional_javascript,
+            self.init_light_mode,
         );
         std::fs::write(&index_path, html.into_string())
             .with_context(|| format!("failed to write homepage to `{}`", index_path.display()))?;
@@ -1165,19 +1262,22 @@ impl DocsTree {
                 x-on:click="collapseSidebar()"
                 x-bind:disabled="sidebarState === 'hidden'"
                 x-bind:class="getSidebarButtonClass('hidden')" {
-                img src=(assets.join("sidebar-icon-hide.svg").to_string_lossy()) alt="" {}
+                img src=(assets.join("sidebar-icon-hide.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                img src=(assets.join("sidebar-icon-hide.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
                 x-on:click="restoreSidebar()"
                 x-bind:disabled="sidebarState === 'normal'"
                 x-bind:class="getSidebarButtonClass('normal')" {
-                img src=(assets.join("sidebar-icon-default.svg").to_string_lossy()) alt="" {}
+                img src=(assets.join("sidebar-icon-default.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                img src=(assets.join("sidebar-icon-default.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
                 x-on:click="expandSidebar()"
                 x-bind:disabled="sidebarState === 'xl'"
                 x-bind:class="getSidebarButtonClass('xl')" {
-                    img src=(assets.join("sidebar-icon-expand.svg").to_string_lossy()) alt="" {}
+                    img src=(assets.join("sidebar-icon-expand.svg").to_string_lossy()) alt="" class="block light:hidden" {}
+                    img src=(assets.join("sidebar-icon-expand.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
                 }
         }
     }
@@ -1224,9 +1324,19 @@ impl DocsTree {
                             div class="flex gap-1 mb-3" x-show="showCenterButtons" {
                                 (self.render_sidebar_control_buttons(assets))
                             }
-                            @if let Some(breadcrumbs) = breadcrumbs {
-                                div class="layout__breadcrumbs" {
-                                    (breadcrumbs)
+                            div class="flex flex-row-reverse items-start justify-between" {
+                                button
+                                x-on:click="
+                                document.documentElement.classList.toggle('light')
+                                localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
+                                "
+                                class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
+                                    "☀︎"
+                                }
+                                @if let Some(breadcrumbs) = breadcrumbs {
+                                    div class="layout__breadcrumbs" {
+                                        (breadcrumbs)
+                                    }
                                 }
                             }
                         }
@@ -1269,6 +1379,7 @@ impl DocsTree {
             ),
             self.root_relative_to(base),
             &self.additional_javascript,
+            self.init_light_mode,
         );
         std::fs::write(&path, html.into_string())
             .with_context(|| format!("failed to write page at `{}`", path.display()))?;
