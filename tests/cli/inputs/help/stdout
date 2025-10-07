@@ -1,9 +1,9 @@
 Writes the inputs schema for a WDL document
 
-Usage: sprocket inputs [OPTIONS] <PATH or URL>
+Usage: sprocket inputs [OPTIONS] <SOURCE>
 
 Arguments:
-  <PATH or URL>
+  <SOURCE>
           A source WDL document or URL
 
 Options:

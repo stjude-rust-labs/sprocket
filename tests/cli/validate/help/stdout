@@ -4,10 +4,10 @@ This ensures that every required input is supplied, every supplied input is corr
 
 It will not catch potential runtime errors that may occur when running the task or workflow.
 
-Usage: sprocket validate [OPTIONS] <PATH or URL> [INPUTS]...
+Usage: sprocket validate [OPTIONS] <SOURCE> [INPUTS]...
 
 Arguments:
-  <PATH or URL>
+  <SOURCE>
           The path or URL to a document containing the task or workflow to validate inputs against
 
   [INPUTS]...
