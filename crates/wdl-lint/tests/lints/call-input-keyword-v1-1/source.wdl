@@ -1,7 +1,7 @@
 #@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules
 #@ except: MatchingOutputMeta, MetaDescription, ParameterMetaMatched
 #@ except: ExpectedRuntimeKeys, PreambleCommentPlacement, EndingNewline
-#@ except: PreambleFormatted,Whitespace
+#@ except: PreambleFormatted, Whitespace
 
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
