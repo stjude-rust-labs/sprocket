@@ -1,4 +1,7 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules, MatchingOutputMeta, MetaDescription , ParameterMetaMatched, ExpectedRuntimeKeys,PreambleCommentPlacement , EndingNewline
+#@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules
+#@ except: MatchingOutputMeta, MetaDescription, ParameterMetaMatched
+#@ except: ExpectedRuntimeKeys, PreambleCommentPlacement, EndingNewline
+#@ except: PreambleFormatted,Whitespace
 
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
@@ -13,7 +16,7 @@ task example {
     input {
         String name
     }
-
+                                   
     command <<<
         echo "~{name}"
     >>>

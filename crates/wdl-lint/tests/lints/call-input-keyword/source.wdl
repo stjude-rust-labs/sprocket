@@ -1,4 +1,7 @@
-#@ except: PreambleFormatted, MatchingOutputMeta, MetaDescription, ParameterMetaMatched, RequirementsSection, PreambleCommentPlacement, TrailingComma, CallInputSpacing, LintDirectiveValid, EndingNewline
+#@ except: PreambleFormatted, MatchingOutputMeta, MetaDescription,  
+#@ except: ParameterMetaMatched, RequirementsSection, PreambleCommentPlacement,
+#@ except: TrailingComma, CallInputSpacing, LintDirectiveValid, EndingNewline
+#@ except: KnownRules, Whitespace
 
 ## This is a test of the CallInputKeyword rule for WDL 1.2+.
 ## The `input:` keyword is optional in version 1.2 and should be omitted.

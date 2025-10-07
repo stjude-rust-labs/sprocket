@@ -24,7 +24,7 @@ fn call_input_unnecessary(span: Span) -> Diagnostic {
     Diagnostic::note("the `input:` keyword is unnecessary for WDL version 1.2 and later")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("remove the 'input:' keyword from the call statement")
+        .with_fix("remove the `input:` keyword from the call statement")
 }
 
 /// Detects unnecessary use of the `input:` keyword in call statements.
@@ -45,10 +45,10 @@ impl Rule for CallInputKeywordRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Starting with WDL version 1.2, the `input:` keyword in call statements is optional. The \
+        "Starting with WDL version 1.2, the `input:` keyword in call statements is optional. This \
          specification change allows call inputs to be specified directly within \
-         the braces without the `input:` keyword, resulting in cleaner and more concise syntax.This \
-         rule encourages adoption of the newer, simpler syntax when using WDL 1.2 or later."
+         the braces without the `input:` keyword, resulting in a cleaner and more concise syntax. This \
+         rule encourages adoption of the newer syntax when using WDL 1.2 or later."
     }
 
     fn tags(&self) -> TagSet {
@@ -95,8 +95,8 @@ impl Visitor for CallInputKeywordRule {
             return;
         }
 
-        if let Some(version) = self.version {
-            // if version is less than 1.2 , rule is not implemented
+         let version = self.version.expect("document should have a version"); 
+            
             if version <= SupportedVersion::V1(V1::One) {
                 return;
             }
@@ -106,13 +106,13 @@ impl Visitor for CallInputKeywordRule {
                 .children_with_tokens()
                 .find(|c| c.kind() == SyntaxKind::InputKeyword)
             {
-                // Found the input keyword - emit a diagnostic
+                
                 diagnostics.exceptable_add(
                     call_input_unnecessary(input_keyword.text_range().into()),
                     SyntaxElement::from(call.inner().clone()),
                     &self.exceptable_nodes(),
                 );
             }
-        }
+        
     }
 }
