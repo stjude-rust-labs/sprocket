@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed a panic that can occur when showing debug output with the TES backend ([#397](https://github.com/stjude-rust-labs/sprocket/pull/397)).
 * Make linking to download cache files more likely by using a tmp directory in
   the cache ([#393](https://github.com/stjude-rust-labs/sprocket/pull/393)).
 
