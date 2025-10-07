@@ -30,7 +30,7 @@ fn call_input_unnecessary(span: Span) -> Diagnostic {
 /// Detects unnecessary use of the `input:` keyword in call statements.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct CallInputKeywordRule {
-    /// The WDL version of the file is stored here 
+    /// The WDL version of the file is stored here
     version: Option<SupportedVersion>,
 }
 
@@ -46,13 +46,13 @@ impl Rule for CallInputKeywordRule {
 
     fn explanation(&self) -> &'static str {
         "Starting with WDL version 1.2, the `input:` keyword in call statements is optional. This \
-         specification change allows call inputs to be specified directly within \
-         the braces without the `input:` keyword, resulting in a cleaner and more concise syntax. This \
-         rule encourages adoption of the newer syntax when using WDL 1.2 or later."
+         specification change allows call inputs to be specified directly within the braces \
+         without the `input:` keyword, resulting in a cleaner and more concise syntax. This rule \
+         encourages adoption of the newer syntax when using WDL 1.2 or later."
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Deprecated , Tag::Style])
+        TagSet::new(&[Tag::Deprecated, Tag::Style])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -95,24 +95,22 @@ impl Visitor for CallInputKeywordRule {
             return;
         }
 
-         let version = self.version.expect("document should have a version"); 
-            
-            if version <= SupportedVersion::V1(V1::One) {
-                return;
-            }
+        let version = self.version.expect("document should have a version");
 
-            if let Some(input_keyword) = call
-                .inner()
-                .children_with_tokens()
-                .find(|c| c.kind() == SyntaxKind::InputKeyword)
-            {
-                
-                diagnostics.exceptable_add(
-                    call_input_unnecessary(input_keyword.text_range().into()),
-                    SyntaxElement::from(call.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
-        
+        if version <= SupportedVersion::V1(V1::One) {
+            return;
+        }
+
+        if let Some(input_keyword) = call
+            .inner()
+            .children_with_tokens()
+            .find(|c| c.kind() == SyntaxKind::InputKeyword)
+        {
+            diagnostics.exceptable_add(
+                call_input_unnecessary(input_keyword.text_range().into()),
+                SyntaxElement::from(call.inner().clone()),
+                &self.exceptable_nodes(),
+            );
+        }
     }
 }
