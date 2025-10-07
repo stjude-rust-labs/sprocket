@@ -1,5 +1,5 @@
 note[LineWidth]: line exceeds maximum width of 90
-  ┌─ tests/lints/call-input-unnecessary-v1-1/source.wdl:1:1
+  ┌─ tests/lints/call-input-keyword-v1-1/source.wdl:1:1
   │
 1 │ #@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules, MatchingOutputMeta, MetaDescription , ParameterMetaMatched, ExpectedRuntimeKeys,PreambleCommentPlacement , EndingNewline
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

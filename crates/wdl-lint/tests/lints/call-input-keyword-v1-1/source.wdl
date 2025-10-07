@@ -1,7 +1,7 @@
 #@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules, MatchingOutputMeta, MetaDescription , ParameterMetaMatched, ExpectedRuntimeKeys,PreambleCommentPlacement , EndingNewline
 
-## Test that CallInputUnnecessary does NOT trigger for WDL 1.1.
-## The input: keyword is required in version 1.1.
+## Test that CallInputKeyword does NOT trigger for WDL 1.1.
+## The `input:` keyword is required in version 1.1.
 
 version 1.1
 
@@ -28,7 +28,7 @@ task example {
 workflow test {
     meta {}
 
-    ## Should NOT trigger - version 1.1 requires input: keyword
+    ## Should NOT trigger - version 1.1 requires `input:` keyword
     call example { input: name = "test" }
 
     output {}
