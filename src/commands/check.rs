@@ -42,7 +42,7 @@ const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
 #[command(author, version, about)]
 pub struct Common {
     /// A set of source documents as files, directories, or URLs.
-    #[clap(value_name = "PATH or URL")]
+    #[clap(value_name = "SOURCE")]
     pub sources: Vec<Source>,
 
     /// Excepts (ignores) an analysis or lint rule.
