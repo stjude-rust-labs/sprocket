@@ -41,14 +41,14 @@ const RESERVED_PARAMETER_META_KEYS: &[&str] = &[
 /// Creates a "non-string meta value" diagnostic for meta section.
 fn non_string_meta_value(key: &str, value_type: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!(
-        "reserved meta key `{key}` should have a string value, found {value_type}",
+        "reserved meta key `{key}` should have a string value, found {value_type}"
     ))
     .with_rule(ID)
     .with_label(
         format!("`{key}` must be a string for proper documentation rendering"),
         span,
     )
-    .with_fix(format!("change the value of `{key}` to a string literal)"))
+    .with_fix(format!("change the value of `{key}` to a string literal"))
 }
 
 /// Creates a "non-string parameter meta value" diagnostic for parameter_meta
@@ -61,30 +61,28 @@ fn non_string_parameter_meta_value(
 ) -> Diagnostic {
     Diagnostic::warning(format!(
         "reserved parameter_meta key `{key}` for parameter `{param_name}` should have a string \
-         value, found {value_type}",
+         value, found {value_type}"
     ))
     .with_rule(ID)
     .with_label(
         format!("`{key}` must be a string for proper documentation rendering"),
         span,
     )
-    .with_fix(format!("change the value of `{key}` to a string literal)"))
+    .with_fix(format!("change the value of `{key}` to a string literal"))
 }
 
 /// Creates a "non-string parameter description" diagnostic for simple
 /// parameter_meta entries.
 fn non_string_parameter_description(param_name: &str, value_type: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!(
-        "parameter `{param_name}` description should be a string, found {value_type}",
+        "parameter `{param_name}` description should be a string, found {value_type}"
     ))
     .with_rule(ID)
     .with_label(
         "parameter description must be a string for proper documentation rendering",
         span,
     )
-    .with_fix(format!(
-        "change the parameter description to a string literal)"
-    ))
+    .with_fix("change the parameter description to a string literal")
 }
 
 /// Gets a human-readable type name for a metadata value.
