@@ -16,9 +16,9 @@ mod goto_definition;
 mod hover;
 mod rename;
 mod semantic_tokens;
+mod signature_help;
 pub(crate) mod snippets;
 mod workspace_symbol;
-mod signature_help;
 
 pub use completions::*;
 pub use document_symbol::*;
@@ -27,8 +27,8 @@ pub use goto_definition::*;
 pub use hover::*;
 pub use rename::*;
 pub use semantic_tokens::*;
-pub use workspace_symbol::*;
 pub use signature_help::*;
+pub use workspace_symbol::*;
 
 /// Context for evaluating expression types during LSP operations.
 ///
