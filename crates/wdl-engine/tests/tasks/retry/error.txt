@@ -1,6 +1,6 @@
 error: task execution failed for task `test`: process terminated with non-zero exit code 1
-  ┌─ tests/tasks/task-fail/source.wdl:3:6
+  ┌─ tests/tasks/retry/source.wdl:5:6
   │
-3 │ task test {
+5 │ task test {
   │      ^^^^ this task failed to execute
 
