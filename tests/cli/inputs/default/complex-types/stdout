@@ -1,9 +1,0 @@
-{
-  "test.foo": "Foo",
-  "test.bar": "Bar",
-  "test.baz": "Baz",
-  "test.x": null,
-  "test.y": "Array[Float]",
-  "test.empty": "",
-  "test.interpolated": "weirdly nested string with interpolation: ~{empty}"
-}
