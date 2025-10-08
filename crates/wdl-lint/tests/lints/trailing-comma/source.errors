@@ -16,6 +16,27 @@ note[TrailingComma]: item missing trailing comma
    │
    = fix: add a trailing comma
 
+warning[ExpectedMetaString]: reserved meta key `description` should have a string value, found object
+   ┌─ tests/lints/trailing-comma/source.wdl:31:9
+   │  
+31 │ ╭         description: {
+32 │ │             help: "test"  # OK
+33 │ │         }
+   │ ╰─────────^ `description` must be a string for proper documentation rendering
+   │  
+   = fix: change the value of `description` to a string literal
+
+warning[ExpectedMetaString]: reserved meta key `help` should have a string value, found object
+   ┌─ tests/lints/trailing-comma/source.wdl:34:9
+   │  
+34 │ ╭         help: {
+35 │ │             name: "something",
+36 │ │             other: "another"  # missing comma
+37 │ │         }
+   │ ╰─────────^ `help` must be a string for proper documentation rendering
+   │  
+   = fix: change the value of `help` to a string literal
+
 note[TrailingComma]: item missing trailing comma
    ┌─ tests/lints/trailing-comma/source.wdl:36:28
    │
