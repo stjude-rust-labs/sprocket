@@ -103,14 +103,19 @@ pub fn signature_help(
             let params = TypeParameters::new(s.type_parameters());
             let label = format!("{}{}", call_expr.target().text(), s.display(&params));
 
+            let mut curr_offset = call_expr.target().text().len() + 1; // NOTE: `func` + `(`
             let parameters = s
                 .parameters()
                 .iter()
                 .map(|p| {
-                    let ty = p.ty().display(&params).to_string();
-                    let label = format!("{}: {}", p.name(), ty);
+                    let param_label = format!("{}: {}", p.name(), p.ty().display(&params));
+                    let start = curr_offset as u32;
+                    let end = start + param_label.len() as u32;
+
+                    curr_offset += param_label.len() + 2; // NOTE: COMMA + SPACE
+
                     ParameterInformation {
-                        label: ParameterLabel::Simple(label),
+                        label: ParameterLabel::LabelOffsets([start, end]),
                         documentation: Some(Documentation::MarkupContent(MarkupContent {
                             kind: MarkupKind::Markdown,
                             value: p.description().to_string(),

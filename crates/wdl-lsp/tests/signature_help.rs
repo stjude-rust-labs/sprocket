@@ -60,10 +60,7 @@ async fn should_provide_signature_help_for_stdlib_function() {
     assert_eq!(sig_info.parameters.as_ref().unwrap().len(), 1);
 
     let param_info = &sig_info.parameters.as_ref().unwrap()[0];
-    assert_eq!(
-        param_info.label,
-        ParameterLabel::Simple("file: File".to_string())
-    );
+    assert_eq!(param_info.label, ParameterLabel::LabelOffsets([12, 22]));
 }
 
 #[tokio::test]
@@ -99,13 +96,13 @@ async fn should_provide_signature_help_for_polymorphic_function() {
     assert_eq!(help.active_parameter, Some(0));
 
     let sig_info = &help.signatures[1];
-    assert_eq!(sig_info.label, "size(value: File?, <unit: String>) -> Float");
+    assert_eq!(
+        sig_info.label,
+        "size(value: File?, <unit: String>) -> Float"
+    );
     // assert!(sig_info.documentation.is_some());
     assert_eq!(sig_info.parameters.as_ref().unwrap().len(), 2);
 
     let param_info = &sig_info.parameters.as_ref().unwrap()[0];
-    assert_eq!(
-        param_info.label,
-        ParameterLabel::Simple("value: File?".to_string())
-    );
+    assert_eq!(param_info.label, ParameterLabel::LabelOffsets([5, 17]));
 }
