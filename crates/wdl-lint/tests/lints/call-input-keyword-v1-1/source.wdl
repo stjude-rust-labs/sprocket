@@ -1,7 +1,5 @@
-#@ except: DescriptionMissing, RuntimeSectionKeys, KnownRules
-#@ except: MatchingOutputMeta, MetaDescription, ParameterMetaMatched
-#@ except: ExpectedRuntimeKeys, PreambleCommentPlacement, EndingNewline
-#@ except: PreambleFormatted, Whitespace
+#@ except: RuntimeSection, MatchingOutputMeta, MetaDescription
+#@ except: ParameterMetaMatched, ExpectedRuntimeKeys
 
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
@@ -16,7 +14,7 @@ task example {
     input {
         String name
     }
-                                   
+
     command <<<
         echo "~{name}"
     >>>
@@ -31,7 +29,7 @@ task example {
 workflow test {
     meta {}
 
-    ## Should NOT trigger - version 1.1 requires `input:` keyword
+    # Should NOT trigger - version 1.1 requires `input:` keyword
     call example { input: name = "test" }
 
     output {}
