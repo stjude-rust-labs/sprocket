@@ -970,15 +970,22 @@ pub struct TesBackendConfig {
 
     /// The polling interval, in seconds, for checking task status.
     ///
-    /// Defaults to 60 second.
+    /// Defaults to 1 second.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<u64>,
 
-    /// The maximum task concurrency for the backend.
+    /// The number of retries after encountering an error communicating with the
+    /// TES server.
     ///
-    /// Defaults to unlimited.
+    /// Defaults to no retries.
+    pub retries: Option<u32>,
+
+    /// The maximum number of concurrent requests the backend will send to the
+    /// TES server.
+    ///
+    /// Defaults to 10 concurrent requests.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrency: Option<u64>,
+    pub max_concurrency: Option<usize>,
 
     /// Whether or not the TES server URL may use an insecure protocol like
     /// HTTP.

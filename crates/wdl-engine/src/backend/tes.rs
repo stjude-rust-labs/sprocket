@@ -82,7 +82,7 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
 /// The default poll interval, in seconds, for the TES backend.
-const DEFAULT_TES_INTERVAL: u64 = 60;
+const DEFAULT_TES_INTERVAL: u64 = 1;
 
 /// Represents a TES task request.
 ///
@@ -402,8 +402,6 @@ pub struct TesBackend {
     backend_config: Arc<TesBackendConfig>,
     /// The underlying Crankshaft backend.
     inner: Arc<tes::Backend>,
-    /// The maximum amount of concurrency supported.
-    max_concurrency: u64,
     /// The maximum CPUs for any of one node.
     max_cpu: u64,
     /// The maximum memory for any of one node.
@@ -448,6 +446,9 @@ impl TesBackend {
             None => {}
         }
 
+        http.retries = backend_config.retries;
+        http.max_concurrency = backend_config.max_concurrency;
+
         let names = Arc::new(Mutex::new(GeneratorIterator::new(
             UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
             INITIAL_EXPECTED_NAMES,
@@ -461,15 +462,13 @@ impl TesBackend {
                 .build(),
             names.clone(),
             events,
-        );
-
-        let max_concurrency = backend_config.max_concurrency.unwrap_or(u64::MAX);
+        )
+        .await;
 
         Ok(Self {
             config,
             backend_config: Arc::new(backend_config.clone()),
             inner: Arc::new(backend),
-            max_concurrency,
             max_cpu,
             max_memory,
             manager,
@@ -480,7 +479,9 @@ impl TesBackend {
 
 impl TaskExecutionBackend for TesBackend {
     fn max_concurrency(&self) -> u64 {
-        self.max_concurrency
+        // The TES backend doesn't limit the number of tasks that can be queued at a
+        // time
+        u64::MAX
     }
 
     fn constraints(
