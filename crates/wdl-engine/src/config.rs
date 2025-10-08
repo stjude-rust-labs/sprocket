@@ -199,7 +199,7 @@ pub struct Config {
 
 impl Config {
     /// Validates the evaluation configuration.
-    pub fn validate(&self) -> Result<()> {
+    pub async fn validate(&self) -> Result<()> {
         self.http.validate()?;
         self.workflow.validate()?;
         self.task.validate()?;
@@ -216,7 +216,7 @@ impl Config {
         }
 
         for backend in self.backends.values() {
-            backend.validate(self)?;
+            backend.validate(self).await?;
         }
 
         self.storage.validate()?;
@@ -704,12 +704,12 @@ impl Default for BackendConfig {
 
 impl BackendConfig {
     /// Validates the backend configuration.
-    pub fn validate(&self, engine_config: &Config) -> Result<()> {
+    pub async fn validate(&self, engine_config: &Config) -> Result<()> {
         match self {
             Self::Local(config) => config.validate(),
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
-            Self::LsfApptainer(config) => config.validate(engine_config),
+            Self::LsfApptainer(config) => config.validate(engine_config).await,
         }
     }
 
@@ -1142,13 +1142,13 @@ mod test {
         assert!(json.contains("secret"), "`{json}` contains a secret");
     }
 
-    #[test]
-    fn test_config_validate() {
+    #[tokio::test]
+    async fn test_config_validate() {
         // Test invalid task config
         let mut config = Config::default();
         config.task.retries = Some(1000000);
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "configuration value `task.retries` cannot exceed 100"
         );
 
@@ -1156,7 +1156,7 @@ mod test {
         let mut config = Config::default();
         config.workflow.scatter.concurrency = Some(0);
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "configuration value `workflow.scatter.concurrency` cannot be zero"
         );
 
@@ -1166,7 +1166,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "a backend named `foo` is not present in the configuration"
         );
         let config = Config {
@@ -1175,7 +1175,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "a backend named `bar` is not present in the configuration"
         );
 
@@ -1184,7 +1184,7 @@ mod test {
             backends: [("foo".to_string(), BackendConfig::default())].into(),
             ..Default::default()
         };
-        config.validate().expect("config should validate");
+        config.validate().await.expect("config should validate");
 
         // Test invalid local backend cpu config
         let config = Config {
@@ -1199,7 +1199,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "local backend configuration value `cpu` cannot be zero"
         );
         let config = Config {
@@ -1213,10 +1213,17 @@ mod test {
             .into(),
             ..Default::default()
         };
-        assert!(config.validate().unwrap_err().to_string().starts_with(
-            "local backend configuration value `cpu` cannot exceed the virtual CPUs available to \
-             the host"
-        ));
+        assert!(
+            config
+                .validate()
+                .await
+                .unwrap_err()
+                .to_string()
+                .starts_with(
+                    "local backend configuration value `cpu` cannot exceed the virtual CPUs \
+                     available to the host"
+                )
+        );
 
         // Test invalid local backend memory config
         let config = Config {
@@ -1231,7 +1238,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "local backend configuration value `memory` cannot be zero"
         );
         let config = Config {
@@ -1246,7 +1253,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "local backend configuration value `memory` has invalid value `100 meows`"
         );
 
@@ -1261,9 +1268,17 @@ mod test {
             .into(),
             ..Default::default()
         };
-        assert!(config.validate().unwrap_err().to_string().starts_with(
-            "local backend configuration value `memory` cannot exceed the total memory of the host"
-        ));
+        assert!(
+            config
+                .validate()
+                .await
+                .unwrap_err()
+                .to_string()
+                .starts_with(
+                    "local backend configuration value `memory` cannot exceed the total memory of \
+                     the host"
+                )
+        );
 
         // Test missing TES URL
         let config = Config {
@@ -1275,7 +1290,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "TES backend configuration value `url` is required"
         );
 
@@ -1297,7 +1312,7 @@ mod test {
             ..Default::default()
         };
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "TES backend configuration value `url` has invalid value `http://example.com/`: URL \
              must use a HTTPS scheme"
         );
@@ -1320,24 +1335,30 @@ mod test {
             .into(),
             ..Default::default()
         };
-        config.validate().expect("configuration should validate");
+        config
+            .validate()
+            .await
+            .expect("configuration should validate");
 
         let mut config = Config::default();
         config.http.parallelism = Some(0);
         assert_eq!(
-            config.validate().unwrap_err().to_string(),
+            config.validate().await.unwrap_err().to_string(),
             "configuration value `http.parallelism` cannot be zero"
         );
 
         let mut config = Config::default();
         config.http.parallelism = Some(5);
         assert!(
-            config.validate().is_ok(),
+            config.validate().await.is_ok(),
             "should pass for valid configuration"
         );
 
         let mut config = Config::default();
         config.http.parallelism = None;
-        assert!(config.validate().is_ok(), "should pass for default (None)");
+        assert!(
+            config.validate().await.is_ok(),
+            "should pass for default (None)"
+        );
     }
 }

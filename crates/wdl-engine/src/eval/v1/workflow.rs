@@ -587,7 +587,7 @@ impl WorkflowEvaluator {
     ///
     /// Returns an error if the configuration isn't valid.
     pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
-        config.validate()?;
+        config.validate().await?;
 
         let config = Arc::new(config);
         let backend = config.create_backend(events.crankshaft().clone()).await?;
