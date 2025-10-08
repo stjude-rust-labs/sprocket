@@ -105,6 +105,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<rules::MetaDescriptionRule>::default(),
         Box::<rules::DeprecatedPlaceholderRule>::default(),
         Box::<rules::ExpectedRuntimeKeysRule>::default(),
+        Box::<rules::ExpectedMetaStringRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
         Box::<rules::CommentWhitespaceRule>::default(),

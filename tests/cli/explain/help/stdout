@@ -56,6 +56,7 @@ Available rules:
   - DoubleQuotes
   - ElementSpacing
   - EndingNewline
+  - ExpectedMetaString
   - ExpectedRuntimeKeys
   - ExpressionSpacing
   - HereDocCommands
