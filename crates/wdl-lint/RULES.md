@@ -21,6 +21,7 @@ This table documets all implemented `sprocket` lin rules impleemnted on the `mai
 | `ElementSpacing` | Spacing, Style | Detects unsorted input declarations |
 | `EndingNewline` | Spacing, Portability | Detects missing newline at the end of the document |
 | `ExpectedRuntimeKeys` | Completeness, Deprecated | Detects the use of deprecated, unknown, or missing runtime keys |
+| `ExpectedMetaString` | Correctness, Documentation, SprocketCompatibility | Ensures that reserved meta keys have string values for wdl-doc compatibility. |
 | `ExpressionSpacing` | Spacing, Style | Detects improperly spaced expressions |
 | `HereDocCommands` | Clarity, Correctness | Detects curly command section for tasks |
 | `ImportPlacement` | Clarity | Detects incorrect import placements |
