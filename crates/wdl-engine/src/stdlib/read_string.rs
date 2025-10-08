@@ -61,7 +61,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(File) -> String",
+                "(file: File) -> String",
                 Callback::Async(read_string),
             )]
         },

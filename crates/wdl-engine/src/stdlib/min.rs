@@ -46,10 +46,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Int, Int) -> Int", Callback::Sync(int_min)),
-                Signature::new("(Int, Float) -> Float", Callback::Sync(float_min)),
-                Signature::new("(Float, Int) -> Float", Callback::Sync(float_min)),
-                Signature::new("(Float, Float) -> Float", Callback::Sync(float_min)),
+                Signature::new("(a: Int, b: Int) -> Int", Callback::Sync(int_min)),
+                Signature::new("(a: Int, b: Float) -> Float", Callback::Sync(float_min)),
+                Signature::new("(a: Float, b: Int) -> Float", Callback::Sync(float_min)),
+                Signature::new("(a: Float, b: Float) -> Float", Callback::Sync(float_min)),
             ]
         },
     )

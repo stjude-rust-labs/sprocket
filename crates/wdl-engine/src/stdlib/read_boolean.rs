@@ -86,7 +86,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(File) -> Boolean",
+                "(file: File) -> Boolean",
                 Callback::Async(read_boolean),
             )]
         },

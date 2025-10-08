@@ -80,7 +80,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[Array[X]]) -> Array[Array[X]]",
+                "(array: Array[Array[X]]) -> Array[Array[X]]",
                 Callback::Sync(transpose),
             )]
         },

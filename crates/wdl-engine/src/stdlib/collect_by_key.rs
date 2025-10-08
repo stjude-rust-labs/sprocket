@@ -75,7 +75,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
+                "(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
                 Callback::Sync(collect_by_key),
             )]
         },

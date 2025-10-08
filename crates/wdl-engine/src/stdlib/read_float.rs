@@ -84,7 +84,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(File) -> Float",
+                "(file: File) -> Float",
                 Callback::Async(read_float),
             )]
         },

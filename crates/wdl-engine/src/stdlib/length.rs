@@ -115,10 +115,10 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Array[X]) -> Int", Callback::Sync(array_length)),
-                Signature::new("(Map[K, V]) -> Int", Callback::Sync(map_length)),
-                Signature::new("(Object) -> Int", Callback::Sync(object_length)),
-                Signature::new("(String) -> Int", Callback::Sync(string_length)),
+                Signature::new("(array: Array[X]) -> Int", Callback::Sync(array_length)),
+                Signature::new("(map: Map[K, V]) -> Int", Callback::Sync(map_length)),
+                Signature::new("(object: Object) -> Int", Callback::Sync(object_length)),
+                Signature::new("(string: String) -> Int", Callback::Sync(string_length)),
             ]
         },
     )
