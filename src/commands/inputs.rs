@@ -19,7 +19,6 @@ use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
-use wdl::ast::v1::Type;
 use wdl::cli::Analysis;
 use wdl::cli::analysis::Source;
 
@@ -27,7 +26,7 @@ use wdl::cli::analysis::Source;
 #[derive(Parser, Debug)]
 pub struct Args {
     /// A source WDL document or URL.
-    #[arg(value_name = "PATH or URL")]
+    #[arg(value_name = "SOURCE")]
     pub source: Source,
 
     /// The name of the task or workflow for which to generate inputs.
@@ -36,10 +35,10 @@ pub struct Args {
 
     /// Show inputs with non-literal default values.
     #[arg(long)]
-    pub show_expressions: bool,
+    pub show_non_literals: bool,
 
     /// Hide inputs with default values.
-    #[arg(long, conflicts_with = "show_expressions")]
+    #[arg(long, conflicts_with = "show_non_literals")]
     pub hide_defaults: bool,
 
     /// Generate inputs for all tasks called in the workflow.  
@@ -72,7 +71,7 @@ impl Key {
         self
     }
 
-    /// Joins the key using `.` as the delimeter.
+    /// Joins the key using `.` as the delimiter.
     pub fn join(self) -> Option<String> {
         if self.0.is_empty() {
             return None;
@@ -115,210 +114,225 @@ impl InputProcessor {
     }
 
     /// Processes an expression.
-    fn expression(
-        &self,
-        ty: Type,
-        namespace: Key,
-        name: &str,
-        expr: &Expr,
-    ) -> Option<(Key, Value)> {
-        match expr {
-            Expr::Literal(l) if !self.hide_defaults => match l {
-                LiteralExpr::Boolean(v) => {
-                    return Some((namespace.push(name), Value::Bool(v.value())));
-                }
-                LiteralExpr::String(s) => {
-                    let merged_parts = s
-                        .parts()
-                        .map(|p| match p {
-                            StringPart::Placeholder(placeholder) => placeholder.text().to_string(),
-                            StringPart::Text(text) => {
-                                let mut buff = String::new();
-                                text.unescape_to(&mut buff);
-                                buff
-                            }
-                        })
-                        .collect::<String>();
-
-                    return Some((namespace.push(name), Value::String(merged_parts)));
-                }
-                LiteralExpr::Integer(v) => {
-                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0))));
-                }
-                LiteralExpr::Float(v) => {
-                    return Some((namespace.push(name), Value::from(v.value().unwrap_or(0.0))));
-                }
-                LiteralExpr::Struct(v) => {
-                    let map = v
-                        .items()
-                        .filter_map(|item| {
-                            let (name, value) = item.name_value();
-                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
-                        })
-                        .map(|(k, v)| (k.join().expect("key to join"), v))
-                        .collect::<Map<_, _>>();
-
-                    return Some((namespace.push(name), Value::Object(map)));
-                }
+    fn expression(&self, expr: &Expr) -> Option<Value> {
+        let literal_to_value = |literal: &LiteralExpr| -> Option<Value> {
+            match literal {
+                LiteralExpr::Boolean(b) => Some(Value::Bool(b.value())),
+                LiteralExpr::Float(f) => match f.value() {
+                    Some(f) => Some(Value::from(f)),
+                    None if self.show_expressions => {
+                        Some(Value::from("Float <DEFAULT IS OUT OF RANGE>"))
+                    }
+                    None => None,
+                },
+                LiteralExpr::Integer(i) => match i.value() {
+                    Some(i) => Some(Value::Number(i.into())),
+                    None if self.show_expressions => {
+                        Some(Value::from("Int <DEFAULT IS OUT OF RANGE>"))
+                    }
+                    None => None,
+                },
+                LiteralExpr::None(_) => Some(Value::Null),
+                LiteralExpr::String(s) => match s.text() {
+                    Some(text) => Some(Value::from(text.text())),
+                    None if self.show_expressions => {
+                        let merged_parts = s
+                            .parts()
+                            .map(|p| match p {
+                                StringPart::Placeholder(placeholder) => {
+                                    placeholder.text().to_string()
+                                }
+                                StringPart::Text(text) => {
+                                    let mut buff = String::new();
+                                    text.unescape_to(&mut buff);
+                                    buff
+                                }
+                            })
+                            .collect::<String>();
+                        Some(Value::String(format!(
+                            "String <NON-LITERAL: `{merged_parts}`>"
+                        )))
+                    }
+                    None => None,
+                },
                 LiteralExpr::Array(a) => {
                     let mut values = vec![];
-
-                    for item in a.elements() {
-                        if let Some((key, value)) =
-                            self.expression(ty.clone(), Key::empty(), name, &item)
-                        {
-                            values.push((key.join().expect("key to join"), value));
+                    for elem in a.elements() {
+                        if let Some(val) = self.expression(&elem) {
+                            values.push(val);
+                        } else if self.show_expressions {
+                            values.push(Value::String(format!(
+                                "<NON-LITERAL: `{expr}`>",
+                                expr = elem.text()
+                            )))
+                        } else {
+                            values.push(Value::from("<OMITTED>"))
                         }
                     }
+                    Some(Value::from(values))
+                }
+                LiteralExpr::Pair(p) => {
+                    let (left, right) = p.exprs();
 
-                    return Some((
-                        namespace.push(name),
-                        Value::Array(values.into_iter().map(|(_, v)| v).collect()),
-                    ));
+                    let mut map = Map::new();
+                    if let Some(left) = self.expression(&left) {
+                        map.insert("left".to_string(), left);
+                    } else if self.show_expressions {
+                        map.insert(
+                            "left".to_string(),
+                            Value::String(format!("<NON-LITERAL: `{expr}`>", expr = left.text())),
+                        );
+                    } else {
+                        map.insert("left".to_string(), Value::from("<OMITTED>"));
+                    }
+                    if let Some(right) = self.expression(&right) {
+                        map.insert("right".to_string(), right);
+                    } else if self.show_expressions {
+                        map.insert(
+                            "right".to_string(),
+                            Value::String(format!("<NON-LITERAL: `{expr}`>", expr = right.text())),
+                        );
+                    } else {
+                        map.insert("right".to_string(), Value::from("<OMITTED>"));
+                    }
+                    Some(Value::Object(map))
                 }
                 LiteralExpr::Map(m) => {
                     let mut map = Map::new();
-
+                    let mut bad_key_counter = 0_usize;
                     for item in m.items() {
-                        let (k, v) = item.key_value();
-                        let key_name = k.text().to_string();
-                        if let Some((_key, value)) =
-                            self.expression(ty.clone(), Key::empty(), name, &v)
+                        let (key, val) = item.key_value();
+                        let key = if let Some(literal) = key.as_literal()
+                            && let Some(string) = literal.as_string()
+                            && let Some(text) = string.text()
                         {
-                            map.insert(key_name, value);
+                            text.text().to_string()
+                        } else {
+                            bad_key_counter += 1;
+                            format!("<OMITTED_{bad_key_counter}>")
+                        };
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key, val);
+                        } else {
+                            map.insert(key, Value::from("<OMITTED>"));
                         }
                     }
-
-                    return Some((namespace.push(name), Value::Object(map)));
+                    Some(Value::Object(map))
                 }
-                LiteralExpr::Pair(p) => {
+                LiteralExpr::Struct(s) => {
                     let mut map = Map::new();
-                    let (left, right) = p.exprs();
-
-                    if let Some((_key, value)) =
-                        self.expression(ty.clone(), Key::empty(), name, &left)
-                    {
-                        map.insert("left".to_string(), value);
+                    for item in s.items() {
+                        let (key, val) = item.name_value();
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key.text().to_string(), val);
+                        } else if self.show_expressions {
+                            map.insert(
+                                key.text().to_string(),
+                                Value::String(format!(
+                                    "<NON-LITERAL: `{expr}`>",
+                                    expr = val.text()
+                                )),
+                            );
+                        } else {
+                            map.insert(key.text().to_string(), Value::from("<OMITTED>"));
+                        }
                     }
-
-                    if let Some((_key, value)) =
-                        self.expression(ty.clone(), Key::empty(), name, &right)
-                    {
-                        map.insert("right".to_string(), value);
+                    Some(Value::Object(map))
+                }
+                LiteralExpr::Object(o) => {
+                    let mut map = Map::new();
+                    for item in o.items() {
+                        let (key, val) = item.name_value();
+                        if let Some(val) = self.expression(&val) {
+                            map.insert(key.text().to_string(), val);
+                        } else if self.show_expressions {
+                            map.insert(
+                                key.text().to_string(),
+                                Value::String(format!(
+                                    "<NON-LITERAL: `{expr}`>",
+                                    expr = val.text()
+                                )),
+                            );
+                        } else {
+                            map.insert(key.text().to_string(), Value::from("<OMITTED>"));
+                        }
                     }
-
-                    return Some((namespace.push(name), Value::Object(map)));
+                    Some(Value::Object(map))
                 }
-                LiteralExpr::Object(v) => {
-                    let map = v
-                        .items()
-                        .filter_map(|item| {
-                            let (name, value) = item.name_value();
-                            self.expression(ty.clone(), Key::empty(), name.text(), &value)
-                        })
-                        .map(|(k, v)| (k.join().expect("key to join"), v))
-                        .collect::<Map<_, _>>();
-
-                    return Some((namespace.push(name), Value::Object(map)));
-                }
-                LiteralExpr::None(_) => {
-                    return Some((namespace.push(name), Value::Null));
-                }
-                LiteralExpr::Hints(_) | LiteralExpr::Input(_) | LiteralExpr::Output(_) => {
-                    // These are not allowed in the input section.
-                    unreachable!("unexpected literal expression");
-                }
-            },
-            Expr::Negation(v) if !self.hide_defaults => {
-                if let Expr::Literal(literal) = v.operand() {
-                    if let LiteralExpr::Boolean(b) = literal {
-                        return Some((namespace.push(name), Value::Bool(!b.value())));
-                    } else if let LiteralExpr::Integer(n) = literal {
-                        return Some((
-                            namespace.push(name),
-                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
-                        ));
-                    } else if let LiteralExpr::Float(n) = literal {
-                        return Some((
-                            namespace.push(name),
-                            Value::from(n.value().map(|v| -v).unwrap_or_default()),
-                        ));
-                    }
-                }
+                _ => unreachable!("unexpected literal expression"),
             }
-            _ => {}
-        }
+        };
 
-        if self.show_expressions {
-            let mut value = ty.to_string();
-            value.push_str(" (default = ");
-            value.push_str(&expr.text().to_string());
-            value.push(')');
-            Some((namespace.push(name), Value::String(value)))
-        } else {
-            None
+        if let Some(literal) = expr.as_literal() {
+            return literal_to_value(literal);
+        };
+
+        // attempt to recover negation expressions for numbers
+        if let Some(negation) = expr.as_negation() {
+            let positive_val = self.expression(&negation.operand())?;
+            if let Some(num) = positive_val.as_number()
+                && let Some(i) = num.as_i64()
+            {
+                return Some(Value::from(-i));
+            }
+            if let Some(num) = positive_val.as_number()
+                && let Some(f) = num.as_f64()
+            {
+                return Some(Value::from(-f));
+            }
         }
+        None
     }
 
     /// Processes an input section.
     fn input_section(&mut self, namespace: Key, input_section: InputSection) {
         for decl in input_section.declarations() {
             match decl {
-                Decl::Bound(decl) => {
+                Decl::Bound(decl) if !self.hide_defaults => {
                     let name = decl.name();
-                    let ty = decl.ty();
                     let expr = decl.expr();
 
-                    if ty.is_optional() {
-                        if !self.hide_defaults {
-                            let mut value = ty.to_string();
-
-                            if self.show_expressions {
-                                value.push_str(" (default = ");
-                                value.push_str(&expr.text().to_string());
-                                value.push(')');
-                            }
-
-                            self.results.insert(
-                                namespace
-                                    .clone()
-                                    .push(name.text())
-                                    .join()
-                                    .expect("key to join"),
-                                Value::String(value),
-                            );
-                        }
-                    } else if let Some((key, value)) =
-                        self.expression(ty, namespace.clone(), name.text(), &expr)
-                    {
-                        self.results.insert(key.join().expect("key to join"), value);
+                    if let Some(value) = self.expression(&expr) {
+                        self.results
+                            .insert(namespace.clone().push(name.text()).join().unwrap(), value);
+                    } else if self.show_expressions {
+                        self.results.insert(
+                            namespace.clone().push(name.text()).join().unwrap(),
+                            Value::from(format!(
+                                "{ty} <NON-LITERAL: `{expr}`>",
+                                ty = decl.ty(),
+                                expr = expr.text()
+                            )),
+                        );
                     }
                 }
                 Decl::Unbound(decl) => {
                     let name = decl.name();
                     let ty = decl.ty();
 
-                    if ty.is_optional() {
-                        if !self.hide_defaults {
-                            self.results.insert(
-                                namespace
-                                    .clone()
-                                    .push(name.text())
-                                    .join()
-                                    .expect("key to join"),
-                                Value::Null,
-                            );
-                        }
-                    } else {
+                    if !ty.is_optional() {
+                        // required input
                         self.results.insert(
                             namespace
                                 .clone()
                                 .push(name.text())
                                 .join()
                                 .expect("key to join"),
-                            Value::String(ty.to_string()),
+                            Value::String(format!("{ty} <REQUIRED>")),
+                        );
+                    } else if !self.hide_defaults {
+                        self.results.insert(
+                            namespace
+                                .clone()
+                                .push(name.text())
+                                .join()
+                                .expect("key to join"),
+                            Value::Null,
                         );
                     }
+                }
+                _ => {
+                    // default input we shouldn't insert
                 }
             }
         }
@@ -453,9 +467,9 @@ pub async fn inputs(args: Args) -> Result<()> {
         .expect("the root source should always be included in the results")
         .document();
 
-    let mut inputs = InputProcessor::new(
+    let mut processor = InputProcessor::new(
         args.nested_inputs,
-        args.show_expressions,
+        args.show_non_literals,
         args.hide_defaults,
     );
 
@@ -477,7 +491,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                inputs.task(namespace, &task, &Default::default());
+                processor.task(namespace, &task, &Default::default());
             }
             (None, Some(analysis_wf)) => {
                 if analysis_wf.name() != name {
@@ -498,17 +512,17 @@ pub async fn inputs(args: Args) -> Result<()> {
                     // be found, so this should always unwrap.
                     .unwrap();
 
-                inputs.workflow(namespace, document, analysis_wf, &ast_wf)?;
+                processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
             }
             (None, None) => bail!(
                 "no task or workflow with name `{name}` was found in document `{path}`",
                 path = document.path()
             ),
         }
-    } else if let Some(workflow) = document.workflow() {
-        let name = workflow.name().to_owned();
+    } else if let Some(analysis_wf) = document.workflow() {
+        let name = analysis_wf.name().to_owned();
 
-        if !workflow.allows_nested_inputs() && args.nested_inputs {
+        if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
             bail!("workflow `{name}` does not allow nested inputs");
         }
 
@@ -521,7 +535,7 @@ pub async fn inputs(args: Args) -> Result<()> {
             // be found, so this should always unwrap.
             .unwrap();
 
-        inputs.workflow(namespace, document, workflow, &ast_wf)?;
+        processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
     } else {
         let mut tasks = document.tasks();
         let first = tasks.next();
@@ -540,7 +554,7 @@ pub async fn inputs(args: Args) -> Result<()> {
                 // SAFETY: the task should be present, so this should always unwrap.
                 .unwrap();
 
-            inputs.task(namespace, &task, &Default::default());
+            processor.task(namespace, &task, &Default::default());
         } else {
             bail!(
                 "document `{path}` contains no workflow or task",
@@ -549,7 +563,7 @@ pub async fn inputs(args: Args) -> Result<()> {
         }
     }
 
-    let inputs = inputs.into_inner();
+    let inputs = processor.into_inner();
 
     if args.yaml {
         let yaml = serde_yaml_ng::to_string(&inputs)?;

@@ -1,16 +1,16 @@
 Writes the inputs schema for a WDL document
 
-Usage: sprocket inputs [OPTIONS] <PATH or URL>
+Usage: sprocket inputs [OPTIONS] <SOURCE>
 
 Arguments:
-  <PATH or URL>
+  <SOURCE>
           A source WDL document or URL
 
 Options:
   -n, --name <NAME>
           The name of the task or workflow for which to generate inputs
 
-      --show-expressions
+      --show-non-literals
           Show inputs with non-literal default values
 
       --hide-defaults

@@ -42,6 +42,7 @@ Options:
           Print version
 
 Available rules:
+  - CallInputKeyword
   - CallInputSpacing
   - CommandSectionIndentation
   - CommentWhitespace

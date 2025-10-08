@@ -91,14 +91,3 @@ note[TrailingComma]: item missing trailing comma
     │
     = fix: add a trailing comma
 
-note[ElementSpacing]: extra blank line(s) found
-    ┌─ tests/lints/trailing-comma/source.wdl:107:14
-    │  
-107 │      runtime {}
-    │ ╭─────────────^
-108 │ │ 
-109 │ │ }
-    │ ╰^
-    │  
-    = fix: remove extra blank line(s)
-
