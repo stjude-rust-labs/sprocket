@@ -49,7 +49,7 @@ fn call_input_assignment(span: Span) -> Diagnostic {
         .with_fix("surround '=' with whitespace on each side")
 }
 
-/// Ensures call inputs are spaced appropriately
+/// Ensures call inputs are spaced appropriately.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct CallInputSpacingRule;
 
