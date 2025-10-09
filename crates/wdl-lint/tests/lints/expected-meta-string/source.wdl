@@ -11,6 +11,14 @@ workflow test_expected_meta_string {
         external_help: 12345  # Should warn: integer instead of string
         warning: true  # Should warn: boolean instead of string
         category: ["workflow", "test"]  # Should warn: array instead of string
+        outputs: {
+            result: {
+                description: "The workflow result",  # Valid - should pass
+                help: "This is the main output",  # Valid - should pass
+                category: 123,  # Should warn: integer instead of string
+            },
+            description: 456  # Should warn: integer instead of string
+        }
     }
 
     parameter_meta {

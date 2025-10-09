@@ -1,4 +1,4 @@
-warning[ExpectedMetaString]: reserved meta key `external_help` should have a string value, found integer
+warning[ExpectedMetaString]: metadata key `external_help` should have a string value, found integer
    ┌─ tests/lints/expected-meta-string/source.wdl:11:9
    │
 11 │         external_help: 12345  # Should warn: integer instead of string
@@ -6,7 +6,7 @@ warning[ExpectedMetaString]: reserved meta key `external_help` should have a str
    │
    = fix: change the value of `external_help` to a string literal
 
-warning[ExpectedMetaString]: reserved meta key `warning` should have a string value, found boolean
+warning[ExpectedMetaString]: metadata key `warning` should have a string value, found boolean
    ┌─ tests/lints/expected-meta-string/source.wdl:12:9
    │
 12 │         warning: true  # Should warn: boolean instead of string
@@ -14,7 +14,7 @@ warning[ExpectedMetaString]: reserved meta key `warning` should have a string va
    │
    = fix: change the value of `warning` to a string literal
 
-warning[ExpectedMetaString]: reserved meta key `category` should have a string value, found array
+warning[ExpectedMetaString]: metadata key `category` should have a string value, found array
    ┌─ tests/lints/expected-meta-string/source.wdl:13:9
    │
 13 │         category: ["workflow", "test"]  # Should warn: array instead of string
@@ -22,26 +22,50 @@ warning[ExpectedMetaString]: reserved meta key `category` should have a string v
    │
    = fix: change the value of `category` to a string literal
 
-warning[ExpectedMetaString]: parameter `flag_input` description should be a string, found integer
-   ┌─ tests/lints/expected-meta-string/source.wdl:23:9
+warning[ExpectedMetaString]: metadata key `category` should have a string value, found integer
+   ┌─ tests/lints/expected-meta-string/source.wdl:18:17
    │
-23 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
-   │         ^^^^^^^^^^^^^^ parameter description must be a string for proper documentation rendering
+18 │                 category: 123,  # Should warn: integer instead of string
+   │                 ^^^^^^^^^^^^^ `category` must be a string for proper documentation rendering
    │
-   = fix: change the parameter description to a string literal
+   = fix: change the value of `category` to a string literal
 
-warning[ExpectedMetaString]: reserved meta key `warning` should have a string value, found integer
-   ┌─ tests/lints/expected-meta-string/source.wdl:40:9
+warning[ExpectedMetaString]: metadata key `description` should have a string value, found integer
+   ┌─ tests/lints/expected-meta-string/source.wdl:20:13
    │
-40 │         warning: 999  # Should warn: integer instead of string
+20 │             description: 456  # Should warn: integer instead of string
+   │             ^^^^^^^^^^^^^^^^ `description` must be a string for proper documentation rendering
+   │
+   = fix: change the value of `description` to a string literal
+
+note[TrailingComma]: item missing trailing comma
+   ┌─ tests/lints/expected-meta-string/source.wdl:20:26
+   │
+20 │             description: 456  # Should warn: integer instead of string
+   │                          ^^^
+   │
+   = fix: add a trailing comma
+
+warning[ExpectedMetaString]: metadata key `description` should have a string value, found integer
+   ┌─ tests/lints/expected-meta-string/source.wdl:31:9
+   │
+31 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
+   │         ^^^^^^^^^^^^^^ `description` must be a string for proper documentation rendering
+   │
+   = fix: change the value of `description` to a string literal
+
+warning[ExpectedMetaString]: metadata key `warning` should have a string value, found integer
+   ┌─ tests/lints/expected-meta-string/source.wdl:48:9
+   │
+48 │         warning: 999  # Should warn: integer instead of string
    │         ^^^^^^^^^^^^ `warning` must be a string for proper documentation rendering
    │
    = fix: change the value of `warning` to a string literal
 
-warning[ExpectedMetaString]: reserved parameter_meta key `help` for parameter `test_input` should have a string value, found null
-   ┌─ tests/lints/expected-meta-string/source.wdl:46:13
+warning[ExpectedMetaString]: metadata key `help` should have a string value, found null
+   ┌─ tests/lints/expected-meta-string/source.wdl:54:13
    │
-46 │             help: null,  # Should warn: null instead of string
+54 │             help: null,  # Should warn: null instead of string
    │             ^^^^^^^^^^ `help` must be a string for proper documentation rendering
    │
    = fix: change the value of `help` to a string literal

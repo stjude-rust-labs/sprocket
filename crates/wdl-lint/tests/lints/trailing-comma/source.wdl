@@ -1,5 +1,6 @@
 #@ except: DeprecatedObject, MetaDescription, InputSorted
 #@ except: ParameterMetaMatched, MetaSections, RequirementsSection
+#@ except: ExpectedMetaString
 
 version 1.2
 
@@ -28,6 +29,13 @@ workflow bar {
 
 task foo {
     meta {
+        description: {
+            help: "test"  # OK
+        }
+        help: {
+            name: "something",
+            other: "another"  # missing comma
+        }
         foo: {
             bar: "baz",
             baz: "quux" ,  # misplaced comma

@@ -20,69 +20,38 @@ use crate::TagSet;
 /// The identifier for the expected meta string rule.
 const ID: &str = "ExpectedMetaString";
 
-/// Reserved meta keys that must have string values for wdl-doc compatibility.
-const RESERVED_META_KEYS: &[&str] = &[
+/// Reserved keys that must have string values for Sprocket's doc command.
+const RESERVED_KEYS: &[&str] = &[
     "description",
     "help",
     "external_help",
     "warning",
-    "category", // for workflows
+    "category",
+    "group",
 ];
 
-/// Reserved parameter_meta keys that must have string values for wdl-doc
-/// compatibility.
-const RESERVED_PARAMETER_META_KEYS: &[&str] = &[
-    "description",
-    "help",
-    "external_help",
-    "group", // for grouping inputs
-];
-
-/// Creates a "non-string meta value" diagnostic for meta section.
-fn non_string_meta_value(key: &str, value_type: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "reserved meta key `{key}` should have a string value, found {value_type}"
-    ))
+/// Creates a diagnostic for non-string metadata values.
+fn non_string_value_diagnostic(key: &str, value_type: &str, span: Span) -> Diagnostic {
+    Diagnostic::warning(
+        [
+            "metadata key `",
+            key,
+            "` should have a string value, found ",
+            value_type,
+        ]
+        .concat(),
+    )
     .with_rule(ID)
     .with_label(
-        format!("`{key}` must be a string for proper documentation rendering"),
+        [
+            "`",
+            key,
+            "` must be a string for proper documentation rendering",
+        ]
+        .concat(),
         span,
     )
-    .with_fix(format!("change the value of `{key}` to a string literal"))
-}
-
-/// Creates a "non-string parameter meta value" diagnostic for parameter_meta
-/// section.
-fn non_string_parameter_meta_value(
-    param_name: &str,
-    key: &str,
-    value_type: &str,
-    span: Span,
-) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "reserved parameter_meta key `{key}` for parameter `{param_name}` should have a string \
-         value, found {value_type}"
-    ))
-    .with_rule(ID)
-    .with_label(
-        format!("`{key}` must be a string for proper documentation rendering"),
-        span,
-    )
-    .with_fix(format!("change the value of `{key}` to a string literal"))
-}
-
-/// Creates a "non-string parameter description" diagnostic for simple
-/// parameter_meta entries.
-fn non_string_parameter_description(param_name: &str, value_type: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "parameter `{param_name}` description should be a string, found {value_type}"
-    ))
-    .with_rule(ID)
-    .with_label(
-        "parameter description must be a string for proper documentation rendering",
-        span,
-    )
-    .with_fix("change the parameter description to a string literal")
+    .with_fix(["change the value of `", key, "` to a string literal"].concat())
 }
 
 /// Gets a human-readable type name for a metadata value.
@@ -103,6 +72,33 @@ fn is_string_value(value: &MetadataValue) -> bool {
     matches!(value, MetadataValue::String(_))
 }
 
+/// Checks metadata object items for reserved keys with non-string values.
+fn check_object_items(
+    obj: &wdl_ast::v1::MetadataObject,
+    diagnostics: &mut Diagnostics,
+    exceptable_nodes: &Option<&'static [SyntaxKind]>,
+) {
+    for item in obj.items() {
+        let name = item.name();
+        let key = name.text();
+
+        if !RESERVED_KEYS.contains(&key) {
+            continue;
+        }
+
+        let value = item.value();
+
+        if !is_string_value(&value) {
+            let value_type = get_value_type_name(&value);
+            diagnostics.exceptable_add(
+                non_string_value_diagnostic(key, value_type, item.span()),
+                SyntaxElement::from(item.inner().clone()),
+                exceptable_nodes,
+            );
+        }
+    }
+}
+
 /// Detects non-string values for reserved meta keys.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ExpectedMetaStringRule;
@@ -113,23 +109,20 @@ impl Rule for ExpectedMetaStringRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that reserved meta keys used by wdl-doc have string values."
+        "Ensures that reserved meta keys have string values."
     }
 
     fn explanation(&self) -> &'static str {
-        "The wdl-doc tool reserves certain keys in `meta` and `parameter_meta` sections for \
-         documentation generation. These keys (`description`, `help`, `external_help`, `warning`, \
-         `category`, and `group`) must have string values. Using non-string values will cause \
-         wdl-doc to skip rendering that documentation. This rule ensures all reserved keys have \
-         string values for proper documentation generation."
+        "Sprocket's documentation command reserves certain keys in `meta` and `parameter_meta` \
+         sections for documentation generation. These keys (`description`, `help`, \
+         `external_help`, `warning`, `category`, and `group`) must have string values. Using \
+         non-string values will cause the documentation to be rendered incorrectly or not at \
+         all. This rule ensures all reserved keys have string values for proper documentation \
+         generation."
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[
-            Tag::Correctness,
-            Tag::Documentation,
-            Tag::SprocketCompatibility,
-        ])
+        TagSet::new(&[Tag::SprocketCompatibility])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -170,18 +163,49 @@ impl Visitor for ExpectedMetaStringRule {
         for item in section.items() {
             let name = item.name();
             let key = name.text();
+            let value = item.value();
 
-            if !RESERVED_META_KEYS.contains(&key) {
+            // Special handling for "outputs" key - check its nested content
+            if key == "outputs" {
+                if let MetadataValue::Object(ref obj) = value {
+                    for output_item in obj.items() {
+                        let output_name = output_item.name();
+                        let output_key = output_name.text();
+                        let output_value = output_item.value();
+
+                        // Check if the key itself is reserved
+                        if RESERVED_KEYS.contains(&output_key) && !is_string_value(&output_value) {
+                            let value_type = get_value_type_name(&output_value);
+                            diagnostics.exceptable_add(
+                                non_string_value_diagnostic(
+                                    output_key,
+                                    value_type,
+                                    output_item.span(),
+                                ),
+                                SyntaxElement::from(output_item.inner().clone()),
+                                &self.exceptable_nodes(),
+                            );
+                        }
+
+                        // Check nested objects
+                        if let MetadataValue::Object(ref nested_obj) = output_value {
+                            check_object_items(nested_obj, diagnostics, &self.exceptable_nodes());
+                        }
+                    }
+                }
                 continue;
             }
 
-            let value = item.value();
+            // Check if this is a reserved key
+            if !RESERVED_KEYS.contains(&key) {
+                continue;
+            }
 
             // Check if the value is a string
             if !is_string_value(&value) {
                 let value_type = get_value_type_name(&value);
                 diagnostics.exceptable_add(
-                    non_string_meta_value(key, value_type, item.span()),
+                    non_string_value_diagnostic(key, value_type, item.span()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
@@ -201,8 +225,6 @@ impl Visitor for ExpectedMetaStringRule {
 
         // Check each parameter in the parameter_meta section
         for item in section.items() {
-            let name = item.name();
-            let param_name = name.text();
             let value = item.value();
 
             match value {
@@ -211,39 +233,20 @@ impl Visitor for ExpectedMetaStringRule {
 
                 // Object with potential reserved keys
                 MetadataValue::Object(obj) => {
-                    // Check each key in the object
-                    for obj_item in obj.items() {
-                        let obj_name = obj_item.name();
-                        let key = obj_name.text();
-
-                        if !RESERVED_PARAMETER_META_KEYS.contains(&key) {
-                            continue;
-                        }
-
-                        let obj_value = obj_item.value();
-
-                        // Check if the value is a string
-                        if !is_string_value(&obj_value) {
-                            let value_type = get_value_type_name(&obj_value);
-                            diagnostics.exceptable_add(
-                                non_string_parameter_meta_value(
-                                    param_name,
-                                    key,
-                                    value_type,
-                                    obj_item.span(),
-                                ),
-                                SyntaxElement::from(obj_item.inner().clone()),
-                                &self.exceptable_nodes(),
-                            );
-                        }
-                    }
+                    check_object_items(&obj, diagnostics, &self.exceptable_nodes());
                 }
 
-                // Any other type (number, boolean, array, null) - this is invalid for description
+                // Any other type - check if it would be a reserved key as a simple description
+                // This handles cases like: parameter_name: 123 (instead of parameter_name: "description")
                 _ => {
+                    let name = item.name();
+                    let _param_name = name.text();
+
+                    // Only warn if this looks like it should be a description
+                    // (simple non-string value for a parameter)
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(
-                        non_string_parameter_description(param_name, value_type, item.span()),
+                        non_string_value_diagnostic("description", value_type, item.span()),
                         SyntaxElement::from(item.inner().clone()),
                         &self.exceptable_nodes(),
                     );
