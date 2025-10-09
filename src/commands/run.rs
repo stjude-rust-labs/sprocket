@@ -9,6 +9,7 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use chrono::Local;
 use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event;
@@ -287,10 +288,20 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
         )
     }
 
+    fn print_state_change(message: &str) {
+        if !atty::is(atty::Stream::Stdout) {
+            // output is redirected, so print state change to stdout
+            println!("[WF State Change {}]{}", Local::now(), message);
+        }
+    }
+
     let mut state = State::default();
     let mut lagged = false;
 
-    pb.pb_set_message(&message(&state));
+    let initial_progress_msg = message(&state);
+    pb.pb_set_message(&initial_progress_msg);
+    print_state_change(&initial_progress_msg);
+
     pb.pb_start();
 
     loop {
@@ -332,6 +343,7 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
                 };
 
                 pb.pb_set_message(&message);
+                print_state_change(&message);
             }
             Ok(_) => continue,
             Err(RecvError::Closed) => break,
