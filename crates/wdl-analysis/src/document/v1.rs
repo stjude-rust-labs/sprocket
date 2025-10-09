@@ -1070,11 +1070,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     .copied()
                     .expect("should have scope");
                 let variable = statement.variable();
-                promote_scope(
-                    &mut scopes,
-                    scope_index,
-                    Some(variable.text()),
-                );
+                promote_scope(&mut scopes, scope_index, Some(variable.text()));
             }
         }
     }
@@ -1121,7 +1117,9 @@ fn add_conditional_statement(
                         .else_keyword()
                         .expect("should have `else` keyword")
                         .span();
-                    document.analysis_diagnostics.push(else_not_supported(version, span));
+                    document
+                        .analysis_diagnostics
+                        .push(else_not_supported(version, span));
                 }
                 ConditionalStatementClauseKind::If => {}
             }
@@ -1894,7 +1892,7 @@ mod tests {
         //   String c = "baz"
         //   String always_available = "baz"
         // }
-        // 
+        //
         // Both `a` and `b` can be `None` or unevaluated, so they both promote as a
         // `String?`. `c` is missing from the first scope, so it must also be
         // marked as `String?`. `always_available` is always available, so it

@@ -2214,7 +2214,7 @@ fn if_expr(
     expected!(parser, marker, Token::ThenKeyword);
     expected_fn!(parser, marker, expr);
     expected!(parser, marker, Token::ElseKeyword);
-    expected_fn!(parser, marker, expr); 
+    expected_fn!(parser, marker, expr);
     Ok(marker.complete(parser, SyntaxKind::IfExprNode))
 }
 
