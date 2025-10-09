@@ -6,7 +6,6 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::borrow::Cow;
 use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
@@ -239,11 +238,11 @@ pub async fn gauntlet(args: Args) -> Result<()> {
             let document_identifier =
                 document::Identifier::new(repository_identifier.clone(), &path);
 
-            let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
+            let diagnostics = match result.error() {
                 Some(e) => {
-                    vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into()
+                    vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))]
                 }
-                None => result.document().diagnostics().into(),
+                None => result.document().diagnostics().cloned().collect(),
             };
 
             let mut actual = IndexSet::new();

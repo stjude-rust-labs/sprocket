@@ -146,7 +146,6 @@ pub fn document_diagnostic_report(
     let items = result
         .document()
         .diagnostics()
-        .iter()
         .map(|d| {
             diagnostic(
                 result.document().uri(),
@@ -216,7 +215,6 @@ pub fn workspace_diagnostic_report(
         let diagnostics = result
             .document()
             .diagnostics()
-            .iter()
             .filter_map(|d| {
                 diagnostic(
                     result.document().uri(),
