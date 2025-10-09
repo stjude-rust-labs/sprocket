@@ -79,7 +79,7 @@ pub fn signature_help(
         return Ok(None);
     };
 
-    let active_parameter = call_expr
+    let active_parameter = match call_expr
         .inner()
         .children_with_tokens()
         .filter(|t| t.kind() == SyntaxKind::Comma)
@@ -90,7 +90,14 @@ pub fn signature_help(
             };
             span.start() < offset.into()
         })
-        .count() as u32;
+        .count()
+        .try_into()
+    {
+        Ok(c) => c,
+        Err(_) => {
+            bail!("exceeded max number of parameters for signature help.")
+        }
+    };
 
     let signatures = match func {
         Function::Monomorphic(m) => vec![m.signature()],
@@ -104,16 +111,29 @@ pub fn signature_help(
             let label = format!("{}{}", call_expr.target().text(), s.display(&params));
 
             let mut curr_offset = call_expr.target().text().len() + 1; // NOTE: `func` + `(`
+            let required = s.required();
             let parameters = s
                 .parameters()
                 .iter()
-                .map(|p| {
+                .enumerate()
+                .map(|(i, p)| {
+                    if i > 0 {
+                        curr_offset += 2; // for `, `
+                    }
+
+                    if i >= required {
+                        curr_offset += 1; // for `<`
+                    }
+
                     let param_label = format!("{}: {}", p.name(), p.ty().display(&params));
                     let start = curr_offset as u32;
                     let end = start + param_label.len() as u32;
 
-                    curr_offset += param_label.len() + 2; // NOTE: COMMA + SPACE
+                    curr_offset += param_label.len();
 
+                    if i >= required {
+                        curr_offset += 1; // for `>`
+                    }
                     ParameterInformation {
                         label: ParameterLabel::LabelOffsets([start, end]),
                         documentation: Some(Documentation::MarkupContent(MarkupContent {
@@ -126,12 +146,6 @@ pub fn signature_help(
 
             SignatureInformation {
                 label,
-                // documentation: s.definition().map(|d| {
-                //     Documentation::MarkupContent(MarkupContent {
-                //         kind: MarkupKind::Markdown,
-                //         value: d.to_string(),
-                //     })
-                // }),
                 documentation: None,
                 parameters: Some(parameters),
                 active_parameter: Some(active_parameter),

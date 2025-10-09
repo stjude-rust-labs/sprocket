@@ -87,7 +87,7 @@ pub enum Request<Context> {
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
     WorkspaceSymbol(WorkspaceSymbolRequest),
-    /// A request to get signature help
+    /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
 }
 

@@ -81,6 +81,10 @@ async fn should_highlight_active_parameter() {
         "sub(input: String, pattern: String, replace: String) -> String"
     );
     assert_eq!(sig_info.parameters.as_ref().unwrap().len(), 3);
+    let params = sig_info.parameters.as_ref().unwrap();
+    assert_eq!(params[0].label, ParameterLabel::LabelOffsets([4, 17]));
+    assert_eq!(params[1].label, ParameterLabel::LabelOffsets([19, 35]));
+    assert_eq!(params[2].label, ParameterLabel::LabelOffsets([37, 53]));
 }
 
 #[tokio::test]
@@ -103,6 +107,7 @@ async fn should_provide_signature_help_for_polymorphic_function() {
     // assert!(sig_info.documentation.is_some());
     assert_eq!(sig_info.parameters.as_ref().unwrap().len(), 2);
 
-    let param_info = &sig_info.parameters.as_ref().unwrap()[0];
-    assert_eq!(param_info.label, ParameterLabel::LabelOffsets([5, 17]));
+    let param_info = &sig_info.parameters.as_ref().unwrap();
+    assert_eq!(param_info[0].label, ParameterLabel::LabelOffsets([5, 18]));
+    assert_eq!(param_info[1].label, ParameterLabel::LabelOffsets([21, 33]));
 }
