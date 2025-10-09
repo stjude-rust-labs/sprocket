@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Correctly rename shadowed variables ([#410](https://github.com/stjude-rust-labs/sprocket/pull/410)).
 * Improved an error message for when downloading a remote WDL source file to
   include a reference to the URL being downloaded ([#396](https://github.com/stjude-rust-labs/sprocket/pull/396)).
 
