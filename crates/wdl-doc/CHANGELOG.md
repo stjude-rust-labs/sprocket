@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* WDL documents with analysis errors **but not parse errors** can now be processed ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
+    * prior to this, analysis errors prevented processing
+
 ## 0.8.0 - 09-15-2025
 
 #### Changed

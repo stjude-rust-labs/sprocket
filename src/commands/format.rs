@@ -115,7 +115,7 @@ fn format_document(
 ) -> Result<(String, String)> {
     let source = document.root().text().to_string();
     let diagnostics = document
-        .diagnostics()
+        .parse_diagnostics()
         .iter()
         .filter(|d| d.severity().is_error())
         .collect::<Vec<_>>();

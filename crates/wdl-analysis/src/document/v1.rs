@@ -260,7 +260,7 @@ fn add_namespace(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
-            document.diagnostics.push(diagnostic);
+            document.analysis_diagnostics.push(diagnostic);
             return;
         }
         Err(None) => return,
@@ -271,7 +271,7 @@ fn add_namespace(
     let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
-                document.diagnostics.push(namespace_conflict(
+                document.analysis_diagnostics.push(namespace_conflict(
                     &ns,
                     span,
                     prev.span,
@@ -306,7 +306,9 @@ fn add_namespace(
         .filter_map(|a| {
             let (from, to) = a.names();
             if !imported.data.structs.contains_key(from.text()) {
-                document.diagnostics.push(struct_not_in_document(&from));
+                document
+                    .analysis_diagnostics
+                    .push(struct_not_in_document(&from));
                 return None;
             }
 
@@ -329,13 +331,15 @@ fn add_namespace(
                 if !are_structs_equal(&a, &b) {
                     // Import conflicts with a struct defined in this document
                     if prev.namespace.is_none() {
-                        document.diagnostics.push(struct_conflicts_with_import(
-                            aliased_name,
-                            prev.name_span,
-                            span,
-                        ));
+                        document
+                            .analysis_diagnostics
+                            .push(struct_conflicts_with_import(
+                                aliased_name,
+                                prev.name_span,
+                                span,
+                            ));
                     } else {
-                        document.diagnostics.push(imported_struct_conflict(
+                        document.analysis_diagnostics.push(imported_struct_conflict(
                             aliased_name,
                             span,
                             prev.name_span,
@@ -385,14 +389,16 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
             let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
                 .expect("node should cast");
             if !are_structs_equal(definition, &prev_def) {
-                document.diagnostics.push(struct_conflicts_with_import(
-                    name.text(),
-                    name.span(),
-                    prev.name_span,
-                ))
+                document
+                    .analysis_diagnostics
+                    .push(struct_conflicts_with_import(
+                        name.text(),
+                        name.span(),
+                        prev.name_span,
+                    ))
             }
         } else {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.name_span),
@@ -407,7 +413,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         let name = decl.name();
         match members.get(name.text()) {
             Some(prev_span) => {
-                document.diagnostics.push(name_conflict(
+                document.analysis_diagnostics.push(name_conflict(
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
@@ -458,7 +464,7 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     match converter.convert_type(ty) {
         Ok(ty) => ty,
         Err(diagnostic) => {
-            document.diagnostics.push(diagnostic);
+            document.analysis_diagnostics.push(diagnostic);
             Type::Union
         }
     }
@@ -534,7 +540,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let name = definition.name();
     match document.tasks.get(name.text()) {
         Some(s) => {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
@@ -545,7 +551,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             if let Some(s) = &document.workflow
                 && s.name == name.text()
             {
-                document.diagnostics.push(name_conflict(
+                document.analysis_diagnostics.push(name_conflict(
                     name.text(),
                     Context::Task(name.span()),
                     Context::Workflow(s.name_span),
@@ -569,7 +575,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let graph = TaskGraphBuilder::default().build(
         document.version.unwrap(),
         definition,
-        &mut document.diagnostics,
+        &mut document.analysis_diagnostics,
     );
 
     let mut task = Task {
@@ -618,7 +624,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         }
 
                         if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.diagnostics.push(
+                            document.analysis_diagnostics.push(
                                 unused_input(name.text(), name.span()).with_severity(severity),
                             );
                         }
@@ -647,7 +653,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                             .is_none()
                         && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
-                        document.diagnostics.push(
+                        document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
@@ -787,7 +793,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     let name = workflow.name();
     match document.tasks.get(name.text()) {
         Some(s) => {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
@@ -797,7 +803,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         _ => {
             if let Some(s) = &document.workflow {
                 document
-                    .diagnostics
+                    .analysis_diagnostics
                     .push(duplicate_workflow(&name, s.name_span));
                 return false;
             }
@@ -850,7 +856,8 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     // For static analysis, we don't need to provide inputs to the workflow graph
     // builder
     let graph =
-        WorkflowGraphBuilder::default().build(workflow, &mut document.diagnostics, |_| false);
+        WorkflowGraphBuilder::default()
+            .build(workflow, &mut document.analysis_diagnostics, |_| false);
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -879,7 +886,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         }
 
                         if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.diagnostics.push(
+                            document.analysis_diagnostics.push(
                                 unused_input(name.text(), name.span()).with_severity(severity),
                             );
                         }
@@ -911,7 +918,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .is_none()
                         && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
-                        document.diagnostics.push(
+                        document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
@@ -1051,7 +1058,7 @@ fn add_conditional_statement(
 
     if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
         document
-            .diagnostics
+            .analysis_diagnostics
             .push(if_conditional_mismatch(&ty, expr.span()));
     }
 }
@@ -1087,7 +1094,7 @@ fn add_scatter_statement(
         Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
         _ => {
             document
-                .diagnostics
+                .analysis_diagnostics
                 .push(type_is_not_array(&ty, expr.span()));
             Type::Union
         }
@@ -1133,9 +1140,11 @@ fn add_call_statement(
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
-                        document
-                            .diagnostics
-                            .push(unknown_call_io(&ty, &input_name, Io::Input));
+                        document.analysis_diagnostics.push(unknown_call_io(
+                            &ty,
+                            &input_name,
+                            Io::Input,
+                        ));
                         (Type::Union, true)
                     });
 
@@ -1169,7 +1178,7 @@ fn add_call_statement(
                             if !matches!(expected_ty, Type::Union)
                                 && !name.ty.is_coercible_to(&expected_ty)
                             {
-                                document.diagnostics.push(call_input_type_mismatch(
+                                document.analysis_diagnostics.push(call_input_type_mismatch(
                                     &input_name,
                                     &expected_ty,
                                     &name.ty,
@@ -1178,7 +1187,7 @@ fn add_call_statement(
                         }
                         None => {
                             document
-                                .diagnostics
+                                .analysis_diagnostics
                                 .push(unknown_name(input_name.text(), input_name.span()));
                         }
                     },
@@ -1189,7 +1198,7 @@ fn add_call_statement(
 
             for (name, input) in ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
-                    document.diagnostics.push(missing_call_input(
+                    document.analysis_diagnostics.push(missing_call_input(
                         ty.kind(),
                         &target_name,
                         name,
@@ -1223,7 +1232,7 @@ fn add_call_statement(
             && !ty.outputs().is_empty()
         {
             document
-                .diagnostics
+                .analysis_diagnostics
                 .push(unused_call(name.text(), name.span()).with_severity(severity));
         }
 
@@ -1250,7 +1259,9 @@ fn resolve_call_type(
         }
 
         if namespace.is_some() {
-            document.diagnostics.push(only_one_namespace(target.span()));
+            document
+                .analysis_diagnostics
+                .push(only_one_namespace(target.span()));
             return None;
         }
 
@@ -1260,7 +1271,9 @@ fn resolve_call_type(
                 namespace = Some(&document.namespaces[target.text()])
             }
             None => {
-                document.diagnostics.push(unknown_namespace(&target));
+                document
+                    .analysis_diagnostics
+                    .push(unknown_namespace(&target));
                 return None;
             }
         }
@@ -1272,7 +1285,7 @@ fn resolve_call_type(
     let name = name.expect("should have name");
     if namespace.is_none() && name.text() == workflow_name {
         document
-            .diagnostics
+            .analysis_diagnostics
             .push(recursive_workflow_call(name.text(), name.span()));
         return None;
     }
@@ -1286,7 +1299,7 @@ fn resolve_call_type(
                 workflow.outputs.clone(),
             ),
             _ => {
-                document.diagnostics.push(unknown_task_or_workflow(
+                document.analysis_diagnostics.push(unknown_task_or_workflow(
                     namespace.map(|ns| ns.span),
                     name.text(),
                     name.span(),
@@ -1449,7 +1462,7 @@ fn set_struct_types(document: &mut DocumentData) {
                     Ok(s.ty().cloned().unwrap_or(Type::Union))
                 }
                 _ => {
-                    self.document.diagnostics.push(unknown_type(
+                    self.document.analysis_diagnostics.push(unknown_type(
                         name,
                         Span::new(span.start() + self.offset, span.len()),
                     ));
@@ -1514,7 +1527,7 @@ fn set_struct_types(document: &mut DocumentData) {
                         let name = definition.name();
                         let name_span = name.span();
                         let member_span = member.name().span();
-                        document.diagnostics.push(recursive_struct(
+                        document.analysis_diagnostics.push(recursive_struct(
                             name.text(),
                             Span::new(name_span.start() + s.offset, name_span.len()),
                             Span::new(member_span.start() + s.offset, member_span.len()),
@@ -1626,7 +1639,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.document.diagnostics.push(diagnostic);
+        self.document.analysis_diagnostics.push(diagnostic);
     }
 }
 
@@ -1644,9 +1657,12 @@ fn type_check_expr(
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
     if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
-        document
-            .diagnostics
-            .push(type_mismatch(expected, expected_span, &actual, expr.span()));
+        document.analysis_diagnostics.push(type_mismatch(
+            expected,
+            expected_span,
+            &actual,
+            expr.span(),
+        ));
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
@@ -1655,7 +1671,7 @@ fn type_check_expr(
         && expr.is_empty_array_literal()
     {
         document
-            .diagnostics
+            .analysis_diagnostics
             .push(non_empty_array_assignment(expected_span, expr.span()));
     }
 }

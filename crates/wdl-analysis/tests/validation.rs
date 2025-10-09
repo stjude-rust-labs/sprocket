@@ -71,7 +71,11 @@ fn normalize(s: &str, is_error: bool) -> String {
 }
 
 /// Formats diagnostics.
-fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> String {
+fn format_diagnostics<'a>(
+    diagnostics: impl Iterator<Item = &'a Diagnostic>,
+    path: &Path,
+    source: &str,
+) -> String {
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
     for diagnostic in diagnostics {
