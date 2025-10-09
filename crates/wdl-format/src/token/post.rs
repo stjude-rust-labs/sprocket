@@ -237,15 +237,12 @@ impl Postprocessor {
             }
         }
 
-        // TODO: bug where trailing trivia is not processed
-        // https://github.com/stjude-rust-labs/wdl/issues/497
-
         output
     }
 
     /// Takes a step of a [`PreToken`] stream and processes the appropriate
     /// [`PostToken`]s.
-    pub fn step(
+    fn step(
         &mut self,
         token: PreToken,
         next: Option<&PreToken>,

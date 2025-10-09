@@ -1,6 +1,10 @@
 //! Formatting of WDL v1.x elements.
 
+use std::rc::Rc;
+
+use nonempty::NonEmpty;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxToken;
 
 pub mod decl;
 pub mod expr;
@@ -24,6 +28,15 @@ use crate::element::FormatElement;
 ///
 /// It will panic if the provided `element` is not a valid WDL v1.x AST.
 pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+    fn last_token_of_element(elem: &FormatElement) -> SyntaxToken {
+        elem.element()
+            .as_node()
+            .expect("all children of an AST should be nodes")
+            .inner()
+            .last_token()
+            .expect("nodes should have tokens")
+    }
+
     let mut children = element.children().expect("AST children");
 
     let version_statement = children.next().expect("version statement");
@@ -67,16 +80,75 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     });
 
     stream.ignore_trailing_blank_lines();
+
+    let mut trailing_comments = None;
+
     for import in imports {
         (&import).write(stream);
+
+        if trailing_comments.is_none() {
+            trailing_comments = find_trailing_comments(&last_token_of_element(import));
+        }
     }
 
     stream.blank_line();
 
-    for child in remainder {
-        (&child).write(stream);
+    for child in &remainder {
+        (child).write(stream);
+
+        if trailing_comments.is_none() {
+            trailing_comments = find_trailing_comments(&last_token_of_element(child));
+        }
+
         stream.blank_line();
     }
+
+    if let Some(comments) = trailing_comments {
+        stream.trim_end(&PreToken::BlankLine);
+        for comment in comments {
+            stream.push(PreToken::Trivia(crate::Trivia::Comment(
+                crate::Comment::Preceding(Rc::new(comment.text().into())),
+            )));
+            stream.push(PreToken::LineEnd);
+        }
+    }
+}
+
+/// Pushes any trailing comments at the end of a WDL document to the stream.
+///
+/// Trailing comments are unhandled as they don't fit neatly into the trivia
+/// model used by this crate. [`crate::Comment`]s can only be "proceeding" or
+/// "inline", but non-inline comments at the end of a WDL document
+/// have no following element to proceed. This will find any such comments and
+/// return them.
+fn find_trailing_comments(token: &SyntaxToken) -> Option<NonEmpty<SyntaxToken>> {
+    let mut next_token = token.next_token();
+    let mut on_next_line = false;
+
+    fn is_comment(token: &SyntaxToken) -> bool {
+        matches!(token.kind(), SyntaxKind::Comment)
+    }
+
+    let mut encountered_comments = Vec::new();
+
+    while let Some(next) = next_token {
+        if !next.kind().is_trivia() {
+            return None;
+        }
+
+        // skip if we are processing an inline comment of the input token
+        let skip = !on_next_line && is_comment(&next);
+        on_next_line = on_next_line || next.text().contains('\n');
+        next_token = next.next_token();
+        if skip {
+            continue;
+        }
+        if is_comment(&next) {
+            encountered_comments.push(next);
+        }
+    }
+
+    NonEmpty::from_vec(encountered_comments)
 }
 
 /// Formats a [`VersionStatement`](wdl_ast::VersionStatement).

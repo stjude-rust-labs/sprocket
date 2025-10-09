@@ -786,10 +786,6 @@ pub trait SyntaxTokenExt {
     /// Gets all of the substantial preceding trivia for an element.
     fn preceding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
 
-    /// Gets all of the substantial succeeding trivia for an element.
-    #[deprecated(since = "0.14.0")]
-    fn succeeding_trivia(&self) -> impl Iterator<Item = SyntaxToken>;
-
     /// Get any inline comment directly following an element on the
     /// same line.
     fn inline_comment(&self) -> Option<SyntaxToken>;
@@ -838,26 +834,6 @@ impl SyntaxTokenExt for SyntaxToken {
             }
         }
         tokens.into_iter()
-    }
-
-    fn succeeding_trivia(&self) -> impl Iterator<Item = SyntaxToken> {
-        let mut next = self.next_token();
-        iter::from_fn(move || {
-            let cur = next.clone()?;
-            next = cur.next_token();
-            Some(cur)
-        })
-        .take_while(|t| {
-            // Stop at first non-trivia
-            t.kind().is_trivia()
-        })
-        .filter(|t| {
-            // Filter out whitespace that is not substantial
-            if t.kind() == SyntaxKind::Whitespace {
-                return t.text().chars().filter(|c| *c == '\n').count() > 1;
-            }
-            true
-        })
     }
 
     fn inline_comment(&self) -> Option<SyntaxToken> {
@@ -923,39 +899,6 @@ workflow foo {} # This should not be collected.
         assert_eq!(trivia.next().unwrap().text(), "# Others are short");
         assert_eq!(trivia.next().unwrap().text(), "\n\n");
         assert_eq!(trivia.next().unwrap().text(), "#     and, yet    another");
-        assert!(trivia.next().is_none());
-    }
-
-    #[test]
-    fn succeeding_comments() {
-        let (tree, diagnostics) = SyntaxTree::parse(
-            "version 1.2
-
-# This comment should not be included
-task foo {}
-
-# This should not be collected.
-workflow foo {} # Here is a comment that should be collected.
-
-# This comment should be included too.",
-        );
-
-        assert!(diagnostics.is_empty());
-
-        let workflow = tree.root().last_child().unwrap();
-        assert_eq!(workflow.kind(), SyntaxKind::WorkflowDefinitionNode);
-        let token = workflow.last_token().unwrap();
-        #[allow(deprecated)]
-        let mut trivia = token.succeeding_trivia();
-        assert_eq!(
-            trivia.next().unwrap().text(),
-            "# Here is a comment that should be collected."
-        );
-        assert_eq!(trivia.next().unwrap().text(), "\n\n");
-        assert_eq!(
-            trivia.next().unwrap().text(),
-            "# This comment should be included too."
-        );
         assert!(trivia.next().is_none());
     }
 
