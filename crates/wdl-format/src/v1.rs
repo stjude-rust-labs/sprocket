@@ -114,7 +114,7 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     }
 }
 
-/// Pushes any trailing comments at the end of a WDL document to the stream.
+/// Finds any trailing comments at the end of a WDL document.
 ///
 /// Trailing comments are unhandled as they don't fit neatly into the trivia
 /// model used by this crate. [`crate::Comment`]s can only be "proceeding" or
