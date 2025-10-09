@@ -163,11 +163,11 @@ fn resolve_by_context(
         }
 
         SyntaxKind::UnboundDeclNode => {
-            resolve_unbound_decl_definition(parent_node, token, document_uri, lines)
+            resolve_decl_definition::<v1::UnboundDecl>(parent_node, token, document_uri, lines)
         }
 
         SyntaxKind::BoundDeclNode => {
-            resolve_bound_decl_definition(parent_node, token, document_uri, lines)
+            resolve_decl_definition::<v1::BoundDecl>(parent_node, token, document_uri, lines)
         }
 
         SyntaxKind::LiteralStructItemNode => resolve_struct_literal_item(
@@ -598,35 +598,23 @@ fn resolve_access_expression(
     Ok(None)
 }
 
-/// Resolve bound declarations to themselves.
-fn resolve_bound_decl_definition(
+/// Resolve declaration declarations to themselves.
+fn resolve_decl_definition<T>(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     document_uri: &Url,
     lines: &Arc<LineIndex>,
-) -> Result<Option<Location>> {
-    let Some(bound_decl) = wdl_ast::v1::BoundDecl::cast(parent_node.clone()) else {
-        bail!("cannot cast to `BoundDecl`");
+) -> Result<Option<Location>>
+where
+    T: AstNode<SyntaxNode> + 'static,
+{
+    let Some(decl_node) = T::cast(parent_node.clone()) else {
+        return Ok(None);
     };
-    let ident = bound_decl.name();
-    if ident.span() == token.span() {
-        return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
-    }
 
-    Ok(None)
-}
-
-/// Resolve unbound declarations to themselves.
-fn resolve_unbound_decl_definition(
-    parent_node: &SyntaxNode,
-    token: &SyntaxToken,
-    document_uri: &Url,
-    lines: &Arc<LineIndex>,
-) -> Result<Option<Location>> {
-    let Some(unbound_decl) = wdl_ast::v1::UnboundDecl::cast(parent_node.clone()) else {
-        bail!("cannot cast to `UnboundDecl`");
-    };
-    let ident = unbound_decl.name();
+    let ident = v1::Decl::cast(decl_node.inner().clone())
+        .expect("casting should succeed")
+        .name();
     if ident.span() == token.span() {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }
