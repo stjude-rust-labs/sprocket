@@ -985,7 +985,7 @@ pub struct TesBackendConfig {
     ///
     /// Defaults to 10 concurrent requests.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrency: Option<usize>,
+    pub max_concurrency: Option<u32>,
 
     /// Whether or not the TES server URL may use an insecure protocol like
     /// HTTP.
@@ -1010,6 +1010,12 @@ impl TesBackendConfig {
 
         if let Some(auth) = &self.auth {
             auth.validate()?;
+        }
+
+        if let Some(max_concurrency) = self.max_concurrency
+            && max_concurrency == 0
+        {
+            bail!("TES backend configuration value `max_concurrency` cannot be zero");
         }
 
         match &self.inputs {
@@ -1299,6 +1305,27 @@ mod test {
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "TES backend configuration value `url` is required"
+        );
+
+        // Test TES invalid max concurrency
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(
+                    TesBackendConfig {
+                        url: Some("https://example.com".parse().unwrap()),
+                        max_concurrency: Some(0),
+                        ..Default::default()
+                    }
+                    .into(),
+                ),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "TES backend configuration value `max_concurrency` cannot be zero"
         );
 
         // Insecure TES URL

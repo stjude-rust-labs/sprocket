@@ -447,7 +447,7 @@ impl TesBackend {
         }
 
         http.retries = backend_config.retries;
-        http.max_concurrency = backend_config.max_concurrency;
+        http.max_concurrency = backend_config.max_concurrency.map(|c| c as usize);
 
         let names = Arc::new(Mutex::new(GeneratorIterator::new(
             UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
