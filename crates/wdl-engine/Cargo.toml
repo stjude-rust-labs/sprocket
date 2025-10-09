@@ -25,7 +25,7 @@ codespan-reporting = { workspace = true, optional = true }
 crankshaft = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
-glob = { workspace = true }
+globset = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 libc = { workspace = true }
