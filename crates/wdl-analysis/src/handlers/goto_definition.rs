@@ -163,7 +163,11 @@ fn resolve_by_context(
         }
 
         SyntaxKind::UnboundDeclNode => {
-            resolve_struct_member_definition(parent_node, token, document_uri, lines)
+            resolve_unbound_decl_definition(parent_node, token, document_uri, lines)
+        }
+
+        SyntaxKind::BoundDeclNode => {
+            resolve_bound_decl_definition(parent_node, token, document_uri, lines)
         }
 
         SyntaxKind::LiteralStructItemNode => resolve_struct_literal_item(
@@ -594,8 +598,26 @@ fn resolve_access_expression(
     Ok(None)
 }
 
-/// Resolve struct member definitions to themselves.
-fn resolve_struct_member_definition(
+/// Resolve bound declarations to themselves.
+fn resolve_bound_decl_definition(
+    parent_node: &SyntaxNode,
+    token: &SyntaxToken,
+    document_uri: &Url,
+    lines: &Arc<LineIndex>,
+) -> Result<Option<Location>> {
+    let Some(bound_decl) = wdl_ast::v1::BoundDecl::cast(parent_node.clone()) else {
+        bail!("cannot cast to `BoundDecl`");
+    };
+    let ident = bound_decl.name();
+    if ident.span() == token.span() {
+        return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
+    }
+
+    Ok(None)
+}
+
+/// Resolve unbound declarations to themselves.
+fn resolve_unbound_decl_definition(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     document_uri: &Url,
