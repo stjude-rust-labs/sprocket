@@ -126,38 +126,40 @@ RootNode@0..486
         Whitespace@345..350 "\n    "
         ElseKeyword@350..354 "else"
         Whitespace@354..355 " "
-        IfKeyword@355..357 "if"
-        Whitespace@357..358 " "
-        NameRefExprNode@358..366
-          Ident@358..366 "useGreen"
-        Whitespace@366..367 " "
-        ThenKeyword@367..371 "then"
-        Whitespace@371..380 "\n        "
-        LiteralStringNode@380..387
-          DoubleQuote@380..381 "\""
-          LiteralStringText@381..386 "green"
-          DoubleQuote@386..387 "\""
-        Whitespace@387..392 "\n    "
-        ElseKeyword@392..396 "else"
-        Whitespace@396..397 " "
-        IfKeyword@397..399 "if"
-        Whitespace@399..400 " "
-        NameRefExprNode@400..407
-          Ident@400..407 "useBlue"
-        Whitespace@407..408 " "
-        ThenKeyword@408..412 "then"
-        Whitespace@412..421 "\n        "
-        LiteralStringNode@421..427
-          DoubleQuote@421..422 "\""
-          LiteralStringText@422..426 "blue"
-          DoubleQuote@426..427 "\""
-        Whitespace@427..432 "\n    "
-        ElseKeyword@432..436 "else"
-        Whitespace@436..445 "\n        "
-        LiteralStringNode@445..454
-          DoubleQuote@445..446 "\""
-          LiteralStringText@446..453 "unknown"
-          DoubleQuote@453..454 "\""
+        IfExprNode@355..454
+          IfKeyword@355..357 "if"
+          Whitespace@357..358 " "
+          NameRefExprNode@358..366
+            Ident@358..366 "useGreen"
+          Whitespace@366..367 " "
+          ThenKeyword@367..371 "then"
+          Whitespace@371..380 "\n        "
+          LiteralStringNode@380..387
+            DoubleQuote@380..381 "\""
+            LiteralStringText@381..386 "green"
+            DoubleQuote@386..387 "\""
+          Whitespace@387..392 "\n    "
+          ElseKeyword@392..396 "else"
+          Whitespace@396..397 " "
+          IfExprNode@397..454
+            IfKeyword@397..399 "if"
+            Whitespace@399..400 " "
+            NameRefExprNode@400..407
+              Ident@400..407 "useBlue"
+            Whitespace@407..408 " "
+            ThenKeyword@408..412 "then"
+            Whitespace@412..421 "\n        "
+            LiteralStringNode@421..427
+              DoubleQuote@421..422 "\""
+              LiteralStringText@422..426 "blue"
+              DoubleQuote@426..427 "\""
+            Whitespace@427..432 "\n    "
+            ElseKeyword@432..436 "else"
+            Whitespace@436..445 "\n        "
+            LiteralStringNode@445..454
+              DoubleQuote@445..446 "\""
+              LiteralStringText@446..453 "unknown"
+              DoubleQuote@453..454 "\""
     Whitespace@454..460 "\n\n    "
     CallStatementNode@460..483
       CallKeyword@460..464 "call"
