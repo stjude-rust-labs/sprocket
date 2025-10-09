@@ -207,16 +207,21 @@ impl TaskManagerRequest for LocalTaskRequest {
             result = run => {
                 match result {
                     Ok(status) => {
-                        send_event!(self.events, Event::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
-
                         let exit_code = status.code().expect("process should have exited");
-                        info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
-                        Ok(TaskExecutionResult {
-                            exit_code,
-                            work_dir: EvaluationPath::Local(work_dir),
-                            stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
-                            stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
-                        })
+                        if exit_code == 0 {
+                            send_event!(self.events, Event::TaskCompleted { id, exit_statuses: NonEmpty::new(status) });
+                            info!("process {id} for task `{name}` has completed successfully with status code {exit_code}", name = self.name);
+                            Ok(TaskExecutionResult {
+                                exit_code,
+                                work_dir: EvaluationPath::Local(work_dir),
+                                stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                                stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                            })
+                        } else {
+                            send_event!(self.events, Event::TaskFailed { id, message: format!("process terminated with non-zero exit code {exit_code}") });
+                            info!("process {id} for task `{name}` has failed with status code {exit_code}", name = self.name);
+                            bail!("process terminated with non-zero exit code {exit_code}");
+                        }
                     }
                     Err(e) => {
                         send_event!(self.events, Event::TaskFailed { id, message: format!("{e:#}") });

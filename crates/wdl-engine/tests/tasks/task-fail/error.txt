@@ -1,9 +1,4 @@
-error: task execution failed for task `test`: process terminated with exit code 1: see `attempts/0/stdout` and `attempts/0/stderr` for task output and the related files in `attempts/0`
-
-task stderr output (last 10 lines):
-
-  this task is going to fail!
-
+error: task execution failed for task `test`: process terminated with non-zero exit code 1
   ┌─ tests/tasks/task-fail/source.wdl:3:6
   │
 3 │ task test {

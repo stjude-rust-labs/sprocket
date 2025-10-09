@@ -461,7 +461,8 @@ impl TesBackend {
                 .build(),
             names.clone(),
             events,
-        );
+        )
+        .await;
 
         let max_concurrency = backend_config.max_concurrency.unwrap_or(u64::MAX);
 
