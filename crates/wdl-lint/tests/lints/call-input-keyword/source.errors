@@ -1,0 +1,8 @@
+note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later
+   ┌─ tests/lints/call-input-keyword/source.wdl:55:21
+   │
+55 │     call example1 { input:
+   │                     ^^^^^
+   │
+   = fix: remove the `input:` keyword from the call statement
+

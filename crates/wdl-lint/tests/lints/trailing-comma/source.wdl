@@ -4,7 +4,7 @@
 version 1.2
 
 workflow bar {
-    call foo { input:
+    call foo {
         bam = "test.bam",
         gtf = "test.gtf",
         strandedness = "yes",
@@ -15,7 +15,7 @@ workflow bar {
         not_an_option = "test",
     }
 
-    call foo as foo2 { input:
+    call foo as foo2 {
         bam = "test.bam",
         gtf = "test.gtf",
         strandedness = "yes",
@@ -105,5 +105,4 @@ task foo {
    output {}
 
    runtime {}
-
 }
