@@ -144,6 +144,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
+atty = "0.2.14"
 chrono.workspace = true
 clap.workspace = true
 clap-verbosity-flag.workspace = true
