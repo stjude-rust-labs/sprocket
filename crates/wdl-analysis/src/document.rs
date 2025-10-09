@@ -820,12 +820,7 @@ impl Document {
     /// no error diagnostics.
     pub fn has_errors(&self) -> bool {
         // Check this document for errors
-        if self
-            .parse_diagnostics()
-            .iter()
-            .chain(self.analysis_diagnostics())
-            .any(|d| d.severity() == Severity::Error)
-        {
+        if self.diagnostics().any(|d| d.severity() == Severity::Error) {
             return true;
         }
 
