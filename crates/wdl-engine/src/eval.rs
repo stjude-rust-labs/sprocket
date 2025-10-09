@@ -414,8 +414,9 @@ impl Scope {
 
     /// Inserts a name into the scope.
     pub fn insert(&mut self, name: impl Into<String>, value: impl Into<Value>) {
-        let prev = self.names.insert(name.into(), value.into());
-        assert!(prev.is_none(), "conflicting name in scope");
+        let name = name.into();
+        let prev = self.names.insert(name.clone(), value.into());
+        assert!(prev.is_none(), "conflicting name in scope: `{name}`");
     }
 
     /// Iterates over the local names and values in the scope.

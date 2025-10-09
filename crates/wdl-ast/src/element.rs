@@ -147,6 +147,8 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     CommandSection(CommandSection<N>),
     /// A conditional statement.
     ConditionalStatement(ConditionalStatement<N>),
+    /// A conditional statement clause.
+    ConditionalStatementClause(ConditionalStatementClause<N>),
     /// The `default` placeholder option.
     DefaultOption(DefaultOption<N>),
     /// A division expression.
@@ -315,6 +317,7 @@ ast_element_impl!(
         call_target(): CallTargetNode => CallTarget => CallTarget,
         command_section(): CommandSectionNode => CommandSection => CommandSection,
         conditional_statement(): ConditionalStatementNode => ConditionalStatement => ConditionalStatement,
+        conditional_statement_clause(): ConditionalStatementClauseNode => ConditionalStatementClause => ConditionalStatementClause,
         default_option(): PlaceholderDefaultOptionNode => DefaultOption => DefaultOption,
         division_expr(): DivisionExprNode => DivisionExpr => DivisionExpr,
         equality_expr(): EqualityExprNode => EqualityExpr => EqualityExpr,

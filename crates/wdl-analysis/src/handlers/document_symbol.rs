@@ -355,16 +355,30 @@ fn conditional_to_symbol(
     lines: &std::sync::Arc<line_index::LineIndex>,
 ) -> Result<DocumentSymbol> {
     let mut children = Vec::new();
-    for stmt in cond.statements() {
+    for stmt in cond.r#if().statements() {
         children.push(workflow_statement_to_symbol(uri, &stmt, lines)?);
     }
 
     Ok(DocumentSymbol {
-        name: format!("if ({})", cond.expr().text()),
+        name: format!(
+            "if ({})",
+            cond.r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .text()
+        ),
         detail: None,
         kind: SymbolKind::OPERATOR,
         range: common::location_from_span(uri, cond.span(), lines)?.range,
-        selection_range: common::location_from_span(uri, cond.expr().span(), lines)?.range,
+        selection_range: common::location_from_span(
+            uri,
+            cond.r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .span(),
+            lines,
+        )?
+        .range,
         children: Some(children),
         tags: None,
         #[allow(deprecated)]

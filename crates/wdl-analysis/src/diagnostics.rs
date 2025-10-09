@@ -129,8 +129,13 @@ impl From<NameContext> for Context {
 }
 
 /// Creates a "name conflict" diagnostic.
-pub fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagnostic {
-    Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
+pub fn name_conflict(
+    name: &str,
+    conflicting: Context,
+    first: Context,
+    others: Option<Vec<Context>>,
+) -> Diagnostic {
+    let mut diagnostic = Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
         .with_label(
             format!("this {conflicting} conflicts with a previously used name"),
             conflicting.span(),
@@ -138,7 +143,18 @@ pub fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagno
         .with_label(
             format!("the {first} with the conflicting name is here"),
             first.span(),
-        )
+        );
+
+    if let Some(others) = others {
+        for other in others {
+            diagnostic = diagnostic.with_label(
+                "the {other} with the conflicting name is also here",
+                other.span(),
+            )
+        }
+    }
+
+    diagnostic
 }
 
 /// Constructs a "cannot index" diagnostic.
@@ -394,7 +410,7 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     )
 }
 
-/// Creates a "no common type" diagnostic for arrays and maps.
+/// Creates a "no common type" diagnostic for arrays, maps, and scope unions.
 ///
 /// This is called if the elements of a map or an array do not have a common
 /// type.
@@ -501,6 +517,24 @@ pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
          `{actual}`"
     ))
     .with_label(format!("this is type `{actual}`"), actual_span)
+}
+
+/// Creates an "else if not supported" diagnostic.
+pub fn else_if_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else if` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else if` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else if` conditional clauses")
+}
+
+/// Creates an "else not supported" diagnostic.
+pub fn else_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else` conditional clauses")
 }
 
 /// Creates a "logical not mismatch" diagnostic.

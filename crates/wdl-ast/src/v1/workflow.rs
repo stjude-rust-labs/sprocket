@@ -23,6 +23,7 @@ use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::TreeNode;
+use crate::TreeToken;
 use crate::v1::display::write_input_section;
 use crate::v1::display::write_output_section;
 
@@ -722,19 +723,132 @@ impl<N: TreeNode> WorkflowStatement<N> {
     }
 }
 
+/// A kind of conditional statement clause.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ConditionalStatementClauseKind {
+    /// The initial `if` clause.
+    If,
+
+    /// A subsequent `else if` clause.
+    ElseIf,
+
+    /// The final `else` clause.
+    Else,
+}
+
+impl std::fmt::Display for ConditionalStatementClauseKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConditionalStatementClauseKind::If => write!(f, "`if` clause"),
+            ConditionalStatementClauseKind::ElseIf => write!(f, "`else if` clause"),
+            ConditionalStatementClauseKind::Else => write!(f, "`else` clause"),
+        }
+    }
+}
+
+/// A clause within a conditional statement.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConditionalStatementClause<N: TreeNode = SyntaxNode>(N);
+
+impl<N: TreeNode> AstNode<N> for ConditionalStatementClause<N> {
+    fn can_cast(kind: SyntaxKind) -> bool {
+        kind == SyntaxKind::ConditionalStatementClauseNode
+    }
+
+    fn cast(inner: N) -> Option<Self> {
+        match inner.kind() {
+            SyntaxKind::ConditionalStatementClauseNode => Some(Self(inner)),
+            _ => None,
+        }
+    }
+
+    fn inner(&self) -> &N {
+        &self.0
+    }
+}
+
+impl<N: TreeNode> ConditionalStatementClause<N> {
+    /// Gets the expression of the conditional clause.
+    pub fn expr(&self) -> Option<Expr<N>> {
+        Expr::child(&self.0)
+    }
+
+    /// Gets the statements of the conditional clause body.
+    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement<N>> + use<'_, N> {
+        WorkflowStatement::children(&self.0)
+    }
+
+    /// Gets the kind of the conditional clause.
+    pub fn kind(&self) -> ConditionalStatementClauseKind {
+        let has_else = self.else_keyword().is_some();
+        let has_if = self.if_keyword().is_some();
+
+        debug_assert!(has_if || has_else);
+
+        if has_if && has_else {
+            return ConditionalStatementClauseKind::ElseIf;
+        } else if has_if {
+            return ConditionalStatementClauseKind::If;
+        } else if has_else {
+            return ConditionalStatementClauseKind::Else;
+        }
+
+        unreachable!("conditional clause should have an `if` or `else` keyword");
+    }
+
+    /// Gets the `else` keyword token, if present.
+    pub fn else_keyword(&self) -> Option<N::Token> {
+        self.0
+            .children_with_tokens()
+            .find_map(|node_or_token| match node_or_token {
+                NodeOrToken::Token(t) if t.kind() == SyntaxKind::ElseKeyword => Some(t),
+                _ => None,
+            })
+    }
+
+    /// Gets the `if` keyword token, if present.
+    pub fn if_keyword(&self) -> Option<N::Token> {
+        self.0
+            .children_with_tokens()
+            .find_map(|node_or_token| match node_or_token {
+                NodeOrToken::Token(t) if t.kind() == SyntaxKind::IfKeyword => Some(t),
+                _ => None,
+            })
+    }
+
+    /// Finds all children that can be cast to a [`ConditionalStatementClause`].
+    pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
+        node.children().filter_map(Self::cast)
+    }
+}
+
 /// Represents a workflow conditional statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConditionalStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ConditionalStatement<N> {
-    /// Gets the expression of the conditional statement
-    pub fn expr(&self) -> Expr<N> {
-        Expr::child(&self.0).expect("expected a conditional expression")
+    /// Gets all of the clauses of a conditional statement.
+    pub fn clauses(&self) -> impl Iterator<Item = ConditionalStatementClause<N>> {
+        ConditionalStatementClause::children(&self.0)
     }
 
-    /// Gets the statements of the conditional body.
-    pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement<N>> + use<'_, N> {
-        WorkflowStatement::children(&self.0)
+    /// Gets the initial `if` clause.
+    pub fn r#if(&self) -> ConditionalStatementClause<N> {
+        self.clauses()
+            .find(|clause| clause.kind() == ConditionalStatementClauseKind::If)
+            .expect("missing required conditional statement `if` clause")
+    }
+
+    /// Gets the `else if` clauses, if any exist in the conditional statement.
+    pub fn else_if(&self) -> impl Iterator<Item = ConditionalStatementClause<N>> {
+        self.clauses()
+            .filter(|clause| clause.kind() == ConditionalStatementClauseKind::ElseIf)
+    }
+
+    /// Gets the final `else` clause, if it exists.
+    pub fn r#else(&self) -> Option<ConditionalStatementClause<N>> {
+        self.clauses()
+            .find(|clause| clause.kind() == ConditionalStatementClauseKind::Else)
     }
 }
 
@@ -1384,12 +1498,18 @@ workflow test {
         // First workflow statement
         let conditional = statements[0].clone().unwrap_conditional();
         assert_eq!(
-            conditional.expr().unwrap_name_ref().name().text(),
+            conditional
+                .r#if()
+                .expr()
+                .expect("expression to exist for `if` clause")
+                .unwrap_name_ref()
+                .name()
+                .text(),
             "do_thing"
         );
 
         // Inner statements
-        let inner: Vec<_> = conditional.statements().collect();
+        let inner: Vec<_> = conditional.r#if().statements().collect();
         assert_eq!(inner.len(), 2);
 
         // First inner statement
