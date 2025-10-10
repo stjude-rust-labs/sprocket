@@ -386,14 +386,17 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Array[Array[String]]) -> File", Callback::Async(write_tsv)),
                 Signature::new(
-                    "(Array[Array[String]], Boolean, Array[String]) -> File",
+                    "(data: Array[Array[String]]) -> File",
+                    Callback::Async(write_tsv),
+                ),
+                Signature::new(
+                    "(data: Array[Array[String]], header: Boolean, columns: Array[String]) -> File",
                     Callback::Async(write_tsv_with_header),
                 ),
                 Signature::new(
-                    "(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
-                     containing only primitive types",
+                    "(data: Array[S], <header: Boolean>, <columns: Array[String]>) -> File where \
+                     `S`: any structure containing only primitive types",
                     Callback::Async(write_tsv_struct),
                 ),
             ]

@@ -24,7 +24,14 @@ fn floor(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `floor`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Float) -> Int", Callback::Sync(floor))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(value: Float) -> Int",
+                Callback::Sync(floor),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

@@ -21,7 +21,14 @@ fn defined(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `defined`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(X) -> Boolean", Callback::Sync(defined))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(value: X) -> Boolean",
+                Callback::Sync(defined),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

@@ -105,7 +105,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String) -> Array[File]",
+                "(pattern: String) -> Array[File]",
                 Callback::Sync(glob),
             )]
         },

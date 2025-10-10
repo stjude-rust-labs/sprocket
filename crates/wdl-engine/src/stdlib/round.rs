@@ -25,7 +25,14 @@ fn round(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `round`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Float) -> Int", Callback::Sync(round))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(value: Float) -> Int",
+                Callback::Sync(round),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

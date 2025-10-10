@@ -61,7 +61,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
+                "(array: Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
                 Callback::Sync(unzip),
             )]
         },

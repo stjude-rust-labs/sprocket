@@ -59,7 +59,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[X], <X>) -> X",
+                "(array: Array[X], <default: X>) -> X",
                 Callback::Sync(select_first),
             )]
         },

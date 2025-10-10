@@ -27,6 +27,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
+use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
@@ -54,6 +55,7 @@ use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
+use crate::queue::SignatureHelpRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
@@ -836,6 +838,36 @@ where
         rx.await.map_err(|_| {
             anyhow!(
                 "failed to receive workspace symbol response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Gets signature help for a function call at a given position.
+    pub async fn signature_help(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<SignatureHelp>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::SignatureHelp(SignatureHelpRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send signature help request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive signature help response from analysis queue because the \
                  channel has closed"
             )
         })

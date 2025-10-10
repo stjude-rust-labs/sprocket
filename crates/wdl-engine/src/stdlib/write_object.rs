@@ -123,9 +123,9 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(Object) -> File", Callback::Async(write_object)),
+                Signature::new("(object: Object) -> File", Callback::Async(write_object)),
                 Signature::new(
-                    "(S) -> File where `S`: any structure containing only primitive types",
+                    "(object: S) -> File where `S`: any structure containing only primitive types",
                     Callback::Async(write_object),
                 ),
             ]

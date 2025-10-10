@@ -105,7 +105,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(File) -> Map[String, String]",
+                "(file: File) -> Map[String, String]",
                 Callback::Async(read_map),
             )]
         },
