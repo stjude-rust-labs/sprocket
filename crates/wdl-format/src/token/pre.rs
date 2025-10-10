@@ -241,14 +241,4 @@ impl TokenStream<PreToken> {
     pub fn push_literal(&mut self, value: String, kind: SyntaxKind) {
         self.0.push(PreToken::Literal(Rc::new(value), kind));
     }
-
-    /// Returns the kind of the last literal token in the stream.
-    pub fn last_literal_kind(&self) -> Option<SyntaxKind> {
-        match self.0.last_chunk::<3>() {
-            Some([_, _, PreToken::Literal(_, kind)]) => Some(*kind),
-            Some([_, PreToken::Literal(_, kind), _]) => Some(*kind),
-            Some([PreToken::Literal(_, kind), _, _]) => Some(*kind),
-            _ => None,
-        }
-    }
 }
