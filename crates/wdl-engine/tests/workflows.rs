@@ -28,6 +28,7 @@ use pretty_assertions::StrComparison;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
@@ -215,8 +216,11 @@ async fn run_test(test: &Path) -> Result<()> {
         .context("document does not contain a workflow")?;
     inputs.join_paths(workflow, |_| Ok(&test_dir_path))?;
 
-    for config in configs() {
+    for mut config in configs() {
         let dir = TempDir::new().context("failed to create temporary directory")?;
+        info!(dir = %dir.path().display(), "test temp dir created");
+        config.output_dir = Some(dir.path().to_path_buf());
+
         let evaluator =
             WorkflowEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
         match evaluator

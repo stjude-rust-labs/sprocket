@@ -77,6 +77,7 @@ const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
+    engine_config: Arc<Config>,
     backend_config: Arc<LsfApptainerBackendConfig>,
     name: String,
     spawn_request: TaskSpawnRequest,
@@ -109,7 +110,10 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         let crankshaft_task_id = crankshaft::events::next_task_id();
 
         let container_sif = sif_for_container(
-            &self.backend_config,
+            self.engine_config
+                .output_dir
+                .as_deref()
+                .expect("valid Config must contain output_dir"),
             &self.container,
             self.cancellation_token.clone(),
         )
@@ -616,6 +620,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
         self.manager.send(
             LsfApptainerTaskRequest {
+                engine_config: self.engine_config.clone(),
                 backend_config: self.backend_config.clone(),
                 spawn_request: request,
                 name,

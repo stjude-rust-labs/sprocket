@@ -28,17 +28,14 @@
 //! NOTE ACF 2025-09-22: This is currently a ⚠️ Hack Zone ⚠️ and is not meant to
 //! reflect final behavior.
 //!
-//! We don't currently have a notion of a top-level directory for an entire
-//! workflow execution; the `root` path for each workflow and task evaluator is
-//! specific to _that_ workflow or task, but the point of keeping our own cache
-//! of Apptainer images is to avoid pushing our luck with spotty
-//! container registries by inducing repeated requests for the same image.
-//!
-//! For expedience, this implementation makes the simplifying assumption that we
-//! have one top-level workflow execution per process, and keeps the images
-//! directory in a global variable. This should be replaced with something more
-//! robust, but currently fits the execution model of the `sprocket`
-//! CLI well enough to proceed.
+//! We don't currently have a top-level state structure available at all levels
+//! of `wdl-engine` evaluation, only a top-level configuration where the output
+//! directory is set (e.g., by `sprocket run`). For expedience, this
+//! implementation makes the simplifying assumption that we have one top-level
+//! workflow execution per process, and keeps metadata for the cached images in
+//! a global variable. This should be replaced with something more robust, but
+//! currently fits the execution model of the `sprocket` CLI well enough to
+//! proceed.
 //!
 //! Since an ordinary `cargo test` runs each test executable once, and each
 //! executable can contain many targets, this hack has a particularly distorting
@@ -56,7 +53,7 @@ use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
-use tempfile::TempDir;
+use anyhow::bail;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::io::BufReader;
 use tokio::process::Command;
@@ -70,36 +67,42 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use super::LsfApptainerBackendConfig;
-
+// TODO ACF 2025-10-10: move these values to an evaluation-wide state struct.
+// Such a struct does not yet exist, but `wdl_cli::Evaluator` is a potential
+// good start that we could absorb into `wdl-engine`.
 static APPTAINER_IMAGES_DIR: OnceCell<PathBuf> = OnceCell::const_new();
 static APPTAINER_IMAGES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub(crate) async fn global_apptainer_images_dir(
-    config: &LsfApptainerBackendConfig,
+    top_level_output_dir: &Path,
 ) -> Result<&'static Path, anyhow::Error> {
-    APPTAINER_IMAGES_DIR
+    let new_path = top_level_output_dir.join("apptainer-image-cache");
+    let existing_path = APPTAINER_IMAGES_DIR
         .get_or_try_init(|| async {
-            // Create a new temp directory to hold the images for this run. This approach
-            // leaks space, but when using the default tmpdir or a
-            // user-controlled destination, the system or user is hopefully able
-            // to manage consumption appropriately enough for this interim
-            // solution.
-            let path = {
-                tokio::fs::create_dir_all(&config.apptainer_images_dir).await?;
-                TempDir::with_prefix_in("sprocket-apptainer-images-", &config.apptainer_images_dir)?
-                    .keep()
-            };
-            Ok::<PathBuf, anyhow::Error>(path)
+            tokio::fs::create_dir_all(&new_path).await?;
+            Ok::<PathBuf, anyhow::Error>(new_path.to_path_buf())
         })
         .await
         .context("initializing Apptainer images directory")
-        .map(|buf| buf.as_path())
+        .map(|buf| buf.as_path())?;
+    if existing_path != new_path {
+        error!(
+            existing_cache = %existing_path.display(),
+            new_cache = %new_path.display(),
+            "tried to create more than one apptainer image cache in one execution; this is not \
+             currently supported"
+        );
+        bail!(
+            "tried to create more than one apptainer image cache in one execution; this is not \
+             currently supported"
+        );
+    }
+    Ok(existing_path)
 }
 
 pub(crate) async fn sif_for_container(
-    config: &LsfApptainerBackendConfig,
+    top_level_output_dir: &Path,
     container: &str,
     cancellation_token: CancellationToken,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -112,7 +115,7 @@ pub(crate) async fn sif_for_container(
     let container = container.to_owned();
     once.get_or_try_init(|| async move {
         let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
-        let sif_path = global_apptainer_images_dir(config)
+        let sif_path = global_apptainer_images_dir(top_level_output_dir)
             .await?
             // Append `.sif` to the filename. It would be nice to use a method like
             // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)

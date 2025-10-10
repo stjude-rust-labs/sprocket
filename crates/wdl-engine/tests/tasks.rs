@@ -238,7 +238,7 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 }
 
 /// Runs a single test.
-async fn run_test(test: &Path, config: config::Config) -> Result<()> {
+async fn run_test(test: &Path, mut config: config::Config) -> Result<()> {
     let analyzer = Analyzer::default();
     analyzer
         .add_directory(test)
@@ -301,10 +301,11 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
     inputs.join_paths(task, |_| Ok(&test_dir_path))?;
 
-    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;
     info!(dir = %dir.path().display(), "test temp dir created");
+    config.output_dir = Some(dir.path().to_path_buf());
 
+    let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())
         .await

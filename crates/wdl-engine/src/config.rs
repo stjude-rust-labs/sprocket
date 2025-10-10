@@ -172,6 +172,18 @@ pub struct Config {
     /// Storage configuration.
     #[serde(default)]
     pub storage: StorageConfig,
+    /// The top-level output directory of an execution.
+    ///
+    /// This directory is the shared root of all evaluations performed by this
+    /// instantiation of the execution engine. Each workflow and task
+    /// evaluator has its own root directory that is typically a child of
+    /// this directory. This directory is useful for items that are shareable
+    /// across an entire execution, such as a container image cache.
+    ///
+    /// This is excluded from serialization, as it is meant to only be set by
+    /// code after the output directory is created.
+    #[serde(skip)]
+    pub output_dir: Option<PathBuf>,
     /// (Experimental) Avoid environment-specific output; default is `false`.
     ///
     /// If this option is `true`, selected error messages and log output will
@@ -223,6 +235,10 @@ impl Config {
 
         if self.suppress_env_specific_output && !self.experimental_features_enabled {
             bail!("`suppress_env_specific_output` requires enabling experimental features");
+        }
+
+        if self.output_dir.is_none() {
+            bail!("top-level output directory is not set");
         }
 
         Ok(())
@@ -1157,8 +1173,23 @@ mod test {
 
     #[tokio::test]
     async fn test_config_validate() {
+        // Test missing output_dir
+        let config = Config::default();
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "top-level output directory is not set"
+        );
+
+        // With that one test out of the way, we start the other tests with a config
+        // that has a dummy value here so they're not rejected for the missing output
+        // path
+        let default_with_dummy_output_dir = Config {
+            output_dir: Some(PathBuf::from("doesnt_exist")),
+            ..Default::default()
+        };
+
         // Test invalid task config
-        let mut config = Config::default();
+        let mut config = default_with_dummy_output_dir.clone();
         config.task.retries = Some(1000000);
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1166,7 +1197,7 @@ mod test {
         );
 
         // Test invalid scatter concurrency config
-        let mut config = Config::default();
+        let mut config = default_with_dummy_output_dir.clone();
         config.workflow.scatter.concurrency = Some(0);
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1176,7 +1207,7 @@ mod test {
         // Test invalid backend name
         let config = Config {
             backend: Some("foo".into()),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1185,7 +1216,7 @@ mod test {
         let config = Config {
             backend: Some("bar".into()),
             backends: [("foo".to_string(), BackendConfig::default())].into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1195,7 +1226,7 @@ mod test {
         // Test a singular backend
         let config = Config {
             backends: [("foo".to_string(), BackendConfig::default())].into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         config.validate().await.expect("config should validate");
 
@@ -1209,7 +1240,7 @@ mod test {
                 }),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1224,7 +1255,7 @@ mod test {
                 }),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert!(
             config
@@ -1248,7 +1279,7 @@ mod test {
                 }),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1263,7 +1294,7 @@ mod test {
                 }),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1279,7 +1310,7 @@ mod test {
                 }),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert!(
             config
@@ -1300,7 +1331,7 @@ mod test {
                 BackendConfig::Tes(Default::default()),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1321,7 +1352,7 @@ mod test {
                 ),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1343,7 +1374,7 @@ mod test {
                 ),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
@@ -1367,28 +1398,28 @@ mod test {
                 ),
             )]
             .into(),
-            ..Default::default()
+            ..default_with_dummy_output_dir.clone()
         };
         config
             .validate()
             .await
             .expect("configuration should validate");
 
-        let mut config = Config::default();
+        let mut config = default_with_dummy_output_dir.clone();
         config.http.parallelism = Some(0);
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `http.parallelism` cannot be zero"
         );
 
-        let mut config = Config::default();
+        let mut config = default_with_dummy_output_dir.clone();
         config.http.parallelism = Some(5);
         assert!(
             config.validate().await.is_ok(),
             "should pass for valid configuration"
         );
 
-        let mut config = Config::default();
+        let mut config = default_with_dummy_output_dir.clone();
         config.http.parallelism = None;
         assert!(
             config.validate().await.is_ok(),
