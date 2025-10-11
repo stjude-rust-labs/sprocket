@@ -1,7 +1,5 @@
 //! Facilities for performing a typical WDL evaluation using the `wdl-*` crates.
 
-use std::path::Path;
-
 use anyhow::anyhow;
 use tokio_util::sync::CancellationToken;
 use wdl_analysis::Document;
@@ -18,6 +16,8 @@ use wdl_engine::v1::WorkflowEvaluator;
 use crate::inputs::OriginPaths;
 
 /// An evaluator for a WDL task or workflow.
+// TODO ACF 2025-10-10: this seems like a good start for an `Engine` state type
+// within `wdl_engine` to hold things like the apptainer image cache.
 pub struct Evaluator<'a> {
     /// The document that contains the task or workflow to run.
     document: &'a Document,
@@ -33,9 +33,6 @@ pub struct Evaluator<'a> {
 
     /// The configuration for the WDL engine.
     config: Config,
-
-    /// The output directory.
-    output_dir: &'a Path,
 }
 
 impl<'a> Evaluator<'a> {
@@ -46,7 +43,6 @@ impl<'a> Evaluator<'a> {
         inputs: Inputs,
         origins: OriginPaths,
         config: Config,
-        output_dir: &'a Path,
     ) -> Self {
         Self {
             document,
@@ -54,7 +50,6 @@ impl<'a> Evaluator<'a> {
             inputs,
             origins,
             config,
-            output_dir,
         }
     }
 
@@ -64,6 +59,7 @@ impl<'a> Evaluator<'a> {
         token: CancellationToken,
         events: Events,
     ) -> EvaluationResult<Outputs> {
+        self.config.validate().await?;
         match self.inputs {
             Inputs::Task(ref mut inputs) => {
                 let task = self.document.task_by_name(self.name).ok_or_else(|| {
@@ -81,10 +77,14 @@ impl<'a> Evaluator<'a> {
                         .ok_or(anyhow!("unable to find origin path for key `{key}`"))
                 })?;
 
+                let initial_output_dir = self
+                    .config
+                    .output_dir
+                    .clone()
+                    .expect("valid Config must contain output_dir");
                 let evaluator = TaskEvaluator::new(self.config, token, events).await?;
-
                 evaluator
-                    .evaluate(self.document, task, inputs, self.output_dir)
+                    .evaluate(self.document, task, inputs, &initial_output_dir)
                     .await
                     .and_then(EvaluatedTask::into_result)
             }
@@ -109,9 +109,14 @@ impl<'a> Evaluator<'a> {
                         .ok_or(anyhow!("unable to find origin path for key `{key}`"))
                 })?;
 
+                let initial_output_dir = self
+                    .config
+                    .output_dir
+                    .clone()
+                    .expect("valid Config must contain output_dir");
                 let evaluator = WorkflowEvaluator::new(self.config, token, events).await?;
                 evaluator
-                    .evaluate(self.document, inputs, self.output_dir)
+                    .evaluate(self.document, inputs, &initial_output_dir)
                     .await
             }
         }
