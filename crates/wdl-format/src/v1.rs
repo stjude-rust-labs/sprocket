@@ -117,9 +117,9 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
 /// Finds any trailing comments at the end of a WDL document.
 ///
 /// Trailing comments are unhandled as they don't fit neatly into the trivia
-/// model used by this crate. [`crate::Comment`]s can only be "proceeding" or
+/// model used by this crate. [`crate::Comment`]s can only be "preceding" or
 /// "inline", but non-inline comments at the end of a WDL document
-/// have no following element to proceed. This will find any such comments and
+/// have no following element to precede. This will find any such comments and
 /// return them.
 fn find_trailing_comments(token: &SyntaxToken) -> Option<NonEmpty<SyntaxToken>> {
     let mut next_token = token.next_token();
