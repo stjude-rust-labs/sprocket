@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Removed
+
+* Removed `SyntaxTokenExt::succeeding_trivia()` ([#413](https://github.com/stjude-rust-labs/sprocket/pull/413)).
+
 ## 0.17.0 - 09-15-2025
 
 * Bump for release ([#604](https://github.com/stjude-rust-labs/wdl/pull/604)).
