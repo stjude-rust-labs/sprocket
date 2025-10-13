@@ -552,7 +552,7 @@ impl Transferer for HttpTransferer {
                             .send()
                             .await
                             .with_context(|| {
-                                format!("failed to retrieve size of `{url}`", url = url.display())
+                                format!("failed to determine existence of `{url}`", url = url.display())
                             })?;
 
                     drop(permit);
