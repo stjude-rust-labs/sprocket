@@ -22,6 +22,8 @@ use crate::LocalBackend;
 use crate::LsfApptainerBackend;
 use crate::LsfApptainerBackendConfig;
 use crate::SYSTEM;
+use crate::SlurmApptainerBackend;
+use crate::SlurmApptainerBackendConfig;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
 use crate::convert_unit_string;
@@ -302,6 +304,11 @@ impl Config {
                 TesBackend::new(self.clone(), config, events).await?,
             )),
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                self.clone(),
+                config.clone(),
+                events,
+            ))),
+            BackendConfig::SlurmApptainer(config) => Ok(Arc::new(SlurmApptainerBackend::new(
                 self.clone(),
                 config.clone(),
                 events,
@@ -694,6 +701,10 @@ pub enum BackendConfig {
     ///
     /// Requires enabling experimental features.
     LsfApptainer(Arc<LsfApptainerBackendConfig>),
+    /// Use the experimental Slurm + Apptainer task execution backend.
+    ///
+    /// Requires enabling experimental features.
+    SlurmApptainer(Arc<SlurmApptainerBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -710,6 +721,7 @@ impl BackendConfig {
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
             Self::LsfApptainer(config) => config.validate(engine_config).await,
+            Self::SlurmApptainer(config) => config.validate(engine_config).await,
         }
     }
 
@@ -746,7 +758,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::SlurmApptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -754,7 +766,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::SlurmApptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }
