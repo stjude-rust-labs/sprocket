@@ -144,7 +144,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(File) -> Array[Object]",
+                "(file: File) -> Array[Object]",
                 Callback::Async(read_objects),
             )]
         },

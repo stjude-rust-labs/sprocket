@@ -53,14 +53,14 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(Map[K, V]) -> Array[K] where `K`: any primitive type",
+                    "(map: Map[K, V]) -> Array[K] where `K`: any primitive type",
                     Callback::Sync(keys),
                 ),
                 Signature::new(
-                    "(S) -> Array[String] where `S`: any structure",
+                    "(struct: S) -> Array[String] where `S`: any structure",
                     Callback::Sync(keys),
                 ),
-                Signature::new("(Object) -> Array[String]", Callback::Sync(keys)),
+                Signature::new("(object: Object) -> Array[String]", Callback::Sync(keys)),
             ]
         },
     )

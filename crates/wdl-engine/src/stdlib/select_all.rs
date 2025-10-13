@@ -42,7 +42,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[X]) -> Array[X]",
+                "(array: Array[X]) -> Array[X]",
                 Callback::Sync(select_all),
             )]
         },

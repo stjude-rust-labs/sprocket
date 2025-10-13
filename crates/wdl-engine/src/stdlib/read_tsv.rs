@@ -257,15 +257,15 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(File) -> Array[Array[String]]",
+                    "(file: File) -> Array[Array[String]]",
                     Callback::Async(read_tsv_simple),
                 ),
                 Signature::new(
-                    "(File, Boolean) -> Array[Object]",
+                    "(file: File, header: Boolean) -> Array[Object]",
                     Callback::Async(read_tsv),
                 ),
                 Signature::new(
-                    "(File, Boolean, Array[String]) -> Array[Object]",
+                    "(file: File, header: Boolean, columns: Array[String]) -> Array[Object]",
                     Callback::Async(read_tsv),
                 ),
             ]

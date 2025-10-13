@@ -3433,7 +3433,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/a9f1e34c7c02700736e957d
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:211:7: error: ambiguous call to function `length` with conflicting signatures `(String) -> Int` and `(Object) -> Int`"
+message = "JointGenotypingByChromosomePartOne.wdl:211:7: error: ambiguous call to function `length` with conflicting signatures `(string: String) -> Int` and `(object: Object) -> Int`"
 permalink = "https://github.com/broadinstitute/warp/blob/a9f1e34c7c02700736e957d25ff6921c3b8acd3a/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L211"
 
 [[diagnostics]]
@@ -3523,7 +3523,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/a9f1e34c7c02700736e957d
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:191:25: error: ambiguous call to function `length` with conflicting signatures `(String) -> Int` and `(Object) -> Int`"
+message = "JointGenotypingByChromosomePartTwo.wdl:191:25: error: ambiguous call to function `length` with conflicting signatures `(string: String) -> Int` and `(object: Object) -> Int`"
 permalink = "https://github.com/broadinstitute/warp/blob/a9f1e34c7c02700736e957d25ff6921c3b8acd3a/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L191"
 
 [[diagnostics]]
