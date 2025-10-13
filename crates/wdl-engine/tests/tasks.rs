@@ -22,7 +22,6 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::LazyLock;
 
@@ -36,6 +35,7 @@ use regex::Regex;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::info;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
@@ -49,8 +49,6 @@ use wdl_engine::config::BackendConfig;
 use wdl_engine::config::{self};
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TaskEvaluator;
-
-mod common;
 
 /// Regex used to remove both host and guest path prefixes.
 static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -92,6 +90,11 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Er
 
 /// Gets the engine configurations to use for the test.
 ///
+/// If the `SPROCKET_TEST_ENGINE_CONFIG` environment variable is set, the file
+/// it points to will be read as TOML and parsed into an engine config and used
+/// as the sole configuration for the test suite. This is primarily meant for
+/// testing in environments with ideosyncratic requirements, such as an HPC.
+///
 /// If the test directory contains any files that begin with `config` and end
 /// with `.toml`, only those configs deserializable from those files will be
 /// used. Otherwise, configs with default local and/or Docker backends will be
@@ -102,6 +105,10 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Er
 /// only arisen for testing tasks. Similarly, there may be other reasons beyond
 /// `target_os` to filter particular configs.
 fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyhow::Error> {
+    if let Some(env_config) = std::env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
+        let config = toml::from_str(&std::fs::read_to_string(env_config)?)?;
+        return Ok(vec![("env_config".into(), config)]);
+    }
     let mut configs_on_disk = vec![];
     let mut any_config_toml_found = false;
     for file in path.read_dir()? {
@@ -138,37 +145,6 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     }
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
-    } else if common::lsf_apptainer_available().context("checking for LSF + apptainer")? {
-        // If LSF and Apptainer are available, we're probably running on an HPC and
-        // should only exercise that backend.
-        Ok(vec![("lsf_apptainer".into(), {
-            config::Config {
-                backends: [(
-                    "default".to_string(),
-                    BackendConfig::LsfApptainer(
-                        wdl_engine::LsfApptainerBackendConfig {
-                            default_lsf_queue: Some(wdl_engine::LsfApptainerQueueConfig::new(
-                                "short".to_string(),
-                                // Add some quite low CPU + memory constraints in case we ever
-                                // happen to run on a very small queue
-                                Some(4),
-                                Some("16 GiB".parse().unwrap()),
-                            )),
-                            apptainer_config: wdl_engine::ApptainerConfig {
-                                apptainer_images_dir: PathBuf::from(env!("CARGO_TARGET_TMPDIR")),
-                                ..Default::default()
-                            },
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
-                )]
-                .into(),
-                suppress_env_specific_output: true,
-                experimental_features_enabled: true,
-                ..Default::default()
-            }
-        })])
     } else {
         Ok(vec![
             ("local".into(), {
@@ -273,6 +249,7 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 
 /// Runs a single test.
 async fn run_test(test: &Path, config: config::Config) -> Result<()> {
+    debug!(test = %test.display(), ?config, "running test");
     let analyzer = Analyzer::default();
     analyzer
         .add_directory(test)
@@ -336,9 +313,14 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
-    let dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
+    let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
         .context("failed to create temporary directory")?;
-    info!(dir = %dir.path().display(), "test temp dir created");
+    if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
+        dir.disable_cleanup(true);
+        info!(dir = %dir.path().display(), "test temp dir created (will be kept)");
+    } else {
+        info!(dir = %dir.path().display(), "test temp dir created");
+    }
 
     match evaluator
         .evaluate(result.document(), task, &inputs, dir.path())
