@@ -387,7 +387,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             // anything, but can be useful for debugging if the scripts get modified.
             .arg("-o")
             .arg(slurm_stdout_path)
-            .arg("-o")
+            .arg("-e")
             .arg(slurm_stderr_path)
             // CPU request is rounded up to the nearest whole CPU
             .arg(format!("--cpus-per-task={}", self.cpu.ceil() as u64))
