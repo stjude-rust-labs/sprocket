@@ -1,8 +1,10 @@
 //! Implements the `glob` function from the WDL standard library.
 
-use std::path::Path;
-
 use anyhow::Result;
+use futures::FutureExt;
+use futures::future::BoxFuture;
+use globset::GlobBuilder;
+use walkdir::WalkDir;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
@@ -15,7 +17,7 @@ use crate::Array;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::stdlib::ensure_local_path;
+use crate::path::EvaluationPath;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "glob";
@@ -24,80 +26,94 @@ const FUNCTION_NAME: &str = "glob";
 /// execution directory, and in the same order (i.e. lexicographical).
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
-fn glob(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 1);
-    debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_file_type().clone()));
+fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
+    async move {
+        debug_assert!(context.arguments.len() == 1);
+        debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_file_type().clone()));
 
-    let path = context
-        .coerce_argument(0, PrimitiveType::String)
-        .unwrap_string();
-
-    let path = ensure_local_path(context.base_dir(), &path)
-        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
-
-    let path = path.to_str().ok_or_else(|| {
-        function_call_failed(
-            FUNCTION_NAME,
-            format!(
-                "path `{path}` cannot be represented as UTF-8",
-                path = path.display()
-            ),
-            context.call_site,
+        // Construct a glob from the given argument
+        let glob = GlobBuilder::new(
+            &context
+                .coerce_argument(0, PrimitiveType::String)
+                .unwrap_string(),
         )
-    })?;
+        .literal_separator(true)
+        .build()
+        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.arguments[0].span))?;
 
-    // TODO: replace glob with walkpath and globmatch
-    let mut elements: Vec<Value> = Vec::new();
-    for path in glob::glob(path).map_err(|e| {
-        function_call_failed(
-            FUNCTION_NAME,
-            format!("invalid glob pattern specified: {msg}", msg = e.msg),
-            context.arguments[0].span,
-        )
-    })? {
-        let path = path.map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.call_site))?;
+        let matcher = glob.compile_matcher();
 
-        // Filter out directories (only files are returned from WDL's `glob` function)
-        if path.is_dir() {
-            continue;
-        }
-
-        // Strip the CWD prefix if there is one
-        let path = match path.strip_prefix(context.base_dir().to_str().unwrap_or("")) {
-            Ok(path) => {
-                // Create a string from the stripped path
-                path.to_str()
-                    .ok_or_else(|| {
+        let mut matches: Vec<Value> = Vec::new();
+        match context.base_dir() {
+            EvaluationPath::Local(path) => {
+                for entry in WalkDir::new(path).sort_by_file_name() {
+                    let entry = entry.map_err(|e| {
                         function_call_failed(
                             FUNCTION_NAME,
                             format!(
-                                "path `{path}` cannot be represented as UTF-8",
+                                "failed to read directory `{path}`: {e}",
                                 path = path.display()
                             ),
                             context.call_site,
                         )
-                    })?
-                    .to_string()
-            }
-            Err(_) => {
-                // Convert the path directly to a string
-                path.into_os_string().into_string().map_err(|path| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!(
-                            "path `{path}` cannot be represented as UTF-8",
-                            path = Path::new(&path).display()
-                        ),
-                        context.call_site,
-                    )
-                })?
-            }
-        };
+                    })?;
 
-        elements.push(PrimitiveValue::new_file(path).into());
+                    let metadata = entry.metadata().map_err(|e| {
+                        function_call_failed(
+                            FUNCTION_NAME,
+                            format!(
+                                "failed to read metadata of path `{path}`: {e}",
+                                path = path.display()
+                            ),
+                            context.call_site,
+                        )
+                    })?;
+
+                    // Filter out directories (only files are returned from WDL's `glob` function)
+                    if !metadata.is_file() {
+                        continue;
+                    }
+
+                    let relative_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+
+                    // Add it to the list if it matches
+                    if matcher.is_match(relative_path) {
+                        matches.push(
+                            PrimitiveValue::new_file(relative_path.to_str().ok_or_else(|| {
+                                function_call_failed(
+                                    FUNCTION_NAME,
+                                    format!(
+                                        "path `{path}` cannot be represented as UTF-8",
+                                        path = relative_path.display()
+                                    ),
+                                    context.call_site,
+                                )
+                            })?)
+                            .into(),
+                        );
+                    }
+                }
+            }
+            EvaluationPath::Remote(url) => {
+                // Use `Transferer::walk` to walk the URL looking for matches
+                let paths = context
+                    .transferer()
+                    .walk(url)
+                    .await
+                    .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
+
+                for path in paths.iter() {
+                    // Add it to the list if it matches
+                    if matcher.is_match(path) {
+                        matches.push(PrimitiveValue::new_file(path).into());
+                    }
+                }
+            }
+        }
+
+        Ok(Array::new_unchecked(context.return_type, matches).into())
     }
-
-    Ok(Array::new_unchecked(context.return_type, elements).into())
+    .boxed()
 }
 
 /// Gets the function describing `glob`.
@@ -106,7 +122,7 @@ pub const fn descriptor() -> Function {
         const {
             &[Signature::new(
                 "(pattern: String) -> Array[File]",
-                Callback::Sync(glob),
+                Callback::Async(glob),
             )]
         },
     )
@@ -126,21 +142,13 @@ mod test {
     async fn glob() {
         let env = TestEnv::default();
 
-        let diagnostic = eval_v1_expr(&env, V1::Two, "glob('invalid***')")
+        let diagnostic = eval_v1_expr(&env, V1::Two, "glob('invalid{')")
             .await
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `glob` failed: invalid glob pattern specified: wildcards are either \
-             regular `*` or recursive `**`"
-        );
-
-        let diagnostic = eval_v1_expr(&env, V1::Two, "glob('https://example.com/**')")
-            .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "call to function `glob` failed: operation not supported for URL `https://example.com/**`"
+            "call to function `glob` failed: error parsing glob 'invalid{': unclosed alternate \
+             group; missing '}' (maybe escape '{' with '[{]'?)"
         );
 
         env.write_file("qux", "qux");
@@ -163,25 +171,6 @@ mod test {
         assert!(elements.is_empty());
 
         let value = eval_v1_expr(&env, V1::Two, "glob('*')").await.unwrap();
-        let elements: Vec<_> = value
-            .as_array()
-            .unwrap()
-            .as_slice()
-            .iter()
-            .map(|v| v.as_file().unwrap().as_str())
-            .collect();
-        assert_eq!(elements, ["bar", "baz", "foo", "qux"]);
-
-        let value = eval_v1_expr(
-            &env,
-            V1::Two,
-            &format!(
-                "glob('{url}')",
-                url = env.base_dir().join("*").unwrap().unwrap_local().display()
-            ),
-        )
-        .await
-        .unwrap();
         let elements: Vec<_> = value
             .as_array()
             .unwrap()

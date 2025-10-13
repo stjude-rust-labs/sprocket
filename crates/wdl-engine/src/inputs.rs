@@ -60,11 +60,11 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
     Ok(())
 }
 
-/// Helper for replacing input paths with a path derived from joining the
-/// specified path with the input path.
-fn join_paths<'a>(
+/// Helper for replacing input paths with a path derived from joining a base
+/// directory with the input path.
+async fn join_paths<'a>(
     inputs: &mut IndexMap<String, Value>,
-    path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+    base_dir: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
@@ -75,7 +75,7 @@ fn join_paths<'a>(
             }
         };
 
-        let path = path(name)?;
+        let base_dir = base_dir(name)?;
 
         // Replace the value with `None` temporarily as we need to coerce the value
         // This is useful when this value is the only reference to shared data as this
@@ -83,10 +83,8 @@ fn join_paths<'a>(
         let mut current = std::mem::replace(value, Value::None(value.ty()));
         if let Ok(mut v) = current.coerce(None, &ty) {
             drop(current);
-            v.visit_paths_mut(false, &mut |_, v| {
-                v.expand_path(path)?;
-                v.ensure_path_exists(false, None)
-            })?;
+            v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                .await?;
             current = v;
         }
 
@@ -150,7 +148,7 @@ impl TaskInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths<'a>(
+    pub async fn join_paths<'a>(
         &mut self,
         task: &Task,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
@@ -158,6 +156,7 @@ impl TaskInputs {
         join_paths(&mut self.inputs, path, |name| {
             task.inputs().get(name).map(|input| input.ty().clone())
         })
+        .await
     }
 
     /// Validates the inputs for the given task.
@@ -405,7 +404,7 @@ impl WorkflowInputs {
     ///
     /// This method will attempt to coerce matching input values to their
     /// expected types.
-    pub fn join_paths<'a>(
+    pub async fn join_paths<'a>(
         &mut self,
         workflow: &Workflow,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
@@ -413,6 +412,7 @@ impl WorkflowInputs {
         join_paths(&mut self.inputs, path, |name| {
             workflow.inputs().get(name).map(|input| input.ty().clone())
         })
+        .await
     }
 
     /// Validates the inputs for the given workflow.
