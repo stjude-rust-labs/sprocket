@@ -374,6 +374,8 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         }
 
         srun_command
+            // Use verbose output that we can check later on
+            .arg("-v")
             // Pipe stdout and stderr so we can identify when a job begins, and can trace any other
             // output. This should just be the `srun` verbose output on stderr.
             .stdout(Stdio::piped())
