@@ -328,7 +328,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         let slurm_stdout_path = attempt_dir.join("slurm.stdout");
         let slurm_stderr_path = attempt_dir.join("slurm.stderr");
 
-        let mut srun_command = Command::new("srun");
+        let mut sbatch_command = Command::new("sbatch");
 
         // If a Slurm partition has been configured, specify it. Otherwise, the job will
         // end up on the cluster's default partition.
@@ -336,13 +336,13 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             self.spawn_request.requirements(),
             self.spawn_request.hints(),
         ) {
-            srun_command.arg("--partition").arg(partition);
+            sbatch_command.arg("--partition").arg(partition);
         }
 
-        // If GPUs are required, pass a basic `--gpus-per-node` flag to `srun`. If this
-        // is a bare `requirements { gpu: true }`, we request 1 GPU per node. If
-        // there is also an integer `hints: { gpu: n }`, we request `n` GPUs per
-        // node.
+        // If GPUs are required, pass a basic `--gpus-per-node` flag to `sbatch`. If
+        // this is a bare `requirements { gpu: true }`, we request 1 GPU per
+        // node. If there is also an integer `hints: { gpu: n }`, we request `n`
+        // GPUs per node.
         if let Some(true) = self
             .spawn_request
             .requirements()
@@ -351,33 +351,35 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         {
             match self.spawn_request.hints().get(wdl_ast::v1::TASK_HINT_GPU) {
                 Some(Value::Primitive(PrimitiveValue::Integer(n))) => {
-                    srun_command.arg(format!("--gpus-per-node={n}"));
+                    sbatch_command.arg(format!("--gpus-per-node={n}"));
                 }
                 Some(Value::Primitive(PrimitiveValue::String(hint))) => {
                     warn!(
                         %hint,
                         "string hints for GPU are not supported; falling back to 1 GPU per host"
                     );
-                    srun_command.arg("--gpus-per-node=1");
+                    sbatch_command.arg("--gpus-per-node=1");
                 }
                 // Other hint value types should be rejected already, so the remaining valid case is
                 // a GPU requirement with no hints
                 _ => {
-                    srun_command.arg("--gpus-per-node=1");
+                    sbatch_command.arg("--gpus-per-node=1");
                 }
             }
         }
 
         // Add any user-configured extra arguments.
-        if let Some(args) = &self.backend_config.extra_srun_args {
-            srun_command.args(args);
+        if let Some(args) = &self.backend_config.extra_sbatch_args {
+            sbatch_command.args(args);
         }
 
-        srun_command
+        sbatch_command
             // Use verbose output that we can check later on
             .arg("-v")
+            // Keep `sbatch` running until the job terminates
+            .arg("--wait")
             // Pipe stdout and stderr so we can identify when a job begins, and can trace any other
-            // output. This should just be the `srun` verbose output on stderr.
+            // output. This should just be the `sbatch` verbose output on stderr.
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             // Name the Slurm job after the task ID, which has already been shortened to fit into
@@ -391,6 +393,8 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             .arg(slurm_stdout_path)
             .arg("-e")
             .arg(slurm_stderr_path)
+            // An explicit task count is required for some options
+            .arg("--ntasks=1")
             // CPU request is rounded up to the nearest whole CPU
             .arg(format!("--cpus-per-task={}", self.cpu.ceil() as u64))
             // Memory request is specified per node in megabytes
@@ -400,7 +404,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             ))
             .arg(apptainer_command_path);
 
-        let mut srun_child = srun_command.spawn()?;
+        let mut sbatch_child = sbatch_command.spawn()?;
 
         crankshaft::events::send_event!(
             self.crankshaft_events,
@@ -418,44 +422,48 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         // TODO ACF 2025-10-13: generate `sbatch`-compatible scripts instead and use a
         // polling mechanism to watch for job status changes? `squeue` can emit
         // json suitable for this.
-        let s4run_stdout = srun_child
+        let sbatch_stdout = sbatch_child
             .stdout
             .take()
-            .ok_or_else(|| anyhow!("srun child stdout missing"))?;
+            .ok_or_else(|| anyhow!("sbatch child stdout missing"))?;
         let task_name = self.name.clone();
+        let stdout_crankshaft_events = self.crankshaft_events.clone();
         tokio::spawn(async move {
-            let mut lines = BufReader::new(s4run_stdout).lines();
+            let mut lines = BufReader::new(sbatch_stdout).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                trace!(stdout = line, task_name);
-            }
-        });
-        let srun_stderr = srun_child
-            .stderr
-            .take()
-            .ok_or_else(|| anyhow!("srun child stderr missing"))?;
-        let task_name = self.name.clone();
-        let stderr_crankshaft_events = self.crankshaft_events.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(srun_stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                // TODO ACF 2025-10-13: this could probably be made more robust, but while we're
-                // only submitting one job at a time with `srun` we know that if any tasks
-                // start, it's the one we're monitoring
-                if line.starts_with("srun:") && line.ends_with("tasks started") {
+                // TODO ACF 2025-10-14: `sbatch --wait` even on high verbosity doesn't tell us
+                // when a job has actually started, only when it's been
+                // submitted.  Unless we can figure out a way to get that info
+                // out directly, we'll have to set up a separate task to
+                // poll job statuses. For the moment, this is potentially misleading about what
+                // work has actually begun computation.
+                if line.starts_with("Submitted batch job") {
                     crankshaft::events::send_event!(
-                        stderr_crankshaft_events,
+                        stdout_crankshaft_events,
                         crankshaft::events::Event::TaskStarted {
                             id: crankshaft_task_id
                         },
                     );
                 }
+                trace!(stdout = line, task_name);
+            }
+        });
+        let sbatch_stderr = sbatch_child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow!("sbatch child stderr missing"))?;
+        let task_name = self.name.clone();
+        let _stderr_crankshaft_events = self.crankshaft_events.clone();
+        tokio::spawn(async move {
+            let mut lines = BufReader::new(sbatch_stderr).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
                 trace!(stderr = line, task_name);
             }
         });
 
-        // Await the result of the `srun` command, which will only exit on error or once
-        // the containerized command has completed.
-        let srun_result = tokio::select! {
+        // Await the result of the `sbatch` command, which will only exit on error or
+        // once the containerized command has completed.
+        let sbatch_result = tokio::select! {
             _ = self.cancellation_token.cancelled() => {
                 crankshaft::events::send_event!(
                     self.crankshaft_events,
@@ -465,24 +473,24 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
                 );
                 Err(anyhow!("task execution cancelled"))
             }
-            result = srun_child.wait() => result.map_err(Into::into),
+            result = sbatch_child.wait() => result.map_err(Into::into),
         }?;
 
         crankshaft::events::send_event!(
             self.crankshaft_events,
             crankshaft::events::Event::TaskCompleted {
                 id: crankshaft_task_id,
-                exit_statuses: NonEmpty::new(srun_result),
+                exit_statuses: NonEmpty::new(sbatch_result),
             }
         );
 
         Ok(TaskExecutionResult {
-            // Under normal circumstances, the exit code of `srun` is the exit code of its
+            // Under normal circumstances, the exit code of `sbatch --wait` is the exit code of its
             // command, and the exit code of `apptainer exec` is likewise the exit code of its
-            // command. One potential subtlety/problem here is that if `srun` or `apptainer` exit
+            // command. One potential subtlety/problem here is that if `sbatch` or `apptainer` exit
             // due to an error before running the WDL command, we could be erroneously ascribing an
             // exit code to the WDL command.
-            exit_code: srun_result
+            exit_code: sbatch_result
                 .code()
                 .ok_or(anyhow!("task did not return an exit code"))?,
             work_dir: EvaluationPath::Local(wdl_work_dir),
@@ -656,9 +664,9 @@ pub struct SlurmApptainerBackendConfig {
     /// a GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to Slurm.
     pub fpga_slurm_partition: Option<String>,
-    /// Additional command-line arguments to pass to `srun` when submitting jobs
-    /// to Slurm.
-    pub extra_srun_args: Option<Vec<String>>,
+    /// Additional command-line arguments to pass to `sbatch` when submitting
+    /// jobs to Slurm.
+    pub extra_sbatch_args: Option<Vec<String>>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
     ///
@@ -702,7 +710,7 @@ impl Default for SlurmApptainerBackendConfig {
             short_task_slurm_partition: None,
             gpu_slurm_partition: None,
             fpga_slurm_partition: None,
-            extra_srun_args: None,
+            extra_sbatch_args: None,
             max_scatter_concurrency: default_max_scatter_concurrency(),
             apptainer_images_dir: default_apptainer_images_dir(),
             extra_apptainer_exec_args: None,
@@ -779,7 +787,7 @@ impl SlurmApptainerBackendConfig {
             return Some(partition);
         }
 
-        // Finally the default partition. If this is `None`, `srun` gets run without a
+        // Finally the default partition. If this is `None`, `sbatch` gets run without a
         // partition argument and the cluster's default is used.
         self.default_slurm_partition.as_deref()
     }
