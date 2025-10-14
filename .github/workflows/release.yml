@@ -17,23 +17,10 @@ jobs:
         submodules: true
     - name: Update Rust
       run: rustup update stable && rustup default stable
-    - name: Check if already published
-      id: check_published
-      run: |
-        NEWEST_VERSION=$(curl -s https://crates.io/api/v1/crates/sprocket | jq -r '.crate.newest_version')
-        if [[ "${{ github.ref_name }}" == "v${NEWEST_VERSION}" ]]; then
-          echo "A crates.io release for ${{ github.ref_name }} has already been published."
-        else
-          echo "Publishing crates.io release for ${{ github.ref_name }}."
-          cargo --locked publish
-        fi
+    - name: Publish crates
+      run: cargo --locked run -p ci --release --bin ci -- publish
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-    - name: Create a GH release
-      uses: softprops/action-gh-release@v2
-      with:
-        generate_release_notes: true
-        make_latest: true
   docker-x86:
     runs-on: ubuntu-latest
     steps:
