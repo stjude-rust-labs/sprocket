@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.18.0 - 10-14-2025
+
 #### Changed
 
 * `LiteralString::text()` method signature changed to return an `Option<LiteralStringText<N::Token>>` instead of `Option<StringText<N::Token>>` ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388)).
