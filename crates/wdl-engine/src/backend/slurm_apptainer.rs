@@ -560,6 +560,9 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             ),
             // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
             // Slurm partition.
+            //
+            // sinfo -p <partition> -s --json | jq .sinfo[0].cpus
+            // sinfo -p <partition> -s --json | jq .sinfo[0].memory
             cpu: f64::MAX,
             memory: i64::MAX,
             gpu: Default::default(),
