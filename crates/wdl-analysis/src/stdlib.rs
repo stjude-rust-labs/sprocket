@@ -2128,9 +2128,9 @@ workflow test_split {
   String in = "Here's an example\nthat takes up multiple lines"
 
   output {
-    String split_by_word = sub(in, " ")
-    String split_by_newline = sub(in, "\\n")
-    String split_by_both = sub(in, "\s")
+    Array[String] split_by_word = split(in, " ")
+    Array[String] split_by_newline = split(in, "\\n")
+    Array[String] split_by_both = split(in, "\s")
   }
 }
 ```
