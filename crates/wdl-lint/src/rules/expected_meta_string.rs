@@ -32,26 +32,19 @@ const RESERVED_KEYS: &[&str] = &[
 
 /// Creates a diagnostic for non-string metadata values.
 fn non_string_value_diagnostic(key: &str, value_type: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(
-        [
-            "metadata key `",
-            key,
-            "` should have a string value, found ",
-            value_type,
-        ]
-        .concat(),
-    )
+    Diagnostic::warning(format!(
+        "metadata key `{}` should have a string value, found {}",
+        key, value_type
+    ))
     .with_rule(ID)
     .with_label(
-        [
-            "`",
-            key,
-            "` must be a string for proper documentation rendering",
-        ]
-        .concat(),
+        format!(
+            "`{}` must be a string for proper documentation rendering",
+            key
+        ),
         span,
     )
-    .with_fix(["change the value of `", key, "` to a string literal"].concat())
+    .with_fix(format!("change the value of `{}` to a string literal", key))
 }
 
 /// Gets a human-readable type name for a metadata value.
@@ -116,8 +109,8 @@ impl Rule for ExpectedMetaStringRule {
         "Sprocket's documentation command reserves certain keys in `meta` and `parameter_meta` \
          sections for documentation generation. These keys (`description`, `help`, \
          `external_help`, `warning`, `category`, and `group`) must have string values. Using \
-         non-string values will cause the documentation to be rendered incorrectly or not at \
-         all. This rule ensures all reserved keys have string values for proper documentation \
+         non-string values will cause the documentation to be rendered incorrectly or not at all. \
+         This rule ensures all reserved keys have string values for proper documentation \
          generation."
     }
 
@@ -237,7 +230,8 @@ impl Visitor for ExpectedMetaStringRule {
                 }
 
                 // Any other type - check if it would be a reserved key as a simple description
-                // This handles cases like: parameter_name: 123 (instead of parameter_name: "description")
+                // This handles cases like: parameter_name: 123 (instead of parameter_name:
+                // "description")
                 _ => {
                     let name = item.name();
                     let _param_name = name.text();
