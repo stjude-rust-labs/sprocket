@@ -36,7 +36,10 @@ fn split(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     let regex = Regex::new(delimiter.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
-    let elements = regex.split(input.as_str()).map(|s| PrimitiveValue::new_string(s).into()).collect::<Vec<_>>();
+    let elements = regex
+        .split(input.as_str())
+        .map(|s| PrimitiveValue::new_string(s).into())
+        .collect::<Vec<_>>();
     Ok(Array::new_unchecked(context.return_type, elements).into())
 }
 
@@ -76,48 +79,48 @@ mod test {
             .await
             .unwrap();
         let elements: Vec<_> = value
-                .as_array()
-                .unwrap()
-                .as_slice()
-                .iter()
-                .map(|v| v.as_string().unwrap().as_str())
-                .collect();
-            assert_eq!(elements, ["hello", "world"]);
+            .as_array()
+            .unwrap()
+            .as_slice()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, ["hello", "world"]);
 
         let value = eval_v1_expr(&env, V1::Three, "split('hello world', 'goodbye')")
             .await
             .unwrap();
         let elements: Vec<_> = value
-                .as_array()
-                .unwrap()
-                .as_slice()
-                .iter()
-                .map(|v| v.as_string().unwrap().as_str())
-                .collect();
-            assert_eq!(elements, ["hello world"]);
+            .as_array()
+            .unwrap()
+            .as_slice()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, ["hello world"]);
 
         let value = eval_v1_expr(&env, V1::Three, "split('hello\tBob', '\\t')")
             .await
             .unwrap();
         let elements: Vec<_> = value
-                .as_array()
-                .unwrap()
-                .as_slice()
-                .iter()
-                .map(|v| v.as_string().unwrap().as_str())
-                .collect();
-            assert_eq!(elements, ["hello", "Bob"]);
+            .as_array()
+            .unwrap()
+            .as_slice()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, ["hello", "Bob"]);
 
         let value = eval_v1_expr(&env, V1::Three, "split('hello there\nworld', '\\s')")
             .await
             .unwrap();
         let elements: Vec<_> = value
-                .as_array()
-                .unwrap()
-                .as_slice()
-                .iter()
-                .map(|v| v.as_string().unwrap().as_str())
-                .collect();
-            assert_eq!(elements, ["hello", "there", "world"]);
+            .as_array()
+            .unwrap()
+            .as_slice()
+            .iter()
+            .map(|v| v.as_string().unwrap().as_str())
+            .collect();
+        assert_eq!(elements, ["hello", "there", "world"]);
     }
 }
