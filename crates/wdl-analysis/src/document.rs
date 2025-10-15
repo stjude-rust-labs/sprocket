@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -19,10 +21,12 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::config::Config;
+use crate::diagnostics::no_common_type;
 use crate::diagnostics::unused_import;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
+use crate::types::Optional;
 use crate::types::Type;
 
 mod v1;
@@ -154,11 +158,11 @@ impl Name {
 
 /// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ScopeIndex(usize);
+pub struct ScopeIndex(pub usize);
 
 /// Represents a scope in a WDL document.
 #[derive(Debug)]
-struct Scope {
+pub struct Scope {
     /// The index of the parent scope.
     ///
     /// This is `None` for task and workflow scopes.
@@ -196,7 +200,7 @@ pub struct ScopeRef<'a> {
 
 impl<'a> ScopeRef<'a> {
     /// Creates a new scope reference given the scope index.
-    fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
+    pub fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
         Self { scopes, index }
     }
 
@@ -293,6 +297,98 @@ impl<'a> ScopeRefMut<'a> {
             scopes: self.scopes,
             index: self.index,
         }
+    }
+}
+
+/// A scope union takes the union of names within a number of given scopes and
+/// computes a set of common output names for a (presumed parent) scope. This
+/// is useful when calculating common elements from, for example, an `if`
+/// statement within a workflow.
+#[derive(Debug)]
+pub struct ScopeUnion<'a> {
+    /// The scope references to process.
+    scope_refs: Vec<(ScopeRef<'a>, bool)>,
+}
+
+impl<'a> ScopeUnion<'a> {
+    /// Creates a new scope union.
+    pub fn new() -> Self {
+        Self {
+            scope_refs: Vec::new(),
+        }
+    }
+
+    /// Adds a scope to the union.
+    pub fn insert(&mut self, scope_ref: ScopeRef<'a>, exhaustive: bool) {
+        self.scope_refs.push((scope_ref, exhaustive));
+    }
+
+    /// Resolves the scope union to names and types that should be accessible
+    /// from the parent scope.
+    ///
+    /// Returns an error if any issues are encountered during resolving.
+    pub fn resolve(self) -> Result<HashMap<String, Name>, Vec<Diagnostic>> {
+        let mut errors = Vec::new();
+        let mut ignored: HashSet<String> = HashSet::new();
+
+        // Gather all declaration names and reconcile types
+        let mut names: HashMap<String, Name> = HashMap::new();
+        for (scope_ref, _) in &self.scope_refs {
+            for (name, info) in scope_ref.names() {
+                if ignored.contains(name) {
+                    continue;
+                }
+
+                match names.entry(name.to_string()) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(info.clone());
+                    }
+                    Entry::Occupied(mut entry) => {
+                        let Some(ty) = entry.get().ty.common_type(&info.ty) else {
+                            errors.push(no_common_type(
+                                &entry.get().ty,
+                                entry.get().span,
+                                &info.ty,
+                                info.span,
+                            ));
+                            names.remove(name);
+                            ignored.insert(name.to_string());
+                            continue;
+                        };
+
+                        entry.get_mut().ty = ty;
+                    }
+                }
+            }
+        }
+
+        // Mark types as optional if not present in all clauses
+        for (scope_ref, _) in &self.scope_refs {
+            for (name, info) in &mut names {
+                if ignored.contains(name) {
+                    continue;
+                }
+
+                // If this name is not in the current clause's scope, mark as optional
+                if scope_ref.local(name).is_none() {
+                    info.ty = info.ty.optional();
+                }
+            }
+        }
+
+        // If there's no `else` clause, mark all types as optional
+        let has_exhaustive = self.scope_refs.iter().any(|(_, exhaustive)| *exhaustive);
+        if !has_exhaustive {
+            for info in names.values_mut() {
+                info.ty = info.ty.optional();
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        Ok(names)
     }
 }
 

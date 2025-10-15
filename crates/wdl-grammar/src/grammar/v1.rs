@@ -1751,7 +1751,7 @@ fn bound_decl(
     Ok(())
 }
 
-/// Parses a conditional statement clause.
+/// Parses a conditional statement `if` clause.
 ///
 /// Returns whether or not a one of the start tokens was encountered.
 fn conditional_if_clause(
@@ -1775,8 +1775,6 @@ fn conditional_if_clause(
 }
 
 /// Parses both `else if` and `else` clause in a conditional statement.
-///
-/// Returns whether we should continue looping over conditional clauses.
 fn conditional_else_if_clause(
     parser: &mut Parser<'_>,
     marker: Marker,

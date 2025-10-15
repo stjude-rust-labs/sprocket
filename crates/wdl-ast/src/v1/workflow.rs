@@ -724,7 +724,7 @@ impl<N: TreeNode> WorkflowStatement<N> {
 }
 
 /// A kind of conditional statement clause.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ConditionalStatementClauseKind {
     /// The initial `if` clause.
     If,
@@ -833,20 +833,20 @@ impl<N: TreeNode> ConditionalStatement<N> {
     }
 
     /// Gets the initial `if` clause.
-    pub fn r#if(&self) -> ConditionalStatementClause<N> {
+    pub fn if_clause(&self) -> ConditionalStatementClause<N> {
         self.clauses()
             .find(|clause| clause.kind() == ConditionalStatementClauseKind::If)
             .expect("missing required conditional statement `if` clause")
     }
 
     /// Gets the `else if` clauses, if any exist in the conditional statement.
-    pub fn else_if(&self) -> impl Iterator<Item = ConditionalStatementClause<N>> {
+    pub fn else_if_clauses(&self) -> impl Iterator<Item = ConditionalStatementClause<N>> {
         self.clauses()
             .filter(|clause| clause.kind() == ConditionalStatementClauseKind::ElseIf)
     }
 
     /// Gets the final `else` clause, if it exists.
-    pub fn r#else(&self) -> Option<ConditionalStatementClause<N>> {
+    pub fn else_clause(&self) -> Option<ConditionalStatementClause<N>> {
         self.clauses()
             .find(|clause| clause.kind() == ConditionalStatementClauseKind::Else)
     }
@@ -1499,7 +1499,7 @@ workflow test {
         let conditional = statements[0].clone().unwrap_conditional();
         assert_eq!(
             conditional
-                .r#if()
+                .if_clause()
                 .expr()
                 .expect("expression to exist for `if` clause")
                 .unwrap_name_ref()
@@ -1509,7 +1509,7 @@ workflow test {
         );
 
         // Inner statements
-        let inner: Vec<_> = conditional.r#if().statements().collect();
+        let inner: Vec<_> = conditional.if_clause().statements().collect();
         assert_eq!(inner.len(), 2);
 
         // First inner statement
