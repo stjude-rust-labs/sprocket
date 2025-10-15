@@ -65,6 +65,7 @@ mod select_all;
 mod select_first;
 mod sep;
 mod size;
+mod split;
 mod squote;
 mod stderr;
 mod stdout;
@@ -370,6 +371,7 @@ pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
             func!(find),
             func!(matches),
             func!(sub),
+            func!(split),
             func!(basename),
             func!(join_paths),
             func!(glob),
