@@ -1806,6 +1806,7 @@ workflow test {
                 BackendConfig::Local(Default::default()),
             )]
             .into(),
+            output_dir: Some(PathBuf::from("doesnt_exist")),
             ..Default::default()
         };
         let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
@@ -1951,6 +1952,7 @@ workflow w {
                 BackendConfig::Local(Default::default()),
             )]
             .into(),
+            output_dir: Some(PathBuf::from("doesnt_exist")),
             ..Default::default()
         };
         let state = Arc::<State>::default();

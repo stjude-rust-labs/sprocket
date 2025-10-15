@@ -571,14 +571,10 @@ pub async fn run(args: Args) -> Result<()> {
         span,
     ));
 
-    let evaluator = Evaluator::new(
-        document,
-        &entrypoint,
-        inputs,
-        origins,
-        args.engine,
-        &output_dir,
-    );
+    let mut engine_config = args.engine;
+    engine_config.output_dir = Some(output_dir);
+
+    let evaluator = Evaluator::new(document, &entrypoint, inputs, origins, engine_config);
 
     let mut evaluate = evaluator.run(token.clone(), events).boxed();
 
