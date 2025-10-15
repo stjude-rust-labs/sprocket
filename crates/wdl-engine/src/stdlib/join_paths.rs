@@ -230,9 +230,18 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(File, String) -> File", Callback::Sync(join_paths_simple)),
-                Signature::new("(File, Array[String]+) -> File", Callback::Sync(join_paths)),
-                Signature::new("(Array[String]+) -> File", Callback::Sync(join_paths)),
+                Signature::new(
+                    "(base: File, relative: String) -> File",
+                    Callback::Sync(join_paths_simple),
+                ),
+                Signature::new(
+                    "(base: File, relative: Array[String]+) -> File",
+                    Callback::Sync(join_paths),
+                ),
+                Signature::new(
+                    "(paths: Array[String]+) -> File",
+                    Callback::Sync(join_paths),
+                ),
             ]
         },
     )

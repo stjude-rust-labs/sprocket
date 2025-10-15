@@ -81,7 +81,14 @@ fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
 /// Gets the function describing `read_int`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(File) -> Int", Callback::Async(read_int))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(file: File) -> Int",
+                Callback::Async(read_int),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

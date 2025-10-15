@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use cloud_copy::TransferEvent;
@@ -33,6 +34,7 @@ use crate::TaskExecutionResult;
 use crate::Value;
 use crate::http::Location;
 use crate::http::Transferer;
+use crate::path;
 use crate::path::EvaluationPath;
 use crate::stdlib::download_file;
 
@@ -233,6 +235,30 @@ impl HostPath {
     /// Gets the string representation of the host path.
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    /// Shell expands the path.
+    ///
+    /// The path is also joined with the provided base directory.
+    pub fn expand(&mut self, base_dir: &EvaluationPath) -> Result<()> {
+        // Perform the expansion
+        if let Cow::Owned(s) = shellexpand::full(self.as_str()).with_context(|| {
+            format!("failed to shell expand path `{path}`", path = self.as_str())
+        })? {
+            *Arc::make_mut(&mut self.0) = s;
+        }
+
+        // Don't join URLs
+        if path::is_url(self.as_str()) {
+            return Ok(());
+        }
+
+        // Perform the join
+        if let Some(s) = base_dir.join(self.as_str())?.to_str() {
+            *Arc::make_mut(&mut self.0) = s.to_string();
+        }
+
+        Ok(())
     }
 }
 

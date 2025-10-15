@@ -75,7 +75,6 @@ use crate::Input;
 use crate::InputKind;
 use crate::ONE_GIBIBYTE;
 use crate::Outputs;
-use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
@@ -677,29 +676,36 @@ impl<'a> State<'a> {
         transferer: &Arc<dyn Transferer>,
         needs_local_inputs: bool,
     ) -> Result<()> {
+        // For WDL 1.2 documents, start by ensuring paths exist.
+        // This will replace any non-existent optional paths with `None`
+        if self
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .ensure_paths_exist(
+                    is_optional,
+                    self.base_dir.as_local(),
+                    Some(transferer.as_ref()),
+                    &|_| Ok(()),
+                )
+                .await?;
+        }
+
+        // Add inputs to the backend
         let mut urls = Vec::new();
-        value.visit_paths_mut(is_optional, &mut |optional, value| {
-            // Ensure the path exists before we translate it (1.2+ behavior)
-            if self
-                .document
-                .version()
-                .expect("document should have a version")
-                >= SupportedVersion::V1(V1::Two)
-                && !value.ensure_path_exists(optional, self.base_dir.as_local())?
-            {
-                // Return `Ok(false)` to the caller to replace the optional value with `None`
-                // We don't need to insert a backend input for a `None` value
-                return Ok(false);
-            }
-
-            let (kind, path) = match value {
-                PrimitiveValue::File(path) => (InputKind::File, path),
-                PrimitiveValue::Directory(path) => (InputKind::Directory, path),
-                _ => unreachable!("only file and directory values should be visited"),
-            };
-
+        value.visit_paths(&mut |is_file, path| {
             // Insert a backend input for the path
-            if let Some(index) = self.insert_backend_input(kind, path)? {
+            if let Some(index) = self.insert_backend_input(
+                if is_file {
+                    InputKind::File
+                } else {
+                    InputKind::Directory
+                },
+                path,
+            )? {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
                 if needs_local_inputs
@@ -711,7 +717,7 @@ impl<'a> State<'a> {
                 }
             }
 
-            Ok(true)
+            Ok(())
         })?;
 
         if urls.is_empty() {
@@ -1697,68 +1703,57 @@ impl TaskEvaluator {
             .coerce(Some(evaluator.context()), &ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
 
-        // Translate `File` and `Directory` values to host paths.
-        // For output section evaluation, paths are relative to the task's work
-        // directory
         value
-            .visit_paths_mut(ty.is_optional(), &mut |optional, value| {
-                let path = match value {
-                    PrimitiveValue::File(path) => path,
-                    PrimitiveValue::Directory(path) => path,
-                    _ => unreachable!("only file and directory values should be visited"),
-                };
+            .ensure_paths_exist(
+                ty.is_optional(),
+                state.base_dir.as_local(),
+                Some(self.transferer.as_ref()),
+                &|path| {
+                    // Join the path with the work directory.
+                    let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
 
-                // Join the path with the work directory.
-                // The work directory returned by the backend is already a host path
-                let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
+                    // Ensure the output's path is valid
+                    let output_path = match (&mut output_path, &evaluated.result.work_dir) {
+                        (EvaluationPath::Local(joined), EvaluationPath::Local(base))
+                            if joined.starts_with(base)
+                                || joined.starts_with(&evaluated.attempt_dir) =>
+                        {
+                            // The joined path is contained within the work directory or attempt
+                            // directory
+                            HostPath::new(String::try_from(output_path)?)
+                        }
+                        (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
+                            // The joined path is not within the work or attempt directory;
+                            // therefore, it is required to be an input
+                            state
+                                .path_map
+                                .get_by_left(path)
+                                .ok_or_else(|| {
+                                    anyhow!(
+                                        "guest path `{path}` is not an input or within the task's \
+                                         working directory"
+                                    )
+                                })?
+                                .0
+                                .clone()
+                                .into()
+                        }
+                        (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
+                            // Path is local (and absolute) and the working directory is remote
+                            bail!(
+                                "cannot access guest path `{path}` from a remotely executing task"
+                            )
+                        }
+                        (EvaluationPath::Remote(_), _) => {
+                            HostPath::new(String::try_from(output_path)?)
+                        }
+                    };
 
-                // Ensure the output's path is valid
-                let output_path = match (&mut output_path, &evaluated.result.work_dir) {
-                    (EvaluationPath::Local(joined), EvaluationPath::Local(base))
-                        if joined.starts_with(base)
-                            || joined.starts_with(&evaluated.attempt_dir) =>
-                    {
-                        // The joined path is contained within the work directory or attempt
-                        // directory
-                        HostPath::new(
-                            output_path
-                                .into_string()
-                                .with_context(|| format!("path `{path}` is not UTF-8"))?,
-                        )
-                    }
-                    (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
-                        // The joined path is not within the work or attempt directory; therefore,
-                        // it is required to be an input
-                        state
-                            .path_map
-                            .get_by_left(path)
-                            .ok_or_else(|| {
-                                anyhow!(
-                                    "guest path `{path}` is not an input or within the task's \
-                                     working directory"
-                                )
-                            })?
-                            .0
-                            .clone()
-                            .into()
-                    }
-                    (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
-                        // Path is local (and absolute) and the working directory is remote
-                        bail!("cannot access guest path `{path}` from a remotely executing task")
-                    }
-                    (EvaluationPath::Remote(_), _) => HostPath::new(
-                        output_path
-                            .into_string()
-                            .with_context(|| format!("path `{path}` is not UTF-8"))?,
-                    ),
-                };
-
-                *path = output_path;
-
-                // Ensure the path exists; if it does not and it was optional, the value is
-                // replaced with `None`
-                value.ensure_path_exists(optional, state.base_dir.as_local())
-            })
+                    *path = output_path;
+                    Ok(())
+                },
+            )
+            .await
             .map_err(|e| {
                 decl_evaluation_failed(
                     e,

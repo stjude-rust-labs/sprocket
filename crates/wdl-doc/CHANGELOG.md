@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.0 - 10-14-2025
+
+#### Added
+
+* Added a toggle for dark/light mode switching ([#367](https://github.com/stjude-rust-labs/sprocket/pull/367)).
+
 #### Changed
 
 * WDL documents with analysis errors **but not parse errors** can now be processed ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).

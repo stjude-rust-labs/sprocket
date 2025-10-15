@@ -61,6 +61,7 @@ const SORTED_CRATES_TO_PUBLISH: &[&str] = &[
     "wdl-lsp",
     "wdl-cli",
     "wdl",
+    "sprocket",
 ];
 
 /// Paths to ignore.
@@ -279,11 +280,20 @@ fn bump_version(krate: &Crate, crates: &[Rc<RefCell<Crate>>], patch: bool) {
 
     // Update the dependencies of this crate to point to the new version of
     // crates that we're bumping.
-    let dependencies = new_manifest["dependencies"].as_table_mut();
+    let dependencies = match new_manifest
+        .get_mut("workspace")
+        .and_then(|i| i.get_mut("dependencies"))
+    {
+        Some(i) => i.as_table_mut(),
+        None => new_manifest["dependencies"].as_table_mut(),
+    };
     if let Some(dependencies) = dependencies {
         for (dep_name, dep) in dependencies.iter_mut() {
             if crates.iter().any(|k| *k.borrow().name == *dep_name) {
-                let dep_version = bump(dep["version"].as_str().expect("dep version"), patch);
+                let dep_version = bump(
+                    dep["version"].as_str().expect("version should be a string"),
+                    patch,
+                );
                 dep["version"] = toml_edit::value(dep_version.clone());
             }
         }

@@ -36,7 +36,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[P], P) -> Boolean where `P`: any primitive type",
+                "(array: Array[P], value: P) -> Boolean where `P`: any primitive type",
                 Callback::Sync(contains),
             )]
         },

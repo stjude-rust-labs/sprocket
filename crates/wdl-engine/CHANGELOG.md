@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.9.0 - 10-14-2025
+
 #### Added
 
+* Added support for calling `glob` with a remote working directory ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
+* Added `retries` configuration setting for the TES backend ([#408](https://github.com/stjude-rust-labs/sprocket/pull/408)).
 * Added support for passing `None` for non-optional inputs with default
   expressions in WDL 1.2 call statements ([#356](https://github.com/stjude-rust-labs/sprocket/pull/356)).
 * Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378), [#379](https://github.com/stjude-rust-labs/sprocket/pull/379), [#404](https://github.com/stjude-rust-labs/sprocket/pull/404))
 
 #### Fixed
 
+* Fixed checking for existence of `File` and `Directory` values that are remote
+  URLs ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
 * Fixed a panic that can occur when showing debug output with the TES backend ([#397](https://github.com/stjude-rust-labs/sprocket/pull/397)).
 * Make linking to download cache files more likely by using a tmp directory in
   the cache ([#393](https://github.com/stjude-rust-labs/sprocket/pull/393)).

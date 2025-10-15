@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.0 - 10-14-2025
+
 #### Changed
 
 * Always format call statement `input`s across multiple lines instead of trying to put single inputs on the same line as the `call` ([#377](https://github.com/stjude-rust-labs/sprocket/pull/377/)).
 
 #### Fixed
 
+* Trailing comments at the end of documents are now captured and output correctly ([#413](https://github.com/stjude-rust-labs/sprocket/pull/413)).
 * Fixed edge case in single quote to double quote conversion for literal strings ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
 * `MaxLineLength::try_new()` and `IndentationSize::try_new()` return appropriate errors ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
 

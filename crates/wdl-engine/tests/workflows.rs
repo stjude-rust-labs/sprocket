@@ -213,7 +213,7 @@ async fn run_test(test: &Path) -> Result<()> {
         .document()
         .workflow()
         .context("document does not contain a workflow")?;
-    inputs.join_paths(workflow, |_| Ok(&test_dir_path))?;
+    inputs.join_paths(workflow, |_| Ok(&test_dir_path)).await?;
 
     for config in configs() {
         let dir = TempDir::new().context("failed to create temporary directory")?;

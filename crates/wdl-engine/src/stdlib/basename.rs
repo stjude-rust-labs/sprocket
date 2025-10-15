@@ -64,9 +64,18 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(File, <String>) -> String", Callback::Sync(basename)),
-                Signature::new("(String, <String>) -> String", Callback::Sync(basename)),
-                Signature::new("(Directory, <String>) -> String", Callback::Sync(basename)),
+                Signature::new(
+                    "(path: File, <suffix: String>) -> String",
+                    Callback::Sync(basename),
+                ),
+                Signature::new(
+                    "(path: String, <suffix: String>) -> String",
+                    Callback::Sync(basename),
+                ),
+                Signature::new(
+                    "(path: Directory, <suffix: String>) -> String",
+                    Callback::Sync(basename),
+                ),
             ]
         },
     )

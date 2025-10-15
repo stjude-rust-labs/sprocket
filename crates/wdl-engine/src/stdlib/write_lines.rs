@@ -82,7 +82,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(Array[String]) -> File",
+                "(array: Array[String]) -> File",
                 Callback::Async(write_lines),
             )]
         },
