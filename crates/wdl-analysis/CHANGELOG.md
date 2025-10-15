@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+
+#### Changed
+
+* Refactored `ScopeUnion` to use `ScopeRef` instead of direct slice indexing, allowing it to be reused in the runtime engine for proper type reconciliation across conditional branches ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Made `Scope`, `ScopeIndex`, and `ScopeRef::new()` public to support cross-crate usage ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+
 ## 0.14.0 - 10-14-2025
 
 #### Changed
