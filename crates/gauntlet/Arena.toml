@@ -1707,6 +1707,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:1069:9: warning[ExpectedMetaString]: metadata key `description` should have a string value, found object"
+permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/samtools.wdl/#L1069"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:1170:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/samtools.wdl/#L1170"
 
