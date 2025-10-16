@@ -1,3 +1,5 @@
+#![allow(clippy::missing_docs_in_private_items)]
+
 //! Support for using Apptainer (a.k.a. Singularity) as an in-place container
 //! runtime for task execution.
 //!
