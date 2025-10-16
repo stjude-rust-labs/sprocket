@@ -1,3 +1,5 @@
+#![allow(clippy::missing_docs_in_private_items)]
+
 //! Support for using Apptainer (a.k.a. Singularity) as an in-place container
 //! runtime for task execution.
 //!
@@ -87,7 +89,7 @@ impl ApptainerConfig {
         cancellation_token: CancellationToken,
         spawn_request: &TaskSpawnRequest,
     ) -> Result<String, anyhow::Error> {
-        let container_sif = sif_for_container(&self, container, cancellation_token).await?;
+        let container_sif = sif_for_container(self, container, cancellation_token).await?;
         self.generate_apptainer_script(&container_sif, spawn_request)
             .await
     }
