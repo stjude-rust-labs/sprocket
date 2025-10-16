@@ -271,6 +271,9 @@ mod tests {
     }
 
     #[tokio::test]
+    // `shellcheck` works quite differently on Windows, and since we're not going to run Apptainer
+    // on Windows anytime soon, we limit this test to Unixy systems
+    #[cfg(unix)]
     async fn example_task_shellchecks() {
         let (tmp, config, spawn_request) = mk_example_task();
         let script = config
