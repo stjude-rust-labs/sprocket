@@ -70,14 +70,14 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use super::LsfApptainerBackendConfig;
+use super::ApptainerConfig;
 
 static APPTAINER_IMAGES_DIR: OnceCell<PathBuf> = OnceCell::const_new();
 static APPTAINER_IMAGES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub(crate) async fn global_apptainer_images_dir(
-    config: &LsfApptainerBackendConfig,
+    config: &ApptainerConfig,
 ) -> Result<&'static Path, anyhow::Error> {
     APPTAINER_IMAGES_DIR
         .get_or_try_init(|| async {
@@ -99,7 +99,7 @@ pub(crate) async fn global_apptainer_images_dir(
 }
 
 pub(crate) async fn sif_for_container(
-    config: &LsfApptainerBackendConfig,
+    config: &ApptainerConfig,
     container: &str,
     cancellation_token: CancellationToken,
 ) -> Result<PathBuf, anyhow::Error> {

@@ -13,8 +13,6 @@
 //! `bsub`/`apptainer` scripts.
 
 use std::collections::HashMap;
-use std::fmt::Write as _;
-use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -22,7 +20,6 @@ use anyhow::Context as _;
 use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::events::Event;
-use images::sif_for_container;
 use nonempty::NonEmpty;
 use tokio::fs::File;
 use tokio::fs::{self};
@@ -35,40 +32,23 @@ use tracing::error;
 use tracing::trace;
 use tracing::warn;
 
-use super::COMMAND_FILE_NAME;
 use super::TaskExecutionBackend;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use super::WORK_DIR_NAME;
+use super::apptainer::ApptainerConfig;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::config::Config;
 use crate::path::EvaluationPath;
 use crate::v1;
 
-mod images;
-
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
 
 /// The root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
-
-/// The guest working directory.
-const GUEST_WORK_DIR: &str = "/mnt/task/work";
-
-/// The guest path for the command file.
-const GUEST_COMMAND_PATH: &str = "/mnt/task/command";
-
-/// The path to the container's stdout.
-const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
-
-/// The path to the container's stderr.
-const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
 /// The maximum length of an LSF job name.
 ///
@@ -108,17 +88,10 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
     async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
         let crankshaft_task_id = crankshaft::events::next_task_id();
 
-        let container_sif = sif_for_container(
-            &self.backend_config,
-            &self.container,
-            self.cancellation_token.clone(),
-        )
-        .await?;
-
         let attempt_dir = self.spawn_request.attempt_dir();
 
         // Create the host directory that will be mapped to the WDL working directory.
-        let wdl_work_dir = attempt_dir.join(WORK_DIR_NAME);
+        let wdl_work_dir = self.spawn_request.wdl_work_dir_host_path();
         fs::create_dir_all(&wdl_work_dir).await.with_context(|| {
             format!(
                 "failed to create WDL working directory `{path}`",
@@ -126,8 +99,26 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             )
         })?;
 
+        // Create an empty file for the WDL command's stdout.
+        let wdl_stdout_path = self.spawn_request.wdl_stdout_host_path();
+        let _ = File::create(&wdl_stdout_path).await.with_context(|| {
+            format!(
+                "failed to create WDL stdout file `{path}`",
+                path = wdl_stdout_path.display()
+            )
+        })?;
+
+        // Create an empty file for the WDL command's stderr.
+        let wdl_stderr_path = self.spawn_request.wdl_stderr_host_path();
+        let _ = File::create(&wdl_stderr_path).await.with_context(|| {
+            format!(
+                "failed to create WDL stderr file `{path}`",
+                path = wdl_stderr_path.display()
+            )
+        })?;
+
         // Write the evaluated WDL command section to a host file.
-        let wdl_command_path = attempt_dir.join(COMMAND_FILE_NAME);
+        let wdl_command_path = self.spawn_request.wdl_command_host_path();
         fs::write(&wdl_command_path, self.spawn_request.command())
             .await
             .with_context(|| {
@@ -137,175 +128,23 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                 )
             })?;
         #[cfg(unix)]
-        tokio::fs::set_permissions(
+        fs::set_permissions(
             &wdl_command_path,
             <std::fs::Permissions as std::os::unix::fs::PermissionsExt>::from_mode(0o770),
         )
         .await?;
 
-        // Create an empty file for the WDL command's stdout.
-        let wdl_stdout_path = attempt_dir.join(STDOUT_FILE_NAME);
-        let _ = File::create(&wdl_stdout_path).await.with_context(|| {
-            format!(
-                "failed to create WDL stdout file `{path}`",
-                path = wdl_stdout_path.display()
+        let apptainer_command = self
+            .backend_config
+            .apptainer_config
+            .prepare_apptainer_command(
+                &self.container,
+                self.cancellation_token.clone(),
+                &self.spawn_request,
             )
-        })?;
+            .await?;
 
-        // Create an empty file for the WDL command's stderr.
-        let wdl_stderr_path = attempt_dir.join(STDERR_FILE_NAME);
-        let _ = File::create(&wdl_stderr_path).await.with_context(|| {
-            format!(
-                "failed to create WDL stderr file `{path}`",
-                path = wdl_stderr_path.display()
-            )
-        })?;
-
-        // Create a temp dir for the container's execution within the attempt dir
-        // hierarchy. On many HPC systems, `/tmp` is mapped to a relatively
-        // small, local scratch disk that can fill up easily. Mapping the
-        // container's `/tmp` and `/var/tmp` paths to the filesystem we're using
-        // for other inputs and outputs prevents this from being a capacity problem,
-        // though potentially at the expense of execution speed if the
-        // non-`/tmp` filesystem is significantly slower.
-        let container_tmp_path = self
-            .spawn_request
-            .temp_dir()
-            .join("container_tmp")
-            .to_path_buf();
-        tokio::fs::DirBuilder::new()
-            .recursive(true)
-            .create(&container_tmp_path)
-            .await
-            .with_context(|| {
-                format!(
-                    "failed to create container /tmp directory at `{path}`",
-                    path = container_tmp_path.display()
-                )
-            })?;
-        let container_var_tmp_path = self
-            .spawn_request
-            .temp_dir()
-            .join("container_var_tmp")
-            .to_path_buf();
-        tokio::fs::DirBuilder::new()
-            .recursive(true)
-            .create(&container_var_tmp_path)
-            .await
-            .with_context(|| {
-                format!(
-                    "failed to create container /var/tmp directory at `{path}`",
-                    path = container_var_tmp_path.display()
-                )
-            })?;
-
-        // Assemble the Apptainer invocation. We'll write out this command to the host
-        // filesystem, and ultimately submit it as the command to run via LSF.
         let apptainer_command_path = attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-        let mut apptainer_command = String::new();
-        writeln!(&mut apptainer_command, "#!/bin/env bash")?;
-
-        // Set up any WDL-specified guest environment variables, using the
-        // `APPTAINERENV_` prefix approach (ref:
-        // https://apptainer.org/docs/user/1.3/environment_and_metadata.html#apptainerenv-prefix) to
-        // avoid command line argument limits.
-        for (k, v) in self.spawn_request.env().iter() {
-            writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v}")?;
-        }
-
-        // Begin writing the `apptainer` command itself. We're using the synchronous
-        // `exec` command which keeps running until the containerized command is
-        // finished.
-        write!(&mut apptainer_command, "apptainer -v exec ")?;
-        write!(&mut apptainer_command, "--cwd {GUEST_WORK_DIR} ")?;
-        // These options make the Apptainer sandbox behave more like default Docker
-        // behavior, e.g. by not auto-mounting the user's home directory and
-        // inheriting all environment variables.
-        write!(&mut apptainer_command, "--containall --cleanenv ")?;
-
-        for input in self.spawn_request.inputs() {
-            write!(
-                &mut apptainer_command,
-                "--mount type=bind,src={host_path},dst={guest_path},ro ",
-                host_path = input
-                    .local_path()
-                    .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
-                    .display(),
-                guest_path = input
-                    .guest_path()
-                    .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
-            )?;
-        }
-
-        // Mount the instantiated WDL command as read-only.
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_COMMAND_PATH},ro ",
-            wdl_command_path.display()
-        )?;
-        // Mount the working dir, temp dirs, and stdio files as read/write (no `,ro` on
-        // the end like for the inputs).
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_WORK_DIR} ",
-            wdl_work_dir.display()
-        )?;
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst=/tmp ",
-            container_tmp_path.display()
-        )?;
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst=/var/tmp ",
-            container_var_tmp_path.display()
-        )?;
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_STDOUT_PATH} ",
-            wdl_stdout_path.display()
-        )?;
-        write!(
-            &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
-            wdl_stderr_path.display()
-        )?;
-        // Add the `--nv` argument if a GPU is required by the task.
-        if let Some(true) = self
-            .spawn_request
-            .requirements()
-            .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
-            .and_then(Value::as_boolean)
-        {
-            write!(&mut apptainer_command, "--nv ")?;
-        }
-
-        // Add any user-configured extra arguments.
-        if let Some(args) = &self.backend_config.extra_apptainer_exec_args {
-            for arg in args {
-                write!(&mut apptainer_command, "{arg} ")?;
-            }
-        }
-        // Specify the container sif file as a positional argument.
-        write!(&mut apptainer_command, "{} ", container_sif.display())?;
-        // Provide the instantiated WDL command, with its stdio handles redirected to
-        // their respective guest paths.
-        write!(
-            &mut apptainer_command,
-            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\" "
-        )?;
-        // The path for the Apptainer-level stdout and stderr.
-        let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
-        let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
-        // Redirect the output of Apptainer itself to these files. We run Apptainer with
-        // verbosity cranked up, so these should be helpful diagnosing failures.
-        writeln!(
-            &mut apptainer_command,
-            "> {stdout} 2> {stderr}",
-            stdout = apptainer_stdout_path.display(),
-            stderr = apptainer_stderr_path.display()
-        )?;
-
         fs::write(&apptainer_command_path, apptainer_command)
             .await
             .with_context(|| {
@@ -682,34 +521,22 @@ pub struct LsfApptainerBackendConfig {
     /// By default, this is 200.
     #[serde(default = "default_max_scatter_concurrency")]
     pub max_scatter_concurrency: u64,
-    /// Additional command-line arguments to pass to `apptainer exec` when
-    /// executing tasks.
-    pub extra_apptainer_exec_args: Option<Vec<String>>,
-    /// The directory in which temporary directories will be created containing
-    /// Apptainer `.sif` files.
+    /// The configuration of Apptainer, which is used as the container runtime
+    /// on the compute nodes where LSF dispatches tasks.
     ///
-    /// This should be a location that is accessible by all jobs on the LSF
-    /// cluster.
-    ///
-    /// By default, this is `$HOME/.cache/sprocket-apptainer-images`, or
-    /// `/tmp/sprocket-apptainer-images` if the home directory cannot be
-    /// determined.
-    #[serde(default = "default_apptainer_images_dir")]
-    pub apptainer_images_dir: PathBuf,
+    /// Note that this will likely be replaced by an abstraction over multiple
+    /// container execution runtimes in the future, rather than being
+    /// hardcoded to Apptainer.
+    #[serde(default)]
+    // TODO ACF 2025-10-16: temporarily flatten this into the overall config so that it doesn't
+    // break existing serialized configs. We'll save breaking the config file format for when we
+    // actually have meaningful composition of in-place runtimes.
+    #[serde(flatten)]
+    pub apptainer_config: ApptainerConfig,
 }
 
 fn default_max_scatter_concurrency() -> u64 {
     200
-}
-
-fn default_apptainer_images_dir() -> PathBuf {
-    if let Some(cache) = dirs::cache_dir() {
-        cache.join("sprocket-apptainer-images").to_path_buf()
-    } else {
-        std::env::temp_dir()
-            .join("sprocket-apptainer-images")
-            .to_path_buf()
-    }
 }
 
 impl Default for LsfApptainerBackendConfig {
@@ -721,8 +548,7 @@ impl Default for LsfApptainerBackendConfig {
             fpga_lsf_queue: None,
             extra_bsub_args: None,
             max_scatter_concurrency: default_max_scatter_concurrency(),
-            apptainer_images_dir: default_apptainer_images_dir(),
-            extra_apptainer_exec_args: None,
+            apptainer_config: ApptainerConfig::default(),
         }
     }
 }
