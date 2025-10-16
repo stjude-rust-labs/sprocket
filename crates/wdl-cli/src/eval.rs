@@ -75,11 +75,13 @@ impl<'a> Evaluator<'a> {
 
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
-                inputs.join_paths(task, |key| {
-                    self.origins
-                        .get(key)
-                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                })?;
+                inputs
+                    .join_paths(task, |key| {
+                        self.origins
+                            .get(key)
+                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+                    })
+                    .await?;
 
                 let evaluator = TaskEvaluator::new(self.config, token, events).await?;
 
@@ -103,11 +105,13 @@ impl<'a> Evaluator<'a> {
 
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
-                inputs.join_paths(workflow, |key| {
-                    self.origins
-                        .get(key)
-                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                })?;
+                inputs
+                    .join_paths(workflow, |key| {
+                        self.origins
+                            .get(key)
+                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+                    })
+                    .await?;
 
                 let evaluator = WorkflowEvaluator::new(self.config, token, events).await?;
                 evaluator

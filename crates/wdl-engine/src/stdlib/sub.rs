@@ -55,7 +55,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String, String, String) -> String",
+                "(input: String, pattern: String, replace: String) -> String",
                 Callback::Sync(sub),
             )]
         },

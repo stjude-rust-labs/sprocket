@@ -311,13 +311,25 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(None, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(File?, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(String?, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(Directory?, <String>) -> Float", Callback::Async(size)),
                 Signature::new(
-                    "(X, <String>) -> Float where `X`: any compound type that recursively \
-                     contains a `File` or `Directory`",
+                    "(value: None, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: File?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: String?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: Directory?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: X, <unit: String>) -> Float where `X`: any compound type that \
+                     recursively contains a `File` or `Directory`",
                     Callback::Async(size),
                 ),
             ]

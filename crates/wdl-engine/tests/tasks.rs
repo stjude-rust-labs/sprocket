@@ -262,9 +262,9 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     }
 
     let path = result.document().path();
-    let diagnostics: Cow<'_, [Diagnostic]> = match result.error() {
-        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))].into(),
-        None => result.document().diagnostics().into(),
+    let diagnostics = match result.error() {
+        Some(e) => vec![Diagnostic::error(format!("failed to read `{path}`: {e:#}"))],
+        None => result.document().diagnostics().cloned().collect(),
     };
 
     if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
@@ -299,7 +299,7 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
         .document()
         .task_by_name(&name)
         .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-    inputs.join_paths(task, |_| Ok(&test_dir_path))?;
+    inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
     let dir = TempDir::new().context("failed to create temporary directory")?;

@@ -115,23 +115,23 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(Map[K, V], K) -> Boolean where `K`: any primitive type",
+                    "(map: Map[K, V], key: K) -> Boolean where `K`: any primitive type",
                     Callback::Sync(contains_key_map),
                 ),
                 Signature::new(
-                    "(Object, String) -> Boolean",
+                    "(object: Object, key: String) -> Boolean",
                     Callback::Sync(contains_key_object),
                 ),
                 Signature::new(
-                    "(Map[String, V], Array[String]) -> Boolean",
+                    "(map: Map[String, V], keys: Array[String]) -> Boolean",
                     Callback::Sync(contains_key_recursive),
                 ),
                 Signature::new(
-                    "(S, Array[String]) -> Boolean where `S`: any structure",
+                    "(struct: S, keys: Array[String]) -> Boolean where `S`: any structure",
                     Callback::Sync(contains_key_recursive),
                 ),
                 Signature::new(
-                    "(Object, Array[String]) -> Boolean",
+                    "(object: Object, keys: Array[String]) -> Boolean",
                     Callback::Sync(contains_key_recursive),
                 ),
             ]

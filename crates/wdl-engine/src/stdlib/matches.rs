@@ -39,7 +39,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String, String) -> Boolean",
+                "(input: String, pattern: String) -> Boolean",
                 Callback::Sync(matches),
             )]
         },

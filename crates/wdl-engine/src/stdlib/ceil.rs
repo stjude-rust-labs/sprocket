@@ -24,7 +24,14 @@ fn ceil(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `ceil`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Float) -> Int", Callback::Sync(ceil))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(value: Float) -> Int",
+                Callback::Sync(ceil),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]

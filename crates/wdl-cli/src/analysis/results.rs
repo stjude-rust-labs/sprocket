@@ -74,7 +74,6 @@ impl AnalysisResults {
             result
                 .document()
                 .diagnostics()
-                .iter()
                 .map(move |diagnostic| (path.clone(), source.clone(), diagnostic))
         })
     }

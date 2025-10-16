@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.14.0 - 10-14-2025
+
+#### Changed
+
+* `Document.diagnostics` was split into `parse_diagnostics` and `analysis_diagnostics` ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
+    * The `Document::diagnostics()` method still returns the full set of both diagnostics, but it is returned as an `Iterator` now instead of a slice.
+
 #### Added
 
+* Added signature help support for the WDL Language Server ([#409](https://github.com/stjude-rust-labs/sprocket/pull/409)).
 * Added snippets for standard library auto-completions ([#373](https://github.com/stjude-rust-labs/sprocket/pull/373)).
 
 #### Fixed
 
+* Correctly rename shadowed variables ([#410](https://github.com/stjude-rust-labs/sprocket/pull/410)).
 * Improved an error message for when downloading a remote WDL source file to
   include a reference to the URL being downloaded ([#396](https://github.com/stjude-rust-labs/sprocket/pull/396)).
 

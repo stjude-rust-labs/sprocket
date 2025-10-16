@@ -27,6 +27,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
+use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
 use path_clean::PathClean;
@@ -54,6 +55,7 @@ use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
+use crate::queue::SignatureHelpRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
@@ -840,6 +842,36 @@ where
             )
         })
     }
+
+    /// Gets signature help for a function call at a given position.
+    pub async fn signature_help(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<SignatureHelp>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::SignatureHelp(SignatureHelpRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send signature help request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive signature help response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
 }
 
 impl Default for Analyzer<()> {
@@ -908,14 +940,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -924,14 +959,17 @@ workflow test {
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].document.id().as_ref(), id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
     }
@@ -963,14 +1001,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -998,14 +1039,14 @@ workflow something_else {
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() != id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
 
         // Analyze again and ensure the analysis result id is unchanged
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() == id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 
     #[tokio::test]
@@ -1035,14 +1076,17 @@ workflow test {
 
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].document.diagnostics().len(), 1);
-        assert_eq!(results[0].document.diagnostics()[0].rule(), None);
+        assert_eq!(results[0].document.diagnostics().count(), 1);
         assert_eq!(
-            results[0].document.diagnostics()[0].severity(),
+            results[0].document.diagnostics().next().unwrap().rule(),
+            None
+        );
+        assert_eq!(
+            results[0].document.diagnostics().next().unwrap().severity(),
             Severity::Error
         );
         assert_eq!(
-            results[0].document.diagnostics()[0].message(),
+            results[0].document.diagnostics().next().unwrap().message(),
             "conflicting workflow name `test`"
         );
 
@@ -1069,7 +1113,7 @@ workflow test {
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
         assert!(results[0].document.id().as_ref() != id.as_ref());
-        assert_eq!(results[0].document.diagnostics().len(), 0);
+        assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 
     #[tokio::test]
@@ -1115,9 +1159,9 @@ workflow test {
         // Analyze the documents
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 3);
-        assert!(results[0].document.diagnostics().is_empty());
-        assert!(results[1].document.diagnostics().is_empty());
-        assert!(results[2].document.diagnostics().is_empty());
+        assert!(results[0].document.diagnostics().next().is_none());
+        assert!(results[1].document.diagnostics().next().is_none());
+        assert!(results[2].document.diagnostics().next().is_none());
 
         // Analyze the documents again
         let results = analyzer.analyze(()).await.unwrap();

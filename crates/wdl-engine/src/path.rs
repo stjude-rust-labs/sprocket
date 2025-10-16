@@ -9,6 +9,7 @@ use std::str::FromStr;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
 
@@ -127,16 +128,6 @@ impl EvaluationPath {
         }
     }
 
-    /// Consumes the path and returns its string representation
-    ///
-    /// Returns `None` if the path is local and cannot be represented in UTF-8.
-    pub fn into_string(self) -> Option<String> {
-        match self {
-            Self::Local(path) => path.into_os_string().into_string().ok(),
-            Self::Remote(url) => Some(url.into()),
-        }
-    }
-
     /// Gets the parent of the given path.
     ///
     /// Returns `None` if the evaluation path isn't valid or has no parent.
@@ -233,6 +224,23 @@ impl TryFrom<&str> for EvaluationPath {
 
     fn try_from(value: &str) -> Result<Self> {
         value.parse()
+    }
+}
+
+impl TryFrom<EvaluationPath> for String {
+    type Error = anyhow::Error;
+
+    fn try_from(path: EvaluationPath) -> Result<Self> {
+        match path {
+            EvaluationPath::Local(path) => match path.into_os_string().into_string() {
+                Ok(s) => Ok(s),
+                Err(path) => bail!(
+                    "path `{path}` cannot be represented with UTF-8",
+                    path = path.display()
+                ),
+            },
+            EvaluationPath::Remote(url) => Ok(url.into()),
+        }
     }
 }
 

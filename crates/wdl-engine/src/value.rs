@@ -12,6 +12,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use itertools::Either;
 use ordered_float::OrderedFloat;
@@ -49,8 +51,8 @@ use crate::GuestPath;
 use crate::HostPath;
 use crate::Outputs;
 use crate::TaskExecutionConstraints;
+use crate::http::Transferer;
 use crate::path;
-use crate::path::EvaluationPath;
 
 /// Implemented on coercible values.
 pub trait Coercible: Sized {
@@ -492,26 +494,127 @@ impl Value {
         }
     }
 
-    /// Mutably visits each `File` or `Directory` value contained in this value.
+    /// Visits any paths referenced by this value.
     ///
-    /// If the provided callback returns `Ok(false)`, the `File` or `Directory`
-    /// value will be replaced with `None`.
+    /// The callback is invoked for each `File` and `Directory` value referenced
+    /// by this value.
+    pub(crate) fn visit_paths<F>(&self, cb: &mut F) -> Result<()>
+    where
+        F: FnMut(bool, &HostPath) -> Result<()> + Send + Sync,
+    {
+        match self {
+            Self::Primitive(PrimitiveValue::File(path)) => cb(true, path),
+            Self::Primitive(PrimitiveValue::Directory(path)) => cb(false, path),
+            Self::Compound(v) => v.visit_paths(cb),
+            _ => Ok(()),
+        }
+    }
+
+    /// Ensures that paths referenced by any `File` or `Directory` values
+    /// referenced by this value exist.
     ///
-    /// Note that paths may be specified as URLs.
-    pub(crate) fn visit_paths_mut(
+    /// If the `File` or `Directory` value is optional and the path does not
+    /// exist, it is replaced with a WDL `None` value.
+    ///
+    /// If the `File` or `Directory` value is required and the path does not
+    /// exist, an error is returned.
+    ///
+    /// If a local base directory is provided, it will be joined with any local
+    /// paths prior to checking for existence.
+    ///
+    /// The provided transferer is used for checking remote URL existence.
+    ///
+    /// The provided path translation callback is called prior to checking for
+    /// existence.
+    pub(crate) async fn ensure_paths_exist<F>(
         &mut self,
         optional: bool,
-        cb: &mut impl FnMut(bool, &mut PrimitiveValue) -> Result<bool>,
-    ) -> Result<()> {
+        base_dir: Option<&Path>,
+        transferer: Option<&dyn Transferer>,
+        translate: &F,
+    ) -> Result<()>
+    where
+        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+    {
         match self {
-            Self::Primitive(v) => {
-                if !v.visit_paths_mut(optional, cb)? {
-                    *self = Value::new_none(v.ty().optional());
+            Self::Primitive(v @ PrimitiveValue::File(_))
+            | Self::Primitive(v @ PrimitiveValue::Directory(_)) => {
+                let (path, is_file) = match v {
+                    PrimitiveValue::File(path) => (path, true),
+                    PrimitiveValue::Directory(path) => (path, false),
+                    _ => unreachable!("not a `File` or `Directory` value"),
+                };
+
+                translate(path)?;
+
+                // If it's a file URL, check that the file exists
+                if path::is_file_url(path.as_str()) {
+                    let exists = path::parse_url(path.as_str())
+                        .and_then(|url| url.to_file_path().ok())
+                        .map(|p| p.exists())
+                        .unwrap_or(false);
+                    if exists {
+                        return Ok(());
+                    }
+
+                    if optional && !exists {
+                        *self = Value::new_none(self.ty().optional());
+                        return Ok(());
+                    }
+
+                    bail!("path `{path}` does not exist");
+                } else if path::is_url(path.as_str()) {
+                    match transferer {
+                        Some(transferer) => {
+                            let exists = transferer
+                                .exists(
+                                    &path
+                                        .as_str()
+                                        .parse()
+                                        .with_context(|| format!("invalid URL `{path}`"))?,
+                                )
+                                .await?;
+                            if exists {
+                                return Ok(());
+                            }
+
+                            if optional && !exists {
+                                *self = Value::new_none(self.ty().optional());
+                                return Ok(());
+                            }
+
+                            bail!("URL `{path}` does not exist");
+                        }
+                        None => {
+                            // Assume the URL exists
+                            return Ok(());
+                        }
+                    }
+                }
+
+                // Check for existence
+                let path: Cow<'_, Path> = base_dir
+                    .map(|d| d.join(path.as_str()).into())
+                    .unwrap_or_else(|| Path::new(path.as_str()).into());
+                if is_file && !path.is_file() {
+                    if optional {
+                        *self = Value::new_none(self.ty().optional());
+                        return Ok(());
+                    }
+
+                    bail!("file `{path}` does not exist", path = path.display());
+                } else if !is_file && !path.is_dir() {
+                    if optional {
+                        *self = Value::new_none(self.ty().optional());
+                        return Ok(());
+                    }
+
+                    bail!("directory `{path}` does not exist", path = path.display())
                 }
 
                 Ok(())
             }
-            Self::Compound(v) => v.visit_paths_mut(cb),
+            Self::Compound(v) => v.ensure_paths_exist(base_dir, transferer, translate).await,
             _ => Ok(()),
         }
     }
@@ -1108,119 +1211,6 @@ impl PrimitiveValue {
             value: self,
             context,
         }
-    }
-
-    /// Mutably visits each `File` or `Directory` value contained in this value.
-    ///
-    /// If the provided callback returns `Ok(false)`, this `File` or `Directory`
-    /// value will be replaced with `None`.
-    ///
-    /// Note that paths may be specified as URLs.
-    fn visit_paths_mut(
-        &mut self,
-        optional: bool,
-        cb: &mut impl FnMut(bool, &mut PrimitiveValue) -> Result<bool>,
-    ) -> Result<bool> {
-        match self {
-            Self::File(_) | Self::Directory(_) => cb(optional, self),
-            _ => Ok(true),
-        }
-    }
-
-    /// Performs expansions for file and directory paths.
-    ///
-    /// The path is also joined with the provided base path.
-    pub(crate) fn expand_path(&mut self, base_path: &EvaluationPath) -> Result<()> {
-        let path = match self {
-            PrimitiveValue::File(path) => path,
-            PrimitiveValue::Directory(path) => path,
-            _ => unreachable!("only file and directory values can be expanded"),
-        };
-
-        // Perform the expansion
-        if let Cow::Owned(s) = shellexpand::full(path.as_str())
-            .with_context(|| format!("failed to shell expand path `{path}`"))?
-        {
-            *Arc::make_mut(&mut path.0) = s;
-        }
-
-        // Don't join URLs
-        if path::is_url(path.as_str()) {
-            return Ok(());
-        }
-
-        // Perform the join
-        if let Some(s) = base_path.join(path.as_str())?.to_str() {
-            *Arc::make_mut(&mut path.0) = s.to_string();
-        }
-
-        Ok(())
-    }
-
-    /// Ensures a `File` or `Directory` value's path exists locally.
-    ///
-    /// If a base directory is provided, it is joined with the value's path.
-    ///
-    /// Returns `Ok(true)` if the path exists.
-    ///
-    /// Returns `Ok(false)` if the the path does not exist and the type was
-    /// optional.
-    ///
-    /// Otherwise, returns an error if the path does not exist.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the value is not a `File` or `Directory`.
-    pub(crate) fn ensure_path_exists(
-        &self,
-        optional: bool,
-        base_dir: Option<&Path>,
-    ) -> Result<bool> {
-        let (path, is_file) = match self {
-            PrimitiveValue::File(path) => (path, true),
-            PrimitiveValue::Directory(path) => (path, false),
-            _ => unreachable!("only file and directory values should be passed to the callback"),
-        };
-
-        // If it's a file URL, check that the file exists
-        if path::is_file_url(path.as_str()) {
-            let exists = path::parse_url(path.as_str())
-                .and_then(|url| url.to_file_path().ok())
-                .map(|p| p.exists())
-                .unwrap_or(false);
-            if exists {
-                return Ok(true);
-            }
-
-            if optional && !exists {
-                return Ok(false);
-            }
-
-            bail!("path `{path}` does not exist");
-        } else if path::is_url(path.as_str()) {
-            // Treat other URLs as they exist
-            return Ok(true);
-        }
-
-        // Check for existence
-        let path: Cow<'_, Path> = base_dir
-            .map(|d| d.join(path.as_str()).into())
-            .unwrap_or_else(|| Path::new(path.as_str()).into());
-        if is_file && !path.is_file() {
-            if optional {
-                return Ok(false);
-            }
-
-            bail!("file `{path}` does not exist", path = path.display());
-        } else if !is_file && !path.is_dir() {
-            if optional {
-                return Ok(false);
-            }
-
-            bail!("directory `{path}` does not exist", path = path.display())
-        }
-
-        Ok(true)
     }
 }
 
@@ -2219,89 +2209,179 @@ impl CompoundValue {
         }
     }
 
+    /// Visits any paths referenced by this value.
+    ///
+    /// The callback is invoked for each `File` and `Directory` value referenced
+    /// by this value.
+    fn visit_paths<F>(&self, cb: &mut F) -> Result<()>
+    where
+        F: FnMut(bool, &HostPath) -> Result<()> + Send + Sync,
+    {
+        match self {
+            Self::Pair(pair) => {
+                pair.left().visit_paths(cb)?;
+                pair.right().visit_paths(cb)?;
+            }
+            Self::Array(array) => {
+                for v in array.as_slice() {
+                    v.visit_paths(cb)?;
+                }
+            }
+            Self::Map(map) => {
+                for (k, v) in map.iter() {
+                    match k {
+                        Some(PrimitiveValue::File(path)) => cb(true, path)?,
+                        Some(PrimitiveValue::Directory(path)) => cb(false, path)?,
+                        _ => {}
+                    }
+
+                    v.visit_paths(cb)?;
+                }
+            }
+            Self::Object(object) => {
+                for v in object.values() {
+                    v.visit_paths(cb)?;
+                }
+            }
+            Self::Struct(s) => {
+                for v in s.values() {
+                    v.visit_paths(cb)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Mutably visits each `File` or `Directory` value contained in this value.
     ///
     /// If the provided callback returns `Ok(false)`, the `File` or `Directory`
     /// value will be replaced with `None`.
     ///
     /// Note that paths may be specified as URLs.
-    fn visit_paths_mut(
-        &mut self,
-        cb: &mut impl FnMut(bool, &mut PrimitiveValue) -> Result<bool>,
-    ) -> Result<()> {
-        match self {
-            Self::Pair(pair) => {
-                let ty = pair.ty.as_pair().expect("should be a pair type");
-                let (left_optional, right_optional) =
-                    (ty.left_type().is_optional(), ty.right_type().is_optional());
-                let values = Arc::make_mut(&mut pair.values);
-                values.0.visit_paths_mut(left_optional, cb)?;
-                values.1.visit_paths_mut(right_optional, cb)?;
-            }
-            Self::Array(array) => {
-                let ty = array.ty.as_array().expect("should be an array type");
-                let optional = ty.element_type().is_optional();
-                if let Some(elements) = &mut array.elements {
-                    for v in Arc::make_mut(elements) {
-                        v.visit_paths_mut(optional, cb)?;
-                    }
+    fn ensure_paths_exist<'a, F>(
+        &'a mut self,
+        base_dir: Option<&'a Path>,
+        transferer: Option<&'a dyn Transferer>,
+        translate: &'a F,
+    ) -> BoxFuture<'a, Result<()>>
+    where
+        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+    {
+        async move {
+            match self {
+                Self::Pair(pair) => {
+                    let ty = pair.ty.as_pair().expect("should be a pair type");
+                    let (left_optional, right_optional) =
+                        (ty.left_type().is_optional(), ty.right_type().is_optional());
+                    let values = Arc::make_mut(&mut pair.values);
+                    values
+                        .0
+                        .ensure_paths_exist(left_optional, base_dir, transferer, translate)
+                        .await?;
+                    values
+                        .1
+                        .ensure_paths_exist(right_optional, base_dir, transferer, translate)
+                        .await?;
                 }
-            }
-            Self::Map(map) => {
-                let ty = map.ty.as_map().expect("should be a map type");
-                let (key_optional, value_optional) =
-                    (ty.key_type().is_optional(), ty.value_type().is_optional());
-                if let Some(elements) = &mut map.elements {
-                    if elements
-                        .iter()
-                        .find_map(|(k, _)| {
-                            k.as_ref().map(|v| {
-                                matches!(v, PrimitiveValue::File(_) | PrimitiveValue::Directory(_))
-                            })
-                        })
-                        .unwrap_or(false)
-                    {
-                        // The key type contains a path, we need to rebuild the map to alter the
-                        // keys
-                        let elements = Arc::make_mut(elements);
-                        let new = elements
-                            .drain(..)
-                            .map(|(mut k, mut v)| {
-                                if let Some(v) = &mut k
-                                    && !v.visit_paths_mut(key_optional, cb)?
-                                {
-                                    k = None;
-                                }
-
-                                v.visit_paths_mut(value_optional, cb)?;
-                                Ok((k, v))
-                            })
-                            .collect::<Result<Vec<_>>>()?;
-                        elements.extend(new);
-                    } else {
-                        // Otherwise, we can just mutable the values in place
-                        for v in Arc::make_mut(elements).values_mut() {
-                            v.visit_paths_mut(value_optional, cb)?;
+                Self::Array(array) => {
+                    let ty = array.ty.as_array().expect("should be an array type");
+                    let optional = ty.element_type().is_optional();
+                    if let Some(elements) = &mut array.elements {
+                        for v in Arc::make_mut(elements) {
+                            v.ensure_paths_exist(optional, base_dir, transferer, translate)
+                                .await?;
                         }
                     }
                 }
-            }
-            Self::Object(object) => {
-                if let Some(members) = &mut object.members {
-                    for v in Arc::make_mut(members).values_mut() {
-                        v.visit_paths_mut(false, cb)?;
+                Self::Map(map) => {
+                    let ty = map.ty.as_map().expect("should be a map type");
+                    let (key_optional, value_optional) =
+                        (ty.key_type().is_optional(), ty.value_type().is_optional());
+                    if let Some(elements) = &mut map.elements {
+                        if elements
+                            .iter()
+                            .find_map(|(k, _)| {
+                                k.as_ref().map(|v| {
+                                    matches!(
+                                        v,
+                                        PrimitiveValue::File(_) | PrimitiveValue::Directory(_)
+                                    )
+                                })
+                            })
+                            .unwrap_or(false)
+                        {
+                            // The key type contains a path, we need to rebuild the map to alter the
+                            // keys
+                            let elements = Arc::make_mut(elements);
+                            let mut new = Vec::with_capacity(elements.len());
+                            for (mut k, mut v) in elements.drain(..) {
+                                if let Some(v) = k {
+                                    let mut v: Value = v.into();
+                                    v.ensure_paths_exist(
+                                        key_optional,
+                                        base_dir,
+                                        transferer,
+                                        translate,
+                                    )
+                                    .await?;
+                                    k = match v {
+                                        Value::None(_) => None,
+                                        Value::Primitive(v) => Some(v),
+                                        _ => unreachable!("unexpected value"),
+                                    };
+                                }
+
+                                v.ensure_paths_exist(
+                                    value_optional,
+                                    base_dir,
+                                    transferer,
+                                    translate,
+                                )
+                                .await?;
+                                new.push((k, v));
+                            }
+
+                            elements.extend(new);
+                        } else {
+                            // Otherwise, we can just mutate the values in place
+                            for v in Arc::make_mut(elements).values_mut() {
+                                v.ensure_paths_exist(
+                                    value_optional,
+                                    base_dir,
+                                    transferer,
+                                    translate,
+                                )
+                                .await?;
+                            }
+                        }
+                    }
+                }
+                Self::Object(object) => {
+                    if let Some(members) = &mut object.members {
+                        for v in Arc::make_mut(members).values_mut() {
+                            v.ensure_paths_exist(false, base_dir, transferer, translate)
+                                .await?;
+                        }
+                    }
+                }
+                Self::Struct(s) => {
+                    let ty = s.ty.as_struct().expect("should be a struct type");
+                    for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
+                        v.ensure_paths_exist(
+                            ty.members()[n].is_optional(),
+                            base_dir,
+                            transferer,
+                            translate,
+                        )
+                        .await?;
                     }
                 }
             }
-            Self::Struct(s) => {
-                let ty = s.ty.as_struct().expect("should be a struct type");
-                for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
-                    v.visit_paths_mut(ty.members()[n].is_optional(), cb)?;
-                }
-            }
-        }
 
-        Ok(())
+            Ok(())
+        }
+        .boxed()
     }
 }
 

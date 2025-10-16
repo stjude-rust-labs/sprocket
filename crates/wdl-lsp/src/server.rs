@@ -454,6 +454,13 @@ impl LanguageServer for Server {
                         },
                     ),
                 ),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                    retrigger_characters: None,
+                    work_done_progress_options: WorkDoneProgressOptions {
+                        work_done_progress: Some(false),
+                    },
+                }),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -952,6 +959,36 @@ impl LanguageServer for Server {
         let result = self
             .analyzer
             .workspace_symbol(params.query)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn signature_help(
+        &self,
+        mut params: SignatureHelpParams,
+    ) -> RpcResult<Option<SignatureHelp>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/signatureHelp` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = self
+            .analyzer
+            .signature_help(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

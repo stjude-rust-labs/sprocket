@@ -29,7 +29,7 @@ jobs:
           submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked run --release --bin ci -- bump --crates-to-bump ${{ inputs.crate }}
+      - run: cargo --locked run --release -p ci --bin ci -- bump --crates-to-bump ${{ inputs.crate }}
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:

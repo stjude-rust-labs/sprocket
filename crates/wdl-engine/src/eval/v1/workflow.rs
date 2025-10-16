@@ -67,7 +67,6 @@ use crate::EvaluationResult;
 use crate::Events;
 use crate::Inputs;
 use crate::Outputs;
-use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
@@ -1056,9 +1055,13 @@ impl WorkflowEvaluator {
             >= SupportedVersion::V1(V1::Two)
         {
             value
-                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
-                    value.ensure_path_exists(optional, state.base_dir.as_local())
-                })
+                .ensure_paths_exist(
+                    expected_ty.is_optional(),
+                    state.base_dir.as_local(),
+                    Some(state.transferer.as_ref()),
+                    &|_| Ok(()),
+                )
+                .await
                 .map_err(|e| {
                     decl_evaluation_failed(
                         e,
@@ -1120,9 +1123,13 @@ impl WorkflowEvaluator {
             >= SupportedVersion::V1(V1::Two)
         {
             value
-                .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
-                    value.ensure_path_exists(optional, state.base_dir.as_local())
-                })
+                .ensure_paths_exist(
+                    expected_ty.is_optional(),
+                    state.base_dir.as_local(),
+                    Some(state.transferer.as_ref()),
+                    &|_| Ok(()),
+                )
+                .await
                 .map_err(|e| {
                     decl_evaluation_failed(
                         e,
@@ -1176,19 +1183,19 @@ impl WorkflowEvaluator {
 
         // Finally ensure output files exist
         value
-            .visit_paths_mut(expected_ty.is_optional(), &mut |optional, value| {
-                let path = match value {
-                    PrimitiveValue::File(path) => path,
-                    PrimitiveValue::Directory(path) => path,
-                    _ => unreachable!("only file and directory values should be visited"),
-                };
+            .ensure_paths_exist(
+                expected_ty.is_optional(),
+                state.base_dir.as_local(),
+                Some(state.transferer.as_ref()),
+                &|path| {
+                    if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                        bail!("relative path `{path}` cannot be used as a workflow output");
+                    }
 
-                if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
-                    bail!("relative path `{path}` cannot be used as a workflow output");
-                }
-
-                value.ensure_path_exists(optional, state.base_dir.as_local())
-            })
+                    Ok(())
+                },
+            )
+            .await
             .map_err(|e| {
                 decl_evaluation_failed(
                     e,

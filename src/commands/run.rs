@@ -482,20 +482,19 @@ pub async fn run(args: Args) -> Result<()> {
     // Emits diagnostics for all analyzed documents
     let mut errors = 0;
     for result in &results {
-        let diagnostics = result.document().diagnostics();
-        if !diagnostics.is_empty() {
+        let mut diagnostics = result.document().diagnostics().peekable();
+        if diagnostics.peek().is_some() {
             let path = result.document().path().to_string();
             let source = result.document().root().text().to_string();
 
             errors += diagnostics
-                .iter()
                 .filter(|d| d.severity() == Severity::Error)
                 .count();
 
             emit_diagnostics(
                 &path,
                 source,
-                diagnostics,
+                result.document().diagnostics(),
                 &[],
                 args.report_mode.unwrap_or_default(),
                 args.no_color,
