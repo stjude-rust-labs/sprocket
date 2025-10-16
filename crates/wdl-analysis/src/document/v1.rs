@@ -534,12 +534,25 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         scopes: &mut Vec<Scope>,
         task_name: &Ident,
         span: Span,
+        task_type: Type,
     ) -> ScopeIndex {
         let index = add_scope(scopes, Scope::new(Some(ScopeIndex(0)), span));
 
-        // Command and output sections in 1.2 have access to the `task` variable
-        if version >= Some(SupportedVersion::V1(V1::Two)) {
-            scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Task);
+        // Insert task variable based on version and type
+        match task_type {
+            Type::TaskPreEvaluation => {
+                // Pre-evaluation task type is available in v1.3+
+                if version >= Some(SupportedVersion::V1(V1::Three)) {
+                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
+                }
+            }
+            Type::TaskPostEvaluation => {
+                // Post-evaluation task type is available in v1.2+
+                if version >= Some(SupportedVersion::V1(V1::Two)) {
+                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
+                }
+            }
+            _ => {}
         }
 
         index
@@ -604,6 +617,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
     let mut output_scope = None;
     let mut command_scope = None;
+    let mut requirements_scope = None;
+    let mut hints_scope = None;
+    let mut runtime_scope = None;
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -681,6 +697,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                             .expect("should have output section")
                             .braced_scope_span()
                             .expect("should have braced scope span"),
+                        Type::TaskPostEvaluation,
                     )
                 });
                 add_decl(
@@ -704,6 +721,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         span.expect("should have scope span"),
+                        Type::TaskPostEvaluation,
                     )
                 });
 
@@ -720,10 +738,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Runtime(section) => {
+                let scope_index = *runtime_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        Type::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the runtime section's expressions
                 let mut context = EvaluationContext::new(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
@@ -732,10 +762,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Requirements(section) => {
+                let scope_index = *requirements_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        Type::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the requirements section's expressions
                 let mut context = EvaluationContext::new(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
@@ -744,10 +786,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Hints(section) => {
+                let scope_index = *hints_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        Type::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the hints section's expressions
                 let mut context = EvaluationContext::new_for_task(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                     &task,
                 );

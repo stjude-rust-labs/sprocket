@@ -167,6 +167,37 @@ struct ConfigInner {
     /// A list of all known rule identifiers.
     #[serde(default)]
     all_rules: Vec<String>,
+    /// The set of feature flags that can be enabled or disabled.
+    #[serde(default)]
+    feature_flags: FeatureFlags,
+}
+
+/// A set of feature flags that can be enabled.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct FeatureFlags {
+    /// When available, enables experimental versions of WDL.
+    #[serde(default)]
+    experimental_versions: bool,
+}
+
+impl FeatureFlags {
+    /// Creates a new `FeatureFlags` with all features enabled.
+    pub fn all() -> Self {
+        Self {
+            experimental_versions: true,
+        }
+    }
+
+    /// Gets whether experimental versions of WDL are enabled.
+    pub fn experimental_versions(&self) -> bool {
+        self.experimental_versions
+    }
+
+    /// Returns a new `FeatureFlags` with experimental versions enabled.
+    pub fn with_experimental_versions(mut self) -> Self {
+        self.experimental_versions = true;
+        self
+    }
 }
 
 /// Configuration for analysis diagnostics.

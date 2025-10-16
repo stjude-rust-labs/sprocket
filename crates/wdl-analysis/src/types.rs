@@ -147,9 +147,13 @@ pub enum Type {
     Union,
     /// A special type that behaves like an optional `Union`.
     None,
-    /// A special hidden type for `task` that is available in command and task
-    /// output sections in WDL 1.2.
-    Task,
+    /// A special hidden type for `task` with `previous` and `attempt` that is
+    /// available in requirements, hints, and runtime sections before
+    /// evaluation.
+    TaskPreEvaluation,
+    /// A special hidden type for `task` that is available in command and output
+    /// sections after requirements evaluation.
+    TaskPostEvaluation,
     /// A special hidden type for `hints` that is available in task hints
     /// sections.
     Hints,
@@ -329,7 +333,8 @@ impl fmt::Display for Type {
             }
             Self::Union => write!(f, "Union"),
             Self::None => write!(f, "None"),
-            Self::Task => write!(f, "task"),
+            Self::TaskPreEvaluation => write!(f, "task"),
+            Self::TaskPostEvaluation => write!(f, "task"),
             Self::Hints => write!(f, "hints"),
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
@@ -346,7 +351,8 @@ impl Optional for Type {
             Self::OptionalObject | Self::None => true,
             Self::Object
             | Self::Union
-            | Self::Task
+            | Self::TaskPreEvaluation
+            | Self::TaskPostEvaluation
             | Self::Hints
             | Self::Input
             | Self::Output

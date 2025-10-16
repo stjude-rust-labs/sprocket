@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -27,8 +28,11 @@ use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
-use wdl_analysis::types::v1::task_member_type;
+use wdl_analysis::types::v1::task_task_post_evaluation_member_type;
+use wdl_analysis::types::v1::task_task_pre_evaluation_member_type;
+use wdl_analysis::types::v1::TASK_PREVIOUS_TYPE;
 use wdl_ast::AstToken;
+use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
 use wdl_ast::v1;
 use wdl_ast::v1::TASK_FIELD_ATTEMPT;
@@ -44,7 +48,9 @@ use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
+use wdl_ast::version::V1;
 
 use crate::EvaluationContext;
 use crate::GuestPath;
@@ -79,11 +85,16 @@ pub enum Value {
     Primitive(PrimitiveValue),
     /// The value is a compound value.
     Compound(CompoundValue),
-    /// The value is a task variable.
+    /// The value is a task variable before evaluation.
     ///
-    /// This value occurs only during command and output section evaluation in
+    /// This value occurs during requirements, hints, and runtime section
+    /// evaluation in WDL 1.3 tasks.
+    TaskPreEvaluation(TaskPreEvaluationValue),
+    /// The value is a task variable after evaluation.
+    ///
+    /// This value occurs during command and output section evaluation in
     /// WDL 1.2 tasks.
-    Task(TaskValue),
+    TaskPostEvaluation(TaskPostEvaluationValue),
     /// The value is a hints value.
     ///
     /// Hints values only appear in a task hints section in WDL 1.2.
@@ -143,7 +154,8 @@ impl Value {
             Self::None(ty) => ty.clone(),
             Self::Primitive(v) => v.ty(),
             Self::Compound(v) => v.ty(),
-            Self::Task(_) => Type::Task,
+            Self::TaskPreEvaluation(_) => Type::TaskPreEvaluation,
+            Self::TaskPostEvaluation(_) => Type::TaskPostEvaluation,
             Self::Hints(_) => Type::Hints,
             Self::Input(_) => Type::Input,
             Self::Output(_) => Type::Output,
@@ -418,35 +430,57 @@ impl Value {
         }
     }
 
-    /// Gets the value as a task.
+    /// Gets the value as a pre-evaluation task.
     ///
-    /// Returns `None` if the value is not a task.
-    pub fn as_task(&self) -> Option<&TaskValue> {
+    /// Returns `None` if the value is not a pre-evaluation task.
+    pub fn as_task_pre_evaluation(&self) -> Option<&TaskPreEvaluationValue> {
         match self {
-            Self::Task(v) => Some(v),
+            Self::TaskPreEvaluation(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Gets a mutable reference to the value as a task.
-    ///
-    /// Returns `None` if the value is not a task.
-    pub(crate) fn as_task_mut(&mut self) -> Option<&mut TaskValue> {
-        match self {
-            Self::Task(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    /// Unwraps the value into a task.
+    /// Unwraps the value into a pre-evaluation task.
     ///
     /// # Panics
     ///
-    /// Panics if the value is not a task.
-    pub fn unwrap_task(self) -> TaskValue {
+    /// Panics if the value is not a pre-evaluation task.
+    pub fn unwrap_task_pre_evaluation(self) -> TaskPreEvaluationValue {
         match self {
-            Self::Task(v) => v,
-            _ => panic!("value is not a task"),
+            Self::TaskPreEvaluation(v) => v,
+            _ => panic!("value is not a pre-evaluation task"),
+        }
+    }
+
+    /// Gets the value as a post-evaluation task.
+    ///
+    /// Returns `None` if the value is not a post-evaluation task.
+    pub fn as_task_post_evaluation(&self) -> Option<&TaskPostEvaluationValue> {
+        match self {
+            Self::TaskPostEvaluation(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Gets a mutable reference to the value as a post-evaluation task.
+    ///
+    /// Returns `None` if the value is not a post-evaluation task.
+    pub(crate) fn as_task_post_evaluation_mut(&mut self) -> Option<&mut TaskPostEvaluationValue> {
+        match self {
+            Self::TaskPostEvaluation(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the value into a post-evaluation task.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not a post-evaluation task.
+    pub fn unwrap_task_post_evaluation(self) -> TaskPostEvaluationValue {
+        match self {
+            Self::TaskPostEvaluation(v) => v,
+            _ => panic!("value is not a post-evaluation task"),
         }
     }
 
@@ -642,7 +676,7 @@ impl fmt::Display for Value {
             Self::None(_) => write!(f, "None"),
             Self::Primitive(v) => v.fmt(f),
             Self::Compound(v) => v.fmt(f),
-            Self::Task(_) => write!(f, "task"),
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
             Self::Hints(v) => v.fmt(f),
             Self::Input(v) => v.fmt(f),
             Self::Output(v) => v.fmt(f),
@@ -667,8 +701,8 @@ impl Coercible for Value {
             }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
-            Self::Task(_) => {
-                if matches!(target, Type::Task) {
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
+                if matches!(target, Type::TaskPreEvaluation | Type::TaskPostEvaluation) {
                     return Ok(self.clone());
                 }
 
@@ -783,12 +817,6 @@ impl From<Object> for Value {
 impl From<Struct> for Value {
     fn from(value: Struct) -> Self {
         Self::Compound(value.into())
-    }
-}
-
-impl From<TaskValue> for Value {
-    fn from(value: TaskValue) -> Self {
-        Self::Task(value)
     }
 }
 
@@ -2675,13 +2703,25 @@ impl From<Struct> for CompoundValue {
     }
 }
 
-/// Immutable data for task values.
-#[derive(Debug)]
-struct TaskData {
-    /// The name of the task.
-    name: Arc<String>,
-    /// The id of the task.
-    id: Arc<String>,
+/// Immutable data for task values before requirements evaluation (WDL 1.3+).
+///
+/// Contains only metadata that's available before evaluating
+/// requirements/hints/runtime.
+#[derive(Debug, Clone)]
+struct TaskPreEvaluationData {
+    /// The task's `meta` section as an object.
+    meta: Object,
+    /// The tasks's `parameter_meta` section as an object.
+    parameter_meta: Object,
+    /// The task's extension metadata.
+    ext: Object,
+}
+
+/// Immutable data for task values after requirements evaluation (WDL 1.2+).
+///
+/// Contains all evaluated constraint fields plus metadata.
+#[derive(Debug, Clone)]
+struct TaskPostEvaluationData {
     /// The container of the task.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
@@ -2717,13 +2757,46 @@ struct TaskData {
     ext: Object,
 }
 
-/// Represents a value for `task` variables in WDL 1.2.
+/// Represents a `task` variable value before requirements evaluation (WDL
+/// 1.3+).
+///
+/// Only exposes `name`, `id`, `attempt`, `previous`, and metadata fields.
 ///
 /// Task values are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct TaskValue {
-    /// The immutable data for task values.
-    data: Arc<TaskData>,
+pub struct TaskPreEvaluationValue {
+    /// The immutable metadata for the task.
+    data: Arc<TaskPreEvaluationData>,
+    /// The task name.
+    name: Arc<String>,
+    /// The task id.
+    id: Arc<String>,
+    /// The current task attempt count.
+    ///
+    /// The value must be 0 the first time the task is executed and incremented
+    /// by 1 each time the task is retried (if any).
+    attempt: i64,
+    /// The previous attempt's requirements (WDL 1.3+).
+    ///
+    /// Contains the evaluated requirement values from the previous attempt.
+    ///
+    /// On the first attempt, all member values are [`None`](Value::None).
+    previous: Struct,
+}
+
+/// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
+///
+/// Exposes all task fields including evaluated constraints.
+///
+/// Task values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TaskPostEvaluationValue {
+    /// The immutable data for task values including evaluated constraints.
+    data: Arc<TaskPostEvaluationData>,
+    /// The task name.
+    name: Arc<String>,
+    /// The task id.
+    id: Arc<String>,
     /// The current task attempt count.
     ///
     /// The value must be 0 the first time the task is executed and incremented
@@ -2731,23 +2804,132 @@ pub struct TaskValue {
     attempt: i64,
     /// The task's return code.
     ///
-    /// Initially set to `None`, but set after task execution completes.
+    /// Initially set to [`None`], but set after task execution completes.
     return_code: Option<i64>,
+    /// The previous attempt's requirements (WDL 1.3+).
+    ///
+    /// Contains the evaluated requirement values from the previous attempt.
+    ///
+    /// On the first attempt, all member values are [`None`](Value::None).
+    previous: Struct,
 }
 
-impl TaskValue {
-    /// Constructs a new task value with the given name and identifier.
-    pub(crate) fn new_v1<N: TreeNode>(
+/// Extracts the allowed field names from the task.previous struct type
+/// definition.
+fn extract_previous_allowed_fields(ty: &Type) -> std::collections::HashSet<String> {
+    if let Type::Compound(CompoundType::Struct(struct_ty), _) = ty {
+        struct_ty.members().keys().cloned().collect()
+    } else {
+        panic!("TASK_FIELD_PREVIOUS should be a struct type");
+    }
+}
+
+impl TaskPreEvaluationValue {
+    /// Constructs a new pre-evaluation task value with the given name and
+    /// identifier.
+    pub(crate) fn new<N: TreeNode>(
+        name: impl Into<String>,
+        id: impl Into<String>,
+        definition: &v1::TaskDefinition<N>,
+        attempt: i64,
+    ) -> Self {
+        // SAFETY: this should always have a type as it is statically defined.
+        let previous_ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
+
+        Self {
+            name: Arc::new(name.into()),
+            id: Arc::new(id.into()),
+            data: Arc::new(TaskPreEvaluationData {
+                meta: definition
+                    .metadata()
+                    .map(|s| Object::from_v1_metadata(s.items()))
+                    .unwrap_or_else(Object::empty),
+                parameter_meta: definition
+                    .parameter_metadata()
+                    .map(|s| Object::from_v1_metadata(s.items()))
+                    .unwrap_or_else(Object::empty),
+                ext: Object::empty(),
+            }),
+            attempt,
+            // SAFETY: an empty `previous` struct should always create, as all
+            // of the member types are optional.
+            previous: Struct::new(None, previous_ty, std::iter::empty::<(String, Value)>())
+                .unwrap(),
+        }
+    }
+
+    /// Sets the previous requirements for retry attempts.
+    pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
+        // SAFETY: this should always have a type as it is statically defined.
+        let ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
+
+        // Extract the allowed field names from the struct type definition
+        let allowed_fields = extract_previous_allowed_fields(&ty);
+
+        // SAFETY: an empty `previous` struct should always create, as all of
+        // the member types are optional.
+        self.previous = Struct::new(
+            None,
+            ty,
+            requirements
+                .iter()
+                .filter(|(k, _)| allowed_fields.contains(k.as_str()))
+                .map(|(k, v)| (k.as_str(), v.clone())),
+        )
+        .unwrap();
+    }
+
+    /// Gets the task name.
+    pub fn name(&self) -> &Arc<String> {
+        &self.name
+    }
+
+    /// Gets the unique ID of the task.
+    pub fn id(&self) -> &Arc<String> {
+        &self.id
+    }
+
+    /// Gets current task attempt count.
+    pub fn attempt(&self) -> i64 {
+        self.attempt
+    }
+
+    /// Accesses a field of the task value by name.
+    ///
+    /// Returns `None` if the name is not a known field name.
+    pub fn field(&self, name: &str) -> Option<Value> {
+        match name {
+            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
+            n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
+            n if n == TASK_FIELD_EXT => Some(self.data.ext.clone().into()),
+            n if n == TASK_FIELD_PREVIOUS => Some(Value::Compound(CompoundValue::Struct(
+                self.previous.clone(),
+            ))),
+            _ => None,
+        }
+    }
+}
+
+impl TaskPostEvaluationValue {
+    /// Constructs a new post-evaluation task value with the given name,
+    /// identifier, and constraints.
+    pub(crate) fn new<N: TreeNode>(
+        version: SupportedVersion,
         name: impl Into<String>,
         id: impl Into<String>,
         definition: &v1::TaskDefinition<N>,
         constraints: TaskExecutionConstraints,
         attempt: i64,
     ) -> Self {
+        let previous_ty = TASK_PREVIOUS_TYPE.clone();
+
         Self {
-            data: Arc::new(TaskData {
-                name: Arc::new(name.into()),
-                id: Arc::new(id.into()),
+            name: Arc::new(name.into()),
+            id: Arc::new(id.into()),
+            data: Arc::new(TaskPostEvaluationData {
                 container: constraints.container.map(Into::into),
                 cpu: constraints.cpu,
                 memory: constraints.memory,
@@ -2788,17 +2970,21 @@ impl TaskValue {
             }),
             attempt,
             return_code: None,
+            // SAFETY: an empty `previous` struct should always create, as all
+            // of the member types are optional.
+            previous: Struct::new(None, previous_ty, std::iter::empty::<(String, Value)>())
+                .unwrap(),
         }
     }
 
     /// Gets the task name.
     pub fn name(&self) -> &Arc<String> {
-        &self.data.name
+        &self.name
     }
 
     /// Gets the unique ID of the task.
     pub fn id(&self) -> &Arc<String> {
-        &self.data.id
+        &self.id
     }
 
     /// Gets the container in which the task is executing.
@@ -2889,15 +3075,39 @@ impl TaskValue {
         self.attempt = attempt;
     }
 
+    /// Sets the previous requirements for retry attempts.
+    pub(crate) fn set_previous(
+        &mut self,
+        version: SupportedVersion,
+        requirements: &HashMap<String, Value>,
+    ) {
+        // SAFETY: this should always have a type as it is statically defined.
+        let ty = task_task_post_evaluation_member_type(version, TASK_FIELD_PREVIOUS).unwrap();
+
+        // Extract the allowed field names from the struct type definition
+        let allowed_fields = extract_previous_allowed_fields(&ty);
+
+        // SAFETY: an empty `previous` struct should always create, as all of
+        // the member types are optional.
+        self.previous = Struct::new(
+            None,
+            ty,
+            requirements
+                .iter()
+                .filter(|(k, _)| allowed_fields.contains(k.as_str()))
+                .map(|(k, v)| (k.as_str(), v.clone())),
+        )
+        .unwrap();
+    }
+
     /// Accesses a field of the task value by name.
     ///
     /// Returns `None` if the name is not a known field name.
-    pub fn field(&self, name: &str) -> Option<Value> {
+    pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => {
-                Some(PrimitiveValue::String(self.data.name.clone()).into())
-            }
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.data.id.clone()).into()),
+            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
             n if n == TASK_FIELD_CONTAINER => Some(
                 self.data
                     .container
@@ -2905,7 +3115,7 @@ impl TaskValue {
                     .map(|c| PrimitiveValue::String(c).into())
                     .unwrap_or_else(|| {
                         Value::new_none(
-                            task_member_type(TASK_FIELD_CONTAINER)
+                            task_task_post_evaluation_member_type(version, TASK_FIELD_CONTAINER)
                                 .expect("failed to get task field type"),
                         )
                     }),
@@ -2915,11 +3125,10 @@ impl TaskValue {
             n if n == TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
             n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
             n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
             n if n == TASK_FIELD_END_TIME => {
                 Some(self.data.end_time.map(Into::into).unwrap_or_else(|| {
                     Value::new_none(
-                        task_member_type(TASK_FIELD_END_TIME)
+                        task_task_post_evaluation_member_type(version, TASK_FIELD_END_TIME)
                             .expect("failed to get task field type"),
                     )
                 }))
@@ -2927,7 +3136,7 @@ impl TaskValue {
             n if n == TASK_FIELD_RETURN_CODE => {
                 Some(self.return_code.map(Into::into).unwrap_or_else(|| {
                     Value::new_none(
-                        task_member_type(TASK_FIELD_RETURN_CODE)
+                        task_task_post_evaluation_member_type(version, TASK_FIELD_RETURN_CODE)
                             .expect("failed to get task field type"),
                     )
                 }))
@@ -2935,6 +3144,9 @@ impl TaskValue {
             n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
             n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
             n if n == TASK_FIELD_EXT => Some(self.data.ext.clone().into()),
+            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => Some(
+                Value::Compound(CompoundValue::Struct(self.previous.clone())),
+            ),
             _ => None,
         }
     }
@@ -3119,7 +3331,8 @@ impl serde::Serialize for ValueSerializer<'_> {
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
             }
-            Value::Task(_)
+            Value::TaskPreEvaluation(_)
+            | Value::TaskPostEvaluation(_)
             | Value::Hints(_)
             | Value::Input(_)
             | Value::Output(_)

@@ -1473,10 +1473,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_an_object_member(&name)),
             },
-            Value::Task(task) => match task.field(name.text()) {
+            Value::TaskPreEvaluation(task) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
             },
+            Value::TaskPostEvaluation(task) => {
+                match task.field(self.context.version(), name.text()) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(not_a_task_member(&name)),
+                }
+            }
             Value::Call(call) => match call.outputs().get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),

@@ -1,0 +1,6 @@
+error: the `task` variable does not have a member named `container`
+   ┌─ tests/tasks/path-translation/source.wdl:14:25
+   │
+14 │         echo '~{if task.container == "ubuntu:latest" then if find("~{sep=',' files}", "/mnt/task/inputs") != None then "ok!" else "bad :(" else "ok!" }'
+   │                         ^^^^^^^^^
+

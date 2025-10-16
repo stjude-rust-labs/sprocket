@@ -81,6 +81,12 @@ pub const TASK_FIELDS: &[(&str, &str)] = &[
          incremented by 1 each time the task is retried (if any).",
     ),
     (
+        TASK_FIELD_PREVIOUS,
+        "An Object containing the resource requirements from the previous task attempt. Available \
+         in requirements, hints, and runtime sections. All members are optional and None on the \
+         first attempt.",
+    ),
+    (
         TASK_FIELD_END_TIME,
         "An Int? whose value is the time by which the task must be completed, as a Unix time \
          stamp. A value of 0 means that the execution engine does not impose a time limit. A \
@@ -230,6 +236,8 @@ pub const TASK_FIELD_CPU: &str = "cpu";
 pub const TASK_FIELD_MEMORY: &str = "memory";
 /// The name of the `attempt` task variable field.
 pub const TASK_FIELD_ATTEMPT: &str = "attempt";
+/// The name of the `previous` task variable field.
+pub const TASK_FIELD_PREVIOUS: &str = "previous";
 /// The name of the `gpu` task variable field.
 pub const TASK_FIELD_GPU: &str = "gpu";
 /// The name of the `fpga` task variable field.
@@ -246,6 +254,8 @@ pub const TASK_FIELD_META: &str = "meta";
 pub const TASK_FIELD_PARAMETER_META: &str = "parameter_meta";
 /// The name of the `ext` task variable field.
 pub const TASK_FIELD_EXT: &str = "ext";
+/// The name of the `max_retries` task variable field.
+pub const TASK_FIELD_MAX_RETRIES: &str = "max_retries";
 
 /// The name of the `container` task requirement.
 pub const TASK_REQUIREMENT_CONTAINER: &str = "container";

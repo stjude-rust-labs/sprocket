@@ -1,0 +1,6 @@
+error: the `task` variable does not have a member named `memory`
+   ┌─ tests/tasks/task-scope-output/source.wdl:19:23
+   │
+19 │     Int memory = task.memory
+   │                       ^^^^^^
+

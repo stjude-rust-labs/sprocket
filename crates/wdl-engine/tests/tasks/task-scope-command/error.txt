@@ -1,0 +1,6 @@
+error: the `task` variable does not have a member named `cpu`
+   ┌─ tests/tasks/task-scope-command/source.wdl:14:22
+   │
+14 │     echo "cpu=~{task.cpu}"
+   │                      ^^^
+
