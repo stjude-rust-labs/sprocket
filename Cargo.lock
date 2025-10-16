@@ -499,6 +499,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
+name = "bytesize"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5c434ae3cf0089ca203e9019ebe529c47ff45cefe8af7c85ecb734ef541822f"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5158,6 +5167,7 @@ dependencies = [
  "approx",
  "bimap",
  "blake3",
+ "bytesize",
  "chrono",
  "cloud-copy",
  "codespan-reporting",

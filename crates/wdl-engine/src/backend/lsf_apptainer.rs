@@ -19,6 +19,7 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use anyhow::bail;
+use bytesize::ByteSize;
 use crankshaft::events::Event;
 use nonempty::NonEmpty;
 use tokio::fs::File;
@@ -37,10 +38,12 @@ use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use super::apptainer::ApptainerConfig;
+use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::config::Config;
+use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
 use crate::v1;
 
@@ -63,9 +66,9 @@ struct LsfApptainerTaskRequest {
     /// The requested container for the task.
     container: String,
     /// The requested CPU reservation for the task.
-    cpu: f64,
-    /// The requested memory reservation for the task, in bytes.
-    memory: u64,
+    required_cpu: f64,
+    /// The requested memory reservation for the task.
+    required_memory: ByteSize,
     /// The broadcast channel to update interested parties with the status of
     /// executing tasks.
     ///
@@ -78,11 +81,11 @@ struct LsfApptainerTaskRequest {
 
 impl TaskManagerRequest for LsfApptainerTaskRequest {
     fn cpu(&self) -> f64 {
-        self.cpu
+        self.required_cpu
     }
 
     fn memory(&self) -> u64 {
-        self.memory
+        self.required_memory.as_u64()
     }
 
     async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
@@ -173,7 +176,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             self.spawn_request.requirements(),
             self.spawn_request.hints(),
         ) {
-            bsub_command.arg("-q").arg(queue);
+            bsub_command.arg("-q").arg(queue.name());
         }
 
         // If GPUs are required, pass a basic `-gpu` flag to `bsub`. If this is a bare
@@ -239,7 +242,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             .arg("-R")
             .arg(format!(
                 "affinity[cpu({cpu})]",
-                cpu = self.cpu.ceil() as u64
+                cpu = self.required_cpu.ceil() as u64
             ))
             // Memory request is specified per job to avoid ambiguity on clusters which may be
             // configured to interpret memory requests as per-core or per-task. We also use an
@@ -247,7 +250,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             .arg("-R")
             .arg(format!(
                 "rusage[mem={memory_kb}KB/job]",
-                memory_kb = self.memory / 1024
+                memory_kb = self.required_memory.as_u64() / bytesize::KIB,
             ))
             .arg(apptainer_command_path);
 
@@ -392,20 +395,80 @@ impl TaskExecutionBackend for LsfApptainerBackend {
     fn constraints(
         &self,
         requirements: &std::collections::HashMap<String, crate::Value>,
-        _hints: &std::collections::HashMap<String, crate::Value>,
+        hints: &std::collections::HashMap<String, crate::Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints> {
+        let mut required_cpu = v1::cpu(requirements);
+        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+
+        // Determine whether CPU or memory limits are set for this queue, and clamp or
+        // deny them as appropriate if the limits are exceeded
+        //
+        // TODO ACF 2025-10-16: refactor so that we're not duplicating logic here (for
+        // the in-WDL `task` values) and below in `spawn` (for the actual
+        // resource request)
+        if let Some(queue) = self.backend_config.lsf_queue_for_task(requirements, hints) {
+            if let Some(max_cpu) = queue.max_cpu_per_task()
+                && required_cpu > max_cpu as f64
+            {
+                let env_specific = if self.engine_config.suppress_env_specific_output {
+                    String::new()
+                } else {
+                    format!(", but the execution backend has a maximum of {max_cpu}",)
+                };
+                match self.engine_config.task.cpu_limit_behavior {
+                    TaskResourceLimitBehavior::TryWithMax => {
+                        warn!(
+                            "task requires at least {required_cpu} CPU{s}{env_specific}",
+                            s = if required_cpu == 1.0 { "" } else { "s" },
+                        );
+                        // clamp the reported constraint to what's available
+                        required_cpu = max_cpu as f64;
+                    }
+                    TaskResourceLimitBehavior::Deny => {
+                        bail!(
+                            "task requires at least {required_cpu} CPU{s}{env_specific}",
+                            s = if required_cpu == 1.0 { "" } else { "s" },
+                        );
+                    }
+                }
+            }
+            if let Some(max_memory) = queue.max_memory_per_task()
+                && required_memory > max_memory
+            {
+                let env_specific = if self.engine_config.suppress_env_specific_output {
+                    String::new()
+                } else {
+                    format!(
+                        ", but the execution backend has a maximum of {max_memory} GiB",
+                        max_memory = max_memory.as_u64() as f64 / ONE_GIBIBYTE
+                    )
+                };
+                match self.engine_config.task.memory_limit_behavior {
+                    TaskResourceLimitBehavior::TryWithMax => {
+                        warn!(
+                            "task requires at least {required_memory} GiB of memory{env_specific}",
+                            required_memory = required_memory.as_u64() as f64 / ONE_GIBIBYTE
+                        );
+                        // clamp the reported constraint to what's available
+                        required_memory = max_memory;
+                    }
+                    TaskResourceLimitBehavior::Deny => {
+                        bail!(
+                            "task requires at least {required_memory} GiB of memory{env_specific}",
+                            required_memory = required_memory.as_u64() as f64 / ONE_GIBIBYTE
+                        );
+                    }
+                }
+            }
+        }
         Ok(super::TaskExecutionConstraints {
             container: Some(
                 v1::container(requirements, self.engine_config.task.container.as_deref())
                     .into_owned(),
             ),
-            // TODO ACF 2025-09-11: populate more meaningful values for these based on the given LSF
-            // queue. Unfortunately, it's not straightforward to ask "what's the most CPUs I can ask
-            // for and still hope to be scheduled?". A reasonable stopgap would be to make this a
-            // config parameter, but the experience would be unfortunate when having to manually
-            // update that if changing queues, or if handling multiple queues for short jobs.
-            cpu: f64::MAX,
-            memory: i64::MAX,
+            cpu: required_cpu,
+            memory: required_memory.as_u64().try_into().unwrap_or(i64::MAX),
+            // TODO ACF 2025-10-16: these are almost certainly wrong
             gpu: Default::default(),
             fpga: Default::default(),
             disks: Default::default(),
@@ -432,8 +495,68 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
         let container =
             v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
-        let cpu = v1::cpu(requirements);
-        let memory = v1::memory(requirements)? as u64;
+
+        let mut required_cpu = v1::cpu(requirements);
+        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+
+        // Determine whether CPU or memory limits are set for this queue, and clamp or
+        // deny them as appropriate if the limits are exceeded
+        if let Some(queue) = self.backend_config.lsf_queue_for_task(requirements, hints) {
+            if let Some(max_cpu) = queue.max_cpu_per_task()
+                && required_cpu > max_cpu as f64
+            {
+                let env_specific = if self.engine_config.suppress_env_specific_output {
+                    String::new()
+                } else {
+                    format!(", but the execution backend has a maximum of {max_cpu}",)
+                };
+                match self.engine_config.task.cpu_limit_behavior {
+                    TaskResourceLimitBehavior::TryWithMax => {
+                        warn!(
+                            "task requires at least {required_cpu} CPU{s}{env_specific}",
+                            s = if required_cpu == 1.0 { "" } else { "s" },
+                        );
+                        // clamp the reported constraint to what's available
+                        required_cpu = max_cpu as f64;
+                    }
+                    TaskResourceLimitBehavior::Deny => {
+                        bail!(
+                            "task requires at least {required_cpu} CPU{s}{env_specific}",
+                            s = if required_cpu == 1.0 { "" } else { "s" },
+                        );
+                    }
+                }
+            }
+            if let Some(max_memory) = queue.max_memory_per_task()
+                && required_memory > max_memory
+            {
+                let env_specific = if self.engine_config.suppress_env_specific_output {
+                    String::new()
+                } else {
+                    format!(
+                        ", but the execution backend has a maximum of {max_memory} GiB",
+                        max_memory = max_memory.as_u64() as f64 / ONE_GIBIBYTE
+                    )
+                };
+                match self.engine_config.task.memory_limit_behavior {
+                    TaskResourceLimitBehavior::TryWithMax => {
+                        warn!(
+                            "task requires at least {required_memory} GiB of memory{env_specific}",
+                            required_memory = required_memory.as_u64() as f64 / ONE_GIBIBYTE
+                        );
+                        // clamp the reported constraint to what's available
+                        required_memory = max_memory;
+                    }
+                    TaskResourceLimitBehavior::Deny => {
+                        bail!(
+                            "task requires at least {required_memory} GiB of memory{env_specific}",
+                            required_memory = required_memory.as_u64() as f64 / ONE_GIBIBYTE
+                        );
+                    }
+                }
+            }
+        }
+
         // TODO ACF 2025-09-11: I don't _think_ LSF offers a hard/soft CPU limit
         // distinction, but we could potentially use a max as part of the
         // resource request. That would likely mean using `bsub -n min,max`
@@ -459,8 +582,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 spawn_request: request,
                 name,
                 container,
-                cpu,
-                memory,
+                required_cpu,
+                required_memory,
                 crankshaft_events: self.crankshaft_events.clone(),
                 cancellation_token,
             },
@@ -483,6 +606,79 @@ impl TaskExecutionBackend for LsfApptainerBackend {
     }
 }
 
+/// Configuration for an LSF queue.
+///
+/// Each queue can optionally have per-task CPU and memory limits set so that
+/// tasks which are too large to be scheduled on that queue will fail
+/// immediately instead of pending indefinitely. In the future, these limits may
+/// be populated or validated by live information from the cluster, but
+/// for now they must be manually based on the user's understanding of the
+/// cluster configuration.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct LsfApptainerQueueConfig {
+    name: String,
+    max_cpu_per_task: Option<u64>,
+    max_memory_per_task: Option<ByteSize>,
+}
+
+impl LsfApptainerQueueConfig {
+    /// Create an [`LsfApptainerQueueConfig`].
+    pub fn new(
+        name: String,
+        max_cpu_per_task: Option<u64>,
+        max_memory_per_task: Option<ByteSize>,
+    ) -> Self {
+        Self {
+            name,
+            max_cpu_per_task,
+            max_memory_per_task,
+        }
+    }
+
+    /// The name of the queue; this is the string passed to `bsub -q
+    /// <queue_name>`.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The maximum number of CPUs this queue can provision for a single task.
+    pub fn max_cpu_per_task(&self) -> Option<u64> {
+        self.max_cpu_per_task
+    }
+
+    /// The maximum memory this queue can provision for a single task.
+    pub fn max_memory_per_task(&self) -> Option<ByteSize> {
+        self.max_memory_per_task
+    }
+
+    async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
+        let queue = self.name();
+        match tokio::time::timeout(
+            // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
+            // we don't want things to run away on a misconfigured system
+            std::time::Duration::from_secs(10),
+            Command::new("bqueues").arg(queue).output(),
+        )
+        .await
+        {
+            Ok(output) => {
+                let output = output.context("validating LSF queue")?;
+                if !output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    error!(%stdout, %stderr, %queue, "failed to validate {name}_lsf_queue");
+                    Err(anyhow!("failed to validate {name}_lsf_queue `{queue}`"))
+                } else {
+                    Ok(())
+                }
+            }
+            Err(_) => Err(anyhow!(
+                "timed out trying to validate {name}_lsf_queue `{queue}`"
+            )),
+        }
+    }
+}
+
 /// Configuration for the LSF + Apptainer backend.
 // TODO ACF 2025-09-12: add queue option for short tasks
 //
@@ -496,22 +692,22 @@ pub struct LsfApptainerBackendConfig {
     /// [`short_task_lsf_queue`][Self::short_task_lsf_queue],
     /// [`gpu_lsf_queue`][Self::gpu_lsf_queue], or
     /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for corresponding tasks.
-    pub default_lsf_queue: Option<String>,
+    pub default_lsf_queue: Option<LsfApptainerQueueConfig>,
     /// Which queue, if any, to specify when submitting [short
     /// tasks](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#short_task) to LSF.
     ///
     /// This may be superseded by [`gpu_lsf_queue`][Self::gpu_lsf_queue] or
     /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for tasks which require
     /// specialized hardware.
-    pub short_task_lsf_queue: Option<String>,
+    pub short_task_lsf_queue: Option<LsfApptainerQueueConfig>,
     /// Which queue, if any, to specify when submitting [tasks which require a
     /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
-    pub gpu_lsf_queue: Option<String>,
+    pub gpu_lsf_queue: Option<LsfApptainerQueueConfig>,
     /// Which queue, if any, to specify when submitting [tasks which require a
     /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
-    pub fpga_lsf_queue: Option<String>,
+    pub fpga_lsf_queue: Option<LsfApptainerQueueConfig>,
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
@@ -568,17 +764,17 @@ impl LsfApptainerBackendConfig {
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
         // us to get better error messages in circumstances typical to a cluster.
-        if let Some(queue) = &self.default_lsf_queue {
-            validate_lsf_queue("default", queue).await?;
+        if let Some(queue) = self.default_lsf_queue.as_ref() {
+            queue.validate("default").await?;
         }
-        if let Some(queue) = &self.short_task_lsf_queue {
-            validate_lsf_queue("short_task", queue).await?;
+        if let Some(queue) = self.short_task_lsf_queue.as_ref() {
+            queue.validate("short_task").await?;
         }
-        if let Some(queue) = &self.gpu_lsf_queue {
-            validate_lsf_queue("gpu", queue).await?;
+        if let Some(queue) = self.gpu_lsf_queue.as_ref() {
+            queue.validate("gpu").await?;
         }
-        if let Some(queue) = &self.fpga_lsf_queue {
-            validate_lsf_queue("fpga", queue).await?;
+        if let Some(queue) = self.fpga_lsf_queue.as_ref() {
+            queue.validate("fpga").await?;
         }
         Ok(())
     }
@@ -591,13 +787,13 @@ impl LsfApptainerBackendConfig {
         &self,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> Option<&str> {
+    ) -> Option<&LsfApptainerQueueConfig> {
         // TODO ACF 2025-09-26: what's the relationship between this code and
         // `TaskExecutionConstraints`? Should this be there instead, or be pulling
         // values from that instead of directly from `requirements` and `hints`?
 
         // Specialized hardware gets priority.
-        if let Some(queue) = self.fpga_lsf_queue.as_deref()
+        if let Some(queue) = self.fpga_lsf_queue.as_ref()
             && let Some(true) = requirements
                 .get(wdl_ast::v1::TASK_REQUIREMENT_FPGA)
                 .and_then(Value::as_boolean)
@@ -605,7 +801,7 @@ impl LsfApptainerBackendConfig {
             return Some(queue);
         }
 
-        if let Some(queue) = self.gpu_lsf_queue.as_deref()
+        if let Some(queue) = self.gpu_lsf_queue.as_ref()
             && let Some(true) = requirements
                 .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
                 .and_then(Value::as_boolean)
@@ -614,7 +810,7 @@ impl LsfApptainerBackendConfig {
         }
 
         // Then short tasks.
-        if let Some(queue) = self.short_task_lsf_queue.as_deref()
+        if let Some(queue) = self.short_task_lsf_queue.as_ref()
             && let Some(true) = hints
                 .get(wdl_ast::v1::TASK_HINT_SHORT_TASK)
                 .and_then(Value::as_boolean)
@@ -624,32 +820,6 @@ impl LsfApptainerBackendConfig {
 
         // Finally the default queue. If this is `None`, `bsub` gets run without a queue
         // argument and the cluster's default is used.
-        self.default_lsf_queue.as_deref()
-    }
-}
-
-async fn validate_lsf_queue(name: &str, queue: &str) -> Result<(), anyhow::Error> {
-    match tokio::time::timeout(
-        // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but we
-        // don't want things to run away on a misconfigured system
-        std::time::Duration::from_secs(10),
-        Command::new("bqueues").arg(queue).output(),
-    )
-    .await
-    {
-        Ok(output) => {
-            let output = output.context("validating LSF queue")?;
-            if !output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                error!(%stdout, %stderr, %queue, "failed to validate {name}_lsf_queue");
-                Err(anyhow!("failed to validate {name}_lsf_queue `{queue}`"))
-            } else {
-                Ok(())
-            }
-        }
-        Err(_) => Err(anyhow!(
-            "timed out trying to validate {name}_lsf_queue `{queue}`"
-        )),
+        self.default_lsf_queue.as_ref()
     }
 }
