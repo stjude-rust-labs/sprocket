@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use chrono::Local;
 use clap::Parser;
 use colored::Colorize as _;
@@ -20,26 +20,26 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
-use tracing::Level;
 use tracing::error;
+use tracing::Level;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::cli::Analysis;
-use wdl::cli::Evaluator;
-use wdl::cli::Inputs;
 use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
+use wdl::cli::Analysis;
+use wdl::cli::Evaluator;
+use wdl::cli::Inputs;
 use wdl::engine;
+use wdl::engine::config::SecretString;
+use wdl::engine::path::EvaluationPath;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::config::SecretString;
-use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
 use crate::emit_diagnostics;
+use crate::Mode;
 
 /// The delay in showing the progress bar.
 ///
@@ -288,62 +288,81 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
         )
     }
 
-    fn print_state_change(message: &str) {
-        if !atty::is(atty::Stream::Stdout) {
-            // output is redirected, so print state change to stdout
-            println!("[WF State Change {}]{}", Local::now(), message);
+    /// Helper for composing a state change message to be printed to stdout;
+    ///
+    /// `None` when nothing to print
+    fn diagnostic_message(state: &State) -> Option<String> {
+        let executing = state.executing.len();
+        let ready = state.tasks.len() - executing;
+
+        if state.completed == 0 && executing == 0 && ready == 0 {
+            // nothing to report yet
+            return None;
         }
+        Some(format!(
+            "tasks: {c} completed, {r} ready, {e} executing{sep1}{tasks}",
+            c = state.completed,
+            r = ready,
+            e = executing,
+            sep1 = if executing == 0 { "" } else { ": " },
+            tasks = Tasks(&state.executing)
+        ))
+    }
+
+    fn compose_messages(state: &State) -> (String, Option<String>) {
+        (message(state), diagnostic_message(state))
     }
 
     let mut state = State::default();
     let mut lagged = false;
 
     let initial_progress_msg = message(&state);
+    let initial_diagnostic_msg = diagnostic_message(&state);
     pb.pb_set_message(&initial_progress_msg);
-    print_state_change(&initial_progress_msg);
+    print_state_change(&initial_diagnostic_msg);
 
     pb.pb_start();
 
     loop {
         match events.recv().await {
             Ok(event) if !lagged => {
-                let message = match event {
+                let (message, diagnostic_message) = match event {
                     Event::TaskCreated { id, name, .. } => {
                         state.tasks.insert(id, name.into());
-                        message(&state)
+                        compose_messages(&state)
                     }
                     Event::TaskStarted { id } => {
                         if let Some(name) = state.tasks.get(&id).cloned() {
                             state.executing.insert(name);
                         }
-                        message(&state)
+                        compose_messages(&state)
                     }
                     Event::TaskCompleted { id, .. } => {
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
                         state.completed += 1;
-                        message(&state)
+                        compose_messages(&state)
                     }
                     Event::TaskFailed { id, .. } => {
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
                         state.failed += 1;
-                        message(&state)
+                        compose_messages(&state)
                     }
                     Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
                         if let Some(name) = state.tasks.remove(&id) {
                             state.executing.swap_remove(&name);
                         }
                         state.failed += 1;
-                        message(&state)
+                        compose_messages(&state)
                     }
                     _ => continue,
                 };
 
                 pb.pb_set_message(&message);
-                print_state_change(&message);
+                print_state_change(&diagnostic_message);
             }
             Ok(_) => continue,
             Err(RecvError::Closed) => break,
@@ -351,6 +370,20 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
                 lagged = true;
                 pb.pb_set_message(" - evaluation progress is unavailable due to missed events");
             }
+        }
+    }
+}
+
+/// Helper that outputs a diagnostic message directly to stdout
+/// if the program output is redirected.
+fn print_state_change(maybe_message: &Option<String>) {
+    if let Some(message) = maybe_message {
+        if !atty::is(atty::Stream::Stdout) {
+            // output is redirected, so print a message (if any) to stdout
+            println!(
+                "[{dt_tm}] {message}",
+                dt_tm = Local::now().format("%Y-%m-%d %H:%M:%S")
+            );
         }
     }
 }
@@ -567,6 +600,9 @@ pub async fn run(args: Args) -> Result<()> {
         ))
         .unwrap(),
     );
+
+    print_state_change(&Some(format!("running {run_kind}: {name}",
+                                     name = entrypoint)));
 
     let token = CancellationToken::new();
     let events = Events::all(EVENTS_CHANNEL_CAPACITY);

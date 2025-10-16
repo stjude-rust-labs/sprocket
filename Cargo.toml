@@ -28,6 +28,7 @@ rust-version = "1.89.0"
 ammonia = "4.1.2"
 anyhow = "1.0.98"
 approx = "0.5.1"
+atty = "0.2.14"
 bimap = "0.6.3"
 blake3 = { version = "1.8.2", features = ["mmap"] }
 chrono = "0.4.41"
@@ -144,7 +145,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
-atty = "0.2.14"
+atty.workspace = true
 chrono.workspace = true
 clap.workspace = true
 clap-verbosity-flag.workspace = true
