@@ -17,6 +17,7 @@ use std::sync::Arc;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::ensure;
 use bytesize::ByteSize;
 use crankshaft::events::Event;
 use nonempty::NonEmpty;
@@ -666,6 +667,19 @@ impl LsfApptainerQueueConfig {
     /// Validate that this LSF queue exists according to the local `bqueues`.
     async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
         let queue = self.name();
+        ensure!(!queue.is_empty(), "{name}_lsf_queue name cannot be empty");
+        if let Some(max_cpu_per_task) = self.max_cpu_per_task() {
+            ensure!(
+                max_cpu_per_task > 0,
+                "{name}_lsf_queue `{queue}` must allow at least 1 CPU to be provisioned"
+            );
+        }
+        if let Some(max_memory_per_task) = self.max_memory_per_task() {
+            ensure!(
+                max_memory_per_task.as_u64() > 0,
+                "{name}_lsf_queue `{queue}` must allow at least some memory to be provisioned"
+            );
+        }
         match tokio::time::timeout(
             // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but
             // we don't want things to run away on a misconfigured system
