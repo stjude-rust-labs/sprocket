@@ -56,6 +56,7 @@ mod visitor;
 pub use analyzer::*;
 pub use config::Config;
 pub use config::DiagnosticsConfig;
+pub use config::FeatureFlags;
 pub use document::Document;
 pub use rules::*;
 pub use validation::*;

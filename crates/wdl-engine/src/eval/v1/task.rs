@@ -862,13 +862,6 @@ impl TaskEvaluator {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        // WDL v1.3 requires experimental features to be enabled
-        if let Some(SupportedVersion::V1(V1::Three)) = document.version()
-            && !self.config.experimental_features_enabled
-        {
-            return Err(anyhow!("WDL v1.3 requires enabling experimental features").into());
-        }
-
         self.perform_evaluation(document, task, inputs, root.as_ref(), task.name())
             .await
     }

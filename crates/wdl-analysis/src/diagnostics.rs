@@ -129,13 +129,8 @@ impl From<NameContext> for Context {
 }
 
 /// Creates a "name conflict" diagnostic.
-pub fn name_conflict(
-    name: &str,
-    conflicting: Context,
-    first: Context,
-    others: Option<Vec<Context>>,
-) -> Diagnostic {
-    let mut diagnostic = Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
+pub fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagnostic {
+    Diagnostic::error(format!("conflicting {conflicting} name `{name}`"))
         .with_label(
             format!("this {conflicting} conflicts with a previously used name"),
             conflicting.span(),
@@ -143,18 +138,7 @@ pub fn name_conflict(
         .with_label(
             format!("the {first} with the conflicting name is here"),
             first.span(),
-        );
-
-    if let Some(others) = others {
-        for other in others {
-            diagnostic = diagnostic.with_label(
-                "the {other} with the conflicting name is also here",
-                other.span(),
-            )
-        }
-    }
-
-    diagnostic
+        )
 }
 
 /// Constructs a "cannot index" diagnostic.

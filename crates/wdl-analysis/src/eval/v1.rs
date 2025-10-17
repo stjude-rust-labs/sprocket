@@ -23,6 +23,7 @@ use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClause;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::NameRefExpr;
@@ -269,7 +270,6 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     .context()
                     .expect("node should have context")
                     .into(),
-                None,
             ));
             return None;
         }
@@ -474,9 +474,9 @@ pub enum WorkflowGraphNode<N: TreeNode = SyntaxNode> {
     Conditional(ConditionalStatement<N>, NodeIndex),
     /// The node represents a specific clause within a conditional statement.
     ///
-    /// Stores the parent conditional statement, clause index, and exit node
-    /// index. This allows each clause to have its own subgraph.
-    ConditionalClause(ConditionalStatement<N>, usize, NodeIndex),
+    /// Stores the clause AST node and exit node index.
+    /// This allows each clause to have its own subgraph.
+    ConditionalClause(ConditionalStatementClause<N>, NodeIndex),
     /// The node is a scatter statement.
     ///
     /// Stores the AST node along with the exit node index.
@@ -563,7 +563,9 @@ impl<N: TreeNode> fmt::Display for WorkflowGraphNode<N> {
                     .text()
             ),
             Self::Conditional(..) => write!(f, "conditional expression"),
-            Self::ConditionalClause(_, idx, _) => write!(f, "conditional clause {idx}"),
+            Self::ConditionalClause(clause, _) => {
+                write!(f, "conditional clause ({})", clause.kind())
+            }
             Self::ExitConditional(_) | Self::ExitScatter(_) => write!(f, "exit"),
         }
     }
@@ -707,13 +709,10 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     .insert(statement.inner().clone(), (entry, exit));
 
                 // Create a separate subgraph for each clause
-                for (idx, clause) in statement.clauses().enumerate() {
+                for clause in statement.clauses() {
                     // Create entry node for this specific clause
-                    let clause_entry = graph.add_node(WorkflowGraphNode::ConditionalClause(
-                        statement.clone(),
-                        idx,
-                        exit,
-                    ));
+                    let clause_entry =
+                        graph.add_node(WorkflowGraphNode::ConditionalClause(clause.clone(), exit));
 
                     // Connect main entry to clause entry node
                     graph.update_edge(entry, clause_entry, ());
@@ -760,7 +759,6 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                                 .context()
                                 .expect("node should have context")
                                 .into(),
-                            None,
                         ));
                         false
                     }
@@ -888,7 +886,6 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     name.text(),
                     node.context().expect("node should have context").into(),
                     context.into(),
-                    None,
                 ),
             };
 
@@ -935,13 +932,9 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                         self.add_expr_edges(from, expr, graph, diagnostics);
                     }
                 }
-                WorkflowGraphNode::ConditionalClause(statement, idx, _) => {
-                    // Only add edges for the expression of this specific clause
-                    if let Some(clause) = statement.clauses().nth(idx)
-                        && let Some(expr) = clause.expr()
-                    {
-                        self.add_expr_edges(from, expr, graph, diagnostics);
-                    }
+                WorkflowGraphNode::ConditionalClause(..) => {
+                    // The expression edges for conditional clauses are handled
+                    // in the [`WorkflowGraphNode::Conditional`] case.
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);

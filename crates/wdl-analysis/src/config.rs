@@ -47,6 +47,7 @@ impl Default for Config {
                 fallback_version: None,
                 ignore_filename: None,
                 all_rules: Default::default(),
+                feature_flags: FeatureFlags::default(),
             }),
         }
     }
@@ -72,6 +73,11 @@ impl Config {
     /// Gets the list of all known rule identifiers.
     pub fn all_rules(&self) -> &[String] {
         &self.inner.all_rules
+    }
+
+    /// Gets the feature flags.
+    pub fn feature_flags(&self) -> &FeatureFlags {
+        &self.inner.feature_flags
     }
 
     /// Return a new configuration with the previous [`DiagnosticsConfig`]
@@ -147,6 +153,16 @@ impl Config {
     pub fn with_all_rules(&self, rules: Vec<String>) -> Self {
         let mut inner = (*self.inner).clone();
         inner.all_rules = rules;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
+    /// Return a new configuration with the previous [`FeatureFlags`]
+    /// replaced by the argument.
+    pub fn with_feature_flags(&self, feature_flags: FeatureFlags) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.feature_flags = feature_flags;
         Self {
             inner: Arc::new(inner),
         }
