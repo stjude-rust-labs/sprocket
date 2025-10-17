@@ -81,9 +81,10 @@ use crate::ScopeRef;
 use crate::StorageUnit;
 use crate::TaskExecutionBackend;
 use crate::TaskInputs;
+use crate::TaskPostEvaluationValue;
+use crate::TaskPreEvaluationValue;
 use crate::TaskSpawnInfo;
 use crate::TaskSpawnRequest;
-use crate::TaskValue;
 use crate::Value;
 use crate::config::Config;
 use crate::config::MAX_RETRIES;
@@ -969,13 +970,21 @@ impl TaskEvaluator {
         let env = Arc::new(mem::take(&mut state.env));
         // Spawn the task in a retry loop
         let mut attempt = 0;
+        let mut previous_requirements: Option<Arc<HashMap<String, Value>>> = None;
         let mut evaluated = loop {
             let EvaluatedSections {
                 command,
                 requirements,
                 hints,
             } = self
-                .evaluate_sections(id, &mut state, &definition, inputs, attempt)
+                .evaluate_sections(
+                    id,
+                    &mut state,
+                    &definition,
+                    inputs,
+                    attempt,
+                    previous_requirements.clone(),
+                )
                 .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
@@ -1039,9 +1048,9 @@ impl TaskEvaluator {
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
-                    .unwrap()
-                    .as_task_mut()
-                    .unwrap();
+                    .expect("task variable should exist in scope for WDL v1.2+")
+                    .as_task_post_evaluation_mut()
+                    .expect("task should be a post evaluation task at this point");
 
                 task.set_attempt(attempt.try_into().with_context(|| {
                     format!(
@@ -1064,6 +1073,8 @@ impl TaskEvaluator {
                 }
 
                 attempt += 1;
+
+                previous_requirements = Some(requirements.clone());
 
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
@@ -1336,6 +1347,14 @@ impl TaskEvaluator {
             .document
             .version()
             .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             match inputs.requirement(name.text()) {
@@ -1354,7 +1373,7 @@ impl TaskEvaluator {
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
                 self.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
+                scope_index,
             ));
 
             let (types, requirement) = match task_requirement_types(version, name.text()) {
@@ -1377,7 +1396,7 @@ impl TaskEvaluator {
                                 Some(&TaskEvaluationContext::new(
                                     state,
                                     self.transferer.as_ref(),
-                                    ROOT_SCOPE_INDEX,
+                                    scope_index,
                                 )),
                                 ty,
                             )
@@ -1419,6 +1438,14 @@ impl TaskEvaluator {
             .document
             .version()
             .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             if let Some(value) = inputs.requirement(name.text()) {
@@ -1429,7 +1456,7 @@ impl TaskEvaluator {
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
                 self.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
+                scope_index,
             ));
 
             let types =
@@ -1446,7 +1473,7 @@ impl TaskEvaluator {
                             Some(&TaskEvaluationContext::new(
                                 state,
                                 self.transferer.as_ref(),
-                                ROOT_SCOPE_INDEX,
+                                scope_index,
                             )),
                             ty,
                         )
@@ -1479,6 +1506,18 @@ impl TaskEvaluator {
 
         let mut hints = HashMap::new();
 
+        let version = state
+            .document
+            .version()
+            .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access task.attempt and task.previous
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             if let Some(value) = inputs.hint(name.text()) {
@@ -1487,7 +1526,7 @@ impl TaskEvaluator {
             }
 
             let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, self.transferer.as_ref(), ROOT_SCOPE_INDEX)
+                TaskEvaluationContext::new(state, self.transferer.as_ref(), scope_index)
                     .with_task(),
             );
 
@@ -1586,8 +1625,33 @@ impl TaskEvaluator {
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
         attempt: u64,
+        previous_requirements: Option<Arc<HashMap<String, Value>>>,
     ) -> EvaluationResult<EvaluatedSections> {
-        // Start by evaluating requirements and hints
+        let version = state.document.version();
+
+        // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
+        // requirements/hints/runtime section.
+        if version >= Some(SupportedVersion::V1(V1::Three)) {
+            let mut task = TaskPreEvaluationValue::new(
+                state.task.name(),
+                id,
+                definition,
+                attempt.try_into().expect("attempt should fit in i64"),
+            );
+
+            if let Some(prev_reqs) = previous_requirements.as_deref() {
+                task.set_previous(prev_reqs);
+            }
+
+            let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];
+            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
+                *v = Value::TaskPreEvaluation(task);
+            } else {
+                scope.insert(TASK_VAR_NAME, Value::TaskPreEvaluation(task));
+            }
+        }
+
+        // Evaluate requirements and hints
         let (requirements, hints) = match definition.runtime() {
             Some(section) => self
                 .evaluate_runtime_section(id, state, &section, inputs)
@@ -1611,10 +1675,10 @@ impl TaskEvaluator {
             ),
         };
 
-        // Update or insert the `task` variable in the task scope
-        // TODO: if task variables become visible in `requirements` or `hints` section,
-        // this needs to be relocated to before we evaluate those sections
-        if state.document.version() >= Some(SupportedVersion::V1(V1::Two)) {
+        // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
+        // `tasks` which includes those calculates requirements before the
+        // command/output sections are evaluated.
+        if version >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints
             let constraints = self
                 .backend
@@ -1626,7 +1690,7 @@ impl TaskEvaluator {
                     )
                 })?;
 
-            let task = TaskValue::new_v1(
+            let mut task = TaskPostEvaluationValue::new(
                 state.task.name(),
                 id,
                 definition,
@@ -1639,11 +1703,19 @@ impl TaskEvaluator {
                 })?,
             );
 
+            // In WDL 1.3+, insert the previous requirements.
+            if let Some(version) = version
+                && version >= SupportedVersion::V1(V1::Three)
+                && let Some(prev_reqs) = previous_requirements.as_deref()
+            {
+                task.set_previous(version, prev_reqs);
+            }
+
             let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];
             if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = Value::Task(task);
+                *v = Value::TaskPostEvaluation(task);
             } else {
-                scope.insert(TASK_VAR_NAME, Value::Task(task));
+                scope.insert(TASK_VAR_NAME, Value::TaskPostEvaluation(task));
             }
         }
 

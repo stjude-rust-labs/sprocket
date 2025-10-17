@@ -46,10 +46,12 @@ use wdl_ast::v1::TASK_FIELD_EXT;
 use wdl_ast::v1::TASK_FIELD_FPGA;
 use wdl_ast::v1::TASK_FIELD_GPU;
 use wdl_ast::v1::TASK_FIELD_ID;
+use wdl_ast::v1::TASK_FIELD_MAX_RETRIES;
 use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_FPGA;
@@ -127,12 +129,73 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
-/// Gets the type of a `task` variable member type.
+
+/// The type for `task.previous`.
+pub static TASK_PREVIOUS_TYPE: LazyLock<Type> = LazyLock::new(|| {
+    Type::Compound(
+        CompoundType::Struct(Arc::new(StructType::new(
+            "TaskPrevious",
+            [
+                (
+                    TASK_FIELD_MEMORY,
+                    Type::from(PrimitiveType::Integer).optional(),
+                ),
+                (TASK_FIELD_CPU, Type::from(PrimitiveType::Float).optional()),
+                (
+                    TASK_FIELD_CONTAINER,
+                    Type::from(PrimitiveType::String).optional(),
+                ),
+                (
+                    TASK_FIELD_GPU,
+                    Type::from(PrimitiveType::Boolean).optional(),
+                ),
+                (
+                    TASK_FIELD_FPGA,
+                    Type::from(PrimitiveType::Boolean).optional(),
+                ),
+                (
+                    TASK_FIELD_DISKS,
+                    Type::Compound(
+                        CompoundType::Array(ArrayType::new(PrimitiveType::String)),
+                        false,
+                    )
+                    .optional(),
+                ),
+                (
+                    TASK_FIELD_MAX_RETRIES,
+                    Type::from(PrimitiveType::Integer).optional(),
+                ),
+            ],
+        ))),
+        false,
+    )
+});
+
+/// Gets the type of a `task` variable member for pre-evaluation contexts.
 ///
-/// `task` variables are supported in command and output sections in WDL 1.2.
+/// This is used in requirements, hints, and runtime sections where
+/// `task.previous` and `task.attempt` are available.
 ///
-/// Returns `None` if the given member name is unknown.
-pub fn task_member_type(name: &str) -> Option<Type> {
+/// Returns [`None`] if the given member name is unknown.
+pub fn task_task_pre_evaluation_member_type(name: &str) -> Option<Type> {
+    match name {
+        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        n if n == TASK_FIELD_PREVIOUS => Some(TASK_PREVIOUS_TYPE.clone()),
+        _ => None,
+    }
+}
+
+/// Gets the type of a `task` variable member for post-evaluation contexts.
+///
+/// This is used in command and output sections where all task fields are
+/// available.
+///
+/// Returns [`None`] if the given member name is unknown.
+pub fn task_task_post_evaluation_member_type(
+    version: SupportedVersion,
+    name: &str,
+) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
@@ -149,6 +212,9 @@ pub fn task_member_type(name: &str) -> Option<Type> {
         }
         n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
             Some(Type::Object)
+        }
+        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+            Some(TASK_PREVIOUS_TYPE.clone())
         }
         _ => None,
     }
@@ -1648,14 +1714,29 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let (target, name) = expr.operands();
         let ty = self.evaluate_expr(&target)?;
 
-        if matches!(ty, Type::Task) {
-            return match task_member_type(name.text()) {
-                Some(ty) => Some(ty),
-                None => {
-                    self.context.add_diagnostic(not_a_task_member(&name));
-                    return None;
-                }
-            };
+        match &ty {
+            Type::TaskPreEvaluation => {
+                return match task_task_pre_evaluation_member_type(name.text()) {
+                    Some(ty) => Some(ty),
+                    None => {
+                        self.context.add_diagnostic(not_a_task_member(&name));
+                        return None;
+                    }
+                };
+            }
+            Type::TaskPostEvaluation => {
+                return match task_task_post_evaluation_member_type(
+                    self.context.version(),
+                    name.text(),
+                ) {
+                    Some(ty) => Some(ty),
+                    None => {
+                        self.context.add_diagnostic(not_a_task_member(&name));
+                        return None;
+                    }
+                };
+            }
+            _ => {}
         }
 
         // Check to see if it's a compound type or call output

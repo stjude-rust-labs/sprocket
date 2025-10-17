@@ -1,0 +1,5 @@
+echo "task_name=test_requirements_scope"
+echo "task_attempt=0"
+echo "task_cpu=2.000000"
+echo "task_memory=256000000"
+echo "previous_memory=0"
