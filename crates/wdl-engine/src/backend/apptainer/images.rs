@@ -1,6 +1,6 @@
 //! Management of Apptainer images.
 //!
-//! This module populates and maintains explictly-converted `.sif` files and
+//! This module populates and maintains explicitly-converted `.sif` files and
 //! reuses them without inducing additional requests to the container registry.
 //!
 //! Apptainer/Singularity has its own image format, `.sif`, but can convert from
