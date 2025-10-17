@@ -37,6 +37,8 @@ task test_invalid_member {
     echo "cpu: ~{task.cpu}"
     echo "memory: ~{task.memory}"
     echo "container: ~{task.container}"
+    echo "previous_cpu: ~{select_first([task.previous.cpu, 0])}"
+    echo "previous_memory: ~{select_first([task.previous.memory, 0])}"
   >>>
 
   output {
