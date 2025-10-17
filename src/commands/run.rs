@@ -581,6 +581,7 @@ pub async fn run(args: Args) -> Result<()> {
     );
 
     let mut evaluate = evaluator.run(token.clone(), events).boxed();
+    let start_time = std::time::Instant::now();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
@@ -600,7 +601,12 @@ pub async fn run(args: Args) -> Result<()> {
 
             match res {
                 Ok(outputs) => {
+                    let execution_time = start_time.elapsed();
                     println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    println!(
+                        "Workflow finished in {:.2}s.",
+                        execution_time.as_secs_f64()
+                    );
                     Ok(())
                 }
                 Err(EvaluationError::Source(e)) => {
