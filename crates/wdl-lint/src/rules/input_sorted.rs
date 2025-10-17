@@ -183,7 +183,7 @@ fn compare_decl(a: &v1::Decl, b: &v1::Decl) -> Ordering {
     }
 }
 
-/// Ensures that input declarations are sorted
+/// Ensures that input declarations are sorted.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct InputSortedRule;
 
@@ -209,7 +209,7 @@ impl Rule for InputSortedRule {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Clarity, Tag::Sorting, Tag::Style])
+        TagSet::new(&[Tag::Clarity, Tag::Sorting])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
