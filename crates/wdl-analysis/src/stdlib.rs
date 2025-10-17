@@ -2094,6 +2094,55 @@ workflow test_sub {
             .is_none()
     );
 
+    // https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#-split
+    assert!(
+        functions
+            .insert(
+                "split",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Three))
+                        .parameter("input", PrimitiveType::String, "The input string.")
+                        .parameter("delimiter", PrimitiveType::String, "The delimiter to split on as a regular expression.")
+                        .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given the two `String` parameters `input` and `delimiter`, this function splits the input string on the provided delimiter and stores the results in a `Array[String]`. `delimiter` is a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) and is evaluated as a [POSIX Extended Regular Expression (ERE)](https://en.wikipedia.org/wiki/Regular_expression#POSIX_basic_and_extended).
+Regular expressions are written using regular WDL strings, so backslash characters need to be double-escaped (e.g., `"\\t"`).
+
+**Parameters**:
+
+1. `String`: the input string.
+2. `String`: the delimiter to split on as a regular expression.
+
+**Returns**: the parts of the input string split by the delimiter. If the input delimiter does not match anything in the input string, an array containing a single entry of the input string is returned.
+
+<details>
+<summary>
+Example: test_split.wdl
+
+```wdl
+version 1.3
+
+workflow test_split {
+  String in = "Here's an example\nthat takes up multiple lines"
+
+  output {
+    Array[String] split_by_word = split(in, " ")
+    Array[String] split_by_newline = split(in, "\\n")
+    Array[String] split_by_both = split(in, "\s")
+  }
+}
+```
+"#
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     const BASENAME_DEFINITION: &str = r#"
 Returns the "basename" of a file or directory - the name after the last directory separator in the path. 
 
@@ -5005,6 +5054,7 @@ mod test {
                 "find(input: String, pattern: String) -> String?",
                 "matches(input: String, pattern: String) -> Boolean",
                 "sub(input: String, pattern: String, replace: String) -> String",
+                "split(input: String, delimiter: String) -> Array[String]",
                 "basename(path: File, <suffix: String>) -> String",
                 "basename(path: String, <suffix: String>) -> String",
                 "basename(path: Directory, <suffix: String>) -> String",
