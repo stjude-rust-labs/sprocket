@@ -1,5 +1,3 @@
-#![allow(clippy::missing_docs_in_private_items)]
-
 //! Experimental LSF + Apptainer (aka Singularity) task execution backend.
 //!
 //! This experimental backend submits each task as an LSF job which invokes
@@ -55,10 +53,15 @@ const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 /// See <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-j>.
 const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
+/// A request to execute a task on an LSF + Apptainer backend.
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
+    /// The desired configuration of the backend.
     backend_config: Arc<LsfApptainerBackendConfig>,
+    /// The name of the task, potentially truncated to fit within the LSF job
+    /// name length limit.
     name: String,
+    /// The task spawn request.
     spawn_request: TaskSpawnRequest,
     /// The requested container for the task.
     container: String,
@@ -73,6 +76,7 @@ struct LsfApptainerTaskRequest {
     /// machinery, but we send rudimentary messages on this channel which helps
     /// with UI presentation.
     crankshaft_events: Option<broadcast::Sender<Event>>,
+    /// The cancellation token for this task execution request.
     cancellation_token: CancellationToken,
 }
 
@@ -358,9 +362,13 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
 /// See the module-level documentation for details.
 #[derive(Debug)]
 pub struct LsfApptainerBackend {
+    /// The configuration of the overall engine being executed.
     engine_config: Arc<Config>,
+    /// The configuration of this backend.
     backend_config: Arc<LsfApptainerBackendConfig>,
+    /// The task manager for the backend.
     manager: TaskManager<LsfApptainerTaskRequest>,
+    /// Sender for crankshaft events.
     crankshaft_events: Option<broadcast::Sender<Event>>,
 }
 
@@ -628,6 +636,7 @@ impl LsfApptainerBackendConfig {
     }
 }
 
+/// Validate that the given LSF queue exists according to the local `bqueues`.
 async fn validate_lsf_queue(name: &str, queue: &str) -> Result<(), anyhow::Error> {
     match tokio::time::timeout(
         // 10 seconds is rather arbitrary; `bqueues` ordinarily returns extremely quickly, but we

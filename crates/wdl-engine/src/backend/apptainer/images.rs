@@ -72,10 +72,17 @@ use tracing::warn;
 
 use super::ApptainerConfig;
 
+/// The path to the global cache of `.sif`-format container images.
 static APPTAINER_IMAGES_DIR: OnceCell<PathBuf> = OnceCell::const_new();
+/// A global map from container strings to paths pointing to the `.sif` version
+/// of that container.
 static APPTAINER_IMAGES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Get the directory containing converted `.sif`-format container images.
+///
+/// See the module-level documentation for details about the current behavior,
+/// which unfortunately depends on global variables.
 pub(crate) async fn global_apptainer_images_dir(
     config: &ApptainerConfig,
 ) -> Result<&'static Path, anyhow::Error> {
@@ -98,6 +105,8 @@ pub(crate) async fn global_apptainer_images_dir(
         .map(|buf| buf.as_path())
 }
 
+/// Get the path to the container image in `.sif` format, potentially performing
+/// an `apptainer pull` if the image cache has not already been populated.
 pub(crate) async fn sif_for_container(
     config: &ApptainerConfig,
     container: &str,
