@@ -1048,9 +1048,9 @@ impl TaskEvaluator {
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
-                    .unwrap()
+                    .expect("task variable should exist in scope for WDL v1.2+")
                     .as_task_post_evaluation_mut()
-                    .unwrap();
+                    .expect("task should be a post evaluation task at this point");
 
                 task.set_attempt(attempt.try_into().with_context(|| {
                     format!(
@@ -1627,9 +1627,11 @@ impl TaskEvaluator {
         attempt: u64,
         previous_requirements: Option<Arc<HashMap<String, Value>>>,
     ) -> EvaluationResult<EvaluatedSections> {
+        let version = state.document.version();
+
         // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
         // requirements/hints/runtime section.
-        if state.document.version() >= Some(SupportedVersion::V1(V1::Three)) {
+        if version >= Some(SupportedVersion::V1(V1::Three)) {
             let mut task = TaskPreEvaluationValue::new(
                 state.task.name(),
                 id,
@@ -1676,7 +1678,7 @@ impl TaskEvaluator {
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
         // `tasks` which includes those calculates requirements before the
         // command/output sections are evaluated.
-        if state.document.version() >= Some(SupportedVersion::V1(V1::Two)) {
+        if version >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints
             let constraints = self
                 .backend
@@ -1689,7 +1691,6 @@ impl TaskEvaluator {
                 })?;
 
             let mut task = TaskPostEvaluationValue::new(
-                state.document.version().expect("document should have a version"),
                 state.task.name(),
                 id,
                 definition,
@@ -1703,7 +1704,7 @@ impl TaskEvaluator {
             );
 
             // In WDL 1.3+, preserve the previous requirements from the pre-evaluation task.
-            if let Some(version) = state.document.version()
+            if let Some(version) = version
                 && version >= SupportedVersion::V1(V1::Three)
                 && let Some(prev_reqs) = previous_requirements.as_deref()
             {

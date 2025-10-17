@@ -28,9 +28,9 @@ use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
+use wdl_analysis::types::v1::TASK_PREVIOUS_TYPE;
 use wdl_analysis::types::v1::task_task_post_evaluation_member_type;
 use wdl_analysis::types::v1::task_task_pre_evaluation_member_type;
-use wdl_analysis::types::v1::TASK_PREVIOUS_TYPE;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
@@ -88,12 +88,12 @@ pub enum Value {
     /// The value is a task variable before evaluation.
     ///
     /// This value occurs during requirements, hints, and runtime section
-    /// evaluation in WDL 1.3 tasks.
+    /// evaluation in WDL 1.3+ tasks.
     TaskPreEvaluation(TaskPreEvaluationValue),
     /// The value is a task variable after evaluation.
     ///
     /// This value occurs during command and output section evaluation in
-    /// WDL 1.2 tasks.
+    /// WDL 1.2+ tasks.
     TaskPostEvaluation(TaskPostEvaluationValue),
     /// The value is a hints value.
     ///
@@ -2917,7 +2917,6 @@ impl TaskPostEvaluationValue {
     /// Constructs a new post-evaluation task value with the given name,
     /// identifier, and constraints.
     pub(crate) fn new<N: TreeNode>(
-        version: SupportedVersion,
         name: impl Into<String>,
         id: impl Into<String>,
         definition: &v1::TaskDefinition<N>,

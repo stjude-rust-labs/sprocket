@@ -535,16 +535,15 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     ) -> ScopeIndex {
         let index = add_scope(scopes, Scope::new(Some(ScopeIndex(0)), span));
 
-        // Insert task variable based on version and type
         match task_type {
             Type::TaskPreEvaluation => {
-                // Pre-evaluation task type is available in v1.3+
+                // Pre-evaluation task type is available in v1.3+.
                 if version >= Some(SupportedVersion::V1(V1::Three)) {
                     scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
                 }
             }
             Type::TaskPostEvaluation => {
-                // Post-evaluation task type is available in v1.2+
+                // Post-evaluation task type is available in v1.2+.
                 if version >= Some(SupportedVersion::V1(V1::Two)) {
                     scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
                 }
