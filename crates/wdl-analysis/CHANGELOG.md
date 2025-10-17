@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * Refactored `ScopeUnion` to use `ScopeRef` instead of direct slice indexing, allowing it to be reused in the runtime engine for proper type reconciliation across conditional branches ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* Made `Scope`, `ScopeIndex`, and `ScopeRef::new()` public to support cross-crate usage ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 
 ## 0.14.0 - 10-14-2025
 

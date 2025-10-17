@@ -1260,210 +1260,139 @@ impl WorkflowEvaluator {
         stmt: &ConditionalStatement<SyntaxNode>,
         max_concurrency: u64,
     ) -> EvaluationResult<()> {
-        // Build a map from clause inner node to graph node index
-        let clause_map: HashMap<_, _> = state
-            .graph
-            .edges_directed(entry, Direction::Outgoing)
-            .filter_map(|edge| {
-                let target = edge.target();
-                match &state.graph[target] {
-                    WorkflowGraphNode::ConditionalClause(clause, _) => {
-                        Some((clause.inner().clone(), target))
-                    }
-                    _ => None,
-                }
-            })
-            .collect();
+        let mut scope_union = ScopeUnion::new();
+        for clause in stmt.clauses() {
+            if let Some(braced_scope_span) = clause.braced_scope_span() {
+                let clause_scope = state
+                    .document
+                    .find_scope_by_position(braced_scope_span.start())
+                    .expect("should have scope");
+
+                scope_union.insert(
+                    clause_scope,
+                    matches!(clause.kind(), ConditionalStatementClauseKind::Else),
+                );
+            }
+        }
+
+        let all_names = scope_union
+            .resolve()
+            .expect("scope union should resolve without errors");
 
         for clause in stmt.clauses() {
-            let clause_node = clause_map[clause.inner()];
-            let kind = clause.kind();
+            let clause_node = state
+                .graph
+                .edges_directed(entry, Direction::Outgoing)
+                .find_map(|edge| {
+                    let target = edge.target();
+                    match &state.graph[target] {
+                        WorkflowGraphNode::ConditionalClause(c, _)
+                            if c.inner() == clause.inner() =>
+                        {
+                            Some(target)
+                        }
+                        _ => None,
+                    }
+                })
+                .expect("clause node should exist in graph");
+            // Check if the clause has an expression to evaluate
+            if let Some(expr) = clause.expr() {
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = state.document.workflow().unwrap().name(),
+                    document = state.document.uri().as_str(),
+                    expr = expr.text().to_string(),
+                    "evaluating conditional statement expression",
+                );
 
-            match kind {
-                ConditionalStatementClauseKind::If | ConditionalStatementClauseKind::ElseIf => {
-                    let expr = clause
-                        .expr()
-                        .unwrap_or_else(|| panic!("expression to exist for {kind}"));
+                // Evaluate the conditional expression
+                let value = Self::evaluate_expr(&state, parent, &expr)
+                    .await
+                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
 
-                    debug!(
-                        workflow_id = id.as_str(),
-                        workflow_name = state.document.workflow().unwrap().name(),
-                        document = state.document.uri().as_str(),
-                        expr = expr.text().to_string(),
-                        "evaluating conditional statement {kind}",
-                    );
-
-                    // Evaluate the conditional expression
-                    let value = Self::evaluate_expr(&state, parent, &expr)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-
-                    if value
-                        .coerce(None, &PrimitiveType::Boolean.into())
-                        .map_err(|e| {
-                            EvaluationError::new(
-                                state.document.clone(),
-                                if_conditional_mismatch(e, &value.ty(), expr.span()),
-                            )
-                        })?
-                        .unwrap_boolean()
-                    {
-                        debug!(
-                            workflow_id = id.as_str(),
-                            workflow_name = state.document.workflow().unwrap().name(),
-                            document = state.document.uri().as_str(),
-                            expr = expr.text().to_string(),
-                            "conditional statement {kind} branch was taken and subgraph will be \
-                             evaluated"
-                        );
-
-                        // Intentionally drop the write lock before evaluating the subgraph
-                        let scope = { state.scopes.write().await.alloc(parent) };
-
-                        // Evaluate this clause's subgraph
-                        Self::evaluate_subgraph(
-                            state.clone(),
-                            scope,
-                            state.subgraphs[&clause_node].clone(),
-                            max_concurrency,
-                            id,
+                // Coerce to boolean and check if the branch should be taken
+                if !value
+                    .coerce(None, &PrimitiveType::Boolean.into())
+                    .map_err(|e| {
+                        EvaluationError::new(
+                            state.document.clone(),
+                            if_conditional_mismatch(e, &value.ty(), expr.span()),
                         )
-                        .await?;
-
-                        let mut scopes = state.scopes.write().await;
-
-                        let mut scope_union = ScopeUnion::new();
-                        for clause in stmt.clauses() {
-                            if let Some(braced_scope_span) = clause.braced_scope_span() {
-                                let clause_scope = state
-                                    .document
-                                    .find_scope_by_position(braced_scope_span.start())
-                                    .expect("should have scope");
-
-                                scope_union.insert(
-                                    clause_scope,
-                                    matches!(clause.kind(), ConditionalStatementClauseKind::Else),
-                                );
-                            }
-                        }
-
-                        let all_names = scope_union
-                            .resolve()
-                            .expect("scope union should resolve without errors");
-
-                        let (parent, child) = scopes.parent_mut(scope);
-
-                        for (name, name_info) in all_names {
-                            let value = child
-                                .local()
-                                .find(|(n, _)| *n == name)
-                                .map(|(_, v)| v.clone());
-
-                            if let Some(value) = value {
-                                parent.insert(name, value);
-                            } else if let Type::Call(call_ty) = &name_info.ty() {
-                                parent.insert(
-                                    name,
-                                    CallValue::new_unchecked(
-                                        call_ty.clone(),
-                                        Outputs::from_iter(call_ty.outputs().iter().map(
-                                            |(n, o)| (n.clone(), Value::new_none(o.ty().clone())),
-                                        ))
-                                        .into(),
-                                    ),
-                                );
-                            } else {
-                                parent.insert(name, Value::new_none(name_info.ty().clone()));
-                            }
-                        }
-
-                        scopes.free(scope);
-                        return Ok(());
-                    } else {
-                        debug!(
-                            workflow_id = id.as_str(),
-                            workflow_name = state.document.workflow().unwrap().name(),
-                            document = state.document.uri().as_str(),
-                            "conditional statement {kind} branch was not taken and subgraph will \
-                             be skipped"
-                        );
-                    }
-                }
-                ConditionalStatementClauseKind::Else => {
+                    })?
+                    .unwrap_boolean()
+                {
                     debug!(
                         workflow_id = id.as_str(),
                         workflow_name = state.document.workflow().unwrap().name(),
                         document = state.document.uri().as_str(),
-                        "conditional statement {kind} branch was taken and subgraph will be \
-                         evaluated"
+                        "conditional statement branch was not taken and subgraph will be skipped"
                     );
+                    continue;
+                }
 
-                    // Intentionally drop the write lock before evaluating the subgraph
-                    let scope = { state.scopes.write().await.alloc(parent) };
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = state.document.workflow().unwrap().name(),
+                    document = state.document.uri().as_str(),
+                    expr = expr.text().to_string(),
+                    "conditional statement branch was taken and subgraph will be evaluated"
+                );
+            } else {
+                // No expression means this is an else clause
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = state.document.workflow().unwrap().name(),
+                    document = state.document.uri().as_str(),
+                    "else branch was taken and subgraph will be evaluated"
+                );
+            }
 
-                    // Evaluate this clause's subgraph
-                    Self::evaluate_subgraph(
-                        state.clone(),
-                        scope,
-                        state.subgraphs[&clause_node].clone(),
-                        max_concurrency,
-                        id,
-                    )
-                    .await?;
+            // If we reach here, this clause should be executed
+            // Intentionally drop the write lock before evaluating the subgraph
+            let scope = { state.scopes.write().await.alloc(parent) };
 
-                    // Promote all values in the scope to the parent scope
-                    let mut scopes = state.scopes.write().await;
+            // Evaluate this clause's subgraph
+            Self::evaluate_subgraph(
+                state.clone(),
+                scope,
+                state.subgraphs[&clause_node].clone(),
+                max_concurrency,
+                id,
+            )
+            .await?;
 
-                    // Collect all names from all clauses
-                    let mut all_names: HashMap<String, Type> = HashMap::new();
-                    for clause in stmt.clauses() {
-                        if let Some(braced_scope_span) = clause.braced_scope_span() {
-                            let clause_scope = state
-                                .document
-                                .find_scope_by_position(braced_scope_span.start())
-                                .expect("should have scope");
+            let mut scopes = state.scopes.write().await;
+            let (parent, child) = scopes.parent_mut(scope);
 
-                            for (name, n) in clause_scope.names() {
-                                all_names.insert(name.to_string(), n.ty().clone());
-                            }
-                        }
-                    }
+            for (name, name_info) in all_names {
+                let value = child
+                    .local()
+                    .find(|(n, _)| *n == name)
+                    .map(|(_, v)| v.clone());
 
-                    let (parent, child) = scopes.parent_mut(scope);
-
-                    // First, promote all values that were defined in the taken branch
-                    let mut defined_names: HashSet<String> = HashSet::new();
-                    for (name, value) in child.local() {
-                        parent.insert(name.to_string(), value.clone());
-                        defined_names.insert(name.to_string());
-                    }
-
-                    // Then, set any names from other branches to `None`
-                    for (name, ty) in all_names {
-                        if !defined_names.contains(&name) {
-                            if let Type::Call(call_ty) = ty {
-                                parent.insert(
-                                    name,
-                                    CallValue::new_unchecked(
-                                        call_ty.optional(),
-                                        Outputs::from_iter(call_ty.outputs().iter().map(
-                                            |(n, o)| {
-                                                (n.clone(), Value::new_none(o.ty().optional()))
-                                            },
-                                        ))
-                                        .into(),
-                                    ),
-                                );
-                            } else {
-                                parent.insert(name, Value::new_none(ty.optional()));
-                            }
-                        }
-                    }
-
-                    scopes.free(scope);
-                    return Ok(());
+                if let Some(value) = value {
+                    parent.insert(name, value);
+                } else if let Type::Call(call_ty) = &name_info.ty() {
+                    parent.insert(
+                        name,
+                        CallValue::new_unchecked(
+                            call_ty.clone(),
+                            Outputs::from_iter(
+                                call_ty
+                                    .outputs()
+                                    .iter()
+                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
+                            )
+                            .into(),
+                        ),
+                    );
+                } else {
+                    parent.insert(name, Value::new_none(name_info.ty().clone()));
                 }
             }
+
+            scopes.free(scope);
+            return Ok(());
         }
 
         debug!(
@@ -1478,39 +1407,24 @@ impl WorkflowEvaluator {
         let mut scopes = state.scopes.write().await;
         let parent = scopes.get_mut(parent);
 
-        // Collect all unique names across all clauses
-        let mut all_names: HashMap<String, Type> = HashMap::new();
-        for clause in stmt.clauses() {
-            if let Some(braced_scope_span) = clause.braced_scope_span() {
-                let scope = state
-                    .document
-                    .find_scope_by_position(braced_scope_span.start())
-                    .expect("should have scope");
-
-                for (name, n) in scope.names() {
-                    all_names.insert(name.to_string(), n.ty().clone());
-                }
-            }
-        }
-
         // Set all names to `None` with appropriate types
-        for (name, ty) in all_names {
-            if let Type::Call(call_ty) = ty {
+        for (name, name_info) in all_names {
+            if let Type::Call(call_ty) = name_info.ty() {
                 parent.insert(
                     name,
                     CallValue::new_unchecked(
-                        call_ty.optional(),
+                        call_ty.clone(),
                         Outputs::from_iter(
                             call_ty
                                 .outputs()
                                 .iter()
-                                .map(|(n, o)| (n.clone(), Value::new_none(o.ty().optional()))),
+                                .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
                         )
                         .into(),
                     ),
                 );
             } else {
-                parent.insert(name, Value::new_none(ty.optional()));
+                parent.insert(name, Value::new_none(name_info.ty().clone()));
             }
         }
 

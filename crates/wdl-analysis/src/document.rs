@@ -158,7 +158,7 @@ impl Name {
 
 /// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ScopeIndex(pub usize);
+pub struct ScopeIndex(usize);
 
 /// Represents a scope in a WDL document.
 #[derive(Debug)]
@@ -200,7 +200,7 @@ pub struct ScopeRef<'a> {
 
 impl<'a> ScopeRef<'a> {
     /// Creates a new scope reference given the scope index.
-    pub fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
+    fn new(scopes: &'a [Scope], index: ScopeIndex) -> Self {
         Self { scopes, index }
     }
 
@@ -301,8 +301,8 @@ impl<'a> ScopeRefMut<'a> {
 }
 
 /// A scope union takes the union of names within a number of given scopes and
-/// computes a set of common output names for a (presumed parent) scope. This
-/// is useful when calculating common elements from, for example, an `if`
+/// computes a set of common output names for a presumed parent scope. This is
+/// useful when calculating common elements from, for example, an `if`
 /// statement within a workflow.
 #[derive(Debug)]
 pub struct ScopeUnion<'a> {
