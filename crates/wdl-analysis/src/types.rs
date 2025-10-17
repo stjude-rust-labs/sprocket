@@ -147,12 +147,11 @@ pub enum Type {
     Union,
     /// A special type that behaves like an optional `Union`.
     None,
-    /// A special hidden type for `task` with `previous` and `attempt` that is
-    /// available in requirements, hints, and runtime sections before
-    /// evaluation.
+    /// A special hidden type for `task` that is available in requirements,
+    /// hints, and runtime sections before constraint evaluation.
     TaskPreEvaluation,
     /// A special hidden type for `task` that is available in command and output
-    /// sections after requirements evaluation.
+    /// sections after constraint evaluation.
     TaskPostEvaluation,
     /// A special hidden type for `hints` that is available in task hints
     /// sections.

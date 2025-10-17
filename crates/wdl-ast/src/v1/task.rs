@@ -83,8 +83,8 @@ pub const TASK_FIELDS: &[(&str, &str)] = &[
     (
         TASK_FIELD_PREVIOUS,
         "An Object containing the resource requirements from the previous task attempt. Available \
-         in requirements, hints, and runtime sections. All members are optional and None on the \
-         first attempt.",
+         in requirements, hints, runtime, output, and command sections. All constituent members \
+         are optional and `None` on the first attempt.",
     ),
     (
         TASK_FIELD_END_TIME,

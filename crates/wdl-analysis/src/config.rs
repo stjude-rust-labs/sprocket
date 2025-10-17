@@ -197,7 +197,9 @@ pub struct FeatureFlags {
 }
 
 impl FeatureFlags {
-    /// Creates a new `FeatureFlags` with all features enabled.
+    /// Creates a new [`FeatureFlags`] with all features enabled.
+    ///
+    /// This is useful when running tests downstream.
     pub fn all() -> Self {
         Self {
             experimental_versions: true,

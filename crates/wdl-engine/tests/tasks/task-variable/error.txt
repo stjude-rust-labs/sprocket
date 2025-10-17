@@ -1,6 +1,0 @@
-error: the `task` variable does not have a member named `meta`
-   ┌─ tests/tasks/task-variable/source.wdl:11:36
-   │
-11 │     echo "Task description: ~{task.meta.description}"
-   │                                    ^^^^
-

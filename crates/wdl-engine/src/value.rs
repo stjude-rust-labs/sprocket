@@ -2719,7 +2719,7 @@ struct TaskPreEvaluationData {
 
 /// Immutable data for task values after requirements evaluation (WDL 1.2+).
 ///
-/// Contains all evaluated constraint fields plus metadata.
+/// Contains all evaluated requirement fields plus metadata.
 #[derive(Debug, Clone)]
 struct TaskPostEvaluationData {
     /// The container of the task.
@@ -2780,7 +2780,8 @@ pub struct TaskPreEvaluationValue {
     ///
     /// Contains the evaluated requirement values from the previous attempt.
     ///
-    /// On the first attempt, all member values are [`None`](Value::None).
+    /// On the first attempt, all constituent member values are
+    /// [`None`](Value::None).
     previous: Struct,
 }
 
@@ -2791,7 +2792,7 @@ pub struct TaskPreEvaluationValue {
 /// Task values are cheap to clone.
 #[derive(Debug, Clone)]
 pub struct TaskPostEvaluationValue {
-    /// The immutable data for task values including evaluated constraints.
+    /// The immutable data for task values including evaluated requirements.
     data: Arc<TaskPostEvaluationData>,
     /// The task name.
     name: Arc<String>,
@@ -2810,7 +2811,8 @@ pub struct TaskPostEvaluationValue {
     ///
     /// Contains the evaluated requirement values from the previous attempt.
     ///
-    /// On the first attempt, all member values are [`None`](Value::None).
+    /// On the first attempt, all constituent member values are
+    /// [`None`](Value::None).
     previous: Struct,
 }
 
@@ -2820,7 +2822,7 @@ fn extract_previous_allowed_fields(ty: &Type) -> std::collections::HashSet<Strin
     if let Type::Compound(CompoundType::Struct(struct_ty), _) = ty {
         struct_ty.members().keys().cloned().collect()
     } else {
-        panic!("TASK_FIELD_PREVIOUS should be a struct type");
+        panic!("`TASK_FIELD_PREVIOUS` should be a struct type");
     }
 }
 
@@ -2833,7 +2835,7 @@ impl TaskPreEvaluationValue {
         definition: &v1::TaskDefinition<N>,
         attempt: i64,
     ) -> Self {
-        // SAFETY: this should always have a type as it is statically defined.
+        // SAFETY: this should always have a type in a pre-evaluation context.
         let previous_ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
 
         Self {
@@ -2860,7 +2862,7 @@ impl TaskPreEvaluationValue {
 
     /// Sets the previous requirements for retry attempts.
     pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
-        // SAFETY: this should always have a type as it is statically defined.
+        // SAFETY: this should always have a type in a pre-evaluation context.
         let ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
 
         // Extract the allowed field names from the struct type definition

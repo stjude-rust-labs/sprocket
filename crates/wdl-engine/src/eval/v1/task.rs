@@ -1703,7 +1703,7 @@ impl TaskEvaluator {
                 })?,
             );
 
-            // In WDL 1.3+, preserve the previous requirements from the pre-evaluation task.
+            // In WDL 1.3+, insert the previous requirements.
             if let Some(version) = version
                 && version >= SupportedVersion::V1(V1::Three)
                 && let Some(prev_reqs) = previous_requirements.as_deref()

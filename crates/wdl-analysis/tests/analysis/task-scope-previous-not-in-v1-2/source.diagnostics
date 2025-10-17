@@ -1,6 +1,6 @@
 error: the `task` variable does not have a member named `previous`
-  ┌─ tests/analysis/task-scope-previous-not-in-v1-2/source.wdl:8:17
+  ┌─ tests/analysis/task-scope-previous-not-in-v1-2/source.wdl:9:17
   │
-8 │     echo ~{task.previous.memory}
+9 │     echo ~{task.previous.memory}
   │                 ^^^^^^^^
 
