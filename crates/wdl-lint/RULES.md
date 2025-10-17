@@ -18,7 +18,7 @@ This table documets all implemented `sprocket` lin rules impleemnted on the `mai
 | `DeprecatedPlaceholder`     | Deprecated                                                  | Detects the use of a deprecated placeholder options                                          |
 | `DescriptionLength`         | SprocketCompatibility                                       | Ensures that description meta entries are not too long for display in Sprocket documentation |
 | `DoubleQuotes`              | Style, Clarity                                              | Detects strings that are not defined with double quotes                                      |
-| `ElementSpacing`            | Spacing                                                     | Ensures proper blank space between elements                                                  |
+| `ElementSpacing`            | Spacing, Style                                              | Ensures proper blank space between elements                                                  |
 | `EndingNewline`             | Spacing, Portability                                        | Detects missing newline at the end of the document                                           |
 | `ExpectedRuntimeKeys`       | Completeness, Deprecated                                    | Detects the use of deprecated, unknown, or missing runtime keys                              |
 | `ExpressionSpacing`         | Spacing, Style                                              | Detects improperly spaced expressions                                                        |
@@ -33,7 +33,7 @@ This table documets all implemented `sprocket` lin rules impleemnted on the `mai
 | `LintDirectiveFormatted`    | Clarity, Correctness, SprocketCompatibility                 | Detects a malformed lint directive                                                           |
 | `LintDirectiveValid`        | Clarity, Correctness, SprocketCompatibility                 | Detects unknown rules within lint directives                                                 |
 | `MatchingOutputMeta`        | Completeness, Documentation, SprocketCompatibility          | Detects non-matching outputs                                                                 |
-| `MetaDescription`           | Completeness                                                | Ensures the `meta` section contains a `description` key.                                     |
+| `MetaDescription`           | Completeness, Documentation, SprocketCompatibility          | Ensures the `meta` section contains a `description` key.                                     |
 | `MetaKeyValueFormatting`    | Spacing, Style                                              | A lint rule for missing meta and parameter_meta sections                                     |
 | `MetaSections`              | Completeness, Clarity, Documentation                        | A lint rule for missing meta and parameter_meta sections                                     |
 | `OutputName`                | Naming, Style                                               | A lint rule for disallowed output names                                                      |
