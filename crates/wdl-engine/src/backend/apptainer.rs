@@ -1,5 +1,3 @@
-#![allow(clippy::missing_docs_in_private_items)]
-
 //! Support for using Apptainer (a.k.a. Singularity) as an in-place container
 //! runtime for task execution.
 //!
@@ -54,11 +52,9 @@ pub struct ApptainerConfig {
 
 fn default_apptainer_images_dir() -> PathBuf {
     if let Some(cache) = dirs::cache_dir() {
-        cache.join("sprocket-apptainer-images").to_path_buf()
+        cache.join("sprocket-apptainer-images")
     } else {
-        std::env::temp_dir()
-            .join("sprocket-apptainer-images")
-            .to_path_buf()
+        std::env::temp_dir().join("sprocket-apptainer-images")
     }
 }
 
@@ -111,7 +107,7 @@ impl ApptainerConfig {
         // for other inputs and outputs prevents this from being a capacity problem,
         // though potentially at the expense of execution speed if the
         // non-`/tmp` filesystem is significantly slower.
-        let container_tmp_path = spawn_request.temp_dir().join("container_tmp").to_path_buf();
+        let container_tmp_path = spawn_request.temp_dir().join("container_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_tmp_path)
@@ -122,10 +118,7 @@ impl ApptainerConfig {
                     path = container_tmp_path.display()
                 )
             })?;
-        let container_var_tmp_path = spawn_request
-            .temp_dir()
-            .join("container_var_tmp")
-            .to_path_buf();
+        let container_var_tmp_path = spawn_request.temp_dir().join("container_var_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_var_tmp_path)
@@ -253,9 +246,9 @@ mod tests {
             id: "example_task".to_string(),
             info,
             attempt: 0,
-            attempt_dir: tmp.path().join("0").to_path_buf(),
+            attempt_dir: tmp.path().join("0"),
             root_dir: tmp.path().to_path_buf(),
-            temp_dir: tmp.path().join("tmp").to_path_buf(),
+            temp_dir: tmp.path().join("tmp"),
         };
         (tmp, config, spawn_request)
     }
