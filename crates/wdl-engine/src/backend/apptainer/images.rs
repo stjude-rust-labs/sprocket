@@ -126,8 +126,7 @@ pub(crate) async fn sif_for_container(
             // Append `.sif` to the filename. It would be nice to use a method like
             // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)
             // instead, but it's not stable yet.
-            .join(format!("{sif_filename}.sif"))
-            .to_path_buf();
+            .join(format!("{sif_filename}.sif"));
 
         let retry = Retry::spawn_notify(
             // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with
