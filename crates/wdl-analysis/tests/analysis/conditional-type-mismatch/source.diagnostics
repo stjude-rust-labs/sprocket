@@ -1,0 +1,27 @@
+error: conflicting declaration name `a`
+  ┌─ tests/analysis/conditional-type-mismatch/source.wdl:9:16
+  │
+6 │     Int a = 1
+  │         - the declaration with the conflicting name is here
+  ·
+9 │         String a = "hello"
+  │                ^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `a`
+   ┌─ tests/analysis/conditional-type-mismatch/source.wdl:11:16
+   │
+ 6 │     Int a = 1
+   │         - the declaration with the conflicting name is here
+   ·
+11 │         String a = "world"
+   │                ^ this declaration conflicts with a previously used name
+
+error: conflicting declaration name `a`
+   ┌─ tests/analysis/conditional-type-mismatch/source.wdl:13:16
+   │
+ 6 │     Int a = 1
+   │         - the declaration with the conflicting name is here
+   ·
+13 │         String a = "goodbye"
+   │                ^ this declaration conflicts with a previously used name
+

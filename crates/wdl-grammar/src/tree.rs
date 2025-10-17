@@ -360,6 +360,8 @@ pub enum SyntaxKind {
     PlaceholderTrueFalseOptionNode,
     /// Represents a conditional statement node.
     ConditionalStatementNode,
+    /// Represents a clause within a conditional statement.
+    ConditionalStatementClauseNode,
     /// Represents a scatter statement node.
     ScatterStatementNode,
     /// Represents a call statement node.
@@ -553,6 +555,7 @@ impl SyntaxKind {
             Self::PlaceholderDefaultOptionNode => "placeholder `default` option",
             Self::PlaceholderTrueFalseOptionNode => "placeholder `true`/`false` option",
             Self::ConditionalStatementNode => "conditional statement",
+            Self::ConditionalStatementClauseNode => "conditional statement clause",
             Self::ScatterStatementNode => "scatter statement",
             Self::CallStatementNode => "call statement",
             Self::CallTargetNode => "call target",

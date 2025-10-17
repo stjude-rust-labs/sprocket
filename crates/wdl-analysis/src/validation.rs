@@ -9,6 +9,7 @@ use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
+use crate::Config;
 use crate::SyntaxNodeExt;
 use crate::VisitReason;
 use crate::Visitor;
@@ -110,8 +111,13 @@ impl Validator {
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
-    pub fn validate(&mut self, document: &Document) -> Result<(), Vec<Diagnostic>> {
+    pub fn validate(
+        &mut self,
+        document: &Document,
+        config: &Config,
+    ) -> Result<(), Vec<Diagnostic>> {
         let mut diagnostics = Diagnostics::default();
+        self.register(config);
         document.visit(&mut diagnostics, self);
 
         self.reset();
@@ -145,6 +151,12 @@ impl Default for Validator {
 }
 
 impl Visitor for Validator {
+    fn register(&mut self, config: &crate::Config) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.register(config);
+        }
+    }
+
     fn reset(&mut self) {
         for visitor in self.visitors.iter_mut() {
             visitor.reset();

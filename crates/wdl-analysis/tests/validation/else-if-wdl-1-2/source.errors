@@ -1,0 +1,24 @@
+error: `else if` conditional clauses are not supported in WDL v1.2
+   ┌─ tests/validation/else-if-wdl-1-2/source.wdl:13:7
+   │
+13 │     } else if (useBlue) {
+   │       ^^^^^^^ this `else if` is not supported
+   │
+   = fix: use WDL v1.3 or higher to use `else if` conditional clauses
+
+error: `else if` conditional clauses are not supported in WDL v1.2
+   ┌─ tests/validation/else-if-wdl-1-2/source.wdl:15:7
+   │
+15 │     } else if (useGreen) {
+   │       ^^^^^^^ this `else if` is not supported
+   │
+   = fix: use WDL v1.3 or higher to use `else if` conditional clauses
+
+error: `else` conditional clauses are not supported in WDL v1.2
+   ┌─ tests/validation/else-if-wdl-1-2/source.wdl:17:7
+   │
+17 │     } else {
+   │       ^^^^ this `else` is not supported
+   │
+   = fix: use WDL v1.3 or higher to use `else` conditional clauses
+

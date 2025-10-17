@@ -1121,7 +1121,7 @@ where
             ParseState::Parsed { diagnostics, .. }
                 if !diagnostics.iter().any(|diag| diag.severity().is_error()) =>
             {
-                if let Err(new_diagnostics) = validator.validate(&document) {
+                if let Err(new_diagnostics) = validator.validate(&document, config) {
                     document.extend_diagnostics(new_diagnostics);
                 }
             }

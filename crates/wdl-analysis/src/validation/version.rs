@@ -15,6 +15,7 @@ use wdl_ast::v1::ParameterMetaKeyword;
 use wdl_ast::v1::RequirementsKeyword;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Diagnostics;
 use crate::VisitReason;
 use crate::Visitor;
@@ -68,15 +69,30 @@ fn env_var_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
+/// Creates an "experimental versions required" diagnostic.
+fn experimental_versions_required(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "use of WDL version {version} requires the `experimental_versions` feature flag to be \
+         enabled"
+    ))
+    .with_highlight(span)
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
 pub struct VersionVisitor {
+    /// Whether or not experimental versions of WDL are enabled.
+    experimental_versions: bool,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
 
 impl Visitor for VersionVisitor {
+    fn register(&mut self, config: &Config) {
+        self.experimental_versions = config.feature_flags().experimental_versions();
+    }
+
     fn reset(&mut self) {
         *self = Default::default();
     }
@@ -93,6 +109,29 @@ impl Visitor for VersionVisitor {
         }
 
         self.version = Some(version);
+    }
+
+    fn version_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &wdl_ast::VersionStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version
+            && !self.experimental_versions
+        {
+            match version {
+                SupportedVersion::V1(v1) if v1 <= V1::Two => {}
+                version => diagnostics.add(experimental_versions_required(
+                    version,
+                    stmt.version().span(),
+                )),
+            }
+        }
     }
 
     fn requirements_section(
