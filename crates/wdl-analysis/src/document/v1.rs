@@ -1,7 +1,6 @@
 //! Conversion of a V1 AST to an analyzed document.
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::hash_map::Entry;
 use std::hash::RandomState;
 use std::sync::Arc;
 
@@ -44,7 +43,9 @@ use super::Namespace;
 use super::Output;
 use super::Scope;
 use super::ScopeIndex;
+use super::ScopeRef;
 use super::ScopeRefMut;
+use super::ScopeUnion;
 use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
@@ -73,7 +74,6 @@ use crate::diagnostics::invalid_relative_import;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
-use crate::diagnostics::no_common_type;
 use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_struct;
@@ -91,7 +91,6 @@ use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_input;
 use crate::document::Name;
-use crate::document::ScopeRef;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
 use crate::eval::v1::WorkflowGraphBuilder;
@@ -409,7 +408,6 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                 name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.name_span),
-                None,
             ));
         }
         return;
@@ -425,7 +423,6 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
-                    None,
                 ));
             }
             _ => {
@@ -553,7 +550,6 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
-                None,
             ));
             return;
         }
@@ -565,7 +561,6 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     name.text(),
                     Context::Task(name.span()),
                     Context::Workflow(s.name_span),
-                    None,
                 ));
                 return;
             }
@@ -808,7 +803,6 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
                 name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
-                None,
             ));
             return false;
         }
@@ -1015,7 +1009,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 );
             }
             WorkflowGraphNode::ExitConditional(statement) => {
-                let mut scope_union = ScopeUnion::new(&scopes);
+                let mut scope_union = ScopeUnion::new();
 
                 for clause in statement.clauses() {
                     let scope_index = scope_indexes
@@ -1024,7 +1018,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .expect("should have scope");
 
                     scope_union.insert(
-                        scope_index,
+                        ScopeRef::new(&scopes, scope_index),
                         matches!(clause.kind(), ConditionalStatementClauseKind::Else),
                     );
                 }
@@ -1055,7 +1049,6 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                                         &name,
                                         Context::Name(NameContext::Decl(info.span)),
                                         Context::Name(NameContext::Decl(entry.get().span)),
-                                        None,
                                     ));
                                 }
                             }
@@ -1070,7 +1063,27 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     .copied()
                     .expect("should have scope");
                 let variable = statement.variable();
-                promote_scope(&mut scopes, scope_index, Some(variable.text()));
+
+                // We need to split the scopes as we want to read from one part of the slice and
+                // write to another; the left side will contain the parent at its index and the
+                // right side will contain the child scope at its index minus the parent's
+                let parent = scopes[scope_index.0]
+                    .parent
+                    .expect("should have a parent scope");
+                assert!(scope_index.0 > parent.0);
+                let (left, right) = scopes.split_at_mut(parent.0 + 1);
+                let scope = &right[scope_index.0 - parent.0 - 1];
+                let parent = &mut left[parent.0];
+                for (name, Name { span, ty }) in scope.names.iter() {
+                    if name.as_str() == variable.text() {
+                        continue;
+                    }
+
+                    parent.names.entry(name.clone()).or_insert_with(|| Name {
+                        span: *span,
+                        ty: ty.promote_scatter(),
+                    });
+                }
             }
         }
     }
@@ -1418,125 +1431,6 @@ fn resolve_call_type(
         ))
     } else {
         Some(CallType::new(kind, name.text(), specified, inputs, outputs))
-    }
-}
-
-/// A scope union.
-///
-/// A scope union takes the union of names within a number of given scopes and
-/// computes a set of common, output names for a (presumed parent) scope. This
-/// is useful when calculating common elements from, for example, an `if`
-/// statement within a workflow.
-pub struct ScopeUnion<'a> {
-    /// The scopes.
-    scopes: &'a [Scope],
-    /// The scope indices to process.
-    scope_indices: Vec<(ScopeIndex, bool)>,
-}
-
-impl<'a> ScopeUnion<'a> {
-    /// Creates a new scope union.
-    pub fn new(scopes: &'a [Scope]) -> Self {
-        Self {
-            scopes,
-            scope_indices: Vec::new(),
-        }
-    }
-
-    /// Adds a scope to the union.
-    pub fn insert(&mut self, scope_index: ScopeIndex, exhaustive: bool) {
-        self.scope_indices.push((scope_index, exhaustive));
-    }
-
-    /// Resolves the scope union to names and types that should be accessible
-    /// from the parent scope.
-    ///
-    /// Returns an error if any issues are encountered during resolving.
-    pub fn resolve(self) -> Result<Vec<(String, Name)>, Vec<Diagnostic>> {
-        let mut errors = Vec::new();
-        let mut ignored: HashSet<String> = HashSet::new();
-
-        // Gather all declaration names and reconcile types
-        let mut names: HashMap<String, Name> = HashMap::new();
-        for (scope_index, _) in &self.scope_indices {
-            for (name, info) in &self.scopes[scope_index.0].names {
-                if ignored.contains(name) {
-                    continue;
-                }
-
-                match names.entry(name.clone()) {
-                    Entry::Vacant(entry) => {
-                        entry.insert(info.clone());
-                    }
-                    Entry::Occupied(mut entry) => {
-                        let Some(ty) = entry.get().ty.common_type(&info.ty) else {
-                            errors.push(no_common_type(
-                                &entry.get().ty,
-                                entry.get().span,
-                                &info.ty,
-                                info.span,
-                            ));
-                            names.remove(name);
-                            ignored.insert(name.clone());
-                            continue;
-                        };
-
-                        entry.get_mut().ty = ty;
-                    }
-                }
-            }
-        }
-
-        // Mark types as optional if not present in all clauses
-        for (scope_index, _) in &self.scope_indices {
-            let scope = &self.scopes[scope_index.0];
-            for (name, info) in &mut names {
-                if ignored.contains(name) {
-                    continue;
-                }
-
-                // If this name is not in the current clause's scope, mark as optional
-                if !scope.names.contains_key(name) {
-                    info.ty = info.ty.optional();
-                }
-            }
-        }
-
-        // If there's no `else` clause, mark all types as optional
-        let has_exhaustive = self.scope_indices.iter().any(|(_, exhaustive)| *exhaustive);
-        if !has_exhaustive {
-            for info in names.values_mut() {
-                info.ty = info.ty.optional();
-            }
-        }
-
-        if !errors.is_empty() {
-            return Err(errors);
-        }
-
-        Ok(names.into_iter().collect())
-    }
-}
-
-/// Promotes names from a scatter scope to the parent scope.
-fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>) {
-    // We need to split the scopes as we want to read from one part of the slice and
-    // write to another; the left side will contain the parent at its index and the
-    // right side will contain the child scope at its index minus the parent's
-    let parent = scopes[index.0].parent.expect("should have a parent scope");
-    assert!(index.0 > parent.0);
-    let (left, right) = scopes.split_at_mut(parent.0 + 1);
-    let scope = &right[index.0 - parent.0 - 1];
-    let parent = &mut left[parent.0];
-    for (name, Name { span, ty }) in scope.names.iter() {
-        if Some(name.as_str()) == skip {
-            continue;
-        }
-
-        parent.names.entry(name.clone()).or_insert_with(|| Name {
-            span: *span,
-            ty: ty.promote_scatter(),
-        });
     }
 }
 
@@ -1931,36 +1825,36 @@ mod tests {
         let scopes = example_scopes();
 
         // Test with else clause (exhaustive)
-        let mut scope_union = ScopeUnion::new(&scopes);
-        scope_union.insert(ScopeIndex(0), false);
-        scope_union.insert(ScopeIndex(1), false);
-        scope_union.insert(ScopeIndex(2), true);
+        let mut scope_union = ScopeUnion::new();
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(0)), false);
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(1)), false);
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(2)), true);
 
-        let mut results = scope_union.resolve().expect("should resolve");
-        results.sort_by_key(|(name, _)| name.to_owned());
+        let results = scope_union.resolve().expect("should resolve");
 
         // `a` is missing from clause 1, so it's optional
-        let (name, info) = results.iter().find(|(n, _)| n == "a").unwrap();
-        assert_eq!(name, "a");
-        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+        assert_eq!(
+            results["a"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
 
         // `b` is optional in clause 1, so it's optional
-        let (name, info) = results.iter().find(|(n, _)| n == "b").unwrap();
-        assert_eq!(name, "b");
-        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+        assert_eq!(
+            results["b"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
 
         // `c` is missing from clause 0, so it's optional
-        let (name, info) = results.iter().find(|(n, _)| n == "c").unwrap();
-        assert_eq!(name, "c");
-        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, true));
+        assert_eq!(
+            results["c"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
 
         // `always_available` is in all clauses with the same type, so it's non-optional
-        let (name, info) = results
-            .iter()
-            .find(|(n, _)| n == "always_available")
-            .unwrap();
-        assert_eq!(name, "always_available");
-        assert_eq!(info.ty, Type::Primitive(PrimitiveType::String, false));
+        assert_eq!(
+            results["always_available"].ty,
+            Type::Primitive(PrimitiveType::String, false)
+        );
     }
 
     #[test]
@@ -1982,9 +1876,9 @@ mod tests {
             example_scope(vec![("bad", Type::Primitive(PrimitiveType::String, false))]),
         ];
 
-        let mut scope_union = ScopeUnion::new(&bad_scopes);
-        scope_union.insert(ScopeIndex(0), false);
-        scope_union.insert(ScopeIndex(1), true);
+        let mut scope_union = ScopeUnion::new();
+        scope_union.insert(ScopeRef::new(&bad_scopes, ScopeIndex(0)), false);
+        scope_union.insert(ScopeRef::new(&bad_scopes, ScopeIndex(1)), true);
         let err = scope_union.resolve().expect_err("should error on bad");
         assert_eq!(err.len(), 1);
         assert!(err[0].message().contains("type mismatch"));
