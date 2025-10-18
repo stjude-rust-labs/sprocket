@@ -1,6 +1,6 @@
 # Rules
 
-This table documets all implemented `sprocket` lin rules impleemnted on the `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released packages.
+This table documents all `sprocket` lint rules implemented on the `main` branch of the `stjude-rust-labs/sprocket` repository. Note that the information may be out of sync with released packages.
 
 ## Lint Rules
 
@@ -27,15 +27,15 @@ This table documets all implemented `sprocket` lin rules impleemnted on the `mai
 | `ImportSorted`              | Sorting                                                     | Detects imports that are not sorted lexicographically                                        |
 | `ImportWhitespace`          | Spacing, Style                                              | Detects whitespace between imports                                                           |
 | `InputName`                 | Naming, Style                                               | A lint rule for disallowed input names                                                       |
-| `InputSorted`               | Clarity, Sorting                                            | Ensures that input declarations are sorted                                                   |
+| `InputSorted`               | Sorting                                                     | Ensures that input declarations are sorted                                                   |
 | `KnownRules`                | Clarity, Correctness, SprocketCompatibility                 | Detects unknown rules within lint directives                                                 |
 | `LineWidth`                 | Spacing, Style                                              | Detects lines that exceed a certain width                                                    |
 | `LintDirectiveFormatted`    | Clarity, Correctness, SprocketCompatibility                 | Detects a malformed lint directive                                                           |
 | `LintDirectiveValid`        | Clarity, Correctness, SprocketCompatibility                 | Detects unknown rules within lint directives                                                 |
 | `MatchingOutputMeta`        | Completeness, Documentation, SprocketCompatibility          | Detects non-matching outputs                                                                 |
-| `MetaDescription`           | Completeness, Documentation, SprocketCompatibility          | Ensures the `meta` section contains a `description` key.                                     |
+| `MetaDescription`           | Completeness, Documentation, SprocketCompatibility          | Ensures the `meta` section contains a `description` key                                      |
 | `MetaKeyValueFormatting`    | Spacing, Style                                              | A lint rule for missing meta and parameter_meta sections                                     |
-| `MetaSections`              | Completeness, Clarity, Documentation                        | A lint rule for missing meta and parameter_meta sections                                     |
+| `MetaSections`              | Completeness, Clarity, Documentation                        | A lint rule for missing `meta` and `parameter_meta` sections                                     |
 | `OutputName`                | Naming, Style                                               | A lint rule for disallowed output names                                                      |
 | `ParameterMetaMatched`      | Completeness, Sorting, Documentation, SprocketCompatibility | Detects missing or extraneous entries in a parameter_meta section                            |
 | `PascalCase`                | Naming, Style, Clarity                                      | Detects structs defined without a PascalCase name                                            |

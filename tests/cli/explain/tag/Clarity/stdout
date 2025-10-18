@@ -6,7 +6,6 @@ Rules with the tag `Clarity`:
   - DoubleQuotes
   - HereDocCommands
   - ImportPlacement
-  - InputSorted
   - KnownRules
   - LintDirectiveFormatted
   - LintDirectiveValid
