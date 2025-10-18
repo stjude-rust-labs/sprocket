@@ -70,7 +70,7 @@ enum State {
     RuntimeSection,
 }
 
-/// Detects unsorted input declarations.
+/// Ensures proper blank space between elements.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ElementSpacingRule {
     /// Store whether we are in certain blocks
