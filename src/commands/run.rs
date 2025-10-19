@@ -14,13 +14,13 @@ use colored::Colorize as _;
 use crankshaft::events::Event;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
-use indicatif::ProgressStyle;
+use indicatif::{ProgressStyle, HumanDuration};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
-use tracing::error;
+use tracing::{error, info};
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -602,11 +602,9 @@ pub async fn run(args: Args) -> Result<()> {
             match res {
                 Ok(outputs) => {
                     let execution_time = start_time.elapsed();
+                    let duration = HumanDuration(execution_time);
                     println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                    println!(
-                        "Workflow finished in {:.2}s.",
-                        execution_time.as_secs_f64()
-                    );
+                    info!("{run_kind} finished in {duration}s.");
                     Ok(())
                 }
                 Err(EvaluationError::Source(e)) => {
