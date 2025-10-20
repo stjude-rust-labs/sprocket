@@ -244,7 +244,8 @@ pub(crate) fn max_retries(
     requirements
         .get(TASK_REQUIREMENT_MAX_RETRIES)
         .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-        .map(|v| v.as_integer().expect("`max_retries` should be an int") as u64)
+        // SAFETY: `max_retries` should always evaluate to an integer.
+        .map(|v| v.as_integer().unwrap() as u64)
         .or(config_retries)
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
 }
