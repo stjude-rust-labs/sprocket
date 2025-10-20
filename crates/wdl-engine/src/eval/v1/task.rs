@@ -1708,7 +1708,7 @@ impl TaskEvaluator {
                 && version >= SupportedVersion::V1(V1::Three)
                 && let Some(prev_reqs) = previous_requirements.as_deref()
             {
-                task.set_previous(version, prev_reqs);
+                task.set_previous(prev_reqs);
             }
 
             let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];

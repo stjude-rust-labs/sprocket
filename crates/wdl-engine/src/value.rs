@@ -30,7 +30,6 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::TASK_PREVIOUS_TYPE;
 use wdl_analysis::types::v1::task_task_post_evaluation_member_type;
-use wdl_analysis::types::v1::task_task_pre_evaluation_member_type;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
@@ -2835,8 +2834,7 @@ impl TaskPreEvaluationValue {
         definition: &v1::TaskDefinition<N>,
         attempt: i64,
     ) -> Self {
-        // SAFETY: this should always have a type in a pre-evaluation context.
-        let previous_ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
+        let previous_ty = TASK_PREVIOUS_TYPE.clone();
 
         Self {
             name: Arc::new(name.into()),
@@ -2862,17 +2860,16 @@ impl TaskPreEvaluationValue {
 
     /// Sets the previous requirements for retry attempts.
     pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
-        // SAFETY: this should always have a type in a pre-evaluation context.
-        let ty = task_task_pre_evaluation_member_type(TASK_FIELD_PREVIOUS).unwrap();
+        let previous_ty = TASK_PREVIOUS_TYPE.clone();
 
         // Extract the allowed field names from the struct type definition
-        let allowed_fields = extract_previous_allowed_fields(&ty);
+        let allowed_fields = extract_previous_allowed_fields(&previous_ty);
 
         // SAFETY: an empty `previous` struct should always create, as all of
         // the member types are optional.
         self.previous = Struct::new(
             None,
-            ty,
+            previous_ty,
             requirements
                 .iter()
                 .filter(|(k, _)| allowed_fields.contains(k.as_str()))
@@ -3077,22 +3074,17 @@ impl TaskPostEvaluationValue {
     }
 
     /// Sets the previous requirements for retry attempts.
-    pub(crate) fn set_previous(
-        &mut self,
-        version: SupportedVersion,
-        requirements: &HashMap<String, Value>,
-    ) {
-        // SAFETY: this should always have a type as it is statically defined.
-        let ty = task_task_post_evaluation_member_type(version, TASK_FIELD_PREVIOUS).unwrap();
+    pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
+        let previous_ty = TASK_PREVIOUS_TYPE.clone();
 
         // Extract the allowed field names from the struct type definition
-        let allowed_fields = extract_previous_allowed_fields(&ty);
+        let allowed_fields = extract_previous_allowed_fields(&previous_ty);
 
         // SAFETY: an empty `previous` struct should always create, as all of
         // the member types are optional.
         self.previous = Struct::new(
             None,
-            ty,
+            previous_ty,
             requirements
                 .iter()
                 .filter(|(k, _)| allowed_fields.contains(k.as_str()))

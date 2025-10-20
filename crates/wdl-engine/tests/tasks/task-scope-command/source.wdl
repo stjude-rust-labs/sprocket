@@ -2,6 +2,7 @@ version 1.3
 
 task test_command_scope {
   requirements {
+    container: "ubuntu:latest"
     memory: 256000000
     cpu: 2
   }
