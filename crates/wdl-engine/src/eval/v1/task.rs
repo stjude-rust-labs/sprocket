@@ -236,6 +236,19 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
         .transpose()
 }
 
+/// Gets the `max_retries` requirement from a requirements map.
+pub(crate) fn max_retries(
+    requirements: &HashMap<String, Value>,
+    config_retries: Option<u64>,
+) -> u64 {
+    requirements
+        .get(TASK_REQUIREMENT_MAX_RETRIES)
+        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
+        .map(|v| v.as_integer().expect("`max_retries` should be an int") as u64)
+        .or(config_retries)
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
+}
+
 /// Represents the type of a disk.
 ///
 /// Disk types are specified via hints.
@@ -972,14 +985,11 @@ impl TaskEvaluator {
         let mut attempt = 0;
         let mut previous_requirements: Option<Arc<HashMap<String, Value>>> = None;
         let mut evaluated = loop {
-            let (
-                EvaluatedSections {
-                    command,
-                    requirements,
-                    hints,
-                },
-                max_retries,
-            ) = self
+            let EvaluatedSections {
+                command,
+                requirements,
+                hints,
+            } = self
                 .evaluate_sections(
                     id,
                     &mut state,
@@ -989,6 +999,8 @@ impl TaskEvaluator {
                     previous_requirements.clone(),
                 )
                 .await?;
+
+            let max_retries = max_retries(&requirements, self.config.task.retries);
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1611,8 +1623,6 @@ impl TaskEvaluator {
     ///   * requirements
     ///   * hints
     ///   * command
-    ///
-    /// Returns the evaluated sections and the maximum number of retry attempts.
     async fn evaluate_sections(
         &self,
         id: &str,
@@ -1621,7 +1631,7 @@ impl TaskEvaluator {
         inputs: &TaskInputs,
         attempt: u64,
         previous_requirements: Option<Arc<HashMap<String, Value>>>,
-    ) -> EvaluationResult<(EvaluatedSections, u64)> {
+    ) -> EvaluationResult<EvaluatedSections> {
         let version = state.document.version();
 
         // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
@@ -1670,19 +1680,11 @@ impl TaskEvaluator {
             ),
         };
 
-        // Calculate max_retries from requirements or config before command evaluation
-        let max_retries = requirements
-            .get(TASK_REQUIREMENT_MAX_RETRIES)
-            .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-            .cloned()
-            .map(|v| v.unwrap_integer() as u64)
-            .or_else(|| self.config.task.retries)
-            .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES);
-
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
         // `tasks` which includes those calculates requirements before the
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
+            let max_retries = max_retries(&requirements, self.config.task.retries);
             // Get the execution constraints
             let constraints = self
                 .backend
@@ -1737,14 +1739,11 @@ impl TaskEvaluator {
             )
             .await?;
 
-        Ok((
-            EvaluatedSections {
-                command,
-                requirements: Arc::new(requirements),
-                hints: Arc::new(hints),
-            },
-            max_retries,
-        ))
+        Ok(EvaluatedSections {
+            command,
+            requirements: Arc::new(requirements),
+            hints: Arc::new(hints),
+        })
     }
 
     /// Evaluates a task output.
