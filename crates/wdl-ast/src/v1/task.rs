@@ -76,6 +76,10 @@ pub const TASK_FIELDS: &[(&str, &str)] = &[
          cloud services).",
     ),
     (
+        TASK_FIELD_MAX_RETRIES,
+        "The maximum number of retry attempts.",
+    ),
+    (
         TASK_FIELD_ATTEMPT,
         "The current task attempt. The value must be 0 the first time the task is executed, and \
          incremented by 1 each time the task is retried (if any).",

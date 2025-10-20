@@ -1,5 +1,6 @@
 {
   "test_retry_memory.final_attempt": 2,
+  "test_retry_memory.max_retries": 2,
   "test_retry_memory.final_memory": 512000000,
   "test_retry_memory.previous_memory": 256000000
 }

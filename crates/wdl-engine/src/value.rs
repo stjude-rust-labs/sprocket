@@ -43,6 +43,7 @@ use wdl_ast::v1::TASK_FIELD_EXT;
 use wdl_ast::v1::TASK_FIELD_FPGA;
 use wdl_ast::v1::TASK_FIELD_GPU;
 use wdl_ast::v1::TASK_FIELD_ID;
+use wdl_ast::v1::TASK_FIELD_MAX_RETRIES;
 use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
@@ -2727,6 +2728,8 @@ struct TaskPostEvaluationData {
     cpu: f64,
     /// The allocated memory (in bytes) for the task.
     memory: i64,
+    /// The maximum number of retry attempts.
+    max_retries: i64,
     /// The GPU allocations for the task.
     ///
     /// An array with one specification per allocated GPU; the specification is
@@ -2920,6 +2923,7 @@ impl TaskPostEvaluationValue {
         id: impl Into<String>,
         definition: &v1::TaskDefinition<N>,
         constraints: TaskExecutionConstraints,
+        max_retries: i64,
         attempt: i64,
     ) -> Self {
         let previous_ty = TASK_PREVIOUS_TYPE.clone();
@@ -2931,6 +2935,7 @@ impl TaskPostEvaluationValue {
                 container: constraints.container.map(Into::into),
                 cpu: constraints.cpu,
                 memory: constraints.memory,
+                max_retries,
                 gpu: Array::new_unchecked(
                     ANALYSIS_STDLIB.array_string_type().clone(),
                     constraints
@@ -3026,6 +3031,11 @@ impl TaskPostEvaluationValue {
         &self.data.disks
     }
 
+    /// Gets the maximum number of retry attempts.
+    pub fn max_retries(&self) -> i64 {
+        self.data.max_retries
+    }
+
     /// Gets current task attempt count.
     ///
     /// The value must be 0 the first time the task is executed and incremented
@@ -3100,6 +3110,7 @@ impl TaskPostEvaluationValue {
         match name {
             n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
             n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            n if n == TASK_FIELD_MAX_RETRIES => Some(self.data.max_retries.into()),
             n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
             n if n == TASK_FIELD_CONTAINER => Some(
                 self.data

@@ -11,10 +11,10 @@ task test_retry_memory {
   command <<<
     # Fail on first two attempts, succeed on third
     if [ ~{task.attempt} -lt 2 ]; then
-      echo "Attempt ~{task.attempt}: Memory=~{task.memory}, FAILING"
+      echo "Attempt ~{task.attempt}/~{task.max_retries}: Memory=~{task.memory}, FAILING"
       exit 1
     else
-      echo "Attempt ~{task.attempt}: Memory=~{task.memory}, SUCCESS"
+      echo "Attempt ~{task.attempt}/~{task.max_retries}: Memory=~{task.memory}, SUCCESS"
       echo "Previous memory was: ~{select_first([task.previous.memory, 0])}"
       exit 0
     fi
@@ -22,6 +22,7 @@ task test_retry_memory {
 
   output {
     Int final_attempt = task.attempt
+    Int max_retries = task.max_retries
     Int final_memory = task.memory
     Int? previous_memory = task.previous.memory
   }

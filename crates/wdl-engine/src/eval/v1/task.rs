@@ -972,11 +972,14 @@ impl TaskEvaluator {
         let mut attempt = 0;
         let mut previous_requirements: Option<Arc<HashMap<String, Value>>> = None;
         let mut evaluated = loop {
-            let EvaluatedSections {
-                command,
-                requirements,
-                hints,
-            } = self
+            let (
+                EvaluatedSections {
+                    command,
+                    requirements,
+                    hints,
+                },
+                max_retries,
+            ) = self
                 .evaluate_sections(
                     id,
                     &mut state,
@@ -986,16 +989,6 @@ impl TaskEvaluator {
                     previous_requirements.clone(),
                 )
                 .await?;
-
-            // Get the maximum number of retries, either from the task's requirements or
-            // from configuration
-            let max_retries = requirements
-                .get(TASK_REQUIREMENT_MAX_RETRIES)
-                .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-                .cloned()
-                .map(|v| v.unwrap_integer() as u64)
-                .or_else(|| self.config.task.retries)
-                .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES);
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1618,6 +1611,8 @@ impl TaskEvaluator {
     ///   * requirements
     ///   * hints
     ///   * command
+    ///
+    /// Returns the evaluated sections and the maximum number of retry attempts.
     async fn evaluate_sections(
         &self,
         id: &str,
@@ -1626,7 +1621,7 @@ impl TaskEvaluator {
         inputs: &TaskInputs,
         attempt: u64,
         previous_requirements: Option<Arc<HashMap<String, Value>>>,
-    ) -> EvaluationResult<EvaluatedSections> {
+    ) -> EvaluationResult<(EvaluatedSections, u64)> {
         let version = state.document.version();
 
         // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
@@ -1675,6 +1670,15 @@ impl TaskEvaluator {
             ),
         };
 
+        // Calculate max_retries from requirements or config before command evaluation
+        let max_retries = requirements
+            .get(TASK_REQUIREMENT_MAX_RETRIES)
+            .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
+            .cloned()
+            .map(|v| v.unwrap_integer() as u64)
+            .or_else(|| self.config.task.retries)
+            .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES);
+
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
         // `tasks` which includes those calculates requirements before the
         // command/output sections are evaluated.
@@ -1695,6 +1699,12 @@ impl TaskEvaluator {
                 id,
                 definition,
                 constraints,
+                max_retries.try_into().with_context(|| {
+                    format!(
+                        "max_retries value {max_retries} is too large for task `{task}`",
+                        task = state.task.name()
+                    )
+                })?,
                 attempt.try_into().with_context(|| {
                     format!(
                         "too many attempts were made to run task `{task}`",
@@ -1727,11 +1737,14 @@ impl TaskEvaluator {
             )
             .await?;
 
-        Ok(EvaluatedSections {
-            command,
-            requirements: Arc::new(requirements),
-            hints: Arc::new(hints),
-        })
+        Ok((
+            EvaluatedSections {
+                command,
+                requirements: Arc::new(requirements),
+                hints: Arc::new(hints),
+            },
+            max_retries,
+        ))
     }
 
     /// Evaluates a task output.

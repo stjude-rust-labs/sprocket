@@ -200,7 +200,7 @@ pub fn task_task_post_evaluation_member_type(
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         n if n == TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT => {
+        n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT || n == TASK_FIELD_MAX_RETRIES => {
             Some(PrimitiveType::Integer.into())
         }
         n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {

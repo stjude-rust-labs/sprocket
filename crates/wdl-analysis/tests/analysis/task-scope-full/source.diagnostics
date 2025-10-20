@@ -1,18 +1,18 @@
 error: struct `TaskPrevious` does not have a member named `not_a_member`
-   ┌─ tests/analysis/task-scope-full/source.wdl:23:24
+   ┌─ tests/analysis/task-scope-full/source.wdl:24:24
    │
-23 │     gpu: task.previous.not_a_member
+24 │     gpu: task.previous.not_a_member
    │                        ^^^^^^^^^^^^
 
 error: the `task` variable does not have a member named `cpu`
-   ┌─ tests/analysis/task-scope-full/source.wdl:26:16
+   ┌─ tests/analysis/task-scope-full/source.wdl:27:16
    │
-26 │     fpga: task.cpu > 2
+27 │     fpga: task.cpu > 2
    │                ^^^
 
 error: the `task` variable does not have a member named `memory`
-   ┌─ tests/analysis/task-scope-full/source.wdl:29:22
+   ┌─ tests/analysis/task-scope-full/source.wdl:30:22
    │
-29 │     maxRetries: task.memory / 1000000000
+30 │     maxRetries: task.memory / 1000000000
    │                      ^^^^^^
 
