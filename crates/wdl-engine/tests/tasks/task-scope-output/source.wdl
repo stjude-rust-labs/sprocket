@@ -4,6 +4,7 @@ task test_output_scope {
   requirements {
     memory: 256000000
     cpu: 2
+    container: "ubuntu:latest"
   }
 
   command <<<
@@ -17,6 +18,7 @@ task test_output_scope {
     Int attempt = task.attempt
     Float cpu = task.cpu
     Int memory = task.memory
+    String? container = task.container
     Int? previous_memory = task.previous.memory
     Float? previous_cpu = task.previous.cpu
   }

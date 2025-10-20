@@ -4,7 +4,6 @@ task test_retry_memory {
   requirements {
     # Start with 128MB, double on each retry: 128MB * 2^attempt
     memory: 128000000 * (2 ** task.attempt)
-    container: "ubuntu:latest"
     max_retries: 2
   }
 
