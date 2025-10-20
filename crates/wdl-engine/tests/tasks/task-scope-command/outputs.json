@@ -5,7 +5,7 @@
     "attempt=0",
     "cpu=2.000000",
     "memory=256000000",
-    "container=ubuntu:latest",
+    "container=none",
     "previous_memory=0"
   ]
 }
