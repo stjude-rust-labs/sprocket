@@ -71,10 +71,8 @@ fn env_var_requirement(span: Span) -> Diagnostic {
 
 /// Creates an "experimental WDL 1.3 features required" diagnostic.
 fn wdl_1_3_required(span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "use of WDL version 1.3 requires the `wdl_1_3` feature flag to be enabled"
-    ))
-    .with_highlight(span)
+    Diagnostic::error("use of WDL version 1.3 requires the `wdl_1_3` feature flag to be enabled")
+        .with_highlight(span)
 }
 
 /// Creates an "unsupported version" diagnostic.
