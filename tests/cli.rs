@@ -41,6 +41,7 @@ use pretty_assertions::StrComparison;
 use tempfile::NamedTempFile;
 use tempfile::TempDir;
 use tokio::fs;
+use tracing::debug;
 use walkdir::WalkDir;
 
 /// Finds tests at the given root directory.
@@ -131,6 +132,7 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 
 /// Runs sprocket for a test.
 async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
+    debug!(test_path = %test_path.display(), "running Sprocket for test");
     let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
@@ -140,10 +142,10 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
 
-    let env_config = resolve_env_config().await?;
+    let env_config = resolve_env_config(test_path).await?;
     if let Some(env_config) = env_config.as_ref() {
-        // If an engine config has been specified via environment variable, synthesize a
-        // Sprocket config with that engine config.
+        // If an overridden config has been specified via environment variables,
+        // synthesize a Sprocket config with that config.
         command.arg("--config");
         command.arg(env_config.path());
     }
@@ -170,19 +172,33 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     })
 }
 
-async fn resolve_env_config() -> Result<Option<NamedTempFile>> {
-    let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG") else {
-        return Ok(None);
-    };
-
+/// Resolve a config file that incorporates optional overrides specified in environment variables.
+///
+/// The current environment variables supported are:
+///
+/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized [`wdl::engine::config::Config`] that will be
+///   substituted for the default for all of the `run/` tests.
+async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
+    let mut config_overridden = false;
     let mut sprocket_config = sprocket::config::Config::default();
-    sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config).await?)?;
+    // For `run` tests, allow overriding the engine config. We restrict the override
+    // to this subset of tests in order to avoid messing with the expected output
+    // for commands that format the config and therefore expect the config to be
+    // exactly the default.
+    if test_path.starts_with("tests/cli/run")
+        && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
+    {
+        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config).await?)?;
+        config_overridden = true;
+    }
 
-    let temp_config = tempfile::NamedTempFile::new()?;
-
-    sprocket_config.write_config(&temp_config.path().display().to_string())?;
-
-    Ok(Some(temp_config))
+    if !config_overridden {
+        Ok(None)
+    } else {
+        let temp_config = tempfile::NamedTempFile::new()?;
+        sprocket_config.write_config(&temp_config.path().display().to_string())?;
+        Ok(Some(temp_config))
+    }
 }
 
 /// Normalizes a string for OS platform differences.
@@ -369,6 +385,10 @@ async fn compare_test_results(
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
     let mut futures = Vec::new();
