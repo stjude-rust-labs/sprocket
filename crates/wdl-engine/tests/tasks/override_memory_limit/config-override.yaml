@@ -1,3 +1,4 @@
 task:
   memory_limit_behavior: try_with_max
+suppress_env_specific_output: true
 
