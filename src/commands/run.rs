@@ -602,9 +602,8 @@ pub async fn run(args: Args) -> Result<()> {
             match res {
                 Ok(outputs) => {
                     let execution_time = start_time.elapsed();
-                    let duration = HumanDuration(execution_time);
+                    info!("{run_kind} finished in {duration}s.", duration=HumanDuration(execution_time));
                     println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                    info!("{run_kind} finished in {duration}s.");
                     Ok(())
                 }
                 Err(EvaluationError::Source(e)) => {
