@@ -496,29 +496,11 @@ impl Subgraph {
                 }
 
                 match &graph[index] {
-                    WorkflowGraphNode::Conditional(_, exit) => {
-                        // Create subgraphs for each conditional clause
-                        let clause_indices: Vec<NodeIndex> = graph
-                            .edges_directed(index, Direction::Outgoing)
-                            .filter_map(|edge| {
-                                let target = edge.target();
-                                if matches!(
-                                    &graph[target],
-                                    WorkflowGraphNode::ConditionalClause(..)
-                                ) {
-                                    nodes.remove(&target);
-                                    Some(target)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-
-                        for clause_idx in &clause_indices {
-                            let mut clause_nodes = split(graph, nodes, *clause_idx, *exit);
-                            split_recurse(graph, &mut clause_nodes, subgraphs);
-                            subgraphs.insert(*clause_idx, Subgraph(clause_nodes));
-                        }
+                    WorkflowGraphNode::ConditionalClause(_, exit) => {
+                        nodes.remove(&index);
+                        let mut clause_nodes = split(graph, nodes, index, *exit);
+                        split_recurse(graph, &mut clause_nodes, subgraphs);
+                        subgraphs.insert(index, Subgraph(clause_nodes));
                     }
                     WorkflowGraphNode::Scatter(_, exit) => {
                         let mut nodes = split(graph, nodes, index, *exit);
@@ -1280,21 +1262,6 @@ impl WorkflowEvaluator {
             .expect("scope union should resolve without errors");
 
         for clause in stmt.clauses() {
-            let clause_node = state
-                .graph
-                .edges_directed(entry, Direction::Outgoing)
-                .find_map(|edge| {
-                    let target = edge.target();
-                    match &state.graph[target] {
-                        WorkflowGraphNode::ConditionalClause(c, _)
-                            if c.inner() == clause.inner() =>
-                        {
-                            Some(target)
-                        }
-                        _ => None,
-                    }
-                })
-                .expect("clause node should exist in graph");
             // Check if the clause has an expression to evaluate
             if let Some(expr) = clause.expr() {
                 debug!(
@@ -1348,6 +1315,22 @@ impl WorkflowEvaluator {
             }
 
             // If we reach here, this clause should be executed
+            let clause_node = state
+                .graph
+                .edges_directed(entry, Direction::Outgoing)
+                .find_map(|edge| {
+                    let target = edge.target();
+                    match &state.graph[target] {
+                        WorkflowGraphNode::ConditionalClause(c, _)
+                            if c.inner() == clause.inner() =>
+                        {
+                            Some(target)
+                        }
+                        _ => None,
+                    }
+                })
+                .expect("clause node should exist in graph");
+
             // Intentionally drop the write lock before evaluating the subgraph
             let scope = { state.scopes.write().await.alloc(parent) };
 
