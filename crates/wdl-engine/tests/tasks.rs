@@ -28,6 +28,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use common::TestConfig;
 use common::compare_result;
 use common::find_tests;
 use common::strip_paths;
@@ -47,7 +48,6 @@ use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::config::{self};
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TaskEvaluator;
 
@@ -64,16 +64,11 @@ static TEMP_FILENAME_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(tmp[\/\\])?tmp[[:alnum:]]{6}"#).expect("invalid regex"));
 
 /// Runs a single test.
-fn run_test(test: &Path, config: config::Config) -> BoxFuture<'_, Result<()>> {
+fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
         debug!(test = %test.display(), ?config, "running test");
 
-        let analyzer = Analyzer::new(
-            wdl_analysis::Config::default().with_feature_flags(
-                wdl_analysis::FeatureFlags::default().with_experimental_versions(),
-            ),
-            |(), _, _, _| async {},
-        );
+        let analyzer = Analyzer::new(config.analysis, |(), _, _, _| async {});
         analyzer
             .add_directory(test)
             .await
@@ -137,7 +132,7 @@ fn run_test(test: &Path, config: config::Config) -> BoxFuture<'_, Result<()>> {
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
         let evaluator =
-            TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
+            TaskEvaluator::new(config.engine, CancellationToken::new(), Events::none()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {

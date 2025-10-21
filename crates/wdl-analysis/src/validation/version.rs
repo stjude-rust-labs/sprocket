@@ -69,28 +69,32 @@ fn env_var_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
-/// Creates an "experimental versions required" diagnostic.
-fn experimental_versions_required(version: SupportedVersion, span: Span) -> Diagnostic {
+/// Creates an "experimental WDL 1.3 features required" diagnostic.
+fn wdl_1_3_required(span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "use of WDL version {version} requires the `experimental_versions` feature flag to be \
-         enabled"
+        "use of WDL version 1.3 requires the `wdl_1_3` feature flag to be enabled"
     ))
     .with_highlight(span)
+}
+
+/// Creates an "unsupported version" diagnostic.
+fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
 }
 
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
 pub struct VersionVisitor {
-    /// Whether or not experimental versions of WDL are enabled.
-    experimental_versions: bool,
+    /// Whether or not experimental support for WDL 1.3 is enabled.
+    wdl_1_3: bool,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
 
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
-        self.experimental_versions = config.feature_flags().experimental_versions();
+        self.wdl_1_3 = config.feature_flags().wdl_1_3();
     }
 
     fn reset(&mut self) {
@@ -122,14 +126,18 @@ impl Visitor for VersionVisitor {
         }
 
         if let Some(version) = self.version
-            && !self.experimental_versions
+            && !self.wdl_1_3
         {
             match version {
                 SupportedVersion::V1(v1) if v1 <= V1::Two => {}
-                version => diagnostics.add(experimental_versions_required(
-                    version,
-                    stmt.version().span(),
-                )),
+                SupportedVersion::V1(V1::Three) => {
+                    diagnostics.add(wdl_1_3_required(stmt.version().span()))
+                }
+                // TODO ACF 2025-10-21: This is an unfortunate consequence of using
+                // `#[non_exhaustive]` on the version enums. We should consider removing that
+                // attribute in the future to get static assurance that downstream consumers of
+                // versions comprehensively handle the possible cases.
+                other => diagnostics.add(unsupported_version(other, stmt.version().span())),
             }
         }
     }

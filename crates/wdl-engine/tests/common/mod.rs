@@ -8,11 +8,20 @@ use anyhow::bail;
 use futures::future::BoxFuture;
 use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
-use wdl_engine::config;
+use wdl_analysis::Config as AnalysisConfig;
+use wdl_engine::config::BackendConfig;
+use wdl_engine::config::Config as EngineConfig;
+
+/// The set of configs that determine how a test is run.
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+pub struct TestConfig {
+    pub analysis: AnalysisConfig,
+    pub engine: EngineConfig,
+}
 
 /// Find tests to run in the given directory.
 pub fn find_tests(
-    run_test: fn(&Path, config::Config) -> BoxFuture<'_, Result<(), anyhow::Error>>,
+    run_test: fn(&Path, TestConfig) -> BoxFuture<'_, Result<(), anyhow::Error>>,
     base_dir: &Path,
     runtime: &tokio::runtime::Handle,
 ) -> Result<Vec<Trial>, anyhow::Error> {
@@ -42,13 +51,13 @@ pub fn find_tests(
     Ok(tests)
 }
 
-/// Gets the engine configurations to use for the test, merging in any
+/// Gets the configurations to use for the test, merging in any
 /// `config-override.yaml` files that may be present in the test directory.
 ///
 /// Regardless of whether `config-override.yaml` is present, this function
-/// begins with the configs defined in [`base_configs()`]. If the override is
+/// begins with the configs defined in [`base_configs()`]. If an override is
 /// present, its contents are merged into each base config to produce a final
-/// set of resolved engine configs. This is useful for tests which require a
+/// set of resolved configs. This is useful for tests which require a
 /// modification of the standard configs, particularly those that exercise
 /// whether certain options work.
 ///
@@ -56,15 +65,18 @@ pub fn find_tests(
 /// "null", and therefore is not suitable for setting `Option` values to `None`.
 /// JSON also is a possibility, but YAML is more convenient for human use with
 /// its support for comments.
-pub fn resolve_configs(path: &Path) -> Result<HashMap<String, config::Config>, anyhow::Error> {
+pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyhow::Error> {
+    use figment::Figment;
+    use figment::providers::Format as _;
+    use figment::providers::Serialized;
+    use figment::providers::Yaml;
+
     let mut base_configs = base_configs()?;
     let config_override_path = path.join("config-override.yaml");
     if config_override_path.exists() {
         for config in base_configs.values_mut() {
-            use figment::providers;
-            use figment::providers::Format as _;
-            let combined = figment::Figment::from(providers::Serialized::defaults(&config))
-                .merge(providers::Yaml::file_exact(&config_override_path))
+            let combined = Figment::from(Serialized::defaults(&config))
+                .merge(Yaml::file_exact(&config_override_path))
                 .extract()?;
             *config = combined;
         }
@@ -74,44 +86,56 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, config::Config>, a
 
 /// Get the baseline configs for executing the tests.
 ///
-/// These configs may be modified by merging with `config-override.json` files
+/// These configs may be modified by merging with `*-config-override.json` files
 /// in individual test directories before execution.
 ///
 /// If the `SPROCKET_TEST_ENGINE_CONFIG` environment variable is set, the file
-/// it points to will be used as the sole base config. This is primarily meant
-/// for testing in environments with ideosyncratic requirements, such as an HPC.
+/// it points to will be used as the sole base engine config. This is primarily
+/// meant for testing in environments with idiosyncratic requirements, such as
+/// an HPC.
 ///
-/// Otherwise, a default set containing at least a local backend config will be
-/// used.
-pub fn base_configs() -> Result<HashMap<String, config::Config>, anyhow::Error> {
+/// Otherwise, a default set containing at least the default analysis config and
+/// a local backend config will be used.
+pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
     if let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
-        let config = toml::from_str(&std::fs::read_to_string(env_config)?)?;
+        let engine = toml::from_str(&std::fs::read_to_string(env_config)?)?;
+        let config = TestConfig {
+            engine,
+            ..TestConfig::default()
+        };
         return Ok(HashMap::from([("env_config".to_string(), config)]));
     }
 
-    let mut configs = HashMap::from([("local".to_string(), {
-        config::Config {
-            backends: [(
-                "default".to_string(),
-                config::BackendConfig::Local(Default::default()),
-            )]
-            .into(),
-            ..Default::default()
-        }
-    })]);
+    let mut configs = HashMap::from([(
+        "local".to_string(),
+        TestConfig {
+            engine: EngineConfig {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::Local(Default::default()),
+                )]
+                .into(),
+                ..Default::default()
+            },
+            ..TestConfig::default()
+        },
+    )]);
     // Currently we limit running the Docker backend to Linux as GitHub does not
     // have Docker installed on macOS hosted runners and the Windows hosted
     // runners are configured to use Windows containers
     if cfg!(target_os = "linux") {
         configs.insert(
             "docker".to_string(),
-            config::Config {
-                backends: [(
-                    "default".to_string(),
-                    config::BackendConfig::Docker(Default::default()),
-                )]
-                .into(),
-                ..Default::default()
+            TestConfig {
+                engine: EngineConfig {
+                    backends: [(
+                        "default".to_string(),
+                        BackendConfig::Docker(Default::default()),
+                    )]
+                    .into(),
+                    ..Default::default()
+                },
+                ..TestConfig::default()
             },
         );
     }

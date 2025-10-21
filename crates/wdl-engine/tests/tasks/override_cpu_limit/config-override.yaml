@@ -1,5 +1,5 @@
-task:
-  cpu_limit_behavior: try_with_max
-suppress_env_specific_output: true
-experimental_features_enabled: true
-
+engine:
+  experimental_features_enabled: true
+  suppress_env_specific_output: true
+  task:
+    cpu_limit_behavior: try_with_max

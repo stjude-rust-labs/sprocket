@@ -21,6 +21,7 @@ use std::path::absolute;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use common::TestConfig;
 use common::compare_result;
 use common::find_tests;
 use common::strip_paths;
@@ -36,16 +37,15 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::config;
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::WorkflowEvaluator;
 
 mod common;
 
 /// Runs a single test.
-fn run_test(test: &Path, config: config::Config) -> BoxFuture<'_, Result<()>> {
+fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
-        let analyzer = Analyzer::default();
+        let analyzer = Analyzer::new(config.analysis, |(), _, _, _| async {});
         analyzer
             .add_directory(test)
             .await
@@ -104,7 +104,7 @@ fn run_test(test: &Path, config: config::Config) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
         let evaluator =
-            WorkflowEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
+            WorkflowEvaluator::new(config.engine, CancellationToken::new(), Events::none()).await?;
         match evaluator
             .evaluate(result.document(), inputs.clone(), &dir)
             .await
