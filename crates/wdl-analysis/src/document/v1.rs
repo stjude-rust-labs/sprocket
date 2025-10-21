@@ -548,7 +548,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
                 }
             }
-            _ => {}
+            _ => unreachable!("task type should be either `TaskPreEvaluation` or `TaskPostEvaluation`"),
         }
 
         index

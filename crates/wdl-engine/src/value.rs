@@ -29,7 +29,7 @@ use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::TASK_PREVIOUS_TYPE;
-use wdl_analysis::types::v1::task_task_post_evaluation_member_type;
+use wdl_analysis::types::v1::task_member_type_post_evaluation;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
@@ -3108,7 +3108,7 @@ impl TaskPostEvaluationValue {
                     .map(|c| PrimitiveValue::String(c).into())
                     .unwrap_or_else(|| {
                         Value::new_none(
-                            task_task_post_evaluation_member_type(version, TASK_FIELD_CONTAINER)
+                            task_member_type_post_evaluation(version, TASK_FIELD_CONTAINER)
                                 .expect("failed to get task field type"),
                         )
                     }),
@@ -3121,7 +3121,7 @@ impl TaskPostEvaluationValue {
             n if n == TASK_FIELD_END_TIME => {
                 Some(self.data.end_time.map(Into::into).unwrap_or_else(|| {
                     Value::new_none(
-                        task_task_post_evaluation_member_type(version, TASK_FIELD_END_TIME)
+                        task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
                             .expect("failed to get task field type"),
                     )
                 }))
@@ -3129,7 +3129,7 @@ impl TaskPostEvaluationValue {
             n if n == TASK_FIELD_RETURN_CODE => {
                 Some(self.return_code.map(Into::into).unwrap_or_else(|| {
                     Value::new_none(
-                        task_task_post_evaluation_member_type(version, TASK_FIELD_RETURN_CODE)
+                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
                             .expect("failed to get task field type"),
                     )
                 }))

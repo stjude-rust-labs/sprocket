@@ -1676,7 +1676,7 @@ impl TaskEvaluator {
         };
 
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
-        // `tasks` which includes those calculates requirements before the
+        // `task` which includes those calculated requirements before the
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints

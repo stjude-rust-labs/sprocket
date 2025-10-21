@@ -177,7 +177,7 @@ pub static TASK_PREVIOUS_TYPE: LazyLock<Type> = LazyLock::new(|| {
 /// `task.previous` and `task.attempt` are available.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn task_task_pre_evaluation_member_type(name: &str) -> Option<Type> {
+pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
@@ -192,7 +192,7 @@ pub fn task_task_pre_evaluation_member_type(name: &str) -> Option<Type> {
 /// available.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn task_task_post_evaluation_member_type(
+pub fn task_member_type_post_evaluation(
     version: SupportedVersion,
     name: &str,
 ) -> Option<Type> {
@@ -1716,7 +1716,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
         match &ty {
             Type::TaskPreEvaluation => {
-                return match task_task_pre_evaluation_member_type(name.text()) {
+                return match task_member_type_pre_evaluation(name.text()) {
                     Some(ty) => Some(ty),
                     None => {
                         self.context.add_diagnostic(not_a_task_member(&name));
@@ -1725,7 +1725,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::TaskPostEvaluation => {
-                return match task_task_post_evaluation_member_type(
+                return match task_member_type_post_evaluation(
                     self.context.version(),
                     name.text(),
                 ) {
