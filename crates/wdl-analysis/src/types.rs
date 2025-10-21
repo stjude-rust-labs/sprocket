@@ -124,15 +124,6 @@ impl fmt::Display for PrimitiveType {
     }
 }
 
-/// Represents the kind of a promotion of a type from one scope to another.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PromotionKind {
-    /// The type is being promoted as an output of a scatter statement.
-    Scatter,
-    /// The type is being promoted as an output of a conditional statement.
-    Conditional,
-}
-
 /// Represents a WDL type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -253,17 +244,17 @@ impl Type {
         matches!(self, Type::None)
     }
 
-    /// Promotes the type from one scope to another.
-    pub fn promote(&self, kind: PromotionKind) -> Self {
+    /// Promotes a type from a scatter statement into the parent scope.
+    ///
+    /// For most types, this wraps them in an array. For call types, this
+    /// promotes each output type into an array.
+    pub fn promote_scatter(&self) -> Self {
         // For calls, the outputs of the call are promoted instead of the call itself
         if let Self::Call(ty) = self {
-            return Self::Call(ty.promote(kind));
+            return Self::Call(ty.promote_scatter());
         }
 
-        match kind {
-            PromotionKind::Scatter => Type::Compound(ArrayType::new(self.clone()).into(), false),
-            PromotionKind::Conditional => self.optional(),
-        }
+        Type::Compound(ArrayType::new(self.clone()).into(), false)
     }
 
     /// Calculates a common type between this type and the given type.
@@ -306,6 +297,13 @@ impl Type {
             && let Some(ty) = this.common_type(other)
         {
             return Some(Self::Compound(ty, self.is_optional()));
+        }
+
+        // Check for a call type to have a common type with itself
+        if let (Some(this), Some(other)) = (self.as_call(), self.as_call())
+            && this == other
+        {
+            return Some(Self::Call(this.clone()));
         }
 
         None
@@ -362,6 +360,7 @@ impl Optional for Type {
             Self::Compound(ty, _) => Self::Compound(ty.clone(), true),
             Self::Object => Self::OptionalObject,
             Self::Union => Self::None,
+            Self::Call(ty) => Self::Call(ty.optional()),
             ty => ty.clone(),
         }
     }
@@ -997,11 +996,21 @@ impl CallType {
         &self.outputs
     }
 
-    /// Promotes the call type into a parent scope.
-    pub fn promote(&self, kind: PromotionKind) -> Self {
+    /// Makes all outputs of the call type optional.
+    pub fn optional(&self) -> Self {
         let mut ty = self.clone();
         for output in Arc::make_mut(&mut ty.outputs).values_mut() {
-            *output = Output::new(output.ty().promote(kind), output.name_span());
+            *output = Output::new(output.ty().optional(), output.name_span());
+        }
+
+        ty
+    }
+
+    /// Promotes the call type into a scatter statement.
+    pub fn promote_scatter(&self) -> Self {
+        let mut ty = self.clone();
+        for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+            *output = Output::new(output.ty().promote_scatter(), output.name_span());
         }
 
         ty

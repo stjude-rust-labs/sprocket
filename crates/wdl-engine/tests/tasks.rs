@@ -67,11 +67,18 @@ static TEMP_FILENAME_REGEX: LazyLock<Regex> =
 fn run_test(test: &Path, config: config::Config) -> BoxFuture<'_, Result<()>> {
     async move {
         debug!(test = %test.display(), ?config, "running test");
-        let analyzer = Analyzer::default();
+
+        let analyzer = Analyzer::new(
+            wdl_analysis::Config::default().with_feature_flags(
+                wdl_analysis::FeatureFlags::default().with_experimental_versions(),
+            ),
+            |(), _, _, _| async {},
+        );
         analyzer
             .add_directory(test)
             .await
             .context("adding directory")?;
+
         let results = analyzer.analyze(()).await.context("running analysis")?;
 
         // Find the root source.wdl to evaluate

@@ -58,6 +58,7 @@ use wdl_ast::v1::UnboundDecl;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowHintsSection;
 
+use crate::Config;
 use crate::Diagnostics;
 use crate::document::Document as AnalysisDocument;
 
@@ -80,6 +81,9 @@ pub enum VisitReason {
 /// matching [VisitReason::Exit] call.
 #[allow(unused_variables)]
 pub trait Visitor {
+    /// Registers configuration with a visitor.
+    fn register(&mut self, config: &Config) {}
+
     /// Resets the visitor to its initial state.
     ///
     /// A visitor must implement this with resetting any internal state so that
