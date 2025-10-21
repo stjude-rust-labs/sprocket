@@ -84,7 +84,7 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, config::Config>, a
 /// Otherwise, a default set containing at least a local backend config will be
 /// used.
 pub fn base_configs() -> Result<HashMap<String, config::Config>, anyhow::Error> {
-    if let Some(env_config) = std::env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
+    if let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
         let config = toml::from_str(&std::fs::read_to_string(env_config)?)?;
         return Ok(HashMap::from([("env_config".to_string(), config)]));
     }
