@@ -1751,8 +1751,10 @@ fn bound_decl(
     Ok(())
 }
 
-/// Parses a conditional statement in a workflow.
-fn conditional_statement(
+/// Parses a conditional statement `if` clause.
+///
+/// Returns whether or not a one of the start tokens was encountered.
+fn conditional_if_clause(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
@@ -1768,6 +1770,42 @@ fn conditional_statement(
         WORKFLOW_STATEMENT_RECOVERY_SET,
         workflow_statement
     );
+    marker.complete(parser, SyntaxKind::ConditionalStatementClauseNode);
+    Ok(())
+}
+
+/// Parses both `else if` and `else` clause in a conditional statement.
+fn conditional_else_if_clause(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    parser.require(Token::ElseKeyword);
+    if parser.next_if(Token::IfKeyword) {
+        paren!(parser, marker, |parser, _| {
+            expected_fn!(parser, expr);
+            Ok(())
+        });
+    }
+    braced_items!(
+        parser,
+        marker,
+        None,
+        WORKFLOW_STATEMENT_RECOVERY_SET,
+        workflow_statement
+    );
+    marker.complete(parser, SyntaxKind::ConditionalStatementClauseNode);
+    Ok(())
+}
+
+/// Parses a conditional statement in a workflow.
+fn conditional_statement(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected_fn!(parser, marker, conditional_if_clause);
+    while let Some((Token::ElseKeyword, _)) = parser.peek() {
+        expected_fn!(parser, marker, conditional_else_if_clause);
+    }
     marker.complete(parser, SyntaxKind::ConditionalStatementNode);
     Ok(())
 }
