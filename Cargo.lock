@@ -1230,6 +1230,7 @@ checksum = "8cb01cd46b0cf372153850f4c6c272d9cbea2da513e07538405148f95bd789f3"
 dependencies = [
  "atomic",
  "serde",
+ "serde_yaml",
  "toml 0.8.23",
  "uncased",
  "version_check",
@@ -3801,6 +3802,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.11.4",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "serde_yaml_ng"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5179,6 +5193,7 @@ dependencies = [
  "codespan-reporting",
  "crankshaft",
  "dirs",
+ "figment",
  "futures",
  "globset",
  "indexmap 2.11.4",

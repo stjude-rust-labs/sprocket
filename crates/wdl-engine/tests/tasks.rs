@@ -18,6 +18,7 @@
 //! `BLESS` environment variable when running this test.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -74,8 +75,8 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Er
             .map(OsStr::to_string_lossy)
             .unwrap()
             .into_owned();
-        for (config_name, config) in
-            configs(&path).with_context(|| format!("getting configs for {test_name_base}"))?
+        for (config_name, config) in resolve_configs(&path)
+            .with_context(|| format!("getting configs for {test_name_base}"))?
         {
             let test_runtime = runtime.clone();
             let test_path = path.clone();
@@ -88,95 +89,84 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Result<Vec<Trial>, anyhow::Er
     Ok(tests)
 }
 
-/// Gets the engine configurations to use for the test.
+/// Gets the engine configurations to use for the test, merging in any
+/// `config-override.yaml` files that may be present in the test directory.
+///
+/// Regardless of whether `config-override.yaml` is present, this function
+/// begins with the configs defined in [`base_configs()`]. If the override is
+/// present, its contents are merged into each base config to produce a final
+/// set of resolved engine configs. This is useful for tests which require a
+/// modification of the standard configs, particularly those that exercise
+/// whether certain options work.
+///
+/// Why YAML and not TOML for the overrides? TOML doesn't have a way to express
+/// "null", and therefore is not suitable for setting `Option` values to `None`.
+/// JSON also is a possibility, but YAML is more convenient for human use with
+/// its support for comments.
+fn resolve_configs(path: &Path) -> Result<HashMap<String, config::Config>, anyhow::Error> {
+    let mut base_configs = base_configs()?;
+    let config_override_path = path.join("config-override.yaml");
+    if config_override_path.exists() {
+        for config in base_configs.values_mut() {
+            use figment::providers;
+            use figment::providers::Format as _;
+            let combined = figment::Figment::from(providers::Serialized::defaults(&config))
+                .merge(providers::Yaml::file_exact(&config_override_path))
+                .extract()?;
+            *config = combined;
+        }
+    }
+    Ok(base_configs)
+}
+
+/// Get the baseline configs for executing the tests.
+///
+/// These configs may be modified by merging with `config-override.json` files
+/// in individual test directories before execution.
 ///
 /// If the `SPROCKET_TEST_ENGINE_CONFIG` environment variable is set, the file
-/// it points to will be read as TOML and parsed into an engine config and used
-/// as the sole configuration for the test suite. This is primarily meant for
-/// testing in environments with ideosyncratic requirements, such as an HPC.
+/// it points to will be used as the sole base config. This is primarily meant
+/// for testing in environments with ideosyncratic requirements, such as an HPC.
 ///
-/// If the test directory contains any files that begin with `config` and end
-/// with `.toml`, only those configs deserializable from those files will be
-/// used. Otherwise, configs with default local and/or Docker backends will be
-/// used, depending on the platform.
-///
-/// Note that there's nothing preventing this logic from being applied to the
-/// other types of integration tests for this crate, but so far the need has
-/// only arisen for testing tasks. Similarly, there may be other reasons beyond
-/// `target_os` to filter particular configs.
-fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyhow::Error> {
+/// Otherwise, a default set containing at least a local backend config will be
+/// used.
+fn base_configs() -> Result<HashMap<String, config::Config>, anyhow::Error> {
     if let Some(env_config) = std::env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
         let config = toml::from_str(&std::fs::read_to_string(env_config)?)?;
-        return Ok(vec![("env_config".into(), config)]);
+        return Ok(HashMap::from([("env_config".to_string(), config)]));
     }
-    let mut configs_on_disk = vec![];
-    let mut any_config_toml_found = false;
-    for file in path.read_dir()? {
-        let Ok(file) = file else {
-            continue;
-        };
-        match file
-            .file_name()
-            .to_str()
-            .ok_or_else(|| anyhow!("non-utf8 filename for {file:?}"))?
-        {
-            "config.toml" => (),
-            "config.linux.toml" if cfg!(target_os = "linux") => (),
-            "config.macos.toml" if cfg!(target_os = "macos") => (),
-            "config.windows.toml" if cfg!(target_os = "windows") => (),
-            other => {
-                // If there are any configs on disk, do not use the hardcoded ones even if our
-                // particular configuration doesn't understand them
-                if other.starts_with("config") && other.ends_with("toml") {
-                    any_config_toml_found = true;
-                }
-                continue;
-            }
+
+    let mut configs = HashMap::from([("local".to_string(), {
+        config::Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
+            suppress_env_specific_output: true,
+            experimental_features_enabled: true,
+            ..Default::default()
         }
-        let path = file.path();
-        let config_name = path
-            .file_stem()
-            .expect("file should have a stem after the `match` above")
-            .to_string_lossy()
-            .into_owned()
-            .into();
-        let config = toml::from_str(&std::fs::read_to_string(file.path())?)?;
-        configs_on_disk.push((config_name, config));
+    })]);
+    // Currently we limit running the Docker backend to Linux as GitHub does not
+    // have Docker installed on macOS hosted runners and the Windows hosted
+    // runners are configured to use Windows containers
+    if cfg!(target_os = "linux") {
+        configs.insert(
+            "docker".to_string(),
+            config::Config {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::Docker(Default::default()),
+                )]
+                .into(),
+                suppress_env_specific_output: true,
+                experimental_features_enabled: true,
+                ..Default::default()
+            },
+        );
     }
-    if !configs_on_disk.is_empty() || any_config_toml_found {
-        Ok(configs_on_disk)
-    } else {
-        Ok(vec![
-            ("local".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Local(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    experimental_features_enabled: true,
-                    ..Default::default()
-                }
-            }),
-            // Currently we limit running the Docker backend to Linux as GitHub does not have
-            // Docker installed on macOS hosted runners and the Windows hosted runners
-            // are configured to use Windows containers
-            #[cfg(target_os = "linux")]
-            ("docker".into(), {
-                config::Config {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Docker(Default::default()),
-                    )]
-                    .into(),
-                    suppress_env_specific_output: true,
-                    experimental_features_enabled: true,
-                    ..Default::default()
-                }
-            }),
-        ])
-    }
+    Ok(configs)
 }
 
 /// Strips paths from the given string.

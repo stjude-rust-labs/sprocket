@@ -1,0 +1,3 @@
+task:
+  memory_limit_behavior: try_with_max
+
