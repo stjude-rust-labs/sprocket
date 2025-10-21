@@ -273,7 +273,15 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 
 /// Runs a single test.
 async fn run_test(test: &Path, config: config::Config) -> Result<()> {
-    let analyzer = Analyzer::default();
+    use wdl_analysis::Config as AnalysisConfig;
+    use wdl_analysis::FeatureFlags;
+
+    let analyzer = Analyzer::new(
+        AnalysisConfig::default()
+            .with_feature_flags(FeatureFlags::default().with_experimental_versions()),
+        |(), _, _, _| async {},
+    );
+
     analyzer
         .add_directory(test)
         .await
