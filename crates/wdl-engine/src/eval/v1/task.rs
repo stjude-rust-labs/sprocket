@@ -49,6 +49,7 @@ use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
 use wdl_ast::v1::TASK_HINT_DISKS;
+use wdl_ast::v1::TASK_HINT_GPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
@@ -57,6 +58,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
+use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
@@ -233,6 +235,39 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
             unreachable!("value should be an integer or string");
         })
         .transpose()
+}
+
+/// Gets the `gpu` requirement and hint.
+///
+/// Returns the number of GPUs requested. If `requirements` contains `gpu: true`,
+/// then checks `hints` for an `Integer` GPU count. `String` values for GPU hints
+/// are not yet supported and will fall back to `1` GPU. If no hint is provided,
+/// defaults to `1`. If the requirement is not present or `false`, returns `None`.
+pub(crate) fn gpu(requirements: &HashMap<String, Value>, hints: &HashMap<String, Value>) -> Option<u64> {
+    use crate::PrimitiveValue;
+
+    if let Some(true) = requirements
+        .get(TASK_REQUIREMENT_GPU)
+        .and_then(|v| v.as_boolean())
+    {
+        let count = match hints.get(TASK_HINT_GPU) {
+            Some(Value::Primitive(PrimitiveValue::Integer(n))) => (*n).try_into().unwrap_or(1),
+            Some(Value::Primitive(PrimitiveValue::String(hint))) => {
+                // TODO(clay): support string hints for GPU specifications.
+                warn!(
+                    %hint,
+                    "string hints for GPU are not supported; falling back to 1 GPU"
+                );
+                1
+            }
+            // This should be validated prior to calling this function
+            Some(_) => unreachable!("`gpu` hint should be an integer or string"),
+            None => 1,
+        };
+        Some(count)
+    } else {
+        None
+    }
 }
 
 /// Represents the type of a disk.
