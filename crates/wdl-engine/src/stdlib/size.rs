@@ -172,12 +172,15 @@ fn calculate_disk_size<'a>(
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
             Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
-            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
-                bail!("the size of a task variable cannot be calculated")
-            }
             Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
             Value::Input(_) => bail!("the size of an input value cannot be calculated"),
             Value::Output(_) => bail!("the size of an output value cannot be calculated"),
+            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
+                bail!("the size of a task variable cannot be calculated")
+            }
+            Value::PreviousRequirements(_) => {
+                bail!("the size of a task.previous value cannot be calculated")
+            }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
         }
     }

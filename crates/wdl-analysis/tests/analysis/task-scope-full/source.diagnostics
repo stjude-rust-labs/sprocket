@@ -1,4 +1,4 @@
-error: struct `TaskPrevious` does not have a member named `not_a_member`
+error: `task.previous` does not have a member named `not_a_member`
    ┌─ tests/analysis/task-scope-full/source.wdl:23:24
    │
 23 │     gpu: task.previous.not_a_member

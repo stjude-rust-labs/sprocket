@@ -101,6 +101,7 @@ use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::HiddenType;
 use crate::types::Optional;
 use crate::types::PrimitiveType;
 use crate::types::Type;
@@ -531,24 +532,24 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         scopes: &mut Vec<Scope>,
         task_name: &Ident,
         span: Span,
-        task_type: Type,
+        task_type: HiddenType,
     ) -> ScopeIndex {
         let index = add_scope(scopes, Scope::new(Some(ScopeIndex(0)), span));
 
         match task_type {
-            Type::TaskPreEvaluation => {
+            HiddenType::TaskPreEvaluation => {
                 // Pre-evaluation task type is available in v1.3+.
                 if version >= Some(SupportedVersion::V1(V1::Three)) {
-                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
+                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Hidden(task_type));
                 }
             }
-            Type::TaskPostEvaluation => {
+            HiddenType::TaskPostEvaluation => {
                 // Post-evaluation task type is available in v1.2+.
                 if version >= Some(SupportedVersion::V1(V1::Two)) {
-                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), task_type);
+                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Hidden(task_type));
                 }
             }
-            _ => unreachable!("task type should be either `TaskPreEvaluation` or `TaskPostEvaluation`"),
+            _ => panic!("task type should be either `TaskPreEvaluation` or `TaskPostEvaluation`"),
         }
 
         index
@@ -691,7 +692,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                             .expect("should have output section")
                             .braced_scope_span()
                             .expect("should have braced scope span"),
-                        Type::TaskPostEvaluation,
+                        HiddenType::TaskPostEvaluation,
                     )
                 });
                 add_decl(
@@ -715,7 +716,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         span.expect("should have scope span"),
-                        Type::TaskPostEvaluation,
+                        HiddenType::TaskPostEvaluation,
                     )
                 });
 
@@ -740,7 +741,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         section
                             .braced_scope_span()
                             .expect("should have braced scope span"),
-                        Type::TaskPreEvaluation,
+                        HiddenType::TaskPreEvaluation,
                     )
                 });
 
@@ -764,7 +765,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         section
                             .braced_scope_span()
                             .expect("should have braced scope span"),
-                        Type::TaskPreEvaluation,
+                        HiddenType::TaskPreEvaluation,
                     )
                 });
 
@@ -788,7 +789,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         section
                             .braced_scope_span()
                             .expect("should have braced scope span"),
-                        Type::TaskPreEvaluation,
+                        HiddenType::TaskPreEvaluation,
                     )
                 });
 
