@@ -86,7 +86,7 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
 
 /// Get the baseline configs for executing the tests.
 ///
-/// These configs may be modified by merging with `*-config-override.json` files
+/// These configs may be modified by merging with `*-config-override.yaml` files
 /// in individual test directories before execution.
 ///
 /// If the `SPROCKET_TEST_ENGINE_CONFIG` environment variable is set, the file
