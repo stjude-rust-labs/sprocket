@@ -62,12 +62,7 @@ impl Constraint for SizeableConstraint {
                 }
                 // Treat unions as sizable as they can only be checked at runtime
                 Type::Union | Type::None => true,
-                Type::TaskPreEvaluation
-                | Type::TaskPostEvaluation
-                | Type::Hints
-                | Type::Input
-                | Type::Output
-                | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) => false,
             }
         }
 
@@ -144,12 +139,7 @@ impl Constraint for JsonSerializableConstraint {
                 | Type::Union
                 | Type::None => true,
                 Type::Compound(ty, _) => compound_type_is_serializable(ty),
-                Type::TaskPreEvaluation
-                | Type::TaskPostEvaluation
-                | Type::Hints
-                | Type::Input
-                | Type::Output
-                | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) => false,
             }
         }
 
@@ -174,11 +164,7 @@ impl Constraint for PrimitiveTypeConstraint {
             Type::Compound(..)
             | Type::Object
             | Type::OptionalObject
-            | Type::TaskPreEvaluation
-            | Type::TaskPostEvaluation
-            | Type::Hints
-            | Type::Input
-            | Type::Output
+            | Type::Hidden(_)
             | Type::Call(_) => false,
         }
     }

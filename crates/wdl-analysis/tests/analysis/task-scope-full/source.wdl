@@ -18,10 +18,10 @@ task test_invalid_member {
     cpu: task.attempt + 1
 
     # Available in pre-evaluation.
-    disks: select_first([task.previous.disks, ["10 GiB"]])
+    disks: if defined(task.previous.disks) then [select_first([task.previous.disks, {}])["local-disk"] + " GiB"] else ["10 GiB"]
 
     # Not a valid member of `task.previous` (error).
-    gpu: task.previous.not_a_member
+    gpu: select_first([task.previous.not_a_member, []])
 
     # `task.cpu` not available in pre-evaluation (error).
     fpga: task.cpu > 2
@@ -53,5 +53,15 @@ task test_invalid_member {
     Int memory = task.memory
     String? container = task.container
     Int? previous_memory = task.previous.memory
+    Float? previous_cpu = task.previous.cpu
+    String? previous_container = task.previous.container
+    Array[String]? previous_gpu = task.previous.gpu
+    Array[String]? previous_fpga = task.previous.fpga
+    Map[String, Int]? previous_disks = task.previous.disks
+    Int? previous_max_retries = task.previous.max_retries
+
+    Int gpu_count = length(select_first([task.previous.gpu, []]))
+    Int fpga_count = length(select_first([task.previous.fpga, []]))
+    Int disk_count = length(keys(select_first([task.previous.disks, {}])))
   }
 }

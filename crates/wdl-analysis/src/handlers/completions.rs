@@ -84,9 +84,9 @@ use crate::types::CompoundType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
 use crate::types::v1::task_hint_types;
+use crate::types::v1::task_member_type_post_evaluation;
+use crate::types::v1::task_member_type_pre_evaluation;
 use crate::types::v1::task_requirement_types;
-use crate::types::v1::task_task_post_evaluation_member_type;
-use crate::types::v1::task_task_pre_evaluation_member_type;
 
 /// Provides code completion suggestions for the given position in a document.
 ///
@@ -846,7 +846,7 @@ fn add_namespace_completions(document: &Document, items: &mut Vec<CompletionItem
 /// pre-evaluation contexts.
 fn add_task_pre_evaluation_variable_completions(items: &mut Vec<CompletionItem>) {
     for (key, desc) in TASK_FIELDS {
-        if let Some(ty) = task_task_pre_evaluation_member_type(key) {
+        if let Some(ty) = task_member_type_pre_evaluation(key) {
             items.push(CompletionItem {
                 label: key.to_string(),
                 kind: Some(CompletionItemKind::FIELD),
@@ -865,7 +865,7 @@ fn add_task_post_evaluation_variable_completions(
     items: &mut Vec<CompletionItem>,
 ) {
     for (key, desc) in TASK_FIELDS {
-        if let Some(ty) = task_task_post_evaluation_member_type(version, key) {
+        if let Some(ty) = task_member_type_post_evaluation(version, key) {
             items.push(CompletionItem {
                 label: key.to_string(),
                 kind: Some(CompletionItemKind::FIELD),

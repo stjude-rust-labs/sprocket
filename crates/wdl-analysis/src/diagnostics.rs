@@ -445,6 +445,15 @@ pub fn not_a_task_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     .with_highlight(member.span())
 }
 
+/// Creates a "not a task.previous member" diagnostic.
+pub fn not_a_previous_task_data_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`task.previous` does not have a member named `{member}`",
+        member = member.text()
+    ))
+    .with_highlight(member.span())
+}
+
 /// Creates a "not a struct" diagnostic.
 pub fn not_a_struct<T: TreeToken>(member: &Ident<T>, input: bool) -> Diagnostic {
     Diagnostic::error(format!(
