@@ -117,6 +117,8 @@ pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+/// The default GPU count when GPU is required but no valid hint is provided.
+pub const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -237,13 +239,17 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
         .transpose()
 }
 
-/// Gets the `gpu` requirement and hint.
+/// Gets the number of required GPUs from requirements and hints.
 ///
-/// Returns the number of GPUs requested. If `requirements` contains `gpu: true`,
-/// then checks `hints` for an `Integer` GPU count. `String` values for GPU hints
-/// are not yet supported and will fall back to `1` GPU. If no hint is provided,
-/// defaults to `1`. If the requirement is not present or `false`, returns `None`.
-pub(crate) fn gpu(requirements: &HashMap<String, Value>, hints: &HashMap<String, Value>) -> Option<u64> {
+/// Returns the number of GPUs requested. If `requirements` contains `gpu:
+/// true`, then checks `hints` for an `Integer` GPU count. `String` values for
+/// GPU hints are not yet supported and will fall back to `DEFAULT_GPU_COUNT`. If
+/// no hint is provided, defaults to `DEFAULT_GPU_COUNT`. If the requirement is
+/// not present or `false`, returns `None`.
+pub(crate) fn gpu(
+    requirements: &HashMap<String, Value>,
+    hints: &HashMap<String, Value>,
+) -> Option<u64> {
     use crate::PrimitiveValue;
 
     if let Some(true) = requirements
@@ -251,18 +257,31 @@ pub(crate) fn gpu(requirements: &HashMap<String, Value>, hints: &HashMap<String,
         .and_then(|v| v.as_boolean())
     {
         let count = match hints.get(TASK_HINT_GPU) {
-            Some(Value::Primitive(PrimitiveValue::Integer(n))) => (*n).try_into().unwrap_or(1),
+            Some(Value::Primitive(PrimitiveValue::Integer(n))) => {
+                match (*n).try_into() {
+                    Ok(count) => count,
+                    Err(_) => {
+                        warn!(
+                            gpu_hint = %n,
+                            "GPU hint cannot be converted to u64; falling back to {} GPU",
+                            DEFAULT_GPU_COUNT
+                        );
+                        DEFAULT_GPU_COUNT
+                    }
+                }
+            }
             Some(Value::Primitive(PrimitiveValue::String(hint))) => {
                 // TODO(clay): support string hints for GPU specifications.
                 warn!(
                     %hint,
-                    "string hints for GPU are not supported; falling back to 1 GPU"
+                    "string hints for GPU are not supported; falling back to {} GPU",
+                    DEFAULT_GPU_COUNT
                 );
-                1
+                DEFAULT_GPU_COUNT
             }
             // This should be validated prior to calling this function
             Some(_) => unreachable!("`gpu` hint should be an integer or string"),
-            None => 1,
+            None => DEFAULT_GPU_COUNT,
         };
         Some(count)
     } else {

@@ -187,7 +187,10 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         // If GPUs are required, pass a basic `-gpu` flag to `bsub`. If this is a bare
         // `requirements { gpu: true }`, we request 1 GPU per host. If there is
         // also an integer `hints: { gpu: n }`, we request `n` GPUs per host.
-        if let Some(n_gpu) = v1::gpu(self.spawn_request.requirements(), self.spawn_request.hints()) {
+        if let Some(n_gpu) = v1::gpu(
+            self.spawn_request.requirements(),
+            self.spawn_request.hints(),
+        ) {
             bsub_command.arg("-gpu").arg(format!("num={n_gpu}/host"));
         }
 
