@@ -458,7 +458,7 @@ pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config
         .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
         .and_then(|v| v.as_integer())
         .map(|v| v as u64)
-        .or_else(|| config.task.retries)
+        .or(config.task.retries)
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
 }
 
