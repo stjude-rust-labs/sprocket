@@ -1,6 +1,6 @@
 //! Management of Apptainer images.
 //!
-//! This module populates and maintains explictly-converted `.sif` files and
+//! This module populates and maintains explicitly-converted `.sif` files and
 //! reuses them without inducing additional requests to the container registry.
 //!
 //! Apptainer/Singularity has its own image format, `.sif`, but can convert from
@@ -70,14 +70,21 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use super::LsfApptainerBackendConfig;
+use super::ApptainerConfig;
 
+/// The path to the global cache of `.sif`-format container images.
 static APPTAINER_IMAGES_DIR: OnceCell<PathBuf> = OnceCell::const_new();
+/// A global map from container strings to paths pointing to the `.sif` version
+/// of that container.
 static APPTAINER_IMAGES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+/// Get the directory containing converted `.sif`-format container images.
+///
+/// See the module-level documentation for details about the current behavior,
+/// which unfortunately depends on global variables.
 pub(crate) async fn global_apptainer_images_dir(
-    config: &LsfApptainerBackendConfig,
+    config: &ApptainerConfig,
 ) -> Result<&'static Path, anyhow::Error> {
     APPTAINER_IMAGES_DIR
         .get_or_try_init(|| async {
@@ -98,8 +105,10 @@ pub(crate) async fn global_apptainer_images_dir(
         .map(|buf| buf.as_path())
 }
 
+/// Get the path to the container image in `.sif` format, potentially performing
+/// an `apptainer pull` if the image cache has not already been populated.
 pub(crate) async fn sif_for_container(
-    config: &LsfApptainerBackendConfig,
+    config: &ApptainerConfig,
     container: &str,
     cancellation_token: CancellationToken,
 ) -> Result<PathBuf, anyhow::Error> {
@@ -117,8 +126,7 @@ pub(crate) async fn sif_for_container(
             // Append `.sif` to the filename. It would be nice to use a method like
             // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)
             // instead, but it's not stable yet.
-            .join(format!("{sif_filename}.sif"))
-            .to_path_buf();
+            .join(format!("{sif_filename}.sif"));
 
         let retry = Retry::spawn_notify(
             // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with

@@ -83,6 +83,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::CommandSection::register(),
         v1::CommandText::register(),
         v1::ConditionalStatement::register(),
+        v1::ConditionalStatementClause::register(),
         v1::DefaultOption::register(),
         v1::DirectoryTypeKeyword::register(),
         v1::DivisionExpr::register(),

@@ -394,7 +394,7 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     )
 }
 
-/// Creates a "no common type" diagnostic for arrays and maps.
+/// Creates a "no common type" diagnostic for arrays, maps, and scope unions.
 ///
 /// This is called if the elements of a map or an array do not have a common
 /// type.
@@ -501,6 +501,24 @@ pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
          `{actual}`"
     ))
     .with_label(format!("this is type `{actual}`"), actual_span)
+}
+
+/// Creates an "else if not supported" diagnostic.
+pub fn else_if_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else if` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else if` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else if` conditional clauses")
+}
+
+/// Creates an "else not supported" diagnostic.
+pub fn else_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else` conditional clauses")
 }
 
 /// Creates a "logical not mismatch" diagnostic.

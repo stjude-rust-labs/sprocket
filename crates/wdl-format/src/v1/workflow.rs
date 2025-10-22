@@ -3,6 +3,7 @@
 pub mod call;
 
 use wdl_ast::SyntaxKind;
+use wdl_ast::Token;
 
 use crate::PreToken;
 use crate::TokenStream;
@@ -16,11 +17,42 @@ use crate::element::FormatElement;
 ///
 /// This will panic if the element does not have the expected children.
 pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element.children().expect("conditional statement children");
+    for child in element.children().expect("conditional statement children") {
+        (&child).write(stream);
+    }
+}
 
-    let if_keyword = children.next().expect("if keyword");
-    assert!(if_keyword.element().kind() == SyntaxKind::IfKeyword);
-    (&if_keyword).write(stream);
+/// Formats a [`ConditionalStatementClause`](wdl_ast::v1::ConditionalStatementClause).
+pub fn format_conditional_statement_clause(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+) {
+    let mut children = element
+        .children()
+        .expect("conditional statement clause children")
+        .peekable();
+
+    while let Some(el) = children.peek() {
+        // If the format element doesn't contain a token, it's not a keyword, so
+        // break.
+        let Some(token) = el.element().as_token() else {
+            break;
+        };
+
+        // Write the token if it's an `if` or an `else`.
+        match token {
+            Token::IfKeyword(_) => {
+                el.write(stream);
+            }
+            Token::ElseKeyword(_) => {
+                el.write(stream);
+            }
+            _ => break,
+        }
+
+        // Take the child token we just processed.
+        children.next();
+    }
     stream.end_word();
 
     let open_paren = children.next().expect("open paren");

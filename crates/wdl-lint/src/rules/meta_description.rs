@@ -39,7 +39,7 @@ fn description_missing(span: Span, parent: SectionParent) -> Diagnostic {
     .with_fix("add a `description` key to the meta section")
 }
 
-/// Detects unsorted input declarations.
+/// Ensures the `meta` section contains a `description` key.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct MetaDescriptionRule {
     /// The version of the WDL document being linted.
