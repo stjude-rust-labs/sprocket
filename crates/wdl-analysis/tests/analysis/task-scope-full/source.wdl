@@ -1,7 +1,8 @@
 ## This tests that accessing members produces appropriate errors/successes.
 ##
-## TaskPreEvaluation (requirements/hints/runtime) has: name, id, attempt, previous
-## TaskPostEvaluation (command/output) has: all fields including cpu, memory, etc.
+## The `task` variable is available in both pre-evaluation contexts
+## (requirements/hints/runtime) and post-evaluation contexts (command/output),
+## but with different fields available in each context.
 
 version 1.3
 

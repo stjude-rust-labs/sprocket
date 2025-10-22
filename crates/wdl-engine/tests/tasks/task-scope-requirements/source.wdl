@@ -17,7 +17,7 @@ task test_requirements_scope {
   >>>
 
   output {
-    String task_name = read_string(stdout())
+    String stdout = read_string(stdout())
     Int attempt = task.attempt
     Float cpu = task.cpu
     Int memory = task.memory

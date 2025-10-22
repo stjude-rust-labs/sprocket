@@ -1,5 +1,5 @@
 {
-  "test_requirements_scope.task_name": "task_name=test_requirements_scope/ntask_attempt=0/ntask_cpu=2.000000/ntask_memory=256000000/nprevious_memory=0",
+  "test_requirements_scope.stdout": "task_name=test_requirements_scope/ntask_attempt=0/ntask_cpu=2.000000/ntask_memory=256000000/nprevious_memory=0",
   "test_requirements_scope.attempt": 0,
   "test_requirements_scope.cpu": 2.0,
   "test_requirements_scope.memory": 256000000,
