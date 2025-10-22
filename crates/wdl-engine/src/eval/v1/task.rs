@@ -117,7 +117,8 @@ pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
-/// The default GPU count when GPU is required but no valid hint is provided.
+/// The default GPU count when a GPU is required but no supported hint is
+/// provided.
 pub const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
