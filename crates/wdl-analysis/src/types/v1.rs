@@ -174,6 +174,9 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
             Some(Type::Object)
         }
+        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+            Some(PrimitiveType::Integer.into())
+        }
         n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }

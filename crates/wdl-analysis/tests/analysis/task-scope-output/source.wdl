@@ -17,6 +17,7 @@ task test_output_scope {
     String task_name = task.name
     String task_id = task.id
     Int attempt = task.attempt
+    Int max_retries = task.max_retries
     Float cpu = task.cpu
     Int memory = task.memory
     String? container = task.container
@@ -29,5 +30,6 @@ task test_output_scope {
     Array[String]? previous_gpu = task.previous.gpu
     Array[String]? previous_fpga = task.previous.fpga
     Map[String, Int]? previous_disks = task.previous.disks
+    Int? previous_max_retries = task.previous.max_retries
   }
 }

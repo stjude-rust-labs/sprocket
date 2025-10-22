@@ -9,10 +9,12 @@ task test_command_scope {
   }
 
   command <<<
-    # Post-evaluation fields are available: name, id, attempt, previous, cpu, memory, container, gpu, fpga, disks
+    # Post-evaluation fields are available: `name`, `id`, `attempt`, `max_retries`,
+    # `previous`, `cpu`, `memory`, `container`, `gpu`, `fpga`, `disks`
     echo "name: ~{task.name}"
     echo "id: ~{task.id}"
     echo "attempt: ~{task.attempt}"
+    echo "max_retries: ~{task.max_retries}"
     echo "cpu: ~{task.cpu}"
     echo "memory: ~{task.memory}"
     echo "container: ~{select_first([task.container, 'none'])}"

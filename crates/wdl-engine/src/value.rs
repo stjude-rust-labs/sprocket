@@ -3135,6 +3135,9 @@ impl TaskPostEvaluationValue {
             n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
             n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
             n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+                Some(self.data.max_retries.into())
+            }
             n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
                 Some(Value::PreviousTaskData(self.previous.clone()))
             }
