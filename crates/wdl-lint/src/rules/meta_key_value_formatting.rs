@@ -61,7 +61,7 @@ fn incorrect_indentation(span: Span, expected: &str, actual: &str) -> Diagnostic
     }
 }
 
-/// A lint rule for missing meta and parameter_meta sections.
+/// Detects incorrect formatting of arrays and objects in meta and parameter_meta sections.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct MetaKeyValueFormattingRule {
     /// The version of the WDL document being linted.
