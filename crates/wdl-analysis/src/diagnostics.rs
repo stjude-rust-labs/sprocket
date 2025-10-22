@@ -446,7 +446,7 @@ pub fn not_a_task_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
 }
 
 /// Creates a "not a task.previous member" diagnostic.
-pub fn not_a_previous_requirements_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
+pub fn not_a_previous_task_data_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "`task.previous` does not have a member named `{member}`",
         member = member.text()

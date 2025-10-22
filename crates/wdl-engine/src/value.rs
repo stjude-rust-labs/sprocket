@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -43,6 +42,7 @@ use wdl_ast::v1::TASK_FIELD_EXT;
 use wdl_ast::v1::TASK_FIELD_FPGA;
 use wdl_ast::v1::TASK_FIELD_GPU;
 use wdl_ast::v1::TASK_FIELD_ID;
+use wdl_ast::v1::TASK_FIELD_MAX_RETRIES;
 use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
@@ -110,7 +110,7 @@ pub enum Value {
     ///
     /// This value contains the previous attempt's requirements and is available
     /// in WDL 1.3+ via `task.previous`.
-    PreviousRequirements(PreviousRequirementsValue),
+    PreviousTaskData(PreviousTaskDataValue),
     /// The value is the outputs of a call.
     Call(CallValue),
 }
@@ -163,7 +163,7 @@ impl Value {
             Self::Output(_) => Type::Hidden(HiddenType::Output),
             Self::TaskPreEvaluation(_) => Type::Hidden(HiddenType::TaskPreEvaluation),
             Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
-            Self::PreviousRequirements(_) => Type::Hidden(HiddenType::PreviousRequirements),
+            Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
             Self::Call(v) => Type::Call(v.ty.clone()),
         }
     }
@@ -685,7 +685,7 @@ impl fmt::Display for Value {
             Self::Input(v) => v.fmt(f),
             Self::Output(v) => v.fmt(f),
             Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
-            Self::PreviousRequirements(_) => write!(f, "task.previous"),
+            Self::PreviousTaskData(_) => write!(f, "task.previous"),
             Self::Call(c) => c.fmt(f),
         }
     }
@@ -729,18 +729,22 @@ impl Coercible for Value {
                 bail!("output values cannot be coerced to any other type");
             }
             Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
-                if matches!(target, Type::Hidden(HiddenType::TaskPreEvaluation) | Type::Hidden(HiddenType::TaskPostEvaluation)) {
+                if matches!(
+                    target,
+                    Type::Hidden(HiddenType::TaskPreEvaluation)
+                        | Type::Hidden(HiddenType::TaskPostEvaluation)
+                ) {
                     return Ok(self.clone());
                 }
 
                 bail!("task variables cannot be coerced to any other type");
             }
-            Self::PreviousRequirements(_) => {
-                if matches!(target, Type::Hidden(HiddenType::PreviousRequirements)) {
+            Self::PreviousTaskData(_) => {
+                if matches!(target, Type::Hidden(HiddenType::PreviousTaskData)) {
                     return Ok(self.clone());
                 }
 
-                bail!("previous requirements values cannot be coerced to any other type");
+                bail!("previous task data values cannot be coerced to any other type");
             }
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
@@ -2716,25 +2720,11 @@ impl From<Struct> for CompoundValue {
     }
 }
 
-/// Immutable data for task values before requirements evaluation (WDL 1.3+).
-///
-/// Contains only metadata that's available before evaluating
-/// requirements/hints/runtime.
-#[derive(Debug, Clone)]
-struct TaskPreEvaluationData {
-    /// The task's `meta` section as an object.
-    meta: Object,
-    /// The tasks's `parameter_meta` section as an object.
-    parameter_meta: Object,
-    /// The task's extension metadata.
-    ext: Object,
-}
-
 /// Immutable data for task values after requirements evaluation (WDL 1.2+).
 ///
-/// Contains all evaluated requirement fields plus metadata.
+/// Contains all evaluated requirement fields.
 #[derive(Debug, Clone)]
-struct TaskPostEvaluationData {
+pub struct TaskPostEvaluationData {
     /// The container of the task.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
@@ -2758,43 +2748,44 @@ struct TaskPostEvaluationData {
     /// The key is the mount point and the value is the initial amount of disk
     /// space allocated, in bytes.
     disks: Map,
-    /// The time by which the task must be completed, as a Unix time stamp.
-    ///
-    /// A value of `None` indicates there is no deadline.
-    end_time: Option<i64>,
-    /// The task's `meta` section as an object.
-    meta: Object,
-    /// The tasks's `parameter_meta` section as an object.
-    parameter_meta: Object,
-    /// The task's extension metadata.
-    ext: Object,
+    /// The maximum number of retries for the task.
+    max_retries: i64,
 }
 
-/// Represents a `task.previous` value containing requirements from a previous attempt.
+/// Represents a `task.previous` value containing data from a previous attempt.
 ///
-/// The requirements are stored in an `Arc<HashMap>` for cheap cloning.
+/// The data is stored in an `Arc<TaskPostEvaluationData>` for cheap cloning.
 #[derive(Debug, Clone)]
-pub struct PreviousRequirementsValue(Arc<HashMap<String, Value>>);
+pub struct PreviousTaskDataValue(Option<Arc<TaskPostEvaluationData>>);
 
-impl PreviousRequirementsValue {
-    /// Creates a new previous requirements value.
-    pub fn new(requirements: HashMap<String, Value>) -> Self {
-        Self(Arc::new(requirements))
+impl PreviousTaskDataValue {
+    /// Creates a new previous task data from task post-evaluation data.
+    pub fn new(data: Arc<TaskPostEvaluationData>) -> Self {
+        Self(Some(data))
     }
 
-    /// Creates an empty previous requirements value.
+    /// Creates an empty previous task data (for first attempt).
     pub fn empty() -> Self {
-        Self(Arc::new(HashMap::new()))
+        Self(None)
     }
 
-    /// Gets the value of a field in the previous requirements.
-    pub fn field(&self, name: &str) -> Option<&Value> {
-        self.0.get(name)
-    }
+    /// Gets the value of a field in the previous task data.
+    pub fn field(&self, name: &str) -> Option<Value> {
+        let data = self.0.as_ref()?;
 
-    /// Gets all the requirements as a reference.
-    pub fn requirements(&self) -> &HashMap<String, Value> {
-        &self.0
+        match name {
+            n if n == TASK_FIELD_MEMORY => Some(Value::from(data.memory)),
+            n if n == TASK_FIELD_CPU => Some(Value::from(data.cpu)),
+            n if n == TASK_FIELD_CONTAINER => data
+                .container
+                .as_ref()
+                .map(|c| PrimitiveValue::String(c.clone()).into()),
+            n if n == TASK_FIELD_GPU => Some(Value::from(data.gpu.clone())),
+            n if n == TASK_FIELD_FPGA => Some(Value::from(data.fpga.clone())),
+            n if n == TASK_FIELD_DISKS => Some(Value::from(data.disks.clone())),
+            n if n == TASK_FIELD_MAX_RETRIES => Some(Value::from(data.max_retries)),
+            _ => None,
+        }
     }
 }
 
@@ -2806,8 +2797,6 @@ impl PreviousRequirementsValue {
 /// Task values are cheap to clone.
 #[derive(Debug, Clone)]
 pub struct TaskPreEvaluationValue {
-    /// The immutable metadata for the task.
-    data: Arc<TaskPreEvaluationData>,
     /// The task name.
     name: Arc<String>,
     /// The task id.
@@ -2817,12 +2806,18 @@ pub struct TaskPreEvaluationValue {
     /// The value must be 0 the first time the task is executed and incremented
     /// by 1 each time the task is retried (if any).
     attempt: i64,
-    /// The previous attempt's requirements (WDL 1.3+).
+    /// The task's `meta` section as an object.
+    meta: Object,
+    /// The tasks's `parameter_meta` section as an object.
+    parameter_meta: Object,
+    /// The task's extension metadata.
+    ext: Object,
+    /// The previous attempt's task data (WDL 1.3+).
     ///
-    /// Contains the evaluated requirement values from the previous attempt.
+    /// Contains the evaluated task data from the previous attempt.
     ///
     /// On the first attempt, this is empty.
-    previous: PreviousRequirementsValue,
+    previous: PreviousTaskDataValue,
 }
 
 /// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
@@ -2843,16 +2838,26 @@ pub struct TaskPostEvaluationValue {
     /// The value must be 0 the first time the task is executed and incremented
     /// by 1 each time the task is retried (if any).
     attempt: i64,
+    /// The task's `meta` section as an object.
+    meta: Object,
+    /// The tasks's `parameter_meta` section as an object.
+    parameter_meta: Object,
+    /// The task's extension metadata.
+    ext: Object,
     /// The task's return code.
     ///
     /// Initially set to [`None`], but set after task execution completes.
     return_code: Option<i64>,
-    /// The previous attempt's requirements (WDL 1.3+).
+    /// The time by which the task must be completed, as a Unix time stamp.
     ///
-    /// Contains the evaluated requirement values from the previous attempt.
+    /// A value of `None` indicates there is no deadline.
+    end_time: Option<i64>,
+    /// The previous attempt's task data (WDL 1.3+).
+    ///
+    /// Contains the evaluated task data from the previous attempt.
     ///
     /// On the first attempt, this is empty.
-    previous: PreviousRequirementsValue,
+    previous: PreviousTaskDataValue,
 }
 
 impl TaskPreEvaluationValue {
@@ -2867,25 +2872,23 @@ impl TaskPreEvaluationValue {
         Self {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
-            data: Arc::new(TaskPreEvaluationData {
-                meta: definition
-                    .metadata()
-                    .map(|s| Object::from_v1_metadata(s.items()))
-                    .unwrap_or_else(Object::empty),
-                parameter_meta: definition
-                    .parameter_metadata()
-                    .map(|s| Object::from_v1_metadata(s.items()))
-                    .unwrap_or_else(Object::empty),
-                ext: Object::empty(),
-            }),
+            meta: definition
+                .metadata()
+                .map(|s| Object::from_v1_metadata(s.items()))
+                .unwrap_or_else(Object::empty),
+            parameter_meta: definition
+                .parameter_metadata()
+                .map(|s| Object::from_v1_metadata(s.items()))
+                .unwrap_or_else(Object::empty),
+            ext: Object::empty(),
             attempt,
-            previous: PreviousRequirementsValue::empty(),
+            previous: PreviousTaskDataValue::empty(),
         }
     }
 
-    /// Sets the previous requirements for retry attempts.
-    pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
-        self.previous = PreviousRequirementsValue::new(requirements.clone());
+    /// Sets the previous task data for retry attempts.
+    pub(crate) fn set_previous(&mut self, data: Arc<TaskPostEvaluationData>) {
+        self.previous = PreviousTaskDataValue::new(data);
     }
 
     /// Gets the task name.
@@ -2911,12 +2914,10 @@ impl TaskPreEvaluationValue {
             n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
             n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
             n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.data.ext.clone().into()),
-            n if n == TASK_FIELD_PREVIOUS => {
-                Some(Value::PreviousRequirements(self.previous.clone()))
-            }
+            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
+            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            n if n == TASK_FIELD_PREVIOUS => Some(Value::PreviousTaskData(self.previous.clone())),
             _ => None,
         }
     }
@@ -2930,6 +2931,7 @@ impl TaskPostEvaluationValue {
         id: impl Into<String>,
         definition: &v1::TaskDefinition<N>,
         constraints: TaskExecutionConstraints,
+        max_retries: i64,
         attempt: i64,
     ) -> Self {
         Self {
@@ -2963,20 +2965,21 @@ impl TaskPostEvaluationValue {
                         .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), v.into()))
                         .collect(),
                 ),
-                end_time: None,
-                meta: definition
-                    .metadata()
-                    .map(|s| Object::from_v1_metadata(s.items()))
-                    .unwrap_or_else(Object::empty),
-                parameter_meta: definition
-                    .parameter_metadata()
-                    .map(|s| Object::from_v1_metadata(s.items()))
-                    .unwrap_or_else(Object::empty),
-                ext: Object::empty(),
+                max_retries,
             }),
             attempt,
+            meta: definition
+                .metadata()
+                .map(|s| Object::from_v1_metadata(s.items()))
+                .unwrap_or_else(Object::empty),
+            parameter_meta: definition
+                .parameter_metadata()
+                .map(|s| Object::from_v1_metadata(s.items()))
+                .unwrap_or_else(Object::empty),
+            ext: Object::empty(),
             return_code: None,
-            previous: PreviousRequirementsValue::empty(),
+            end_time: None,
+            previous: PreviousTaskDataValue::empty(),
         }
     }
 
@@ -3043,7 +3046,7 @@ impl TaskPostEvaluationValue {
     ///
     /// A value of `None` indicates there is no deadline.
     pub fn end_time(&self) -> Option<i64> {
-        self.data.end_time
+        self.end_time
     }
 
     /// Gets the task's return code.
@@ -3055,17 +3058,17 @@ impl TaskPostEvaluationValue {
 
     /// Gets the task's `meta` section as an object.
     pub fn meta(&self) -> &Object {
-        &self.data.meta
+        &self.meta
     }
 
     /// Gets the tasks's `parameter_meta` section as an object.
     pub fn parameter_meta(&self) -> &Object {
-        &self.data.parameter_meta
+        &self.parameter_meta
     }
 
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
-        &self.data.ext
+        &self.ext
     }
 
     /// Sets the return code after the task execution has completed.
@@ -3078,9 +3081,14 @@ impl TaskPostEvaluationValue {
         self.attempt = attempt;
     }
 
-    /// Sets the previous requirements for retry attempts.
-    pub(crate) fn set_previous(&mut self, requirements: &HashMap<String, Value>) {
-        self.previous = PreviousRequirementsValue::new(requirements.clone());
+    /// Sets the previous task data for retry attempts.
+    pub(crate) fn set_previous(&mut self, data: Arc<TaskPostEvaluationData>) {
+        self.previous = PreviousTaskDataValue::new(data);
+    }
+
+    /// Gets the task post-evaluation data.
+    pub(crate) fn data(&self) -> &Arc<TaskPostEvaluationData> {
+        &self.data
     }
 
     /// Accesses a field of the task value by name.
@@ -3109,7 +3117,7 @@ impl TaskPostEvaluationValue {
             n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
             n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
             n if n == TASK_FIELD_END_TIME => {
-                Some(self.data.end_time.map(Into::into).unwrap_or_else(|| {
+                Some(self.end_time.map(Into::into).unwrap_or_else(|| {
                     Value::new_none(
                         task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
                             .expect("failed to get task field type"),
@@ -3124,11 +3132,11 @@ impl TaskPostEvaluationValue {
                     )
                 }))
             }
-            n if n == TASK_FIELD_META => Some(self.data.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.data.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.data.ext.clone().into()),
+            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
+            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
             n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
-                Some(Value::PreviousRequirements(self.previous.clone()))
+                Some(Value::PreviousTaskData(self.previous.clone()))
             }
             _ => None,
         }
@@ -3319,7 +3327,7 @@ impl serde::Serialize for ValueSerializer<'_> {
             | Value::Output(_)
             | Value::TaskPreEvaluation(_)
             | Value::TaskPostEvaluation(_)
-            | Value::PreviousRequirements(_)
+            | Value::PreviousTaskData(_)
             | Value::Call(_) => Err(S::Error::custom("value cannot be serialized")),
         }
     }

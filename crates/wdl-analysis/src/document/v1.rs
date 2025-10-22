@@ -540,13 +540,21 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             HiddenType::TaskPreEvaluation => {
                 // Pre-evaluation task type is available in v1.3+.
                 if version >= Some(SupportedVersion::V1(V1::Three)) {
-                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Hidden(task_type));
+                    scopes[index.0].insert(
+                        TASK_VAR_NAME,
+                        task_name.span(),
+                        Type::Hidden(task_type),
+                    );
                 }
             }
             HiddenType::TaskPostEvaluation => {
                 // Post-evaluation task type is available in v1.2+.
                 if version >= Some(SupportedVersion::V1(V1::Two)) {
-                    scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Hidden(task_type));
+                    scopes[index.0].insert(
+                        TASK_VAR_NAME,
+                        task_name.span(),
+                        Type::Hidden(task_type),
+                    );
                 }
             }
             _ => panic!("task type should be either `TaskPreEvaluation` or `TaskPostEvaluation`"),

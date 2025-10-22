@@ -112,9 +112,9 @@ use crate::diagnostics::multiple_type_mismatch;
 use crate::diagnostics::negation_mismatch;
 use crate::diagnostics::no_common_type;
 use crate::diagnostics::not_a_pair_accessor;
+use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
-use crate::diagnostics::not_a_previous_requirements_member;
 use crate::diagnostics::not_a_task_member;
 use crate::diagnostics::numeric_mismatch;
 use crate::diagnostics::string_concat_mismatch;
@@ -145,7 +145,7 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
         n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
             Some(Type::Object)
         }
-        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousRequirements)),
+        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
         _ => None,
     }
 }
@@ -156,10 +156,7 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 /// available.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn task_member_type_post_evaluation(
-    version: SupportedVersion,
-    name: &str,
-) -> Option<Type> {
+pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
@@ -178,7 +175,7 @@ pub fn task_member_type_post_evaluation(
             Some(Type::Object)
         }
         n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
-            Some(Type::Hidden(HiddenType::PreviousRequirements))
+            Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
         _ => None,
     }
@@ -187,7 +184,7 @@ pub fn task_member_type_post_evaluation(
 /// Gets the type of a `task.previous` member.
 ///
 /// Returns [`None`] if the given member name is unknown.
-pub fn previous_requirements_member_type(name: &str) -> Option<Type> {
+pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
         n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
@@ -1706,10 +1703,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::Hidden(HiddenType::TaskPostEvaluation) => {
-                return match task_member_type_post_evaluation(
-                    self.context.version(),
-                    name.text(),
-                ) {
+                return match task_member_type_post_evaluation(self.context.version(), name.text()) {
                     Some(ty) => Some(ty),
                     None => {
                         self.context.add_diagnostic(not_a_task_member(&name));
@@ -1717,11 +1711,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            Type::Hidden(HiddenType::PreviousRequirements) => {
-                return match previous_requirements_member_type(name.text()) {
+            Type::Hidden(HiddenType::PreviousTaskData) => {
+                return match previous_task_data_member_type(name.text()) {
                     Some(ty) => Some(ty),
                     None => {
-                        self.context.add_diagnostic(not_a_previous_requirements_member(&name));
+                        self.context
+                            .add_diagnostic(not_a_previous_task_data_member(&name));
                         return None;
                     }
                 };

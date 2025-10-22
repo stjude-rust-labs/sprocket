@@ -28,7 +28,7 @@ use wdl_analysis::diagnostics::missing_struct_members;
 use wdl_analysis::diagnostics::multiple_type_mismatch;
 use wdl_analysis::diagnostics::no_common_type;
 use wdl_analysis::diagnostics::not_a_pair_accessor;
-use wdl_analysis::diagnostics::not_a_previous_requirements_member;
+use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
 use wdl_analysis::diagnostics::not_a_task_member;
@@ -56,7 +56,7 @@ use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::ComparisonOperator;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::types::v1::NumericOperator;
-use wdl_analysis::types::v1::previous_requirements_member_type;
+use wdl_analysis::types::v1::previous_task_data_member_type;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
@@ -1486,15 +1486,12 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     None => Err(not_a_task_member(&name)),
                 }
             }
-            Value::PreviousRequirements(prev) => {
-                match previous_requirements_member_type(name.text()) {
-                    Some(ty) => Ok(prev
-                        .field(name.text())
-                        .cloned()
-                        .unwrap_or_else(|| Value::new_none(ty))),
-                    None => Err(not_a_previous_requirements_member(&name)),
-                }
-            }
+            Value::PreviousTaskData(prev) => match previous_task_data_member_type(name.text()) {
+                Some(ty) => Ok(prev
+                    .field(name.text())
+                    .unwrap_or_else(|| Value::new_none(ty))),
+                None => Err(not_a_previous_task_data_member(&name)),
+            },
             Value::Call(call) => match call.outputs().get(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),

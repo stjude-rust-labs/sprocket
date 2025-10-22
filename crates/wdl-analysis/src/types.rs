@@ -143,9 +143,10 @@ pub enum HiddenType {
     /// sections after constraint evaluation.
     TaskPostEvaluation,
     /// A hidden type for `task.previous` that contains the previous
-    /// attempt's requirements. Available in WDL 1.3+ in both pre-evaluation
-    /// (requirements, hints, runtime) and post-evaluation (command, output) contexts.
-    PreviousRequirements,
+    /// attempt's computed requirements. Available in WDL 1.3+ in both
+    /// pre-evaluation (requirements, hints, runtime) and post-evaluation
+    /// (command, output) contexts.
+    PreviousTaskData,
 }
 
 impl fmt::Display for HiddenType {
@@ -155,7 +156,7 @@ impl fmt::Display for HiddenType {
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
             Self::TaskPreEvaluation | Self::TaskPostEvaluation => write!(f, "task"),
-            Self::PreviousRequirements => write!(f, "task.previous"),
+            Self::PreviousTaskData => write!(f, "task.previous"),
         }
     }
 }

@@ -81,6 +81,7 @@ use crate::ScopeRef;
 use crate::StorageUnit;
 use crate::TaskExecutionBackend;
 use crate::TaskInputs;
+use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::TaskSpawnInfo;
@@ -447,6 +448,18 @@ pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
             )
         })
         .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+}
+
+/// Gets the `max_retries` requirement from a requirements map with config
+/// fallback.
+pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> u64 {
+    requirements
+        .get(TASK_REQUIREMENT_MAX_RETRIES)
+        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
+        .and_then(|v| v.as_integer())
+        .map(|v| v as u64)
+        .or_else(|| config.task.retries)
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
 }
 
 /// Used to evaluate expressions in tasks.
@@ -970,7 +983,7 @@ impl TaskEvaluator {
         let env = Arc::new(mem::take(&mut state.env));
         // Spawn the task in a retry loop
         let mut attempt = 0;
-        let mut previous_requirements: Option<Arc<HashMap<String, Value>>> = None;
+        let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
             let EvaluatedSections {
                 command,
@@ -983,19 +996,13 @@ impl TaskEvaluator {
                     &definition,
                     inputs,
                     attempt,
-                    previous_requirements.clone(),
+                    previous_task_data.clone(),
                 )
                 .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = requirements
-                .get(TASK_REQUIREMENT_MAX_RETRIES)
-                .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-                .cloned()
-                .map(|v| v.unwrap_integer() as u64)
-                .or_else(|| self.config.task.retries)
-                .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES);
+            let max_retries = max_retries(&requirements, &self.config);
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1074,7 +1081,15 @@ impl TaskEvaluator {
 
                 attempt += 1;
 
-                previous_requirements = Some(requirements.clone());
+                let task = state.scopes[TASK_SCOPE_INDEX.0]
+                    .names
+                    .get(TASK_VAR_NAME)
+                    // SAFETY: task variable should always exist in scope at this point
+                    .unwrap()
+                    // SAFETY: task variable should always be TaskPostEvaluation at this point
+                    .as_task_post_evaluation()
+                    .unwrap();
+                previous_task_data = Some(task.data().clone());
 
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
@@ -1625,7 +1640,7 @@ impl TaskEvaluator {
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
         attempt: u64,
-        previous_requirements: Option<Arc<HashMap<String, Value>>>,
+        previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
         let version = state.document.version();
 
@@ -1639,8 +1654,8 @@ impl TaskEvaluator {
                 attempt.try_into().expect("attempt should fit in i64"),
             );
 
-            if let Some(prev_reqs) = previous_requirements.as_deref() {
-                task.set_previous(prev_reqs);
+            if let Some(prev_data) = &previous_task_data {
+                task.set_previous(prev_data.clone());
             }
 
             let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];
@@ -1690,11 +1705,19 @@ impl TaskEvaluator {
                     )
                 })?;
 
+            let max_retries = max_retries(&requirements, &self.config);
+
             let mut task = TaskPostEvaluationValue::new(
                 state.task.name(),
                 id,
                 definition,
                 constraints,
+                max_retries.try_into().with_context(|| {
+                    format!(
+                        "the number of max retries is too large to run task `{task}`",
+                        task = state.task.name()
+                    )
+                })?,
                 attempt.try_into().with_context(|| {
                     format!(
                         "too many attempts were made to run task `{task}`",
@@ -1706,9 +1729,9 @@ impl TaskEvaluator {
             // In WDL 1.3+, insert the previous requirements.
             if let Some(version) = version
                 && version >= SupportedVersion::V1(V1::Three)
-                && let Some(prev_reqs) = previous_requirements.as_deref()
+                && let Some(prev_data) = &previous_task_data
             {
-                task.set_previous(prev_reqs);
+                task.set_previous(prev_data.clone());
             }
 
             let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];

@@ -84,9 +84,9 @@ use crate::types::CompoundType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
 use crate::types::v1::task_hint_types;
-use crate::types::v1::task_requirement_types;
 use crate::types::v1::task_member_type_post_evaluation;
 use crate::types::v1::task_member_type_pre_evaluation;
+use crate::types::v1::task_requirement_types;
 
 /// Provides code completion suggestions for the given position in a document.
 ///

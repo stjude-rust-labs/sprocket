@@ -178,7 +178,7 @@ fn calculate_disk_size<'a>(
             Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
                 bail!("the size of a task variable cannot be calculated")
             }
-            Value::PreviousRequirements(_) => {
+            Value::PreviousTaskData(_) => {
                 bail!("the size of a task.previous value cannot be calculated")
             }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
