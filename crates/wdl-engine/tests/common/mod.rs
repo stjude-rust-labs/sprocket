@@ -1,3 +1,9 @@
+//! Common logic for the `wdl-engine` integration tests.
+//!
+//! This is located in `common/mod.rs` rather than `common.rs` in order to avoid
+//! `cargo test` treating this as an integration test target and needlessly
+//! compiling a test executable from its source.
+
 use std::collections::HashMap;
 use std::env;
 use std::fs;
