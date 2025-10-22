@@ -22,6 +22,7 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::LazyLock;
 
@@ -48,6 +49,8 @@ use wdl_engine::config::BackendConfig;
 use wdl_engine::config::{self};
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TaskEvaluator;
+
+mod common;
 
 /// Regex used to remove both host and guest path prefixes.
 static PATH_PREFIX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
@@ -135,6 +138,37 @@ fn configs(path: &Path) -> Result<Vec<(Cow<'static, str>, config::Config)>, anyh
     }
     if !configs_on_disk.is_empty() || any_config_toml_found {
         Ok(configs_on_disk)
+    } else if common::lsf_apptainer_available().context("checking for LSF + apptainer")? {
+        // If LSF and Apptainer are available, we're probably running on an HPC and
+        // should only exercise that backend.
+        Ok(vec![("lsf_apptainer".into(), {
+            config::Config {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::LsfApptainer(
+                        wdl_engine::LsfApptainerBackendConfig {
+                            default_lsf_queue: Some(wdl_engine::LsfApptainerQueueConfig::new(
+                                "short".to_string(),
+                                // Add some quite low CPU + memory constraints in case we ever
+                                // happen to run on a very small queue
+                                Some(4),
+                                Some("16 GiB".parse().unwrap()),
+                            )),
+                            apptainer_config: wdl_engine::ApptainerConfig {
+                                apptainer_images_dir: PathBuf::from(env!("CARGO_TARGET_TMPDIR")),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
+                )]
+                .into(),
+                suppress_env_specific_output: true,
+                experimental_features_enabled: true,
+                ..Default::default()
+            }
+        })])
     } else {
         Ok(vec![
             ("local".into(), {
@@ -239,9 +273,15 @@ fn compare_result(path: &Path, result: &str) -> Result<()> {
 
 /// Runs a single test.
 async fn run_test(test: &Path, config: config::Config) -> Result<()> {
-    let analysis_config =
-        wdl_analysis::Config::default().with_feature_flags(wdl_analysis::FeatureFlags::all());
-    let analyzer = Analyzer::new(analysis_config, |_, _, _, _| async {});
+    use wdl_analysis::Config as AnalysisConfig;
+    use wdl_analysis::FeatureFlags;
+
+    let analyzer = Analyzer::new(
+        AnalysisConfig::default()
+            .with_feature_flags(FeatureFlags::default().with_experimental_versions()),
+        |(), _, _, _| async {},
+    );
+
     analyzer
         .add_directory(test)
         .await
@@ -304,7 +344,8 @@ async fn run_test(test: &Path, config: config::Config) -> Result<()> {
     inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
     let evaluator = TaskEvaluator::new(config, CancellationToken::new(), Events::none()).await?;
-    let dir = TempDir::new().context("failed to create temporary directory")?;
+    let dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
+        .context("failed to create temporary directory")?;
     info!(dir = %dir.path().display(), "test temp dir created");
 
     match evaluator
