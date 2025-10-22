@@ -142,6 +142,9 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
+            Some(Type::Object)
+        }
         n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousRequirements)),
         _ => None,
     }
@@ -189,15 +192,10 @@ pub fn previous_requirements_member_type(name: &str) -> Option<Type> {
         n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
         n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
         n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_GPU => Some(Type::from(PrimitiveType::Boolean).optional()),
-        n if n == TASK_FIELD_FPGA => Some(Type::from(PrimitiveType::Boolean).optional()),
-        n if n == TASK_FIELD_DISKS => Some(
-            Type::Compound(
-                CompoundType::Array(ArrayType::new(PrimitiveType::String)),
-                false,
-            )
-            .optional(),
-        ),
+        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
+            Some(STDLIB.array_string_type().clone().optional())
+        }
+        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
         n if n == TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }

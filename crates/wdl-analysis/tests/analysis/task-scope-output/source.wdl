@@ -26,8 +26,8 @@ task test_output_scope {
     Int? previous_memory = task.previous.memory
     Float? previous_cpu = task.previous.cpu
     String? previous_container = task.previous.container
-    Boolean? previous_gpu = task.previous.gpu
-    Boolean? previous_fpga = task.previous.fpga
-    Array[String]? previous_disks = task.previous.disks
+    Array[String]? previous_gpu = task.previous.gpu
+    Array[String]? previous_fpga = task.previous.fpga
+    Map[String, Int]? previous_disks = task.previous.disks
   }
 }

@@ -9,7 +9,7 @@ task test_requirements_scope {
     cpu: task.attempt + 1
     container: if task.id != "" then "ubuntu:latest" else "debian:latest"
     disks: if select_first([task.previous.memory, 0]) > 0 then ["20 GiB"] else ["10 GiB"]
-    gpu: select_first([task.previous.gpu, false])
+    gpu: select_first([task.previous.memory, 0]) > 1000000000
   }
 
   command <<<

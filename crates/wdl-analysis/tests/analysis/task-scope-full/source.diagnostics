@@ -1,8 +1,8 @@
 error: `task.previous` does not have a member named `not_a_member`
-   ┌─ tests/analysis/task-scope-full/source.wdl:23:24
+   ┌─ tests/analysis/task-scope-full/source.wdl:23:38
    │
-23 │     gpu: task.previous.not_a_member
-   │                        ^^^^^^^^^^^^
+23 │     gpu: select_first([task.previous.not_a_member, []])
+   │                                      ^^^^^^^^^^^^
 
 error: the `task` variable does not have a member named `cpu`
    ┌─ tests/analysis/task-scope-full/source.wdl:26:16
