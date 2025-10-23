@@ -2781,13 +2781,17 @@ impl PreviousTaskDataValue {
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.memory))
-                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Integer))),
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::from(PrimitiveType::Integer).optional())
+                    }),
             ),
             n if n == TASK_FIELD_CPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.cpu))
-                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Float))),
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::from(PrimitiveType::Float).optional())
+                    }),
             ),
             n if n == TASK_FIELD_CONTAINER => Some(
                 self.0
@@ -2797,7 +2801,9 @@ impl PreviousTaskDataValue {
                             .as_ref()
                             .map(|c| PrimitiveValue::String(c.clone()).into())
                     })
-                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::String))),
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::from(PrimitiveType::String).optional())
+                    }),
             ),
             n if n == TASK_FIELD_GPU => Some(
                 self.0
@@ -2806,7 +2812,7 @@ impl PreviousTaskDataValue {
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
                             CompoundType::Array(ArrayType::new(PrimitiveType::String)),
-                            false,
+                            true,
                         ))
                     }),
             ),
@@ -2817,7 +2823,7 @@ impl PreviousTaskDataValue {
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
                             CompoundType::Array(ArrayType::new(PrimitiveType::String)),
-                            false,
+                            true,
                         ))
                     }),
             ),
@@ -2831,7 +2837,7 @@ impl PreviousTaskDataValue {
                                 PrimitiveType::String,
                                 PrimitiveType::Integer,
                             ))),
-                            false,
+                            true,
                         ))
                     }),
             ),
@@ -2839,7 +2845,9 @@ impl PreviousTaskDataValue {
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.max_retries))
-                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Integer))),
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::from(PrimitiveType::Integer).optional())
+                    }),
             ),
             _ => None,
         }

@@ -197,13 +197,6 @@ pub struct FeatureFlags {
 }
 
 impl FeatureFlags {
-    /// Creates a new [`FeatureFlags`] with all features enabled.
-    ///
-    /// This is useful when running tests downstream.
-    pub fn all() -> Self {
-        Self { wdl_1_3: true }
-    }
-
     /// Gets whether experimental WDL 1.3 features are enabled.
     pub fn wdl_1_3(&self) -> bool {
         self.wdl_1_3
