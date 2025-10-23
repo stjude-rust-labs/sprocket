@@ -73,6 +73,7 @@ use crate::GuestPath;
 use crate::HostPath;
 use crate::Input;
 use crate::InputKind;
+use crate::Object;
 use crate::ONE_GIBIBYTE;
 use crate::Outputs;
 use crate::Scope;
@@ -1081,15 +1082,11 @@ impl TaskEvaluator {
 
                 attempt += 1;
 
-                let task = state.scopes[TASK_SCOPE_INDEX.0]
-                    .names
-                    .get(TASK_VAR_NAME)
-                    // SAFETY: task variable should always exist in scope at this point
-                    .unwrap()
+                if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
                     // SAFETY: task variable should always be TaskPostEvaluation at this point
-                    .as_task_post_evaluation()
-                    .unwrap();
-                previous_task_data = Some(task.data().clone());
+                    let task = task.as_task_post_evaluation().unwrap();
+                    previous_task_data = Some(task.data().clone());
+                }
 
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
@@ -1644,14 +1641,29 @@ impl TaskEvaluator {
     ) -> EvaluationResult<EvaluatedSections> {
         let version = state.document.version();
 
+        // Extract task metadata once to avoid walking the AST multiple times
+        let task_meta = definition
+            .metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        let task_parameter_meta = definition
+            .parameter_metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        // Note: Sprocket does not currently support workflow-level extension metadata,
+        // so `ext` is always an empty object.
+        let task_ext = Object::empty();
+
         // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
         // requirements/hints/runtime section.
         if version >= Some(SupportedVersion::V1(V1::Three)) {
             let mut task = TaskPreEvaluationValue::new(
                 state.task.name(),
                 id,
-                definition,
                 attempt.try_into().expect("attempt should fit in i64"),
+                task_meta.clone(),
+                task_parameter_meta.clone(),
+                task_ext.clone(),
             );
 
             if let Some(prev_data) = &previous_task_data {
@@ -1710,7 +1722,6 @@ impl TaskEvaluator {
             let mut task = TaskPostEvaluationValue::new(
                 state.task.name(),
                 id,
-                definition,
                 constraints,
                 max_retries.try_into().with_context(|| {
                     format!(
@@ -1724,6 +1735,9 @@ impl TaskEvaluator {
                         task = state.task.name()
                     )
                 })?,
+                task_meta,
+                task_parameter_meta,
+                task_ext,
             );
 
             // In WDL 1.3+, insert the previous requirements.

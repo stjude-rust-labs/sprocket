@@ -25,6 +25,7 @@ use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::HiddenType;
+use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -2770,20 +2771,76 @@ impl PreviousTaskDataValue {
     }
 
     /// Gets the value of a field in the previous task data.
+    ///
+    /// Returns `None` if the field name is not valid for previous task data.
+    /// Returns `Some(Value::None)` for valid fields when there is no previous
+    /// data (first attempt).
     pub fn field(&self, name: &str) -> Option<Value> {
-        let data = self.0.as_ref()?;
-
         match name {
-            n if n == TASK_FIELD_MEMORY => Some(Value::from(data.memory)),
-            n if n == TASK_FIELD_CPU => Some(Value::from(data.cpu)),
-            n if n == TASK_FIELD_CONTAINER => data
-                .container
-                .as_ref()
-                .map(|c| PrimitiveValue::String(c.clone()).into()),
-            n if n == TASK_FIELD_GPU => Some(Value::from(data.gpu.clone())),
-            n if n == TASK_FIELD_FPGA => Some(Value::from(data.fpga.clone())),
-            n if n == TASK_FIELD_DISKS => Some(Value::from(data.disks.clone())),
-            n if n == TASK_FIELD_MAX_RETRIES => Some(Value::from(data.max_retries)),
+            n if n == TASK_FIELD_MEMORY => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.memory))
+                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Integer))),
+            ),
+            n if n == TASK_FIELD_CPU => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.cpu))
+                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Float))),
+            ),
+            n if n == TASK_FIELD_CONTAINER => Some(
+                self.0
+                    .as_ref()
+                    .and_then(|data| {
+                        data.container
+                            .as_ref()
+                            .map(|c| PrimitiveValue::String(c.clone()).into())
+                    })
+                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::String))),
+            ),
+            n if n == TASK_FIELD_GPU => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.gpu.clone()))
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::Compound(
+                            CompoundType::Array(ArrayType::new(PrimitiveType::String)),
+                            false,
+                        ))
+                    }),
+            ),
+            n if n == TASK_FIELD_FPGA => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.fpga.clone()))
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::Compound(
+                            CompoundType::Array(ArrayType::new(PrimitiveType::String)),
+                            false,
+                        ))
+                    }),
+            ),
+            n if n == TASK_FIELD_DISKS => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.disks.clone()))
+                    .unwrap_or_else(|| {
+                        Value::new_none(Type::Compound(
+                            CompoundType::Map(Arc::new(MapType::new(
+                                PrimitiveType::String,
+                                PrimitiveType::Integer,
+                            ))),
+                            false,
+                        ))
+                    }),
+            ),
+            n if n == TASK_FIELD_MAX_RETRIES => Some(
+                self.0
+                    .as_ref()
+                    .map(|data| Value::from(data.max_retries))
+                    .unwrap_or_else(|| Value::new_none(Type::from(PrimitiveType::Integer))),
+            ),
             _ => None,
         }
     }
@@ -2820,67 +2877,23 @@ pub struct TaskPreEvaluationValue {
     previous: PreviousTaskDataValue,
 }
 
-/// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
-///
-/// Exposes all task fields including evaluated constraints.
-///
-/// Task values are cheap to clone.
-#[derive(Debug, Clone)]
-pub struct TaskPostEvaluationValue {
-    /// The immutable data for task values including evaluated requirements.
-    data: Arc<TaskPostEvaluationData>,
-    /// The task name.
-    name: Arc<String>,
-    /// The task id.
-    id: Arc<String>,
-    /// The current task attempt count.
-    ///
-    /// The value must be 0 the first time the task is executed and incremented
-    /// by 1 each time the task is retried (if any).
-    attempt: i64,
-    /// The task's `meta` section as an object.
-    meta: Object,
-    /// The tasks's `parameter_meta` section as an object.
-    parameter_meta: Object,
-    /// The task's extension metadata.
-    ext: Object,
-    /// The task's return code.
-    ///
-    /// Initially set to [`None`], but set after task execution completes.
-    return_code: Option<i64>,
-    /// The time by which the task must be completed, as a Unix time stamp.
-    ///
-    /// A value of `None` indicates there is no deadline.
-    end_time: Option<i64>,
-    /// The previous attempt's task data (WDL 1.3+).
-    ///
-    /// Contains the evaluated task data from the previous attempt.
-    ///
-    /// On the first attempt, this is empty.
-    previous: PreviousTaskDataValue,
-}
-
 impl TaskPreEvaluationValue {
     /// Constructs a new pre-evaluation task value with the given name and
     /// identifier.
-    pub(crate) fn new<N: TreeNode>(
+    pub(crate) fn new(
         name: impl Into<String>,
         id: impl Into<String>,
-        definition: &v1::TaskDefinition<N>,
         attempt: i64,
+        meta: Object,
+        parameter_meta: Object,
+        ext: Object,
     ) -> Self {
         Self {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
-            meta: definition
-                .metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            parameter_meta: definition
-                .parameter_metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            ext: Object::empty(),
+            meta,
+            parameter_meta,
+            ext,
             attempt,
             previous: PreviousTaskDataValue::empty(),
         }
@@ -2923,16 +2936,59 @@ impl TaskPreEvaluationValue {
     }
 }
 
+/// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
+///
+/// Exposes all task fields including evaluated constraints.
+///
+/// Task values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TaskPostEvaluationValue {
+    /// The immutable data for task values including evaluated requirements.
+    data: Arc<TaskPostEvaluationData>,
+    /// The task name.
+    name: Arc<String>,
+    /// The task id.
+    id: Arc<String>,
+    /// The current task attempt count.
+    ///
+    /// The value must be 0 the first time the task is executed and incremented
+    /// by 1 each time the task is retried (if any).
+    attempt: i64,
+    /// The task's `meta` section as an object.
+    meta: Object,
+    /// The tasks's `parameter_meta` section as an object.
+    parameter_meta: Object,
+    /// The task's extension metadata.
+    ext: Object,
+    /// The task's return code.
+    ///
+    /// Initially set to [`None`], but set after task execution completes.
+    return_code: Option<i64>,
+    /// The time by which the task must be completed, as a Unix time stamp.
+    ///
+    /// A value of `None` indicates there is no deadline.
+    end_time: Option<i64>,
+    /// The previous attempt's task data (WDL 1.3+).
+    ///
+    /// Contains the evaluated task data from the previous attempt.
+    ///
+    /// On the first attempt, this is empty.
+    previous: PreviousTaskDataValue,
+}
+
 impl TaskPostEvaluationValue {
     /// Constructs a new post-evaluation task value with the given name,
     /// identifier, and constraints.
-    pub(crate) fn new<N: TreeNode>(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
         name: impl Into<String>,
         id: impl Into<String>,
-        definition: &v1::TaskDefinition<N>,
         constraints: TaskExecutionConstraints,
         max_retries: i64,
         attempt: i64,
+        meta: Object,
+        parameter_meta: Object,
+        ext: Object,
     ) -> Self {
         Self {
             name: Arc::new(name.into()),
@@ -2968,15 +3024,9 @@ impl TaskPostEvaluationValue {
                 max_retries,
             }),
             attempt,
-            meta: definition
-                .metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            parameter_meta: definition
-                .parameter_metadata()
-                .map(|s| Object::from_v1_metadata(s.items()))
-                .unwrap_or_else(Object::empty),
-            ext: Object::empty(),
+            meta,
+            parameter_meta,
+            ext,
             return_code: None,
             end_time: None,
             previous: PreviousTaskDataValue::empty(),

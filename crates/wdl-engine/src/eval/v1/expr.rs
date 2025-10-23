@@ -56,7 +56,6 @@ use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::ComparisonOperator;
 use wdl_analysis::types::v1::ExprTypeEvaluator;
 use wdl_analysis::types::v1::NumericOperator;
-use wdl_analysis::types::v1::previous_task_data_member_type;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
@@ -1486,10 +1485,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     None => Err(not_a_task_member(&name)),
                 }
             }
-            Value::PreviousTaskData(prev) => match previous_task_data_member_type(name.text()) {
-                Some(ty) => Ok(prev
-                    .field(name.text())
-                    .unwrap_or_else(|| Value::new_none(ty))),
+            Value::PreviousTaskData(prev) => match prev.field(name.text()) {
+                Some(value) => Ok(value),
                 None => Err(not_a_previous_task_data_member(&name)),
             },
             Value::Call(call) => match call.outputs().get(name.text()) {
