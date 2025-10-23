@@ -33,16 +33,12 @@ use tracing::trace;
 use tracing::warn;
 
 use super::ApptainerConfig;
-use super::COMMAND_FILE_NAME;
 use super::TaskExecutionBackend;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use super::WORK_DIR_NAME;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::config::Config;
@@ -105,7 +101,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         let attempt_dir = self.spawn_request.attempt_dir();
 
         // Create the host directory that will be mapped to the WDL working directory.
-        let wdl_work_dir = attempt_dir.join(WORK_DIR_NAME);
+        let wdl_work_dir = self.spawn_request.wdl_work_dir_host_path();
         fs::create_dir_all(&wdl_work_dir).await.with_context(|| {
             format!(
                 "failed to create WDL working directory `{path}`",
@@ -114,7 +110,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         })?;
 
         // Create an empty file for the WDL command's stdout.
-        let wdl_stdout_path = attempt_dir.join(STDOUT_FILE_NAME);
+        let wdl_stdout_path = self.spawn_request.wdl_stdout_host_path();
         let _ = File::create(&wdl_stdout_path).await.with_context(|| {
             format!(
                 "failed to create WDL stdout file `{path}`",
@@ -123,7 +119,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         })?;
 
         // Create an empty file for the WDL command's stderr.
-        let wdl_stderr_path = attempt_dir.join(STDERR_FILE_NAME);
+        let wdl_stderr_path = self.spawn_request.wdl_stderr_host_path();
         let _ = File::create(&wdl_stderr_path).await.with_context(|| {
             format!(
                 "failed to create WDL stderr file `{path}`",
@@ -132,7 +128,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         })?;
 
         // Write the evaluated WDL command section to a host file.
-        let wdl_command_path = attempt_dir.join(COMMAND_FILE_NAME);
+        let wdl_command_path = self.spawn_request.wdl_command_host_path();
         fs::write(&wdl_command_path, self.spawn_request.command())
             .await
             .with_context(|| {
@@ -308,7 +304,6 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             .take()
             .ok_or_else(|| anyhow!("sbatch child stderr missing"))?;
         let task_name = self.name.clone();
-        let _stderr_crankshaft_events = self.crankshaft_events.clone();
         tokio::spawn(async move {
             let mut lines = BufReader::new(sbatch_stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
@@ -587,6 +582,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
+        // TODO ACF 2025-10-23: investigate whether Slurm offers hard vs soft limits for
+        // CPU and memory
         let _max_cpu = v1::max_cpu(hints);
         let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
 
@@ -704,26 +701,22 @@ impl SlurmPartitionConfig {
             );
         }
         match tokio::time::timeout(
-            // 10 seconds is rather arbitrary; `sinfo` ordinarily returns extremely quickly, but we
-            // don't want things to run away on a misconfigured system
+            // 10 seconds is rather arbitrary; `scontrol` ordinarily returns extremely quickly, but
+            // we don't want things to run away on a misconfigured system
             std::time::Duration::from_secs(10),
-            Command::new("sinfo")
-                .arg(format!("--partition={partition}"))
-                // TODO ACF 2025-10-13: this is a fairly crude way to validate, but I couldn't
-                // quickly figure out a way to get `sinfo` or `squeue` to give me a non-zero exit
-                // code for an invalid partition name, so instead this arranges for stdout to be
-                // empty if the given name doesn't match a partition.
-                .arg("--noheader")
+            Command::new("scontrol")
+                .arg("show")
+                .arg("partition")
+                .arg(partition)
                 .output(),
         )
         .await
         {
             Ok(output) => {
                 let output = output.context("validating Slurm partition")?;
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                // If there is nothing but whitespace in stdout, the partition is not valid
-                if !output.status.success() || stdout.chars().all(char::is_whitespace) {
+                if !output.status.success() {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
                     error!(%stdout, %stderr, %partition, "failed to validate {name}_slurm_partition");
                     Err(anyhow!(
                         "failed to validate {name}_slurm_partition `{partition}`"
@@ -766,7 +759,7 @@ pub struct SlurmApptainerBackendConfig {
     /// to Slurm.
     pub gpu_slurm_partition: Option<SlurmPartitionConfig>,
     /// Which partition, if any, to specify when submitting [tasks which require
-    /// a GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
+    /// an FPGA](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to Slurm.
     pub fpga_slurm_partition: Option<SlurmPartitionConfig>,
     /// Additional command-line arguments to pass to `sbatch` when submitting

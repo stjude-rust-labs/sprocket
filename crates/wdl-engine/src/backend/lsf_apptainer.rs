@@ -731,8 +731,8 @@ pub struct LsfApptainerBackendConfig {
     /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
     pub gpu_lsf_queue: Option<LsfQueueConfig>,
-    /// Which queue, if any, to specify when submitting [tasks which require a
-    /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
+    /// Which queue, if any, to specify when submitting [tasks which require an
+    /// FPGA](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
     pub fpga_lsf_queue: Option<LsfQueueConfig>,
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
