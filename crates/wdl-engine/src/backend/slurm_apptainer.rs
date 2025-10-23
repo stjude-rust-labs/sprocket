@@ -28,7 +28,8 @@ use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error};
+use tracing::debug;
+use tracing::error;
 use tracing::trace;
 use tracing::warn;
 
