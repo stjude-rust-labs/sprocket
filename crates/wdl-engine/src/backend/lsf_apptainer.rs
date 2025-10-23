@@ -28,6 +28,7 @@ use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::error;
 use tracing::trace;
 use tracing::warn;
@@ -258,6 +259,8 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
                 memory_kb = self.required_memory.as_u64() / bytesize::KIB,
             ))
             .arg(apptainer_command_path);
+
+        debug!(?bsub_command, "spawning `bsub` command");
 
         let mut bsub_child = bsub_command.spawn()?;
 

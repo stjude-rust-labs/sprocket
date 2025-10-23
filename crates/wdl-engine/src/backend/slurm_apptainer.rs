@@ -28,7 +28,7 @@ use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+use tracing::{debug, error};
 use tracing::trace;
 use tracing::warn;
 
@@ -247,13 +247,23 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
                 "--cpus-per-task={}",
                 self.required_cpu.ceil() as u64
             ))
-            // Memory request is specified per node in megabytes; we round the request up to the
-            // next megabyte
+            // Memory request is specified per node in mebibytes; we round the request up to the
+            // next mebibyte.
+            //
+            // Note that the Slurm documentation says "megabyte" (i.e., the base-10 unit), but the
+            // other explanations of the unit suffixes in the first-party documentation show the use
+            // of base-2 units, and multiple third-party sources available through online searches
+            // back the base-2 interpretation, for example:
+            //
+            // https://info.nrao.edu/computing/guide/cluster-processing/appendix/memory-options
+            // https://wcmscu.atlassian.net/wiki/spaces/WIKI/pages/327731/Using+Slurm
             .arg(format!(
-                "--mem={}",
+                "--mem={}M",
                 (self.required_memory.as_u64() as f64 / bytesize::MIB as f64).ceil() as u64
             ))
             .arg(apptainer_command_path);
+
+        debug!(?sbatch_command, "spawning `sbatch` command");
 
         let mut sbatch_child = sbatch_command.spawn()?;
 
