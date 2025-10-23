@@ -22,7 +22,6 @@
 //! `BLESS` environment variable when running this test.
 
 use std::env;
-use std::env::current_exe;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
@@ -39,8 +38,10 @@ use colored::Colorize;
 use futures::StreamExt;
 use futures::stream;
 use pretty_assertions::StrComparison;
+use tempfile::NamedTempFile;
 use tempfile::TempDir;
 use tokio::fs;
+use tracing::debug;
 use walkdir::WalkDir;
 
 /// Finds tests at the given root directory.
@@ -129,21 +130,10 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Gets the path to the sprocket test executable.
-fn get_sprocket_exe() -> Result<PathBuf> {
-    // While running tests, `current_exe` returns the path
-    // `target/{profile}/deps/cli-some-hash` the sprocket executable is just a
-    // couple of directories above this, so we just find it relative to that.
-    let mut current_exe = current_exe().context("failed to find sprocket executable")?;
-    current_exe.pop();
-    current_exe.pop();
-    current_exe.push(format!("sprocket{}", env::consts::EXE_SUFFIX));
-    Ok(current_exe)
-}
-
 /// Runs sprocket for a test.
 async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
-    let sprocket_exe = get_sprocket_exe()?;
+    debug!(test_path = %test_path.display(), "running Sprocket for test");
+    let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
         .await
@@ -151,6 +141,15 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
+
+    let env_config = resolve_env_config(test_path).await?;
+    if let Some(env_config) = env_config.as_ref() {
+        // If an overridden config has been specified via environment variables,
+        // synthesize a Sprocket config with that config.
+        command.arg("--config");
+        command.arg(env_config.path());
+    }
+
     command.current_dir(working_test_directory).args(args);
     let result = command
         .stdout(Stdio::piped())
@@ -160,6 +159,9 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
         .wait_with_output()
         .context("failed while waiting for command to finish")?;
 
+    // Make sure the temporary config isn't dropped prematurely
+    drop(env_config);
+
     Ok(CommandOutput {
         stdout: String::from_utf8(result.stdout).context("failed to convert stdout to string")?,
         stderr: String::from_utf8(result.stderr).context("failed to convert stderr to string")?,
@@ -168,6 +170,37 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
             .code()
             .ok_or_else(|| anyhow!("failed to get status code"))?,
     })
+}
+
+/// Resolve a config file that incorporates optional overrides specified in
+/// environment variables.
+///
+/// The current environment variables supported are:
+///
+/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized
+///   [`wdl::engine::config::Config`] that will be substituted in place of the
+///   default engine config for all of the `run/` tests.
+async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
+    let mut config_overridden = false;
+    let mut sprocket_config = sprocket::config::Config::default();
+    // For `run` tests, allow overriding the engine config. We restrict the override
+    // to this subset of tests in order to avoid messing with the expected output
+    // for commands that format the config and therefore expect the config to be
+    // exactly the default.
+    if test_path.starts_with("tests/cli/run")
+        && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
+    {
+        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config).await?)?;
+        config_overridden = true;
+    }
+
+    if !config_overridden {
+        Ok(None)
+    } else {
+        let temp_config = tempfile::NamedTempFile::new()?;
+        sprocket_config.write_config(&temp_config.path().display().to_string())?;
+        Ok(Some(temp_config))
+    }
 }
 
 /// Normalizes a string for OS platform differences.
@@ -354,6 +387,10 @@ async fn compare_test_results(
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
     let mut futures = Vec::new();

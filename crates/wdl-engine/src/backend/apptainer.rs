@@ -7,7 +7,6 @@
 
 use std::fmt::Write as _;
 use std::path::Path;
-use std::path::PathBuf;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
@@ -40,21 +39,33 @@ pub struct ApptainerConfig {
     /// The directory in which temporary directories will be created containing
     /// Apptainer `.sif` files.
     ///
-    /// This should be a location that is accessible by all jobs on the LSF
-    /// cluster.
+    /// This should be a location that is accessible by all locations where a
+    /// task may be executed via Apptainer.
     ///
     /// By default, this is `$HOME/.cache/sprocket-apptainer-images`, or
     /// `/tmp/sprocket-apptainer-images` if the home directory cannot be
     /// determined.
+    ///
+    /// Shell-expansion is performed on this path before use, so configurations
+    /// can contain environment variables. Note that these are expanded on
+    /// the host where this code is executing, which may be different from
+    /// hosts where a scheduler may dispatch tasks for execution. Errors
+    /// will occur if the same path is not accessible in both environments.
     #[serde(default = "default_apptainer_images_dir")]
-    pub apptainer_images_dir: PathBuf,
+    pub apptainer_images_dir: String,
 }
 
-fn default_apptainer_images_dir() -> PathBuf {
+fn default_apptainer_images_dir() -> String {
     if let Some(cache) = dirs::cache_dir() {
-        cache.join("sprocket-apptainer-images")
+        cache
+            .join("sprocket-apptainer-images")
+            .display()
+            .to_string()
     } else {
-        std::env::temp_dir().join("sprocket-apptainer-images")
+        std::env::temp_dir()
+            .join("sprocket-apptainer-images")
+            .display()
+            .to_string()
     }
 }
 
@@ -133,7 +144,7 @@ impl ApptainerConfig {
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/bin/env bash")?;
         for (k, v) in spawn_request.env().iter() {
-            writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v}")?;
+            writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
         write!(&mut apptainer_command, "apptainer -v exec ")?;
         write!(&mut apptainer_command, "--cwd {GUEST_WORK_DIR} ")?;
@@ -228,7 +239,7 @@ mod tests {
     fn mk_example_task() -> (TempDir, ApptainerConfig, TaskSpawnRequest) {
         let tmp = tempfile::tempdir().unwrap();
         let config = ApptainerConfig {
-            apptainer_images_dir: tmp.path().to_path_buf(),
+            apptainer_images_dir: tmp.path().display().to_string(),
             ..ApptainerConfig::default()
         };
         let mut env = IndexMap::new();

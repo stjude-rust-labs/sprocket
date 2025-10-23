@@ -116,11 +116,7 @@ be on your `$PATH`. Linux and Mac users should not need to do anything special
 to meet this requirement, but we recommend Windows users fulfill this criteria
 by installing [`Git BASH`](https://gitforwindows.org/).
 
-There is an additional requirement for development of the `wdl-lint` crate,
-which expects the `shellcheck` binary be available on your `$PATH`. See
-instructions for installing ShellCheck [here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
-
-To bootstrap a development environment, please use the following commands.
+To bootstrap a development environment, use the following commands.
 
 ```bash
 # Clone the repository
@@ -135,6 +131,21 @@ cargo build --release
 
 # List out the examples
 cargo run --release --example
+```
+
+### Shellcheck dependency
+Some tests require the `shellcheck` binary be available on your `$PATH`. See
+instructions for installing ShellCheck
+[here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
+
+Note that on an HPC or another environment where normal means of installing
+software are difficult, it may be easiest to wrap an `apptainer` invocation of
+`shellcheck` in a bash script, and then save it as executable in your PATH:
+
+```bash
+#!/usr/bin/env bash
+
+apptainer -s run docker://koalaman/shellcheck:stable $@
 ```
 
 ## 🚧️ Tests
