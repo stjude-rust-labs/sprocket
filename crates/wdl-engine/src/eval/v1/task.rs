@@ -241,50 +241,54 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
 }
 
 /// Gets the number of required GPUs from requirements and hints.
-///
-/// Returns the number of GPUs requested. If `requirements` contains `gpu:
-/// true`, then checks `hints` for an `Integer` GPU count. `String` values for
-/// GPU hints are not yet supported and will fall back to `DEFAULT_GPU_COUNT`.
-/// If no hint is provided, defaults to `DEFAULT_GPU_COUNT`. If the requirement
-/// is not present or `false`, returns `None`.
 pub(crate) fn gpu(
     requirements: &HashMap<String, Value>,
     hints: &HashMap<String, Value>,
 ) -> Option<u64> {
-    use crate::PrimitiveValue;
-
-    if let Some(true) = requirements
+    // If `requirements { gpu: false }` or there is no `gpu` requirement, return
+    // `None`.
+    let Some(true) = requirements
         .get(TASK_REQUIREMENT_GPU)
         .and_then(|v| v.as_boolean())
-    {
-        let count = match hints.get(TASK_HINT_GPU) {
-            Some(Value::Primitive(PrimitiveValue::Integer(hint))) => match (*hint).try_into() {
-                Ok(count) => count,
-                Err(_) => {
-                    warn!(
-                        %hint,
-                        "GPU hint cannot be converted to `u64`; falling back to {} GPU",
-                        DEFAULT_GPU_COUNT
-                    );
-                    DEFAULT_GPU_COUNT
-                }
-            },
-            Some(Value::Primitive(PrimitiveValue::String(hint))) => {
-                // TODO(clay): support string hints for GPU specifications.
-                warn!(
-                    %hint,
-                    "string hints for GPU are not supported; falling back to {} GPU",
-                    DEFAULT_GPU_COUNT
-                );
-                DEFAULT_GPU_COUNT
-            }
-            // This should be validated prior to calling this function
-            Some(_) => unreachable!("`gpu` hint should be an integer or string"),
-            None => DEFAULT_GPU_COUNT,
-        };
-        Some(count)
-    } else {
-        None
+    else {
+        return None;
+    };
+
+    // If there is no `gpu` hint giving us more detail on the request, use the
+    // default count.
+    let Some(hint) = hints.get(TASK_HINT_GPU) else {
+        return Some(DEFAULT_GPU_COUNT);
+    };
+
+    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
+    // Fall back to the default count.
+    //
+    // TODO(clay): support string hints for GPU specifications.
+    if let Some(hint) = hint.as_string() {
+        warn!(
+            %hint,
+            "string `gpu` hints are not supported; falling back to {DEFAULT_GPU_COUNT} GPU(s)"
+        );
+        return Some(DEFAULT_GPU_COUNT);
+    }
+
+    match hint.as_integer() {
+        Some(count) if count >= 1 => Some(count as u64),
+        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
+        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
+        // warning, and continue with no GPU request.
+        Some(count) => {
+            warn!(
+                %count,
+                "`gpu` hint specified {count} GPU(s); no GPUs will be requested for execution"
+            );
+            None
+        }
+        None => {
+            // Typechecking should have already validated that the hint is an integer or
+            // a string.
+            unreachable!("`gpu` hint must be an integer or string")
+        }
     }
 }
 

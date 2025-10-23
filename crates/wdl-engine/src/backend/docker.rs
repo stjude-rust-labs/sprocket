@@ -406,8 +406,13 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
+        // Generate GPU specification strings in the format "<type>-gpu-<index>".
+        // Each string represents one allocated GPU, indexed from 0. The type prefix
+        // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
+        // This is the first backend to populate the gpu field; other backends should
+        // follow this format for consistency.
         let gpu = gpu(requirements, hints)
-            .map(|count| (0..count).map(|i| format!("gpu-{i}")).collect())
+            .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
             .unwrap_or_default();
 
         Ok(TaskExecutionConstraints {
