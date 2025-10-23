@@ -2030,7 +2030,7 @@ workflow foo {
         let analyzer = Analyzer::new(
             AnalysisConfig::default()
                 .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_experimental_versions()),
+                .with_feature_flags(FeatureFlags::default().with_wdl_1_3()),
             |(), _, _, _| async {},
         );
         analyzer

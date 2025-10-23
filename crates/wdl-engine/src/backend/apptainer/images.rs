@@ -94,9 +94,10 @@ pub(crate) async fn global_apptainer_images_dir(
             // to manage consumption appropriately enough for this interim
             // solution.
             let path = {
-                tokio::fs::create_dir_all(&config.apptainer_images_dir).await?;
-                TempDir::with_prefix_in("sprocket-apptainer-images-", &config.apptainer_images_dir)?
-                    .keep()
+                let expanded =
+                    PathBuf::from(shellexpand::full(&config.apptainer_images_dir)?.into_owned());
+                tokio::fs::create_dir_all(&expanded).await?;
+                TempDir::with_prefix_in("sprocket-apptainer-images-", &expanded)?.keep()
             };
             Ok::<PathBuf, anyhow::Error>(path)
         })

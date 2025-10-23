@@ -604,7 +604,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
-pub struct LsfApptainerQueueConfig {
+pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
     /// <queue_name>`.
     name: String,
@@ -614,8 +614,8 @@ pub struct LsfApptainerQueueConfig {
     max_memory_per_task: Option<ByteSize>,
 }
 
-impl LsfApptainerQueueConfig {
-    /// Create an [`LsfApptainerQueueConfig`].
+impl LsfQueueConfig {
+    /// Create an [`LsfQueueConfig`].
     pub fn new(
         name: String,
         max_cpu_per_task: Option<u64>,
@@ -699,22 +699,22 @@ pub struct LsfApptainerBackendConfig {
     /// [`short_task_lsf_queue`][Self::short_task_lsf_queue],
     /// [`gpu_lsf_queue`][Self::gpu_lsf_queue], or
     /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for corresponding tasks.
-    pub default_lsf_queue: Option<LsfApptainerQueueConfig>,
+    pub default_lsf_queue: Option<LsfQueueConfig>,
     /// Which queue, if any, to specify when submitting [short
     /// tasks](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#short_task) to LSF.
     ///
     /// This may be superseded by [`gpu_lsf_queue`][Self::gpu_lsf_queue] or
     /// [`fpga_lsf_queue`][Self::fpga_lsf_queue] for tasks which require
     /// specialized hardware.
-    pub short_task_lsf_queue: Option<LsfApptainerQueueConfig>,
+    pub short_task_lsf_queue: Option<LsfQueueConfig>,
     /// Which queue, if any, to specify when submitting [tasks which require a
     /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
-    pub gpu_lsf_queue: Option<LsfApptainerQueueConfig>,
+    pub gpu_lsf_queue: Option<LsfQueueConfig>,
     /// Which queue, if any, to specify when submitting [tasks which require a
     /// GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)
     /// to LSF.
-    pub fpga_lsf_queue: Option<LsfApptainerQueueConfig>,
+    pub fpga_lsf_queue: Option<LsfQueueConfig>,
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
@@ -794,7 +794,7 @@ impl LsfApptainerBackendConfig {
         &self,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> Option<&LsfApptainerQueueConfig> {
+    ) -> Option<&LsfQueueConfig> {
         // TODO ACF 2025-09-26: what's the relationship between this code and
         // `TaskExecutionConstraints`? Should this be there instead, or be pulling
         // values from that instead of directly from `requirements` and `hints`?

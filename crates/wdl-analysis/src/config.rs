@@ -191,20 +191,20 @@ struct ConfigInner {
 /// A set of feature flags that can be enabled.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FeatureFlags {
-    /// When available, enables experimental versions of WDL.
+    /// When available, enables experimental WDL 1.3 features.
     #[serde(default)]
-    experimental_versions: bool,
+    wdl_1_3: bool,
 }
 
 impl FeatureFlags {
-    /// Gets whether experimental versions of WDL are enabled.
-    pub fn experimental_versions(&self) -> bool {
-        self.experimental_versions
+    /// Gets whether experimental WDL 1.3 features are enabled.
+    pub fn wdl_1_3(&self) -> bool {
+        self.wdl_1_3
     }
 
-    /// Returns a new `FeatureFlags` with experimental versions enabled.
-    pub fn with_experimental_versions(mut self) -> Self {
-        self.experimental_versions = true;
+    /// Returns a new `FeatureFlags` with experimental WDL 1.3 features enabled.
+    pub fn with_wdl_1_3(mut self) -> Self {
+        self.wdl_1_3 = true;
         self
     }
 }
