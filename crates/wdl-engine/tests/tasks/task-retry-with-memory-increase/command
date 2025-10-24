@@ -1,0 +1,9 @@
+# Fail on first two attempts, succeed on third
+if [ 2 -lt 2 ]; then
+  echo "Attempt 2/2: Memory=512000000, FAILING"
+  exit 1
+else
+  echo "Attempt 2/2: Memory=512000000, SUCCESS"
+  echo "Previous memory was: 256000000"
+  exit 0
+fi

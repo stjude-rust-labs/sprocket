@@ -152,7 +152,8 @@ pub fn unknown_name(name: &str, span: Span) -> Diagnostic {
     // Handle special case names here
     let message = match name {
         "task" => "the `task` variable may only be used within a task command section or task \
-                   output section using WDL 1.2 or later"
+                   output section using WDL 1.2 or later, or within a task requirements, task \
+                   hints, or task runtime section using WDL 1.3 or later"
             .to_string(),
         _ => format!("unknown name `{name}`"),
     };
@@ -439,6 +440,15 @@ pub fn multiple_type_mismatch(
 pub fn not_a_task_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "the `task` variable does not have a member named `{member}`",
+        member = member.text()
+    ))
+    .with_highlight(member.span())
+}
+
+/// Creates a "not a task.previous member" diagnostic.
+pub fn not_a_previous_task_data_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`task.previous` does not have a member named `{member}`",
         member = member.text()
     ))
     .with_highlight(member.span())
