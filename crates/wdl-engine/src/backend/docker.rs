@@ -52,6 +52,7 @@ use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
 use crate::v1::container;
 use crate::v1::cpu;
+use crate::v1::gpu;
 use crate::v1::max_cpu;
 use crate::v1::max_memory;
 use crate::v1::memory;
@@ -93,6 +94,8 @@ struct DockerTaskRequest {
     max_cpu: Option<f64>,
     /// The requested maximum memory limit for the task, in bytes.
     max_memory: Option<u64>,
+    /// The requested GPU count for the task.
+    gpu: Option<u64>,
     /// The cancellation token for the request.
     token: CancellationToken,
 }
@@ -230,6 +233,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                     .maybe_cpu_limit(self.max_cpu)
                     .ram(self.memory as f64 / ONE_GIBIBYTE)
                     .maybe_ram_limit(self.max_memory.map(|m| m as f64 / ONE_GIBIBYTE))
+                    .maybe_gpu(self.gpu)
                     .build(),
             )
             .build();
@@ -340,7 +344,7 @@ impl TaskExecutionBackend for DockerBackend {
     fn constraints(
         &self,
         requirements: &HashMap<String, Value>,
-        _: &HashMap<String, Value>,
+        hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
         let container = container(requirements, self.config.task.container.as_deref());
 
@@ -402,11 +406,20 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
+        // Generate GPU specification strings in the format "<type>-gpu-<index>".
+        // Each string represents one allocated GPU, indexed from 0. The type prefix
+        // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
+        // This is the first backend to populate the gpu field; other backends should
+        // follow this format for consistency.
+        let gpu = gpu(requirements, hints)
+            .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
+            .unwrap_or_default();
+
         Ok(TaskExecutionConstraints {
             container: Some(container.into_owned()),
             cpu,
             memory,
-            gpu: Default::default(),
+            gpu,
             fpga: Default::default(),
             disks: Default::default(),
         })
@@ -441,6 +454,7 @@ impl TaskExecutionBackend for DockerBackend {
         }
         let max_cpu = max_cpu(hints);
         let max_memory = max_memory(hints)?.map(|i| i as u64);
+        let gpu = gpu(requirements, hints);
 
         let name = format!(
             "{id}-{generated}",
@@ -463,6 +477,7 @@ impl TaskExecutionBackend for DockerBackend {
                 memory,
                 max_cpu,
                 max_memory,
+                gpu,
                 token,
             },
             completed_tx,

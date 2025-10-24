@@ -185,32 +185,12 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
             bsub_command.arg("-q").arg(queue.name());
         }
 
-        // If GPUs are required, pass a basic `-gpu` flag to `bsub`. If this is a bare
-        // `requirements { gpu: true }`, we request 1 GPU per host. If there is
-        // also an integer `hints: { gpu: n }`, we request `n` GPUs per host.
-        if let Some(true) = self
-            .spawn_request
-            .requirements()
-            .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
-            .and_then(Value::as_boolean)
-        {
-            match self.spawn_request.hints().get(wdl_ast::v1::TASK_HINT_GPU) {
-                Some(Value::Primitive(PrimitiveValue::Integer(n))) => {
-                    bsub_command.arg("-gpu").arg(format!("num={n}/host"));
-                }
-                Some(Value::Primitive(PrimitiveValue::String(hint))) => {
-                    warn!(
-                        %hint,
-                        "string hints for GPU are not supported; falling back to 1 GPU per host"
-                    );
-                    bsub_command.arg("-gpu").arg("num=1/host");
-                }
-                // Other hint value types should be rejected already, so the remaining valid case is
-                // a GPU requirement with no hints
-                _ => {
-                    bsub_command.arg("-gpu").arg("num=1/host");
-                }
-            }
+        // If GPUs are required, pass a basic `-gpu` flag to `bsub`.
+        if let Some(n_gpu) = v1::gpu(
+            self.spawn_request.requirements(),
+            self.spawn_request.hints(),
+        ) {
+            bsub_command.arg("-gpu").arg(format!("num={n_gpu}/host"));
         }
 
         // Add any user-configured extra arguments.

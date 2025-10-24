@@ -49,6 +49,7 @@ use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
 use wdl_ast::v1::TASK_HINT_DISKS;
+use wdl_ast::v1::TASK_HINT_GPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
@@ -57,6 +58,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
+use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
@@ -118,6 +120,9 @@ pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+/// The default GPU count when a GPU is required but no supported hint is
+/// provided.
+pub const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -236,6 +241,58 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
             unreachable!("value should be an integer or string");
         })
         .transpose()
+}
+
+/// Gets the number of required GPUs from requirements and hints.
+pub(crate) fn gpu(
+    requirements: &HashMap<String, Value>,
+    hints: &HashMap<String, Value>,
+) -> Option<u64> {
+    // If `requirements { gpu: false }` or there is no `gpu` requirement, return
+    // `None`.
+    let Some(true) = requirements
+        .get(TASK_REQUIREMENT_GPU)
+        .and_then(|v| v.as_boolean())
+    else {
+        return None;
+    };
+
+    // If there is no `gpu` hint giving us more detail on the request, use the
+    // default count.
+    let Some(hint) = hints.get(TASK_HINT_GPU) else {
+        return Some(DEFAULT_GPU_COUNT);
+    };
+
+    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
+    // Fall back to the default count.
+    //
+    // TODO(clay): support string hints for GPU specifications.
+    if let Some(hint) = hint.as_string() {
+        warn!(
+            %hint,
+            "string `gpu` hints are not supported; falling back to {DEFAULT_GPU_COUNT} GPU(s)"
+        );
+        return Some(DEFAULT_GPU_COUNT);
+    }
+
+    match hint.as_integer() {
+        Some(count) if count >= 1 => Some(count as u64),
+        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
+        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
+        // warning, and continue with no GPU request.
+        Some(count) => {
+            warn!(
+                %count,
+                "`gpu` hint specified {count} GPU(s); no GPUs will be requested for execution"
+            );
+            None
+        }
+        None => {
+            // Typechecking should have already validated that the hint is an integer or
+            // a string.
+            unreachable!("`gpu` hint must be an integer or string")
+        }
+    }
 }
 
 /// Represents the type of a disk.
