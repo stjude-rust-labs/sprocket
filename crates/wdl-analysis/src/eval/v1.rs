@@ -353,21 +353,39 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     // Add name references from the runtime section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
                 TaskGraphNode::Requirements(section) => {
                     // Add name references from the requirements section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
                 TaskGraphNode::Hints(section) => {
                     // Add name references from the hints section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
             }

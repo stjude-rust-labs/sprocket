@@ -124,6 +124,43 @@ impl fmt::Display for PrimitiveType {
     }
 }
 
+/// Represents a hidden type in WDL.
+///
+/// Hidden types are special types used internally for type checking but
+/// are not directly expressible in WDL source code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HiddenType {
+    /// A hidden type for `hints` that is available in task hints sections.
+    Hints,
+    /// A hidden type for `input` that is available in task hints sections.
+    Input,
+    /// A hidden type for `output` that is available in task hints sections.
+    Output,
+    /// A hidden type for `task` that is available in requirements,
+    /// hints, and runtime sections before constraint evaluation.
+    TaskPreEvaluation,
+    /// A hidden type for `task` that is available in command and output
+    /// sections after constraint evaluation.
+    TaskPostEvaluation,
+    /// A hidden type for `task.previous` that contains the previous
+    /// attempt's computed requirements. Available in WDL 1.3+ in both
+    /// pre-evaluation (requirements, hints, runtime) and post-evaluation
+    /// (command, output) contexts.
+    PreviousTaskData,
+}
+
+impl fmt::Display for HiddenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hints => write!(f, "hints"),
+            Self::Input => write!(f, "input"),
+            Self::Output => write!(f, "output"),
+            Self::TaskPreEvaluation | Self::TaskPostEvaluation => write!(f, "task"),
+            Self::PreviousTaskData => write!(f, "task.previous"),
+        }
+    }
+}
+
 /// Represents a WDL type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -147,18 +184,11 @@ pub enum Type {
     Union,
     /// A special type that behaves like an optional `Union`.
     None,
-    /// A special hidden type for `task` that is available in command and task
-    /// output sections in WDL 1.2.
-    Task,
-    /// A special hidden type for `hints` that is available in task hints
-    /// sections.
-    Hints,
-    /// A special hidden type for `input` that is available in task hints
-    /// sections.
-    Input,
-    /// A special hidden type for `output` that is available in task hints
-    /// sections.
-    Output,
+    /// A special hidden type that is not directly expressible in WDL source.
+    ///
+    /// Hidden types are used for type checking special values like `task`,
+    /// `task.previous`, `hints`, `input`, and `output`.
+    Hidden(HiddenType),
     /// The type is a call output.
     Call(CallType),
 }
@@ -329,10 +359,7 @@ impl fmt::Display for Type {
             }
             Self::Union => write!(f, "Union"),
             Self::None => write!(f, "None"),
-            Self::Task => write!(f, "task"),
-            Self::Hints => write!(f, "hints"),
-            Self::Input => write!(f, "input"),
-            Self::Output => write!(f, "output"),
+            Self::Hidden(ty) => ty.fmt(f),
             Self::Call(ty) => ty.fmt(f),
         }
     }
@@ -344,13 +371,7 @@ impl Optional for Type {
             Self::Primitive(_, optional) => *optional,
             Self::Compound(_, optional) => *optional,
             Self::OptionalObject | Self::None => true,
-            Self::Object
-            | Self::Union
-            | Self::Task
-            | Self::Hints
-            | Self::Input
-            | Self::Output
-            | Self::Call(_) => false,
+            Self::Object | Self::Union | Self::Hidden(_) | Self::Call(_) => false,
         }
     }
 

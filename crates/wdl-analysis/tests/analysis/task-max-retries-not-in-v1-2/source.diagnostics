@@ -1,0 +1,6 @@
+error: the `task` variable does not have a member named `max_retries`
+  ┌─ tests/analysis/task-max-retries-not-in-v1-2/source.wdl:9:17
+  │
+9 │     echo ~{task.max_retries}
+  │                 ^^^^^^^^^^^
+
