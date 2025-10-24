@@ -13,7 +13,6 @@ task test_command_scope {
     echo "attempt=~{task.attempt}"
     echo "cpu=~{task.cpu}"
     echo "memory=~{task.memory}"
-    echo "container=~{select_first([task.container, 'none'])}"
     echo "previous_memory=~{select_first([task.previous.memory, 0])}"
   >>>
 
