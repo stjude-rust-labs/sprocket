@@ -187,33 +187,10 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
             sbatch_command.arg("--partition").arg(partition.name());
         }
 
-        // If GPUs are required, pass a basic `--gpus-per-task` flag to `sbatch`. If
-        // this is a bare `requirements { gpu: true }`, we request 1 GPU per
-        // node. If there is also an integer `hints: { gpu: n }`, we request `n`
-        // GPUs per node.
-        if let Some(true) = self
-            .spawn_request
-            .requirements()
-            .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
-            .and_then(Value::as_boolean)
-        {
-            match self.spawn_request.hints().get(wdl_ast::v1::TASK_HINT_GPU) {
-                Some(Value::Primitive(PrimitiveValue::Integer(n))) => {
-                    sbatch_command.arg(format!("--gpus-per-task={n}"));
-                }
-                Some(Value::Primitive(PrimitiveValue::String(hint))) => {
-                    warn!(
-                        %hint,
-                        "string hints for GPU are not supported; falling back to 1 GPU per host"
-                    );
-                    sbatch_command.arg("--gpus-per-task=1");
-                }
-                // Other hint value types should be rejected already, so the remaining valid case is
-                // a GPU requirement with no hints
-                _ => {
-                    sbatch_command.arg("--gpus-per-task=1");
-                }
-            }
+        // If GPUs are required, use the gpu helper to determine the count and pass
+        // it to `sbatch` via `--gpus-per-task`.
+        if let Some(gpu_count) = v1::gpu(self.spawn_request.requirements(), self.spawn_request.hints()) {
+            sbatch_command.arg(format!("--gpus-per-task={gpu_count}"));
         }
 
         // Add any user-configured extra arguments.
