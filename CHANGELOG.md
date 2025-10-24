@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added shell expansion to the `apptainer_images_dir` config option, though this is an interim workaround for HPC path awkwardness pending the removal of this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Added experimental Slurm + Apptainer backend ([#436](https://github.com/stjude-rust-labs/sprocket/pull/436)).
 
 ### Changed
 

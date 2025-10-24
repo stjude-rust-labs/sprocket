@@ -32,12 +32,14 @@ mod apptainer;
 mod docker;
 mod local;
 mod lsf_apptainer;
+mod slurm_apptainer;
 mod tes;
 
 pub use apptainer::*;
 pub use docker::*;
 pub use local::*;
 pub use lsf_apptainer::*;
+pub use slurm_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
