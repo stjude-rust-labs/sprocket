@@ -1,3 +1,7 @@
 analysis:
   feature_flags:
     wdl_1_3: true
+engine:
+  backends:
+    default:
+      type: local
