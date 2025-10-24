@@ -189,7 +189,10 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
 
         // If GPUs are required, use the gpu helper to determine the count and pass
         // it to `sbatch` via `--gpus-per-task`.
-        if let Some(gpu_count) = v1::gpu(self.spawn_request.requirements(), self.spawn_request.hints()) {
+        if let Some(gpu_count) = v1::gpu(
+            self.spawn_request.requirements(),
+            self.spawn_request.hints(),
+        ) {
             sbatch_command.arg(format!("--gpus-per-task={gpu_count}"));
         }
 
