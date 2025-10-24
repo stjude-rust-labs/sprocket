@@ -142,7 +142,7 @@ impl ApptainerConfig {
             })?;
 
         let mut apptainer_command = String::new();
-        writeln!(&mut apptainer_command, "#!/bin/env bash")?;
+        writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
         for (k, v) in spawn_request.env().iter() {
             writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
