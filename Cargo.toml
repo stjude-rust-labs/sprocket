@@ -27,6 +27,7 @@ rust-version = "1.89.0"
 ammonia = "4.1.2"
 anyhow = "1.0.98"
 approx = "0.5.1"
+axum = "0.8.1"
 bimap = "0.6.3"
 blake3 = { version = "1.8.2", features = ["mmap"] }
 bytesize = { version = "2.1.0", features = ["serde"] }
@@ -48,6 +49,7 @@ futures = "0.3.31"
 git-testament = "0.2.6"
 git2 = "0.20.2"
 globset = "0.4.16"
+http-body-util = "0.1.2"
 ignore = "0.4.23"
 indexmap = { version = "2.11.0", features = ["serde"] }
 indicatif = "0.18.0"
@@ -69,6 +71,7 @@ path-clean = "1.0.1"
 pathdiff = "0.2.3"
 pest = { version = "2.8.1", features = ["pretty-print"] }
 petgraph = "0.8.1"
+petname = { version = "2.0.2", default-features = false, features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
 rand = "0.9.1"
@@ -90,6 +93,7 @@ shellexpand = "3.1.1"
 shlex = "1.3.0"
 similar = "2.7.0"
 smallvec = "1.15.1"
+sqlx = { version = "0.8.2", features = ["runtime-tokio", "tls-rustls", "postgres", "sqlite", "migrate", "macros", "chrono", "uuid"] }
 strsim = "0.11.1"
 strum = { version = "0.27", features = ["derive"] }
 sysinfo = "0.37.0"
@@ -100,6 +104,8 @@ tokio-retry2 = "0.6.0"
 tokio-util = "0.7.15"
 toml = "0.9.5"
 toml_edit = { version = "0.23.4", features = ["serde"] }
+tower = "0.5.2"
+tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 tower-lsp = "0.20.0"
 tracing = "0.1.41"
 tracing-indicatif = "0.3.9"
@@ -107,6 +113,8 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 url = "2.5.4"
 urlencoding = "2.1.3"
+utoipa = { version = "5.3.1", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
 uuid = "1.18.0"
 walkdir = "2.5.0"
 wdl = { version = "0.19.0", path = "crates/wdl", features = ["codespan", "engine", "lint", "lsp", "doc"] }
@@ -146,6 +154,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow.workspace = true
+axum.workspace = true
 chrono.workspace = true
 clap.workspace = true
 clap-verbosity-flag.workspace = true
@@ -163,29 +172,39 @@ indicatif.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
+petname.workspace = true
 pest.workspace = true
 pretty_assertions.workspace = true
+rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
 similar.workspace = true
+sqlx.workspace = true
 strum.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 toml.workspace = true
+tower-http.workspace = true
 tracing.workspace = true
 tracing-indicatif.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
+utoipa = { workspace = true, features = ["chrono"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+uuid.workspace = true
 walkdir.workspace = true
 wdl.workspace = true
 
 [dev-dependencies]
+http-body-util.workspace = true
 shlex.workspace = true
 tempfile.workspace = true
+tower.workspace = true
 walkdir.workspace = true
 
 [lints]

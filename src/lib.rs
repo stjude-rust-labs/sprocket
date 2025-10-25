@@ -35,6 +35,7 @@ mod config;
 mod diagnostics;
 mod eval;
 mod inputs;
+mod server;
 
 /// ignorefile basename to respect.
 const IGNORE_FILENAME: &str = ".sprocketignore";
@@ -121,6 +122,7 @@ async fn inner() -> anyhow::Result<()> {
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
         Commands::Run(args) => commands::run::run(args.apply(config)).await,
+        Commands::Server(args) => commands::server::server(args).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
