@@ -32,7 +32,7 @@ fn inconsistent_newlines(span: Span) -> Diagnostic {
         )
 }
 
-/// Detects imports that are not sorted lexicographically.
+/// Detects inconsistent newline characters in a document.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct ConsistentNewlinesRule {
     /// The number of carriage returns in the file.
