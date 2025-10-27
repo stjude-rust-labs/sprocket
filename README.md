@@ -115,6 +115,28 @@ cargo build --release
 cargo run --release
 ```
 
+### Dependencies
+
+The WDL specification requires that command scripts are run with the Bash
+shell, and therefore developing for Sprocket will require `/bin/bash`
+be on your `$PATH`. Linux and Mac users should not need to do anything special
+to meet this requirement, but we recommend Windows users fulfill this criteria
+by installing [`Git BASH`](https://gitforwindows.org/).
+
+Some tests require the `shellcheck` binary be available on your `$PATH`. See
+instructions for installing ShellCheck
+[here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
+
+Note that on an HPC or another environment where normal means of installing
+software are difficult, it may be easiest to wrap an `apptainer` invocation of
+`shellcheck` in a bash script, and then save it as executable in your PATH:
+
+```bash
+#!/usr/bin/env bash
+
+apptainer -s run docker://koalaman/shellcheck:stable $@
+```
+
 ## 🚧️ Tests
 
 Before submitting any pull requests, please make sure the code passes the
@@ -131,7 +153,7 @@ cargo test --examples --all-features
 cargo clippy --all-features
 
 # Ensure the project passes `cargo fmt`.
-cargo fmt --check
+cargo +nightly fmt --check
 
 # Ensure the docs build.
 cargo doc
@@ -139,11 +161,40 @@ cargo doc
 
 ## 🤝 Contributing
 
-Contributions, issues and feature requests are welcome! Feel free to check
+Contributions, issues and feature requests are welcome! Feel free to check the
 [issues page](https://github.com/stjude-rust-labs/sprocket/issues).
 
-Most of the work for this binary happens over at [the `wdl` crates]https://github.com/stjude-rust-labs/sprocket/tree/main/crates).
+Most of the work for this binary happens within [the `wdl` crates](https://github.com/stjude-rust-labs/sprocket/tree/main/crates).
 For more information about our contributor policies, please read the [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md).
+
+## ⚙️ Minimum Supported Rust Version
+
+The minimum supported Rust version is currently `1.88.0`.
+
+There is a CI job that verifies the declared minimum supported version.
+
+If a contributor submits a PR that uses a feature from a newer version of Rust,
+the contributor is responsible for updating the minimum supported version in
+the `Cargo.toml`.
+
+Contributors may update the minimum supported version as-needed to the latest
+stable release of Rust.
+
+To facilitate the discovery of what the minimum supported version should be,
+install the `cargo-msrv` tool:
+
+```bash
+cargo install cargo-msrv
+```
+
+And run the following command:
+
+```bash
+cargo msrv --min 1.88.0
+```
+
+If the reported version is newer than the crate's current minimum supported
+version, an update is required.
 
 ## 📝 License and Legal
 

@@ -101,6 +101,17 @@ preference is not hardcoded anywhere. Feel free to use any IDE you want!
 We will try to keep a handful of [issues][issues] marked `good first issue`
 open and ready for new contributors.
 
+### I see a commit or merged PR already referencing this issue, but it is still open?
+
+In addition to the history of _this_ git repository, we included the git history from
+the now archived [`wdl` repository](https://github.com/stjude-rust-labs/wdl) when we
+consolidated them. This unfortunately confuses the GitHub interface, which
+interprets historic commits from the older repository as referencing new issues
+created here, in the `sprocket` repository.
+
+These old commits and closed PRs can usually be ignored, but feel free to leave a
+comment to clarify if you aren't sure.
+
 ### What's the difference between `error`, `warning`, and `note`?
 
 - an `error` is emitted when the source WDL is incorrect or invalid in some way
@@ -118,7 +129,7 @@ entries are diagnostics emitted while analyzing those repositories. These
 should remain relatively static between PRs, and any change in emitted
 diagnostics should be reviewed carefully.
 
-In order to turn the Gauntlet CI green, run `cargo run --release --bin gauntlet
+In order to turn the Gauntlet CI green, run `cargo run --release -p gauntlet --bin gauntlet
 -- --bless`. The `--bless` flag will save any changes to the `Gauntlet.toml`
 file. This should then be committed and included in your PR.
 
@@ -129,7 +140,7 @@ is very similar to `Gauntlet.toml`, except it has fewer repository entries and
 instead of analysis diagnostics it contains only lint diagnostics (which are
 not included in `Gauntlet.toml`).
 
-In order to turn the Arena CI green, run `cargo run --release --bin gauntlet --
+In order to turn the Arena CI green, run `cargo run --release -p gauntlet --bin gauntlet --
 --arena --bless`. The `--bless` flag (in conjunction with the `--arena` flag)
 will save any changes to the `Arena.toml` file. This should then be committed
 and included in your PR.
@@ -143,9 +154,9 @@ fixes:
 - `cargo clippy --all-features` and then fix any warnings emitted
 - `BLESS=1 cargo test --all-features` to "bless" any test changes
     - Please review any changes this causes to make sure they seem right!
-- `cargo run --release --bin gauntlet -- --bless`
+- `cargo run --release -p gauntlet --bin gauntlet -- --bless`
     - see the `What is gauntlet?` question for more information
-- `cargo run --release --bin gauntlet -- --bless --arena`
+- `cargo run --release -p gauntlet --bin gauntlet -- --bless --arena`
     - see the `What is arena?` question for more information
 - `rustup update` to update your local toolchains
 
