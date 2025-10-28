@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use anyhow::anyhow;
-use tokio_util::sync::CancellationToken;
 use wdl_analysis::Document;
+use wdl_engine::CancellationContext;
 use wdl_engine::EvaluatedTask;
 use wdl_engine::EvaluationError;
 use wdl_engine::EvaluationResult;
@@ -61,7 +61,7 @@ impl<'a> Evaluator<'a> {
     /// Runs a WDL task or workflow evaluation.
     pub async fn run(
         mut self,
-        token: CancellationToken,
+        cancellation: CancellationContext,
         events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
@@ -83,7 +83,7 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = TaskEvaluator::new(self.config, token, events).await?;
+                let evaluator = TaskEvaluator::new(self.config, cancellation, events).await?;
 
                 evaluator
                     .evaluate(self.document, task, inputs, self.output_dir)
@@ -113,7 +113,7 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = WorkflowEvaluator::new(self.config, token, events).await?;
+                let evaluator = WorkflowEvaluator::new(self.config, cancellation, events).await?;
                 evaluator
                     .evaluate(self.document, inputs, self.output_dir)
                     .await

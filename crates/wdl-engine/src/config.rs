@@ -134,6 +134,21 @@ impl<'de> serde::Deserialize<'de> for SecretString {
     }
 }
 
+/// Represents how an evaluation error or cancellation should be handled by the
+/// engine.
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureMode {
+    /// When an error is encountered or evaluation is canceled, evaluation waits
+    /// for any outstanding tasks to complete.
+    #[default]
+    Slow,
+    /// When an error is encountered or evaluation is canceled, any outstanding
+    /// tasks that are executing are immediately canceled and evaluation waits
+    /// for cancellation to complete.
+    Fast,
+}
+
 /// Represents WDL evaluation configuration.
 ///
 /// <div class="warning">
@@ -197,6 +212,15 @@ pub struct Config {
     /// is quite welcome.
     #[serde(default)]
     pub experimental_features_enabled: bool,
+    /// The failure mode for workflow or task evaluation.
+    ///
+    /// A value of [`FailureMode::Slow`] will result in evaluation waiting for
+    /// executing tasks to complete upon error or interruption.
+    ///
+    /// A value of [`FailureMode::Fast`] will immediately attempt to cancel
+    /// executing tasks upon error or interruption.
+    #[serde(default, rename = "fail")]
+    pub failure_mode: FailureMode,
 }
 
 impl Config {

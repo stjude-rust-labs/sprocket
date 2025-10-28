@@ -17,7 +17,6 @@ use bimap::BiHashMap;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
 use tokio::task::JoinSet;
-use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
@@ -66,6 +65,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
+use crate::CancellationContext;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -873,29 +873,36 @@ pub struct TaskEvaluator {
     config: Arc<Config>,
     /// The associated task execution backend.
     backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation token for cancelling task evaluation.
-    token: CancellationToken,
+    /// The cancellation context for cancelling task evaluation.
+    cancellation: CancellationContext,
     /// The transferer to use for expression evaluation.
     transferer: Arc<dyn Transferer>,
 }
 
 impl TaskEvaluator {
     /// Constructs a new task evaluator with the given evaluation
-    /// configuration, cancellation token, and events sender.
+    /// configuration, cancellation context, and events sender.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
+    pub async fn new(
+        config: Config,
+        cancellation: CancellationContext,
+        events: Events,
+    ) -> Result<Self> {
         config.validate().await?;
 
         let config = Arc::new(config);
         let backend = config.create_backend(events.crankshaft().clone()).await?;
-        let transferer =
-            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
+        let transferer = HttpTransferer::new(
+            config.clone(),
+            cancellation.token(),
+            events.transfer().clone(),
+        )?;
 
         Ok(Self {
             config,
             backend,
-            token,
+            cancellation,
             transferer: Arc::new(transferer),
         })
     }
@@ -907,13 +914,13 @@ impl TaskEvaluator {
     pub(crate) fn new_unchecked(
         config: Arc<Config>,
         backend: Arc<dyn TaskExecutionBackend>,
-        token: CancellationToken,
+        cancellation: CancellationContext,
         transferer: Arc<dyn Transferer>,
     ) -> Self {
         Self {
             config,
             backend,
-            token,
+            cancellation,
             transferer,
         }
     }
@@ -933,8 +940,15 @@ impl TaskEvaluator {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        self.perform_evaluation(document, task, inputs, root.as_ref(), task.name())
-            .await
+        let result = self
+            .perform_evaluation(document, task, inputs, root.as_ref(), task.name())
+            .await;
+
+        if self.cancellation.user_canceled() {
+            return Err(EvaluationError::Canceled);
+        }
+
+        result
     }
 
     /// Performs the evaluation of the given task.
@@ -1091,7 +1105,7 @@ impl TaskEvaluator {
 
             let result = self
                 .backend
-                .spawn(request, self.token.clone())
+                .spawn(request, self.cancellation.token())
                 .with_context(|| {
                     format!(
                         "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
@@ -1158,7 +1172,7 @@ impl TaskEvaluator {
         // Perform backend cleanup before output evaluation
         if let Some(cleanup) = self
             .backend
-            .cleanup(&evaluated.result.work_dir, self.token.clone())
+            .cleanup(&evaluated.result.work_dir, self.cancellation.token())
         {
             cleanup.await;
         }

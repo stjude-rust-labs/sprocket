@@ -18,7 +18,6 @@ use indicatif::ProgressStyle;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
-use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
@@ -31,6 +30,7 @@ use wdl::cli::analysis::AnalysisResults;
 use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
+use wdl::engine::CancellationContext;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
@@ -556,13 +556,13 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let token = CancellationToken::new();
+    let cancellation = CancellationContext::new(args.engine.failure_mode);
     let events = Events::all(EVENTS_CHANNEL_CAPACITY);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        token.clone(),
+        cancellation.token(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         events
@@ -580,42 +580,50 @@ pub async fn run(args: Args) -> Result<()> {
         &output_dir,
     );
 
-    let mut evaluate = evaluator.run(token.clone(), events).boxed();
+    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
 
-    select! {
-        // Always prefer the CTRL-C signal to the evaluation returning.
-        biased;
+    loop {
+        select! {
+            // Always prefer the CTRL-C signal to the evaluation returning.
+            biased;
 
-        _ = tokio::signal::ctrl_c() => {
-            error!("execution was interrupted: waiting for evaluation to abort");
-            token.cancel();
-            let _ = evaluate.await;
-            let _ = transfer_progress.await;
-            let _ = crankshaft_progress.await;
-            bail!("execution was aborted");
-        },
-        res = &mut evaluate => {
-            let _ = transfer_progress.await;
-            let _ = crankshaft_progress.await;
-
-            match res {
-                Ok(outputs) => {
-                    println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                    Ok(())
+            _ = tokio::signal::ctrl_c() => {
+                // If the cancellation token was canceled, the user doesn't want to wait for evaluation to complete
+                if cancellation.token().is_cancelled() {
+                    bail!("evaluation was interrupted");
                 }
-                Err(EvaluationError::Source(e)) => {
-                    emit_diagnostics(
-                        &e.document.path(),
-                        e.document.root().text().to_string(),
-                        &[e.diagnostic],
-                        &e.backtrace,
-                        args.report_mode.unwrap_or_default(),
-                        args.no_color
-                    )?;
-                    bail!("aborting due to evaluation error");
+
+                // Log the message indicating whether we're waiting on completion or waiting on cancellation
+                if !cancellation.cancel() {
+                    error!("waiting for executing tasks to complete: use Ctrl-C to cancel executing tasks");
+                } else {
+                    error!("waiting for executing tasks to cancel: use Ctrl-C to terminate Sprocket");
                 }
-                Err(EvaluationError::Other(e)) => Err(e)
-            }
-        },
+            },
+            res = &mut evaluate => {
+                let _ = transfer_progress.await;
+                let _ = crankshaft_progress.await;
+
+                return match res {
+                    Ok(outputs) => {
+                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                        Ok(())
+                    }
+                    Err(EvaluationError::Canceled) => bail!("evaluation was interrupted"),
+                    Err(EvaluationError::Source(e)) => {
+                        emit_diagnostics(
+                            &e.document.path(),
+                            e.document.root().text().to_string(),
+                            &[e.diagnostic],
+                            &e.backtrace,
+                            args.report_mode.unwrap_or_default(),
+                            args.no_color
+                        )?;
+                        bail!("aborting due to evaluation error");
+                    }
+                    Err(EvaluationError::Other(e)) => Err(e)
+                };
+            },
+        }
     }
 }
