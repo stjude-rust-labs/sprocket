@@ -71,7 +71,7 @@ impl Rule for DeprecatedPlaceholderRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that deprecated expression placeholder options not used."
+        "Ensures that deprecated expression placeholder options are not used."
     }
 
     fn explanation(&self) -> &'static str {
