@@ -19,6 +19,7 @@ use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
@@ -69,6 +70,9 @@ pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<Docume
             }
             DocumentItem::Struct(s) => {
                 symbols.push(struct_to_symbol(uri, &s, &lines)?);
+            }
+            DocumentItem::Enum(e) => {
+                symbols.push(enum_to_symbol(uri, &e, &lines)?);
             }
             DocumentItem::Import(ns) => {
                 symbols.push(import_to_symbol(uri, &ns, &lines)?);
@@ -199,6 +203,27 @@ fn struct_to_symbol(
         kind: SymbolKind::STRUCT,
         range: common::location_from_span(uri, s.span(), lines)?.range,
         selection_range: common::location_from_span(uri, s.name().span(), lines)?.range,
+        children: Some(children),
+        tags: None,
+        #[allow(deprecated)]
+        deprecated: None,
+    })
+}
+
+/// Converts an [`EnumDefinition`] to a [`DocumentSymbol`].
+fn enum_to_symbol(
+    uri: &Url,
+    e: &EnumDefinition,
+    lines: &std::sync::Arc<line_index::LineIndex>,
+) -> Result<DocumentSymbol> {
+    let children = Vec::new();
+
+    Ok(DocumentSymbol {
+        name: e.name().text().to_string(),
+        detail: Some("enum".to_string()),
+        kind: SymbolKind::ENUM,
+        range: common::location_from_span(uri, e.span(), lines)?.range,
+        selection_range: common::location_from_span(uri, e.name().span(), lines)?.range,
         children: Some(children),
         tags: None,
         #[allow(deprecated)]

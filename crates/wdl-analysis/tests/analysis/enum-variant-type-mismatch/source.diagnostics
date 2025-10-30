@@ -1,0 +1,30 @@
+error: enum `Status` variants have no common type
+  ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:4:6
+  │
+4 │ enum Status {
+  │      ^^^^^^ enum defined here
+
+error: enum `DataSets` variants have no common type
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:10:6
+   │
+10 │ enum DataSets {
+   │      ^^^^^^^^ enum defined here
+
+error: enum `Config` variants have no common type
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:16:6
+   │
+16 │ enum Config {
+   │      ^^^^^^ enum defined here
+
+error: enum `Coords` variants have no common type
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:22:6
+   │
+22 │ enum Coords {
+   │      ^^^^^^ enum defined here
+
+error: enum `Mixed` variants have no common type
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:28:6
+   │
+28 │ enum Mixed {
+   │      ^^^^^ enum defined here
+

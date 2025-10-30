@@ -1,0 +1,24 @@
+error: enum variant value must be a literal expression
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:13:13
+   │
+13 │     Value = 1 + 1
+   │             ^^^^^
+   │
+   = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:18:12
+   │
+18 │     Path = "/tmp/~{some_var}"
+   │            ^^^^^^^^^^^^^^^^^^
+   │
+   = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:23:15
+   │
+23 │     Default = some_value
+   │               ^^^^^^^^^^
+   │
+   = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+

@@ -1,0 +1,10 @@
+error: conflicting enum name `Status`
+  ┌─ tests/analysis/enum-import-conflict/source.wdl:7:8
+  │
+6 │ import "foo.wdl"
+  │        --------- the first definition was introduced by this import
+7 │ import "bar.wdl"
+  │        ^^^^^^^^^ this import introduces a conflicting definition
+  │
+  = fix: add an `alias` clause to the import to specify a different name
+

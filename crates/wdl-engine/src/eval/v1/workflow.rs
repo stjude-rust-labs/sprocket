@@ -8,6 +8,7 @@ use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -126,6 +127,45 @@ fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: 
     }
 }
 
+/// Builds enum data from the document's analyzed enums.
+fn build_enum_data(document: &Document) -> HashMap<String, crate::EnumData> {
+    let mut enum_data = HashMap::new();
+
+    for (name, enum_item) in document.enums() {
+        // Get the enum type
+        let Some(ty) = enum_item.ty() else {
+            continue;
+        };
+
+        // Extract the EnumType from the Type
+        let Type::Compound(compound) = ty else {
+            continue;
+        };
+        let Some(enum_type) = compound.as_enum() else {
+            continue;
+        };
+
+        // Build an array of all variant values
+        let variants: Vec<Value> = enum_type
+            .variants()
+            .keys()
+            .map(|variant_name| {
+                Value::Enum(crate::value::Enum::new(enum_type.clone(), variant_name))
+            })
+            .collect();
+
+        enum_data.insert(
+            name.to_string(),
+            crate::EnumData {
+                ty: ty.clone(),
+                variants: Arc::new(Array::new(ty.clone(), variants)),
+            },
+        );
+    }
+
+    enum_data
+}
+
 /// A "hidden" scope variable for representing the scope's scatter index.
 ///
 /// This is only present in the scope created for a scatter statement.
@@ -166,6 +206,10 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
+    }
+
+    fn enum_data(&self) -> Option<&std::collections::HashMap<String, crate::EnumData>> {
+        self.state.enum_data.get()
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -558,6 +602,8 @@ struct State {
     graph: DiGraph<WorkflowGraphNode<SyntaxNode>, ()>,
     /// The map from graph node index to subgraph.
     subgraphs: HashMap<NodeIndex, Subgraph>,
+    /// The enum data for the workflow.
+    enum_data: OnceLock<HashMap<String, crate::EnumData>>,
     /// The base directory for evaluation.
     ///
     /// This is the document's directory.
@@ -747,11 +793,19 @@ impl WorkflowEvaluator {
             scopes: Default::default(),
             graph,
             subgraphs,
+            enum_data: OnceLock::new(),
             base_dir,
             temp_dir,
             calls_dir,
             transferer: self.transferer.clone(),
         });
+
+        // Build and populate enum data
+        let enum_data = build_enum_data(&document);
+        state
+            .enum_data
+            .set(enum_data)
+            .expect("enum_data should only be set once");
 
         // Evaluate the root graph to completion
         Self::evaluate_subgraph(

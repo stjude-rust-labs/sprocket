@@ -1,6 +1,7 @@
 //! Evaluation graphs for WDL 1.x.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 
 use petgraph::algo::DfsSpace;
@@ -599,9 +600,21 @@ pub struct WorkflowGraphBuilder<N: TreeNode = SyntaxNode> {
     space: DfsSpace<NodeIndex, <DiGraph<WorkflowGraphNode<N>, ()> as Visitable>::Map>,
     /// The common ancestor finder used when building the graph.
     ancestor_finder: CommonAncestorFinder<N>,
+    /// The set of compiled enum names that are valid references but do not
+    /// create runtime dependencies.
+    compiled_enum_names: HashSet<String>,
 }
 
 impl<N: TreeNode> WorkflowGraphBuilder<N> {
+    /// Sets the compiled enum names for the builder.
+    ///
+    /// These are enum type names that are valid references but do not create
+    /// runtime dependencies in the workflow graph.
+    pub fn with_compiled_enum_names(mut self, names: HashSet<String>) -> Self {
+        self.compiled_enum_names = names;
+        self
+    }
+
     /// Builds a new workflow evaluation graph.
     ///
     /// The nodes are [`WorkflowGraphNode`] and the edges represent a reverse
@@ -1059,7 +1072,11 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 _ => {
-                    diagnostics.push(unknown_name(name.text(), name.span()));
+                    // Check if this is a compiled enum name
+                    // These are valid references but don't create runtime dependencies
+                    if !self.compiled_enum_names.contains(name.text()) {
+                        diagnostics.push(unknown_name(name.text(), name.span()));
+                    }
                 }
             }
         }
@@ -1160,6 +1177,7 @@ impl<N: TreeNode> Default for WorkflowGraphBuilder<N> {
             entry_exits: Default::default(),
             space: Default::default(),
             ancestor_finder: Default::default(),
+            compiled_enum_names: Default::default(),
         }
     }
 }

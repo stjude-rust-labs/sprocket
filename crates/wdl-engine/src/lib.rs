@@ -47,6 +47,11 @@ fn resolve_type_name(document: &Document, name: &str, span: Span) -> Result<Type
     document
         .struct_by_name(name)
         .map(|s| s.ty().expect("struct should have type").clone())
+        .or_else(|| {
+            document
+                .enum_by_name(name)
+                .map(|e| e.ty().expect("enum should have type").clone())
+        })
         .ok_or_else(|| unknown_type(name, span))
 }
 

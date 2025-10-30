@@ -24,6 +24,7 @@ use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::EnumType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -2057,6 +2058,119 @@ impl fmt::Display for Struct {
     }
 }
 
+/// Represents an enumeration value.
+///
+/// An enum value consists of a variant name and its associated value.
+#[derive(Debug, Clone)]
+pub struct Enum {
+    /// The type of the enum value.
+    ty: Type,
+    /// The name of the enum.
+    enum_name: Arc<String>,
+    /// The name of the variant.
+    variant_name: Arc<String>,
+    /// The value associated with this variant.
+    value: Arc<Value>,
+}
+
+impl Enum {
+    /// Creates a new enum value.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given type is not an enum type or if the variant name is
+    /// not valid for the enum.
+    pub fn new(
+        context: Option<&dyn EvaluationContext>,
+        ty: impl Into<Type>,
+        variant_name: impl Into<String>,
+        value: impl Into<Value>,
+    ) -> Result<Self> {
+        let ty = ty.into();
+        let variant_name = variant_name.into();
+        let value = value.into();
+
+        if let Type::Compound(CompoundType::Enum(enum_ty), optional) = ty {
+            // Check that the variant exists
+            if !enum_ty.variants().contains_key(&variant_name) {
+                bail!(
+                    "enum `{}` does not have a variant named `{}`",
+                    enum_ty.name(),
+                    variant_name
+                );
+            }
+
+            // Coerce the value to the enum's value type
+            let coerced_value = value
+                .coerce(context, enum_ty.value_type())
+                .with_context(|| {
+                    format!(
+                        "failed to coerce enum variant `{}` value to type `{}`",
+                        variant_name,
+                        enum_ty.value_type()
+                    )
+                })?;
+
+            return Ok(Self {
+                ty: Type::Compound(CompoundType::Enum(enum_ty.clone()), optional),
+                enum_name: Arc::new(enum_ty.name().to_string()),
+                variant_name: Arc::new(variant_name),
+                value: Arc::new(coerced_value),
+            });
+        }
+
+        panic!("type `{ty}` is not an enum type");
+    }
+
+    /// Constructs a new enum without checking the variant or value.
+    pub(crate) fn new_unchecked(
+        ty: Type,
+        enum_name: Arc<String>,
+        variant_name: Arc<String>,
+        value: Value,
+    ) -> Self {
+        assert!(ty.as_enum().is_some());
+        Self {
+            ty,
+            enum_name,
+            variant_name,
+            value: Arc::new(value),
+        }
+    }
+
+    /// Gets the type of the enum value.
+    pub fn ty(&self) -> Type {
+        self.ty.clone()
+    }
+
+    /// Gets the enum type.
+    pub fn enum_type(&self) -> &EnumType {
+        self.ty.as_enum().expect("enum value should have enum type")
+    }
+
+    /// Gets the name of the enum.
+    pub fn enum_name(&self) -> &str {
+        &self.enum_name
+    }
+
+    /// Gets the name of the variant.
+    pub fn variant_name(&self) -> &str {
+        &self.variant_name
+    }
+
+    /// Gets the value associated with this variant.
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+}
+
+impl fmt::Display for Enum {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Display as the variant name (implicit conversion returns name, not value)
+        write!(f, "{}", self.variant_name)
+    }
+}
+
 /// Represents a compound value.
 ///
 /// Compound values are cheap to clone.
@@ -2072,6 +2186,8 @@ pub enum CompoundValue {
     Object(Object),
     /// The value is a struct.
     Struct(Struct),
+    /// The value is an enum.
+    Enum(Enum),
 }
 
 impl CompoundValue {
@@ -2083,6 +2199,7 @@ impl CompoundValue {
             CompoundValue::Map(v) => v.ty(),
             CompoundValue::Object(v) => v.ty(),
             CompoundValue::Struct(v) => v.ty(),
+            CompoundValue::Enum(v) => v.ty(),
         }
     }
 
@@ -2196,6 +2313,28 @@ impl CompoundValue {
         }
     }
 
+    /// Gets the value as an `Enum`.
+    ///
+    /// Returns `None` if the value is not an `Enum`.
+    pub fn as_enum(&self) -> Option<&Enum> {
+        match self {
+            Self::Enum(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the value into an `Enum`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an `Enum`.
+    pub fn unwrap_enum(self) -> Enum {
+        match self {
+            Self::Enum(v) => v,
+            _ => panic!("value is not an enum"),
+        }
+    }
+
     /// Compares two compound values for equality based on the WDL
     /// specification.
     ///
@@ -2293,6 +2432,9 @@ impl CompoundValue {
                 for v in s.values() {
                     v.visit_paths(cb)?;
                 }
+            }
+            Self::Enum(e) => {
+                e.value().visit_paths(cb)?;
             }
         }
 
@@ -2423,6 +2565,17 @@ impl CompoundValue {
                         .await?;
                     }
                 }
+                Self::Enum(e) => {
+                    let ty = e.ty.as_enum().expect("should be an enum type");
+                    Arc::make_mut(&mut e.value)
+                        .ensure_paths_exist(
+                            ty.value_type().is_optional(),
+                            base_dir,
+                            transferer,
+                            translate,
+                        )
+                        .await?;
+                }
             }
 
             Ok(())
@@ -2439,6 +2592,7 @@ impl fmt::Display for CompoundValue {
             Self::Map(v) => v.fmt(f),
             Self::Object(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
+            Self::Enum(v) => v.fmt(f),
         }
     }
 }
@@ -3470,6 +3624,9 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
                 }
 
                 s.end()
+            }
+            CompoundValue::Enum(e) => {
+                serializer.serialize_str(e.variant_name())
             }
         }
     }

@@ -549,6 +549,42 @@ pub trait EvaluationContext: Send + Sync {
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
+    /// Gets the enum data map for this evaluation context.
+    ///
+    /// Returns `None` if the context does not support enum evaluation.
+    fn enum_data(&self) -> Option<&std::collections::HashMap<String, EnumData>> {
+        None
+    }
+
+    /// Resolves an enum variant to its value.
+    ///
+    /// Returns `None` if the enum or variant does not exist.
+    fn resolve_enum_variant(&self, enum_name: &str, variant_name: &str) -> Option<Value> {
+        self.enum_data().and_then(|data| {
+            data.get(enum_name).and_then(|enum_data| {
+                enum_data
+                    .variants
+                    .as_slice()
+                    .iter()
+                    .find(|v| {
+                        v.as_compound()
+                            .and_then(|c| c.as_enum())
+                            .map(|e| e.variant_name() == variant_name)
+                            .unwrap_or(false)
+                    })
+                    .cloned()
+            })
+        })
+    }
+
+    /// Gets all variants for an enum type as an array.
+    ///
+    /// Returns `None` if the enum does not exist.
+    fn get_enum_variants(&self, enum_name: &str) -> Option<Arc<crate::Array>> {
+        self.enum_data()
+            .and_then(|data| data.get(enum_name).map(|enum_data| enum_data.variants.clone()))
+    }
+
     /// Gets the base directory for the evaluation.
     ///
     /// The base directory is what paths are relative to.
@@ -635,6 +671,15 @@ impl From<ScopeIndex> for usize {
     fn from(index: ScopeIndex) -> Self {
         index.0
     }
+}
+
+/// Represents enum data stored in evaluation contexts.
+#[derive(Debug)]
+pub struct EnumData {
+    /// The enum type.
+    pub ty: Type,
+    /// Pre-constructed array of all variant values.
+    pub variants: Arc<crate::Array>,
 }
 
 /// Represents an evaluation scope in a WDL document.

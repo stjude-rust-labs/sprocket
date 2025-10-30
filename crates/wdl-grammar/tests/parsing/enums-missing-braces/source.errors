@@ -1,0 +1,6 @@
+error: expected `{`, but found identifier
+  ┌─ tests/parsing/enums-missing-braces/source.wdl:7:5
+  │
+7 │     Red,
+  │     ^^^ unexpected identifier
+

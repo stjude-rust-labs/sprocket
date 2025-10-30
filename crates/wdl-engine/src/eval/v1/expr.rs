@@ -1458,6 +1458,16 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
+        if let Expr::NameRef(ref name_ref) = target {
+            let type_name = name_ref.name();
+            if let Some(value) = self
+                .context
+                .resolve_enum_variant(type_name.text(), name.text())
+            {
+                return Ok(value);
+            }
+        }
+
         match self.evaluate_expr(&target).await? {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
@@ -1530,6 +1540,8 @@ pub(crate) mod test {
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
+        /// The enum data for the test.
+        enum_data: HashMap<String, crate::EnumData>,
         /// The test directory.
         test_dir: TempDir,
         /// The evaluation base directory.
@@ -1549,6 +1561,21 @@ pub(crate) mod test {
 
         pub fn insert_struct(&mut self, name: &'static str, ty: impl Into<Type>) {
             self.structs.insert(name, ty.into());
+        }
+
+        pub fn insert_enum(
+            &mut self,
+            name: impl Into<String>,
+            ty: impl Into<Type>,
+            variants: Arc<Array>,
+        ) {
+            self.enum_data.insert(
+                name.into(),
+                crate::EnumData {
+                    ty: ty.into(),
+                    variants,
+                },
+            );
         }
 
         pub fn base_dir(&self) -> &EvaluationPath {
@@ -1572,6 +1599,7 @@ pub(crate) mod test {
             Self {
                 scopes: vec![Scope::default()],
                 structs: Default::default(),
+                enum_data: Default::default(),
                 test_dir,
                 base_dir,
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
@@ -1668,8 +1696,13 @@ pub(crate) mod test {
             self.env
                 .structs
                 .get(name)
+                .or_else(|| self.env.enum_data.get(name).map(|data| &data.ty))
                 .cloned()
                 .ok_or_else(|| unknown_type(name, span))
+        }
+
+        fn enum_data(&self) -> Option<&std::collections::HashMap<String, crate::EnumData>> {
+            Some(&self.env.enum_data)
         }
 
         fn base_dir(&self) -> &EvaluationPath {

@@ -1,0 +1,12 @@
+error: expected variant name or `}`, but found `=`
+  ┌─ tests/parsing/enums-invalid-variant/source.wdl:7:5
+  │
+7 │     = 1,
+  │     ^ unexpected `=`
+
+error: expected expression, but found `,`
+   ┌─ tests/parsing/enums-invalid-variant/source.wdl:13:14
+   │
+13 │     Pending =,
+   │              ^ unexpected `,`
+
