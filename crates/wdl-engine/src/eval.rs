@@ -181,10 +181,12 @@ impl CancellationContext {
 
     /// Performs a cancellation.
     ///
-    /// Returns the current [`CancellationContextState`].
+    /// Returns the current [`CancellationContextState`] which should be checked
+    /// to ensure the desired cancellation occurred.
     ///
     /// This method will never return a
     /// [`CancellationContextState::NotCanceled`] state.
+    #[must_use]
     pub fn cancel(&self) -> CancellationContextState {
         let state =
             CancellationContextState::update(self.mode, false, &self.state).expect("should update");

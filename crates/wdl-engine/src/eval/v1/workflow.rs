@@ -2408,10 +2408,20 @@ workflow w {
             )
             .boxed();
 
+        let mut state = CancellationContextState::NotCanceled;
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
-                    cancellation.cancel();
+                   match (state, cancellation.cancel()) {
+                        (CancellationContextState::NotCanceled, CancellationContextState::Waiting) => {
+                            state = CancellationContextState::Waiting;
+                        }
+                        (CancellationContextState::Waiting, CancellationContextState::Canceling) => {
+                            state = CancellationContextState::Canceling;
+                        }
+                        (CancellationContextState::Canceling, CancellationContextState::Canceling) => {}
+                        (_, _) => panic!("unexpected state transition"),
+                    }
                 },
                 res = &mut evaluation => {
                     match res {
