@@ -1,0 +1,16 @@
+{
+  "enum_serialization.deserialized": "Red",
+  "enum_serialization.colors_match": true,
+  "enum_serialization.color_value": "#FF0000",
+  "enum_serialization.deserialized_colors": [
+    "Red",
+    "Green",
+    "Blue"
+  ],
+  "enum_serialization.first_color_matches": true,
+  "enum_serialization.deserialized_map": {
+    "primary": "Red",
+    "secondary": "Blue"
+  },
+  "enum_serialization.map_primary_matches": true
+}

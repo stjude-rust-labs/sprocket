@@ -75,7 +75,9 @@ impl fmt::Display for Section {
 
 /// Creates a "at least one definition" diagnostic
 fn at_least_one_definition() -> Diagnostic {
-    Diagnostic::error("there must be at least one task, workflow, or struct definition in the file")
+    Diagnostic::error(
+        "there must be at least one task, workflow, struct, or enum definition in the file",
+    )
 }
 
 /// Creates a "missing command section" diagnostic
@@ -212,6 +214,8 @@ pub struct CountingVisitor {
     has_workflow: bool,
     /// Whether or not the document has at least one struct.
     has_struct: bool,
+    /// Whether or not the document has at least one enum.
+    has_enum: bool,
     /// The span of the first command section in the task.
     command: Option<Span>,
     /// The span of the first input section in the task or workflow.
@@ -253,6 +257,7 @@ impl Visitor for CountingVisitor {
         self.soft_reset();
         self.has_workflow = false;
         self.has_struct = false;
+        self.has_enum = false;
     }
 
     fn document(
@@ -266,7 +271,7 @@ impl Visitor for CountingVisitor {
             return;
         }
 
-        if !self.has_workflow && self.tasks_seen.is_empty() && !self.has_struct {
+        if !self.has_workflow && self.tasks_seen.is_empty() && !self.has_struct && !self.has_enum {
             diagnostics.add(at_least_one_definition());
         }
     }
@@ -320,6 +325,19 @@ impl Visitor for CountingVisitor {
         }
 
         self.has_struct = true;
+    }
+
+    fn enum_definition(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &wdl_ast::v1::EnumDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        self.has_enum = true;
     }
 
     fn command_section(

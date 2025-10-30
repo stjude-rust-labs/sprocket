@@ -625,6 +625,7 @@ pub async fn document_workspace(config: Config) -> Result<()> {
                         .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
                 }
                 DocumentItem::Import(_) => {}
+                DocumentItem::Enum(_) => todo!("enum documentation support"),
             }
         }
         let document_name = root_to_wdl

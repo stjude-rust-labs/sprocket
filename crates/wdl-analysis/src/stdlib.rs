@@ -124,6 +124,8 @@ pub enum GenericType {
     Pair(GenericPairType),
     /// The type is a generic `Map`.
     Map(GenericMapType),
+    /// The type is the value type extracted from an enum variant.
+    EnumValue(GenericEnumValueType),
 }
 
 impl GenericType {
@@ -156,6 +158,7 @@ impl GenericType {
                     GenericType::Array(ty) => ty.display(self.params).fmt(f),
                     GenericType::Pair(ty) => ty.display(self.params).fmt(f),
                     GenericType::Map(ty) => ty.display(self.params).fmt(f),
+                    GenericType::EnumValue(ty) => ty.display(self.params).fmt(f),
                 }
             }
         }
@@ -187,6 +190,10 @@ impl GenericType {
             Self::Array(array) => array.infer_type_parameters(ty, params, ignore_constraints),
             Self::Pair(pair) => pair.infer_type_parameters(ty, params, ignore_constraints),
             Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
+            Self::EnumValue(_) => {
+                // NOTE: this is an intentional no-op—the value type is derived
+                // from the variant parameter, not inferred from arguments.
+            }
         }
     }
 
@@ -207,6 +214,7 @@ impl GenericType {
             Self::Array(ty) => ty.realize(params),
             Self::Pair(ty) => ty.realize(params),
             Self::Map(ty) => ty.realize(params),
+            Self::EnumValue(ty) => ty.realize(params),
         }
     }
 
@@ -224,6 +232,7 @@ impl GenericType {
             Self::Array(a) => a.assert_type_parameters(parameters),
             Self::Pair(p) => p.assert_type_parameters(parameters),
             Self::Map(m) => m.assert_type_parameters(parameters),
+            Self::EnumValue(e) => e.assert_type_parameters(parameters),
         }
     }
 }
@@ -243,6 +252,12 @@ impl From<GenericPairType> for GenericType {
 impl From<GenericMapType> for GenericType {
     fn from(value: GenericMapType) -> Self {
         Self::Map(value)
+    }
+}
+
+impl From<GenericEnumValueType> for GenericType {
+    fn from(value: GenericEnumValueType) -> Self {
+        Self::EnumValue(value)
     }
 }
 
@@ -535,6 +550,77 @@ impl GenericMapType {
     }
 }
 
+/// Represents the value type of an enum variant.
+#[derive(Debug, Clone)]
+pub struct GenericEnumValueType {
+    /// The enum variant type parameter name.
+    variant_param: &'static str,
+}
+
+impl GenericEnumValueType {
+    /// Constructs a new generic enum variant type.
+    pub fn new(variant_param: &'static str) -> Self {
+        Self { variant_param }
+    }
+
+    /// Gets the variant parameter name.
+    pub fn variant_param(&self) -> &'static str {
+        self.variant_param
+    }
+
+    /// Returns an object that implements `Display` for formatting the type.
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
+        #[allow(clippy::missing_docs_in_private_items)]
+        struct Display<'a> {
+            params: &'a TypeParameters<'a>,
+            ty: &'a GenericEnumValueType,
+        }
+
+        impl fmt::Display for Display<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let (_, variant_ty) = self
+                    .params
+                    .get(self.ty.variant_param)
+                    .expect("variant parameter should be present");
+
+                match variant_ty {
+                    Some(Type::Compound(CompoundType::Enum(enum_ty), _)) => {
+                        enum_ty.value_type().fmt(f)
+                    }
+                    // NOTE: non-enums should gracefully fail.
+                    _ => write!(f, "T"),
+                }
+            }
+        }
+
+        Display { params, ty: self }
+    }
+
+    /// Realizes the generic type to the enum's value type.
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
+        let (_, variant_ty) = params
+            .get(self.variant_param)
+            .expect("variant parameter should be present");
+
+        match variant_ty {
+            Some(Type::Compound(CompoundType::Enum(enum_ty), _)) => {
+                Some(enum_ty.value_type().clone())
+            }
+            // NOTE: non-enums should gracefully fail.
+            _ => None,
+        }
+    }
+
+    /// Asserts that the type parameters referenced by the type are valid.
+    fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
+        assert!(
+            parameters.iter().any(|p| p.name == self.variant_param),
+            "generic enum variant type references unknown type parameter `{}`",
+            self.variant_param
+        );
+    }
+}
+
 /// Represents a collection of type parameters.
 #[derive(Debug, Clone)]
 pub struct TypeParameters<'a> {
@@ -733,6 +819,12 @@ impl From<GenericPairType> for FunctionalType {
 impl From<GenericMapType> for FunctionalType {
     fn from(value: GenericMapType) -> Self {
         Self::Generic(GenericType::Map(value))
+    }
+}
+
+impl From<GenericEnumValueType> for FunctionalType {
+    fn from(value: GenericEnumValueType) -> Self {
+        Self::Generic(GenericType::EnumValue(value))
     }
 }
 
@@ -4870,6 +4962,62 @@ task collect_by_key {
             .is_none()
     );
 
+    // Enum functions (WDL 1.3)
+    assert!(
+        functions
+            .insert(
+                "value",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Three))
+                        .type_parameter("V", EnumVariantConstraint)
+                        .parameter(
+                            "variant",
+                            GenericType::Parameter("V"),
+                            "An enum variant of any enum type.",
+                        )
+                        .ret(GenericEnumValueType::new("V"))
+                        .definition(
+                            r##"
+Returns the underlying value associated with an enum variant.
+
+**Parameters**
+
+1. `Enum`: an enum variant of any enum type.
+
+**Returns**: The variant's associated value.
+
+Example: test_enum_value.wdl
+
+```wdl
+version 1.3
+
+enum Color {
+  Red = "#FF0000",
+  Green = "#00FF00",
+  Blue = "#0000FF"
+}
+
+workflow test_enum_value {
+  input {
+    Color color = Color.Red
+  }
+
+  output {
+    String variant_value = value(color)   # "#FF0000"
+    String implicit = "~{color}"          # "Red" (default to name)
+  }
+}
+```
+"##
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#defined
     assert!(
         functions
@@ -5126,6 +5274,7 @@ mod test {
                 "values(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
                  primitive type",
+                "value(variant: V) -> T where `V`: any enumeration variant",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",

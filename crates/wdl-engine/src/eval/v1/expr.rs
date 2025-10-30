@@ -1458,6 +1458,18 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
+        if let Expr::NameRef(ref name_ref) = target {
+            let type_name = name_ref.name();
+            if let Some(value) = self
+                .context
+                .enums()
+                .and_then(|data| data.get(type_name.text()))
+                .and_then(|enums| enums.variants.get(name.text()).cloned())
+            {
+                return Ok(value);
+            }
+        }
+
         match self.evaluate_expr(&target).await? {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
@@ -1518,6 +1530,7 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
+    use crate::Enum;
     use crate::ScopeRef;
     use crate::eval::Scope;
     use crate::http::Location;
@@ -1530,6 +1543,8 @@ pub(crate) mod test {
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
+        /// The enum for the test.
+        enums: HashMap<String, Enum>,
         /// The test directory.
         test_dir: TempDir,
         /// The evaluation base directory.
@@ -1572,6 +1587,7 @@ pub(crate) mod test {
             Self {
                 scopes: vec![Scope::default()],
                 structs: Default::default(),
+                enums: Default::default(),
                 test_dir,
                 base_dir,
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
@@ -1668,8 +1684,13 @@ pub(crate) mod test {
             self.env
                 .structs
                 .get(name)
+                .or_else(|| self.env.enums.get(name).map(|data| &data.ty))
                 .cloned()
                 .ok_or_else(|| unknown_type(name, span))
+        }
+
+        fn enums(&self) -> Option<&std::collections::HashMap<String, Enum>> {
+            Some(&self.env.enums)
         }
 
         fn base_dir(&self) -> &EvaluationPath {

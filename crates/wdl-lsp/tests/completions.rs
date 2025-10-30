@@ -534,6 +534,21 @@ async fn should_complete_struct_literal_as_snippet() {
 }
 
 #[tokio::test]
+async fn should_complete_enum_variants() {
+    let mut ctx = setup().await;
+
+    let response = completion_request(&mut ctx, "snippet_enum.wdl", Position::new(9, 22)).await;
+
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "Active");
+    assert_contains(&items, "Inactive");
+    assert_contains(&items, "Pending");
+}
+
+#[tokio::test]
 async fn should_complete_top_level_keyword_as_snippet() {
     let mut ctx = setup().await;
 

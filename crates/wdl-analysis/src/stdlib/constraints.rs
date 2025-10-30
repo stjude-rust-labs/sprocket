@@ -48,6 +48,7 @@ impl Constraint for SizeableConstraint {
                     type_is_sizable(ty.key_type()) | type_is_sizable(ty.value_type())
                 }
                 CompoundType::Struct(s) => s.members().values().any(type_is_sizable),
+                CompoundType::Enum(_) => false,
             }
         }
 
@@ -126,6 +127,7 @@ impl Constraint for JsonSerializableConstraint {
                         && type_is_serializable(ty.value_type())
                 }
                 CompoundType::Struct(s) => s.members().values().all(type_is_serializable),
+                CompoundType::Enum(e) => type_is_serializable(e.value_type()),
             }
         }
 
@@ -167,6 +169,20 @@ impl Constraint for PrimitiveTypeConstraint {
             | Type::Hidden(_)
             | Type::Call(_) => false,
         }
+    }
+}
+
+/// Represents a constraint that ensures the type is any enumeration variant.
+#[derive(Debug, Copy, Clone)]
+pub struct EnumVariantConstraint;
+
+impl Constraint for EnumVariantConstraint {
+    fn description(&self) -> &'static str {
+        "any enumeration variant"
+    }
+
+    fn satisfied(&self, ty: &Type) -> bool {
+        matches!(ty, Type::Compound(CompoundType::Enum(_), _))
     }
 }
 

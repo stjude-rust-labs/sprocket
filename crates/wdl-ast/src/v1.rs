@@ -7,6 +7,7 @@ use crate::TreeNode;
 
 mod decls;
 mod display;
+mod r#enum;
 mod expr;
 mod import;
 mod r#struct;
@@ -15,6 +16,7 @@ mod tokens;
 mod workflow;
 
 pub use decls::*;
+pub use r#enum::*;
 pub use expr::*;
 pub use import::*;
 pub use r#struct::*;
@@ -54,6 +56,11 @@ impl<N: TreeNode> Ast<N> {
         self.children()
     }
 
+    /// Gets the enum definitions in the AST.
+    pub fn enums(&self) -> impl Iterator<Item = EnumDefinition<N>> + use<'_, N> {
+        self.children()
+    }
+
     /// Gets the task definitions in the AST.
     pub fn tasks(&self) -> impl Iterator<Item = TaskDefinition<N>> + use<'_, N> {
         self.children()
@@ -89,6 +96,8 @@ pub enum DocumentItem<N: TreeNode = SyntaxNode> {
     Import(ImportStatement<N>),
     /// The item is a struct definition.
     Struct(StructDefinition<N>),
+    /// The item is an enum definition.
+    Enum(EnumDefinition<N>),
     /// The item is a task definition.
     Task(TaskDefinition<N>),
     /// The item is a workflow definition.
@@ -106,6 +115,7 @@ impl<N: TreeNode> DocumentItem<N> {
             kind,
             SyntaxKind::ImportStatementNode
                 | SyntaxKind::StructDefinitionNode
+                | SyntaxKind::EnumDefinitionNode
                 | SyntaxKind::TaskDefinitionNode
                 | SyntaxKind::WorkflowDefinitionNode
         )
@@ -122,6 +132,9 @@ impl<N: TreeNode> DocumentItem<N> {
             SyntaxKind::StructDefinitionNode => Some(Self::Struct(
                 StructDefinition::cast(inner).expect("struct definition to cast"),
             )),
+            SyntaxKind::EnumDefinitionNode => Some(Self::Enum(
+                EnumDefinition::cast(inner).expect("enum definition to cast"),
+            )),
             SyntaxKind::TaskDefinitionNode => Some(Self::Task(
                 TaskDefinition::cast(inner).expect("task definition to cast"),
             )),
@@ -137,6 +150,7 @@ impl<N: TreeNode> DocumentItem<N> {
         match self {
             Self::Import(e) => e.inner(),
             Self::Struct(e) => e.inner(),
+            Self::Enum(e) => e.inner(),
             Self::Task(e) => e.inner(),
             Self::Workflow(e) => e.inner(),
         }

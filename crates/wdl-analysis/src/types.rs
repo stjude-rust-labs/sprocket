@@ -254,6 +254,16 @@ impl Type {
         }
     }
 
+    /// Converts the type to an enum type.
+    ///
+    /// Returns `None` if the type is not an enum type.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match self {
+            Self::Compound(CompoundType::Enum(ty), _) => Some(ty),
+            _ => None,
+        }
+    }
+
     /// Converts the type to a call type
     ///
     /// Returns `None` if the type if not a call type.
@@ -506,6 +516,12 @@ impl From<StructType> for Type {
     }
 }
 
+impl From<EnumType> for Type {
+    fn from(value: EnumType) -> Self {
+        Self::Compound(value.into(), false)
+    }
+}
+
 impl From<CallType> for Type {
     fn from(value: CallType) -> Self {
         Self::Call(value)
@@ -523,6 +539,8 @@ pub enum CompoundType {
     Map(Arc<MapType>),
     /// The type is a struct (e.g. `Foo`).
     Struct(Arc<StructType>),
+    /// The type is an enum.
+    Enum(Arc<EnumType>),
 }
 
 impl CompoundType {
@@ -566,6 +584,16 @@ impl CompoundType {
         }
     }
 
+    /// Converts the compound type to an enum type.
+    ///
+    /// Returns `None` if the compound type is not an enum type.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match self {
+            Self::Enum(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
     /// Calculates a common type between two compound types.
     ///
     /// This method does not attempt coercion; it only attempts to find common
@@ -600,6 +628,7 @@ impl fmt::Display for CompoundType {
             Self::Pair(ty) => ty.fmt(f),
             Self::Map(ty) => ty.fmt(f),
             Self::Struct(ty) => ty.fmt(f),
+            Self::Enum(ty) => ty.fmt(f),
         }
     }
 }
@@ -622,6 +651,9 @@ impl Coercible for CompoundType {
             // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where: all member names match
             // and all member types coerce
             (Self::Struct(src), Self::Struct(target)) => src.is_coercible_to(target),
+
+            // Enum -> Enum where: same enum type
+            (Self::Enum(src), Self::Enum(target)) => src.is_coercible_to(target),
 
             // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
             // keys match member names, and Y -> member type
@@ -688,6 +720,12 @@ impl From<MapType> for CompoundType {
 impl From<StructType> for CompoundType {
     fn from(value: StructType) -> Self {
         Self::Struct(value.into())
+    }
+}
+
+impl From<EnumType> for CompoundType {
+    fn from(value: EnumType) -> Self {
+        Self::Enum(value.into())
     }
 }
 
@@ -908,6 +946,133 @@ impl Coercible for StructType {
                 .map(|target| v.is_coercible_to(target))
                 .unwrap_or(false)
         })
+    }
+}
+
+/// Represents the type of an enum.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumType {
+    /// The name of the enum.
+    name: Arc<String>,
+    /// The common coerced type computed from all variant values.
+    value_type: Arc<Type>,
+    /// The variants with their actual types (before coercion).
+    variants: Arc<IndexMap<String, Type>>,
+}
+
+impl EnumType {
+    /// Constructs a new enum type with a known coerced type.
+    ///
+    /// Validates that all variant types are coercible to the provided type.
+    /// Returns an error if any variant cannot be coerced.
+    pub fn new<N, T>(
+        name: impl Into<String>,
+        value_type: impl Into<Type>,
+        variants: impl IntoIterator<Item = (N, T)>,
+    ) -> Result<Self, String>
+    where
+        N: Into<String>,
+        T: Into<Type>,
+    {
+        let name = name.into();
+        let value_type = value_type.into();
+        let variants: IndexMap<String, Type> = variants
+            .into_iter()
+            .map(|(n, ty)| (n.into(), ty.into()))
+            .collect();
+
+        // Validate that all variant types are coercible to the value type
+        for (variant_name, variant_type) in &variants {
+            if !variant_type.is_coercible_to(&value_type) {
+                return Err(format!(
+                    "variant `{}` has type `{}` which is not coercible to enum coerced type `{}`",
+                    variant_name, variant_type, value_type
+                ));
+            }
+        }
+
+        Ok(Self {
+            name: Arc::new(name),
+            value_type: Arc::new(value_type),
+            variants: Arc::new(variants),
+        })
+    }
+
+    /// Constructs a new enum type by computing the common coerced type.
+    ///
+    /// Finds the common type among all variant types. If the enum has no
+    /// variants, the coerced type is Union. Returns an error if no common
+    /// type can be found among the variants.
+    pub fn infer<N, T>(
+        name: impl Into<String>,
+        variants: impl IntoIterator<Item = (N, T)>,
+    ) -> Result<Self, String>
+    where
+        N: Into<String>,
+        T: Into<Type>,
+    {
+        let name = name.into();
+        let variants: IndexMap<String, Type> = variants
+            .into_iter()
+            .map(|(n, ty)| (n.into(), ty.into()))
+            .collect();
+
+        let value_type = if variants.is_empty() {
+            Type::Union
+        } else {
+            // Find the common type among all variants
+            let mut types = variants.values();
+            let mut value_type = types.next().unwrap().clone();
+
+            for ty in types {
+                match value_type.common_type(ty) {
+                    Some(common) => value_type = common,
+                    None => {
+                        return Err(format!(
+                            "enum `{}` variants have no common type: cannot find common type between `{}` and `{}`",
+                            name, value_type, ty
+                        ));
+                    }
+                }
+            }
+
+            value_type
+        };
+
+        Ok(Self {
+            name: Arc::new(name),
+            value_type: Arc::new(value_type),
+            variants: Arc::new(variants),
+        })
+    }
+
+    /// Gets the name of the enum.
+    pub fn name(&self) -> &Arc<String> {
+        &self.name
+    }
+
+    /// Gets the computed common coerced type that all variants coerce to.
+    pub fn value_type(&self) -> &Type {
+        &self.value_type
+    }
+
+    /// Gets the variants with their types.
+    pub fn variants(&self) -> &IndexMap<String, Type> {
+        &self.variants
+    }
+}
+
+impl fmt::Display for EnumType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{name}", name = self.name)
+    }
+}
+
+impl Coercible for EnumType {
+    fn is_coercible_to(&self, target: &Self) -> bool {
+        // Enums are only coercible to the exact same enum type
+        // Compare both name and variants to ensure structural equivalence
+        Arc::ptr_eq(&self.name, &target.name) && Arc::ptr_eq(&self.variants, &target.variants)
     }
 }
 
@@ -1965,5 +2130,144 @@ mod test {
         assert!(!Type::None.eq(&Type::Union));
         assert!(!Type::Union.eq(&Type::None));
         assert!(Type::None.eq(&Type::None));
+    }
+
+    #[test]
+    fn enum_type_new_with_explicit_type() {
+        // Create enum with explicit String type - all variants coerce to String
+        let result = EnumType::new(
+            "Status",
+            PrimitiveType::String,
+            [
+                ("Pending", PrimitiveType::String),
+                ("Running", PrimitiveType::String),
+                ("Complete", PrimitiveType::String),
+            ],
+        );
+        assert!(result.is_ok());
+        let status = result.unwrap();
+        assert_eq!(status.name().as_ref(), "Status");
+        assert_eq!(status.value_type(), &Type::from(PrimitiveType::String));
+        assert_eq!(status.variants().len(), 3);
+    }
+
+    #[test]
+    fn enum_type_new_fails_when_not_coercible() {
+        // Try to create enum with Int type but String variants
+        let result = EnumType::new(
+            "Bad",
+            PrimitiveType::Integer,
+            [
+                ("First", PrimitiveType::String),
+                ("Second", PrimitiveType::Integer),
+            ],
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            "variant `First` has type `String` which is not coercible to enum coerced type `Int`"
+        );
+    }
+
+    #[test]
+    fn enum_type_infer_finds_common_type() {
+        // All Int variants should infer Int type
+        let result = EnumType::infer(
+            "Priority",
+            [
+                ("Low", PrimitiveType::Integer),
+                ("Medium", PrimitiveType::Integer),
+                ("High", PrimitiveType::Integer),
+            ],
+        );
+        assert!(result.is_ok());
+        let priority = result.unwrap();
+        assert_eq!(priority.value_type(), &Type::from(PrimitiveType::Integer));
+    }
+
+    #[test]
+    fn enum_type_infer_coerces_int_to_float() {
+        // Mix of Int and Float should coerce to Float
+        let result = EnumType::infer(
+            "Mixed",
+            [
+                ("IntValue", PrimitiveType::Integer),
+                ("FloatValue", PrimitiveType::Float),
+            ],
+        );
+        assert!(result.is_ok());
+        let mixed = result.unwrap();
+        assert_eq!(mixed.value_type(), &Type::from(PrimitiveType::Float));
+    }
+
+    #[test]
+    fn enum_type_infer_fails_without_common_type() {
+        // String and Int have no common type
+        let result = EnumType::infer(
+            "Bad",
+            [
+                ("StringVal", PrimitiveType::String),
+                ("IntVal", PrimitiveType::Integer),
+            ],
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            "enum `Bad` variants have no common type"
+        );
+    }
+
+    #[test]
+    fn enum_type_empty_has_union_type() {
+        // Empty enum should have Union type
+        let result = EnumType::infer("Empty", Vec::<(&str, Type)>::new());
+        assert!(result.is_ok());
+        let empty = result.unwrap();
+        assert_eq!(empty.value_type(), &Type::Union);
+        assert_eq!(empty.variants().len(), 0);
+    }
+
+    #[test]
+    fn enum_type_display() {
+        let enum_type = EnumType::new(
+            "Color",
+            PrimitiveType::String,
+            [("Red", PrimitiveType::String)],
+        )
+        .unwrap();
+        assert_eq!(enum_type.to_string(), "Color");
+    }
+
+    #[test]
+    fn enum_type_not_coercible_to_other_enums() {
+        let color = EnumType::new(
+            "Color",
+            PrimitiveType::String,
+            [("Red", PrimitiveType::String)],
+        )
+        .unwrap();
+        let status = EnumType::new(
+            "Status",
+            PrimitiveType::String,
+            [("Active", PrimitiveType::String)],
+        )
+        .unwrap();
+        assert!(!color.is_coercible_to(&status));
+    }
+
+    #[test]
+    fn enum_type_from_conversions() {
+        let enum_type = EnumType::new(
+            "Status",
+            PrimitiveType::String,
+            [("Active", PrimitiveType::String)],
+        )
+        .unwrap();
+
+        // Test From<EnumType> for CompoundType
+        let compound: CompoundType = enum_type.clone().into();
+        assert!(matches!(compound, CompoundType::Enum(_)));
+
+        // Test From<EnumType> for Type
+        let ty: Type = enum_type.into();
+        assert!(ty.as_enum().is_some());
     }
 }

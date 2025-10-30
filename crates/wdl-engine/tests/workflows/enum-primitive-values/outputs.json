@@ -1,0 +1,18 @@
+{
+  "enum_primitive_values.inactive": "Inactive",
+  "enum_primitive_values.active": "Active",
+  "enum_primitive_values.pending": "Pending",
+  "enum_primitive_values.inactive_value": 0,
+  "enum_primitive_values.active_value": 1,
+  "enum_primitive_values.pending_value": 2,
+  "enum_primitive_values.inactive_equals_inactive": true,
+  "enum_primitive_values.inactive_not_equals_active": true,
+  "enum_primitive_values.red": "Red",
+  "enum_primitive_values.green": "Green",
+  "enum_primitive_values.blue": "Blue",
+  "enum_primitive_values.red_value": "#FF0000",
+  "enum_primitive_values.green_value": "#00FF00",
+  "enum_primitive_values.blue_value": "#0000FF",
+  "enum_primitive_values.red_equals_red": true,
+  "enum_primitive_values.red_not_equals_blue": true
+}
