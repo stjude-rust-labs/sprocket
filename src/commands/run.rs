@@ -31,6 +31,7 @@ use wdl::cli::analysis::Source;
 use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::CancellationContext;
+use wdl::engine::CancellationContextState;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
@@ -588,16 +589,20 @@ pub async fn run(args: Args) -> Result<()> {
             biased;
 
             _ = tokio::signal::ctrl_c() => {
-                // If the cancellation token was canceled, the user doesn't want to wait for evaluation to complete
-                if cancellation.token().is_cancelled() {
+                // If we've already been waiting for executing tasks to cancel, immediately bail out
+                if cancellation.state() == CancellationContextState::Canceling {
                     bail!("evaluation was interrupted");
                 }
 
                 // Log the message indicating whether we're waiting on completion or waiting on cancellation
-                if !cancellation.cancel() {
-                    error!("waiting for executing tasks to complete: use Ctrl-C to cancel executing tasks");
-                } else {
-                    error!("waiting for executing tasks to cancel: use Ctrl-C to terminate Sprocket");
+                match cancellation.cancel() {
+                    CancellationContextState::NotCanceled => unreachable!("should be canceled"),
+                    CancellationContextState::Waiting => {
+                        error!("waiting for executing tasks to complete: use Ctrl-C to cancel executing tasks");
+                    },
+                    CancellationContextState::Canceling => {
+                        error!("waiting for executing tasks to cancel: use Ctrl-C to immediately terminate Sprocket");
+                    },
                 }
             },
             res = &mut evaluate => {

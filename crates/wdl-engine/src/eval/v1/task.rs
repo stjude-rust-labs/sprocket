@@ -66,6 +66,7 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use crate::CancellationContext;
+use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -1057,6 +1058,10 @@ impl TaskEvaluator {
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
+            if self.cancellation.state() != CancellationContextState::NotCanceled {
+                return Err(EvaluationError::Canceled);
+            }
+
             let EvaluatedSections {
                 command,
                 requirements,

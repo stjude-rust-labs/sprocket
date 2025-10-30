@@ -61,6 +61,7 @@ use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
 use crate::CancellationContext;
+use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -1499,7 +1500,7 @@ impl WorkflowEvaluator {
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
-            if state.cancellation.is_canceled() {
+            if state.cancellation.state() != CancellationContextState::NotCanceled {
                 break;
             }
 
@@ -1541,7 +1542,7 @@ impl WorkflowEvaluator {
         }
 
         // Return an error if all the tasks completed but there was a cancellation
-        if state.cancellation.is_canceled() {
+        if state.cancellation.state() != CancellationContextState::NotCanceled {
             return Err(EvaluationError::Canceled);
         }
 
