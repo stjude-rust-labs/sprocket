@@ -54,6 +54,29 @@ const MAX_STDERR_LINES: usize = 10;
 /// A root might be a root directory like `/` or `C:\`, but it also might be the root of a URL like `https://example.com`.
 const ROOT_NAME: &str = ".root";
 
+/// A constant to denote that no cancellation has occurred yet.
+const CANCELLATION_STATE_NOT_CANCELED: u8 = 0;
+
+/// A state bit to indicate that we're waiting for executing tasks to
+/// complete.
+///
+/// This bit is mutually exclusive with the `CANCELING` bit.
+const CANCELLATION_STATE_WAITING: u8 = 1;
+
+/// A state bit to denote that we're waiting for executing tasks to cancel.
+///
+/// This bit is mutually exclusive with the `WAITING` bit.
+const CANCELLATION_STATE_CANCELING: u8 = 2;
+
+/// A state bit to denote that cancellation was the result of an error.
+///
+/// This bit will only be set if either the `CANCELING` bit or the `WAITING`
+/// bit are set.
+const CANCELLATION_STATE_ERROR: u8 = 4;
+
+/// The mask to apply to the state for excluding the error bit.
+const CANCELLATION_STATE_MASK: u8 = 0x3;
+
 /// Represents the current state of a [`CancellationContext`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CancellationContextState {
@@ -68,31 +91,12 @@ pub enum CancellationContextState {
 }
 
 impl CancellationContextState {
-    /// A state bit to denote that we're waiting for executing tasks to cancel.
-    ///
-    /// This bit is mutually exclusive with the `WAITING` bit.
-    const CANCELING: u8 = 2;
-    /// A state bit to denote that cancellation was the result of an error.
-    ///
-    /// This bit will only be set if either the `CANCELING` bit or the `WAITING`
-    /// bit are set.
-    const ERROR: u8 = 4;
-    /// A constant to denote that no cancellation has occurred yet.
-    const NOT_CANCELED: u8 = 0;
-    /// The mask to apply to the state for excluding the error bit.
-    const STATE_MASK: u8 = 0x3;
-    /// A state bit to indicate that we're waiting for executing tasks to
-    /// complete.
-    ///
-    /// This bit is mutually exclusive with the `CANCELING` bit.
-    const WAITING: u8 = 1;
-
     /// Gets the current context state.
     fn get(state: &Arc<AtomicU8>) -> Self {
-        match state.load(Ordering::SeqCst) & Self::STATE_MASK {
-            Self::NOT_CANCELED => Self::NotCanceled,
-            Self::WAITING => Self::Waiting,
-            Self::CANCELING => Self::Canceling,
+        match state.load(Ordering::SeqCst) & CANCELLATION_STATE_MASK {
+            CANCELLATION_STATE_NOT_CANCELED => Self::NotCanceled,
+            CANCELLATION_STATE_WAITING => Self::Waiting,
+            CANCELLATION_STATE_CANCELING => Self::Canceling,
             _ => unreachable!("unexpected cancellation context state"),
         }
     }
@@ -106,38 +110,38 @@ impl CancellationContextState {
         let previous_state = state
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
                 // If updating for an error and there has been a cancellation, bail out
-                if error && state != Self::NOT_CANCELED {
+                if error && state != CANCELLATION_STATE_NOT_CANCELED {
                     return None;
                 }
 
                 // Otherwise, calculate the new state
-                let mut new_state = match state & Self::STATE_MASK {
-                    Self::NOT_CANCELED => match mode {
-                        FailureMode::Slow => Self::WAITING,
-                        FailureMode::Fast => Self::CANCELING,
+                let mut new_state = match state & CANCELLATION_STATE_MASK {
+                    CANCELLATION_STATE_NOT_CANCELED => match mode {
+                        FailureMode::Slow => CANCELLATION_STATE_WAITING,
+                        FailureMode::Fast => CANCELLATION_STATE_CANCELING,
                     },
-                    Self::WAITING => Self::CANCELING,
-                    Self::CANCELING => Self::CANCELING,
+                    CANCELLATION_STATE_WAITING => CANCELLATION_STATE_CANCELING,
+                    CANCELLATION_STATE_CANCELING => CANCELLATION_STATE_CANCELING,
                     _ => unreachable!("unexpected cancellation context state"),
                 };
 
                 // Mark the error bit upon error
                 if error {
-                    new_state |= Self::ERROR;
+                    new_state |= CANCELLATION_STATE_ERROR;
                 }
 
                 // Return the new state along with the old error bit
-                Some(new_state | (state & Self::ERROR))
+                Some(new_state | (state & CANCELLATION_STATE_ERROR))
             })
             .ok()?;
 
-        match previous_state & Self::STATE_MASK {
-            Self::NOT_CANCELED => match mode {
+        match previous_state & CANCELLATION_STATE_MASK {
+            CANCELLATION_STATE_NOT_CANCELED => match mode {
                 FailureMode::Slow => Some(Self::Waiting),
                 FailureMode::Fast => Some(Self::Canceling),
             },
-            Self::WAITING => Some(Self::Canceling),
-            Self::CANCELING => Some(Self::Canceling),
+            CANCELLATION_STATE_WAITING => Some(Self::Canceling),
+            CANCELLATION_STATE_CANCELING => Some(Self::Canceling),
             _ => unreachable!("unexpected cancellation context state"),
         }
     }
@@ -169,12 +173,12 @@ impl CancellationContext {
     pub fn new(mode: FailureMode) -> Self {
         Self {
             mode,
-            state: Arc::new(CancellationContextState::NOT_CANCELED.into()),
+            state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
             token: CancellationToken::new(),
         }
     }
 
-    /// Gets that [`CancellationContextState`] of the [`CancellationContext`].
+    /// Gets the [`CancellationContextState`] of this [`CancellationContext`].
     pub fn state(&self) -> CancellationContextState {
         CancellationContextState::get(&self.state)
     }
@@ -217,8 +221,7 @@ impl CancellationContext {
     /// Determines if the user initiated the cancellation.
     pub(crate) fn user_canceled(&self) -> bool {
         let state = self.state.load(Ordering::SeqCst);
-        state != CancellationContextState::NOT_CANCELED
-            && (state & CancellationContextState::ERROR == 0)
+        state != CANCELLATION_STATE_NOT_CANCELED && (state & CANCELLATION_STATE_ERROR == 0)
     }
 
     /// Triggers a cancellation as a result of an error.
