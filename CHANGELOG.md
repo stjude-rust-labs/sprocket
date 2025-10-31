@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* A `run.fail` option was added to `sprocket.toml` for controlling the default failure mode ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Sprocket now supports "slow" and "fast" failure modes for evaluation errors an interruptions (Ctrl-C) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
 
 ### Fixed

@@ -23,7 +23,6 @@ use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use tokio::sync::RwLock;
 use tokio::task::JoinSet;
-use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::trace;
 use wdl_analysis::Document;
@@ -61,6 +60,8 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
+use crate::CancellationContext;
+use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -545,8 +546,8 @@ struct State {
     config: Arc<Config>,
     /// The task execution backend to use.
     backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation token for cancelling workflow evaluation.
-    token: CancellationToken,
+    /// The cancellation context for cancelling workflow evaluation.
+    cancellation: CancellationContext,
     /// The document containing the workflow being evaluated.
     document: Document,
     /// The workflow's inputs.
@@ -578,31 +579,38 @@ pub struct WorkflowEvaluator {
     config: Arc<Config>,
     /// The associated task execution backend.
     backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation token for cancelling workflow evaluation.
-    token: CancellationToken,
+    /// The cancellation context for cancelling workflow evaluation.
+    cancellation: CancellationContext,
     /// The transferer for expression evaluation.
     transferer: Arc<dyn Transferer>,
 }
 
 impl WorkflowEvaluator {
     /// Constructs a new workflow evaluator with the given evaluation
-    /// configuration and cancellation token.
+    /// configuration and cancellation context.
     ///
     /// This method creates a default task execution backend.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
+    pub async fn new(
+        config: Config,
+        cancellation: CancellationContext,
+        events: Events,
+    ) -> Result<Self> {
         config.validate().await?;
 
         let config = Arc::new(config);
         let backend = config.create_backend(events.crankshaft().clone()).await?;
-        let transferer =
-            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
+        let transferer = HttpTransferer::new(
+            config.clone(),
+            cancellation.token(),
+            events.transfer().clone(),
+        )?;
 
         Ok(Self {
             config,
             backend,
-            token,
+            cancellation,
             transferer: Arc::new(transferer),
         })
     }
@@ -625,8 +633,15 @@ impl WorkflowEvaluator {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        self.perform_evaluation(document, inputs, root_dir.as_ref(), workflow.name())
-            .await
+        let result = self
+            .perform_evaluation(document, inputs, root_dir.as_ref(), workflow.name())
+            .await;
+
+        if self.cancellation.user_canceled() {
+            return Err(EvaluationError::Canceled);
+        }
+
+        result
     }
 
     /// Performs the evaluation of the workflow of the given document.
@@ -726,7 +741,7 @@ impl WorkflowEvaluator {
         let state = Arc::new(State {
             config: self.config.clone(),
             backend: self.backend.clone(),
-            token: self.token.clone(),
+            cancellation: self.cancellation.clone(),
             document: document.clone(),
             inputs,
             scopes: Default::default(),
@@ -778,7 +793,7 @@ impl WorkflowEvaluator {
         id: Arc<String>,
     ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
-            let token = state.token.clone();
+            let cancellation = state.cancellation.clone();
             let mut futures = JoinSet::new();
             match Self::perform_subgraph_evaluation(
                 state,
@@ -796,8 +811,8 @@ impl WorkflowEvaluator {
                     Ok(())
                 }
                 Err(e) => {
-                    // Cancel any outstanding futures and join them
-                    token.cancel();
+                    // Perform a cancellation and wait for the futures to complete
+                    cancellation.error(&e);
                     futures.join_all().await;
                     Err(e)
                 }
@@ -933,7 +948,7 @@ impl WorkflowEvaluator {
                         let state = state.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            let token = state.token.clone();
+                            let cancellation = state.cancellation.clone();
                             let mut futures = JoinSet::new();
                             match Self::evaluate_scatter(
                                 id,
@@ -952,8 +967,8 @@ impl WorkflowEvaluator {
                                     Ok(node)
                                 }
                                 Err(e) => {
-                                    // Cancel any outstanding futures and join them
-                                    token.cancel();
+                                    // Perform a cancellation and wait for the futures to complete
+                                    cancellation.error(&e);
                                     futures.join_all().await;
                                     Err(e)
                                 }
@@ -1415,7 +1430,6 @@ impl WorkflowEvaluator {
     }
 
     /// Evaluates a workflow scatter statement.
-    #[allow(clippy::too_many_arguments)]
     async fn evaluate_scatter(
         id: Arc<String>,
         state: Arc<State>,
@@ -1486,8 +1500,8 @@ impl WorkflowEvaluator {
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
-            if state.token.is_cancelled() {
-                return Err(anyhow!("workflow evaluation has been cancelled").into());
+            if state.cancellation.state() != CancellationContextState::NotCanceled {
+                break;
             }
 
             // Allocate a scope
@@ -1525,6 +1539,11 @@ impl WorkflowEvaluator {
         // Complete any outstanding futures
         while !futures.is_empty() {
             await_next(futures, &state.scopes, &mut gathers, array.len()).await?;
+        }
+
+        // Return an error if all the tasks completed but there was a cancellation
+        if state.cancellation.state() != CancellationContextState::NotCanceled {
+            return Err(EvaluationError::Canceled);
         }
 
         let mut scopes = state.scopes.write().await;
@@ -1663,7 +1682,7 @@ impl WorkflowEvaluator {
                     TaskEvaluator::new_unchecked(
                         state.config.clone(),
                         state.backend.clone(),
-                        state.token.clone(),
+                        state.cancellation.clone(),
                         state.transferer.clone(),
                     ),
                 ),
@@ -1674,7 +1693,7 @@ impl WorkflowEvaluator {
                     Evaluator::Workflow(WorkflowEvaluator {
                         config: state.config.clone(),
                         backend: state.backend.clone(),
-                        token: state.token.clone(),
+                        cancellation: state.cancellation.clone(),
                         transferer: state.transferer.clone(),
                     }),
                 ),
@@ -1819,6 +1838,7 @@ mod test {
 
     use super::*;
     use crate::config::BackendConfig;
+    use crate::config::FailureMode;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1896,7 +1916,7 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
+        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::none())
             .await
             .unwrap();
 
@@ -2052,7 +2072,7 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), Events::none())
+        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::none())
             .await
             .unwrap();
 
@@ -2295,7 +2315,7 @@ workflow w {
             }
         });
 
-        let evaluator = WorkflowEvaluator::new(config, CancellationToken::new(), events)
+        let evaluator = WorkflowEvaluator::new(config, Default::default(), events)
             .await
             .unwrap();
 
@@ -2324,5 +2344,93 @@ workflow w {
         assert_eq!(state.tasks_created.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_started.load(Ordering::SeqCst), 10);
         assert_eq!(state.tasks_completed.load(Ordering::SeqCst), 10);
+    }
+
+    #[tokio::test]
+    async fn it_cancels_evaluation() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        let source_path = root_dir.path().join("source.wdl");
+        fs::write(
+            &source_path,
+            r#"
+version 1.1
+
+task t {
+  command <<<sleep 30; exit 1>>>
+}
+
+workflow w {
+  scatter (i in range(10)) {
+    call t
+  }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        // Analyze the source files
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path().to_path_buf())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Local(Default::default()),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        let cancellation = CancellationContext::new(FailureMode::Slow);
+        let evaluator = WorkflowEvaluator::new(config, cancellation.clone(), Events::none())
+            .await
+            .unwrap();
+
+        let mut evaluation = evaluator
+            .evaluate(
+                results
+                    .iter()
+                    .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+                    .expect("should have result")
+                    .document(),
+                WorkflowInputs::default(),
+                root_dir.path(),
+            )
+            .boxed();
+
+        let mut state = CancellationContextState::NotCanceled;
+        loop {
+            tokio::select! {
+                _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
+                   match (state, cancellation.cancel()) {
+                        (CancellationContextState::NotCanceled, CancellationContextState::Waiting) => {
+                            state = CancellationContextState::Waiting;
+                        }
+                        (CancellationContextState::Waiting, CancellationContextState::Canceling) => {
+                            state = CancellationContextState::Canceling;
+                        }
+                        (CancellationContextState::Canceling, CancellationContextState::Canceling) => {}
+                        (_, _) => panic!("unexpected state transition"),
+                    }
+                },
+                res = &mut evaluation => {
+                    match res {
+                        Ok(_) => panic!("evaluation should not complete"),
+                        Err(EvaluationError::Canceled) => break,
+                        Err(e) => panic!("expected evaluation to be canceled: {e}", e = e.to_string()),
+                    }
+                }
+            }
+        }
     }
 }

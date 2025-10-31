@@ -21,7 +21,9 @@ use wdl_engine::config::Config as EngineConfig;
 /// The set of configs that determine how a test is run.
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct TestConfig {
+    /// The analysis configuration for the tests.
     pub analysis: AnalysisConfig,
+    /// The engine configuration for the tests.
     pub engine: EngineConfig,
 }
 
