@@ -51,6 +51,7 @@ use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StringText;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
@@ -130,6 +131,15 @@ pub trait Visitor {
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
         def: &StructDefinition,
+    ) {
+    }
+
+    /// Visits an enum definition node.
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &EnumDefinition,
     ) {
     }
 
@@ -371,6 +381,11 @@ pub(crate) fn visit<V: Visitor>(
                 diagnostics,
                 reason,
                 &StructDefinition::cast(element.into_node().unwrap()).expect("should cast"),
+            ),
+            SyntaxKind::EnumDefinitionNode => visitor.enum_definition(
+                diagnostics,
+                reason,
+                &EnumDefinition::cast(element.into_node().unwrap()).expect("should cast"),
             ),
             SyntaxKind::TaskDefinitionNode => visitor.task_definition(
                 diagnostics,

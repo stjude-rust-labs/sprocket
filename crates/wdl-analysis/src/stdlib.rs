@@ -4870,6 +4870,62 @@ task collect_by_key {
             .is_none()
     );
 
+    // Enum functions (WDL 1.3)
+    assert!(
+        functions
+            .insert(
+                "value",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Three))
+                        .type_parameter("V", EnumVariantConstraint)
+                        .parameter(
+                            "variant",
+                            GenericType::Parameter("V"),
+                            "An enum variant of any enum type.",
+                        )
+                        .ret(PrimitiveType::String)
+                        .definition(
+                            r##"
+Returns the underlying value associated with an enum variant.
+
+**Parameters**
+
+1. `Enum`: an enum variant of any enum type.
+
+**Returns**: A `String` containing the variant's associated value.
+
+Example: test_enum_value.wdl
+
+```wdl
+version 1.3
+
+enum Color {
+  Red = "#FF0000",
+  Green = "#00FF00",
+  Blue = "#0000FF"
+}
+
+workflow test_enum_value {
+  input {
+    Color color = Color.Red
+  }
+
+  output {
+    String variant_value = value(color)   # "#FF0000"
+    String implicit = "~{color}"          # "Red" (default to name)
+  }
+}
+```
+"##
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#defined
     assert!(
         functions
@@ -5126,6 +5182,7 @@ mod test {
                 "values(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
                  primitive type",
+                "value(variant: V) -> String where `V`: any enumeration variant",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",
