@@ -598,11 +598,17 @@ pub async fn run(args: Args) -> Result<()> {
             let _ = transfer_progress.await;
             let _ = crankshaft_progress.await;
 
-            match res {
-                Ok(outputs) => {
-                    println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                    Ok(())
+        match res {
+            Ok(outputs) => {
+                #[cfg(unix)]
+                {
+                    if let Err(e) = create_output_links(&outputs.with_name(&entrypoint), &output_dir) {
+                        tracing::warn!("failed to create output symlinks: {}", e);
+                    }
                 }
+                println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                Ok(())
+            }
                 Err(EvaluationError::Source(e)) => {
                     emit_diagnostics(
                         &e.document.path(),
@@ -618,4 +624,52 @@ pub async fn run(args: Args) -> Result<()> {
             }
         },
     }
+}
+
+#[cfg(unix)]
+fn create_output_links(outputs: &serde_json::Value, output_dir: &Path) -> Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let out_dir = output_dir.join("out");
+    std::fs::create_dir_all(&out_dir)
+        .with_context(|| format!("failed to create directory: `{}`", out_dir.display()))?;
+
+    let mut names_in_use = std::collections::HashMap::new();
+
+    if let Some(obj) = outputs.as_object() {
+        for (key, value) in obj {
+            if let Some(path_str) = value.as_str() {
+                let path = Path::new(path_str);
+                if path.is_absolute()
+                    && path.exists()
+                    && path.starts_with(output_dir)
+                    && (path.is_file() || path.is_dir())
+                {
+                    let mut link_name = key.clone();
+                    let mut n = 1;
+                    while names_in_use.contains_key(&link_name) {
+                        link_name = format!("{}_{}", key, n);
+                        n += 1;
+                    }
+                    names_in_use.insert(link_name.clone(), true);
+
+                    let link_path = out_dir.join(&link_name);
+                    if let Some(parent) = link_path.parent() {
+                        std::fs::create_dir_all(parent).ok();
+                    }
+                    if !link_path.exists() {
+                        symlink(path, &link_path).with_context(|| {
+                            format!(
+                                "failed to symlink `{}` to `{}`",
+                                path.display(),
+                                link_path.display()
+                            )
+                        })?;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
