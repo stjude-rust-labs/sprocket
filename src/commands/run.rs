@@ -14,6 +14,7 @@ use colored::Colorize as _;
 use crankshaft::events::Event;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
+use indicatif::HumanDuration;
 use indicatif::ProgressStyle;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -21,6 +22,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
+use tracing::info;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
@@ -581,6 +583,7 @@ pub async fn run(args: Args) -> Result<()> {
     );
 
     let mut evaluate = evaluator.run(token.clone(), events).boxed();
+    let start_time = std::time::Instant::now();
 
     select! {
         // Always prefer the CTRL-C signal to the evaluation returning.
@@ -600,6 +603,8 @@ pub async fn run(args: Args) -> Result<()> {
 
             match res {
                 Ok(outputs) => {
+                    let execution_time = start_time.elapsed();
+                    info!("{run_kind} finished in {duration}s.", duration=HumanDuration(execution_time));
                     println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
                     Ok(())
                 }
