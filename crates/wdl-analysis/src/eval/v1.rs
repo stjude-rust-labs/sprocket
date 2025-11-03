@@ -8,6 +8,8 @@ use petgraph::algo::has_path_connecting;
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::Visitable;
+use smallvec::SmallVec;
+use smallvec::smallvec;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
@@ -21,6 +23,7 @@ use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClause;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::NameRefExpr;
@@ -350,21 +353,39 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     // Add name references from the runtime section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
                 TaskGraphNode::Requirements(section) => {
                     // Add name references from the requirements section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
                 TaskGraphNode::Hints(section) => {
                     // Add name references from the hints section to any decls in scope
                     let section = section.clone();
                     for item in section.items() {
-                        self.add_section_edges(from, item.descendants(), false, graph, diagnostics);
+                        self.add_section_edges(
+                            from,
+                            item.descendants(),
+                            version >= SupportedVersion::V1(V1::Three),
+                            graph,
+                            diagnostics,
+                        );
                     }
                 }
             }
@@ -451,6 +472,11 @@ pub enum WorkflowGraphNode<N: TreeNode = SyntaxNode> {
     ///
     /// Stores the AST node along with the exit node index.
     Conditional(ConditionalStatement<N>, NodeIndex),
+    /// The node represents a specific clause within a conditional statement.
+    ///
+    /// Stores the clause AST node and exit node index.
+    /// This allows each clause to have its own subgraph.
+    ConditionalClause(ConditionalStatementClause<N>, NodeIndex),
     /// The node is a scatter statement.
     ///
     /// Stores the AST node along with the exit node index.
@@ -496,7 +522,10 @@ impl<N: TreeNode> WorkflowGraphNode<N> {
                         .last()
                         .map(|t| NameContext::Call(t.span()))
                 }),
-            Self::Conditional(..) | Self::ExitConditional(_) | Self::ExitScatter(_) => None,
+            Self::Conditional(..)
+            | Self::ConditionalClause(..)
+            | Self::ExitConditional(_)
+            | Self::ExitScatter(_) => None,
         }
     }
 
@@ -505,6 +534,7 @@ impl<N: TreeNode> WorkflowGraphNode<N> {
         match self {
             Self::Input(decl) | Self::Output(decl) | Self::Decl(decl) => decl.inner(),
             Self::Conditional(stmt, ..) => stmt.inner(),
+            Self::ConditionalClause(stmt, ..) => stmt.inner(),
             Self::Scatter(stmt, ..) => stmt.inner(),
             Self::Call(stmt) => stmt.inner(),
             Self::ExitConditional(stmt) => stmt.inner(),
@@ -533,16 +563,31 @@ impl<N: TreeNode> fmt::Display for WorkflowGraphNode<N> {
                     .text()
             ),
             Self::Conditional(..) => write!(f, "conditional expression"),
+            Self::ConditionalClause(clause, _) => {
+                write!(f, "conditional clause ({})", clause.kind())
+            }
             Self::ExitConditional(_) | Self::ExitScatter(_) => write!(f, "exit"),
         }
     }
 }
 
+/// The number of declarations to store in each [`SmallVec`].
+///
+/// You can think of this number as "what is the maximum reasonable number of
+/// clauses a conditional might have". You want the size to be large enough that
+/// _most_ conditionals will fit in it (avoiding spilling the references to the
+/// heap) but _small_ enough that it doesn't put unnecessary pressure on the
+/// stack size.
+///
+/// We chose `10` because it is fairly large while not being overly burdensome
+/// on the stack.
+const SMALLVEC_DECLS_LEN: usize = 10;
+
 /// Represents a builder of workflow evaluation graphs.
 #[derive(Debug)]
 pub struct WorkflowGraphBuilder<N: TreeNode = SyntaxNode> {
     /// The map of declaration names to node indexes in the graph.
-    names: HashMap<TokenText<N::Token>, NodeIndex>,
+    names: HashMap<TokenText<N::Token>, SmallVec<[NodeIndex; SMALLVEC_DECLS_LEN]>>,
     /// A stack of scatter variable names.
     variables: Vec<Ident<N::Token>>,
     /// A map of AST syntax nodes to their entry and exit nodes in the graph.
@@ -653,17 +698,40 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
     ) {
         let entry_exit = match statement {
             WorkflowStatement::Conditional(statement) => {
-                // Create the entry and exit nodes for the conditional statement
-                // The exit node always depends on the entry node
+                // Create the exit node for the entire conditional statement
                 let exit = graph.add_node(WorkflowGraphNode::ExitConditional(statement.clone()));
+                // Create the main entry node
                 let entry = graph.add_node(WorkflowGraphNode::Conditional(statement.clone(), exit));
+
                 graph.update_edge(entry, exit, ());
+
                 self.entry_exits
                     .insert(statement.inner().clone(), (entry, exit));
 
-                // Add all of the statement's statements
-                for statement in statement.statements() {
-                    self.add_workflow_statement(statement, Some((entry, exit)), graph, diagnostics);
+                // Create a separate subgraph for each clause
+                for clause in statement.clauses() {
+                    // Create entry node for this specific clause
+                    let clause_entry =
+                        graph.add_node(WorkflowGraphNode::ConditionalClause(clause.clone(), exit));
+
+                    // Connect main entry to clause entry node
+                    graph.update_edge(entry, clause_entry, ());
+                    // Connect clause entry to the condition's exit node
+                    graph.update_edge(clause_entry, exit, ());
+
+                    // Store the clause's entry/exit nodes for its statements
+                    self.entry_exits
+                        .insert(clause.inner().clone(), (clause_entry, exit));
+
+                    // Add all statements within this clause
+                    for statement in clause.statements() {
+                        self.add_workflow_statement(
+                            statement,
+                            Some((clause_entry, exit)),
+                            graph,
+                            diagnostics,
+                        );
+                    }
                 }
 
                 Some((entry, exit))
@@ -681,10 +749,13 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                 let variable = statement.variable();
                 let pushed = match self.names.get(variable.text()) {
                     Some(existing) => {
+                        // SAFETY: if this exists in the map, there will always
+                        // be at least one element.
+                        let first = existing[0];
                         diagnostics.push(name_conflict(
                             variable.text(),
                             NameContext::ScatterVariable(variable.span()).into(),
-                            graph[*existing]
+                            graph[first]
                                 .context()
                                 .expect("node should have context")
                                 .into(),
@@ -759,15 +830,36 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         // variable
         let (context, cont) = match self.names.get(name.text()) {
             Some(existing) => {
-                // Conflict with a declaration
-                (
-                    Some(
-                        graph[*existing]
-                            .context()
-                            .expect("node should have context"),
-                    ),
-                    false,
-                )
+                let mut conflicting_context = None;
+
+                for idx in existing {
+                    let existing = &graph[*idx];
+
+                    // Allow conditionals where the names are duplicated across
+                    // clauses but not within them.
+                    if let (Some(existing_parent), Some(new_parent)) =
+                        (existing.inner().parent(), node.inner().parent())
+                        && let (Some(existing_grandparent), Some(new_grandparent)) =
+                            (existing_parent.parent(), new_parent.parent())
+                        && matches!(
+                            existing_grandparent.kind(),
+                            SyntaxKind::ConditionalStatementNode
+                        )
+                        && existing_parent != new_parent
+                        && existing_grandparent == new_grandparent
+                    {
+                        continue;
+                    }
+
+                    conflicting_context = existing.context();
+                    break;
+                }
+
+                if let Some(context) = conflicting_context {
+                    (Some(context), false)
+                } else {
+                    (None, true)
+                }
             }
             _ => {
                 match self.variables.iter().find(|i| i.text() == name.text()) {
@@ -805,7 +897,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         let index = graph.add_node(node);
-        self.names.insert(name.hashable(), index);
+        self.names.entry(name.hashable()).or_default().push(index);
         Some(index)
     }
 
@@ -835,7 +927,14 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 WorkflowGraphNode::Conditional(statement, _) => {
-                    self.add_expr_edges(from, statement.expr(), graph, diagnostics);
+                    for clause in statement.clauses() {
+                        let Some(expr) = clause.expr() else { continue };
+                        self.add_expr_edges(from, expr, graph, diagnostics);
+                    }
+                }
+                WorkflowGraphNode::ConditionalClause(..) => {
+                    // The expression edges for conditional clauses are handled
+                    // in the [`WorkflowGraphNode::Conditional`] case.
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
                     self.add_expr_edges(from, statement.expr(), graph, diagnostics);
@@ -850,29 +949,31 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                                 self.add_expr_edges(from, expr, graph, diagnostics);
                             }
                             _ => {
-                                if let Some(to) =
-                                    self.find_node_by_name(name.text(), input.inner().clone())
+                                if let Some(nodes) =
+                                    self.find_nodes_by_name(name.text(), input.inner().clone())
                                 {
                                     // Check for a dependency cycle
-                                    if has_path_connecting(
-                                        graph as &_,
-                                        from,
-                                        to,
-                                        Some(&mut self.space),
-                                    ) {
-                                        diagnostics.push(workflow_reference_cycle(
-                                            &graph[from],
-                                            name.span(),
-                                            name.text(),
-                                            graph[to]
-                                                .context()
-                                                .expect("node should have context")
-                                                .span(),
-                                        ));
-                                        continue;
-                                    }
+                                    for to in nodes {
+                                        if has_path_connecting(
+                                            graph as &_,
+                                            from,
+                                            to,
+                                            Some(&mut self.space),
+                                        ) {
+                                            diagnostics.push(workflow_reference_cycle(
+                                                &graph[from],
+                                                name.span(),
+                                                name.text(),
+                                                graph[to]
+                                                    .context()
+                                                    .expect("node should have context")
+                                                    .span(),
+                                            ));
+                                            continue;
+                                        }
 
-                                    self.add_dependency_edge(from, to, graph);
+                                        self.add_dependency_edge(from, to, graph);
+                                    }
                                 }
                             }
                         }
@@ -881,23 +982,27 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     // Add edges to other the requested calls
                     for after in statement.after() {
                         let name = after.name();
-                        if let Some(to) = self.find_node_by_name(name.text(), after.inner().clone())
+                        if let Some(nodes) =
+                            self.find_nodes_by_name(name.text(), after.inner().clone())
                         {
-                            // Check for a dependency cycle
-                            if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
-                                diagnostics.push(workflow_reference_cycle(
-                                    &graph[from],
-                                    name.span(),
-                                    name.text(),
-                                    graph[to]
-                                        .context()
-                                        .expect("node should have context")
-                                        .span(),
-                                ));
-                                continue;
-                            }
+                            for to in nodes {
+                                // Check for a dependency cycle
+                                if has_path_connecting(graph as &_, from, to, Some(&mut self.space))
+                                {
+                                    diagnostics.push(workflow_reference_cycle(
+                                        &graph[from],
+                                        name.span(),
+                                        name.text(),
+                                        graph[to]
+                                            .context()
+                                            .expect("node should have context")
+                                            .span(),
+                                    ));
+                                    continue;
+                                }
 
-                            self.add_dependency_edge(from, to, graph);
+                                self.add_dependency_edge(from, to, graph);
+                            }
                         }
                     }
                 }
@@ -920,36 +1025,38 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
             let name = r.name();
 
             // Only add an edge if the name is known
-            match self.find_node_by_name(name.text(), expr.inner().clone()) {
-                Some(to) => {
-                    // Check to see if the node is self-referential
-                    if to == from {
-                        diagnostics.push(self_referential(
-                            name.text(),
-                            graph[from]
-                                .context()
-                                .expect("node should have a context")
-                                .span(),
-                            name.span(),
-                        ));
-                        continue;
-                    }
+            match self.find_nodes_by_name(name.text(), expr.inner().clone()) {
+                Some(nodes) => {
+                    for to in nodes {
+                        // Check to see if the node is self-referential
+                        if to == from {
+                            diagnostics.push(self_referential(
+                                name.text(),
+                                graph[from]
+                                    .context()
+                                    .expect("node should have a context")
+                                    .span(),
+                                name.span(),
+                            ));
+                            continue;
+                        }
 
-                    // Check for a dependency cycle
-                    if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
-                        diagnostics.push(workflow_reference_cycle(
-                            &graph[from],
-                            r.span(),
-                            name.text(),
-                            graph[to]
-                                .context()
-                                .expect("node should have context")
-                                .span(),
-                        ));
-                        continue;
-                    }
+                        // Check for a dependency cycle
+                        if has_path_connecting(graph as &_, from, to, Some(&mut self.space)) {
+                            diagnostics.push(workflow_reference_cycle(
+                                &graph[from],
+                                r.span(),
+                                name.text(),
+                                graph[to]
+                                    .context()
+                                    .expect("node should have context")
+                                    .span(),
+                            ));
+                            continue;
+                        }
 
-                    self.add_dependency_edge(from, to, graph);
+                        self.add_dependency_edge(from, to, graph);
+                    }
                 }
                 _ => {
                     diagnostics.push(unknown_name(name.text(), name.span()));
@@ -1015,10 +1122,14 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
     /// Finds a node in the graph by name for the referencing expression.
     ///
     /// This takes into account finding a scatter variable that's in scope.
-    fn find_node_by_name(&self, name: &str, expr: N) -> Option<NodeIndex> {
+    fn find_nodes_by_name(
+        &self,
+        name: &str,
+        expr: N,
+    ) -> Option<SmallVec<[NodeIndex; SMALLVEC_DECLS_LEN]>> {
         // If the name came from a declaration or call, return the node
-        if let Some(index) = self.names.get(name) {
-            return Some(*index);
+        if let Some(result) = self.names.get(name) {
+            return Some(result.to_owned());
         }
 
         // Otherwise, we need to walk up the parent chain looking for a scatter variable
@@ -1030,7 +1141,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                 let variable = statement.variable();
                 if variable.text() == name {
                     // Return the entry node for the scatter statement
-                    return Some(self.entry_exits[&parent].0);
+                    return Some(smallvec![self.entry_exits[&parent].0]);
                 }
             }
 

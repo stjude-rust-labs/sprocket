@@ -1,0 +1,1 @@
+inputs --show-non-literals --nested-inputs complex-types.wdl

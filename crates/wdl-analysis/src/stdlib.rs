@@ -917,7 +917,12 @@ impl FunctionSignature {
                         f.write_char('<')?;
                     }
 
-                    write!(f, "{param}", param = parameter.ty.display(self.params))?;
+                    write!(
+                        f,
+                        "{name}: {ty}",
+                        name = parameter.name(),
+                        ty = parameter.ty().display(self.params)
+                    )?;
 
                     if i >= required {
                         f.write_char('>')?;
@@ -2077,6 +2082,55 @@ workflow test_sub {
     String chocoearlylate = sub(chocolike, "[^ ]late", "early") # I like chocearly when\nit's late
     String choco4 = sub(chocolike, " [:alpha:]{4} ", " 4444 ") # I 4444 chocolate 4444\nit's late
     String no_newline = sub(chocolike, "\n", " ") # "I like chocolate when it's late"
+  }
+}
+```
+"#
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
+    // https://github.com/openwdl/wdl/blob/wdl-1.3/SPEC.md#-split
+    assert!(
+        functions
+            .insert(
+                "split",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Three))
+                        .parameter("input", PrimitiveType::String, "The input string.")
+                        .parameter("delimiter", PrimitiveType::String, "The delimiter to split on as a regular expression.")
+                        .ret(array_string.clone())
+                        .definition(
+                            r#"
+Given the two `String` parameters `input` and `delimiter`, this function splits the input string on the provided delimiter and stores the results in a `Array[String]`. `delimiter` is a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) and is evaluated as a [POSIX Extended Regular Expression (ERE)](https://en.wikipedia.org/wiki/Regular_expression#POSIX_basic_and_extended).
+Regular expressions are written using regular WDL strings, so backslash characters need to be double-escaped (e.g., `"\\t"`).
+
+**Parameters**:
+
+1. `String`: the input string.
+2. `String`: the delimiter to split on as a regular expression.
+
+**Returns**: the parts of the input string split by the delimiter. If the input delimiter does not match anything in the input string, an array containing a single entry of the input string is returned.
+
+<details>
+<summary>
+Example: test_split.wdl
+
+```wdl
+version 1.3
+
+workflow test_split {
+  String in = "Here's an example\nthat takes up multiple lines"
+
+  output {
+    Array[String] split_by_word = split(in, " ")
+    Array[String] split_by_newline = split(in, "\\n")
+    Array[String] split_by_both = split(in, "\s")
   }
 }
 ```
@@ -4986,92 +5040,97 @@ mod test {
         assert_eq!(
             signatures,
             [
-                "floor(Float) -> Int",
-                "ceil(Float) -> Int",
-                "round(Float) -> Int",
-                "min(Int, Int) -> Int",
-                "min(Int, Float) -> Float",
-                "min(Float, Int) -> Float",
-                "min(Float, Float) -> Float",
-                "max(Int, Int) -> Int",
-                "max(Int, Float) -> Float",
-                "max(Float, Int) -> Float",
-                "max(Float, Float) -> Float",
-                "find(String, String) -> String?",
-                "matches(String, String) -> Boolean",
-                "sub(String, String, String) -> String",
-                "basename(File, <String>) -> String",
-                "basename(String, <String>) -> String",
-                "basename(Directory, <String>) -> String",
-                "join_paths(File, String) -> File",
-                "join_paths(File, Array[String]+) -> File",
-                "join_paths(Array[String]+) -> File",
-                "glob(String) -> Array[File]",
-                "size(None, <String>) -> Float",
-                "size(File?, <String>) -> Float",
-                "size(String?, <String>) -> Float",
-                "size(Directory?, <String>) -> Float",
-                "size(X, <String>) -> Float where `X`: any compound type that recursively \
-                 contains a `File` or `Directory`",
+                "floor(value: Float) -> Int",
+                "ceil(value: Float) -> Int",
+                "round(value: Float) -> Int",
+                "min(a: Int, b: Int) -> Int",
+                "min(a: Int, b: Float) -> Float",
+                "min(a: Float, b: Int) -> Float",
+                "min(a: Float, b: Float) -> Float",
+                "max(a: Int, b: Int) -> Int",
+                "max(a: Int, b: Float) -> Float",
+                "max(a: Float, b: Int) -> Float",
+                "max(a: Float, b: Float) -> Float",
+                "find(input: String, pattern: String) -> String?",
+                "matches(input: String, pattern: String) -> Boolean",
+                "sub(input: String, pattern: String, replace: String) -> String",
+                "split(input: String, delimiter: String) -> Array[String]",
+                "basename(path: File, <suffix: String>) -> String",
+                "basename(path: String, <suffix: String>) -> String",
+                "basename(path: Directory, <suffix: String>) -> String",
+                "join_paths(base: File, relative: String) -> File",
+                "join_paths(base: File, relative: Array[String]+) -> File",
+                "join_paths(paths: Array[String]+) -> File",
+                "glob(pattern: String) -> Array[File]",
+                "size(value: None, <unit: String>) -> Float",
+                "size(value: File?, <unit: String>) -> Float",
+                "size(value: String?, <unit: String>) -> Float",
+                "size(value: Directory?, <unit: String>) -> Float",
+                "size(value: X, <unit: String>) -> Float where `X`: any compound type that \
+                 recursively contains a `File` or `Directory`",
                 "stdout() -> File",
                 "stderr() -> File",
-                "read_string(File) -> String",
-                "read_int(File) -> Int",
-                "read_float(File) -> Float",
-                "read_boolean(File) -> Boolean",
-                "read_lines(File) -> Array[String]",
-                "write_lines(Array[String]) -> File",
-                "read_tsv(File) -> Array[Array[String]]",
-                "read_tsv(File, Boolean) -> Array[Object]",
-                "read_tsv(File, Boolean, Array[String]) -> Array[Object]",
-                "write_tsv(Array[Array[String]]) -> File",
-                "write_tsv(Array[Array[String]], Boolean, Array[String]) -> File",
-                "write_tsv(Array[S], <Boolean>, <Array[String]>) -> File where `S`: any structure \
-                 containing only primitive types",
-                "read_map(File) -> Map[String, String]",
-                "write_map(Map[String, String]) -> File",
-                "read_json(File) -> Union",
-                "write_json(X) -> File where `X`: any JSON-serializable type",
-                "read_object(File) -> Object",
-                "read_objects(File) -> Array[Object]",
-                "write_object(Object) -> File",
-                "write_object(S) -> File where `S`: any structure containing only primitive types",
-                "write_objects(Array[Object]) -> File",
-                "write_objects(Array[S]) -> File where `S`: any structure containing only \
+                "read_string(file: File) -> String",
+                "read_int(file: File) -> Int",
+                "read_float(file: File) -> Float",
+                "read_boolean(file: File) -> Boolean",
+                "read_lines(file: File) -> Array[String]",
+                "write_lines(array: Array[String]) -> File",
+                "read_tsv(file: File) -> Array[Array[String]]",
+                "read_tsv(file: File, header: Boolean) -> Array[Object]",
+                "read_tsv(file: File, header: Boolean, columns: Array[String]) -> Array[Object]",
+                "write_tsv(data: Array[Array[String]]) -> File",
+                "write_tsv(data: Array[Array[String]], header: Boolean, columns: Array[String]) \
+                 -> File",
+                "write_tsv(data: Array[S], <header: Boolean>, <columns: Array[String]>) -> File \
+                 where `S`: any structure containing only primitive types",
+                "read_map(file: File) -> Map[String, String]",
+                "write_map(map: Map[String, String]) -> File",
+                "read_json(file: File) -> Union",
+                "write_json(value: X) -> File where `X`: any JSON-serializable type",
+                "read_object(file: File) -> Object",
+                "read_objects(file: File) -> Array[Object]",
+                "write_object(object: Object) -> File",
+                "write_object(object: S) -> File where `S`: any structure containing only \
                  primitive types",
-                "prefix(String, Array[P]) -> Array[String] where `P`: any primitive type",
-                "suffix(String, Array[P]) -> Array[String] where `P`: any primitive type",
-                "quote(Array[P]) -> Array[String] where `P`: any primitive type",
-                "squote(Array[P]) -> Array[String] where `P`: any primitive type",
-                "sep(String, Array[P]) -> String where `P`: any primitive type",
-                "range(Int) -> Array[Int]",
-                "transpose(Array[Array[X]]) -> Array[Array[X]]",
-                "cross(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
-                "zip(Array[X], Array[Y]) -> Array[Pair[X, Y]]",
-                "unzip(Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
-                "contains(Array[P], P) -> Boolean where `P`: any primitive type",
-                "chunk(Array[X], Int) -> Array[Array[X]]",
-                "flatten(Array[Array[X]]) -> Array[X]",
-                "select_first(Array[X], <X>) -> X",
-                "select_all(Array[X]) -> Array[X]",
-                "as_pairs(Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
-                "as_map(Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
-                "keys(Map[K, V]) -> Array[K] where `K`: any primitive type",
-                "keys(S) -> Array[String] where `S`: any structure",
-                "keys(Object) -> Array[String]",
-                "contains_key(Map[K, V], K) -> Boolean where `K`: any primitive type",
-                "contains_key(Object, String) -> Boolean",
-                "contains_key(Map[String, V], Array[String]) -> Boolean",
-                "contains_key(S, Array[String]) -> Boolean where `S`: any structure",
-                "contains_key(Object, Array[String]) -> Boolean",
-                "values(Map[K, V]) -> Array[V] where `K`: any primitive type",
-                "collect_by_key(Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive \
-                 type",
-                "defined(X) -> Boolean",
-                "length(Array[X]) -> Int",
-                "length(Map[K, V]) -> Int",
-                "length(Object) -> Int",
-                "length(String) -> Int",
+                "write_objects(objects: Array[Object]) -> File",
+                "write_objects(objects: Array[S]) -> File where `S`: any structure containing \
+                 only primitive types",
+                "prefix(prefix: String, array: Array[P]) -> Array[String] where `P`: any \
+                 primitive type",
+                "suffix(suffix: String, array: Array[P]) -> Array[String] where `P`: any \
+                 primitive type",
+                "quote(array: Array[P]) -> Array[String] where `P`: any primitive type",
+                "squote(array: Array[P]) -> Array[String] where `P`: any primitive type",
+                "sep(separator: String, array: Array[P]) -> String where `P`: any primitive type",
+                "range(n: Int) -> Array[Int]",
+                "transpose(array: Array[Array[X]]) -> Array[Array[X]]",
+                "cross(a: Array[X], b: Array[Y]) -> Array[Pair[X, Y]]",
+                "zip(a: Array[X], b: Array[Y]) -> Array[Pair[X, Y]]",
+                "unzip(array: Array[Pair[X, Y]]) -> Pair[Array[X], Array[Y]]",
+                "contains(array: Array[P], value: P) -> Boolean where `P`: any primitive type",
+                "chunk(array: Array[X], size: Int) -> Array[Array[X]]",
+                "flatten(array: Array[Array[X]]) -> Array[X]",
+                "select_first(array: Array[X], <default: X>) -> X",
+                "select_all(array: Array[X]) -> Array[X]",
+                "as_pairs(map: Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
+                "as_map(pairs: Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
+                "keys(map: Map[K, V]) -> Array[K] where `K`: any primitive type",
+                "keys(struct: S) -> Array[String] where `S`: any structure",
+                "keys(object: Object) -> Array[String]",
+                "contains_key(map: Map[K, V], key: K) -> Boolean where `K`: any primitive type",
+                "contains_key(object: Object, key: String) -> Boolean",
+                "contains_key(map: Map[String, V], keys: Array[String]) -> Boolean",
+                "contains_key(struct: S, keys: Array[String]) -> Boolean where `S`: any structure",
+                "contains_key(object: Object, keys: Array[String]) -> Boolean",
+                "values(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
+                "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
+                 primitive type",
+                "defined(value: X) -> Boolean",
+                "length(array: Array[X]) -> Int",
+                "length(map: Map[K, V]) -> Int",
+                "length(object: Object) -> Int",
+                "length(string: String) -> Int",
             ]
         );
     }

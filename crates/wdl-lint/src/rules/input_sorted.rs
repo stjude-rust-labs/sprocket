@@ -183,7 +183,7 @@ fn compare_decl(a: &v1::Decl, b: &v1::Decl) -> Ordering {
     }
 }
 
-/// Detects unsorted input declarations.
+/// Ensures that input declarations are sorted.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct InputSortedRule;
 

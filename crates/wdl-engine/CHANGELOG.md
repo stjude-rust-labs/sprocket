@@ -9,12 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added a new `fail` configuration option for controlling the default failure mode
+  of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
+* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added shell expansion to the `apptainer_images_dir` config option, though this is an interim workaround for HPC path awkwardness pending the removal of this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Added experimental Slurm + Apptainer backend ([#436](https://github.com/stjude-rust-labs/sprocket/pull/436)).
+* Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).
+* Added GPU support to the Docker backend ([#439](https://github.com/stjude-rust-labs/sprocket/pull/439)).
+
+#### Changed
+
+* Changed how cancellation is supported by the engine; the engine can now wait
+  for executing tasks to complete before canceling them (slow failure mode) or
+  immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
+
+#### Fixed
+
+* Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
+
+## 0.9.0 - 10-14-2025
+
+#### Added
+
+* Added support for calling `glob` with a remote working directory ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
+* Added `retries` configuration setting for the TES backend ([#408](https://github.com/stjude-rust-labs/sprocket/pull/408)).
 * Added support for passing `None` for non-optional inputs with default
   expressions in WDL 1.2 call statements ([#356](https://github.com/stjude-rust-labs/sprocket/pull/356)).
 * Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378), [#379](https://github.com/stjude-rust-labs/sprocket/pull/379), [#404](https://github.com/stjude-rust-labs/sprocket/pull/404))
 
 #### Fixed
 
+* Fixed checking for existence of `File` and `Directory` values that are remote
+  URLs ([#416](https://github.com/stjude-rust-labs/sprocket/pull/416)).
 * Fixed a panic that can occur when showing debug output with the TES backend ([#397](https://github.com/stjude-rust-labs/sprocket/pull/397)).
 * Make linking to download cache files more likely by using a tmp directory in
   the cache ([#393](https://github.com/stjude-rust-labs/sprocket/pull/393)).

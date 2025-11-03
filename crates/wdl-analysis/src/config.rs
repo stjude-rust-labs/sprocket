@@ -47,6 +47,7 @@ impl Default for Config {
                 fallback_version: None,
                 ignore_filename: None,
                 all_rules: Default::default(),
+                feature_flags: FeatureFlags::default(),
             }),
         }
     }
@@ -72,6 +73,11 @@ impl Config {
     /// Gets the list of all known rule identifiers.
     pub fn all_rules(&self) -> &[String] {
         &self.inner.all_rules
+    }
+
+    /// Gets the feature flags.
+    pub fn feature_flags(&self) -> &FeatureFlags {
+        &self.inner.feature_flags
     }
 
     /// Return a new configuration with the previous [`DiagnosticsConfig`]
@@ -151,6 +157,16 @@ impl Config {
             inner: Arc::new(inner),
         }
     }
+
+    /// Return a new configuration with the previous [`FeatureFlags`]
+    /// replaced by the argument.
+    pub fn with_feature_flags(&self, feature_flags: FeatureFlags) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.feature_flags = feature_flags;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
@@ -167,6 +183,30 @@ struct ConfigInner {
     /// A list of all known rule identifiers.
     #[serde(default)]
     all_rules: Vec<String>,
+    /// The set of feature flags that can be enabled or disabled.
+    #[serde(default)]
+    feature_flags: FeatureFlags,
+}
+
+/// A set of feature flags that can be enabled.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+pub struct FeatureFlags {
+    /// When available, enables experimental WDL 1.3 features.
+    #[serde(default)]
+    wdl_1_3: bool,
+}
+
+impl FeatureFlags {
+    /// Gets whether experimental WDL 1.3 features are enabled.
+    pub fn wdl_1_3(&self) -> bool {
+        self.wdl_1_3
+    }
+
+    /// Returns a new `FeatureFlags` with experimental WDL 1.3 features enabled.
+    pub fn with_wdl_1_3(mut self) -> Self {
+        self.wdl_1_3 = true;
+        self
+    }
 }
 
 /// Configuration for analysis diagnostics.

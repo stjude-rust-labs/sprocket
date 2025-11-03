@@ -124,13 +124,41 @@ impl fmt::Display for PrimitiveType {
     }
 }
 
-/// Represents the kind of a promotion of a type from one scope to another.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PromotionKind {
-    /// The type is being promoted as an output of a scatter statement.
-    Scatter,
-    /// The type is being promoted as an output of a conditional statement.
-    Conditional,
+/// Represents a hidden type in WDL.
+///
+/// Hidden types are special types used internally for type checking but
+/// are not directly expressible in WDL source code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HiddenType {
+    /// A hidden type for `hints` that is available in task hints sections.
+    Hints,
+    /// A hidden type for `input` that is available in task hints sections.
+    Input,
+    /// A hidden type for `output` that is available in task hints sections.
+    Output,
+    /// A hidden type for `task` that is available in requirements,
+    /// hints, and runtime sections before constraint evaluation.
+    TaskPreEvaluation,
+    /// A hidden type for `task` that is available in command and output
+    /// sections after constraint evaluation.
+    TaskPostEvaluation,
+    /// A hidden type for `task.previous` that contains the previous
+    /// attempt's computed requirements. Available in WDL 1.3+ in both
+    /// pre-evaluation (requirements, hints, runtime) and post-evaluation
+    /// (command, output) contexts.
+    PreviousTaskData,
+}
+
+impl fmt::Display for HiddenType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hints => write!(f, "hints"),
+            Self::Input => write!(f, "input"),
+            Self::Output => write!(f, "output"),
+            Self::TaskPreEvaluation | Self::TaskPostEvaluation => write!(f, "task"),
+            Self::PreviousTaskData => write!(f, "task.previous"),
+        }
+    }
 }
 
 /// Represents a WDL type.
@@ -156,18 +184,11 @@ pub enum Type {
     Union,
     /// A special type that behaves like an optional `Union`.
     None,
-    /// A special hidden type for `task` that is available in command and task
-    /// output sections in WDL 1.2.
-    Task,
-    /// A special hidden type for `hints` that is available in task hints
-    /// sections.
-    Hints,
-    /// A special hidden type for `input` that is available in task hints
-    /// sections.
-    Input,
-    /// A special hidden type for `output` that is available in task hints
-    /// sections.
-    Output,
+    /// A special hidden type that is not directly expressible in WDL source.
+    ///
+    /// Hidden types are used for type checking special values like `task`,
+    /// `task.previous`, `hints`, `input`, and `output`.
+    Hidden(HiddenType),
     /// The type is a call output.
     Call(CallType),
 }
@@ -253,17 +274,17 @@ impl Type {
         matches!(self, Type::None)
     }
 
-    /// Promotes the type from one scope to another.
-    pub fn promote(&self, kind: PromotionKind) -> Self {
+    /// Promotes a type from a scatter statement into the parent scope.
+    ///
+    /// For most types, this wraps them in an array. For call types, this
+    /// promotes each output type into an array.
+    pub fn promote_scatter(&self) -> Self {
         // For calls, the outputs of the call are promoted instead of the call itself
         if let Self::Call(ty) = self {
-            return Self::Call(ty.promote(kind));
+            return Self::Call(ty.promote_scatter());
         }
 
-        match kind {
-            PromotionKind::Scatter => Type::Compound(ArrayType::new(self.clone()).into(), false),
-            PromotionKind::Conditional => self.optional(),
-        }
+        Type::Compound(ArrayType::new(self.clone()).into(), false)
     }
 
     /// Calculates a common type between this type and the given type.
@@ -308,6 +329,13 @@ impl Type {
             return Some(Self::Compound(ty, self.is_optional()));
         }
 
+        // Check for a call type to have a common type with itself
+        if let (Some(this), Some(other)) = (self.as_call(), self.as_call())
+            && this == other
+        {
+            return Some(Self::Call(this.clone()));
+        }
+
         None
     }
 }
@@ -331,10 +359,7 @@ impl fmt::Display for Type {
             }
             Self::Union => write!(f, "Union"),
             Self::None => write!(f, "None"),
-            Self::Task => write!(f, "task"),
-            Self::Hints => write!(f, "hints"),
-            Self::Input => write!(f, "input"),
-            Self::Output => write!(f, "output"),
+            Self::Hidden(ty) => ty.fmt(f),
             Self::Call(ty) => ty.fmt(f),
         }
     }
@@ -346,13 +371,7 @@ impl Optional for Type {
             Self::Primitive(_, optional) => *optional,
             Self::Compound(_, optional) => *optional,
             Self::OptionalObject | Self::None => true,
-            Self::Object
-            | Self::Union
-            | Self::Task
-            | Self::Hints
-            | Self::Input
-            | Self::Output
-            | Self::Call(_) => false,
+            Self::Object | Self::Union | Self::Hidden(_) | Self::Call(_) => false,
         }
     }
 
@@ -362,6 +381,7 @@ impl Optional for Type {
             Self::Compound(ty, _) => Self::Compound(ty.clone(), true),
             Self::Object => Self::OptionalObject,
             Self::Union => Self::None,
+            Self::Call(ty) => Self::Call(ty.optional()),
             ty => ty.clone(),
         }
     }
@@ -997,11 +1017,21 @@ impl CallType {
         &self.outputs
     }
 
-    /// Promotes the call type into a parent scope.
-    pub fn promote(&self, kind: PromotionKind) -> Self {
+    /// Makes all outputs of the call type optional.
+    pub fn optional(&self) -> Self {
         let mut ty = self.clone();
         for output in Arc::make_mut(&mut ty.outputs).values_mut() {
-            *output = Output::new(output.ty().promote(kind), output.name_span());
+            *output = Output::new(output.ty().optional(), output.name_span());
+        }
+
+        ty
+    }
+
+    /// Promotes the call type into a scatter statement.
+    pub fn promote_scatter(&self) -> Self {
+        let mut ty = self.clone();
+        for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+            *output = Output::new(output.ty().promote_scatter(), output.name_span());
         }
 
         ty

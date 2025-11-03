@@ -1,0 +1,9 @@
+# wdl-engine configuration for the St Jude HPC, appropriate for use with the
+# `SPROCKET_TEST_ENGINE_CONFIG` environment variable.
+backends.default.type = "lsf_apptainer"
+backends.default.default_lsf_queue.name = "short"
+backends.default.default_lsf_queue.max_cpu_per_task = 4
+backends.default.default_lsf_queue.max_memory_per_task = "16 GiB"
+backends.default.max_scatter_concurrency = 200
+backends.default.apptainer_images_dir = "/scratch_space/$USER/sprocket-apptainer-images"
+experimental_features_enabled = true

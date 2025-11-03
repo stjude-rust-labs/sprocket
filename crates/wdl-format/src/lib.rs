@@ -54,6 +54,9 @@ impl Writable for &FormatElement {
                 AstNode::ConditionalStatement(_) => {
                     v1::workflow::format_conditional_statement(self, stream)
                 }
+                AstNode::ConditionalStatementClause(_) => {
+                    v1::workflow::format_conditional_statement_clause(self, stream)
+                }
                 AstNode::DefaultOption(_) => v1::expr::format_default_option(self, stream),
                 AstNode::DivisionExpr(_) => v1::expr::format_division_expr(self, stream),
                 AstNode::EqualityExpr(_) => v1::expr::format_equality_expr(self, stream),

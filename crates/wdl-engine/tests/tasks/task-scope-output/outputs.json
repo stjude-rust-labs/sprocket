@@ -1,0 +1,9 @@
+{
+  "test_output_scope.task_name": "test_output_scope",
+  "test_output_scope.task_id": "test_output_scope",
+  "test_output_scope.attempt": 0,
+  "test_output_scope.cpu": 2.0,
+  "test_output_scope.memory": 256000000,
+  "test_output_scope.previous_memory": null,
+  "test_output_scope.previous_cpu": null
+}

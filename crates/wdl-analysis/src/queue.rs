@@ -21,6 +21,7 @@ use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
+use lsp_types::SignatureHelp;
 use lsp_types::SymbolInformation;
 use lsp_types::WorkspaceEdit;
 use parking_lot::RwLock;
@@ -86,6 +87,8 @@ pub enum Request<Context> {
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
     WorkspaceSymbol(WorkspaceSymbolRequest),
+    /// A request to get signature help.
+    SignatureHelp(SignatureHelpRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -234,6 +237,18 @@ pub struct WorkspaceSymbolRequest {
     pub query: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<SymbolInformation>>>,
+}
+
+/// Represents a request for signature help.
+pub struct SignatureHelpRequest {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The position of the cursor in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<SignatureHelp>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -669,6 +684,36 @@ where
                         }
                     }
                 }
+                Request::SignatureHelp(SignatureHelpRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for signature help at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::signature_help(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "signature help request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            debug!(
+                                "error occurred while completing signature help request: {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
             }
         }
 
@@ -1076,7 +1121,7 @@ where
             ParseState::Parsed { diagnostics, .. }
                 if !diagnostics.iter().any(|diag| diag.severity().is_error()) =>
             {
-                if let Err(new_diagnostics) = validator.validate(&document) {
+                if let Err(new_diagnostics) = validator.validate(&document, config) {
                     document.extend_diagnostics(new_diagnostics);
                 }
             }

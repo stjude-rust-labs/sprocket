@@ -19,6 +19,7 @@ except = []
 [run]
 suppress_env_specific_output = false
 experimental_features_enabled = false
+fail = "slow"
 runs_dir = "runs"
 
 [run.http]

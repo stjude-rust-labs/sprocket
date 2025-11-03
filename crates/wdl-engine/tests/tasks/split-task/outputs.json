@@ -1,0 +1,8 @@
+{
+  "split.out": "hello there world",
+  "split.parts": [
+    "hello",
+    "there",
+    "world"
+  ]
+}

@@ -15,6 +15,8 @@ pub enum V1 {
     One,
     /// The document version is 1.2.
     Two,
+    /// The document version is 1.3.
+    Three,
 }
 
 impl std::fmt::Display for V1 {
@@ -23,6 +25,7 @@ impl std::fmt::Display for V1 {
             V1::Zero => write!(f, "1.0"),
             V1::One => write!(f, "1.1"),
             V1::Two => write!(f, "1.2"),
+            V1::Three => write!(f, "1.3"),
         }
     }
 }
@@ -92,6 +95,7 @@ impl FromStr for SupportedVersion {
             "1.0" => Ok(Self::V1(V1::Zero)),
             "1.1" => Ok(Self::V1(V1::One)),
             "1.2" => Ok(Self::V1(V1::Two)),
+            "1.3" => Ok(Self::V1(V1::Three)),
             _ => Err(s.to_string()),
         }
     }

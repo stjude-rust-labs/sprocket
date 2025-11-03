@@ -1,0 +1,18 @@
+error: `task.previous` does not have a member named `not_a_member`
+   ┌─ tests/analysis/task-scope-full/source.wdl:24:38
+   │
+24 │     gpu: select_first([task.previous.not_a_member, []])
+   │                                      ^^^^^^^^^^^^
+
+error: the `task` variable does not have a member named `cpu`
+   ┌─ tests/analysis/task-scope-full/source.wdl:27:16
+   │
+27 │     fpga: task.cpu > 2
+   │                ^^^
+
+error: the `task` variable does not have a member named `memory`
+   ┌─ tests/analysis/task-scope-full/source.wdl:30:22
+   │
+30 │     maxRetries: task.memory / 1000000000
+   │                      ^^^^^^
+

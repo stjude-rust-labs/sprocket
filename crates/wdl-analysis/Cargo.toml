@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.13.0"
+version = "0.14.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -30,13 +30,14 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
+smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-wdl-ast = { path = "../wdl-ast", version = "0.17.0" }
-wdl-format = { path = "../wdl-format", version = "0.11.0" }
-wdl-grammar = { path = "../wdl-grammar", version = "0.17.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.18.0" }
+wdl-format = { path = "../wdl-format", version = "0.12.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.18.0" }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }

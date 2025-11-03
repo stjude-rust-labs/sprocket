@@ -17,7 +17,6 @@ use bimap::BiHashMap;
 use indexmap::IndexMap;
 use petgraph::algo::toposort;
 use tokio::task::JoinSet;
-use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
@@ -49,6 +48,7 @@ use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
 use wdl_ast::v1::TASK_HINT_DISKS;
+use wdl_ast::v1::TASK_HINT_GPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
 use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
@@ -57,6 +57,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
 use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
+use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
@@ -64,6 +65,8 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
+use crate::CancellationContext;
+use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
@@ -74,17 +77,19 @@ use crate::HostPath;
 use crate::Input;
 use crate::InputKind;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::Outputs;
-use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
 use crate::StorageUnit;
 use crate::TaskExecutionBackend;
 use crate::TaskInputs;
+use crate::TaskPostEvaluationData;
+use crate::TaskPostEvaluationValue;
+use crate::TaskPreEvaluationValue;
 use crate::TaskSpawnInfo;
 use crate::TaskSpawnRequest;
-use crate::TaskValue;
 use crate::Value;
 use crate::config::Config;
 use crate::config::MAX_RETRIES;
@@ -116,6 +121,9 @@ pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+/// The default GPU count when a GPU is required but no supported hint is
+/// provided.
+pub const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -234,6 +242,58 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
             unreachable!("value should be an integer or string");
         })
         .transpose()
+}
+
+/// Gets the number of required GPUs from requirements and hints.
+pub(crate) fn gpu(
+    requirements: &HashMap<String, Value>,
+    hints: &HashMap<String, Value>,
+) -> Option<u64> {
+    // If `requirements { gpu: false }` or there is no `gpu` requirement, return
+    // `None`.
+    let Some(true) = requirements
+        .get(TASK_REQUIREMENT_GPU)
+        .and_then(|v| v.as_boolean())
+    else {
+        return None;
+    };
+
+    // If there is no `gpu` hint giving us more detail on the request, use the
+    // default count.
+    let Some(hint) = hints.get(TASK_HINT_GPU) else {
+        return Some(DEFAULT_GPU_COUNT);
+    };
+
+    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
+    // Fall back to the default count.
+    //
+    // TODO(clay): support string hints for GPU specifications.
+    if let Some(hint) = hint.as_string() {
+        warn!(
+            %hint,
+            "string `gpu` hints are not supported; falling back to {DEFAULT_GPU_COUNT} GPU(s)"
+        );
+        return Some(DEFAULT_GPU_COUNT);
+    }
+
+    match hint.as_integer() {
+        Some(count) if count >= 1 => Some(count as u64),
+        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
+        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
+        // warning, and continue with no GPU request.
+        Some(count) => {
+            warn!(
+                %count,
+                "`gpu` hint specified {count} GPU(s); no GPUs will be requested for execution"
+            );
+            None
+        }
+        None => {
+            // Typechecking should have already validated that the hint is an integer or
+            // a string.
+            unreachable!("`gpu` hint must be an integer or string")
+        }
+    }
 }
 
 /// Represents the type of a disk.
@@ -447,6 +507,18 @@ pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
             )
         })
         .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+}
+
+/// Gets the `max_retries` requirement from a requirements map with config
+/// fallback.
+pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> u64 {
+    requirements
+        .get(TASK_REQUIREMENT_MAX_RETRIES)
+        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
+        .and_then(|v| v.as_integer())
+        .map(|v| v as u64)
+        .or(config.task.retries)
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
 }
 
 /// Used to evaluate expressions in tasks.
@@ -677,29 +749,36 @@ impl<'a> State<'a> {
         transferer: &Arc<dyn Transferer>,
         needs_local_inputs: bool,
     ) -> Result<()> {
+        // For WDL 1.2 documents, start by ensuring paths exist.
+        // This will replace any non-existent optional paths with `None`
+        if self
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value
+                .ensure_paths_exist(
+                    is_optional,
+                    self.base_dir.as_local(),
+                    Some(transferer.as_ref()),
+                    &|_| Ok(()),
+                )
+                .await?;
+        }
+
+        // Add inputs to the backend
         let mut urls = Vec::new();
-        value.visit_paths_mut(is_optional, &mut |optional, value| {
-            // Ensure the path exists before we translate it (1.2+ behavior)
-            if self
-                .document
-                .version()
-                .expect("document should have a version")
-                >= SupportedVersion::V1(V1::Two)
-                && !value.ensure_path_exists(optional, self.base_dir.as_local())?
-            {
-                // Return `Ok(false)` to the caller to replace the optional value with `None`
-                // We don't need to insert a backend input for a `None` value
-                return Ok(false);
-            }
-
-            let (kind, path) = match value {
-                PrimitiveValue::File(path) => (InputKind::File, path),
-                PrimitiveValue::Directory(path) => (InputKind::Directory, path),
-                _ => unreachable!("only file and directory values should be visited"),
-            };
-
+        value.visit_paths(&mut |is_file, path| {
             // Insert a backend input for the path
-            if let Some(index) = self.insert_backend_input(kind, path)? {
+            if let Some(index) = self.insert_backend_input(
+                if is_file {
+                    InputKind::File
+                } else {
+                    InputKind::Directory
+                },
+                path,
+            )? {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
                 if needs_local_inputs
@@ -711,7 +790,7 @@ impl<'a> State<'a> {
                 }
             }
 
-            Ok(true)
+            Ok(())
         })?;
 
         if urls.is_empty() {
@@ -795,29 +874,36 @@ pub struct TaskEvaluator {
     config: Arc<Config>,
     /// The associated task execution backend.
     backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation token for cancelling task evaluation.
-    token: CancellationToken,
+    /// The cancellation context for cancelling task evaluation.
+    cancellation: CancellationContext,
     /// The transferer to use for expression evaluation.
     transferer: Arc<dyn Transferer>,
 }
 
 impl TaskEvaluator {
     /// Constructs a new task evaluator with the given evaluation
-    /// configuration, cancellation token, and events sender.
+    /// configuration, cancellation context, and events sender.
     ///
     /// Returns an error if the configuration isn't valid.
-    pub async fn new(config: Config, token: CancellationToken, events: Events) -> Result<Self> {
+    pub async fn new(
+        config: Config,
+        cancellation: CancellationContext,
+        events: Events,
+    ) -> Result<Self> {
         config.validate().await?;
 
         let config = Arc::new(config);
         let backend = config.create_backend(events.crankshaft().clone()).await?;
-        let transferer =
-            HttpTransferer::new(config.clone(), token.clone(), events.transfer().clone())?;
+        let transferer = HttpTransferer::new(
+            config.clone(),
+            cancellation.token(),
+            events.transfer().clone(),
+        )?;
 
         Ok(Self {
             config,
             backend,
-            token,
+            cancellation,
             transferer: Arc::new(transferer),
         })
     }
@@ -829,13 +915,13 @@ impl TaskEvaluator {
     pub(crate) fn new_unchecked(
         config: Arc<Config>,
         backend: Arc<dyn TaskExecutionBackend>,
-        token: CancellationToken,
+        cancellation: CancellationContext,
         transferer: Arc<dyn Transferer>,
     ) -> Self {
         Self {
             config,
             backend,
-            token,
+            cancellation,
             transferer,
         }
     }
@@ -855,8 +941,15 @@ impl TaskEvaluator {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        self.perform_evaluation(document, task, inputs, root.as_ref(), task.name())
-            .await
+        let result = self
+            .perform_evaluation(document, task, inputs, root.as_ref(), task.name())
+            .await;
+
+        if self.cancellation.user_canceled() {
+            return Err(EvaluationError::Canceled);
+        }
+
+        result
     }
 
     /// Performs the evaluation of the given task.
@@ -963,24 +1056,30 @@ impl TaskEvaluator {
         let env = Arc::new(mem::take(&mut state.env));
         // Spawn the task in a retry loop
         let mut attempt = 0;
+        let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
+            if self.cancellation.state() != CancellationContextState::NotCanceled {
+                return Err(EvaluationError::Canceled);
+            }
+
             let EvaluatedSections {
                 command,
                 requirements,
                 hints,
             } = self
-                .evaluate_sections(id, &mut state, &definition, inputs, attempt)
+                .evaluate_sections(
+                    id,
+                    &mut state,
+                    &definition,
+                    inputs,
+                    attempt,
+                    previous_task_data.clone(),
+                )
                 .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = requirements
-                .get(TASK_REQUIREMENT_MAX_RETRIES)
-                .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-                .cloned()
-                .map(|v| v.unwrap_integer() as u64)
-                .or_else(|| self.config.task.retries)
-                .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES);
+            let max_retries = max_retries(&requirements, &self.config);
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1011,7 +1110,7 @@ impl TaskEvaluator {
 
             let result = self
                 .backend
-                .spawn(request, self.token.clone())
+                .spawn(request, self.cancellation.token())
                 .with_context(|| {
                     format!(
                         "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
@@ -1033,9 +1132,9 @@ impl TaskEvaluator {
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
-                    .unwrap()
-                    .as_task_mut()
-                    .unwrap();
+                    .expect("task variable should exist in scope for WDL v1.2+")
+                    .as_task_post_evaluation_mut()
+                    .expect("task should be a post evaluation task at this point");
 
                 task.set_attempt(attempt.try_into().with_context(|| {
                     format!(
@@ -1059,6 +1158,12 @@ impl TaskEvaluator {
 
                 attempt += 1;
 
+                if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
+                    // SAFETY: task variable should always be TaskPostEvaluation at this point
+                    let task = task.as_task_post_evaluation().unwrap();
+                    previous_task_data = Some(task.data().clone());
+                }
+
                 info!(
                     "retrying execution of task `{name}` (retry {attempt})",
                     name = state.task.name()
@@ -1072,7 +1177,7 @@ impl TaskEvaluator {
         // Perform backend cleanup before output evaluation
         if let Some(cleanup) = self
             .backend
-            .cleanup(&evaluated.result.work_dir, self.token.clone())
+            .cleanup(&evaluated.result.work_dir, self.cancellation.token())
         {
             cleanup.await;
         }
@@ -1330,6 +1435,14 @@ impl TaskEvaluator {
             .document
             .version()
             .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             match inputs.requirement(name.text()) {
@@ -1348,7 +1461,7 @@ impl TaskEvaluator {
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
                 self.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
+                scope_index,
             ));
 
             let (types, requirement) = match task_requirement_types(version, name.text()) {
@@ -1371,7 +1484,7 @@ impl TaskEvaluator {
                                 Some(&TaskEvaluationContext::new(
                                     state,
                                     self.transferer.as_ref(),
-                                    ROOT_SCOPE_INDEX,
+                                    scope_index,
                                 )),
                                 ty,
                             )
@@ -1413,6 +1526,14 @@ impl TaskEvaluator {
             .document
             .version()
             .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             if let Some(value) = inputs.requirement(name.text()) {
@@ -1423,7 +1544,7 @@ impl TaskEvaluator {
             let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
                 state,
                 self.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
+                scope_index,
             ));
 
             let types =
@@ -1440,7 +1561,7 @@ impl TaskEvaluator {
                             Some(&TaskEvaluationContext::new(
                                 state,
                                 self.transferer.as_ref(),
-                                ROOT_SCOPE_INDEX,
+                                scope_index,
                             )),
                             ty,
                         )
@@ -1473,6 +1594,18 @@ impl TaskEvaluator {
 
         let mut hints = HashMap::new();
 
+        let version = state
+            .document
+            .version()
+            .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access task.attempt and task.previous
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
         for item in section.items() {
             let name = item.name();
             if let Some(value) = inputs.hint(name.text()) {
@@ -1481,7 +1614,7 @@ impl TaskEvaluator {
             }
 
             let mut evaluator = ExprEvaluator::new(
-                TaskEvaluationContext::new(state, self.transferer.as_ref(), ROOT_SCOPE_INDEX)
+                TaskEvaluationContext::new(state, self.transferer.as_ref(), scope_index)
                     .with_task(),
             );
 
@@ -1580,8 +1713,48 @@ impl TaskEvaluator {
         definition: &TaskDefinition<SyntaxNode>,
         inputs: &TaskInputs,
         attempt: u64,
+        previous_task_data: Option<Arc<TaskPostEvaluationData>>,
     ) -> EvaluationResult<EvaluatedSections> {
-        // Start by evaluating requirements and hints
+        let version = state.document.version();
+
+        // Extract task metadata once to avoid walking the AST multiple times
+        let task_meta = definition
+            .metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        let task_parameter_meta = definition
+            .parameter_metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        // Note: Sprocket does not currently support workflow-level extension metadata,
+        // so `ext` is always an empty object.
+        let task_ext = Object::empty();
+
+        // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
+        // requirements/hints/runtime section.
+        if version >= Some(SupportedVersion::V1(V1::Three)) {
+            let mut task = TaskPreEvaluationValue::new(
+                state.task.name(),
+                id,
+                attempt.try_into().expect("attempt should fit in i64"),
+                task_meta.clone(),
+                task_parameter_meta.clone(),
+                task_ext.clone(),
+            );
+
+            if let Some(prev_data) = &previous_task_data {
+                task.set_previous(prev_data.clone());
+            }
+
+            let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];
+            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
+                *v = Value::TaskPreEvaluation(task);
+            } else {
+                scope.insert(TASK_VAR_NAME, Value::TaskPreEvaluation(task));
+            }
+        }
+
+        // Evaluate requirements and hints
         let (requirements, hints) = match definition.runtime() {
             Some(section) => self
                 .evaluate_runtime_section(id, state, &section, inputs)
@@ -1605,10 +1778,10 @@ impl TaskEvaluator {
             ),
         };
 
-        // Update or insert the `task` variable in the task scope
-        // TODO: if task variables become visible in `requirements` or `hints` section,
-        // this needs to be relocated to before we evaluate those sections
-        if state.document.version() >= Some(SupportedVersion::V1(V1::Two)) {
+        // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
+        // `task` which includes those calculated requirements before the
+        // command/output sections are evaluated.
+        if version >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints
             let constraints = self
                 .backend
@@ -1620,24 +1793,42 @@ impl TaskEvaluator {
                     )
                 })?;
 
-            let task = TaskValue::new_v1(
+            let max_retries = max_retries(&requirements, &self.config);
+
+            let mut task = TaskPostEvaluationValue::new(
                 state.task.name(),
                 id,
-                definition,
                 constraints,
+                max_retries.try_into().with_context(|| {
+                    format!(
+                        "the number of max retries is too large to run task `{task}`",
+                        task = state.task.name()
+                    )
+                })?,
                 attempt.try_into().with_context(|| {
                     format!(
                         "too many attempts were made to run task `{task}`",
                         task = state.task.name()
                     )
                 })?,
+                task_meta,
+                task_parameter_meta,
+                task_ext,
             );
+
+            // In WDL 1.3+, insert the previous requirements.
+            if let Some(version) = version
+                && version >= SupportedVersion::V1(V1::Three)
+                && let Some(prev_data) = &previous_task_data
+            {
+                task.set_previous(prev_data.clone());
+            }
 
             let scope = &mut state.scopes[TASK_SCOPE_INDEX.0];
             if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = Value::Task(task);
+                *v = Value::TaskPostEvaluation(task);
             } else {
-                scope.insert(TASK_VAR_NAME, Value::Task(task));
+                scope.insert(TASK_VAR_NAME, Value::TaskPostEvaluation(task));
             }
         }
 
@@ -1690,68 +1881,57 @@ impl TaskEvaluator {
             .coerce(Some(evaluator.context()), &ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
 
-        // Translate `File` and `Directory` values to host paths.
-        // For output section evaluation, paths are relative to the task's work
-        // directory
         value
-            .visit_paths_mut(ty.is_optional(), &mut |optional, value| {
-                let path = match value {
-                    PrimitiveValue::File(path) => path,
-                    PrimitiveValue::Directory(path) => path,
-                    _ => unreachable!("only file and directory values should be visited"),
-                };
+            .ensure_paths_exist(
+                ty.is_optional(),
+                state.base_dir.as_local(),
+                Some(self.transferer.as_ref()),
+                &|path| {
+                    // Join the path with the work directory.
+                    let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
 
-                // Join the path with the work directory.
-                // The work directory returned by the backend is already a host path
-                let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
+                    // Ensure the output's path is valid
+                    let output_path = match (&mut output_path, &evaluated.result.work_dir) {
+                        (EvaluationPath::Local(joined), EvaluationPath::Local(base))
+                            if joined.starts_with(base)
+                                || joined.starts_with(&evaluated.attempt_dir) =>
+                        {
+                            // The joined path is contained within the work directory or attempt
+                            // directory
+                            HostPath::new(String::try_from(output_path)?)
+                        }
+                        (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
+                            // The joined path is not within the work or attempt directory;
+                            // therefore, it is required to be an input
+                            state
+                                .path_map
+                                .get_by_left(path)
+                                .ok_or_else(|| {
+                                    anyhow!(
+                                        "guest path `{path}` is not an input or within the task's \
+                                         working directory"
+                                    )
+                                })?
+                                .0
+                                .clone()
+                                .into()
+                        }
+                        (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
+                            // Path is local (and absolute) and the working directory is remote
+                            bail!(
+                                "cannot access guest path `{path}` from a remotely executing task"
+                            )
+                        }
+                        (EvaluationPath::Remote(_), _) => {
+                            HostPath::new(String::try_from(output_path)?)
+                        }
+                    };
 
-                // Ensure the output's path is valid
-                let output_path = match (&mut output_path, &evaluated.result.work_dir) {
-                    (EvaluationPath::Local(joined), EvaluationPath::Local(base))
-                        if joined.starts_with(base)
-                            || joined.starts_with(&evaluated.attempt_dir) =>
-                    {
-                        // The joined path is contained within the work directory or attempt
-                        // directory
-                        HostPath::new(
-                            output_path
-                                .into_string()
-                                .with_context(|| format!("path `{path}` is not UTF-8"))?,
-                        )
-                    }
-                    (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
-                        // The joined path is not within the work or attempt directory; therefore,
-                        // it is required to be an input
-                        state
-                            .path_map
-                            .get_by_left(path)
-                            .ok_or_else(|| {
-                                anyhow!(
-                                    "guest path `{path}` is not an input or within the task's \
-                                     working directory"
-                                )
-                            })?
-                            .0
-                            .clone()
-                            .into()
-                    }
-                    (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
-                        // Path is local (and absolute) and the working directory is remote
-                        bail!("cannot access guest path `{path}` from a remotely executing task")
-                    }
-                    (EvaluationPath::Remote(_), _) => HostPath::new(
-                        output_path
-                            .into_string()
-                            .with_context(|| format!("path `{path}` is not UTF-8"))?,
-                    ),
-                };
-
-                *path = output_path;
-
-                // Ensure the path exists; if it does not and it was optional, the value is
-                // replaced with `None`
-                value.ensure_path_exists(optional, state.base_dir.as_local())
-            })
+                    *path = output_path;
+                    Ok(())
+                },
+            )
+            .await
             .map_err(|e| {
                 decl_evaluation_failed(
                     e,

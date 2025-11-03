@@ -5,6 +5,7 @@ use std::hash::RandomState;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
+use indexmap::map::Entry as IndexMapEntry;
 use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
@@ -18,10 +19,12 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::TreeToken;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::ConditionalStatement;
+use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::Expr;
@@ -40,7 +43,9 @@ use super::Namespace;
 use super::Output;
 use super::Scope;
 use super::ScopeIndex;
+use super::ScopeRef;
 use super::ScopeRefMut;
+use super::ScopeUnion;
 use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
@@ -54,8 +59,11 @@ use crate::config::Config;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
 use crate::diagnostics::Io;
+use crate::diagnostics::NameContext;
 use crate::diagnostics::call_input_type_mismatch;
 use crate::diagnostics::duplicate_workflow;
+use crate::diagnostics::else_if_not_supported;
+use crate::diagnostics::else_not_supported;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::import_cycle;
 use crate::diagnostics::import_failure;
@@ -83,7 +91,6 @@ use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_input;
 use crate::document::Name;
-use crate::document::ScopeRef;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
 use crate::eval::v1::WorkflowGraphBuilder;
@@ -94,9 +101,9 @@ use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::HiddenType;
 use crate::types::Optional;
 use crate::types::PrimitiveType;
-use crate::types::PromotionKind;
 use crate::types::Type;
 use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
@@ -260,7 +267,7 @@ fn add_namespace(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
-            document.diagnostics.push(diagnostic);
+            document.analysis_diagnostics.push(diagnostic);
             return;
         }
         Err(None) => return,
@@ -271,7 +278,7 @@ fn add_namespace(
     let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
-                document.diagnostics.push(namespace_conflict(
+                document.analysis_diagnostics.push(namespace_conflict(
                     &ns,
                     span,
                     prev.span,
@@ -306,7 +313,9 @@ fn add_namespace(
         .filter_map(|a| {
             let (from, to) = a.names();
             if !imported.data.structs.contains_key(from.text()) {
-                document.diagnostics.push(struct_not_in_document(&from));
+                document
+                    .analysis_diagnostics
+                    .push(struct_not_in_document(&from));
                 return None;
             }
 
@@ -329,13 +338,15 @@ fn add_namespace(
                 if !are_structs_equal(&a, &b) {
                     // Import conflicts with a struct defined in this document
                     if prev.namespace.is_none() {
-                        document.diagnostics.push(struct_conflicts_with_import(
-                            aliased_name,
-                            prev.name_span,
-                            span,
-                        ));
+                        document
+                            .analysis_diagnostics
+                            .push(struct_conflicts_with_import(
+                                aliased_name,
+                                prev.name_span,
+                                span,
+                            ));
                     } else {
-                        document.diagnostics.push(imported_struct_conflict(
+                        document.analysis_diagnostics.push(imported_struct_conflict(
                             aliased_name,
                             span,
                             prev.name_span,
@@ -385,14 +396,16 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
             let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
                 .expect("node should cast");
             if !are_structs_equal(definition, &prev_def) {
-                document.diagnostics.push(struct_conflicts_with_import(
-                    name.text(),
-                    name.span(),
-                    prev.name_span,
-                ))
+                document
+                    .analysis_diagnostics
+                    .push(struct_conflicts_with_import(
+                        name.text(),
+                        name.span(),
+                        prev.name_span,
+                    ))
             }
         } else {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Struct(name.span()),
                 Context::Struct(prev.name_span),
@@ -407,7 +420,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         let name = decl.name();
         match members.get(name.text()) {
             Some(prev_span) => {
-                document.diagnostics.push(name_conflict(
+                document.analysis_diagnostics.push(name_conflict(
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
@@ -458,7 +471,7 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     match converter.convert_type(ty) {
         Ok(ty) => ty,
         Err(diagnostic) => {
-            document.diagnostics.push(diagnostic);
+            document.analysis_diagnostics.push(diagnostic);
             Type::Union
         }
     }
@@ -519,12 +532,32 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         scopes: &mut Vec<Scope>,
         task_name: &Ident,
         span: Span,
+        task_type: HiddenType,
     ) -> ScopeIndex {
         let index = add_scope(scopes, Scope::new(Some(ScopeIndex(0)), span));
 
-        // Command and output sections in 1.2 have access to the `task` variable
-        if version >= Some(SupportedVersion::V1(V1::Two)) {
-            scopes[index.0].insert(TASK_VAR_NAME, task_name.span(), Type::Task);
+        match task_type {
+            HiddenType::TaskPreEvaluation => {
+                // Pre-evaluation task type is available in v1.3+.
+                if version >= Some(SupportedVersion::V1(V1::Three)) {
+                    scopes[index.0].insert(
+                        TASK_VAR_NAME,
+                        task_name.span(),
+                        Type::Hidden(task_type),
+                    );
+                }
+            }
+            HiddenType::TaskPostEvaluation => {
+                // Post-evaluation task type is available in v1.2+.
+                if version >= Some(SupportedVersion::V1(V1::Two)) {
+                    scopes[index.0].insert(
+                        TASK_VAR_NAME,
+                        task_name.span(),
+                        Type::Hidden(task_type),
+                    );
+                }
+            }
+            _ => panic!("task type should be either `TaskPreEvaluation` or `TaskPostEvaluation`"),
         }
 
         index
@@ -534,7 +567,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let name = definition.name();
     match document.tasks.get(name.text()) {
         Some(s) => {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Task(name.span()),
                 Context::Task(s.name_span),
@@ -545,7 +578,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             if let Some(s) = &document.workflow
                 && s.name == name.text()
             {
-                document.diagnostics.push(name_conflict(
+                document.analysis_diagnostics.push(name_conflict(
                     name.text(),
                     Context::Task(name.span()),
                     Context::Workflow(s.name_span),
@@ -569,7 +602,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let graph = TaskGraphBuilder::default().build(
         document.version.unwrap(),
         definition,
-        &mut document.diagnostics,
+        &mut document.analysis_diagnostics,
     );
 
     let mut task = Task {
@@ -587,6 +620,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
     let mut output_scope = None;
     let mut command_scope = None;
+    let mut requirements_scope = None;
+    let mut hints_scope = None;
+    let mut runtime_scope = None;
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -618,7 +654,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         }
 
                         if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.diagnostics.push(
+                            document.analysis_diagnostics.push(
                                 unused_input(name.text(), name.span()).with_severity(severity),
                             );
                         }
@@ -647,7 +683,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                             .is_none()
                         && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
-                        document.diagnostics.push(
+                        document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
@@ -664,6 +700,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                             .expect("should have output section")
                             .braced_scope_span()
                             .expect("should have braced scope span"),
+                        HiddenType::TaskPostEvaluation,
                     )
                 });
                 add_decl(
@@ -687,6 +724,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         span.expect("should have scope span"),
+                        HiddenType::TaskPostEvaluation,
                     )
                 });
 
@@ -703,10 +741,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Runtime(section) => {
+                let scope_index = *runtime_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        HiddenType::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the runtime section's expressions
                 let mut context = EvaluationContext::new(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
@@ -715,10 +765,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Requirements(section) => {
+                let scope_index = *requirements_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        HiddenType::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the requirements section's expressions
                 let mut context = EvaluationContext::new(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                 );
                 let mut evaluator = ExprTypeEvaluator::new(&mut context);
@@ -727,10 +789,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Hints(section) => {
+                let scope_index = *hints_scope.get_or_insert_with(|| {
+                    create_section_scope(
+                        document.version,
+                        &mut task.scopes,
+                        &name,
+                        section
+                            .braced_scope_span()
+                            .expect("should have braced scope span"),
+                        HiddenType::TaskPreEvaluation,
+                    )
+                });
+
                 // Perform type checking on the hints section's expressions
                 let mut context = EvaluationContext::new_for_task(
                     document,
-                    ScopeRef::new(&task.scopes, ScopeIndex(0)),
+                    ScopeRef::new(&task.scopes, scope_index),
                     config.clone(),
                     &task,
                 );
@@ -787,7 +861,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     let name = workflow.name();
     match document.tasks.get(name.text()) {
         Some(s) => {
-            document.diagnostics.push(name_conflict(
+            document.analysis_diagnostics.push(name_conflict(
                 name.text(),
                 Context::Workflow(name.span()),
                 Context::Task(s.name_span),
@@ -797,7 +871,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         _ => {
             if let Some(s) = &document.workflow {
                 document
-                    .diagnostics
+                    .analysis_diagnostics
                     .push(duplicate_workflow(&name, s.name_span));
                 return false;
             }
@@ -850,7 +924,8 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     // For static analysis, we don't need to provide inputs to the workflow graph
     // builder
     let graph =
-        WorkflowGraphBuilder::default().build(workflow, &mut document.diagnostics, |_| false);
+        WorkflowGraphBuilder::default()
+            .build(workflow, &mut document.analysis_diagnostics, |_| false);
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -879,7 +954,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         }
 
                         if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.diagnostics.push(
+                            document.analysis_diagnostics.push(
                                 unused_input(name.text(), name.span()).with_severity(severity),
                             );
                         }
@@ -911,7 +986,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .is_none()
                         && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
                     {
-                        document.diagnostics.push(
+                        document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
                         );
                     }
@@ -953,6 +1028,12 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     &statement,
                 );
             }
+            WorkflowGraphNode::ConditionalClause(..) => {
+                // Conditional clause nodes are intermediate nodes used for subgraph splitting
+                // during evaluation. They don't need to be processed here as the
+                // conditional node already handles all clauses.
+                continue;
+            }
             WorkflowGraphNode::Scatter(statement, _) => {
                 let parent = scope_indexes
                     .get(&statement.inner().parent().expect("should have parent"))
@@ -990,11 +1071,53 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 );
             }
             WorkflowGraphNode::ExitConditional(statement) => {
-                let scope_index = scope_indexes
-                    .get(statement.inner())
-                    .copied()
-                    .expect("should have scope");
-                promote_scope(&mut scopes, scope_index, None, PromotionKind::Conditional);
+                let mut scope_union = ScopeUnion::new();
+
+                for clause in statement.clauses() {
+                    let scope_index = scope_indexes
+                        .get(clause.inner())
+                        .copied()
+                        .expect("should have scope");
+
+                    scope_union.insert(
+                        ScopeRef::new(&scopes, scope_index),
+                        matches!(clause.kind(), ConditionalStatementClauseKind::Else),
+                    );
+                }
+
+                let parent_scope = {
+                    let index = scope_indexes
+                        .get(
+                            statement
+                                .clauses()
+                                .next()
+                                .expect("conditional statement does not have a clause")
+                                .inner(),
+                        )
+                        .copied()
+                        .expect("should have scope");
+                    scopes[index.0].parent.expect("should have parent")
+                };
+
+                match scope_union.resolve() {
+                    Ok(results) => {
+                        for (name, info) in results {
+                            match scopes[parent_scope.0].names.entry(name.clone()) {
+                                IndexMapEntry::Vacant(entry) => {
+                                    entry.insert(info);
+                                }
+                                IndexMapEntry::Occupied(entry) => {
+                                    document.analysis_diagnostics.push(name_conflict(
+                                        &name,
+                                        Context::Name(NameContext::Decl(info.span)),
+                                        Context::Name(NameContext::Decl(entry.get().span)),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    Err(diagnostics) => document.analysis_diagnostics.extend(diagnostics),
+                }
             }
             WorkflowGraphNode::ExitScatter(statement) => {
                 let scope_index = scope_indexes
@@ -1002,12 +1125,27 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     .copied()
                     .expect("should have scope");
                 let variable = statement.variable();
-                promote_scope(
-                    &mut scopes,
-                    scope_index,
-                    Some(variable.text()),
-                    PromotionKind::Scatter,
-                );
+
+                // We need to split the scopes as we want to read from one part of the slice and
+                // write to another; the left side will contain the parent at its index and the
+                // right side will contain the child scope at its index minus the parent's
+                let parent = scopes[scope_index.0]
+                    .parent
+                    .expect("should have a parent scope");
+                assert!(scope_index.0 > parent.0);
+                let (left, right) = scopes.split_at_mut(parent.0 + 1);
+                let scope = &right[scope_index.0 - parent.0 - 1];
+                let parent = &mut left[parent.0];
+                for (name, Name { span, ty }) in scope.names.iter() {
+                    if name.as_str() == variable.text() {
+                        continue;
+                    }
+
+                    parent.names.entry(name.clone()).or_insert_with(|| Name {
+                        span: *span,
+                        ty: ty.promote_scatter(),
+                    });
+                }
             }
         }
     }
@@ -1031,28 +1169,63 @@ fn add_conditional_statement(
     scope_indexes: &mut HashMap<SyntaxNode, ScopeIndex>,
     statement: &ConditionalStatement,
 ) {
-    let scope_index = add_scope(
-        scopes,
-        Scope::new(
-            Some(parent),
-            statement
-                .braced_scope_span()
-                .expect("should have braced scope span"),
-        ),
-    );
-    scope_indexes.insert(statement.inner().clone(), scope_index);
+    let version = document.version.expect("should have version");
+    if version < SupportedVersion::V1(V1::Three) {
+        for clause in statement.clauses() {
+            match clause.kind() {
+                ConditionalStatementClauseKind::ElseIf => {
+                    let else_span = clause
+                        .else_keyword()
+                        .expect("should have `else` keyword")
+                        .span();
+                    let if_span = clause
+                        .if_keyword()
+                        .expect("should have `if` keyword")
+                        .span();
+                    let span = Span::new(else_span.start(), if_span.end() - else_span.start());
+                    document
+                        .analysis_diagnostics
+                        .push(else_if_not_supported(version, span));
+                }
+                ConditionalStatementClauseKind::Else => {
+                    let span = clause
+                        .else_keyword()
+                        .expect("should have `else` keyword")
+                        .span();
+                    document
+                        .analysis_diagnostics
+                        .push(else_not_supported(version, span));
+                }
+                ConditionalStatementClauseKind::If => {}
+            }
+        }
+    }
 
-    // Evaluate the statement's expression; it is expected to be a boolean
-    let expr = statement.expr();
-    let mut context =
-        EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
-    let mut evaluator = ExprTypeEvaluator::new(&mut context);
-    let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+    for clause in statement.clauses() {
+        let scope_index = add_scope(
+            scopes,
+            Scope::new(
+                Some(parent),
+                clause
+                    .braced_scope_span()
+                    .expect("should have braced scope span"),
+            ),
+        );
+        scope_indexes.insert(clause.inner().clone(), scope_index);
 
-    if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
-        document
-            .diagnostics
-            .push(if_conditional_mismatch(&ty, expr.span()));
+        let Some(expr) = clause.expr() else {
+            continue;
+        };
+        let mut context =
+            EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
+        let mut evaluator = ExprTypeEvaluator::new(&mut context);
+        let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
+
+        if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
+            document
+                .analysis_diagnostics
+                .push(if_conditional_mismatch(&ty, expr.span()));
+        }
     }
 }
 
@@ -1087,7 +1260,7 @@ fn add_scatter_statement(
         Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
         _ => {
             document
-                .diagnostics
+                .analysis_diagnostics
                 .push(type_is_not_array(&ty, expr.span()));
             Type::Union
         }
@@ -1133,9 +1306,11 @@ fn add_call_statement(
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
-                        document
-                            .diagnostics
-                            .push(unknown_call_io(&ty, &input_name, Io::Input));
+                        document.analysis_diagnostics.push(unknown_call_io(
+                            &ty,
+                            &input_name,
+                            Io::Input,
+                        ));
                         (Type::Union, true)
                     });
 
@@ -1169,7 +1344,7 @@ fn add_call_statement(
                             if !matches!(expected_ty, Type::Union)
                                 && !name.ty.is_coercible_to(&expected_ty)
                             {
-                                document.diagnostics.push(call_input_type_mismatch(
+                                document.analysis_diagnostics.push(call_input_type_mismatch(
                                     &input_name,
                                     &expected_ty,
                                     &name.ty,
@@ -1178,7 +1353,7 @@ fn add_call_statement(
                         }
                         None => {
                             document
-                                .diagnostics
+                                .analysis_diagnostics
                                 .push(unknown_name(input_name.text(), input_name.span()));
                         }
                     },
@@ -1189,7 +1364,7 @@ fn add_call_statement(
 
             for (name, input) in ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
-                    document.diagnostics.push(missing_call_input(
+                    document.analysis_diagnostics.push(missing_call_input(
                         ty.kind(),
                         &target_name,
                         name,
@@ -1223,7 +1398,7 @@ fn add_call_statement(
             && !ty.outputs().is_empty()
         {
             document
-                .diagnostics
+                .analysis_diagnostics
                 .push(unused_call(name.text(), name.span()).with_severity(severity));
         }
 
@@ -1250,7 +1425,9 @@ fn resolve_call_type(
         }
 
         if namespace.is_some() {
-            document.diagnostics.push(only_one_namespace(target.span()));
+            document
+                .analysis_diagnostics
+                .push(only_one_namespace(target.span()));
             return None;
         }
 
@@ -1260,7 +1437,9 @@ fn resolve_call_type(
                 namespace = Some(&document.namespaces[target.text()])
             }
             None => {
-                document.diagnostics.push(unknown_namespace(&target));
+                document
+                    .analysis_diagnostics
+                    .push(unknown_namespace(&target));
                 return None;
             }
         }
@@ -1272,7 +1451,7 @@ fn resolve_call_type(
     let name = name.expect("should have name");
     if namespace.is_none() && name.text() == workflow_name {
         document
-            .diagnostics
+            .analysis_diagnostics
             .push(recursive_workflow_call(name.text(), name.span()));
         return None;
     }
@@ -1286,7 +1465,7 @@ fn resolve_call_type(
                 workflow.outputs.clone(),
             ),
             _ => {
-                document.diagnostics.push(unknown_task_or_workflow(
+                document.analysis_diagnostics.push(unknown_task_or_workflow(
                     namespace.map(|ns| ns.span),
                     name.text(),
                     name.span(),
@@ -1314,28 +1493,6 @@ fn resolve_call_type(
         ))
     } else {
         Some(CallType::new(kind, name.text(), specified, inputs, outputs))
-    }
-}
-
-/// Promotes the names in the current to the parent scope.
-fn promote_scope(scopes: &mut [Scope], index: ScopeIndex, skip: Option<&str>, kind: PromotionKind) {
-    // We need to split the scopes as we want to read from one part of the slice and
-    // write to another; the left side will contain the parent at its index and the
-    // right side will contain the child scope at its index minus the parent's
-    let parent = scopes[index.0].parent.expect("should have a parent scope");
-    assert!(index.0 > parent.0);
-    let (left, right) = scopes.split_at_mut(parent.0 + 1);
-    let scope = &right[index.0 - parent.0 - 1];
-    let parent = &mut left[parent.0];
-    for (name, Name { span, ty }) in scope.names.iter() {
-        if Some(name.as_str()) == skip {
-            continue;
-        }
-
-        parent.names.entry(name.clone()).or_insert_with(|| Name {
-            span: *span,
-            ty: ty.promote(kind),
-        });
     }
 }
 
@@ -1449,7 +1606,7 @@ fn set_struct_types(document: &mut DocumentData) {
                     Ok(s.ty().cloned().unwrap_or(Type::Union))
                 }
                 _ => {
-                    self.document.diagnostics.push(unknown_type(
+                    self.document.analysis_diagnostics.push(unknown_type(
                         name,
                         Span::new(span.start() + self.offset, span.len()),
                     ));
@@ -1514,7 +1671,7 @@ fn set_struct_types(document: &mut DocumentData) {
                         let name = definition.name();
                         let name_span = name.span();
                         let member_span = member.name().span();
-                        document.diagnostics.push(recursive_struct(
+                        document.analysis_diagnostics.push(recursive_struct(
                             name.text(),
                             Span::new(name_span.start() + s.offset, name_span.len()),
                             Span::new(member_span.start() + s.offset, member_span.len()),
@@ -1626,7 +1783,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.document.diagnostics.push(diagnostic);
+        self.document.analysis_diagnostics.push(diagnostic);
     }
 }
 
@@ -1644,9 +1801,12 @@ fn type_check_expr(
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
     if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
-        document
-            .diagnostics
-            .push(type_mismatch(expected, expected_span, &actual, expr.span()));
+        document.analysis_diagnostics.push(type_mismatch(
+            expected,
+            expected_span,
+            &actual,
+            expr.span(),
+        ));
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
@@ -1655,7 +1815,134 @@ fn type_check_expr(
         && expr.is_empty_array_literal()
     {
         document
-            .diagnostics
+            .analysis_diagnostics
             .push(non_empty_array_assignment(expected_span, expr.span()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn example_scope(names: Vec<(impl Into<String>, Type)>) -> Scope {
+        let mut scope = Scope::new(None, Span::new(0, 0));
+        for (name, ty) in names.into_iter() {
+            scope.insert(name, Span::new(0, 0), ty);
+        }
+        scope
+    }
+
+    fn example_scopes() -> Vec<Scope> {
+        // if (...) {
+        //   String a
+        //   String b
+        //   String always_available
+        // } else if (...) {
+        //   # If this clause executes, both `a` and `b` will be `None`.
+        //   String? b = None
+        //   String c = "bar"
+        //   String always_available = "bar"
+        // } else {
+        //   String a = "baz"
+        //   String b = "baz"
+        //   String c = "baz"
+        //   String always_available = "baz"
+        // }
+        //
+        // Both `a` and `b` can be `None` or unevaluated, so they both promote as a
+        // `String?`. `c` is missing from the first scope, so it must also be
+        // marked as `String?`. `always_available` is always available, so it
+        // will be promoted as a `String`.
+        vec![
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+            example_scope(vec![
+                ("b", Type::Primitive(PrimitiveType::String, true)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+            example_scope(vec![
+                ("a", Type::Primitive(PrimitiveType::String, false)),
+                ("b", Type::Primitive(PrimitiveType::String, false)),
+                ("c", Type::Primitive(PrimitiveType::String, false)),
+                (
+                    "always_available",
+                    Type::Primitive(PrimitiveType::String, false),
+                ),
+            ]),
+        ]
+    }
+
+    #[test]
+    fn smoke() {
+        let scopes = example_scopes();
+
+        // Test with else clause (exhaustive)
+        let mut scope_union = ScopeUnion::new();
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(0)), false);
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(1)), false);
+        scope_union.insert(ScopeRef::new(&scopes, ScopeIndex(2)), true);
+
+        let results = scope_union.resolve().expect("should resolve");
+
+        // `a` is missing from clause 1, so it's optional
+        assert_eq!(
+            results["a"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
+
+        // `b` is optional in clause 1, so it's optional
+        assert_eq!(
+            results["b"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
+
+        // `c` is missing from clause 0, so it's optional
+        assert_eq!(
+            results["c"].ty,
+            Type::Primitive(PrimitiveType::String, true)
+        );
+
+        // `always_available` is in all clauses with the same type, so it's non-optional
+        assert_eq!(
+            results["always_available"].ty,
+            Type::Primitive(PrimitiveType::String, false)
+        );
+    }
+
+    #[test]
+    fn type_conflicts() {
+        // Test scopes with type conflicts
+        // if (...) {
+        //   Int bad = 1
+        // } else {
+        //   String bad = "baz"
+        // }
+        //
+        // `bad` will return an error, as there is no common type between a `String`
+        // and an `Int`.
+        let bad_scopes = vec![
+            example_scope(vec![(
+                "bad",
+                Type::Primitive(PrimitiveType::Integer, false),
+            )]),
+            example_scope(vec![("bad", Type::Primitive(PrimitiveType::String, false))]),
+        ];
+
+        let mut scope_union = ScopeUnion::new();
+        scope_union.insert(ScopeRef::new(&bad_scopes, ScopeIndex(0)), false);
+        scope_union.insert(ScopeRef::new(&bad_scopes, ScopeIndex(1)), true);
+        let err = scope_union.resolve().expect_err("should error on bad");
+        assert_eq!(err.len(), 1);
+        assert!(err[0].message().contains("type mismatch"));
     }
 }

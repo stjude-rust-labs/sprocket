@@ -28,6 +28,7 @@ use wdl_analysis::diagnostics::missing_struct_members;
 use wdl_analysis::diagnostics::multiple_type_mismatch;
 use wdl_analysis::diagnostics::no_common_type;
 use wdl_analysis::diagnostics::not_a_pair_accessor;
+use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
 use wdl_analysis::diagnostics::not_a_struct_member;
 use wdl_analysis::diagnostics::not_a_task_member;
@@ -45,6 +46,7 @@ use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PairType;
@@ -912,9 +914,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         // The type of every item should be `hints`
-        if !matches!(value.ty(), Type::Hints) {
+        if !matches!(value.ty(), Type::Hidden(HiddenType::Hints)) {
             return Err(type_mismatch(
-                &Type::Hints,
+                &Type::Hidden(HiddenType::Hints),
                 span.expect("should have span"),
                 &value.ty(),
                 expr.span(),
@@ -1473,9 +1475,19 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_an_object_member(&name)),
             },
-            Value::Task(task) => match task.field(name.text()) {
+            Value::TaskPreEvaluation(task) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
+            },
+            Value::TaskPostEvaluation(task) => {
+                match task.field(self.context.version(), name.text()) {
+                    Some(value) => Ok(value.clone()),
+                    None => Err(not_a_task_member(&name)),
+                }
+            }
+            Value::PreviousTaskData(prev) => match prev.field(name.text()) {
+                Some(value) => Ok(value),
+                None => Err(not_a_previous_task_data_member(&name)),
             },
             Value::Call(call) => match call.outputs().get(name.text()) {
                 Some(value) => Ok(value.clone()),
@@ -1594,6 +1606,14 @@ pub(crate) mod test {
 
         fn apply_auth<'a>(&self, url: &'a Url) -> anyhow::Result<Cow<'a, Url>> {
             Ok(Cow::Borrowed(url))
+        }
+
+        fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+            unimplemented!()
+        }
+
+        fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+            unimplemented!()
         }
     }
 

@@ -22,6 +22,8 @@ use crate::LocalBackend;
 use crate::LsfApptainerBackend;
 use crate::LsfApptainerBackendConfig;
 use crate::SYSTEM;
+use crate::SlurmApptainerBackend;
+use crate::SlurmApptainerBackendConfig;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
 use crate::convert_unit_string;
@@ -132,6 +134,21 @@ impl<'de> serde::Deserialize<'de> for SecretString {
     }
 }
 
+/// Represents how an evaluation error or cancellation should be handled by the
+/// engine.
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureMode {
+    /// When an error is encountered or evaluation is canceled, evaluation waits
+    /// for any outstanding tasks to complete.
+    #[default]
+    Slow,
+    /// When an error is encountered or evaluation is canceled, any outstanding
+    /// tasks that are executing are immediately canceled and evaluation waits
+    /// for cancellation to complete.
+    Fast,
+}
+
 /// Represents WDL evaluation configuration.
 ///
 /// <div class="warning">
@@ -195,6 +212,15 @@ pub struct Config {
     /// is quite welcome.
     #[serde(default)]
     pub experimental_features_enabled: bool,
+    /// The failure mode for workflow or task evaluation.
+    ///
+    /// A value of [`FailureMode::Slow`] will result in evaluation waiting for
+    /// executing tasks to complete upon error or interruption.
+    ///
+    /// A value of [`FailureMode::Fast`] will immediately attempt to cancel
+    /// executing tasks upon error or interruption.
+    #[serde(default, rename = "fail")]
+    pub failure_mode: FailureMode,
 }
 
 impl Config {
@@ -302,6 +328,11 @@ impl Config {
                 TesBackend::new(self.clone(), config, events).await?,
             )),
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                self.clone(),
+                config.clone(),
+                events,
+            ))),
+            BackendConfig::SlurmApptainer(config) => Ok(Arc::new(SlurmApptainerBackend::new(
                 self.clone(),
                 config.clone(),
                 events,
@@ -694,6 +725,10 @@ pub enum BackendConfig {
     ///
     /// Requires enabling experimental features.
     LsfApptainer(Arc<LsfApptainerBackendConfig>),
+    /// Use the experimental Slurm + Apptainer task execution backend.
+    ///
+    /// Requires enabling experimental features.
+    SlurmApptainer(Arc<SlurmApptainerBackendConfig>),
 }
 
 impl Default for BackendConfig {
@@ -710,6 +745,7 @@ impl BackendConfig {
             Self::Docker(config) => config.validate(),
             Self::Tes(config) => config.validate(),
             Self::LsfApptainer(config) => config.validate(engine_config).await,
+            Self::SlurmApptainer(config) => config.validate(engine_config).await,
         }
     }
 
@@ -746,7 +782,7 @@ impl BackendConfig {
     /// Redacts the secrets contained in the backend configuration.
     pub fn redact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::SlurmApptainer(_) => {}
             Self::Tes(config) => config.redact(),
         }
     }
@@ -754,7 +790,7 @@ impl BackendConfig {
     /// Unredacts the secrets contained in the backend configuration.
     pub fn unredact(&mut self) {
         match self {
-            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) => {}
+            Self::Local(_) | Self::Docker(_) | Self::LsfApptainer(_) | Self::SlurmApptainer(_) => {}
             Self::Tes(config) => config.unredact(),
         }
     }
@@ -970,15 +1006,22 @@ pub struct TesBackendConfig {
 
     /// The polling interval, in seconds, for checking task status.
     ///
-    /// Defaults to 60 second.
+    /// Defaults to 1 second.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<u64>,
 
-    /// The maximum task concurrency for the backend.
+    /// The number of retries after encountering an error communicating with the
+    /// TES server.
     ///
-    /// Defaults to unlimited.
+    /// Defaults to no retries.
+    pub retries: Option<u32>,
+
+    /// The maximum number of concurrent requests the backend will send to the
+    /// TES server.
+    ///
+    /// Defaults to 10 concurrent requests.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_concurrency: Option<u64>,
+    pub max_concurrency: Option<u32>,
 
     /// Whether or not the TES server URL may use an insecure protocol like
     /// HTTP.
@@ -1003,6 +1046,12 @@ impl TesBackendConfig {
 
         if let Some(auth) = &self.auth {
             auth.validate()?;
+        }
+
+        if let Some(max_concurrency) = self.max_concurrency
+            && max_concurrency == 0
+        {
+            bail!("TES backend configuration value `max_concurrency` cannot be zero");
         }
 
         match &self.inputs {
@@ -1292,6 +1341,27 @@ mod test {
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "TES backend configuration value `url` is required"
+        );
+
+        // Test TES invalid max concurrency
+        let config = Config {
+            backends: [(
+                "default".to_string(),
+                BackendConfig::Tes(
+                    TesBackendConfig {
+                        url: Some("https://example.com".parse().unwrap()),
+                        max_concurrency: Some(0),
+                        ..Default::default()
+                    }
+                    .into(),
+                ),
+            )]
+            .into(),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "TES backend configuration value `max_concurrency` cannot be zero"
         );
 
         // Insecure TES URL

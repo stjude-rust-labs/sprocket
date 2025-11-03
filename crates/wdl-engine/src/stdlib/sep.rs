@@ -63,7 +63,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(String, Array[P]) -> String where `P`: any primitive type",
+                "(separator: String, array: Array[P]) -> String where `P`: any primitive type",
                 Callback::Sync(sep),
             )]
         },

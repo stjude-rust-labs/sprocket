@@ -118,7 +118,7 @@ async fn should_hover_stdlib_function() {
     let mut ctx = setup().await;
     // Position of `read_string`
     let response = hover_request(&mut ctx, "source.wdl", Position::new(20, 24)).await;
-    assert_hover_content(&response, "read_string(File) -> String");
+    assert_hover_content(&response, "read_string(file: File) -> String");
     assert_hover_content(&response, "Reads an entire file as a `String`");
 }
 

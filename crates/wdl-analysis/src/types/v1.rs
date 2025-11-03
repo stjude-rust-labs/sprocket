@@ -46,10 +46,12 @@ use wdl_ast::v1::TASK_FIELD_EXT;
 use wdl_ast::v1::TASK_FIELD_FPGA;
 use wdl_ast::v1::TASK_FIELD_GPU;
 use wdl_ast::v1::TASK_FIELD_ID;
+use wdl_ast::v1::TASK_FIELD_MAX_RETRIES;
 use wdl_ast::v1::TASK_FIELD_MEMORY;
 use wdl_ast::v1::TASK_FIELD_META;
 use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
+use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_FPGA;
@@ -79,6 +81,7 @@ use wdl_ast::version::V1;
 
 use super::ArrayType;
 use super::CompoundType;
+use super::HiddenType;
 use super::MapType;
 use super::Optional;
 use super::PairType;
@@ -109,6 +112,7 @@ use crate::diagnostics::multiple_type_mismatch;
 use crate::diagnostics::negation_mismatch;
 use crate::diagnostics::no_common_type;
 use crate::diagnostics::not_a_pair_accessor;
+use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
 use crate::diagnostics::not_a_task_member;
@@ -127,12 +131,32 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
-/// Gets the type of a `task` variable member type.
+
+/// Gets the type of a `task` variable member for pre-evaluation contexts.
 ///
-/// `task` variables are supported in command and output sections in WDL 1.2.
+/// This is used in requirements, hints, and runtime sections where
+/// `task.previous` and `task.attempt` are available.
 ///
-/// Returns `None` if the given member name is unknown.
-pub fn task_member_type(name: &str) -> Option<Type> {
+/// Returns [`None`] if the given member name is unknown.
+pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
+    match name {
+        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
+            Some(Type::Object)
+        }
+        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
+        _ => None,
+    }
+}
+
+/// Gets the type of a `task` variable member for post-evaluation contexts.
+///
+/// This is used in command and output sections where all task fields are
+/// available.
+///
+/// Returns [`None`] if the given member name is unknown.
+pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
@@ -150,6 +174,29 @@ pub fn task_member_type(name: &str) -> Option<Type> {
         n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
             Some(Type::Object)
         }
+        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+            Some(PrimitiveType::Integer.into())
+        }
+        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+            Some(Type::Hidden(HiddenType::PreviousTaskData))
+        }
+        _ => None,
+    }
+}
+
+/// Gets the type of a `task.previous` member.
+///
+/// Returns [`None`] if the given member name is unknown.
+pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
+    match name {
+        n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
+        n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
+        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
+            Some(STDLIB.array_string_type().clone().optional())
+        }
+        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
+        n if n == TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }
 }
@@ -249,7 +296,7 @@ pub fn task_hint_types(
     /// The types for the `inputs` hint.
     const INPUTS_TYPES: &[Type] = &[Type::Object];
     /// The types for the `inputs` hint (with hidden types).
-    const INPUTS_HIDDEN_TYPES: &[Type] = &[Type::Input];
+    const INPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Input)];
     /// The types for the `localization_optional` hint.
     const LOCALIZATION_OPTIONAL_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
     /// The types for the `max_cpu` hint.
@@ -265,7 +312,7 @@ pub fn task_hint_types(
     /// The types for the `outputs` hint.
     const OUTPUTS_TYPES: &[Type] = &[Type::Object];
     /// The types for the `outputs` hint (with hidden types).
-    const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Output];
+    const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Output)];
     /// The types for the `short_task` hint.
     const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
 
@@ -1016,7 +1063,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             self.evaluate_hints_item(&item.name(), &item.expr())
         }
 
-        Some(Type::Hints)
+        Some(Type::Hidden(HiddenType::Hints))
     }
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
@@ -1054,7 +1101,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             self.evaluate_literal_io_item(item.names(), item.expr(), Io::Input);
         }
 
-        Some(Type::Input)
+        Some(Type::Hidden(HiddenType::Input))
     }
 
     /// Evaluates the type of a literal output expression.
@@ -1070,7 +1117,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             self.evaluate_literal_io_item(item.names(), item.expr(), Io::Output);
         }
 
-        Some(Type::Output)
+        Some(Type::Hidden(HiddenType::Output))
     }
 
     /// Evaluates a literal input/output item.
@@ -1151,9 +1198,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         }
 
         // The type of every item should be `hints`
-        if !expr_ty.is_coercible_to(&Type::Hints) {
+        if !expr_ty.is_coercible_to(&Type::Hidden(HiddenType::Hints)) {
             self.context.add_diagnostic(type_mismatch(
-                &Type::Hints,
+                &Type::Hidden(HiddenType::Hints),
                 span.expect("should have span"),
                 &expr_ty,
                 expr.span(),
@@ -1648,14 +1695,36 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let (target, name) = expr.operands();
         let ty = self.evaluate_expr(&target)?;
 
-        if matches!(ty, Type::Task) {
-            return match task_member_type(name.text()) {
-                Some(ty) => Some(ty),
-                None => {
-                    self.context.add_diagnostic(not_a_task_member(&name));
-                    return None;
-                }
-            };
+        match &ty {
+            Type::Hidden(HiddenType::TaskPreEvaluation) => {
+                return match task_member_type_pre_evaluation(name.text()) {
+                    Some(ty) => Some(ty),
+                    None => {
+                        self.context.add_diagnostic(not_a_task_member(&name));
+                        return None;
+                    }
+                };
+            }
+            Type::Hidden(HiddenType::TaskPostEvaluation) => {
+                return match task_member_type_post_evaluation(self.context.version(), name.text()) {
+                    Some(ty) => Some(ty),
+                    None => {
+                        self.context.add_diagnostic(not_a_task_member(&name));
+                        return None;
+                    }
+                };
+            }
+            Type::Hidden(HiddenType::PreviousTaskData) => {
+                return match previous_task_data_member_type(name.text()) {
+                    Some(ty) => Some(ty),
+                    None => {
+                        self.context
+                            .add_diagnostic(not_a_previous_task_data_member(&name));
+                        return None;
+                    }
+                };
+            }
+            _ => {}
         }
 
         // Check to see if it's a compound type or call output

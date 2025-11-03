@@ -172,10 +172,15 @@ fn calculate_disk_size<'a>(
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
             Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
-            Value::Task(_) => bail!("the size of a task variable cannot be calculated"),
             Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
             Value::Input(_) => bail!("the size of an input value cannot be calculated"),
             Value::Output(_) => bail!("the size of an output value cannot be calculated"),
+            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
+                bail!("the size of a task variable cannot be calculated")
+            }
+            Value::PreviousTaskData(_) => {
+                bail!("the size of a task.previous value cannot be calculated")
+            }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
         }
     }
@@ -311,13 +316,25 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[
-                Signature::new("(None, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(File?, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(String?, <String>) -> Float", Callback::Async(size)),
-                Signature::new("(Directory?, <String>) -> Float", Callback::Async(size)),
                 Signature::new(
-                    "(X, <String>) -> Float where `X`: any compound type that recursively \
-                     contains a `File` or `Directory`",
+                    "(value: None, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: File?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: String?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: Directory?, <unit: String>) -> Float",
+                    Callback::Async(size),
+                ),
+                Signature::new(
+                    "(value: X, <unit: String>) -> Float where `X`: any compound type that \
+                     recursively contains a `File` or `Directory`",
                     Callback::Async(size),
                 ),
             ]

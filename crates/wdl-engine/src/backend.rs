@@ -28,14 +28,18 @@ use crate::Value;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
+mod apptainer;
 mod docker;
 mod local;
 mod lsf_apptainer;
+mod slurm_apptainer;
 mod tes;
 
+pub use apptainer::*;
 pub use docker::*;
 pub use local::*;
 pub use lsf_apptainer::*;
+pub use slurm_apptainer::*;
 pub use tes::*;
 
 /// The default work directory name.
@@ -234,6 +238,29 @@ impl TaskSpawnRequest {
     /// The temp directory for the evaluation.
     pub fn temp_dir(&self) -> &Path {
         &self.temp_dir
+    }
+
+    /// The default host-side location of the script generated from the task
+    /// `command`.
+    pub fn wdl_command_host_path(&self) -> PathBuf {
+        self.attempt_dir.join(COMMAND_FILE_NAME)
+    }
+
+    /// The default host-side location of the task's working directory.
+    pub fn wdl_work_dir_host_path(&self) -> PathBuf {
+        self.attempt_dir.join(WORK_DIR_NAME)
+    }
+
+    /// The default host-side location where the `command`'s stdout will be
+    /// written.
+    pub fn wdl_stdout_host_path(&self) -> PathBuf {
+        self.attempt_dir.join(STDOUT_FILE_NAME)
+    }
+
+    /// The default host-side location where the `command`'s stderr will be
+    /// written.
+    pub fn wdl_stderr_host_path(&self) -> PathBuf {
+        self.attempt_dir.join(STDERR_FILE_NAME)
     }
 }
 

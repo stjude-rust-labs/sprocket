@@ -339,16 +339,16 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
             v => todo!("unhandled uri scheme: {v}"),
         };
 
-        let diagnostics = result.document().diagnostics();
+        let mut diagnostics = result.document().diagnostics().peekable();
 
-        if !diagnostics.is_empty() {
+        if diagnostics.peek().is_some() {
             let path = result.document().path().to_string();
             let source = result.document().root().text().to_string();
 
             emit_diagnostics(
                 &path,
                 source,
-                diagnostics.iter().filter(|d| {
+                diagnostics.filter(|d| {
                     let severity = d.severity();
 
                     match severity {

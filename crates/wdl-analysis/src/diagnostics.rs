@@ -152,7 +152,8 @@ pub fn unknown_name(name: &str, span: Span) -> Diagnostic {
     // Handle special case names here
     let message = match name {
         "task" => "the `task` variable may only be used within a task command section or task \
-                   output section using WDL 1.2 or later"
+                   output section using WDL 1.2 or later, or within a task requirements, task \
+                   hints, or task runtime section using WDL 1.3 or later"
             .to_string(),
         _ => format!("unknown name `{name}`"),
     };
@@ -394,7 +395,7 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     )
 }
 
-/// Creates a "no common type" diagnostic for arrays and maps.
+/// Creates a "no common type" diagnostic for arrays, maps, and scope unions.
 ///
 /// This is called if the elements of a map or an array do not have a common
 /// type.
@@ -439,6 +440,15 @@ pub fn multiple_type_mismatch(
 pub fn not_a_task_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
         "the `task` variable does not have a member named `{member}`",
+        member = member.text()
+    ))
+    .with_highlight(member.span())
+}
+
+/// Creates a "not a task.previous member" diagnostic.
+pub fn not_a_previous_task_data_member<T: TreeToken>(member: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`task.previous` does not have a member named `{member}`",
         member = member.text()
     ))
     .with_highlight(member.span())
@@ -501,6 +511,24 @@ pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
          `{actual}`"
     ))
     .with_label(format!("this is type `{actual}`"), actual_span)
+}
+
+/// Creates an "else if not supported" diagnostic.
+pub fn else_if_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else if` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else if` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else if` conditional clauses")
+}
+
+/// Creates an "else not supported" diagnostic.
+pub fn else_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`else` conditional clauses are not supported in WDL v{version}"
+    ))
+    .with_label("this `else` is not supported", span)
+    .with_fix("use WDL v1.3 or higher to use `else` conditional clauses")
 }
 
 /// Creates a "logical not mismatch" diagnostic.

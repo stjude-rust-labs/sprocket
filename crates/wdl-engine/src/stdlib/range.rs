@@ -42,7 +42,14 @@ fn range(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 
 /// Gets the function describing `range`.
 pub const fn descriptor() -> Function {
-    Function::new(const { &[Signature::new("(Int) -> Array[Int]", Callback::Sync(range))] })
+    Function::new(
+        const {
+            &[Signature::new(
+                "(n: Int) -> Array[Int]",
+                Callback::Sync(range),
+            )]
+        },
+    )
 }
 
 #[cfg(test)]
