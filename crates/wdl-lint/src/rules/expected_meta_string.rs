@@ -109,8 +109,8 @@ impl Rule for ExpectedMetaStringRule {
         "Sprocket's documentation command reserves certain keys in `meta` and `parameter_meta` \
          sections for documentation generation. These keys (`description`, `help`, \
          `external_help`, `warning`, `category`, and `group`) must have `String` values. Using \
-         non-`String` values will cause the documentation to be rendered incorrectly or not at all. \
-         This rule ensures all reserved keys have `String` values for proper documentation \
+         non-`String` values will cause the documentation to be rendered incorrectly or not at \
+         all. This rule ensures all reserved keys have `String` values for proper documentation \
          generation."
     }
 
