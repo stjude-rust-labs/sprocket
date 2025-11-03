@@ -33,18 +33,18 @@ const RESERVED_KEYS: &[&str] = &[
 /// Creates a diagnostic for non-string metadata values.
 fn non_string_value_diagnostic(key: &str, value_type: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!(
-        "metadata key `{}` should have a string value, found {}",
+        "metadata key `{}` should have a `String` value, found {}",
         key, value_type
     ))
     .with_rule(ID)
     .with_label(
         format!(
-            "`{}` must be a string for proper documentation rendering",
+            "`{}` must be a `String` for proper documentation rendering",
             key
         ),
         span,
     )
-    .with_fix(format!("change the value of `{}` to a string literal", key))
+    .with_fix(format!("change the value of `{}` to a `String`", key))
 }
 
 /// Gets a human-readable type name for a metadata value.
@@ -108,9 +108,9 @@ impl Rule for ExpectedMetaStringRule {
     fn explanation(&self) -> &'static str {
         "Sprocket's documentation command reserves certain keys in `meta` and `parameter_meta` \
          sections for documentation generation. These keys (`description`, `help`, \
-         `external_help`, `warning`, `category`, and `group`) must have string values. Using \
-         non-string values will cause the documentation to be rendered incorrectly or not at all. \
-         This rule ensures all reserved keys have string values for proper documentation \
+         `external_help`, `warning`, `category`, and `group`) must have `String` values. Using \
+         non-`String` values will cause the documentation to be rendered incorrectly or not at all. \
+         This rule ensures all reserved keys have `String` values for proper documentation \
          generation."
     }
 
