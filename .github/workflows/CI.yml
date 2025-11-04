@@ -66,6 +66,8 @@ jobs:
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.6.21
       - uses: actions/cache@v4
         with:
           path: |
@@ -118,7 +120,13 @@ jobs:
         if: runner.os == 'Linux'
 
       - name: Run tests
-        run: cargo --locked test --workspace --all-features --no-fail-fast
+        run: cargo --locked llvm-cov test --workspace --all-features --no-fail-fast --cobertura --output-path coverage.xml
+
+      - name: Report test coverage
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          # See https://github.com/marketplace/actions/code-coverage-summary for any more options here
+          filename: coverage.xml
 
   docs:
     runs-on: ubuntu-latest
