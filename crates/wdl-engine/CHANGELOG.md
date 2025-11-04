@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Correctly resolve paths for nested inputs in a workflow ([#446](https://github.com/stjude-rust-labs/sprocket/pull/446)).
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
 
 ## 0.9.0 - 10-14-2025
