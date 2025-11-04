@@ -129,7 +129,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .document()
             .task_by_name(&name)
             .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
-        inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
+        inputs
+            .join_paths(task, &|_| Ok(&test_dir_path), Some(task.name()))
+            .await?;
 
         let evaluator =
             TaskEvaluator::new(config.engine, Default::default(), Events::none()).await?;
