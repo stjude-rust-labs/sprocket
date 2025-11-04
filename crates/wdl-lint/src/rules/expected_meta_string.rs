@@ -65,7 +65,8 @@ fn is_string_value(value: &MetadataValue) -> bool {
     matches!(value, MetadataValue::String(_))
 }
 
-/// Checks metadata object items for reserved keys with non-string values.
+/// Recursively checks metadata object items for reserved keys with non-string values.
+/// This handles both top-level objects and nested objects (like in "outputs").
 fn check_object_items(
     obj: &wdl_ast::v1::MetadataObject,
     diagnostics: &mut Diagnostics,
@@ -74,20 +75,21 @@ fn check_object_items(
     for item in obj.items() {
         let name = item.name();
         let key = name.text();
-
-        if !RESERVED_KEYS.contains(&key) {
-            continue;
-        }
-
         let value = item.value();
 
-        if !is_string_value(&value) {
+        // Check if this key is reserved and has a non-string value
+        if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
             let value_type = get_value_type_name(&value);
             diagnostics.exceptable_add(
                 non_string_value_diagnostic(key, value_type, item.span()),
                 SyntaxElement::from(item.inner().clone()),
                 exceptable_nodes,
             );
+        }
+
+        // Recursively check nested objects
+        if let MetadataValue::Object(ref nested_obj) = value {
+            check_object_items(nested_obj, diagnostics, exceptable_nodes);
         }
     }
 }
@@ -158,50 +160,19 @@ impl Visitor for ExpectedMetaStringRule {
             let key = name.text();
             let value = item.value();
 
-            // Special handling for "outputs" key - check its nested content
-            if key == "outputs" {
-                if let MetadataValue::Object(ref obj) = value {
-                    for output_item in obj.items() {
-                        let output_name = output_item.name();
-                        let output_key = output_name.text();
-                        let output_value = output_item.value();
-
-                        // Check if the key itself is reserved
-                        if RESERVED_KEYS.contains(&output_key) && !is_string_value(&output_value) {
-                            let value_type = get_value_type_name(&output_value);
-                            diagnostics.exceptable_add(
-                                non_string_value_diagnostic(
-                                    output_key,
-                                    value_type,
-                                    output_item.span(),
-                                ),
-                                SyntaxElement::from(output_item.inner().clone()),
-                                &self.exceptable_nodes(),
-                            );
-                        }
-
-                        // Check nested objects
-                        if let MetadataValue::Object(ref nested_obj) = output_value {
-                            check_object_items(nested_obj, diagnostics, &self.exceptable_nodes());
-                        }
-                    }
-                }
-                continue;
-            }
-
-            // Check if this is a reserved key
-            if !RESERVED_KEYS.contains(&key) {
-                continue;
-            }
-
-            // Check if the value is a string
-            if !is_string_value(&value) {
+            // Check if this is a reserved key with a non-string value
+            if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
                 let value_type = get_value_type_name(&value);
                 diagnostics.exceptable_add(
                     non_string_value_diagnostic(key, value_type, item.span()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
+            }
+
+            // Recursively check any nested objects (handles "outputs" and other nested structures)
+            if let MetadataValue::Object(ref obj) = value {
+                check_object_items(obj, diagnostics, &self.exceptable_nodes());
             }
         }
     }
@@ -224,20 +195,13 @@ impl Visitor for ExpectedMetaStringRule {
                 // Simple string description - this is valid
                 MetadataValue::String(_) => {}
 
-                // Object with potential reserved keys
+                // Object with potential reserved keys - recursively check all nested objects
                 MetadataValue::Object(obj) => {
                     check_object_items(&obj, diagnostics, &self.exceptable_nodes());
                 }
 
-                // Any other type - check if it would be a reserved key as a simple description
-                // This handles cases like: parameter_name: 123 (instead of parameter_name:
-                // "description")
+                // Any other type - warn that parameter descriptions should be strings
                 _ => {
-                    let name = item.name();
-                    let _param_name = name.text();
-
-                    // Only warn if this looks like it should be a description
-                    // (simple non-string value for a parameter)
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(
                         non_string_value_diagnostic("description", value_type, item.span()),
