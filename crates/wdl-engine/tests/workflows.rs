@@ -93,7 +93,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .document()
             .workflow()
             .context("document does not contain a workflow")?;
-        inputs.join_paths(workflow, |_| Ok(&test_dir_path)).await?;
+        inputs
+            .join_paths(result.document(), workflow, &|_| Ok(&test_dir_path), workflow.name())
+            .await?;
 
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;

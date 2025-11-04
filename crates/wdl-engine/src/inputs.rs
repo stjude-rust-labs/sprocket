@@ -64,7 +64,8 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
 /// directory with the input path.
 async fn join_paths<'a>(
     inputs: &mut IndexMap<String, Value>,
-    base_dir: impl Fn(&str) -> Result<&'a EvaluationPath>,
+    base_dir: &(impl Fn(&str) -> Result<&'a EvaluationPath> + Sync),
+    fqn_prefix: Option<&str>,
     ty: impl Fn(&str) -> Option<Type>,
 ) -> Result<()> {
     for (name, value) in inputs.iter_mut() {
@@ -75,7 +76,13 @@ async fn join_paths<'a>(
             }
         };
 
-        let base_dir = base_dir(name)?;
+        let fqn = if let Some(p) = fqn_prefix {
+            format!("{p}.{name}")
+        } else {
+            name.to_string()
+        };
+
+        let base_dir = base_dir(&fqn)?;
 
         // Replace the value with `None` temporarily as we need to coerce the value
         // This is useful when this value is the only reference to shared data as this
@@ -151,9 +158,10 @@ impl TaskInputs {
     pub async fn join_paths<'a>(
         &mut self,
         task: &Task,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: &(impl Fn(&str) -> Result<&'a EvaluationPath> + Sync),
+        fqn_prefix: Option<&str>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
+        join_paths(&mut self.inputs, path, fqn_prefix, |name| {
             task.inputs().get(name).map(|input| input.ty().clone())
         })
         .await
@@ -406,13 +414,67 @@ impl WorkflowInputs {
     /// expected types.
     pub async fn join_paths<'a>(
         &mut self,
+        document: &Document,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: &(impl Fn(&str) -> Result<&'a EvaluationPath> + Sync),
+        fqn_prefix: Option<&str>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
+        join_paths(&mut self.inputs, path, fqn_prefix, |name| {
             workflow.inputs().get(name).map(|input| input.ty().clone())
         })
-        .await
+        .await?;
+
+        for (call_name, inputs) in self.calls.iter_mut() {
+            let new_prefix = fqn_prefix
+                .map(|p| format!("{p}.{call_name}"))
+                .unwrap_or_else(|| call_name.to_string());
+
+            let call_ty = workflow
+                .calls()
+                .get(call_name)
+                .with_context(|| format!("call `{}` not found in workflow", call_name))?;
+
+            let call_target_document = if let Some(ns) = call_ty.namespace() {
+                document
+                    .namespace(ns)
+                    .expect("namespace should exist")
+                    .document()
+            } else {
+                document
+            };
+
+            match call_ty.kind() {
+                CallKind::Task => {
+                    let task = call_target_document
+                        .task_by_name(call_ty.name())
+                        .with_context(|| format!("task `{}` not found", call_ty.name()))?;
+                    if let Inputs::Task(t_inputs) = inputs {
+                        t_inputs.join_paths(task, path, Some(&new_prefix)).await?;
+                    } else {
+                        bail!("mismatch input type for task call `{}`", call_name);
+                    }
+                }
+                CallKind::Workflow => {
+                    let workflow = call_target_document
+                        .workflow()
+                        .filter(|w| w.name() == call_ty.name())
+                        .with_context(|| format!("workflow `{}` not found", call_ty.name()))?;
+                    if let Inputs::Workflow(w_inputs) = inputs {
+                        Box::pin(w_inputs.join_paths(
+                            call_target_document,
+                            workflow,
+                            path,
+                            Some(&new_prefix),
+                        ))
+                        .await?
+                    } else {
+                        bail!("mismatch input type for workflow call `{}`", call_name);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Validates the inputs for the given workflow.

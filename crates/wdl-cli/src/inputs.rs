@@ -320,22 +320,7 @@ impl Inputs {
             ))
         }
 
-        Ok(result.map(|(callee_name, inputs)| {
-            let callee_prefix = format!("{callee_name}.");
-
-            let origins = origins
-                .into_iter()
-                .map(|(key, path)| {
-                    if let Some(key) = key.strip_prefix(&callee_prefix) {
-                        (key.to_owned(), path)
-                    } else {
-                        (key, path)
-                    }
-                })
-                .collect::<IndexMap<_, _>>();
-
-            (callee_name, inputs, OriginPaths::Map(origins))
-        }))
+        Ok(result.map(|(callee_name, inputs)| (callee_name, inputs, OriginPaths::Map(origins))))
     }
 }
 

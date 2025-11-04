@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use anyhow::Context;
 use anyhow::anyhow;
 use wdl_analysis::Document;
 use wdl_engine::CancellationContext;
@@ -76,11 +77,15 @@ impl<'a> Evaluator<'a> {
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
                 inputs
-                    .join_paths(task, |key| {
-                        self.origins
-                            .get(key)
-                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                    })
+                    .join_paths(
+                        task,
+                        &|key| {
+                            self.origins.get(key).with_context(|| {
+                                format!("unable to find origin path for key `{key}`")
+                            })
+                        },
+                        Some(self.name),
+                    )
                     .await?;
 
                 let evaluator = TaskEvaluator::new(self.config, cancellation, events).await?;
@@ -106,11 +111,16 @@ impl<'a> Evaluator<'a> {
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
                 inputs
-                    .join_paths(workflow, |key| {
-                        self.origins
-                            .get(key)
-                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                    })
+                    .join_paths(
+                        self.document,
+                        workflow,
+                        &|key| {
+                            self.origins.get(key).with_context(|| {
+                                format!("unable to find origin path for key `{key}`")
+                            })
+                        },
+                        Some(self.name),
+                    )
                     .await?;
 
                 let evaluator = WorkflowEvaluator::new(self.config, cancellation, events).await?;
