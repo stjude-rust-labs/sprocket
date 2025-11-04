@@ -53,10 +53,10 @@ Available rules:
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
+  - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
   - EndingNewline
-  - ExpectedMetaString
   - ExpectedRuntimeKeys
   - ExpressionSpacing
   - HereDocCommands

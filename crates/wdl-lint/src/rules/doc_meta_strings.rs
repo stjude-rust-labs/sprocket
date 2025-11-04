@@ -17,8 +17,8 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
-/// The identifier for the expected meta string rule.
-const ID: &str = "ExpectedMetaString";
+/// The identifier for the doc meta string rule.
+const ID: &str = "DocMetaStrings";
 
 /// Reserved keys that must have string values for Sprocket's doc command.
 const RESERVED_KEYS: &[&str] = &[
@@ -65,8 +65,9 @@ fn is_string_value(value: &MetadataValue) -> bool {
     matches!(value, MetadataValue::String(_))
 }
 
-/// Recursively checks metadata object items for reserved keys with non-string values.
-/// This handles both top-level objects and nested objects (like in "outputs").
+/// Recursively checks metadata object items for reserved keys with non-string
+/// values. This handles both top-level objects and nested objects (like in
+/// "outputs").
 fn check_object_items(
     obj: &wdl_ast::v1::MetadataObject,
     diagnostics: &mut Diagnostics,
@@ -96,9 +97,9 @@ fn check_object_items(
 
 /// Detects non-string values for reserved meta keys.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct ExpectedMetaStringRule;
+pub struct DocMetaStringsRule;
 
-impl Rule for ExpectedMetaStringRule {
+impl Rule for DocMetaStringsRule {
     fn id(&self) -> &'static str {
         ID
     }
@@ -139,7 +140,7 @@ impl Rule for ExpectedMetaStringRule {
     }
 }
 
-impl Visitor for ExpectedMetaStringRule {
+impl Visitor for DocMetaStringsRule {
     fn reset(&mut self) {
         *self = Default::default();
     }
@@ -170,7 +171,8 @@ impl Visitor for ExpectedMetaStringRule {
                 );
             }
 
-            // Recursively check any nested objects (handles "outputs" and other nested structures)
+            // Recursively check any nested objects (handles "outputs" and other nested
+            // structures)
             if let MetadataValue::Object(ref obj) = value {
                 check_object_items(obj, diagnostics, &self.exceptable_nodes());
             }

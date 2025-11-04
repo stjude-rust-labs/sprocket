@@ -1,6 +1,6 @@
 #@ except: DeprecatedObject, MetaDescription, InputSorted
 #@ except: ParameterMetaMatched, MetaSections, RequirementsSection
-#@ except: ExpectedMetaString
+#@ except: DocMetaStrings
 
 version 1.2
 

@@ -3,7 +3,7 @@
 
 version 1.1
 
-# Test workflow for ExpectedMetaString lint rule
+# Test workflow for DocMetaStrings lint rule
 workflow test_expected_meta_string {
     meta {
         description: "This is a valid description"  # Valid string value - should pass
