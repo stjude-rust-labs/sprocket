@@ -119,6 +119,8 @@ jobs:
       - run: docker pull alpine:latest
         if: runner.os == 'Linux'
 
+      - run: du -d2 -h . ~/.cargo
+
       - name: Run tests
         run: cargo -v --locked llvm-cov test --workspace --all-features --no-fail-fast --cobertura --output-path coverage.xml
 
