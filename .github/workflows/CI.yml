@@ -65,7 +65,7 @@ jobs:
           submodules: true
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov --version 0.6.21
       - uses: actions/cache@v4
