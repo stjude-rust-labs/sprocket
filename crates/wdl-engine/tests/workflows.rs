@@ -98,7 +98,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
                 result.document(),
                 workflow,
                 &|_| Ok(&test_dir_path),
-                workflow.name(),
+                Some(workflow.name()),
             )
             .await?;
 
