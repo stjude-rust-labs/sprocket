@@ -17,7 +17,7 @@ workflow test_expected_meta_string {
                 help: "This is the main output",  # Valid - should pass
                 category: 123,  # Should warn: integer instead of string
             },
-            description: 456  # Should warn: integer instead of string
+            description: 456,  # Should warn: integer instead of string
         }
     }
 

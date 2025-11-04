@@ -33,18 +33,10 @@ warning[DocMetaStrings]: metadata key `category` should have a `String` value, f
 warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
    ┌─ tests/lints/doc-meta-strings/source.wdl:20:13
    │
-20 │             description: 456  # Should warn: integer instead of string
+20 │             description: 456,  # Should warn: integer instead of string
    │             ^^^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
    │
    = fix: change the value of `description` to a `String`
-
-note[TrailingComma]: item missing trailing comma
-   ┌─ tests/lints/doc-meta-strings/source.wdl:20:26
-   │
-20 │             description: 456  # Should warn: integer instead of string
-   │                          ^^^
-   │
-   = fix: add a trailing comma
 
 warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
    ┌─ tests/lints/doc-meta-strings/source.wdl:31:9
