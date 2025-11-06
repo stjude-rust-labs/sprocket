@@ -4998,14 +4998,24 @@ enum Color {
   Blue = "#0000FF"
 }
 
+enum Priority {
+  Low = 1,
+  Medium = 5,
+  High = 10
+}
+
 workflow test_enum_value {
   input {
     Color color = Color.Red
+    Priority priority = Priority.High
   }
 
   output {
-    String variant_value = value(color)   # "#FF0000"
-    String implicit = "~{color}"          # "Red" (default to name)
+    String variant_name = "~{color}"   # "Red"
+    String hex_value = value(color)    # "#FF0000"
+    Int priority_num = value(priority) # 10
+    Boolean values_equal = value(Color.Red) == value(Color.Red) # true
+    Boolean variants_equal = Color.Red == Color.Red             # true
   }
 }
 ```

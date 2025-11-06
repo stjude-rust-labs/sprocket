@@ -1,14 +1,11 @@
 version 1.3
 
-enum Foobar {
-    Qoox,
-    Foo,
-    Qiil,
-    Baz,
-    Quux,
+enum Status {
+    Active = 1, Foo = 2,
+    Bar = 3
+    Baz = 4,
+    Quux = object { key: 2 },
 }
 
 workflow test {
-    Foobar s = Foobar.Qoox
-    Foobar v = Foobar.Qiil
 }

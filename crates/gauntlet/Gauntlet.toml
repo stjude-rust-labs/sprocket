@@ -6188,7 +6188,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:224:9: error: expected import statement, struct definition, task definition, or workflow definition, but found `}`"
+message = "task-examples.wdl:224:9: error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `}`"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/template/task-examples.wdl/#L224"
 
 [[diagnostics]]
