@@ -26,6 +26,7 @@ use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::FeatureFlags;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -231,6 +232,9 @@ pub struct ServerOptions {
 
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
+
+    /// Feature flags for enabling experimental features.
+    pub feature_flags: FeatureFlags,
 }
 
 /// Represents an LSP server for analyzing WDL documents.
@@ -274,7 +278,8 @@ impl Server {
                     .filter(|r| exceptions.contains(&r.id().into())),
             ))
             .with_ignore_filename(ignore_name)
-            .with_all_rules(all_rules);
+            .with_all_rules(all_rules)
+            .with_feature_flags(options.feature_flags.clone());
 
         Self {
             client,

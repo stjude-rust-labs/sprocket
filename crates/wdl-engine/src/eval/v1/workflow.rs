@@ -8,6 +8,7 @@ use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -35,10 +36,12 @@ use wdl_analysis::diagnostics::unknown_namespace;
 use wdl_analysis::diagnostics::unknown_task_or_workflow;
 use wdl_analysis::document::ScopeUnion;
 use wdl_analysis::document::Task;
+use wdl_analysis::document::v1::infer_type_from_literal;
 use wdl_analysis::eval::v1::WorkflowGraphBuilder;
 use wdl_analysis::eval::v1::WorkflowGraphNode;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
+use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -54,6 +57,7 @@ use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::version::V1;
 
@@ -63,6 +67,8 @@ use crate::CallValue;
 use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::Enum;
+use crate::EnumVariant;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
@@ -126,6 +132,197 @@ fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: 
     }
 }
 
+/// Checks that a provided type matches the literal expression type.
+///
+/// Panics if the expression does not match the expected literal type.
+macro_rules! expect_ty_match {
+    ($expr:expr, $variant:ident($binding:ident) => $type_name:expr) => {
+        let Expr::Literal(LiteralExpr::$variant($binding)) = $expr else {
+            panic!(
+                "expected `{}` literal expression for `{}` type",
+                $type_name, $type_name
+            );
+        };
+    };
+}
+
+/// Extracts a literal value from an AST expression.
+///
+/// Returns `None` if the value cannot be parsed (e.g., integer overflow).
+fn extract_literal_value(ty: &Type, expr: &Expr) -> Option<Value> {
+    match ty {
+        Type::Primitive(PrimitiveType::Boolean, _) => {
+            expect_ty_match!(expr, Boolean(b) => "Boolean");
+            Some(Value::Primitive(crate::PrimitiveValue::Boolean(b.value())))
+        }
+        Type::Primitive(PrimitiveType::Integer, _) => {
+            expect_ty_match!(expr, Integer(i) => "Integer");
+            Some(Value::Primitive(crate::PrimitiveValue::Integer(i.value()?)))
+        }
+        Type::Primitive(PrimitiveType::Float, _) => {
+            expect_ty_match!(expr, Float(f) => "Float");
+            Some(Value::Primitive(crate::PrimitiveValue::Float(
+                f.value()?.into(),
+            )))
+        }
+        Type::Primitive(PrimitiveType::String, _) => {
+            expect_ty_match!(expr, String(s) => "String");
+            Some(Value::Primitive(crate::PrimitiveValue::new_string(
+                s.text()?.text(),
+            )))
+        }
+        Type::Primitive(PrimitiveType::File, _) => {
+            expect_ty_match!(expr, String(s) => "File");
+            Some(Value::Primitive(crate::PrimitiveValue::new_file(
+                s.text()?.text(),
+            )))
+        }
+        Type::Primitive(PrimitiveType::Directory, _) => {
+            expect_ty_match!(expr, String(s) => "Directory");
+            Some(Value::Primitive(crate::PrimitiveValue::new_directory(
+                s.text()?.text(),
+            )))
+        }
+        Type::Compound(CompoundType::Array(array_ty), _) => {
+            expect_ty_match!(expr, Array(arr) => "Array");
+            let element_type = array_ty.element_type();
+            let elements: Option<Vec<Value>> = arr
+                .elements()
+                .map(|e| extract_literal_value(element_type, &e))
+                .collect();
+            Some(Value::Compound(crate::CompoundValue::Array(
+                crate::Array::new(None, ty.clone(), elements?)
+                    .expect("array construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Pair(pair_ty), _) => {
+            expect_ty_match!(expr, Pair(pair) => "Pair");
+            let (left_expr, right_expr) = pair.exprs();
+            let left = extract_literal_value(pair_ty.left_type(), &left_expr)?;
+            let right = extract_literal_value(pair_ty.right_type(), &right_expr)?;
+            Some(Value::Compound(crate::CompoundValue::Pair(
+                crate::Pair::new(None, ty.clone(), left, right)
+                    .expect("pair construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Map(map_ty), _) => {
+            expect_ty_match!(expr, Map(map) => "Map");
+            let key_type = map_ty.key_type();
+            let value_type = map_ty.value_type();
+            let entries: Option<Vec<(Value, Value)>> = map
+                .items()
+                .map(|item| {
+                    let (key_expr, val_expr) = item.key_value();
+                    let key = extract_literal_value(key_type, &key_expr)?;
+                    let val = extract_literal_value(value_type, &val_expr)?;
+                    Some((key, val))
+                })
+                .collect();
+            Some(Value::Compound(crate::CompoundValue::Map(
+                crate::Map::new(None, ty.clone(), entries?)
+                    .expect("map construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Struct(struct_ty), _) => {
+            expect_ty_match!(expr, Struct(s) => "Struct");
+            let members: Option<indexmap::IndexMap<String, Value>> = s
+                .items()
+                .map(|item| {
+                    let (name, val_expr) = item.name_value();
+                    let name_str = name.text().to_string();
+                    let member_type = struct_ty
+                        .members()
+                        .get(&name_str)
+                        .expect("member should exist in struct type");
+                    let val = extract_literal_value(member_type, &val_expr)?;
+                    Some((name_str, val))
+                })
+                .collect();
+            Some(Value::Compound(crate::CompoundValue::Object(
+                crate::Object::new(members?),
+            )))
+        }
+        Type::Object | Type::OptionalObject => {
+            expect_ty_match!(expr, Object(obj) => "Object");
+            let members: Option<indexmap::IndexMap<String, Value>> = obj
+                .items()
+                .map(|item| {
+                    let (name, val_expr) = item.name_value();
+                    let name_str = name.text().to_string();
+
+                    // Infer the type from the literal expression and recursively extract value
+                    let inferred_ty = infer_type_from_literal(&val_expr)?;
+                    let val = extract_literal_value(&inferred_ty, &val_expr)?;
+                    Some((name_str, val))
+                })
+                .collect();
+            Some(Value::Compound(crate::CompoundValue::Object(
+                crate::Object::new(members?),
+            )))
+        }
+        _ => None,
+    }
+}
+
+/// Builds enums from the document's analyzed enums.
+pub(crate) fn build_enums(document: &Document) -> HashMap<String, Enum> {
+    let mut enums = HashMap::new();
+
+    for (name, r#enum) in document.enums() {
+        let ty = r#enum.ty().expect("enum should have type");
+        let Type::Compound(CompoundType::Enum(enum_type), _) = ty else {
+            unreachable!("non-enum was returned by `document.enums()`");
+        };
+
+        let definition = r#enum.definition();
+        let variants: HashMap<String, Value> = definition
+            .variants()
+            .flat_map(|variant| {
+                let variant_name = variant.name().text().to_string();
+
+                // Get the variant's type from the analyzed enum type
+                let variant_type = enum_type
+                    .variants()
+                    .get(&variant_name)
+                    .expect("variant should exist in type");
+
+                // NOTE: `Type::Union` is used as a sentinel value in
+                // `wdl-analysis` to indicate that the variant type could not be
+                // parsed. As such, skip these variants in building values.
+                if matches!(variant_type, Type::Union) {
+                    return None;
+                }
+
+                let variant_value = if let Some(value_expr) = variant.value() {
+                    extract_literal_value(variant_type, &value_expr)?
+                } else {
+                    // NOTE: when no expression is provided, the default is the
+                    // variant name as a string.
+                    Value::Primitive(crate::PrimitiveValue::new_string(&variant_name))
+                };
+
+                let enum_value = EnumVariant::new(None, ty.clone(), &variant_name, variant_value)
+                    .expect("enum variant should be valid");
+
+                Some((
+                    variant_name,
+                    Value::Compound(crate::CompoundValue::EnumVariant(enum_value)),
+                ))
+            })
+            .collect();
+
+        enums.insert(
+            name.to_string(),
+            Enum {
+                ty: ty.clone(),
+                variants,
+            },
+        );
+    }
+
+    enums
+}
+
 /// A "hidden" scope variable for representing the scope's scatter index.
 ///
 /// This is only present in the scope created for a scatter statement.
@@ -166,6 +363,10 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
+    }
+
+    fn enums(&self) -> Option<&std::collections::HashMap<String, Enum>> {
+        self.state.enums.get()
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -558,6 +759,8 @@ struct State {
     graph: DiGraph<WorkflowGraphNode<SyntaxNode>, ()>,
     /// The map from graph node index to subgraph.
     subgraphs: HashMap<NodeIndex, Subgraph>,
+    /// The enums for the workflow.
+    enums: OnceLock<HashMap<String, Enum>>,
     /// The base directory for evaluation.
     ///
     /// This is the document's directory.
@@ -691,9 +894,14 @@ impl WorkflowEvaluator {
         // Build an evaluation graph for the workflow
         let mut diagnostics = Vec::new();
 
+        // Get enum names from the document
+        let enum_names: HashSet<String> =
+            document.enums().map(|(name, _)| name.to_string()).collect();
+
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided
         let graph = WorkflowGraphBuilder::default()
+            .with_compiled_enum_names(enum_names)
             .build(&definition, &mut diagnostics, |name| inputs.contains(name));
         assert!(
             diagnostics.is_empty(),
@@ -747,11 +955,19 @@ impl WorkflowEvaluator {
             scopes: Default::default(),
             graph,
             subgraphs,
+            enums: OnceLock::new(),
             base_dir,
             temp_dir,
             calls_dir,
             transferer: self.transferer.clone(),
         });
+
+        // Build and populate enums
+        let enums = build_enums(document);
+        state
+            .enums
+            .set(enums)
+            .expect("enums should only be set once");
 
         // Evaluate the root graph to completion
         Self::evaluate_subgraph(
@@ -1138,9 +1354,12 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = state.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(state, scopes.reference(scope));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if state
@@ -1204,9 +1423,12 @@ impl WorkflowEvaluator {
         let value = Self::evaluate_expr(state, Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = state.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(state, scopes.reference(Scopes::OUTPUT_INDEX));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Finally ensure output files exist
         value

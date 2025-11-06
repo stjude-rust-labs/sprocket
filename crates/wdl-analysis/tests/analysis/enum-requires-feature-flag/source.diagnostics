@@ -1,0 +1,12 @@
+error: enumerations are not supported in WDL v1.2
+  ┌─ tests/analysis/enum-requires-feature-flag/source.wdl:5:1
+  │  
+5 │ ╭ enum Status {
+6 │ │     Active,
+7 │ │     Pending,
+8 │ │     Complete
+9 │ │ }
+  │ ╰─^ this enumeration is not supported
+  │  
+  = fix: use WDL v1.3 or higher to use enumerations
+

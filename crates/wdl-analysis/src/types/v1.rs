@@ -116,6 +116,7 @@ use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
 use crate::diagnostics::not_a_task_member;
+use crate::diagnostics::not_an_enum_variant;
 use crate::diagnostics::numeric_mismatch;
 use crate::diagnostics::string_concat_mismatch;
 use crate::diagnostics::too_few_arguments;
@@ -746,7 +747,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
             } else {
                 match ty {
-                    Type::Primitive(..) | Type::Union | Type::None => {}
+                    Type::Primitive(..)
+                    | Type::Union
+                    | Type::None
+                    | Type::Compound(CompoundType::Enum(_), _) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
@@ -1407,6 +1411,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     Type::Compound(CompoundType::Struct(a), _),
                     Type::Compound(CompoundType::Struct(b), _),
                 ) => a == b,
+                (
+                    Type::Compound(CompoundType::Enum(a), _),
+                    Type::Compound(CompoundType::Enum(b), _),
+                ) => a == b,
                 _ => false,
             };
 
@@ -1736,6 +1744,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
                 self.context
                     .add_diagnostic(not_a_struct_member(ty.name(), &name));
+                return None;
+            }
+            Type::Compound(CompoundType::Enum(ty), _) => {
+                if ty.variants().contains_key(name.text()) {
+                    return Some(Type::Compound(CompoundType::Enum(ty.clone()), false));
+                }
+
+                self.context
+                    .add_diagnostic(not_an_enum_variant(ty.name(), &name));
                 return None;
             }
             Type::Compound(CompoundType::Pair(ty), _) => {

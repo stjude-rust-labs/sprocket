@@ -432,6 +432,9 @@ pub enum Token {
     /// The `struct` keyword.
     #[token("struct")]
     StructKeyword,
+    /// The `enum` keyword.
+    #[token("enum")]
+    EnumKeyword,
     /// The `task` keyword.
     #[token("task")]
     TaskKeyword,
@@ -580,6 +583,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::RuntimeKeyword => SyntaxKind::RuntimeKeyword,
             Self::ScatterKeyword => SyntaxKind::ScatterKeyword,
             Self::StructKeyword => SyntaxKind::StructKeyword,
+            Self::EnumKeyword => SyntaxKind::EnumKeyword,
             Self::TaskKeyword => SyntaxKind::TaskKeyword,
             Self::ThenKeyword => SyntaxKind::ThenKeyword,
             Self::TrueKeyword => SyntaxKind::TrueKeyword,
@@ -667,6 +671,7 @@ impl<'a> ParserToken<'a> for Token {
             Self::RuntimeKeyword => "`runtime` keyword",
             Self::ScatterKeyword => "`scatter` keyword",
             Self::StructKeyword => "`struct` keyword",
+            Self::EnumKeyword => "`enum` keyword",
             Self::TaskKeyword => "`task` keyword",
             Self::ThenKeyword => "`then` keyword",
             Self::TrueKeyword => "`true` keyword",

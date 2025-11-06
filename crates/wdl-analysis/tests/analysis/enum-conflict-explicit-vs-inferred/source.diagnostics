@@ -1,0 +1,9 @@
+error: conflicting enum name `Status`
+   ┌─ tests/analysis/enum-conflict-explicit-vs-inferred/source.wdl:10:6
+   │
+ 4 │ enum Status[String] {
+   │      ------ the enum with the conflicting name is here
+   ·
+10 │ enum Status {
+   │      ^^^^^^ this enum conflicts with a previously used name
+

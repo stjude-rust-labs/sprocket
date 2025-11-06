@@ -1,0 +1,9 @@
+error: conflicting enum name `Status`
+  ┌─ tests/analysis/enum-conflicts-with-struct/source.wdl:8:6
+  │
+3 │ struct Status {
+  │        ------ the struct with the conflicting name is here
+  ·
+8 │ enum Status {
+  │      ^^^^^^ this enum conflicts with a previously used name
+

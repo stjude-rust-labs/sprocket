@@ -33,10 +33,11 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::handlers::TypeEvalContext;
+use crate::handlers::common::evaluate_expr_type;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
 use crate::handlers::common::provide_task_documentation;
 use crate::handlers::common::provide_workflow_documentation;
@@ -45,7 +46,6 @@ use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
 use crate::types::Type;
-use crate::types::v1::ExprTypeEvaluator;
 
 /// Handles a hover request.
 ///
@@ -107,12 +107,10 @@ fn resolve_hover_content(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
-    // Finds hover information based on the CST.
     if let Some(content) = resolve_hover_by_context(parent_node, token, document, graph)? {
         return Ok(Some(content));
     }
 
-    // Finds hover information based on the scope.
     if let Some(scope) = document.find_scope_by_position(token.span().start())
         && let Some(name) = scope.lookup(token.text())
     {
@@ -132,7 +130,6 @@ fn resolve_hover_content(
         return Ok(Some(content));
     }
 
-    // Finds hover information across global definitions.
     if let Some(content) = find_global_hover_in_doc(document, token)? {
         return Ok(Some(content));
     }
@@ -177,6 +174,19 @@ fn resolve_hover_by_context(
                     document.root()
                 };
                 return Ok(provide_struct_documentation(s, &root));
+            }
+            if let Some(e) = document.enum_by_name(token.text()) {
+                let root = if let Some(ns_name) = e.namespace() {
+                    // SAFETY: we just found an enum with this namespace name and the document
+                    // guarantees that `document.namespaces` contains a corresponding entry for
+                    // `ns_name`.
+                    let ns = document.namespace(ns_name).unwrap();
+                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                    node.document().unwrap().root()
+                } else {
+                    document.root()
+                };
+                return Ok(provide_enum_documentation(e, &root));
             }
         }
         SyntaxKind::CallTargetNode => {
@@ -248,11 +258,8 @@ fn resolve_hover_by_context(
             let Some(scope) = document.find_scope_by_position(parent_node.span().start()) else {
                 return Ok(None);
             };
-            let mut ctx = TypeEvalContext { scope, document };
-            let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
-            let target_type = evaluator
-                .evaluate_expr(&expr)
-                .unwrap_or(crate::types::Type::Union);
+
+            let target_type = evaluate_expr_type(&expr, scope, document);
 
             let (member_ty, documentation) = match target_type {
                 Type::Compound(CompoundType::Struct(s), _) => {
@@ -288,6 +295,18 @@ fn resolve_hover_by_context(
                     "right" => (Some(p.right_type().clone()), None),
                     _ => (None, None),
                 },
+                Type::Compound(CompoundType::Enum(e), _) => {
+                    if e.variants().contains_key(member.text()) {
+                        let content = format!(
+                            "```wdl\n{}.{}[{}]\n```",
+                            e.name(),
+                            member.text(),
+                            e.value_type()
+                        );
+                        return Ok(Some(content));
+                    }
+                    (None, None)
+                }
                 _ => (None, None),
             };
             if let Some(ty) = member_ty {
@@ -354,6 +373,9 @@ fn resolve_hover_by_context(
 fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
     if let Some(s) = document.struct_by_name(token.text()) {
         return Ok(provide_struct_documentation(s, &document.root()));
+    }
+    if let Some(e) = document.enum_by_name(token.text()) {
+        return Ok(provide_enum_documentation(e, &document.root()));
     }
     if let Some(t) = document.task_by_name(token.text()) {
         return Ok(provide_task_documentation(t, &document.root()));

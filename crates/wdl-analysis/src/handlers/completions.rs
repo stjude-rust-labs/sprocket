@@ -69,10 +69,11 @@ use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::handlers::TypeEvalContext;
+use crate::handlers::common::evaluate_expr_type;
 use crate::handlers::common::make_md_docs;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
 use crate::handlers::common::provide_task_documentation;
 use crate::handlers::common::provide_workflow_documentation;
@@ -82,7 +83,6 @@ use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
 use crate::types::Type;
-use crate::types::v1::ExprTypeEvaluator;
 use crate::types::v1::task_hint_types;
 use crate::types::v1::task_member_type_post_evaluation;
 use crate::types::v1::task_member_type_pre_evaluation;
@@ -195,6 +195,7 @@ pub fn completion(
                     }
                     add_stdlib_completions(&mut items);
                     add_struct_completions(document, &mut items);
+                    add_enum_type_completions(document, &mut items);
                     add_namespace_completions(document, &mut items);
                     add_callable_completions(document, &mut items);
                     break;
@@ -206,6 +207,7 @@ pub fn completion(
                     }
                     add_stdlib_completions(&mut items);
                     add_struct_completions(document, &mut items);
+                    add_enum_type_completions(document, &mut items);
                     add_namespace_completions(document, &mut items);
                     add_callable_completions(document, &mut items);
                     break;
@@ -218,11 +220,13 @@ pub fn completion(
                     }
                     add_stdlib_completions(&mut items);
                     add_struct_completions(document, &mut items);
+                    add_enum_type_completions(document, &mut items);
                     break;
                 }
 
                 SyntaxKind::StructDefinitionNode => {
                     add_struct_completions(document, &mut items);
+                    add_enum_type_completions(document, &mut items);
                     add_keyword_completions(&STRUCT_SECTION_KEYWORDS, &mut items);
                     break;
                 }
@@ -249,6 +253,7 @@ pub fn completion(
                 SyntaxKind::RootNode => {
                     add_keyword_completions(&ROOT_SECTION_KEYWORDS, &mut items);
                     add_struct_completions(document, &mut items);
+                    add_enum_type_completions(document, &mut items);
                     add_namespace_completions(document, &mut items);
                     break;
                 }
@@ -464,13 +469,13 @@ fn add_member_access_completions(
 
     // NOTE: we do type evaluation only for non namespaces or complex types
 
-    let Some(scope) = document.find_scope_by_position(node.span().start()) else {
+    // Use the target node's position to find the scope, not the parent node's
+    // position
+    let Some(scope) = document.find_scope_by_position(target_node.span().start()) else {
         bail!("could not find scope for access expression")
     };
 
-    let mut ctx = TypeEvalContext { scope, document };
-    let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
-    let target_type = evaluator.evaluate_expr(&target_expr).unwrap_or(Type::Union);
+    let target_type = evaluate_expr_type(&target_expr, scope, document);
 
     match (accessor_token.kind(), target_type) {
         (SyntaxKind::Dot, Type::Compound(CompoundType::Struct(s), _)) => {
@@ -507,6 +512,17 @@ fn add_member_access_completions(
                 detail: Some(p.right_type().to_string()),
                 ..Default::default()
             });
+        }
+        (SyntaxKind::Dot, Type::Compound(CompoundType::Enum(e), _)) => {
+            let enum_type = e.value_type();
+            for (variant_name, _) in e.variants() {
+                items.push(CompletionItem {
+                    label: variant_name.to_string(),
+                    kind: Some(CompletionItemKind::ENUM_MEMBER),
+                    detail: Some(format!("{}[{}]", e.name(), enum_type)),
+                    ..Default::default()
+                });
+            }
         }
         (SyntaxKind::OpenBracket, Type::Compound(CompoundType::Map(_), _)) => {
             if let Expr::NameRef(name_ref) = target_expr {
@@ -827,6 +843,20 @@ fn add_struct_completions(document: &Document, items: &mut Vec<CompletionItem>) 
                 });
             }
         }
+    }
+}
+
+/// Adds completions for enum types.
+fn add_enum_type_completions(document: &Document, items: &mut Vec<CompletionItem>) {
+    let root = document.root();
+    for (name, r#enum) in document.enums() {
+        items.push(CompletionItem {
+            label: name.to_string(),
+            kind: Some(CompletionItemKind::ENUM),
+            detail: Some(format!("enum {name}")),
+            documentation: provide_enum_documentation(r#enum, &root).and_then(make_md_docs),
+            ..Default::default()
+        });
     }
 }
 

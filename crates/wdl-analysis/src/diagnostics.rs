@@ -53,6 +53,10 @@ pub enum Context {
     Struct(Span),
     /// The name is a struct member name.
     StructMember(Span),
+    /// The name is an enum name.
+    Enum(Span),
+    /// The name is an enum variant name.
+    EnumVariant(Span),
     /// A name from a scope.
     Name(NameContext),
 }
@@ -65,6 +69,8 @@ impl Context {
             Self::Task(s) => *s,
             Self::Struct(s) => *s,
             Self::StructMember(s) => *s,
+            Self::Enum(s) => *s,
+            Self::EnumVariant(s) => *s,
             Self::Name(n) => n.span(),
         }
     }
@@ -77,6 +83,8 @@ impl fmt::Display for Context {
             Self::Task(_) => write!(f, "task"),
             Self::Struct(_) => write!(f, "struct"),
             Self::StructMember(_) => write!(f, "struct member"),
+            Self::Enum(_) => write!(f, "enum"),
+            Self::EnumVariant(_) => write!(f, "enum variant"),
             Self::Name(n) => n.fmt(f),
         }
     }
@@ -334,6 +342,37 @@ pub fn struct_conflicts_with_import(name: &str, conflicting: Span, import: Span)
         )
 }
 
+/// Creates an "imported enum conflict" diagnostic.
+pub fn imported_enum_conflict(
+    name: &str,
+    conflicting: Span,
+    first: Span,
+    suggest_fix: bool,
+) -> Diagnostic {
+    let diagnostic = Diagnostic::error(format!("conflicting enum name `{name}`"))
+        .with_label(
+            "this import introduces a conflicting definition",
+            conflicting,
+        )
+        .with_label("the first definition was introduced by this import", first);
+
+    if suggest_fix {
+        diagnostic.with_fix("add an `alias` clause to the import to specify a different name")
+    } else {
+        diagnostic
+    }
+}
+
+/// Creates an "enum conflicts with import" diagnostic.
+pub fn enum_conflicts_with_import(name: &str, conflicting: Span, import: Span) -> Diagnostic {
+    Diagnostic::error(format!("conflicting enum name `{name}`"))
+        .with_label("this name conflicts with an imported enum", conflicting)
+        .with_label("the import that introduced the enum is here", import)
+        .with_fix(
+            "either rename the enum or use an `alias` clause on the import with a different name",
+        )
+}
+
 /// Creates a "duplicate workflow" diagnostic.
 pub fn duplicate_workflow<T: TreeToken>(name: &Ident<T>, first: Span) -> Diagnostic {
     Diagnostic::error(format!(
@@ -473,6 +512,26 @@ pub fn not_a_struct_member<T: TreeToken>(name: &str, member: &Ident<T>) -> Diagn
     .with_highlight(member.span())
 }
 
+/// Creates a "not an enum variant" diagnostic.
+pub fn not_an_enum_variant<T: TreeToken>(name: &str, variant: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!(
+        "enum `{name}` does not have a variant named `{variant}`",
+        variant = variant.text()
+    ))
+    .with_highlight(variant.span())
+}
+
+/// Creates a "non-literal enum value" diagnostic.
+pub fn non_literal_enum_value(span: Span) -> Diagnostic {
+    Diagnostic::error("enum variant value must be a literal expression")
+        .with_highlight(span)
+        .with_fix(
+            "enum values must be literal expressions only (string literals, numeric literals, \
+             collection literals, or struct literals); string interpolation, variable references, \
+             and computed expressions are not allowed",
+        )
+}
+
 /// Creates a "not a pair accessor" diagnostic.
 pub fn not_a_pair_accessor<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
@@ -529,6 +588,13 @@ pub fn else_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
     ))
     .with_label("this `else` is not supported", span)
     .with_fix("use WDL v1.3 or higher to use `else` conditional clauses")
+}
+
+/// Creates an "enum not supported" diagnostic.
+pub fn enum_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("enumerations are not supported in WDL v{version}"))
+        .with_label("this enumeration is not supported", span)
+        .with_fix("use WDL v1.3 or higher to use enumerations")
 }
 
 /// Creates a "logical not mismatch" diagnostic.

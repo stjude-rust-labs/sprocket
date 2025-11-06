@@ -1,0 +1,19 @@
+{
+  "enum_in_compound_types.priorities": [
+    "Low",
+    "Medium",
+    "High"
+  ],
+  "enum_in_compound_types.priority_map": {
+    "task1": "High",
+    "task2": "Low"
+  },
+  "enum_in_compound_types.priority_pair": {
+    "left": "Medium",
+    "right": 5
+  },
+  "enum_in_compound_types.first_priority": "Low",
+  "enum_in_compound_types.task1_priority": "High",
+  "enum_in_compound_types.pair_priority": "Medium",
+  "enum_in_compound_types.pair_count": 5
+}

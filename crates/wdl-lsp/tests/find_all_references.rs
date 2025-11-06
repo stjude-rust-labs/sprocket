@@ -189,3 +189,41 @@ async fn should_have_references_to_tasks_output() {
         Range::new(Position::new(13, 26), Position::new(13, 30))
     ); // `name` in `String result = t.name`
 }
+
+#[tokio::test]
+async fn should_have_references_to_enum() {
+    let mut ctx = setup().await;
+
+    // Position of `Status` in `enum Status`
+    let response = find_all_references(&mut ctx, "enum.wdl", Position::new(2, 7), false)
+        .await
+        .unwrap();
+
+    assert_eq!(response.len(), 4); // Two type annotations + two member access
+
+    // Position of `Status` in `enum Status` (with declaration)
+    let response = find_all_references(&mut ctx, "enum.wdl", Position::new(2, 7), true)
+        .await
+        .unwrap();
+
+    assert_eq!(response.len(), 5); // Declaration + two type annotations + two member access
+}
+
+#[tokio::test]
+async fn should_have_references_to_enum_variant() {
+    let mut ctx = setup().await;
+
+    // Position of `Active` in variant definition
+    let response = find_all_references(&mut ctx, "enum.wdl", Position::new(3, 4), false)
+        .await
+        .unwrap();
+
+    assert_eq!(response.len(), 1); // One use: `Status.Active`
+
+    // With declaration
+    let response = find_all_references(&mut ctx, "enum.wdl", Position::new(3, 4), true)
+        .await
+        .unwrap();
+
+    assert_eq!(response.len(), 2); // Declaration + one use
+}

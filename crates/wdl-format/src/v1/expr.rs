@@ -452,6 +452,11 @@ pub fn format_literal_object_item(element: &FormatElement, stream: &mut TokenStr
 pub fn format_literal_object(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal object children");
 
+    let object_keyword = children.next().expect("literal object keyword");
+    assert!(object_keyword.element().kind() == SyntaxKind::ObjectKeyword);
+    (&object_keyword).write(stream);
+    stream.end_word();
+
     let open_brace = children.next().expect("literal object open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
     (&open_brace).write(stream);

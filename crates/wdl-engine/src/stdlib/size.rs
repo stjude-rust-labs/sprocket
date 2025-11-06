@@ -256,6 +256,9 @@ async fn compound_disk_size(
 
             Ok(size)
         }
+        CompoundValue::EnumVariant(e) => {
+            calculate_disk_size(transferer, e.value(), unit, base_dir).await
+        }
     }
 }
 
