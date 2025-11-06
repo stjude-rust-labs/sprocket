@@ -1029,7 +1029,8 @@ impl EnumType {
                     Some(common) => value_type = common,
                     None => {
                         return Err(format!(
-                            "enum `{}` variants have no common type: cannot find common type between `{}` and `{}`",
+                            "enum `{}` variants have no common type: cannot find common type \
+                             between `{}` and `{}`",
                             name, value_type, ty
                         ));
                     }

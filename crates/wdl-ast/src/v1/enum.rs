@@ -33,9 +33,9 @@ impl<N: TreeNode> EnumDefinition<N> {
     /// must coerce to. For example, `enum Status[String]` has a type parameter
     /// of `String`.
     ///
-    /// Returns `None` if no explicit type parameter was specified. In this case,
-    /// the type is inferred from the variant values, or defaults to `Union` if
-    /// the enum has no values.
+    /// Returns `None` if no explicit type parameter was specified. In this
+    /// case, the type is inferred from the variant values, or defaults to
+    /// `Union` if the enum has no values.
     pub fn type_parameter(&self) -> Option<EnumTypeParameter<N>> {
         self.children().next()
     }
