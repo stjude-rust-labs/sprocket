@@ -1,28 +1,28 @@
-error: enum `Status` variants have no common type
+error: enum `Status` variants have no common type: cannot find common type between `String` and `Int`
   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:4:6
   │
 4 │ enum Status {
   │      ^^^^^^ enum defined here
 
-error: enum `DataSets` variants have no common type
+error: enum `DataSets` variants have no common type: cannot find common type between `Array[Int]` and `Array[String]`
    ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:10:6
    │
 10 │ enum DataSets {
    │      ^^^^^^^^ enum defined here
 
-error: enum `Config` variants have no common type
+error: enum `Config` variants have no common type: cannot find common type between `Map[String, Int]` and `Map[String, String]`
    ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:16:6
    │
 16 │ enum Config {
    │      ^^^^^^ enum defined here
 
-error: enum `Coords` variants have no common type
+error: enum `Coords` variants have no common type: cannot find common type between `Pair[Int, String]` and `Pair[String, Int]`
    ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:22:6
    │
 22 │ enum Coords {
    │      ^^^^^^ enum defined here
 
-error: enum `Mixed` variants have no common type
+error: enum `Mixed` variants have no common type: cannot find common type between `Int` and `String`
    ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:28:6
    │
 28 │ enum Mixed {

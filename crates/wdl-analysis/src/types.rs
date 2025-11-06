@@ -2212,7 +2212,8 @@ mod test {
         );
         assert_eq!(
             result.unwrap_err(),
-            "enum `Bad` variants have no common type"
+            "enum `Bad` variants have no common type: cannot find common type between `String` \
+             and `Int`"
         );
     }
 
