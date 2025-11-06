@@ -1,13 +1,10 @@
 //! Results of an analysis.
 
-use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Error;
 use nonempty::NonEmpty;
-use wdl_analysis::AnalysisResult;
-use wdl_ast::AstNode as _;
-use wdl_ast::Diagnostic;
+use wdl::analysis::AnalysisResult;
 
 use crate::analysis::Source;
 
@@ -55,26 +52,6 @@ impl AnalysisResults {
                     .map(|p| p.starts_with(dir))
                     .unwrap_or(false),
             })
-        })
-    }
-
-    /// Iterates over the diagnostics within the analysis result set.
-    ///
-    /// The return type is an iterator that yields tuples that contain the
-    /// following:
-    ///
-    /// - The path to the file containing the diagnostic.
-    /// - The source of the file containing the diagnostic.
-    /// - A reference to the diagnostic itself.
-    pub fn diagnostics(&self) -> impl Iterator<Item = (Rc<String>, Rc<String>, &Diagnostic)> {
-        self.0.iter().flat_map(|result| {
-            let path = Rc::new(result.document().path().to_string());
-            let source = Rc::new(result.document().root().text().to_string());
-
-            result
-                .document()
-                .diagnostics()
-                .map(move |diagnostic| (path.clone(), source.clone(), diagnostic))
         })
     }
 }

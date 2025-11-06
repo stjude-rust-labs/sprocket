@@ -17,7 +17,7 @@ use tracing::trace;
 use tracing::warn;
 use wdl::engine;
 
-use crate::Mode;
+use crate::diagnostics::Mode;
 
 /// Represents the configuration for the Sprocket CLI tool.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

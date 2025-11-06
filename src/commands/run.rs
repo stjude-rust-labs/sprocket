@@ -23,12 +23,6 @@ use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::cli::Analysis;
-use wdl::cli::Evaluator;
-use wdl::cli::Inputs;
-use wdl::cli::analysis::AnalysisResults;
-use wdl::cli::analysis::Source;
-use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -38,8 +32,14 @@ use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::SecretString;
 use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
-use crate::emit_diagnostics;
+use crate::analysis::Analysis;
+use crate::analysis::AnalysisResults;
+use crate::analysis::Source;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
+use crate::eval::Evaluator;
+use crate::inputs::Inputs;
+use crate::inputs::OriginPaths;
 
 /// The delay in showing the progress bar.
 ///

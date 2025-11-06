@@ -8,8 +8,8 @@ use anyhow::anyhow;
 use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
-use wdl_analysis::Analyzer;
-use wdl_engine::path::parse_url;
+use wdl::analysis::Analyzer;
+use wdl::engine::path::parse_url;
 
 /// A source for an analysis.
 #[derive(Clone, Debug)]

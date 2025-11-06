@@ -1,4 +1,8 @@
-//! The Sprocket command line tool.
+//! [The Sprocket command line tool](https://sprocket.bio/).
+//!
+//! This library crate only exports the items necessary to build the `sprocket`
+//! binary crate and associated integration tests. It is not meant to be used by
+//! any other crates.
 
 #![warn(missing_docs)]
 #![warn(rust_2018_idioms)]
@@ -7,142 +11,133 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::borrow::Cow;
-use std::collections::HashMap;
 use std::io::IsTerminal as _;
-use std::io::Write as _;
-use std::sync::LazyLock;
+use std::io::stderr;
+use std::path::PathBuf;
 
 use anyhow::Context as _;
-use anyhow::Result;
-use clap::ValueEnum;
-use codespan_reporting::diagnostic::Label;
-use codespan_reporting::diagnostic::LabelStyle;
-use codespan_reporting::files::SimpleFiles;
-use codespan_reporting::term::Config;
-use codespan_reporting::term::DisplayStyle;
-use codespan_reporting::term::emit;
-use codespan_reporting::term::termcolor::ColorChoice;
-use codespan_reporting::term::termcolor::StandardStream;
-use serde::Deserialize;
-use serde::Serialize;
-use wdl::ast::AstNode as _;
-use wdl::ast::Diagnostic;
-use wdl::engine::CallLocation;
+use clap::CommandFactory as _;
+use clap::Parser as _;
+use clap_verbosity_flag::Verbosity;
+use clap_verbosity_flag::WarnLevel;
+use colored::Colorize as _;
+use commands::Commands;
+pub use config::Config;
+use git_testament::git_testament;
+use git_testament::render_testament;
+use tracing::trace;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt as _;
 
-pub mod commands;
-pub mod config;
+mod analysis;
+mod commands;
+mod config;
+mod diagnostics;
+mod eval;
+mod inputs;
 
 /// ignorefile basename to respect.
 const IGNORE_FILENAME: &str = ".sprocketignore";
 
-/// The maximum number of call locations to print for evaluation errors.
-const MAX_CALL_LOCATIONS: usize = 10;
+git_testament!(TESTAMENT);
 
-/// Configuration for full display style.
-static FULL_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
-    display_style: DisplayStyle::Rich,
-    ..Default::default()
-});
+#[derive(clap::Parser, Debug)]
+#[command(author, version = render_testament!(TESTAMENT), propagate_version = true, about, long_about = None)]
+struct Cli {
+    /// The command to execute.
+    #[command(subcommand)]
+    pub command: Commands,
 
-/// Configuration for one-line display style.
-static ONE_LINE_CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
-    display_style: DisplayStyle::Short,
-    ..Default::default()
-});
+    /// The verbosity for log messages.
+    #[command(flatten)]
+    verbosity: Verbosity<WarnLevel>,
 
-/// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Deserialize, Serialize)]
-pub enum Mode {
-    /// Prints diagnostics as multiple lines.
-    #[default]
-    Full,
+    /// Path to the configuration file.
+    #[arg(long, short, global = true)]
+    config: Vec<PathBuf>,
 
-    /// Prints diagnostics as one line.
-    OneLine,
+    /// Skip searching for and loading configuration files.
+    ///
+    /// Only a configuration file specified as a command line argument will be
+    /// used.
+    #[arg(long, short, global = true)]
+    skip_config_search: bool,
 }
 
-impl std::fmt::Display for Mode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Mode::Full => write!(f, "full"),
-            Mode::OneLine => write!(f, "one-line"),
+async fn inner() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    match std::env::var("RUST_LOG") {
+        Ok(_) => {
+            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
+
+            let subscriber = tracing_subscriber::fmt::Subscriber::builder()
+                .with_env_filter(EnvFilter::from_default_env())
+                .with_writer(indicatif_layer.get_stderr_writer())
+                .with_ansi(stderr().is_terminal())
+                .finish()
+                .with(indicatif_layer);
+
+            tracing::subscriber::set_global_default(subscriber)?;
         }
+        Err(_) => {
+            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
+
+            let subscriber = tracing_subscriber::fmt()
+                .with_max_level(cli.verbosity)
+                .with_writer(indicatif_layer.get_stderr_writer())
+                .with_ansi(stderr().is_terminal())
+                .finish()
+                .with(indicatif_layer);
+
+            tracing::subscriber::set_global_default(subscriber)?;
+        }
+    };
+
+    let config = Config::new(
+        cli.config.iter().map(PathBuf::as_path),
+        cli.skip_config_search,
+    )?;
+    config
+        .validate()
+        .with_context(|| "validating provided configuration")?;
+
+    // Write effective configuration to the log
+    trace!(
+        "effective configuration:\n{}",
+        toml::to_string_pretty(&config).unwrap_or_default()
+    );
+
+    match cli.command {
+        Commands::Analyzer(args) => commands::analyzer::analyzer(args.apply(config)).await,
+        Commands::Check(args) => commands::check::check(args.apply(config)).await,
+        Commands::Completions(args) => {
+            let mut cmd = Cli::command();
+            commands::completions::completions(args, &mut cmd).await
+        }
+        Commands::Config(args) => commands::config::config(args, config),
+        Commands::Explain(args) => commands::explain::explain(args),
+        Commands::Format(args) => commands::format::format(args.apply(config)).await,
+        Commands::Inputs(args) => commands::inputs::inputs(args).await,
+        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
+        Commands::Run(args) => commands::run::run(args.apply(config)).await,
+        Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
+        Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
+        Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
     }
 }
 
-/// Gets the diagnostics display configuration based on the user's preferences.
-fn get_diagnostics_display_config(
-    report_mode: Mode,
-    no_color: bool,
-) -> (&'static Config, StandardStream) {
-    let config = match report_mode {
-        Mode::Full => &FULL_CONFIG,
-        Mode::OneLine => &ONE_LINE_CONFIG,
-    };
-
-    let color_choice = if no_color {
-        ColorChoice::Never
-    } else if std::io::stderr().is_terminal() {
-        ColorChoice::Auto
-    } else {
-        ColorChoice::Never
-    };
-
-    let stream = StandardStream::stderr(color_choice);
-
-    (config, stream)
-}
-
-/// Emits the given diagnostics to the terminal.
-fn emit_diagnostics<'a>(
-    path: &str,
-    source: String,
-    diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
-    backtrace: &[CallLocation],
-    report_mode: Mode,
-    no_color: bool,
-) -> Result<()> {
-    let mut map = HashMap::new();
-    let mut files = SimpleFiles::new();
-
-    let file_id = files.add(Cow::Borrowed(path), source);
-
-    let (config, mut stream) = get_diagnostics_display_config(report_mode, no_color);
-
-    for diagnostic in diagnostics {
-        let diagnostic = diagnostic.to_codespan(file_id).with_labels_iter(
-            backtrace.iter().take(MAX_CALL_LOCATIONS).map(|l| {
-                let id = l.document.id();
-                let file_id = *map.entry(id).or_insert_with(|| {
-                    files.add(l.document.path(), l.document.root().text().to_string())
-                });
-
-                Label {
-                    style: LabelStyle::Secondary,
-                    file_id,
-                    range: l.span.start()..l.span.end(),
-                    message: "called from this location".into(),
-                }
-            }),
+/// The Sprocket command line entrypoint.
+pub async fn sprocket_main() {
+    if let Err(e) = inner().await {
+        eprintln!(
+            "{error}: {e:?}",
+            error = if std::io::stderr().is_terminal() {
+                "error".red().bold()
+            } else {
+                "error".normal()
+            }
         );
-
-        emit(&mut stream, config, &files, &diagnostic).context("failed to emit diagnostic")?;
-
-        if backtrace.len() > MAX_CALL_LOCATIONS {
-            writeln!(
-                &mut stream,
-                "  and {count} more call{s}...",
-                count = backtrace.len() - MAX_CALL_LOCATIONS,
-                s = if backtrace.len() - MAX_CALL_LOCATIONS == 1 {
-                    ""
-                } else {
-                    "s"
-                }
-            )
-            .unwrap();
-        }
+        std::process::exit(1);
     }
-
-    Ok(())
 }

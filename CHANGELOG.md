@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for WDL enumerations (enums) in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* New lint rule `DocMetaStrings` to ensure reserved meta and parameter_meta keys have string values ([#407](https://github.com/stjude-rust-labs/sprocket/pull/407)).
 * A `run.fail` option was added to `sprocket.toml` for controlling the default failure mode ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -21,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Sprocket now supports "slow" and "fast" failure modes for evaluation errors an interruptions (Ctrl-C) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
+
 
 ### Fixed
 

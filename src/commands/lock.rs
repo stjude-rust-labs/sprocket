@@ -14,8 +14,9 @@ use serde::Serialize;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
-use wdl::cli::Analysis;
-use wdl::cli::analysis::Source;
+
+use crate::analysis::Analysis;
+use crate::analysis::Source;
 
 /// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";

@@ -10,9 +10,9 @@ use indexmap::IndexMap;
 use regex::Regex;
 use serde_json::Value;
 use thiserror::Error;
-use wdl_analysis::Document;
-use wdl_engine::Inputs as EngineInputs;
-use wdl_engine::path::EvaluationPath;
+use wdl::analysis::Document;
+use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::path::EvaluationPath;
 
 pub mod file;
 pub mod origin_paths;
@@ -90,80 +90,6 @@ pub enum Input {
         /// The value.
         value: Value,
     },
-}
-
-impl Input {
-    /// Attempts to return a reference to the inner [`EvaluationPath`].
-    ///
-    /// * If the input is a [`Input::File`], a reference to the inner path is
-    ///   returned wrapped in [`Some`].
-    /// * Otherwise, [`None`] is returned.
-    pub fn as_file(&self) -> Option<&EvaluationPath> {
-        match self {
-            Input::File(p) => Some(p),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the inner [`EvaluationPath`].
-    ///
-    /// * If the input is a [`Input::File`], the inner path buffer is returned
-    ///   wrapped in [`Some`].
-    /// * Otherwise, [`None`] is returned.
-    pub fn into_file(self) -> Option<EvaluationPath> {
-        match self {
-            Input::File(p) => Some(p),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and returns the inner [`EvaluationPath`].
-    ///
-    /// # Panics
-    ///
-    /// If the input is not a [`Input::File`].
-    pub fn unwrap_file(self) -> EvaluationPath {
-        match self {
-            Input::File(p) => p,
-            v => panic!("{v:?} is not an `Input::File`"),
-        }
-    }
-
-    /// Attempts to return a reference to the inner key-value pair.
-    ///
-    /// * If the input is a [`Input::Pair`], a reference to the inner key and
-    ///   value is returned wrapped in [`Some`].
-    /// * Otherwise, [`None`] is returned.
-    pub fn as_pair(&self) -> Option<(&str, &Value)> {
-        match self {
-            Input::Pair { key, value } => Some((key.as_str(), value)),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and attempts to return the inner key-value pair.
-    ///
-    /// * If the input is a [`Input::Pair`], the inner key-value pair is
-    ///   returned wrapped in [`Some`].
-    /// * Otherwise, [`None`] is returned.
-    pub fn into_pair(self) -> Option<(String, Value)> {
-        match self {
-            Input::Pair { key, value } => Some((key, value)),
-            _ => None,
-        }
-    }
-
-    /// Consumes `self` and returns the inner key-value pair.
-    ///
-    /// # Panics
-    ///
-    /// If the input is not a [`Input::Pair`].
-    pub fn unwrap_pair(self) -> (String, Value) {
-        match self {
-            Input::Pair { key, value } => (key, value),
-            v => panic!("{v:?} is not an `Input::Pair`"),
-        }
-    }
 }
 
 impl FromStr for Input {
@@ -358,6 +284,20 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    impl Input {
+        /// Consumes `self` and returns the inner key-value pair.
+        ///
+        /// # Panics
+        ///
+        /// If the input is not a [`Input::Pair`].
+        pub fn unwrap_pair(self) -> (String, Value) {
+            match self {
+                Input::Pair { key, value } => (key, value),
+                v => panic!("{v:?} is not an `Input::Pair`"),
+            }
+        }
+    }
 
     #[test]
     fn identifier_regex() {
