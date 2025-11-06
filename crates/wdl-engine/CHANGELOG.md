@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added runtime support for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added a new `fail` configuration option for controlling the default failure mode
   of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
