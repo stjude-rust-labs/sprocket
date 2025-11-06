@@ -65,7 +65,9 @@ jobs:
           submodules: true
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.6.21
       - uses: actions/cache@v4
         with:
           path: |
@@ -117,8 +119,17 @@ jobs:
       - run: docker pull alpine:latest
         if: runner.os == 'Linux'
 
+      - run: du -d2 -h . ~/.cargo
+
       - name: Run tests
-        run: cargo --locked test --workspace --all-features --no-fail-fast
+        run: cargo -v --locked llvm-cov test --workspace --all-features --no-fail-fast --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
 
   docs:
     runs-on: ubuntu-latest
