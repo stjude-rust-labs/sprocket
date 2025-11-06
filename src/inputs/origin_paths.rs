@@ -10,7 +10,7 @@
 //! location of each path.
 
 use indexmap::IndexMap;
-use wdl_engine::path::EvaluationPath;
+use wdl::engine::path::EvaluationPath;
 
 /// An associated set of path origins for a set of input keys.
 ///

@@ -182,7 +182,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
 ///   default engine config for all of the `run/` tests.
 async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
-    let mut sprocket_config = sprocket::config::Config::default();
+    let mut sprocket_config = sprocket::Config::default();
     // For `run` tests, allow overriding the engine config. We restrict the override
     // to this subset of tests in order to avoid messing with the expected output
     // for commands that format the config and therefore expect the config to be
