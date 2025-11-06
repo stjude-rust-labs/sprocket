@@ -355,9 +355,9 @@ impl Config {
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
-    /// Defaults to using the system cache directory.
+    /// Defaults to an operating system specific cache directory for the user.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cache: Option<PathBuf>,
+    pub cache_dir: Option<PathBuf>,
     /// The number of retries for transferring files.
     ///
     /// Defaults to `5`.
@@ -675,6 +675,34 @@ impl ScatterConfig {
     }
 }
 
+/// Represents the supported call caching modes.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallCachingMode {
+    /// Call caching is disabled.
+    ///
+    /// The call cache is not checked and new entries are not added to the
+    /// cache.
+    ///
+    /// This is the default value.
+    #[default]
+    Off,
+    /// Call caching is enabled.
+    ///
+    /// The call cache is checked and new entries are added to the cache.
+    ///
+    /// Defaults the `cacheable` task hint to `true`.
+    On,
+    /// Call caching is enabled only for tasks that explicitly have a
+    /// `cacheable` hint set to `true`.
+    ///
+    /// The call cache is checked and new entries are added to the cache *only*
+    /// for tasks that have the `cacheable` hint set to `true`.
+    ///
+    /// Defaults the `cacheable` task hint to `false`.
+    Explicit,
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -707,6 +735,14 @@ pub struct TaskConfig {
     /// The behavior when a task's `memory` requirement cannot be met.
     #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
+    /// The call cache directory to use for caching task execution results.
+    ///
+    /// Defaults to an operating system specific cache directory for the user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_dir: Option<PathBuf>,
+    /// The call caching mode to use for tasks.
+    #[serde(default)]
+    pub cache: CallCachingMode,
 }
 
 impl TaskConfig {

@@ -143,7 +143,7 @@ impl HttpTransferer {
         cancel: CancellationToken,
         events: Option<broadcast::Sender<TransferEvent>>,
     ) -> Result<Self> {
-        let cache_dir: Cow<'_, Path> = match &config.http.cache {
+        let cache_dir: Cow<'_, Path> = match &config.http.cache_dir {
             Some(dir) => dir.into(),
             None => dirs::cache_dir()
                 .context("failed to determine system cache directory")?
