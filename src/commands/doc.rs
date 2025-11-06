@@ -8,7 +8,6 @@ use anyhow::bail;
 use clap::Parser;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
-use wdl::cli::analysis::Source;
 use wdl::doc::AdditionalScript;
 use wdl::doc::Config;
 use wdl::doc::build_stylesheet;
@@ -17,6 +16,7 @@ use wdl::doc::document_workspace;
 use wdl::doc::install_theme;
 
 use crate::IGNORE_FILENAME;
+use crate::analysis::Source;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]

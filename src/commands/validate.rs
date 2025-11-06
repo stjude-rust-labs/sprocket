@@ -4,14 +4,14 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use wdl::cli::Analysis;
-use wdl::cli::Inputs;
-use wdl::cli::analysis::Source;
-use wdl::cli::inputs::OriginPaths;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::diagnostics::Mode;
+use crate::inputs::Inputs;
+use crate::inputs::OriginPaths;
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]

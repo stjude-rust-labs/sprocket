@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Sprocket now supports "slow" and "fast" failure modes for evaluation errors an interruptions (Ctrl-C) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
+
 
 ### Fixed
 

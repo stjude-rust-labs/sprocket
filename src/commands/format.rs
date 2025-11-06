@@ -14,8 +14,6 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
-use wdl::cli::Analysis;
-use wdl::cli::analysis::Source;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
@@ -23,8 +21,10 @@ use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::IGNORE_FILENAME;
-use crate::Mode;
-use crate::emit_diagnostics;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
