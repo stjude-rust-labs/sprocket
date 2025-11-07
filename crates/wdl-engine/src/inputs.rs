@@ -60,40 +60,6 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
     Ok(())
 }
 
-/// Helper for replacing input paths with a path derived from joining a base
-/// directory with the input path.
-async fn join_paths<'a>(
-    inputs: &mut IndexMap<String, Value>,
-    base_dir: impl Fn(&str) -> Result<&'a EvaluationPath>,
-    ty: impl Fn(&str) -> Option<Type>,
-) -> Result<()> {
-    for (name, value) in inputs.iter_mut() {
-        let ty = match ty(name) {
-            Some(ty) => ty,
-            _ => {
-                continue;
-            }
-        };
-
-        let base_dir = base_dir(name)?;
-
-        // Replace the value with `None` temporarily as we need to coerce the value
-        // This is useful when this value is the only reference to shared data as this
-        // would prevent internal cloning
-        let mut current = std::mem::replace(value, Value::None(value.ty()));
-        if let Ok(mut v) = current.coerce(None, &ty) {
-            drop(current);
-            v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                .await?;
-            current = v;
-        }
-
-        *value = current;
-    }
-
-    Ok(())
-}
-
 /// Represents inputs to a task.
 #[derive(Default, Debug, Clone)]
 pub struct TaskInputs {
@@ -153,10 +119,27 @@ impl TaskInputs {
         task: &Task,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
-            task.inputs().get(name).map(|input| input.ty().clone())
-        })
-        .await
+        for (name, value) in self.inputs.iter_mut() {
+            let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
+                continue;
+            };
+
+            let base_dir = path(name)?;
+
+            // Replace the value with `None` temporarily as we need to coerce the value
+            // This is useful when this value is the only reference to shared data as this
+            // would prevent internal cloning
+            let mut current = std::mem::replace(value, Value::None(value.ty()));
+            if let Ok(mut v) = current.coerce(None, &ty) {
+                drop(current);
+                v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .await?;
+                current = v;
+            }
+
+            *value = current;
+        }
+        Ok(())
     }
 
     /// Validates the inputs for the given task.
@@ -409,10 +392,27 @@ impl WorkflowInputs {
         workflow: &Workflow,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
-            workflow.inputs().get(name).map(|input| input.ty().clone())
-        })
-        .await
+        for (name, value) in self.inputs.iter_mut() {
+            let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
+                continue;
+            };
+
+            let base_dir = path(name)?;
+
+            // Replace the value with `None` temporarily as we need to coerce the value
+            // This is useful when this value is the only reference to shared data as this
+            // would prevent internal cloning
+            let mut current = std::mem::replace(value, Value::None(value.ty()));
+            if let Ok(mut v) = current.coerce(None, &ty) {
+                drop(current);
+                v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .await?;
+                current = v;
+            }
+
+            *value = current;
+        }
+        Ok(())
     }
 
     /// Validates the inputs for the given workflow.
