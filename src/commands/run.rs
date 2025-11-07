@@ -518,17 +518,10 @@ pub async fn run(args: Args) -> Result<()> {
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) => {
-                    if workflow.name() == name {
-                        (name, EngineInputs::Workflow(Default::default()), origins)
-                    } else {
-                        bail!(
-                            "no task or workflow with name `{name}` was found in document `{path}`",
-                            path = document.path()
-                        );
-                    }
+                (None, Some(workflow)) if workflow.name() == name => {
+                    (name, EngineInputs::Workflow(Default::default()), origins)
                 }
-                (None, None) => bail!(
+                _ => bail!(
                     "no task or workflow with name `{name}` was found in document `{path}`",
                     path = document.path()
                 ),
