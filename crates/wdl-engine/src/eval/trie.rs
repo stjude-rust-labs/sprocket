@@ -12,9 +12,9 @@ use anyhow::Result;
 use anyhow::bail;
 use url::Url;
 
+use crate::ContentKind;
 use crate::GuestPath;
 use crate::Input;
-use crate::InputKind;
 use crate::eval::ROOT_NAME;
 use crate::path::EvaluationPath;
 
@@ -116,7 +116,7 @@ impl InputTrie {
     /// Returns an error for an invalid input path.
     pub fn insert(
         &mut self,
-        kind: InputKind,
+        kind: ContentKind,
         path: &str,
         base_dir: &EvaluationPath,
     ) -> Result<Option<usize>> {
@@ -147,7 +147,7 @@ impl InputTrie {
     }
 
     /// Inserts an input with a local path into the trie.
-    fn insert_path(&mut self, kind: InputKind, path: PathBuf) -> Result<usize> {
+    fn insert_path(&mut self, kind: ContentKind, path: PathBuf) -> Result<usize> {
         let mut components = path.components();
 
         let component = components
@@ -220,7 +220,7 @@ impl InputTrie {
     }
 
     /// Inserts an input with a URL into the trie.
-    fn insert_url(&mut self, kind: InputKind, url: Url) -> usize {
+    fn insert_url(&mut self, kind: ContentKind, url: Url) -> usize {
         // Insert for scheme
         let mut node = self
             .urls
@@ -296,7 +296,7 @@ mod test {
     fn unmapped_inputs_unix() {
         let mut trie = InputTrie::new();
         let base_dir: EvaluationPath = "/base".parse().unwrap();
-        trie.insert(InputKind::File, "/foo/bar/baz", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/baz", &base_dir)
             .unwrap();
         assert_eq!(trie.as_slice().len(), 1);
         assert_eq!(trie.as_slice()[0].path().to_str(), Some("/foo/bar/baz"));
@@ -308,7 +308,7 @@ mod test {
     fn unmapped_inputs_windows() {
         let mut trie = InputTrie::new();
         let base_dir: EvaluationPath = "C:\\base".parse().unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\baz", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\baz", &base_dir)
             .unwrap();
         assert_eq!(trie.as_slice().len(), 1);
         assert_eq!(
@@ -323,79 +323,79 @@ mod test {
     fn non_empty_trie_unix() {
         let mut trie = InputTrie::new_with_guest_dir("/inputs/");
         let base_dir: EvaluationPath = "/base".parse().unwrap();
-        trie.insert(InputKind::Directory, "/", &base_dir)
+        trie.insert(ContentKind::Directory, "/", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/bar/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/bar/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/baz/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/baz/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/baz/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/baz/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/bar/foo/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/bar/foo/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/bar/foo/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/bar/foo/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::Directory, "/baz", &base_dir)
+        trie.insert(ContentKind::Directory, "/baz", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "https://example.com/", &base_dir)
+        trie.insert(ContentKind::File, "https://example.com/", &base_dir)
             .unwrap()
             .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
-        trie.insert(InputKind::File, "https://foo.com/bar", &base_dir)
+        trie.insert(ContentKind::File, "https://foo.com/bar", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "foo.txt", &base_dir)
             .unwrap()
             .unwrap();
 
@@ -443,79 +443,79 @@ mod test {
     fn non_empty_trie_windows() {
         let mut trie = InputTrie::new_with_guest_dir("/inputs/");
         let base_dir: EvaluationPath = "C:\\base".parse().unwrap();
-        trie.insert(InputKind::Directory, "C:\\", &base_dir)
+        trie.insert(ContentKind::Directory, "C:\\", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\baz\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\baz\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\baz\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\baz\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\bar\\foo\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\bar\\foo\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\bar\\foo\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\bar\\foo\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::Directory, "C:\\baz", &base_dir)
+        trie.insert(ContentKind::Directory, "C:\\baz", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "https://example.com/", &base_dir)
+        trie.insert(ContentKind::File, "https://example.com/", &base_dir)
             .unwrap()
             .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
-        trie.insert(InputKind::File, "https://foo.com/bar", &base_dir)
+        trie.insert(ContentKind::File, "https://foo.com/bar", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "foo.txt", &base_dir)
             .unwrap()
             .unwrap();
 

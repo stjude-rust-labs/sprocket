@@ -15,10 +15,15 @@ use anyhow::Result;
 pub use expr::*;
 use serde::Serialize;
 pub use task::*;
+use tokio::sync::broadcast;
+use tracing::info;
 
 use super::CancellationContext;
 use super::Events;
+use crate::EngineEvent;
 use crate::TaskExecutionBackend;
+use crate::cache::CallCache;
+use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::http::HttpTransferer;
 use crate::http::Transferer;
@@ -62,6 +67,10 @@ pub struct TopLevelEvaluator {
     cancellation: CancellationContext,
     /// The transferer to use for expression evaluation.
     transferer: Arc<dyn Transferer>,
+    /// The call cache to use for task evaluation.
+    cache: Option<CallCache>,
+    /// The events for evaluation.
+    events: Option<broadcast::Sender<EngineEvent>>,
 }
 
 impl TopLevelEvaluator {
@@ -82,18 +91,28 @@ impl TopLevelEvaluator {
         let backend = config
             .create_backend(root_dir, events.crankshaft().clone())
             .await?;
-        let transferer = HttpTransferer::new(
+        let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.token(),
             events.transfer().clone(),
-        )?;
+        )?);
+
+        let cache = match config.task.cache {
+            CallCachingMode::Off => {
+                info!("call caching is disabled");
+                None
+            }
+            _ => Some(CallCache::new(config.task.cache_dir.as_deref(), transferer.clone()).await?),
+        };
 
         Ok(Self {
             root_dir: root_dir.to_path_buf(),
             config,
             backend,
             cancellation,
-            transferer: Arc::new(transferer),
+            transferer,
+            cache,
+            events: events.engine().clone(),
         })
     }
 }

@@ -404,8 +404,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
     fn constraints(
         &self,
-        requirements: &std::collections::HashMap<String, crate::Value>,
-        hints: &std::collections::HashMap<String, crate::Value>,
+        requirements: &HashMap<String, Value>,
+        hints: &HashMap<String, crate::Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints> {
         let mut required_cpu = v1::cpu(requirements);
         let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);

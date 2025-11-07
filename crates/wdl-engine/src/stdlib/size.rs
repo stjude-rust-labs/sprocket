@@ -18,6 +18,7 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
+use crate::HiddenValue;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
@@ -172,13 +173,20 @@ fn calculate_disk_size<'a>(
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
             Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
-            Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
-            Value::Input(_) => bail!("the size of an input value cannot be calculated"),
-            Value::Output(_) => bail!("the size of an output value cannot be calculated"),
-            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
+            Value::Hidden(HiddenValue::Hints(_)) => {
+                bail!("the size of a hints value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Input(_)) => {
+                bail!("the size of an input value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Output(_)) => {
+                bail!("the size of an output value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::TaskPreEvaluation(_))
+            | Value::Hidden(HiddenValue::TaskPostEvaluation(_)) => {
                 bail!("the size of a task variable cannot be calculated")
             }
-            Value::PreviousTaskData(_) => {
+            Value::Hidden(HiddenValue::PreviousTaskData(_)) => {
                 bail!("the size of a task.previous value cannot be calculated")
             }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),

@@ -20,6 +20,7 @@ use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
+use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl_analysis::Document;
@@ -47,6 +48,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
+use wdl_ast::v1::TASK_HINT_CACHEABLE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_GPU;
 use wdl_ast::v1::TASK_HINT_MAX_CPU;
@@ -68,13 +70,15 @@ use wdl_ast::version::V1;
 use super::TopLevelEvaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::ContentKind;
+use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
 use crate::GuestPath;
+use crate::HiddenValue;
 use crate::HostPath;
 use crate::Input;
-use crate::InputKind;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
@@ -86,10 +90,13 @@ use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
-use crate::TaskSpawnInfo;
-use crate::TaskSpawnRequest;
 use crate::Value;
+use crate::backend::TaskSpawnInfo;
+use crate::backend::TaskSpawnRequest;
+use crate::cache::KeyRequest;
+use crate::config::CallCachingMode;
 use crate::config::Config;
+use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::MAX_RETRIES;
 use crate::convert_unit_string;
 use crate::diagnostics::decl_evaluation_failed;
@@ -103,9 +110,9 @@ use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
-use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
+use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
 
 /// The default container requirement.
@@ -518,6 +525,17 @@ pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
 }
 
+/// Gets the `cacheable` hint from a hints map with config fallback.
+pub(crate) fn cacheable(hints: &HashMap<String, Value>, config: &Config) -> bool {
+    hints
+        .get(TASK_HINT_CACHEABLE)
+        .and_then(|v| v.as_boolean())
+        .unwrap_or(match config.task.cache {
+            CallCachingMode::Off | CallCachingMode::Explicit => false,
+            CallCachingMode::On => true,
+        })
+}
+
 /// Used to evaluate expressions in tasks.
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
@@ -638,7 +656,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
-        self.state.insert_backend_input(InputKind::File, path)?;
+        self.state.insert_backend_input(ContentKind::File, path)?;
         Ok(())
     }
 }
@@ -709,12 +727,13 @@ impl<'a> State<'a> {
             InputTrie::new()
         };
 
-        let document_path = document.path();
-        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
-            format!("document `{document_path}` does not have a parent directory")
+        let document_path = document.uri();
+        let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
+            format!(
+                "document `{path}` does not have a parent directory",
+                path = document.path()
+            )
         })?;
-
-        base_dir.make_absolute();
 
         Ok(Self {
             top_level,
@@ -771,9 +790,9 @@ impl<'a> State<'a> {
             // Insert a backend input for the path
             if let Some(index) = self.insert_backend_input(
                 if is_file {
-                    InputKind::File
+                    ContentKind::File
                 } else {
-                    InputKind::Directory
+                    ContentKind::Directory
                 },
                 path,
             )? {
@@ -837,7 +856,11 @@ impl<'a> State<'a> {
     /// Inserts a backend input into the state.
     ///
     /// Responsible for mapping host and guest paths.
-    fn insert_backend_input(&mut self, kind: InputKind, path: &HostPath) -> Result<Option<usize>> {
+    fn insert_backend_input(
+        &mut self,
+        kind: ContentKind,
+        path: &HostPath,
+    ) -> Result<Option<usize>> {
         // Insert an input for the path
         if let Some(index) = self
             .backend_inputs
@@ -996,6 +1019,7 @@ impl TopLevelEvaluator {
             current += 1;
         }
 
+        let mut perform_cleanup = false;
         let env = Arc::new(mem::take(&mut state.env));
         // Spawn the task in a retry loop
         let mut attempt = 0;
@@ -1024,47 +1048,169 @@ impl TopLevelEvaluator {
                 .into());
             }
 
-            let mut attempt_dir = task_eval_root.clone();
-            attempt_dir.push("attempts");
-            attempt_dir.push(attempt.to_string());
+            let backend_inputs = state.localize_inputs(id).await?;
 
-            let request = TaskSpawnRequest::new(
-                id.to_string(),
-                TaskSpawnInfo::new(
-                    command,
-                    state.localize_inputs(id).await?,
-                    requirements.clone(),
-                    hints.clone(),
-                    env.clone(),
-                    self.transferer.clone(),
-                ),
-                attempt,
-                attempt_dir.clone(),
-                task_eval_root.clone(),
-                temp_dir.clone(),
-            );
+            // Calculate the cache key on the first attempt only
+            let mut key = if attempt == 0
+                && let Some(cache) = &self.cache
+            {
+                if cacheable(&hints, &self.config) {
+                    let request = KeyRequest {
+                        document: state.document,
+                        task_id: id,
+                        command: &command,
+                        requirements: requirements.as_ref(),
+                        hints: hints.as_ref(),
+                        container: &container(&requirements, self.config.task.container.as_deref()),
+                        shell: self
+                            .config
+                            .task
+                            .shell
+                            .as_deref()
+                            .unwrap_or(DEFAULT_TASK_SHELL),
+                        inputs: &backend_inputs,
+                    };
 
-            let result = self
-                .backend
-                .spawn(request, self.cancellation.token())
-                .with_context(|| {
-                    format!(
-                        "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
-                        name = task.name(),
-                        path = document.path(),
-                    )
-                })?
-                .await
-                .expect("failed to receive response from spawned task")
-                .map_err(|e| {
-                    EvaluationError::new(
-                        state.document.clone(),
-                        task_execution_failed(e, task.name(), id, task.name_span()),
-                    )
-                })?;
+                    match cache.key(request).await {
+                        Ok(key) => {
+                            debug!(
+                                task_id = id,
+                                task_name = state.task.name(),
+                                document = state.document.uri().as_str(),
+                                "task cache key is `{key}`"
+                            );
+                            Some(key)
+                        }
+                        Err(e) => {
+                            warn!(
+                                task_id = id,
+                                task_name = state.task.name(),
+                                document = state.document.uri().as_str(),
+                                "call caching disabled due to cache key calculation failure: {e:#}"
+                            );
+                            None
+                        }
+                    }
+                } else if self.config.task.cache == CallCachingMode::On {
+                    debug!(
+                        task_id = id,
+                        task_name = state.task.name(),
+                        document = state.document.uri().as_str(),
+                        "task is not cacheable due to `cacheable` hint set to `true`"
+                    );
+                    None
+                } else {
+                    debug!(
+                        task_id = id,
+                        task_name = state.task.name(),
+                        document = state.document.uri().as_str(),
+                        "task is not cacheable due to `cacheable` hint not set to `true` \
+                         (explicit mode)"
+                    );
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Lookup the results from the cache
+            let result = if let Some(cache_key) = &key {
+                match self
+                    .cache
+                    .as_ref()
+                    .expect("should have cache")
+                    .get(cache_key)
+                    .await
+                {
+                    Ok(Some(results)) => {
+                        info!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "task execution was skipped due to previous result being present in \
+                             the call cache"
+                        );
+
+                        // Notify that we've reused a cached execution result.
+                        if let Some(sender) = &self.events {
+                            let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
+                                id: id.to_string(),
+                            });
+                        }
+
+                        // We're serving the results from the call cache; no need to update, so set
+                        // the key to `None`
+                        key = None;
+                        Some(results)
+                    }
+                    Ok(None) => {
+                        debug!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "call cache miss for key `{cache_key}`"
+                        );
+                        None
+                    }
+                    Err(e) => {
+                        info!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "ignoring call cache entry: {e:#}"
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+
+            let result = match result {
+                Some(result) => result,
+                None => {
+                    let mut attempt_dir = task_eval_root.clone();
+                    attempt_dir.push("attempts");
+                    attempt_dir.push(attempt.to_string());
+                    let request = TaskSpawnRequest::new(
+                        id.to_string(),
+                        TaskSpawnInfo::new(
+                            command,
+                            backend_inputs,
+                            requirements.clone(),
+                            hints.clone(),
+                            env.clone(),
+                            self.transferer.clone(),
+                        ),
+                        attempt,
+                        attempt_dir.clone(),
+                        task_eval_root.clone(),
+                        temp_dir.clone(),
+                    );
+
+                    perform_cleanup = true;
+                    self.backend
+                        .spawn(request, self.cancellation.token())
+                        .with_context(|| {
+                            format!(
+                                "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
+                                name = task.name(),
+                                path = document.path(),
+                            )
+                        })?
+                        .await
+                        .expect("failed to receive response from spawned task")
+                        .map_err(|e| {
+                            EvaluationError::new(
+                                state.document.clone(),
+                                task_execution_failed(e, task.name(), id, task.name_span()),
+                            )
+                        })?
+                }
+            };
 
             // Update the task variable
-            let evaluated = EvaluatedTask::new(attempt_dir, result)?;
+            let evaluated = EvaluatedTask::new(result);
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -1107,13 +1253,41 @@ impl TopLevelEvaluator {
                 continue;
             }
 
+            // Task execution succeeded; update the cache entry if we have a key
+            if let Some(key) = key {
+                match self
+                    .cache
+                    .as_ref()
+                    .expect("should have cache")
+                    .put(key, &evaluated.result)
+                    .await
+                {
+                    Ok(key) => {
+                        debug!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "updated call cache entry for key `{key}`"
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "failed to update call cache entry for task `{name}` (task id \
+                             `{id}`): cache entry has been discard: {e:#}",
+                            name = task.name()
+                        );
+                    }
+                }
+            }
+
             break evaluated;
         };
 
         // Perform backend cleanup before output evaluation
-        if let Some(cleanup) = self
-            .backend
-            .cleanup(&evaluated.result.work_dir, self.cancellation.token())
+        if perform_cleanup
+            && let Some(cleanup) = self
+                .backend
+                .cleanup(&evaluated.result.work_dir, self.cancellation.token())
         {
             cleanup.await;
         }
@@ -1619,9 +1793,9 @@ impl<'a> State<'a> {
 
             let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
             if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = Value::TaskPreEvaluation(task);
+                *v = HiddenValue::TaskPreEvaluation(task).into();
             } else {
-                scope.insert(TASK_VAR_NAME, Value::TaskPreEvaluation(task));
+                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPreEvaluation(task));
             }
         }
 
@@ -1698,9 +1872,9 @@ impl<'a> State<'a> {
 
             let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
             if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = Value::TaskPostEvaluation(task);
+                *v = HiddenValue::TaskPostEvaluation(task).into();
             } else {
-                scope.insert(TASK_VAR_NAME, Value::TaskPostEvaluation(task));
+                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPostEvaluation(task));
             }
         }
 
@@ -1763,10 +1937,11 @@ impl<'a> State<'a> {
                     let output_path = match (&mut output_path, &evaluated.result.work_dir) {
                         (EvaluationPath::Local(joined), EvaluationPath::Local(base))
                             if joined.starts_with(base)
-                                || joined.starts_with(&evaluated.attempt_dir) =>
+                                || joined == evaluated.stdout().as_file().unwrap().as_str()
+                                || joined == evaluated.stderr().as_file().unwrap().as_str() =>
                         {
-                            // The joined path is contained within the work directory or attempt
-                            // directory
+                            // The joined path is contained within the work directory or is
+                            // stdout/stderr
                             HostPath::new(String::try_from(output_path)?)
                         }
                         (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {

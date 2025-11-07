@@ -3,7 +3,6 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
-use std::path::absolute;
 use std::str::FromStr;
 
 use anyhow::Context;
@@ -12,6 +11,12 @@ use anyhow::anyhow;
 use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
+
+use crate::ContentKind;
+use crate::digest::Digest;
+use crate::digest::calculate_local_digest;
+use crate::digest::calculate_remote_digest;
+use crate::http::Transferer;
 
 /// The URL schemes supported by this crate.
 const SUPPORTED_SCHEMES: &[&str] = &["http", "https", "file", "az", "s3", "gs"];
@@ -48,7 +53,7 @@ pub fn has_supported_scheme(url: &Url) -> bool {
 }
 
 /// Represents a path used in evaluation that may be either local or remote.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EvaluationPath {
     /// The path is local (i.e. on the host).
     Local(PathBuf),
@@ -190,13 +195,15 @@ impl EvaluationPath {
         Display(self)
     }
 
-    /// Makes the evaluation path absolute if it is a local path.
-    pub fn make_absolute(&mut self) {
-        if let Self::Local(path) = self
-            && !path.is_absolute()
-            && let Ok(abs) = absolute(&path)
-        {
-            *path = abs;
+    /// Calculates the content digest of the evaluation path.
+    pub async fn calculate_digest(
+        &self,
+        transferer: &dyn Transferer,
+        kind: ContentKind,
+    ) -> Result<Digest> {
+        match self {
+            Self::Local(path) => calculate_local_digest(path, kind).await,
+            Self::Remote(url) => calculate_remote_digest(transferer, url, kind).await,
         }
     }
 }

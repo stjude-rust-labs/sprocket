@@ -12,6 +12,7 @@ documentation = "https://docs.rs/wdl-engine"
 
 [dependencies]
 anyhow = { workspace = true }
+arrayvec = { workspace = true }
 bimap = { workspace = true }
 blake3 = { workspace = true }
 bytesize = { workspace = true }

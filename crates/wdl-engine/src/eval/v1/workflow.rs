@@ -688,12 +688,13 @@ impl TopLevelEvaluator {
             )
         })?;
 
-        let document_path = document.path();
-        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
-            format!("document `{document_path}` does not have a parent directory")
+        let document_path = document.uri();
+        let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
+            format!(
+                "document `{path}` does not have a parent directory",
+                path = document.path()
+            )
         })?;
-
-        base_dir.make_absolute();
 
         let state = Arc::new(State {
             top_level: self.clone(),
@@ -1151,9 +1152,7 @@ impl State {
                 self.base_dir.as_local(),
                 Some(self.transferer()),
                 &|path| {
-                    if !path::is_supported_url(path.as_str())
-                        && Path::new(path.as_str()).is_relative()
-                    {
+                    if !path::is_supported_url(path.as_str()) && path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
                     }
 
@@ -1851,10 +1850,14 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator =
-            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), Events::none())
-                .await
-                .unwrap();
+        let evaluator = TopLevelEvaluator::new(
+            root_dir.path(),
+            config,
+            Default::default(),
+            Events::disabled(),
+        )
+        .await
+        .unwrap();
 
         // Evaluate the `test` workflow in `source.wdl` using the default local backend
         let mut inputs = WorkflowInputs::default();
@@ -2008,10 +2011,14 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator =
-            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), Events::none())
-                .await
-                .unwrap();
+        let evaluator = TopLevelEvaluator::new(
+            root_dir.path(),
+            config,
+            Default::default(),
+            Events::disabled(),
+        )
+        .await
+        .unwrap();
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2225,7 +2232,7 @@ workflow w {
         };
         let state = Arc::<State>::default();
         let events_state = state.clone();
-        let events = Events::crankshaft_only(100);
+        let events = Events::new(100);
         let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
         let task = tokio::spawn(async move {
             loop {
@@ -2333,7 +2340,7 @@ workflow w {
             root_dir.path(),
             config,
             cancellation.clone(),
-            Events::none(),
+            Events::disabled(),
         )
         .await
         .unwrap();

@@ -42,6 +42,16 @@ pub const DEFAULT_BACKEND_NAME: &str = "default";
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
 
+/// Gets tne default root cache directory for the user.
+pub fn cache_dir() -> Result<PathBuf> {
+    /// The subdirectory within the user's cache directory for all caches
+    const CACHE_DIR_ROOT: &str = "sprocket";
+
+    Ok(dirs::cache_dir()
+        .context("failed to determine user cache directory")?
+        .join(CACHE_DIR_ROOT))
+}
+
 /// Represents a secret string that is, by default, redacted for serialization.
 ///
 /// This type is a wrapper around [`secrecy::SecretString`].
