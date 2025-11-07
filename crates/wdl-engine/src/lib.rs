@@ -1,10 +1,11 @@
 //! Execution engine for Workflow Description Language (WDL) documents.
 
 mod backend;
+mod cache;
 pub mod config;
 pub mod diagnostics;
+mod digest;
 mod eval;
-pub(crate) mod hash;
 pub(crate) mod http;
 mod inputs;
 mod outputs;

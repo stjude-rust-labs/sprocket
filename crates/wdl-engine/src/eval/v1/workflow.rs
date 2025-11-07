@@ -22,8 +22,10 @@ use petgraph::graph::NodeIndex;
 use petgraph::visit::Bfs;
 use petgraph::visit::EdgeRef;
 use tokio::sync::RwLock;
+use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use tracing::debug;
+use tracing::info;
 use tracing::trace;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::Io;
@@ -63,6 +65,7 @@ use crate::CallValue;
 use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
@@ -72,23 +75,24 @@ use crate::Outputs;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
-use crate::TaskExecutionBackend;
 use crate::Value;
 use crate::WorkflowInputs;
+use crate::backend::TaskExecutionBackend;
+use crate::cache::CallCache;
+use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::http::HttpTransferer;
 use crate::http::Transferer;
-use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
-use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::TaskEvaluator;
+use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -568,6 +572,10 @@ struct State {
     calls_dir: PathBuf,
     /// The transferer for expression evaluation.
     transferer: Arc<dyn Transferer>,
+    /// The call cache to use for task evaluation.
+    cache: Option<CallCache>,
+    /// The sender for WDL engine events.
+    events: Option<broadcast::Sender<EngineEvent>>,
 }
 
 /// Represents a WDL V1 workflow evaluator.
@@ -583,6 +591,10 @@ pub struct WorkflowEvaluator {
     cancellation: CancellationContext,
     /// The transferer for expression evaluation.
     transferer: Arc<dyn Transferer>,
+    /// The call cache to use for task evaluation.
+    cache: Option<CallCache>,
+    /// The sender for WDL engine events.
+    events: Option<broadcast::Sender<EngineEvent>>,
 }
 
 impl WorkflowEvaluator {
@@ -601,17 +613,27 @@ impl WorkflowEvaluator {
 
         let config = Arc::new(config);
         let backend = config.create_backend(events.crankshaft().clone()).await?;
-        let transferer = HttpTransferer::new(
+        let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.token(),
             events.transfer().clone(),
-        )?;
+        )?);
+
+        let cache = match config.task.cache {
+            CallCachingMode::Off => {
+                info!("call caching is disabled");
+                None
+            }
+            _ => Some(CallCache::new(config.task.cache_dir.as_deref(), transferer.clone()).await?),
+        };
 
         Ok(Self {
             config,
             backend,
             cancellation,
-            transferer: Arc::new(transferer),
+            transferer,
+            cache,
+            events: events.engine().clone(),
         })
     }
 
@@ -731,12 +753,13 @@ impl WorkflowEvaluator {
             )
         })?;
 
-        let document_path = document.path();
-        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
-            format!("document `{document_path}` does not have a parent directory")
+        let document_path = document.uri();
+        let base_dir = EvaluationPath::parent_of(document_path.as_str()).with_context(|| {
+            format!(
+                "document `{path}` does not have a parent directory",
+                path = document.path()
+            )
         })?;
-
-        base_dir.make_absolute();
 
         let state = Arc::new(State {
             config: self.config.clone(),
@@ -751,6 +774,8 @@ impl WorkflowEvaluator {
             temp_dir,
             calls_dir,
             transferer: self.transferer.clone(),
+            cache: self.cache.clone(),
+            events: self.events.clone(),
         });
 
         // Evaluate the root graph to completion
@@ -1215,7 +1240,7 @@ impl WorkflowEvaluator {
                 state.base_dir.as_local(),
                 Some(state.transferer.as_ref()),
                 &|path| {
-                    if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                    if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
                     }
 
@@ -1684,6 +1709,8 @@ impl WorkflowEvaluator {
                         state.backend.clone(),
                         state.cancellation.clone(),
                         state.transferer.clone(),
+                        state.cache.clone(),
+                        state.events.clone(),
                     ),
                 ),
             ),
@@ -1695,6 +1722,8 @@ impl WorkflowEvaluator {
                         backend: state.backend.clone(),
                         cancellation: state.cancellation.clone(),
                         transferer: state.transferer.clone(),
+                        cache: state.cache.clone(),
+                        events: state.events.clone(),
                     }),
                 ),
                 _ => {
@@ -1916,7 +1945,7 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::none())
+        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::disabled())
             .await
             .unwrap();
 
@@ -2072,7 +2101,7 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::none())
+        let evaluator = WorkflowEvaluator::new(config, Default::default(), Events::disabled())
             .await
             .unwrap();
 
@@ -2288,7 +2317,7 @@ workflow w {
         };
         let state = Arc::<State>::default();
         let events_state = state.clone();
-        let events = Events::crankshaft_only(100);
+        let events = Events::new(100);
         let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
         let task = tokio::spawn(async move {
             loop {
@@ -2392,7 +2421,7 @@ workflow w {
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = WorkflowEvaluator::new(config, cancellation.clone(), Events::none())
+        let evaluator = WorkflowEvaluator::new(config, cancellation.clone(), Events::disabled())
             .await
             .unwrap();
 
