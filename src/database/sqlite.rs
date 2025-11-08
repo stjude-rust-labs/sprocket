@@ -149,7 +149,7 @@ impl Database for SqliteDatabase {
 
         let workflow: Workflow = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, created_at, started_at, completed_at \
+             execution_dir, started_at, completed_at, created_at \
              from workflows where id = ?",
         )
         .bind(id.to_string())
@@ -202,7 +202,7 @@ impl Database for SqliteDatabase {
     async fn get_workflow(&self, id: Uuid) -> Result<Option<Workflow>> {
         let workflow: Option<Workflow> = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, created_at, started_at, completed_at \
+             execution_dir, started_at, completed_at, created_at \
              from workflows where id = ?",
         )
         .bind(id.to_string())
@@ -215,7 +215,7 @@ impl Database for SqliteDatabase {
     async fn list_workflows_by_invocation(&self, invocation_id: Uuid) -> Result<Vec<Workflow>> {
         let workflows: Vec<Workflow> = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, created_at, started_at, completed_at \
+             execution_dir, started_at, completed_at, created_at \
              from workflows where invocation_id = ? order by created_at",
         )
         .bind(invocation_id.to_string())

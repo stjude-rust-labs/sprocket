@@ -3,7 +3,9 @@ create table if not exists metadata (
     -- Metadata key identifier
     key text primary key not null,
     -- Metadata value
-    value text not null
+    value text not null,
+    -- Timestamp when the metadata entry was created
+    created_at timestamp not null default current_timestamp
 );
 
 insert into metadata (key, value) values ('schema_version', '1');
@@ -40,12 +42,12 @@ create table if not exists workflows (
     error text,
     -- Path to the workflow execution directory
     execution_dir text not null,
-    -- Timestamp when the workflow was created
-    created_at timestamp not null default current_timestamp,
     -- Timestamp when the workflow started executing
     started_at timestamp,
     -- Timestamp when the workflow finished executing
     completed_at timestamp,
+    -- Timestamp when the workflow was created
+    created_at timestamp not null default current_timestamp,
     foreign key (invocation_id) references invocations(id)
 );
 
@@ -63,7 +65,7 @@ create table if not exists index_log (
     index_path text not null,
     -- Path to the actual workflow output file being symlinked
     target_path text not null,
-    -- Timestamp when the symlink was created
+    -- Timestamp when the index entry was created
     created_at timestamp not null default current_timestamp,
     foreign key (workflow_id) references workflows(id)
 );

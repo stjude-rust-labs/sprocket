@@ -139,12 +139,12 @@ pub struct Workflow {
     pub error: Option<String>,
     /// Path to the workflow execution directory.
     pub execution_dir: String,
-    /// Timestamp when the workflow was created.
-    pub created_at: DateTime<Utc>,
     /// Timestamp when the workflow started executing.
     pub started_at: Option<DateTime<Utc>>,
     /// Timestamp when the workflow finished executing.
     pub completed_at: Option<DateTime<Utc>>,
+    /// Timestamp when the workflow was created.
+    pub created_at: DateTime<Utc>,
 }
 
 /// Index log entry tracking symlink creation for workflow outputs.
