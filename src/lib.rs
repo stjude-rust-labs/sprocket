@@ -32,6 +32,7 @@ use tracing_subscriber::layer::SubscriberExt as _;
 mod analysis;
 mod commands;
 mod config;
+pub mod database;
 mod diagnostics;
 mod eval;
 mod inputs;
