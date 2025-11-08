@@ -151,7 +151,10 @@ async fn update_workflow_outputs(pool: SqlitePool) {
     assert_eq!(workflow.id, workflow_id);
     assert_eq!(workflow.invocation_id, invocation_id);
     assert_eq!(workflow.status, WorkflowStatus::Pending);
-    assert_eq!(workflow.outputs, Some(String::from(r#"{"result": "success"}"#)));
+    assert_eq!(
+        workflow.outputs,
+        Some(String::from(r#"{"result": "success"}"#))
+    );
     assert_eq!(workflow.error, None);
     assert_eq!(workflow.started_at, None);
     assert_eq!(workflow.completed_at, None);
@@ -613,9 +616,14 @@ async fn workflow_status_transitions(pool: SqlitePool) {
     let workflow = db.get_workflow(workflow_id).await.unwrap().unwrap();
     assert_eq!(workflow.status, WorkflowStatus::Failed);
 
-    db.update_workflow_status(workflow_id, WorkflowStatus::Cancelled, None, Some(Utc::now()))
-        .await
-        .unwrap();
+    db.update_workflow_status(
+        workflow_id,
+        WorkflowStatus::Cancelled,
+        None,
+        Some(Utc::now()),
+    )
+    .await
+    .unwrap();
     let workflow = db.get_workflow(workflow_id).await.unwrap().unwrap();
     assert_eq!(workflow.status, WorkflowStatus::Cancelled);
 }
@@ -755,9 +763,13 @@ async fn complete_workflow_with_all_fields(pool: SqlitePool) {
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Http, Some(String::from("user123")))
-        .await
-        .unwrap();
+    db.create_invocation(
+        invocation_id,
+        InvocationMethod::Http,
+        Some(String::from("user123")),
+    )
+    .await
+    .unwrap();
 
     let workflow_id = Uuid::new_v4();
     let workflow = db
@@ -817,7 +829,9 @@ async fn complete_workflow_with_all_fields(pool: SqlitePool) {
     );
     assert_eq!(
         final_workflow.outputs,
-        Some(String::from(r#"{"result_file": "output.txt", "count": 42}"#))
+        Some(String::from(
+            r#"{"result_file": "output.txt", "count": 42}"#
+        ))
     );
     assert_eq!(final_workflow.error, None);
     assert_eq!(final_workflow.execution_dir, "/scratch/workflows/run_001");

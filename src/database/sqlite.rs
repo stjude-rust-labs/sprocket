@@ -1,5 +1,8 @@
 //! SQLite database implementation.
 
+use std::path::Path;
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use chrono::DateTime;
 use chrono::Utc;
@@ -7,8 +10,6 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::sqlite::SqliteJournalMode;
 use sqlx::sqlite::SqliteSynchronous;
-use std::path::Path;
-use std::str::FromStr;
 use uuid::Uuid;
 
 use super::Database;
@@ -34,10 +35,12 @@ const SQLITE_PAGE_SIZE: &str = "32768";
 /// Enable foreign key constraint enforcement for referential integrity.
 const SQLITE_FOREIGN_KEYS: &str = "on";
 
-/// Configure 5-second timeout when database is locked to prevent spurious failures.
+/// Configure 5-second timeout when database is locked to prevent spurious
+/// failures.
 const SQLITE_BUSY_TIMEOUT: &str = "5000";
 
-/// Allocate approximately 8MB for SQLite page cache for improved query performance.
+/// Allocate approximately 8MB for SQLite page cache for improved query
+/// performance.
 const SQLITE_CACHE_SIZE: &str = "2000";
 
 /// SQLite database implementation.
@@ -134,8 +137,8 @@ impl Database for SqliteDatabase {
         execution_dir: String,
     ) -> Result<Workflow> {
         sqlx::query(
-            "insert into workflows (id, invocation_id, name, source, status, inputs, execution_dir) \
-             values (?, ?, ?, ?, ?, ?, ?)"
+            "insert into workflows (id, invocation_id, name, source, status, inputs, \
+             execution_dir) values (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(id.to_string())
         .bind(invocation_id.to_string())
@@ -149,8 +152,7 @@ impl Database for SqliteDatabase {
 
         let workflow: Workflow = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, started_at, completed_at, created_at \
-             from workflows where id = ?",
+             execution_dir, started_at, completed_at, created_at from workflows where id = ?",
         )
         .bind(id.to_string())
         .fetch_one(&self.pool)
@@ -202,8 +204,7 @@ impl Database for SqliteDatabase {
     async fn get_workflow(&self, id: Uuid) -> Result<Option<Workflow>> {
         let workflow: Option<Workflow> = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, started_at, completed_at, created_at \
-             from workflows where id = ?",
+             execution_dir, started_at, completed_at, created_at from workflows where id = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -215,8 +216,8 @@ impl Database for SqliteDatabase {
     async fn list_workflows_by_invocation(&self, invocation_id: Uuid) -> Result<Vec<Workflow>> {
         let workflows: Vec<Workflow> = sqlx::query_as(
             "select id, invocation_id, name, source, status, inputs, outputs, error, \
-             execution_dir, started_at, completed_at, created_at \
-             from workflows where invocation_id = ? order by created_at",
+             execution_dir, started_at, completed_at, created_at from workflows where \
+             invocation_id = ? order by created_at",
         )
         .bind(invocation_id.to_string())
         .fetch_all(&self.pool)
@@ -243,8 +244,8 @@ impl Database for SqliteDatabase {
         .await?;
 
         let entry: IndexLogEntry = sqlx::query_as(
-            "select id, workflow_id, index_path, target_path, created_at \
-             from index_log where id = ?",
+            "select id, workflow_id, index_path, target_path, created_at from index_log where id \
+             = ?",
         )
         .bind(id.to_string())
         .fetch_one(&self.pool)
@@ -258,8 +259,8 @@ impl Database for SqliteDatabase {
         workflow_id: Uuid,
     ) -> Result<Vec<IndexLogEntry>> {
         let entries: Vec<IndexLogEntry> = sqlx::query_as(
-            "select id, workflow_id, index_path, target_path, created_at \
-             from index_log where workflow_id = ? order by created_at",
+            "select id, workflow_id, index_path, target_path, created_at from index_log where \
+             workflow_id = ? order by created_at",
         )
         .bind(workflow_id.to_string())
         .fetch_all(&self.pool)

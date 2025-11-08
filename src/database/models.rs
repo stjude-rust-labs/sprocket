@@ -1,13 +1,14 @@
 //! Database models.
 
+use std::fmt;
+use std::path::PathBuf;
+use std::str::FromStr;
+
 use chrono::DateTime;
 use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use sqlx::FromRow;
-use std::fmt;
-use std::path::PathBuf;
-use std::str::FromStr;
 use uuid::Uuid;
 
 /// Workflow execution status.
