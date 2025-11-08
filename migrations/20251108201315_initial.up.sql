@@ -8,11 +8,11 @@ create table if not exists metadata (
 
 insert into metadata (key, value) values ('schema_version', '1');
 
--- Invocations table groups related workflow submissions
+-- Invocations table
 create table if not exists invocations (
     -- Unique identifier for this invocation
     id text primary key not null,
-    -- How the workflows were submitted: cli or http
+    -- How the workflows were submitted
     method text not null check(method in ('cli', 'http')),
     -- Optional user or system that created this invocation
     created_by text,
@@ -20,18 +20,18 @@ create table if not exists invocations (
     created_at timestamp not null default current_timestamp
 );
 
--- Workflows table tracks individual workflow executions
+-- Workflows table
 create table if not exists workflows (
     -- Unique identifier for this workflow execution
     id text primary key not null,
     -- Foreign key to the invocation that submitted this workflow
     invocation_id text not null,
     -- Name of the workflow
-    name text not null,
+    "name" text not null,
     -- Source WDL file path or URL
     source text not null,
     -- Current execution status
-    status text not null check(status in ('pending', 'running', 'completed', 'failed', 'cancelled')),
+    "status" text not null check(status in ('pending', 'running', 'completed', 'failed', 'cancelled')),
     -- JSON-encoded workflow inputs
     inputs text not null,
     -- JSON-encoded workflow outputs
@@ -50,10 +50,10 @@ create table if not exists workflows (
 );
 
 create index idx_workflows_invocation_id on workflows(invocation_id);
-create index idx_workflows_status on workflows(status);
+create index idx_workflows_status on workflows("status");
 create index idx_workflows_created_at on workflows(created_at);
 
--- Index log table tracks symlink creation for workflow outputs
+-- Index log table
 create table if not exists index_log (
     -- Unique identifier for this index log entry
     id text primary key not null,
