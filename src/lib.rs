@@ -13,6 +13,7 @@
 
 use std::io::IsTerminal as _;
 use std::io::stderr;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context as _;
@@ -36,6 +37,53 @@ pub mod database;
 mod diagnostics;
 mod eval;
 mod inputs;
+pub mod provenance;
+
+/// Subdirectory name for workflow execution runs.
+const RUNS_DIR: &str = "runs";
+
+/// Subdirectory name for the provenance index.
+const INDEX_DIR: &str = "index";
+
+/// Root directory for all workflow outputs and indices.
+#[derive(Debug, Clone)]
+pub struct OutputDirectory(PathBuf);
+
+impl OutputDirectory {
+    /// Create a new output directory.
+    pub fn new(root: impl AsRef<Path>) -> Self {
+        Self(root.as_ref().to_path_buf())
+    }
+
+    /// Get the workflow execution directory for a given workflow name.
+    pub fn workflow_run(&self, workflow_name: &str) -> PathBuf {
+        self.0.join(RUNS_DIR).join(workflow_name)
+    }
+
+    /// Get the workflow execution directory and ensure it exists.
+    pub fn ensure_workflow_run(&self, workflow_name: &str) -> std::io::Result<PathBuf> {
+        let path = self.workflow_run(workflow_name);
+        std::fs::create_dir_all(&path)?;
+        Ok(path)
+    }
+
+    /// Get the index directory for a given index path.
+    pub fn index_dir(&self, index_path: &str) -> PathBuf {
+        self.0.join(INDEX_DIR).join(index_path)
+    }
+
+    /// Get the index directory and ensure it exists.
+    pub fn ensure_index_dir(&self, index_path: &str) -> std::io::Result<PathBuf> {
+        let path = self.index_dir(index_path);
+        std::fs::create_dir_all(&path)?;
+        Ok(path)
+    }
+
+    /// Get the root directory.
+    pub fn root(&self) -> &Path {
+        &self.0
+    }
+}
 
 /// ignorefile basename to respect.
 const IGNORE_FILENAME: &str = ".sprocketignore";

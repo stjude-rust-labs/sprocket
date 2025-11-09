@@ -152,8 +152,7 @@ pub struct Workflow {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct IndexLogEntry {
     /// Unique identifier.
-    #[sqlx(try_from = "String")]
-    pub id: Uuid,
+    pub id: i64,
     /// Foreign key to the workflow that created this index entry.
     #[sqlx(try_from = "String")]
     pub workflow_id: Uuid,
