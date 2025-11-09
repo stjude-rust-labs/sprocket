@@ -456,6 +456,11 @@ impl HostPath {
         &self.0
     }
 
+    /// Converts the host path to a `PathBuf`.
+    pub fn to_path_buf(&self) -> PathBuf {
+        PathBuf::from(self.as_str())
+    }
+
     /// Shell expands the path.
     ///
     /// The path is also joined with the provided base directory.

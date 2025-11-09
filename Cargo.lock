@@ -4150,6 +4150,7 @@ dependencies = [
  "nonempty",
  "opener",
  "path-clean",
+ "pathdiff",
  "pest",
  "pretty_assertions",
  "regex",
