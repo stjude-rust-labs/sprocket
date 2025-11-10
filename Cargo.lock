@@ -589,8 +589,9 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
 name = "cloud-copy"
-version = "0.4.0"
-source = "git+https://github.com/peterhuene/cloud-copy?branch=fix-config#a418b484afcab0b0f2ca29fc9f21ba8f2aad12fb"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee0cca7879e30a6072163271636699ad3356c59982202ba0cd44ca8e374dda3c"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -603,6 +604,7 @@ dependencies = [
  "colored",
  "crc64fast-nvme",
  "futures",
+ "git-testament",
  "hex",
  "hmac",
  "http-cache-stream-reqwest",
