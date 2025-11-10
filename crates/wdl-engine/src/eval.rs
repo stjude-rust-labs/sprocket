@@ -456,28 +456,24 @@ impl HostPath {
         &self.0
     }
 
-    /// Shell expands the path.
+    /// Shell-expands the path.
     ///
     /// The path is also joined with the provided base directory.
-    pub fn expand(&mut self, base_dir: &EvaluationPath) -> Result<()> {
-        // Perform the expansion
-        if let Cow::Owned(s) = shellexpand::full(self.as_str()).with_context(|| {
-            format!("failed to shell expand path `{path}`", path = self.as_str())
-        })? {
-            *Arc::make_mut(&mut self.0) = s;
-        }
+    pub fn expand(&self, base_dir: &EvaluationPath) -> Result<Self> {
+        // Shell-expand both paths and URLs
+        let shell_expanded = shellexpand::full(self.as_str()).with_context(|| {
+            format!("failed to shell-expand path `{path}`", path = self.as_str())
+        })?;
 
-        // Don't join URLs
-        if path::is_url(self.as_str()) {
-            return Ok(());
+        // But don't join URLs
+        if path::is_url(&shell_expanded) {
+            Ok(Self::new(shell_expanded))
+        } else {
+            // `join()` handles both relative and absolute paths
+            Ok(Self::new(
+                base_dir.join(&shell_expanded)?.display().to_string(),
+            ))
         }
-
-        // Perform the join
-        if let Some(s) = base_dir.join(self.as_str())?.to_str() {
-            *Arc::make_mut(&mut self.0) = s.to_string();
-        }
-
-        Ok(())
     }
 }
 
