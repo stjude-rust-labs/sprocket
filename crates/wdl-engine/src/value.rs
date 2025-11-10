@@ -598,11 +598,7 @@ impl Value {
                         .map(|p| p.exists())
                         .unwrap_or(false);
                     if exists {
-                        let v = if is_file {
-                            PrimitiveValue::File(path)
-                        } else {
-                            PrimitiveValue::Directory(path)
-                        };
+                        let v = PrimitiveValue::new_file_or_directory(is_file, path);
                         return Ok(Self::Primitive(v));
                     }
 
@@ -623,11 +619,7 @@ impl Value {
                                 )
                                 .await?;
                             if exists {
-                                let v = if is_file {
-                                    PrimitiveValue::File(path)
-                                } else {
-                                    PrimitiveValue::Directory(path)
-                                };
+                                let v = PrimitiveValue::new_file_or_directory(is_file, path);
                                 return Ok(Self::Primitive(v));
                             }
 
@@ -639,11 +631,7 @@ impl Value {
                         }
                         None => {
                             // Assume the URL exists
-                            let v = if is_file {
-                                PrimitiveValue::File(path)
-                            } else {
-                                PrimitiveValue::Directory(path)
-                            };
+                            let v = PrimitiveValue::new_file_or_directory(is_file, path);
                             return Ok(Self::Primitive(v));
                         }
                     }
@@ -667,11 +655,7 @@ impl Value {
                     }
                 }
 
-                let v = if is_file {
-                    PrimitiveValue::File(path)
-                } else {
-                    PrimitiveValue::Directory(path)
-                };
+                let v = PrimitiveValue::new_file_or_directory(is_file, path);
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
@@ -1053,6 +1037,20 @@ impl PrimitiveValue {
     /// Creates a new `Directory` value.
     pub fn new_directory(path: impl Into<String>) -> Self {
         Self::Directory(Arc::new(path.into()).into())
+    }
+
+    /// Create either a new `File` or `Directory` value, depending on whether
+    /// the `is_file` argument is `true`.
+    ///
+    /// This is a bit awkward, but can save a lot of repetition in code that
+    /// treats files and directories largely the same until having to
+    /// remember which enum variant the path needs to be stuffed back into.
+    pub fn new_file_or_directory(is_file: bool, path: impl Into<HostPath>) -> Self {
+        if is_file {
+            Self::File(path.into())
+        } else {
+            Self::Directory(path.into())
+        }
     }
 
     /// Gets the type of the value.
