@@ -120,7 +120,7 @@ impl TaskInputs {
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
-                continue;
+                bail!("could not find an expected type for input {name}");
             };
 
             let base_dir = path(name)?;
@@ -386,7 +386,7 @@ impl WorkflowInputs {
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
-                continue;
+                bail!("could not find an expected type for input {name}");
             };
 
             let base_dir = path(name)?;
