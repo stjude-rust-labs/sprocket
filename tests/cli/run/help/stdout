@@ -46,6 +46,16 @@ Options:
           - full:     Prints diagnostics as multiple lines
           - one-line: Prints diagnostics as one line
 
+      --azure-account-name <NAME>
+          The Azure Storage account name to use
+          
+          [env: AZURE_ACCOUNT_NAME=]
+
+      --azure-access-key <KEY>
+          The Azure Storage access key to use
+          
+          [env: AZURE_ACCESS_KEY]
+
       --aws-access-key-id <ID>
           The AWS Access Key ID to use; overrides configuration
           
@@ -66,13 +76,13 @@ Options:
           
           [env: GOOGLE_HMAC_ACCESS_KEY=]
 
+  -v, --verbose...
+          Increase logging verbosity
+
       --google-hmac-secret <SECRET>
           The Google Cloud Storage HMAC secret to use; overrides configuration
           
           [env: GOOGLE_HMAC_SECRET]
-
-  -v, --verbose...
-          Increase logging verbosity
 
   -q, --quiet...
           Decrease logging verbosity
