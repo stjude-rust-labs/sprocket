@@ -9,20 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* New lint rule `DocMetaStrings` to ensure reserved meta and parameter_meta keys have string values ([#407](https://github.com/stjude-rust-labs/sprocket/pull/407)).
-* A `run.fail` option was added to `sprocket.toml` for controlling the default failure mode ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added `--azure-account-name` and `--azure-access-key` CLI options to
+  `sprocket run` (#[454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
+* New lint rule `DocMetaStrings` to ensure reserved meta and parameter_meta
+  keys have string values ([#407](https://github.com/stjude-rust-labs/sprocket/pull/407)).
+* A `run.fail` option was added to `sprocket.toml` for controlling the default
+  failure mode ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
-* Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+* Added support for `else if` and `else` clauses in conditional statements (in
+  support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
-* Added shell expansion to the `apptainer_images_dir` config option, though this is an interim workaround for HPC path awkwardness pending the removal of this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Added shell expansion to the `apptainer_images_dir` config option, though
+  this is an interim workaround for HPC path awkwardness pending the removal of
+  this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
 * Added experimental Slurm + Apptainer backend ([#436](https://github.com/stjude-rust-labs/sprocket/pull/436)).
 
 ### Changed
 
-* Sprocket now supports "slow" and "fast" failure modes for evaluation errors an interruptions (Ctrl-C) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
-* The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
-* Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
-
+* Sprocket now supports "slow" and "fast" failure modes for evaluation errors
+  an interruptions (Ctrl-C) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* The `wdl-analysis` config flag that enables experimental WDL v1.3 features
+  was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
+* Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library
+  crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
 
 ### Fixed
 
@@ -32,8 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* `doc` and `format` now work if analysis errors **and not parse errors** are encountered ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
-* `sprocket inputs` now correctly handles complex values (including empty or interpolated Strings) ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388), [#399](https://github.com/stjude-rust-labs/sprocket/pull/399)).
+* `doc` and `format` now work if analysis errors **and not parse errors** are
+  encountered ([#402](https://github.com/stjude-rust-labs/sprocket/pull/402)).
+* `sprocket inputs` now correctly handles complex values (including empty or
+  interpolated Strings) ([#388](https://github.com/stjude-rust-labs/sprocket/pull/388), [#399](https://github.com/stjude-rust-labs/sprocket/pull/399)).
 
 ### Changed
 
@@ -50,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Allow "bad" `SPROCKET_CONFIG` environment variables to exist, although the user will get a warning if the specified path doesn't exist ([#178](https://github.com/stjude-rust-labs/sprocket/pull/178)).
+* Allow "bad" `SPROCKET_CONFIG` environment variables to exist, although the
+  user will get a warning if the specified path doesn't exist ([#178](https://github.com/stjude-rust-labs/sprocket/pull/178)).
 
 ### Dependencies
 
@@ -61,8 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added `--unredact` option to `sprocket config resolve` ([#173](https://github.com/stjude-rust-labs/sprocket/pull/173)).
-* Added options to `sprocket check/lint` for enabling and disabling sets of lint rules based on the rules' tags ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
-* Added options to `sprocket dev doc` for embedding a JS file into `<script>` tags on each HTML page ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
+* Added options to `sprocket check/lint` for enabling and disabling sets of
+  lint rules based on the rules' tags ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
+* Added options to `sprocket dev doc` for embedding a JS file into `<script>`
+  tags on each HTML page ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
 * Added options to `sprocket run` for configuring AWS S3 and Google Cloud
   Storage authentication ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
 * Added progress bars for file transfers ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
@@ -71,13 +85,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `--no-color` argument to `format` is now respected ([#167](https://github.com/stjude-rust-labs/sprocket/pull/167)).
 * `sprocket explain --tag <tag>` is now case-insensitive ([#168](https://github.com/stjude-rust-labs/sprocket/pull/168)).
-* The `--deny-notes` argument to `check`/`lint` now correctly implies `--deny-warnings` ([#166](https://github.com/stjude-rust-labs/sprocket/pull/166)).
+* The `--deny-notes` argument to `check`/`lint` now correctly implies
+  `--deny-warnings` ([#166](https://github.com/stjude-rust-labs/sprocket/pull/166)).
 
 ### Changed
 
-* Enabling linting no longer runs every lint rule. Instead, a less opinionated set of rules are toggled on by default ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
-* `sprocket dev doc` now initializes on the "Full Directory" view for the left sidebar ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
-  * The old behavior (initializing on the "Workflows" view) can be enabled with an option.
+* Enabling linting no longer runs every lint rule. Instead, a less opinionated
+  set of rules are toggled on by default ([#169](https://github.com/stjude-rust-labs/sprocket/pull/169)).
+* `sprocket dev doc` now initializes on the "Full Directory" view for the left
+  sidebar ([#170](https://github.com/stjude-rust-labs/sprocket/pull/170)).
+  * The old behavior (initializing on the "Workflows" view) can be enabled with
+    an option.
 * Replaced `sprocket run` progress bar implementation with one based off of
   Crankshaft events ([#164](https://github.com/stjude-rust-labs/sprocket/pull/164)).
 
@@ -95,18 +113,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `cpu_limit_behavior` and `memory_limit_behavior` config options to enable ignoring host resource limits ([wdl:#543](https://github.com/stjude-rust-labs/wdl/pull/543)).
+* Added `cpu_limit_behavior` and `memory_limit_behavior` config options to
+  enable ignoring host resource limits ([wdl:#543](https://github.com/stjude-rust-labs/wdl/pull/543)).
 * Added code completion to the LSP ([wdl:#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
-* Individual analysis and lint rules can now be excepted when running the `analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
+* Individual analysis and lint rules can now be excepted when running the `
+  analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
     * both command line flags and TOML config are supported
 
 ### Changed
 
-* The `UnusedCall` analysis rule no longer emits a diagnostic for tasks and workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
+* The `UnusedCall` analysis rule no longer emits a diagnostic for tasks and
+  workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
     * `--entrypoint` is now required if no inputs are provided.
-    * `--entrypoint` will be prefixed to the key of any key-value pairs supplied on the command line.
+    * `--entrypoint` will be prefixed to the key of any key-value pairs
+      supplied on the command line.
 
 ### Removed
 
@@ -139,8 +161,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* The LSP now supports "falling back" to interpresting WDL documents as v1.2 when the version is unrecognized (e.g. `version development`) ([wdl:#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
-* `check`, `lint`, and `format` will now default to the CWD if no `source` argument is provided ([#137](https://github.com/stjude-rust-labs/sprocket/pull/137)).
+* The LSP now supports "falling back" to interpresting WDL documents as v1.2
+  when the version is unrecognized (e.g. `version development`) ([wdl:#475](https://github.com/stjude-rust-labs/wdl/pull/475)).
+* `check`, `lint`, and `format` will now default to the CWD if no `source`
+  argument is provided ([#137](https://github.com/stjude-rust-labs/sprocket/pull/137)).
 * Added `dev` subcommand to contain developmental and experimental subcommands ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 * Added `dev lock` subcommand to store container manifest checksums ([#120](https://github.com/stjude-rust-labs/sprocket/pull/120)).
 * Added `dev doc` subcommand for documenting WDL workspaces ([#107](https://github.com/stjude-rust-labs/sprocket/pull/107)).
@@ -191,7 +215,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Changed all existing subcommands to use the facilities provided in `wdl-cli` when possible ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
 * Updates the underlying `wdl` dependency to v0.13.1 ([#102](https://github.com/stjude-rust-labs/sprocket/pull/102)).
 
-
 ### Added
 
 * Added configuration file support ([#104](https://github.com/stjude-rust-labs/sprocket/pull/104)).
@@ -208,17 +231,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
     * Fixed certain misplaced highlights from the `ShellCheck` lint.
-    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as many comments.
-    * The `ImportSort` lint rule now supplies the correct order of imports in the `fix` message.
-* By default, when checking a local file, suppress diagnostics from remote files. Added a `--show-remote-diagnostics`
-  flag to recreate the older behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
-* Always emit any diagnostics with a `Severity::Error` regardless of other CL options that might suppress the diagnostic
+    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
+      many comments.
+    * The `ImportSort` lint rule now supplies the correct order of imports in
+      the `fix` message.
+* By default, when checking a local file, suppress diagnostics from remote
+  files. Added a `--show-remote-diagnostics` flag to recreate the older
+  behavior ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
+* Always emit any diagnostics with a `Severity::Error` regardless of other CL
+  options that might suppress the diagnostic
   ([#59](https://github.com/stjude-rust-labs/sprocket/pull/59)).
 
 ### Fixed
 
-* Bug introduced in [#59](https://github.com/stjude-rust-labs/sprocket/pull/59) which sometimes caused the exit message
-  to have an incorrect count of Notes and Warnings ([#61](https://github.com/stjude-rust-labs/sprocket/pull/61)).
+* Bug introduced in [#59](https://github.com/stjude-rust-labs/sprocket/pull/59)
+  which sometimes caused the exit message to have an incorrect count of Notes
+  and Warnings ([#61](https://github.com/stjude-rust-labs/sprocket/pull/61)).
 
 ## 0.10.1 - 01-23-2025
 
@@ -242,8 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `format` now requires one of the `--check` or `--overwrite` arguments ([#51](https://github.com/stjude-rust-labs/sprocket/pull/51)).
 * Updated WDL crate to latest. This adds support for
   checking/linting remote URLs and other features and improvements ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
-* Only allow one `file` argument to `check/lint` instead of any number of local files and directories
-  ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
+* Only allow one `file` argument to `check/lint` instead of any number of local
+  files and directories ([#48](https://github.com/stjude-rust-labs/sprocket/pull/48)).
 
 ## 0.9.0 - 10-22-2024
 
@@ -301,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Update to version 0.5.0 of `wdl` crate. This enables lint directive comments (AKA `#@` comments) among other new features.
+* Update to version 0.5.0 of `wdl` crate. This enables lint directive comments
+  (AKA `#@` comments) among other new features.
 
 ## 0.3.0 - 06-18-2024
 
@@ -311,14 +340,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Update to version 0.4.0 of `wdl` crate. This features a new parser implementation
+* Update to version 0.4.0 of `wdl` crate. This features a new parser
+  implementation
 
 ## 0.2.1 - 06-05-2024
 
 ### Fixed
 
-* exit code `2` if there are no parse errors or validation failures, but there are lint warnings.
-  * exit code `1` if there are parse errors or validation failures; exit code `0` means there were no concerns found at all.
+* exit code `2` if there are no parse errors or validation failures, but there
+  are lint warnings.
+  * exit code `1` if there are parse errors or validation failures; exit code
+    `0` means there were no concerns found at all.
 
 ## 0.2.0 - 06-03-2024
 
