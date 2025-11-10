@@ -296,6 +296,7 @@ dependencies = [
  "cfg-if",
  "constant_time_eq",
  "memmap2",
+ "rayon-core",
 ]
 
 [[package]]
@@ -589,11 +590,11 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 [[package]]
 name = "cloud-copy"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aca3e04d352f214aa3115db83ae82292058b7cd4f6452529d38485c86b8b5702"
+source = "git+https://github.com/peterhuene/cloud-copy?branch=fix-config#a418b484afcab0b0f2ca29fc9f21ba8f2aad12fb"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "blake3",
  "byte-unit",
  "bytes",
  "chrono",
@@ -1679,9 +1680,9 @@ dependencies = [
 
 [[package]]
 name = "http-cache-stream"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f85add2cd311dce74de15ab7a3f0b1deabc9c4ea8ab7c2abde022c27643975e"
+checksum = "63b6f61e55d75019805646fba61a0d42edc257dcfe16783b84f6ceebfab57f22"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1692,6 +1693,7 @@ dependencies = [
  "hex",
  "http",
  "http-body",
+ "http-body-util",
  "http-cache-semantics",
  "http-serde",
  "httpdate",
@@ -1703,20 +1705,19 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
- "windows-sys 0.60.2",
 ]
 
 [[package]]
 name = "http-cache-stream-reqwest"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ddd4954ef92d43498e610ebe98721e12c7304254644dce8e6a68943c3e7c295"
+checksum = "099b3c8a9899f382f0dbc858293ad1be5e651c17be2b21d9fc2cdefda6b909ce"
 dependencies = [
  "anyhow",
  "bytes",
  "futures",
+ "http-body-util",
  "http-cache-stream",
- "pin-project-lite",
  "reqwest",
  "reqwest-middleware",
 ]

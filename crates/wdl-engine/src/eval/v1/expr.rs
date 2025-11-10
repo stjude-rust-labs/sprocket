@@ -1500,7 +1500,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use std::borrow::Cow;
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
@@ -1602,10 +1601,6 @@ pub(crate) mod test {
 
         fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
             std::future::ready(Ok(Some(1234))).boxed()
-        }
-
-        fn apply_auth<'a>(&self, url: &'a Url) -> anyhow::Result<Cow<'a, Url>> {
-            Ok(Cow::Borrowed(url))
         }
 
         fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {

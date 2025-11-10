@@ -262,7 +262,9 @@ impl Config {
             backend.redact();
         }
 
-        self.storage.azure.redact();
+        if let Some(auth) = &mut self.storage.azure.auth {
+            auth.redact();
+        }
 
         if let Some(auth) = &mut self.storage.s3.auth {
             auth.redact();
@@ -281,7 +283,9 @@ impl Config {
             backend.unredact();
         }
 
-        self.storage.azure.unredact();
+        if let Some(auth) = &mut self.storage.azure.auth {
+            auth.unredact();
+        }
 
         if let Some(auth) = &mut self.storage.s3.auth {
             auth.unredact();
@@ -399,44 +403,60 @@ impl StorageConfig {
     }
 }
 
+/// Represents authentication information for Azure Blob Storage.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct AzureStorageAuthConfig {
+    /// The Azure Storage account name to use.
+    pub account_name: String,
+    /// The Azure Storage access key to use.
+    pub access_key: SecretString,
+}
+
+impl AzureStorageAuthConfig {
+    /// Validates the Azure Blob Storage authentication configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.account_name.is_empty() {
+            bail!("configuration value `storage.azure.auth.account_name` is required");
+        }
+
+        if self.access_key.inner.expose_secret().is_empty() {
+            bail!("configuration value `storage.azure.auth.access_key` is required");
+        }
+
+        Ok(())
+    }
+
+    /// Redacts the secrets contained in the Azure Blob Storage storage
+    /// authentication configuration.
+    pub fn redact(&mut self) {
+        self.access_key.redact();
+    }
+
+    /// Unredacts the secrets contained in the Azure Blob Storage authentication
+    /// configuration.
+    pub fn unredact(&mut self) {
+        self.access_key.unredact();
+    }
+}
+
 /// Represents configuration for Azure Blob Storage.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
-    ///
-    /// The key for the outer map is the Azure Storage account name.
-    ///
-    /// The key for the inner map is the Azure Storage container name.
-    ///
-    /// The value for the inner map is the SAS token to apply for requests to
-    /// the Azure Storage container.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub auth: IndexMap<String, IndexMap<String, SecretString>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth: Option<AzureStorageAuthConfig>,
 }
 
 impl AzureStorageConfig {
     /// Validates the Azure Blob Storage configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(auth) = &self.auth {
+            auth.validate()?;
+        }
+
         Ok(())
-    }
-
-    /// Redacts the secrets contained in the Azure Blob Storage configuration.
-    pub fn redact(&mut self) {
-        for v in self.auth.values_mut() {
-            for v in v.values_mut() {
-                v.redact();
-            }
-        }
-    }
-
-    /// Unredacts the secrets contained in the Azure Blob Storage configuration.
-    pub fn unredact(&mut self) {
-        for v in self.auth.values_mut() {
-            for v in v.values_mut() {
-                v.unredact();
-            }
-        }
     }
 }
 
@@ -1168,7 +1188,10 @@ mod test {
             .into(),
             storage: StorageConfig {
                 azure: AzureStorageConfig {
-                    auth: [("foo".into(), [("bar".into(), "secret".into())].into())].into(),
+                    auth: Some(AzureStorageAuthConfig {
+                        account_name: "foo".into(),
+                        access_key: "secret".into(),
+                    }),
                 },
                 s3: S3StorageConfig {
                     auth: Some(S3StorageAuthConfig {
