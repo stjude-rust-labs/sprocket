@@ -466,7 +466,7 @@ impl HostPath {
         })?;
 
         // But don't join URLs
-        if path::is_url(&shell_expanded) {
+        if path::is_supported_url(&shell_expanded) {
             Ok(Self::new(shell_expanded))
         } else {
             // `join()` handles both relative and absolute paths

@@ -581,19 +581,17 @@ impl Value {
         F: Fn(&HostPath) -> Result<HostPath> + Send + Sync,
     {
         match self {
-            Self::Primitive(v @ PrimitiveValue::File(_))
-            | Self::Primitive(v @ PrimitiveValue::Directory(_)) => {
-                let (path, is_file) = match v {
-                    PrimitiveValue::File(path) => (path, true),
-                    PrimitiveValue::Directory(path) => (path, false),
-                    _ => unreachable!("not a `File` or `Directory` value"),
-                };
-
+            Self::Primitive(v @ PrimitiveValue::File(path))
+            | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
+                // We treat file and directory paths almost entirely the same, other than when
+                // reporting errors and choosing which variant to return in the result
+                let is_file = v.as_file().is_some();
                 let path = translate(path)?;
 
-                // If it's a file URL, check that the file exists
                 if path::is_file_url(path.as_str()) {
-                    let exists = path::parse_url(path.as_str())
+                    // File URLs must be absolute paths, so we just check whether it exists without
+                    // performing any joining
+                    let exists = path::parse_supported_url(path.as_str())
                         .and_then(|url| url.to_file_path().ok())
                         .map(|p| p.exists())
                         .unwrap_or(false);
@@ -607,7 +605,7 @@ impl Value {
                     }
 
                     bail!("path `{path}` does not exist");
-                } else if path::is_url(path.as_str()) {
+                } else if path::is_supported_url(path.as_str()) {
                     match transferer {
                         Some(transferer) => {
                             let exists = transferer

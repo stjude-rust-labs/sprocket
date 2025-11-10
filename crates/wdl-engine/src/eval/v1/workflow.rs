@@ -1215,7 +1215,9 @@ impl WorkflowEvaluator {
                 state.base_dir.as_local(),
                 Some(state.transferer.as_ref()),
                 &|path| {
-                    if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                    if !path::is_supported_url(path.as_str())
+                        && Path::new(path.as_str()).is_relative()
+                    {
                         bail!("relative path `{path}` cannot be used as a workflow output");
                     }
 

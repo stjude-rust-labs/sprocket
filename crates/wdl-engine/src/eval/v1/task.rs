@@ -104,7 +104,7 @@ use crate::http::HttpTransferer;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
-use crate::path::is_url;
+use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
@@ -783,7 +783,7 @@ impl<'a> State<'a> {
                 // localized; if so, we must localize it now
                 if needs_local_inputs
                     && self.backend_inputs.as_slice()[index].guest_path.is_none()
-                    && is_url(path.as_str())
+                    && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
                 {
                     urls.push((path.clone(), index));
