@@ -22,7 +22,6 @@ use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
-use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -126,18 +125,16 @@ impl TaskInputs {
 
             let base_dir = path(name)?;
 
-            // Replace the value with `None` temporarily as we need to coerce the value
-            // This is useful when this value is the only reference to shared data as this
-            // would prevent internal cloning
-            let mut current = std::mem::replace(value, Value::None(value.ty()));
-            if let Ok(mut v) = current.coerce(None, &ty) {
-                drop(current);
-                v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+            if let Ok(v) = value.coerce(None, &ty) {
+                *value = v
+                    .resolve_paths(ty.is_optional(), None, None, &|path| {
+                        let mut path = path.clone();
+                        // TODO ACF 2025-11-07: make `expand` functional too
+                        path.expand(base_dir)?;
+                        Ok(path)
+                    })
                     .await?;
-                current = v;
             }
-
-            *value = current;
         }
         Ok(())
     }
@@ -399,18 +396,16 @@ impl WorkflowInputs {
 
             let base_dir = path(name)?;
 
-            // Replace the value with `None` temporarily as we need to coerce the value
-            // This is useful when this value is the only reference to shared data as this
-            // would prevent internal cloning
-            let mut current = std::mem::replace(value, Value::None(value.ty()));
-            if let Ok(mut v) = current.coerce(None, &ty) {
-                drop(current);
-                v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+            if let Ok(v) = value.coerce(None, &ty) {
+                *value = v
+                    .resolve_paths(ty.is_optional(), None, None, &|path| {
+                        let mut path = path.clone();
+                        // TODO ACF 2025-11-07: make `expand` functional too
+                        path.expand(base_dir)?;
+                        Ok(path)
+                    })
                     .await?;
-                current = v;
             }
-
-            *value = current;
         }
         Ok(())
     }
