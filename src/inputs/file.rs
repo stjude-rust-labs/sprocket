@@ -10,7 +10,8 @@ use thiserror::Error;
 use wdl::engine::JsonMap;
 use wdl::engine::path::EvaluationPath;
 
-use super::Inputs;
+use super::JsonInputMap;
+use crate::inputs::LocatedJsonValue;
 
 /// An error related to a input file.
 #[derive(Error, Debug)]
@@ -72,141 +73,144 @@ pub enum Error {
 /// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// An input file containing WDL values.
-pub struct InputFile;
+/// Read an input file into an input map.
+///
+/// The file is attempted to be parsed based on its extension.
+///
+/// - If the input file is successfully parsed, it's returned wrapped in [`Ok`].
+/// - If a deserialization error is encountered while parsing the JSON/YAML
+///   file, an [`Error::Json`]/[`Error::Yaml`] is returned respectively.
+/// - If no recognized extension is found, an [`Error::UnsupportedFileExt`] is
+///   returned.
+pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
+    fn json_map_to_inputs(map: JsonMap, origin: &EvaluationPath) -> JsonInputMap {
+        let mut inputs = JsonInputMap::new();
 
-impl InputFile {
-    /// Reads an input file.
-    ///
-    /// The file is attempted to be parsed based on its extension.
-    ///
-    /// - If the input file is successfully parsed, it's returned wrapped in
-    ///   [`Ok`].
-    /// - If a deserialization error is encountered while parsing the JSON/YAML
-    ///   file, an [`Error::Json`]/[`Error::Yaml`] is returned respectively.
-    /// - If no recognized extension is found, an [`Error::UnsupportedFileExt`]
-    ///   is returned.
-    pub async fn read(path: &EvaluationPath) -> Result<Inputs> {
-        fn map_to_inputs(map: JsonMap, origin: &EvaluationPath) -> Inputs {
-            let mut inputs = Inputs::default();
-
-            for (key, value) in map.iter() {
-                inputs.insert(key.to_owned(), (origin.clone(), value.clone()));
-            }
-
-            inputs
+        for (key, value) in map {
+            inputs.insert(
+                key,
+                LocatedJsonValue {
+                    origin: origin.clone(),
+                    value,
+                },
+            );
         }
 
-        if let Some(path) = path.as_local()
-            && path.is_dir()
-        {
-            return Err(Error::InvalidDir(path.to_path_buf()));
-        }
+        inputs
+    }
 
-        /// Supported inputs file formats
-        enum Format {
-            /// The inputs file is a JSON file
-            Json,
-            /// The inputs file is a YAML file
-            Yaml,
-        }
+    if let Some(path) = path.as_local()
+        && path.is_dir()
+    {
+        return Err(Error::InvalidDir(path.to_path_buf()));
+    }
 
-        let (content, origin, format) = match path {
-            EvaluationPath::Local(local) => {
-                let format = match local.extension().and_then(OsStr::to_str) {
-                    Some("json") => Format::Json,
-                    Some("yml") | Some("yaml") => Format::Yaml,
-                    _ => return Err(Error::UnsupportedFileExt(path.clone())),
-                };
+    /// Supported inputs file formats
+    enum Format {
+        /// The inputs file is a JSON file
+        Json,
+        /// The inputs file is a YAML file
+        Yaml,
+    }
 
-                let absolute = absolute(local).map_err(|e| Error::Io {
+    let (content, origin, format) = match path {
+        EvaluationPath::Local(local) => {
+            let format = match local.extension().and_then(OsStr::to_str) {
+                Some("json") => Format::Json,
+                Some("yml") | Some("yaml") => Format::Yaml,
+                _ => return Err(Error::UnsupportedFileExt(path.clone())),
+            };
+
+            let absolute = absolute(local).map_err(|e| Error::Io {
+                path: path.clone(),
+                error: e,
+            })?;
+            let origin = if let Some(parent) = absolute.parent() {
+                parent.to_path_buf()
+            } else {
+                absolute
+            };
+
+            // Read the contents from the local file
+            let contents = tokio::fs::read_to_string(local)
+                .await
+                .map_err(|e| Error::Io {
                     path: path.clone(),
                     error: e,
                 })?;
-                let origin = if let Some(parent) = absolute.parent() {
-                    parent.to_path_buf()
-                } else {
-                    absolute
-                };
 
-                // Read the contents from the local file
-                let contents = std::fs::read_to_string(local).map_err(|e| Error::Io {
-                    path: path.clone(),
-                    error: e,
-                })?;
+            (contents, EvaluationPath::Local(origin), format)
+        }
+        EvaluationPath::Remote(url) => {
+            let map_err = |e| Error::Reqwest {
+                path: path.clone(),
+                error: e,
+            };
 
-                (contents, EvaluationPath::Local(origin), format)
-            }
-            EvaluationPath::Remote(url) => {
-                let map_err = |e| Error::Reqwest {
-                    path: path.clone(),
-                    error: e,
-                };
+            let format = if url.path().ends_with(".json") {
+                Format::Json
+            } else if url.path().ends_with(".yml") || url.path().ends_with(".yaml") {
+                Format::Yaml
+            } else {
+                return Err(Error::UnsupportedFileExt(path.clone()));
+            };
 
-                let format = if url.path().ends_with(".json") {
-                    Format::Json
-                } else if url.path().ends_with(".yml") || url.path().ends_with(".yaml") {
-                    Format::Yaml
-                } else {
-                    return Err(Error::UnsupportedFileExt(path.clone()));
-                };
+            let mut origin = url.clone();
+            origin
+                // a parsed evaluation path always has a base, so `path_segments_mut`
+                // will never return an error
+                .path_segments_mut()
+                .unwrap()
+                // pop off a trailing `/`, if it exists
+                .pop_if_empty()
+                // pop the "file name" to get to the parent
+                .pop()
+                // push an empty segment on the end so any subsequent `join()` will treat the
+                // URL as a "directory"
+                .push("");
 
-                // SAFETY: a parsed evaluation path always has a base, so `path_segments_mut`
-                // will never return an error; additionally, we must pop off a trailing `/` in
-                // the URL along with the "file name" part of the URL to get the parent; the
-                // final `push("")` call puts an empty segment on the URL so that any future
-                // `join` operation on the origin URL will treat it as a "directory".
-                let mut origin = url.clone();
-                origin
-                    .path_segments_mut()
-                    .unwrap()
-                    .pop_if_empty()
-                    .pop()
-                    .push("");
+            // Read the contents from the URL
+            let contents = reqwest::get(url.clone())
+                .await
+                .map_err(map_err)?
+                .error_for_status()
+                .map_err(map_err)?
+                .text()
+                .await
+                .map_err(map_err)?;
 
-                // Read the contents from the URL
-                let contents = reqwest::get(url.clone())
-                    .await
-                    .map_err(map_err)?
-                    .error_for_status()
-                    .map_err(map_err)?
-                    .text()
-                    .await
-                    .map_err(map_err)?;
+            (contents, EvaluationPath::Remote(origin), format)
+        }
+    };
 
-                (contents, EvaluationPath::Remote(origin), format)
-            }
-        };
-
-        match format {
-            Format::Json => serde_json::from_str::<JsonValue>(&content)
-                .map_err(Error::from)
-                .and_then(|value| match value {
-                    JsonValue::Object(object) => Ok(map_to_inputs(object, &origin)),
-                    _ => Err(Error::NonMapRoot(path.clone())),
-                }),
-            Format::Yaml => serde_yaml_ng::from_str::<YamlValue>(&content)
-                .map_err(Error::from)
-                .and_then(|value| match &value {
-                    YamlValue::Mapping(_) => {
-                        // SAFETY: a YAML mapping should always be able to be
-                        // transformed to a JSON value.
-                        let value = serde_json::to_value(value).unwrap();
-                        if let JsonValue::Object(map) = value {
-                            return Ok(map_to_inputs(map, &origin));
-                        }
-
-                        // SAFETY: a serde map will always be translated to a
-                        // [`YamlValue::Mapping`] and a [`JsonValue::Object`],
-                        // so the above `if` statement should always evaluate to
-                        // `true`.
-                        unreachable!(
-                            "a YAML mapping must always coerce to a JSON object, found `{value}`"
-                        )
+    match format {
+        Format::Json => serde_json::from_str::<JsonValue>(&content)
+            .map_err(Error::from)
+            .and_then(|value| match value {
+                JsonValue::Object(object) => Ok(json_map_to_inputs(object, &origin)),
+                _ => Err(Error::NonMapRoot(path.clone())),
+            }),
+        Format::Yaml => serde_yaml_ng::from_str::<YamlValue>(&content)
+            .map_err(Error::from)
+            .and_then(|value| match &value {
+                YamlValue::Mapping(_) => {
+                    // SAFETY: a YAML mapping should always be able to be
+                    // transformed to a JSON value.
+                    let value = serde_json::to_value(value).unwrap();
+                    if let JsonValue::Object(map) = value {
+                        return Ok(json_map_to_inputs(map, &origin));
                     }
-                    _ => Err(Error::NonMapRoot(path.clone())),
-                }),
-        }
+
+                    // SAFETY: a serde map will always be translated to a
+                    // [`YamlValue::Mapping`] and a [`JsonValue::Object`],
+                    // so the above `if` statement should always evaluate to
+                    // `true`.
+                    unreachable!(
+                        "a YAML mapping must always coerce to a JSON object, found `{value}`"
+                    )
+                }
+                _ => Err(Error::NonMapRoot(path.clone())),
+            }),
     }
 }
 
@@ -221,7 +225,7 @@ mod tests {
     #[tokio::test]
     async fn nonmap_root() {
         // A JSON file that does not have a map at the root.
-        let err = InputFile::read(&"./tests/fixtures/nonmap_inputs.json".parse().unwrap())
+        let err = read_input_file(&"./tests/fixtures/nonmap_inputs.json".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(
@@ -231,7 +235,7 @@ mod tests {
         );
 
         // A YML file that does not have a map at the root.
-        let err = InputFile::read(&"./tests/fixtures/nonmap_inputs.yml".parse().unwrap())
+        let err = read_input_file(&"./tests/fixtures/nonmap_inputs.yml".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(
@@ -243,7 +247,7 @@ mod tests {
 
     #[tokio::test]
     async fn missing_ext() {
-        let err = InputFile::read(&"./tests/fixtures/missing_ext".parse().unwrap())
+        let err = read_input_file(&"./tests/fixtures/missing_ext".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(
@@ -252,7 +256,7 @@ mod tests {
              (`.json`) or YAML (`.yaml` and `.yml`)"
         );
 
-        let err = InputFile::read(&"http://example.com".parse().unwrap())
+        let err = read_input_file(&"http://example.com".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(
@@ -264,25 +268,24 @@ mod tests {
 
     #[tokio::test]
     async fn read_local() {
-        let inputs = InputFile::read(&"./tests/fixtures/inputs_one.json".parse().unwrap())
+        let inputs = read_input_file(&"./tests/fixtures/inputs_one.json".parse().unwrap())
             .await
             .unwrap();
 
-        let inner = inputs.into_inner();
-        assert_eq!(inner.len(), 3);
+        assert_eq!(inputs.len(), 3);
 
         let expected_origin = absolute(Path::new("tests/fixtures")).unwrap();
         let expected_origin = expected_origin.to_str().unwrap();
 
-        let (origin, value) = &inner["foo"];
+        let LocatedJsonValue { origin, value } = &inputs["foo"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "bar");
 
-        let (origin, value) = &inner["baz"];
+        let LocatedJsonValue { origin, value } = &inputs["baz"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_number().unwrap().as_f64().unwrap() as u64, 42);
 
-        let (origin, value) = &inner["quux"];
+        let LocatedJsonValue { origin, value } = &inputs["quux"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "qil");
     }
@@ -291,31 +294,30 @@ mod tests {
     async fn read_remote() {
         // The URL is a gist of `fixtures/inputs_one.json`
         // Create a new gist and substitute it here if the file contents need to change
-        let inputs = InputFile::read(&"https://gist.githubusercontent.com/peterhuene/9990b86bf0c419e144326b0276bf6f14/raw/d4116ef8888ccd78e2967d7ad32e1aeb3e4ab734/inputs.json".parse().unwrap())
+        let inputs = read_input_file(&"https://gist.githubusercontent.com/peterhuene/9990b86bf0c419e144326b0276bf6f14/raw/d4116ef8888ccd78e2967d7ad32e1aeb3e4ab734/inputs.json".parse().unwrap())
             .await
             .unwrap();
 
-        let inner = inputs.into_inner();
-        assert_eq!(inner.len(), 3);
+        assert_eq!(inputs.len(), 3);
 
         let expected_origin = "https://gist.githubusercontent.com/peterhuene/9990b86bf0c419e144326b0276bf6f14/raw/d4116ef8888ccd78e2967d7ad32e1aeb3e4ab734/";
 
-        let (origin, value) = &inner["foo"];
+        let LocatedJsonValue { origin, value } = &inputs["foo"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "bar");
 
-        let (origin, value) = &inner["baz"];
+        let LocatedJsonValue { origin, value } = &inputs["baz"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_number().unwrap().as_f64().unwrap() as u64, 42);
 
-        let (origin, value) = &inner["quux"];
+        let LocatedJsonValue { origin, value } = &inputs["quux"];
         assert_eq!(origin.to_str().unwrap(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "qil");
     }
 
     #[tokio::test]
     async fn read_remote_missing() {
-        let err = InputFile::read(&"https://example.com/not-a-file.json".parse().unwrap())
+        let err = read_input_file(&"https://example.com/not-a-file.json".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(

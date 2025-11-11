@@ -38,7 +38,7 @@ use crate::analysis::Source;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
-use crate::inputs::Inputs;
+use crate::inputs::Invocation;
 use crate::inputs::OriginPaths;
 
 /// The delay in showing the progress bar.
@@ -497,7 +497,7 @@ pub async fn run(args: Args) -> Result<()> {
     let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
         .await
         .with_context(|| {
             format!(
