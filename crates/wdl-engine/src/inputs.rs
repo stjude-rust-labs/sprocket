@@ -1,5 +1,6 @@
 //! Implementation of workflow and task inputs.
 
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
@@ -672,6 +673,17 @@ impl Serialize for WorkflowInputs {
     }
 }
 
+/// An input value that has not yet had its paths normalized and been converted
+/// to an engine value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocatedJsonValue {
+    /// The location where this input was initially read, used for normalizing
+    /// any paths the value may contain.
+    pub origin: EvaluationPath,
+    /// The raw JSON representation of the input value.
+    pub value: JsonValue,
+}
+
 /// Represents inputs to a WDL workflow or task.
 #[derive(Debug, Clone)]
 pub enum Inputs {
@@ -873,41 +885,53 @@ impl Inputs {
     ///
     /// Returns `Ok(None)` if the inputs are empty.
     pub fn parse_object(document: &Document, object: JsonMap) -> Result<Option<(String, Self)>> {
-        // Determine the root workflow or task name
-        let (key, name) = match object.iter().next() {
-            Some((key, _)) => match key.split_once('.') {
-                Some((name, _remainder)) => (key, name),
-                None => {
-                    bail!(
-                        "invalid input key `{key}`: expected the value to be prefixed with the \
-                         workflow or task name",
-                    )
-                }
-            },
-            // If the object is empty, treat it as a workflow evaluation without any inputs
-            None => {
-                return Ok(None);
-            }
-        };
+        // If the object is empty, treat it as an invocation without any inputs.
+        if object.is_empty() {
+            return Ok(None);
+        }
 
-        match (document.task_by_name(name), document.workflow()) {
-            (Some(task), _) => Ok(Some(Self::parse_task_inputs(document, task, object)?)),
-            (None, Some(workflow)) if workflow.name() == name => Ok(Some(
-                Self::parse_workflow_inputs(document, workflow, object)?,
-            )),
+        // Otherwise, build a set of candidate entrypoints from the prefixes of each
+        // input key.
+        let mut entrypoint_candidates = BTreeSet::new();
+        for key in object.keys() {
+            let Some((prefix, _)) = key.split_once('.') else {
+                bail!(
+                    "invalid input key `{key}`: expected the value to be prefixed with the \
+                     workflow or task name",
+                )
+            };
+            entrypoint_candidates.insert(prefix);
+        }
+        // If every prefix is the same, there will be only one candidate. If not, report
+        // an error.
+        if entrypoint_candidates.len() > 1 {
+            bail!(
+                "invalid inputs: expected each input key to be prefixed with the same workflow or \
+                 task name, but found multiple prefixes: {entrypoint_candidates:?}",
+            )
+        }
+        let entrypoint_name = entrypoint_candidates
+            .into_iter()
+            .next()
+            .expect("there should be no more than one entrypoint candidate")
+            .to_string();
+
+        let inputs = match (document.task_by_name(&entrypoint_name), document.workflow()) {
+            (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
+            (None, Some(workflow)) if workflow.name() == entrypoint_name => {
+                Self::parse_workflow_inputs(document, workflow, object)?
+            }
+
             _ => bail!(
-                "invalid input key `{key}`: a task or workflow named `{name}` does not exist in \
+                "invalid inputs: a task or workflow named `{entrypoint_name}` does not exist in \
                  the document"
             ),
-        }
+        };
+        Ok(Some((entrypoint_name, inputs)))
     }
 
     /// Parses the inputs for a task.
-    fn parse_task_inputs(
-        document: &Document,
-        task: &Task,
-        object: JsonMap,
-    ) -> Result<(String, Self)> {
+    fn parse_task_inputs(document: &Document, task: &Task, object: JsonMap) -> Result<Self> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
@@ -921,6 +945,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
+                    // This should be caught by the initial check of the prefixes in
+                    // `parse_object()`, but we retain a friendly error message in case this
+                    // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{task}`",
                         task = task.name()
@@ -929,7 +956,7 @@ impl Inputs {
             }
         }
 
-        Ok((task.name().to_string(), Inputs::Task(inputs)))
+        Ok(Inputs::Task(inputs))
     }
 
     /// Parses the inputs for a workflow.
@@ -937,7 +964,7 @@ impl Inputs {
         document: &Document,
         workflow: &Workflow,
         object: JsonMap,
-    ) -> Result<(String, Self)> {
+    ) -> Result<Self> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
@@ -951,6 +978,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
+                    // This should be caught by the initial check of the prefixes in
+                    // `parse_object()`, but we retain a friendly error message in case this
+                    // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{workflow}`",
                         workflow = workflow.name()
@@ -959,7 +989,7 @@ impl Inputs {
             }
         }
 
-        Ok((workflow.name().to_string(), Inputs::Workflow(inputs)))
+        Ok(Inputs::Workflow(inputs))
     }
 }
 

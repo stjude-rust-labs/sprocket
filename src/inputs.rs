@@ -10,6 +10,7 @@ use serde_json::Value as JsonValue;
 use thiserror::Error;
 use wdl::analysis::Document;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::LocatedJsonValue;
 use wdl::engine::path::EvaluationPath;
 
 pub mod file;
@@ -141,17 +142,6 @@ impl FromStr for Input {
 // TODO ACF 2025-11-11: why is this an `IndexMap` and not a built-in map type?
 type JsonInputMap = IndexMap<String, LocatedJsonValue>;
 
-/// An input value that has not yet had its paths normalized and been converted
-/// to an engine value.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocatedJsonValue {
-    /// The location where this input was initially read, used for normalizing
-    /// any paths the value may contain.
-    pub origin: EvaluationPath,
-    /// The raw JSON representation of the input value.
-    pub value: JsonValue,
-}
-
 /// A command-line invocation of a WDL workflow or task.
 ///
 /// An invocation is set of inputs parsed from the command line and/or read from
@@ -234,7 +224,7 @@ impl Invocation {
         &mut self.inputs
     }
 
-    /// Converts a set of inputs to a set of engine inputs.
+    /// Converts an [`EngineInvocation`] for the given [`Invocation`]
     ///
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
@@ -246,7 +236,7 @@ impl Invocation {
     /// - the name of the callee (the name of the task or workflow being run),
     /// - the transformed engine inputs, and
     /// - a map containing the origin path for each provided input key.
-    pub fn into_engine_inputs(
+    pub fn into_engine_invocation(
         self,
         document: &Document,
     ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {

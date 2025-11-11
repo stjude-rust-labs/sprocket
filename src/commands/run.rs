@@ -505,7 +505,7 @@ pub async fn run(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
+        .into_engine_invocation(document)?;
 
     let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
         inputs
