@@ -135,6 +135,20 @@ pub struct Args {
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
 
+    /// The Azure Storage account name to use.
+    #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
+    pub azure_account_name: Option<String>,
+
+    /// The Azure Storage access key to use.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "KEY",
+        requires = "azure_account_name"
+    )]
+    pub azure_access_key: Option<SecretString>,
+
     /// The AWS Access Key ID to use; overrides configuration.
     #[clap(long, env, value_name = "ID", requires = "aws_secret_access_key")]
     pub aws_access_key_id: Option<String>,
@@ -189,6 +203,18 @@ impl Args {
         self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
+        }
+
+        // Apply the Azure auth to the engine config
+        if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
+            let auth = self.engine.storage.azure.auth.get_or_insert_default();
+            if let Some(key) = &self.azure_account_name {
+                auth.account_name = key.clone();
+            }
+
+            if let Some(access_key) = &self.azure_access_key {
+                auth.access_key = access_key.clone();
+            }
         }
 
         // Apply the AWS default region to the engine config

@@ -48,9 +48,9 @@ insecure = false
 type = "bearer"
 token = "<REDACTED>"
 
-[run.storage.azure.auth.account]
-baz = "<REDACTED>"
-foo = "<REDACTED>"
+[run.storage.azure.auth]
+account_name = "foo"
+access_key = "<REDACTED>"
 
 [run.storage.s3.auth]
 access_key_id = "foo"

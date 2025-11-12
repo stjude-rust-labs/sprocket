@@ -1,6 +1,5 @@
 //! Implementation of the TES backend.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
@@ -230,10 +229,6 @@ impl TaskManagerRequest for TesTaskRequest {
                 }
                 EvaluationPath::Remote(url) => {
                     // Input is already remote, add it to the Crankshaft inputs list
-                    let url = match self.inner.transferer().apply_auth(url)? {
-                        Cow::Borrowed(_) => url.clone(),
-                        Cow::Owned(url) => url,
-                    };
                     inputs.push(
                         Input::builder()
                             .path(
@@ -242,7 +237,7 @@ impl TaskManagerRequest for TesTaskRequest {
                                     .expect("input should have guest path")
                                     .as_str(),
                             )
-                            .contents(Contents::Url(url))
+                            .contents(Contents::Url(url.clone()))
                             .ty(input.kind())
                             .read_only(true)
                             .build(),
@@ -255,11 +250,6 @@ impl TaskManagerRequest for TesTaskRequest {
         while let Some(result) = uploads.join_next().await {
             let (i, url) = result.context("upload task")??;
             let input = &self.inner.inputs()[i];
-            let url = match self.inner.transferer().apply_auth(&url)? {
-                Cow::Borrowed(_) => url,
-                Cow::Owned(url) => url,
-            };
-
             inputs.push(
                 Input::builder()
                     .path(
@@ -291,24 +281,9 @@ impl TaskManagerRequest for TesTaskRequest {
             .join(&output_dir)
             .expect("should join");
 
-        let work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
+        let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
         let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
         let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
-
-        let mut work_dir_url = match self.inner.transferer().apply_auth(&work_dir_url)? {
-            Cow::Borrowed(_) => work_dir_url,
-            Cow::Owned(url) => url,
-        };
-
-        let stdout_url = match self.inner.transferer().apply_auth(&stdout_url)? {
-            Cow::Borrowed(_) => stdout_url,
-            Cow::Owned(url) => url,
-        };
-
-        let stderr_url = match self.inner.transferer().apply_auth(&stderr_url)? {
-            Cow::Borrowed(_) => stderr_url,
-            Cow::Owned(url) => url,
-        };
 
         // The TES backend will output three things: the working directory contents,
         // stdout, and stderr.

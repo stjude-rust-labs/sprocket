@@ -16,9 +16,9 @@ type = "tes"
 type = "bearer"
 token = "secret!"
 
-[run.storage.azure.auth.account]
-foo = "secret!"
-baz = "secret!"
+[run.storage.azure.auth]
+account_name = "foo"
+access_key = "secret!"
 
 [run.storage.s3.auth]
 access_key_id = "foo"
