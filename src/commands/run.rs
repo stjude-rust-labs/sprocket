@@ -583,47 +583,47 @@ pub async fn run(args: Args) -> Result<()> {
     let mut evaluate = evaluator.run(token.clone(), events).boxed();
 
     select! {
-        // Always prefer the CTRL-C signal to the evaluation returning.
-        biased;
+            // Always prefer the CTRL-C signal to the evaluation returning.
+            biased;
 
-        _ = tokio::signal::ctrl_c() => {
-            error!("execution was interrupted: waiting for evaluation to abort");
-            token.cancel();
-            let _ = evaluate.await;
-            let _ = transfer_progress.await;
-            let _ = crankshaft_progress.await;
-            bail!("execution was aborted");
-        },
-        res = &mut evaluate => {
-            let _ = transfer_progress.await;
-            let _ = crankshaft_progress.await;
+            _ = tokio::signal::ctrl_c() => {
+                error!("execution was interrupted: waiting for evaluation to abort");
+                token.cancel();
+                let _ = evaluate.await;
+                let _ = transfer_progress.await;
+                let _ = crankshaft_progress.await;
+                bail!("execution was aborted");
+            },
+            res = &mut evaluate => {
+                let _ = transfer_progress.await;
+                let _ = crankshaft_progress.await;
 
-        match res {
-            Ok(outputs) => {
-                #[cfg(unix)]
-                {
-                    if let Err(e) = create_output_links(&outputs.with_name(&entrypoint), &output_dir) {
-                        tracing::warn!("failed to create output symlinks: {}", e);
+            match res {
+                Ok(outputs) => {
+                    #[cfg(unix)]
+                    {
+                        if let Err(e) = create_output_links(&outputs.with_name(&entrypoint), &output_dir) {
+                            tracing::warn!("failed to create output symlinks: {}", e);
+                        }
                     }
+                    println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    Ok(())
                 }
-                println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                Ok(())
-            }
-                Err(EvaluationError::Source(e)) => {
-                    emit_diagnostics(
-                        &e.document.path(),
-                        e.document.root().text().to_string(),
-                        &[e.diagnostic],
-                        &e.backtrace,
-                        args.report_mode.unwrap_or_default(),
-                        args.no_color
-                    )?;
-                    bail!("aborting due to evaluation error");
+                    Err(EvaluationError::Source(e)) => {
+                        emit_diagnostics(
+                            &e.document.path(),
+                            e.document.root().text().to_string(),
+                            &[e.diagnostic],
+                            &e.backtrace,
+                            args.report_mode.unwrap_or_default(),
+                            args.no_color
+                        )?;
+                        bail!("aborting due to evaluation error");
+                    }
+                    Err(EvaluationError::Other(e)) => Err(e)
                 }
-                Err(EvaluationError::Other(e)) => Err(e)
-            }
-        },
-    }
+            },
+        }
 }
 
 #[cfg(unix)]
@@ -631,14 +631,34 @@ fn create_output_links(outputs: &serde_json::Value, output_dir: &Path) -> Result
     use std::os::unix::fs::symlink;
 
     let out_dir = output_dir.join("out");
-    std::fs::create_dir_all(&out_dir)
-        .with_context(|| format!("failed to create directory: `{}`", out_dir.display()))?;
-
-    let mut names_in_use = std::collections::HashMap::new();
+    let mut names_in_use = std::collections::HashSet::new();
 
     if let Some(obj) = outputs.as_object() {
         for (key, value) in obj {
-            if let Some(path_str) = value.as_str() {
+            if let Some(arr) = value.as_array() {
+                for (i,val) in arr.iter().enumerate() {
+                    if let Some(path_str) = val.as_str() {
+                        let path = Path::new(path_str);
+                        if path.is_absolute() && path.exists() && path.starts_with(output_dir) {
+                            let mut link_name = format!("{}_{}",key, i+1);
+                            let mut n = 1;
+                            while names_in_use.contains(&link_name) {
+                                link_name = format!("{}_{}",key,n);
+                                n += 1;
+                            }
+                            names_in_use.insert(link_name.clone());
+                            let link_path = out_dir.join(&link_name) ;
+                            if let Some(parent) = link_path.parent() {
+                                std::fs::create_dir_all(parent).ok();
+                            }
+                            if !link_path.exists() {
+                                symlink(path,&link_path)
+                                    .with_context(|| format!("failed to symlink `{}` to `{}`",path.display(),link_path.display()))?;
+                            }
+                        }
+                    }
+                }
+            } else if let Some(path_str) = value.as_str() {
                 let path = Path::new(path_str);
                 if path.is_absolute()
                     && path.exists()
@@ -647,24 +667,19 @@ fn create_output_links(outputs: &serde_json::Value, output_dir: &Path) -> Result
                 {
                     let mut link_name = key.clone();
                     let mut n = 1;
-                    while names_in_use.contains_key(&link_name) {
+                    while names_in_use.contains(&link_name) {
                         link_name = format!("{}_{}", key, n);
                         n += 1;
                     }
-                    names_in_use.insert(link_name.clone(), true);
+                    names_in_use.insert(link_name.clone());
 
                     let link_path = out_dir.join(&link_name);
                     if let Some(parent) = link_path.parent() {
                         std::fs::create_dir_all(parent).ok();
                     }
                     if !link_path.exists() {
-                        symlink(path, &link_path).with_context(|| {
-                            format!(
-                                "failed to symlink `{}` to `{}`",
-                                path.display(),
-                                link_path.display()
-                            )
-                        })?;
+                        symlink(path, &link_path)
+                            .with_context(|| format!("failed to symlink `{}` to `{}`", path.display(), link_path.display()))?;
                     }
                 }
             }
