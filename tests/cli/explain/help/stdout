@@ -53,6 +53,7 @@ Available rules:
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
+  - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
   - EndingNewline

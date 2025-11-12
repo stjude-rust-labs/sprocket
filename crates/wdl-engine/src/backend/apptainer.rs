@@ -142,12 +142,12 @@ impl ApptainerConfig {
             })?;
 
         let mut apptainer_command = String::new();
-        writeln!(&mut apptainer_command, "#!/bin/env bash")?;
+        writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
         for (k, v) in spawn_request.env().iter() {
             writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
         write!(&mut apptainer_command, "apptainer -v exec ")?;
-        write!(&mut apptainer_command, "--cwd {GUEST_WORK_DIR} ")?;
+        write!(&mut apptainer_command, "--pwd {GUEST_WORK_DIR} ")?;
         write!(&mut apptainer_command, "--containall --cleanenv ")?;
         for input in spawn_request.inputs() {
             write!(

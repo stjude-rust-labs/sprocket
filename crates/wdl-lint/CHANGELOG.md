@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* New lint rule `DocMetaStrings` to ensure reserved meta and parameter_meta keys have string values ([#407](https://github.com/stjude-rust-labs/sprocket/pull/407)).
 * New `Tag::SprocketCompatibility` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
 * New lint rule `DescriptionLength` ([#351](https://github.com/stjude-rust-labs/sprocket/pull/351)).
 * New lint rule `CallInputKeyword` ([#401](https://github.com/stjude-rust-labs/sprocket/pull/401)).

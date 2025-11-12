@@ -3861,8 +3861,11 @@ dependencies = [
  "indicatif",
  "nonempty",
  "opener",
+ "path-clean",
  "pest",
  "pretty_assertions",
+ "regex",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -3870,6 +3873,7 @@ dependencies = [
  "similar",
  "strum",
  "tempfile",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "toml 0.9.8",
@@ -4968,7 +4972,6 @@ dependencies = [
  "url",
  "wdl-analysis",
  "wdl-ast",
- "wdl-cli",
  "wdl-doc",
  "wdl-engine",
  "wdl-format",
@@ -5027,36 +5030,6 @@ dependencies = [
  "url",
  "urlencoding",
  "wdl-grammar",
-]
-
-[[package]]
-name = "wdl-cli"
-version = "0.7.0"
-dependencies = [
- "anyhow",
- "codespan-reporting",
- "crankshaft",
- "futures",
- "indexmap 2.12.0",
- "nonempty",
- "path-clean",
- "pretty_assertions",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "shellexpand",
- "tempfile",
- "thiserror 2.0.17",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "wdl-analysis",
- "wdl-ast",
- "wdl-engine",
- "wdl-lint",
 ]
 
 [[package]]

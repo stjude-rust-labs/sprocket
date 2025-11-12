@@ -3,17 +3,17 @@
 use std::path::Path;
 
 use anyhow::anyhow;
-use tokio_util::sync::CancellationToken;
-use wdl_analysis::Document;
-use wdl_engine::EvaluatedTask;
-use wdl_engine::EvaluationError;
-use wdl_engine::EvaluationResult;
-use wdl_engine::Events;
-use wdl_engine::Inputs;
-use wdl_engine::Outputs;
-use wdl_engine::config::Config;
-use wdl_engine::v1::TaskEvaluator;
-use wdl_engine::v1::WorkflowEvaluator;
+use wdl::analysis::Document;
+use wdl::engine::CancellationContext;
+use wdl::engine::EvaluatedTask;
+use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationResult;
+use wdl::engine::Events;
+use wdl::engine::Inputs;
+use wdl::engine::Outputs;
+use wdl::engine::config::Config;
+use wdl::engine::v1::TaskEvaluator;
+use wdl::engine::v1::WorkflowEvaluator;
 
 use crate::inputs::OriginPaths;
 
@@ -61,7 +61,7 @@ impl<'a> Evaluator<'a> {
     /// Runs a WDL task or workflow evaluation.
     pub async fn run(
         mut self,
-        token: CancellationToken,
+        cancellation: CancellationContext,
         events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
@@ -83,7 +83,7 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = TaskEvaluator::new(self.config, token, events).await?;
+                let evaluator = TaskEvaluator::new(self.config, cancellation, events).await?;
 
                 evaluator
                     .evaluate(self.document, task, inputs, self.output_dir)
@@ -113,7 +113,7 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = WorkflowEvaluator::new(self.config, token, events).await?;
+                let evaluator = WorkflowEvaluator::new(self.config, cancellation, events).await?;
                 evaluator
                     .evaluate(self.document, inputs, self.output_dir)
                     .await

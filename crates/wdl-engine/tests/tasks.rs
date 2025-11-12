@@ -37,9 +37,9 @@ use futures::future::BoxFuture;
 use regex::Regex;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
-use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
+use tracing::level_filters::LevelFilter;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
@@ -132,7 +132,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
         let evaluator =
-            TaskEvaluator::new(config.engine, CancellationToken::new(), Events::none()).await?;
+            TaskEvaluator::new(config.engine, Default::default(), Events::none()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
@@ -319,8 +319,14 @@ fn compare_evaluation_results(
 }
 
 fn main() -> Result<(), anyhow::Error> {
+    // Default log level to off as some tests are designed to fail and we don't want
+    // to log errors during the test
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(LevelFilter::OFF.into())
+                .from_env_lossy(),
+        )
         .init();
 
     let args = libtest_mimic::Arguments::from_args();

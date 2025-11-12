@@ -18,27 +18,28 @@ use indicatif::ProgressStyle;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
-use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::cli::Analysis;
-use wdl::cli::Evaluator;
-use wdl::cli::Inputs;
-use wdl::cli::analysis::AnalysisResults;
-use wdl::cli::analysis::Source;
-use wdl::cli::inputs::OriginPaths;
 use wdl::engine;
+use wdl::engine::CancellationContext;
+use wdl::engine::CancellationContextState;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::SecretString;
 use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
-use crate::emit_diagnostics;
+use crate::analysis::Analysis;
+use crate::analysis::AnalysisResults;
+use crate::analysis::Source;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
+use crate::eval::Evaluator;
+use crate::inputs::Inputs;
+use crate::inputs::OriginPaths;
 
 /// The delay in showing the progress bar.
 ///
@@ -556,13 +557,13 @@ pub async fn run(args: Args) -> Result<()> {
         .unwrap(),
     );
 
-    let token = CancellationToken::new();
+    let cancellation = CancellationContext::new(args.engine.failure_mode);
     let events = Events::all(EVENTS_CHANNEL_CAPACITY);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        token.clone(),
+        cancellation.token(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         events
@@ -580,35 +581,46 @@ pub async fn run(args: Args) -> Result<()> {
         &output_dir,
     );
 
-    let mut evaluate = evaluator.run(token.clone(), events).boxed();
+    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
 
-    select! {
+    loop {
+        select! {
             // Always prefer the CTRL-C signal to the evaluation returning.
             biased;
 
             _ = tokio::signal::ctrl_c() => {
-                error!("execution was interrupted: waiting for evaluation to abort");
-                token.cancel();
-                let _ = evaluate.await;
-                let _ = transfer_progress.await;
-                let _ = crankshaft_progress.await;
-                bail!("execution was aborted");
+                // If we've already been waiting for executing tasks to cancel, immediately bail out
+                if cancellation.state() == CancellationContextState::Canceling {
+                    bail!("evaluation was interrupted");
+                }
+
+                // Log the message indicating whether we're waiting on completion or waiting on cancellation
+                match cancellation.cancel() {
+                    CancellationContextState::NotCanceled => unreachable!("should be canceled"),
+                    CancellationContextState::Waiting => {
+                        error!("waiting for executing tasks to complete: use Ctrl-C to cancel executing tasks");
+                    },
+                    CancellationContextState::Canceling => {
+                        error!("waiting for executing tasks to cancel: use Ctrl-C to immediately terminate Sprocket");
+                    },
+                }
             },
             res = &mut evaluate => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
 
-            match res {
-                Ok(outputs) => {
-                    #[cfg(unix)]
-                    {
+                return match res {
+                    Ok(outputs) => {
+                      #[cfg(unix)]
+                      {
                         if let Err(e) = create_output_links(&outputs.with_name(&entrypoint), &output_dir) {
-                            tracing::warn!("failed to create output symlinks: {}", e);
+                           tracing::warn!("failed to create output symlinks: {}", e);
                         }
+                      }
+                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                        Ok(())
                     }
-                    println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
-                    Ok(())
-                }
+                    Err(EvaluationError::Canceled) => bail!("evaluation was interrupted"),
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
@@ -621,68 +633,8 @@ pub async fn run(args: Args) -> Result<()> {
                         bail!("aborting due to evaluation error");
                     }
                     Err(EvaluationError::Other(e)) => Err(e)
-                }
+                };
             },
-        }
-}
-
-#[cfg(unix)]
-fn create_output_links(outputs: &serde_json::Value, output_dir: &Path) -> Result<()> {
-    use std::os::unix::fs::symlink;
-
-    let out_dir = output_dir.join("out");
-    let mut names_in_use = std::collections::HashSet::new();
-
-    if let Some(obj) = outputs.as_object() {
-        for (key, value) in obj {
-            if let Some(arr) = value.as_array() {
-                for (i,val) in arr.iter().enumerate() {
-                    if let Some(path_str) = val.as_str() {
-                        let path = Path::new(path_str);
-                        if path.is_absolute() && path.exists() && path.starts_with(output_dir) {
-                            let mut link_name = format!("{}_{}",key, i+1);
-                            let mut n = 1;
-                            while names_in_use.contains(&link_name) {
-                                link_name = format!("{}_{}",key,n);
-                                n += 1;
-                            }
-                            names_in_use.insert(link_name.clone());
-                            let link_path = out_dir.join(&link_name) ;
-                            if let Some(parent) = link_path.parent() {
-                                std::fs::create_dir_all(parent).ok();
-                            }
-                            if !link_path.exists() {
-                                symlink(path,&link_path)
-                                    .with_context(|| format!("failed to symlink `{}` to `{}`",path.display(),link_path.display()))?;
-                            }
-                        }
-                    }
-                }
-            } else if let Some(path_str) = value.as_str() {
-                let path = Path::new(path_str);
-                if path.is_absolute()
-                    && path.exists()
-                    && path.starts_with(output_dir)
-                    && (path.is_file() || path.is_dir())
-                {
-                    let mut link_name = key.clone();
-                    let mut n = 1;
-                    while names_in_use.contains(&link_name) {
-                        link_name = format!("{}_{}", key, n);
-                        n += 1;
-                    }
-                    names_in_use.insert(link_name.clone());
-
-                    let link_path = out_dir.join(&link_name);
-                    if let Some(parent) = link_path.parent() {
-                        std::fs::create_dir_all(parent).ok();
-                    }
-                    if !link_path.exists() {
-                        symlink(path, &link_path)
-                            .with_context(|| format!("failed to symlink `{}` to `{}`", path.display(), link_path.display()))?;
-                    }
-                }
-            }
         }
     }
 

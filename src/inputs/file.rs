@@ -7,10 +7,10 @@ use std::path::absolute;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
 use thiserror::Error;
-use wdl_engine::JsonMap;
-use wdl_engine::path::EvaluationPath;
+use wdl::engine::JsonMap;
+use wdl::engine::path::EvaluationPath;
 
-use crate::Inputs;
+use super::Inputs;
 
 /// An error related to a input file.
 #[derive(Error, Debug)]

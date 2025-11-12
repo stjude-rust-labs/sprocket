@@ -8,6 +8,8 @@ use std::io::BufRead;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU8;
+use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -18,6 +20,8 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
+use tracing::error;
 use wdl_analysis::Document;
 use wdl_analysis::document::Task;
 use wdl_analysis::types::Type;
@@ -32,6 +36,7 @@ use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::TaskExecutionResult;
 use crate::Value;
+use crate::config::FailureMode;
 use crate::http::Location;
 use crate::http::Transferer;
 use crate::path;
@@ -48,6 +53,217 @@ const MAX_STDERR_LINES: usize = 10;
 ///
 /// A root might be a root directory like `/` or `C:\`, but it also might be the root of a URL like `https://example.com`.
 const ROOT_NAME: &str = ".root";
+
+/// A constant to denote that no cancellation has occurred yet.
+const CANCELLATION_STATE_NOT_CANCELED: u8 = 0;
+
+/// A state bit to indicate that we're waiting for executing tasks to
+/// complete.
+///
+/// This bit is mutually exclusive with the `CANCELING` bit.
+const CANCELLATION_STATE_WAITING: u8 = 1;
+
+/// A state bit to denote that we're waiting for executing tasks to cancel.
+///
+/// This bit is mutually exclusive with the `WAITING` bit.
+const CANCELLATION_STATE_CANCELING: u8 = 2;
+
+/// A state bit to denote that cancellation was the result of an error.
+///
+/// This bit will only be set if either the `CANCELING` bit or the `WAITING`
+/// bit are set.
+const CANCELLATION_STATE_ERROR: u8 = 4;
+
+/// The mask to apply to the state for excluding the error bit.
+const CANCELLATION_STATE_MASK: u8 = 0x3;
+
+/// Represents the current state of a [`CancellationContext`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CancellationContextState {
+    /// The context has not been canceled yet.
+    NotCanceled,
+    /// The context has been canceled and is waiting for executing tasks to
+    /// complete.
+    Waiting,
+    /// The context has been canceled and is waiting for executing tasks to
+    /// cancel.
+    Canceling,
+}
+
+impl CancellationContextState {
+    /// Gets the current context state.
+    fn get(state: &Arc<AtomicU8>) -> Self {
+        match state.load(Ordering::SeqCst) & CANCELLATION_STATE_MASK {
+            CANCELLATION_STATE_NOT_CANCELED => Self::NotCanceled,
+            CANCELLATION_STATE_WAITING => Self::Waiting,
+            CANCELLATION_STATE_CANCELING => Self::Canceling,
+            _ => unreachable!("unexpected cancellation context state"),
+        }
+    }
+
+    /// Updates the context state and returns the new state.
+    ///
+    /// Returns `None` if the update is for an error and there has already been
+    /// a cancellation (i.e. the update was not successful).
+    fn update(mode: FailureMode, error: bool, state: &Arc<AtomicU8>) -> Option<Self> {
+        // Update the provided state with the new state
+        let previous_state = state
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |state| {
+                // If updating for an error and there has been a cancellation, bail out
+                if error && state != CANCELLATION_STATE_NOT_CANCELED {
+                    return None;
+                }
+
+                // Otherwise, calculate the new state
+                let mut new_state = match state & CANCELLATION_STATE_MASK {
+                    CANCELLATION_STATE_NOT_CANCELED => match mode {
+                        FailureMode::Slow => CANCELLATION_STATE_WAITING,
+                        FailureMode::Fast => CANCELLATION_STATE_CANCELING,
+                    },
+                    CANCELLATION_STATE_WAITING => CANCELLATION_STATE_CANCELING,
+                    CANCELLATION_STATE_CANCELING => CANCELLATION_STATE_CANCELING,
+                    _ => unreachable!("unexpected cancellation context state"),
+                };
+
+                // Mark the error bit upon error
+                if error {
+                    new_state |= CANCELLATION_STATE_ERROR;
+                }
+
+                // Return the new state along with the old error bit
+                Some(new_state | (state & CANCELLATION_STATE_ERROR))
+            })
+            .ok()?;
+
+        match previous_state & CANCELLATION_STATE_MASK {
+            CANCELLATION_STATE_NOT_CANCELED => match mode {
+                FailureMode::Slow => Some(Self::Waiting),
+                FailureMode::Fast => Some(Self::Canceling),
+            },
+            CANCELLATION_STATE_WAITING => Some(Self::Canceling),
+            CANCELLATION_STATE_CANCELING => Some(Self::Canceling),
+            _ => unreachable!("unexpected cancellation context state"),
+        }
+    }
+}
+
+/// Represents context for cancelling workflow or task evaluation.
+///
+/// Uses a default failure mode of [`Slow`](FailureMode::Slow).
+#[derive(Clone)]
+pub struct CancellationContext {
+    /// The failure mode for the cancellation context.
+    mode: FailureMode,
+    /// The state of the cancellation context.
+    state: Arc<AtomicU8>,
+    /// Stores the underlying cancellation token.
+    token: CancellationToken,
+}
+
+impl CancellationContext {
+    /// Constructs a cancellation context for the given [`FailureMode`].
+    ///
+    /// If the provided `mode` is [`Slow`](FailureMode::Slow), the first call to
+    /// [`cancel`](Self::cancel) will wait for currently executing tasks to
+    /// complete; a subsequent call to [`cancel`](Self::cancel) will cancel the
+    /// currently executing tasks.
+    ///
+    /// If the provided `mode` is [`Fast`](FailureMode::Fast), the first call to
+    /// [`cancel`](Self::cancel) will cancel the currently executing tasks.
+    pub fn new(mode: FailureMode) -> Self {
+        Self {
+            mode,
+            state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
+            token: CancellationToken::new(),
+        }
+    }
+
+    /// Gets the [`CancellationContextState`] of this [`CancellationContext`].
+    pub fn state(&self) -> CancellationContextState {
+        CancellationContextState::get(&self.state)
+    }
+
+    /// Performs a cancellation.
+    ///
+    /// Returns the current [`CancellationContextState`] which should be checked
+    /// to ensure the desired cancellation occurred.
+    ///
+    /// This method will never return a
+    /// [`CancellationContextState::NotCanceled`] state.
+    #[must_use]
+    pub fn cancel(&self) -> CancellationContextState {
+        let state =
+            CancellationContextState::update(self.mode, false, &self.state).expect("should update");
+        assert!(
+            state != CancellationContextState::NotCanceled,
+            "should be canceled"
+        );
+
+        if state == CancellationContextState::Canceling {
+            self.token.cancel();
+        }
+
+        state
+    }
+
+    /// Gets the cancellation token from the context.
+    ///
+    /// The token will be canceled when the [`CancellationContext::cancel`] is
+    /// called and the resulting state is
+    /// [`CancellationContextState::Canceling`].
+    ///
+    /// Callers should _not_ directly cancel the returned token and instead call
+    /// [`CancellationContext::cancel`].
+    pub fn token(&self) -> CancellationToken {
+        self.token.clone()
+    }
+
+    /// Determines if the user initiated the cancellation.
+    pub(crate) fn user_canceled(&self) -> bool {
+        let state = self.state.load(Ordering::SeqCst);
+        state != CANCELLATION_STATE_NOT_CANCELED && (state & CANCELLATION_STATE_ERROR == 0)
+    }
+
+    /// Triggers a cancellation as a result of an error.
+    ///
+    /// If the context has already been canceled, this is a no-op.
+    ///
+    /// Otherwise, a cancellation is attempted and an error message is logged
+    /// depending on the current state of the context.
+    pub(crate) fn error(&self, error: &EvaluationError) {
+        if let Some(state) = CancellationContextState::update(self.mode, true, &self.state) {
+            let message: Cow<'_, str> = match error {
+                EvaluationError::Canceled => "evaluation was canceled".into(),
+                EvaluationError::Source(e) => e.diagnostic.message().into(),
+                EvaluationError::Other(e) => format!("{e:#}").into(),
+            };
+
+            match state {
+                CancellationContextState::NotCanceled => unreachable!("should be canceled"),
+                CancellationContextState::Waiting => {
+                    error!(
+                        "an evaluation error occurred: waiting for any executing tasks to \
+                         complete: {message}"
+                    );
+                }
+                CancellationContextState::Canceling => {
+                    self.token.cancel();
+
+                    error!(
+                        "an evaluation error occurred: waiting for any executing tasks to cancel: \
+                         {message}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+impl Default for CancellationContext {
+    fn default() -> Self {
+        Self::new(FailureMode::Slow)
+    }
+}
 
 /// Represents events that may be sent during evaluation.
 #[derive(Debug, Clone, Default)]
@@ -147,6 +363,8 @@ pub struct SourceError {
 /// Represents an error that may occur when evaluating a workflow or task.
 #[derive(Debug)]
 pub enum EvaluationError {
+    /// Evaluation was canceled.
+    Canceled,
     /// The error came from WDL source evaluation.
     Source(Box<SourceError>),
     /// The error came from another source.
@@ -176,6 +394,7 @@ impl EvaluationError {
         use wdl_ast::AstNode;
 
         match self {
+            Self::Canceled => "evaluation was canceled".to_string(),
             Self::Source(e) => {
                 let mut files = SimpleFiles::new();
                 let mut map = HashMap::new();
@@ -699,10 +918,8 @@ impl EvaluatedTask {
             // If the work directory is remote,
             bail!(
                 "process terminated with exit code {code}: see `{stdout_path}` and \
-                 `{stderr_path}` for task output and the related files in \
-                 `{dir}`{header}{stderr}{trailer}",
+                 `{stderr_path}` for task output{header}{stderr}{trailer}",
                 code = self.result.exit_code,
-                dir = self.attempt_dir().display(),
                 stdout_path = self.stdout().as_file().expect("must be file"),
                 stderr_path = self.stderr().as_file().expect("must be file"),
                 header = if stderr.is_empty() {
@@ -795,5 +1012,100 @@ impl Input {
     /// This is used during localization to set a local path for remote inputs.
     pub fn set_location(&mut self, location: Location) {
         self.location = Some(location);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn cancellation_slow() {
+        let context = CancellationContext::new(FailureMode::Slow);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // The first cancel should not cancel the token
+        assert_eq!(context.cancel(), CancellationContextState::Waiting);
+        assert_eq!(context.state(), CancellationContextState::Waiting);
+        assert!(context.user_canceled());
+        assert!(!context.token.is_cancelled());
+
+        // The second cancel should cancel the token
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(context.user_canceled());
+        assert!(context.token.is_cancelled());
+
+        // Subsequent cancellations have no effect
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(context.user_canceled());
+        assert!(context.token.is_cancelled());
+    }
+
+    #[test]
+    fn cancellation_fast() {
+        let context = CancellationContext::new(FailureMode::Fast);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // Fail fast should immediately cancel the token
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(context.user_canceled());
+        assert!(context.token.is_cancelled());
+
+        // Subsequent cancellations have no effect
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(context.user_canceled());
+        assert!(context.token.is_cancelled());
+    }
+
+    #[test]
+    fn cancellation_error_slow() {
+        let context = CancellationContext::new(FailureMode::Slow);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // An error should not cancel the token
+        context.error(&EvaluationError::Canceled);
+        assert_eq!(context.state(), CancellationContextState::Waiting);
+        assert!(!context.user_canceled());
+        assert!(!context.token.is_cancelled());
+
+        // A repeated error should not cancel the token either
+        context.error(&EvaluationError::Canceled);
+        assert_eq!(context.state(), CancellationContextState::Waiting);
+        assert!(!context.user_canceled());
+        assert!(!context.token.is_cancelled());
+
+        // However, another cancellation will
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(!context.user_canceled());
+        assert!(context.token.is_cancelled());
+    }
+
+    #[test]
+    fn cancellation_error_fast() {
+        let context = CancellationContext::new(FailureMode::Fast);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // An error should cancel the context
+        context.error(&EvaluationError::Canceled);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(!context.user_canceled());
+        assert!(context.token.is_cancelled());
+
+        // A repeated error should not change anything
+        context.error(&EvaluationError::Canceled);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(!context.user_canceled());
+        assert!(context.token.is_cancelled());
+
+        // Neither should another `cancel` call
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert_eq!(context.state(), CancellationContextState::Canceling);
+        assert!(!context.user_canceled());
+        assert!(context.token.is_cancelled());
     }
 }

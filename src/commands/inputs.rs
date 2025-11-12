@@ -19,8 +19,9 @@ use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
-use wdl::cli::Analysis;
-use wdl::cli::analysis::Source;
+
+use crate::analysis::Analysis;
+use crate::analysis::Source;
 
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
@@ -58,11 +59,6 @@ impl Key {
     /// Creates a new key with a preinitialized value.
     pub fn new(value: String) -> Self {
         Self(vec![value])
-    }
-
-    /// Creates a new, empty key.
-    pub fn empty() -> Self {
-        Self(vec![])
     }
 
     /// Pushes a value into the key.

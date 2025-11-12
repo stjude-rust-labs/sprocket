@@ -29,8 +29,8 @@ use futures::FutureExt as _;
 use futures::future::BoxFuture;
 use serde_json::to_string_pretty;
 use tempfile::TempDir;
-use tokio_util::sync::CancellationToken;
 use tracing::info;
+use tracing::level_filters::LevelFilter;
 use wdl_analysis::Analyzer;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
@@ -104,7 +104,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
         let evaluator =
-            WorkflowEvaluator::new(config.engine, CancellationToken::new(), Events::none()).await?;
+            WorkflowEvaluator::new(config.engine, Default::default(), Events::none()).await?;
         match evaluator
             .evaluate(result.document(), inputs.clone(), &dir)
             .await
@@ -128,8 +128,14 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
 }
 
 fn main() -> Result<()> {
+    // Default log level to off as some tests are designed to fail and we don't want
+    // to log errors during the test
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(LevelFilter::OFF.into())
+                .from_env_lossy(),
+        )
         .init();
 
     let args = libtest_mimic::Arguments::from_args();
