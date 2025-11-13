@@ -146,13 +146,13 @@ impl ApptainerConfig {
         for (k, v) in spawn_request.env().iter() {
             writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
-        write!(&mut apptainer_command, "apptainer -v exec ")?;
-        write!(&mut apptainer_command, "--pwd {GUEST_WORK_DIR} ")?;
-        write!(&mut apptainer_command, "--containall --cleanenv ")?;
+        writeln!(&mut apptainer_command, "apptainer -v exec \\")?;
+        writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
+        writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
         for input in spawn_request.inputs() {
-            write!(
+            writeln!(
                 &mut apptainer_command,
-                "--mount type=bind,src={host_path},dst={guest_path},ro ",
+                "--mount type=bind,src=\"{host_path}\",dst=\"{guest_path}\",ro \\",
                 host_path = input
                     .local_path()
                     .ok_or_else(|| anyhow!("input not localized: {input:?}"))?
@@ -162,34 +162,34 @@ impl ApptainerConfig {
                     .ok_or_else(|| anyhow!("guest path missing: {input:?}"))?,
             )?;
         }
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_COMMAND_PATH},ro ",
+            "--mount type=bind,src=\"{}\",dst=\"{GUEST_COMMAND_PATH}\",ro \\",
             spawn_request.wdl_command_host_path().display()
         )?;
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_WORK_DIR} ",
+            "--mount type=bind,src=\"{}\",dst=\"{GUEST_WORK_DIR}\" \\",
             spawn_request.wdl_work_dir_host_path().display()
         )?;
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst=/tmp ",
+            "--mount type=bind,src=\"{}\",dst=\"/tmp\" \\",
             container_tmp_path.display()
         )?;
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst=/var/tmp ",
+            "--mount type=bind,src=\"{}\",dst=\"/var/tmp\" \\",
             container_var_tmp_path.display()
         )?;
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_STDOUT_PATH} ",
+            "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDOUT_PATH}\" \\",
             spawn_request.wdl_stdout_host_path().display()
         )?;
-        write!(
+        writeln!(
             &mut apptainer_command,
-            "--mount type=bind,src={},dst={GUEST_STDERR_PATH} ",
+            "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDERR_PATH}\" \\",
             spawn_request.wdl_stderr_host_path().display()
         )?;
         if let Some(true) = spawn_request
@@ -197,24 +197,25 @@ impl ApptainerConfig {
             .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
             .and_then(Value::as_boolean)
         {
-            write!(&mut apptainer_command, "--nv ")?;
+            writeln!(&mut apptainer_command, "--nv \\")?;
         }
         if let Some(args) = &self.extra_apptainer_exec_args {
             for arg in args {
-                write!(&mut apptainer_command, "{arg} ")?;
+                writeln!(&mut apptainer_command, "{arg} \\")?;
             }
         }
-        write!(&mut apptainer_command, "{} ", container_sif.display())?;
-        write!(
+        writeln!(&mut apptainer_command, "\"{}\" \\", container_sif.display())?;
+        writeln!(
             &mut apptainer_command,
-            "bash -c \"{GUEST_COMMAND_PATH} > {GUEST_STDOUT_PATH} 2> {GUEST_STDERR_PATH}\" "
+            "bash -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
+             \\\"{GUEST_STDERR_PATH}\\\"\" \\"
         )?;
         let attempt_dir = spawn_request.attempt_dir();
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
         let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
         writeln!(
             &mut apptainer_command,
-            "> {stdout} 2> {stderr}",
+            "> \"{stdout}\" 2> \"{stderr}\"",
             stdout = apptainer_stdout_path.display(),
             stderr = apptainer_stderr_path.display()
         )?;
@@ -292,6 +293,8 @@ mod tests {
         let shellcheck_status = Command::new("shellcheck")
             .arg("--shell=bash")
             .arg("--severity=style")
+            // all the quotes in the generated `--mount` args look suspicious but are okay
+            .arg("--exclude=SC2140")
             .arg(&script_file)
             .status()
             .await
