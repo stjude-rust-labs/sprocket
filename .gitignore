@@ -7,6 +7,7 @@ target/
 rustc-ice*
 
 runs/
+real_runs/
 
 .idea
 

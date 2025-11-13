@@ -637,6 +637,12 @@ pub async fn run(args: Args) -> Result<()> {
 
                 return match res {
                     Ok(outputs) => {
+                      #[cfg(unix)]
+                      {
+                        if let Err(e) = create_output_links(&outputs.with_name(&entrypoint), &output_dir) {
+                           tracing::warn!("failed to create output symlinks: {}", e);
+                        }
+                      }
                         println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
                         Ok(())
                     }
@@ -657,4 +663,6 @@ pub async fn run(args: Args) -> Result<()> {
             },
         }
     }
+
+    Ok(())
 }
