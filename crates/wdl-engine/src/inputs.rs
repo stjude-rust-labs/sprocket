@@ -911,8 +911,8 @@ impl Inputs {
             .collect::<Vec<_>>()
             .as_slice()
         {
-            &[] => bail!("no entrypoint candidates for inputs; report this as a bug"),
-            &[entrypoint_name] => entrypoint_name.to_string(),
+            [] => bail!("no entrypoint candidates for inputs; report this as a bug"),
+            [entrypoint_name] => entrypoint_name.to_string(),
             _ => bail!(
                 "invalid inputs: expected each input key to be prefixed with the same workflow or \
                  task name, but found multiple prefixes: {entrypoint_candidates:?}",
