@@ -902,26 +902,28 @@ impl Inputs {
             };
             entrypoint_candidates.insert(prefix);
         }
+
         // If every prefix is the same, there will be only one candidate. If not, report
         // an error.
-        if entrypoint_candidates.len() > 1 {
-            bail!(
+        let entrypoint_name = match entrypoint_candidates
+            .iter()
+            .take(2)
+            .collect::<Vec<_>>()
+            .as_slice()
+        {
+            &[] => bail!("no entrypoint candidates for inputs; report this as a bug"),
+            &[entrypoint_name] => entrypoint_name.to_string(),
+            _ => bail!(
                 "invalid inputs: expected each input key to be prefixed with the same workflow or \
                  task name, but found multiple prefixes: {entrypoint_candidates:?}",
-            )
-        }
-        let entrypoint_name = entrypoint_candidates
-            .into_iter()
-            .next()
-            .expect("there should be no more than one entrypoint candidate")
-            .to_string();
+            ),
+        };
 
         let inputs = match (document.task_by_name(&entrypoint_name), document.workflow()) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
             (None, Some(workflow)) if workflow.name() == entrypoint_name => {
                 Self::parse_workflow_inputs(document, workflow, object)?
             }
-
             _ => bail!(
                 "invalid inputs: a task or workflow named `{entrypoint_name}` does not exist in \
                  the document"
