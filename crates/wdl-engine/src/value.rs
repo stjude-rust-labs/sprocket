@@ -16,6 +16,7 @@ use futures::FutureExt;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
+pub use host_path::HostPath;
 use indexmap::IndexMap;
 use itertools::Either;
 use ordered_float::OrderedFloat;
@@ -57,11 +58,12 @@ use wdl_ast::version::V1;
 
 use crate::EvaluationContext;
 use crate::GuestPath;
-use crate::HostPath;
 use crate::Outputs;
 use crate::TaskExecutionConstraints;
 use crate::http::Transferer;
 use crate::path;
+
+mod host_path;
 
 /// Implemented on coercible values.
 pub trait Coercible: Sized {
@@ -1231,11 +1233,17 @@ impl Hash for PrimitiveValue {
                 1.hash(state);
                 v.hash(state);
             }
-            Self::String(v) | Self::File(HostPath(v)) | Self::Directory(HostPath(v)) => {
-                // Hash these with the same discriminant; this allows coercion from file and
-                // directory to string
+            Self::String(v) => {
+                // Hash these with the same discriminant as files and directories; this allows
+                // coercion from file and directory to string
                 2.hash(state);
                 v.hash(state);
+            }
+            Self::File(path) | Self::Directory(path) => {
+                // Hash these with the same discriminant as strings; this allows coercion from
+                // file and directory to string
+                2.hash(state);
+                path.as_str().hash(state);
             }
         }
     }
@@ -1305,26 +1313,33 @@ impl Coercible for PrimitiveValue {
                     .with_context(|| format!("cannot coerce type `Float` to type `{target}`"))
             }
             Self::String(s) => {
-                target
-                    .as_primitive()
-                    .and_then(|ty| match ty {
-                        // String -> String
-                        PrimitiveType::String => Some(Self::String(s.clone())),
-                        // String -> File
-                        PrimitiveType::File => Some(Self::File(
-                            context
-                                .and_then(|c| c.host_path(&GuestPath(s.clone())))
-                                .unwrap_or_else(|| s.clone().into()),
-                        )),
-                        // String -> Directory
-                        PrimitiveType::Directory => Some(Self::Directory(
-                            context
-                                .and_then(|c| c.host_path(&GuestPath(s.clone())))
-                                .unwrap_or_else(|| s.clone().into()),
-                        )),
-                        _ => None,
-                    })
-                    .with_context(|| format!("cannot coerce type `String` to type `{target}`"))
+                match target.as_primitive() {
+                    // String -> String
+                    Some(PrimitiveType::String) => Ok(Self::String(s.clone())),
+                    // String -> File
+                    Some(PrimitiveType::File) => {
+                        let path = if let Some(path) =
+                            context.and_then(|c| c.host_path(&GuestPath(s.clone())))
+                        {
+                            path
+                        } else {
+                            HostPath::new(&s)?
+                        };
+                        Ok(Self::File(path))
+                    }
+                    // String -> Directory
+                    Some(PrimitiveType::Directory) => {
+                        let path = if let Some(path) =
+                            context.and_then(|c| c.host_path(&GuestPath(s.clone())))
+                        {
+                            path
+                        } else {
+                            HostPath::new(&s)?
+                        };
+                        Ok(Self::Directory(path))
+                    }
+                    _ => Err(anyhow!("cannot coerce type `String` to type `{target}`")),
+                }
             }
             Self::File(p) => {
                 target
@@ -1336,7 +1351,7 @@ impl Coercible for PrimitiveValue {
                         PrimitiveType::String => Some(Self::String(
                             context
                                 .and_then(|c| c.guest_path(p).map(Into::into))
-                                .unwrap_or_else(|| p.clone().into()),
+                                .unwrap_or_else(|| p.as_str().to_string().into()),
                         )),
                         _ => None,
                     })
@@ -1352,7 +1367,7 @@ impl Coercible for PrimitiveValue {
                         PrimitiveType::String => Some(Self::String(
                             context
                                 .and_then(|c| c.guest_path(p).map(Into::into))
-                                .unwrap_or_else(|| p.clone().into()),
+                                .unwrap_or_else(|| p.as_str().to_string().into()),
                         )),
                         _ => None,
                     })
@@ -1371,9 +1386,8 @@ impl serde::Serialize for PrimitiveValue {
             Self::Boolean(v) => v.serialize(serializer),
             Self::Integer(v) => v.serialize(serializer),
             Self::Float(v) => v.serialize(serializer),
-            Self::String(s) | Self::File(HostPath(s)) | Self::Directory(HostPath(s)) => {
-                s.serialize(serializer)
-            }
+            Self::String(s) => s.serialize(serializer),
+            Self::File(path) | Self::Directory(path) => path.as_str().serialize(serializer),
         }
     }
 }
@@ -3567,7 +3581,7 @@ mod test {
 
             fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
                 if path.as_str() == "/mnt/task/input/0/path" {
-                    Some(HostPath::new("/some/host/path"))
+                    Some(HostPath::new("/some/host/path").unwrap())
                 } else {
                     None
                 }
@@ -3637,7 +3651,14 @@ mod test {
             value
                 .coerce(None, &PrimitiveType::String.into())
                 .expect("should coerce"),
-            PrimitiveValue::String(value.as_file().expect("should be file").0.clone())
+            PrimitiveValue::String(
+                value
+                    .as_file()
+                    .expect("should be file")
+                    .as_str()
+                    .to_string()
+                    .into()
+            )
         );
         // File -> Directory (invalid)
         assert_eq!(
@@ -3729,7 +3750,14 @@ mod test {
             value
                 .coerce(None, &PrimitiveType::String.into())
                 .expect("should coerce"),
-            PrimitiveValue::String(value.as_directory().expect("should be directory").0.clone())
+            PrimitiveValue::String(
+                value
+                    .as_directory()
+                    .expect("should be directory")
+                    .as_str()
+                    .to_string()
+                    .into()
+            )
         );
         // Directory -> File (invalid)
         assert_eq!(

@@ -48,7 +48,7 @@ pub fn has_supported_scheme(url: &Url) -> bool {
 }
 
 /// Represents a path used in evaluation that may be either local or remote.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum EvaluationPath {
     /// The path is local (i.e. on the host).
     Local(PathBuf),
@@ -245,6 +245,15 @@ impl TryFrom<EvaluationPath> for String {
                 ),
             },
             EvaluationPath::Remote(url) => Ok(url.into()),
+        }
+    }
+}
+
+impl fmt::Display for EvaluationPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EvaluationPath::Local(path_buf) => path_buf.display().fmt(f),
+            EvaluationPath::Remote(url) => url.fmt(f),
         }
     }
 }

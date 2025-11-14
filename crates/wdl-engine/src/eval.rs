@@ -11,7 +11,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
-use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use cloud_copy::TransferEvent;
@@ -32,6 +31,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 
 use crate::CompoundValue;
+use crate::HostPath;
 use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::TaskExecutionResult;
@@ -39,7 +39,6 @@ use crate::Value;
 use crate::config::FailureMode;
 use crate::http::Location;
 use crate::http::Transferer;
-use crate::path;
 use crate::path::EvaluationPath;
 use crate::stdlib::download_file;
 
@@ -437,63 +436,6 @@ impl From<anyhow::Error> for EvaluationError {
 
 /// Represents a result from evaluating a workflow or task.
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
-
-/// Represents a path to a file or directory on the host file system or a URL to
-/// a remote file.
-///
-/// The host in this context is where the WDL evaluation is taking place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct HostPath(pub(crate) Arc<String>);
-
-impl HostPath {
-    /// Constructs a new host path from a string.
-    pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
-    }
-
-    /// Gets the string representation of the host path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Shell-expands the path.
-    ///
-    /// The path is also joined with the provided base directory.
-    pub fn expand(&self, base_dir: &EvaluationPath) -> Result<Self> {
-        // Shell-expand both paths and URLs
-        let shell_expanded = shellexpand::full(self.as_str()).with_context(|| {
-            format!("failed to shell-expand path `{path}`", path = self.as_str())
-        })?;
-
-        // But don't join URLs
-        if path::is_supported_url(&shell_expanded) {
-            Ok(Self::new(shell_expanded))
-        } else {
-            // `join()` handles both relative and absolute paths
-            Ok(Self::new(
-                base_dir.join(&shell_expanded)?.display().to_string(),
-            ))
-        }
-    }
-}
-
-impl fmt::Display for HostPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<Arc<String>> for HostPath {
-    fn from(path: Arc<String>) -> Self {
-        Self(path)
-    }
-}
-
-impl From<HostPath> for Arc<String> {
-    fn from(path: HostPath) -> Self {
-        path.0
-    }
-}
 
 /// Represents a path to a file or directory on the guest.
 ///
