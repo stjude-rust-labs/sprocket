@@ -6,7 +6,6 @@ use std::io::BufReader;
 use anyhow::Context;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use serde::Deserialize;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -47,14 +46,16 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
                 function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
             })?;
 
-        let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
-        Value::deserialize(&mut deserializer).map_err(|e| {
-            function_call_failed(
-                FUNCTION_NAME,
-                format!("failed to deserialize JSON file `{path}`: {e}"),
-                context.call_site,
-            )
-        })
+        serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file))
+            .map_err(anyhow::Error::new)
+            .and_then(Value::try_from)
+            .map_err(|e| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("failed to read JSON file `{path}`: {e}"),
+                    context.call_site,
+                )
+            })
     }
     .boxed()
 }
@@ -80,8 +81,7 @@ mod test {
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
-    #[tokio::test]
-    async fn read_json() {
+    fn make_env() -> TestEnv {
         let env = TestEnv::default();
         env.write_file("empty.json", "");
         env.write_file("not-json.json", "not json!");
@@ -97,53 +97,78 @@ mod test {
             "object.json",
             r#"{ "foo": "bar", "bar": 12345, "baz": [1, 2, 3] }"#,
         );
+        env
+    }
 
-        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('empty.json')")
+    #[tokio::test]
+    async fn read_empty_json() {
+        let diagnostic = eval_v1_expr(&make_env(), V1::One, "read_json('empty.json')")
             .await
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file `empty.json`: \
-             EOF while parsing a value at line 1 column 0"
+            "call to function `read_json` failed: failed to read JSON file `empty.json`: EOF \
+             while parsing a value at line 1 column 0"
         );
+    }
 
-        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('not-json.json')")
+    #[tokio::test]
+    async fn read_not_json() {
+        let diagnostic = eval_v1_expr(&make_env(), V1::One, "read_json('not-json.json')")
             .await
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file \
-             `not-json.json`: expected ident at line 1 column 2"
+            "call to function `read_json` failed: failed to read JSON file `not-json.json`: \
+             expected ident at line 1 column 2"
         );
+    }
 
+    #[tokio::test]
+    async fn read_true_json() {
         for file in ["true.json", "https://example.com/true.json"] {
-            let value = eval_v1_expr(&env, V1::Two, &format!("read_json('{file}')"))
+            let value = eval_v1_expr(&make_env(), V1::Two, &format!("read_json('{file}')"))
                 .await
                 .unwrap();
             assert!(value.unwrap_boolean());
         }
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('false.json')")
+    #[tokio::test]
+    async fn read_false_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('false.json')")
             .await
             .unwrap();
         assert!(!value.unwrap_boolean());
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('string.json')")
+    #[tokio::test]
+    async fn read_string_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('string.json')")
             .await
             .unwrap();
         assert_eq!(value.unwrap_string().as_str(), "hello\nworld!");
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('int.json')")
+    #[tokio::test]
+    async fn read_int_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('int.json')")
             .await
             .unwrap();
         assert_eq!(value.unwrap_integer(), 12345);
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('float.json')")
+    #[tokio::test]
+    async fn read_float_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('float.json')")
             .await
             .unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 12345.6789);
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('array.json')")
+    #[tokio::test]
+    async fn read_array_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('array.json')")
             .await
             .unwrap();
         assert_eq!(
@@ -156,18 +181,23 @@ mod test {
                 .collect::<Vec<_>>(),
             [1, 2, 3]
         );
+    }
 
-        let diagnostic = eval_v1_expr(&env, V1::One, "read_json('bad_array.json')")
+    #[tokio::test]
+    async fn read_bad_array_json() {
+        let diagnostic = eval_v1_expr(&make_env(), V1::One, "read_json('bad_array.json')")
             .await
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file \
-             `bad_array.json`: a common element type does not exist between `Int` and `String` at \
-             line 1 column 11"
+            "call to function `read_json` failed: failed to read JSON file `bad_array.json`: a \
+             common element type does not exist between `Int` and `String`"
         );
+    }
 
-        let value = eval_v1_expr(&env, V1::One, "read_json('object.json')")
+    #[tokio::test]
+    async fn read_object_json() {
+        let value = eval_v1_expr(&make_env(), V1::One, "read_json('object.json')")
             .await
             .unwrap()
             .unwrap_object();

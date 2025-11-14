@@ -1081,12 +1081,12 @@ impl WorkflowEvaluator {
             .expect("document should have a version")
             >= SupportedVersion::V1(V1::Two)
         {
-            value
-                .ensure_paths_exist(
+            value = value
+                .resolve_paths(
                     expected_ty.is_optional(),
                     state.base_dir.as_local(),
                     Some(state.transferer.as_ref()),
-                    &|_| Ok(()),
+                    &|path| Ok(path.clone()),
                 )
                 .await
                 .map_err(|e| {
@@ -1149,12 +1149,12 @@ impl WorkflowEvaluator {
             .expect("document should have a version")
             >= SupportedVersion::V1(V1::Two)
         {
-            value
-                .ensure_paths_exist(
+            value = value
+                .resolve_paths(
                     expected_ty.is_optional(),
                     state.base_dir.as_local(),
                     Some(state.transferer.as_ref()),
-                    &|_| Ok(()),
+                    &|path| Ok(path.clone()),
                 )
                 .await
                 .map_err(|e| {
@@ -1209,17 +1209,19 @@ impl WorkflowEvaluator {
         })?;
 
         // Finally ensure output files exist
-        value
-            .ensure_paths_exist(
+        value = value
+            .resolve_paths(
                 expected_ty.is_optional(),
                 state.base_dir.as_local(),
                 Some(state.transferer.as_ref()),
                 &|path| {
-                    if !path::is_url(path.as_str()) && Path::new(path.as_str()).is_relative() {
+                    if !path::is_supported_url(path.as_str())
+                        && Path::new(path.as_str()).is_relative()
+                    {
                         bail!("relative path `{path}` cannot be used as a workflow output");
                     }
 
-                    Ok(())
+                    Ok(path.clone())
                 },
             )
             .await

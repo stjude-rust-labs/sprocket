@@ -9,7 +9,7 @@ use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
 use wdl::analysis::Analyzer;
-use wdl::engine::path::parse_url;
+use wdl::engine::path::parse_supported_url;
 
 /// A source for an analysis.
 #[derive(Clone, Debug)]
@@ -59,7 +59,7 @@ impl std::str::FromStr for Source {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some(url) = parse_url(s) {
+        if let Some(url) = parse_supported_url(s) {
             return Ok(Self::Remote(url));
         }
 

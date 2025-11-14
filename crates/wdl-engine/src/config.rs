@@ -27,7 +27,7 @@ use crate::SlurmApptainerBackendConfig;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
 use crate::convert_unit_string;
-use crate::path::is_url;
+use crate::path::is_supported_url;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub const MAX_RETRIES: u64 = 100;
@@ -1076,7 +1076,7 @@ impl TesBackendConfig {
 
         match &self.inputs {
             Some(url) => {
-                if !is_url(url.as_str()) {
+                if !is_supported_url(url.as_str()) {
                     bail!(
                         "TES backend storage configuration value `inputs` has invalid value \
                          `{url}`: URL scheme is not supported"
@@ -1095,7 +1095,7 @@ impl TesBackendConfig {
 
         match &self.outputs {
             Some(url) => {
-                if !is_url(url.as_str()) {
+                if !is_supported_url(url.as_str()) {
                     bail!(
                         "TES backend storage configuration value `outputs` has invalid value \
                          `{url}`: URL scheme is not supported"

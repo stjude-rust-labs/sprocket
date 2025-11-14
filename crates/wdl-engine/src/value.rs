@@ -13,12 +13,15 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::FutureExt;
+use futures::StreamExt as _;
+use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use itertools::Either;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
+use serde_json::Value as JsonValue;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
@@ -550,60 +553,60 @@ impl Value {
         }
     }
 
-    /// Ensures that paths referenced by any `File` or `Directory` values
-    /// referenced by this value exist.
+    /// Check that any paths referenced by a `File` or `Directory` value within
+    /// this value exist, and return a new value with any relevant host
+    /// paths transformed by the given `translate()` function.
     ///
-    /// If the `File` or `Directory` value is optional and the path does not
+    /// If a `File` or `Directory` value is optional and the path does not
     /// exist, it is replaced with a WDL `None` value.
     ///
-    /// If the `File` or `Directory` value is required and the path does not
+    /// If a `File` or `Directory` value is required and the path does not
     /// exist, an error is returned.
     ///
-    /// If a local base directory is provided, it will be joined with any local
-    /// paths prior to checking for existence.
+    /// If a local base directory is provided, it will be joined with any
+    /// relative local paths prior to checking for existence.
     ///
     /// The provided transferer is used for checking remote URL existence.
     ///
-    /// The provided path translation callback is called prior to checking for
-    /// existence.
-    pub(crate) async fn ensure_paths_exist<F>(
-        &mut self,
+    /// TODO ACF 2025-11-10: this function is an intermediate step on the way to
+    /// more thoroughly refactoring the code between `sprocket` and
+    /// `wdl_engine`. Expect this interface to change soon!
+    pub(crate) async fn resolve_paths<F>(
+        &self,
         optional: bool,
         base_dir: Option<&Path>,
         transferer: Option<&dyn Transferer>,
         translate: &F,
-    ) -> Result<()>
+    ) -> Result<Self>
     where
-        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+        F: Fn(&HostPath) -> Result<HostPath> + Send + Sync,
     {
         match self {
-            Self::Primitive(v @ PrimitiveValue::File(_))
-            | Self::Primitive(v @ PrimitiveValue::Directory(_)) => {
-                let (path, is_file) = match v {
-                    PrimitiveValue::File(path) => (path, true),
-                    PrimitiveValue::Directory(path) => (path, false),
-                    _ => unreachable!("not a `File` or `Directory` value"),
-                };
+            Self::Primitive(v @ PrimitiveValue::File(path))
+            | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
+                // We treat file and directory paths almost entirely the same, other than when
+                // reporting errors and choosing which variant to return in the result
+                let is_file = v.as_file().is_some();
+                let path = translate(path)?;
 
-                translate(path)?;
-
-                // If it's a file URL, check that the file exists
                 if path::is_file_url(path.as_str()) {
-                    let exists = path::parse_url(path.as_str())
+                    // File URLs must be absolute paths, so we just check whether it exists without
+                    // performing any joining
+                    let exists = path::parse_supported_url(path.as_str())
                         .and_then(|url| url.to_file_path().ok())
                         .map(|p| p.exists())
                         .unwrap_or(false);
                     if exists {
-                        return Ok(());
+                        let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                        return Ok(Self::Primitive(v));
                     }
 
                     if optional && !exists {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
                     }
 
                     bail!("path `{path}` does not exist");
-                } else if path::is_url(path.as_str()) {
+                } else if path::is_supported_url(path.as_str()) {
                     match transferer {
                         Some(transferer) => {
                             let exists = transferer
@@ -615,47 +618,51 @@ impl Value {
                                 )
                                 .await?;
                             if exists {
-                                return Ok(());
+                                let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                                return Ok(Self::Primitive(v));
                             }
 
                             if optional && !exists {
-                                *self = Value::new_none(self.ty().optional());
-                                return Ok(());
+                                return Ok(Value::new_none(self.ty().optional()));
                             }
 
                             bail!("URL `{path}` does not exist");
                         }
                         None => {
                             // Assume the URL exists
-                            return Ok(());
+                            let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                            return Ok(Self::Primitive(v));
                         }
                     }
                 }
 
                 // Check for existence
-                let path: Cow<'_, Path> = base_dir
+                let exists_path: Cow<'_, Path> = base_dir
                     .map(|d| d.join(path.as_str()).into())
                     .unwrap_or_else(|| Path::new(path.as_str()).into());
-                if is_file && !path.is_file() {
+                if is_file && !exists_path.is_file() {
                     if optional {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
+                    } else {
+                        bail!("file `{}` does not exist", exists_path.display());
                     }
-
-                    bail!("file `{path}` does not exist", path = path.display());
-                } else if !is_file && !path.is_dir() {
+                } else if !is_file && !exists_path.is_dir() {
                     if optional {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
+                    } else {
+                        bail!("directory `{}` does not exist", exists_path.display())
                     }
-
-                    bail!("directory `{path}` does not exist", path = path.display())
                 }
 
-                Ok(())
+                let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                Ok(Self::Primitive(v))
             }
-            Self::Compound(v) => v.ensure_paths_exist(base_dir, transferer, translate).await,
-            _ => Ok(()),
+            Self::Compound(v) => Ok(Self::Compound(
+                v.resolve_paths(base_dir, transferer, translate)
+                    .boxed()
+                    .await?,
+            )),
+            v => Ok(v.clone()),
         }
     }
 
@@ -749,6 +756,63 @@ impl Coercible for Value {
             }
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
+            }
+        }
+    }
+}
+
+impl TryFrom<JsonValue> for Value {
+    type Error = anyhow::Error;
+
+    fn try_from(value: JsonValue) -> std::result::Result<Self, Self::Error> {
+        match value {
+            JsonValue::Null => Ok(Value::new_none(Type::None)),
+            JsonValue::Bool(v) => Ok(Value::Primitive(PrimitiveValue::Boolean(v))),
+            JsonValue::Number(number) => {
+                if let Some(i) = number.as_i64() {
+                    Ok(Value::Primitive(PrimitiveValue::Integer(i)))
+                } else if let Some(f) = number.as_f64() {
+                    Ok(Value::Primitive(PrimitiveValue::Float(f.into())))
+                } else {
+                    Err(anyhow!(
+                        "JSON number `{number}` could not be represented as a signed 64-bit \
+                         integer or a 64-bit float"
+                    ))
+                }
+            }
+            JsonValue::String(s) => Ok(Value::Primitive(PrimitiveValue::new_string(s))),
+            JsonValue::Array(values) => {
+                let elements = values
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<Self>, _>>()?;
+                // Try to find a mutually-agreeable common type for the elements of the array.
+                let mut candidate_ty = None;
+                for element in elements.iter() {
+                    let new_candidate_ty = element.ty();
+                    let old_candidate_ty =
+                        candidate_ty.get_or_insert_with(|| new_candidate_ty.clone());
+                    let Some(new_common_ty) = old_candidate_ty.common_type(&new_candidate_ty)
+                    else {
+                        bail!(
+                            "a common element type does not exist between `{old_candidate_ty}` \
+                             and `{new_candidate_ty}`"
+                        );
+                    };
+                    candidate_ty = Some(new_common_ty);
+                }
+                // An empty array's elements have the `Union` type.
+                let array_ty: Type = ArrayType::new(candidate_ty.unwrap_or(Type::Union)).into();
+                Ok(Array::new(None, array_ty.clone(), elements)
+                    .map_err(|e| anyhow!("cannot coerce value to `{array_ty}`: {e:#}"))?
+                    .into())
+            }
+            JsonValue::Object(map) => {
+                let mut members = IndexMap::new();
+                for (key, value) in map {
+                    members.insert(key, value.try_into()?);
+                }
+                Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
             }
         }
     }
@@ -850,152 +914,6 @@ impl From<CallValue> for Value {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for Value {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        use serde::Deserialize as _;
-
-        /// Helper for deserializing the elements of sequences and maps
-        struct Deserialize;
-
-        impl<'de> serde::de::DeserializeSeed<'de> for Deserialize {
-            type Value = Value;
-
-            fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                deserializer.deserialize_any(Visitor)
-            }
-        }
-
-        /// Visitor for deserialization.
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = Value;
-
-            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::new_none(Type::None))
-            }
-
-            fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::new_none(Type::None))
-            }
-
-            fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Value::deserialize(deserializer)
-            }
-
-            fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Boolean(v)))
-            }
-
-            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Integer(v)))
-            }
-
-            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Integer(
-                    v.try_into().map_err(|_| {
-                        E::custom("integer not in range for a 64-bit signed integer")
-                    })?,
-                )))
-            }
-
-            fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::Float(v.into())))
-            }
-
-            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
-            }
-
-            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                use serde::de::Error;
-
-                let mut elements = Vec::new();
-                while let Some(v) = seq.next_element_seed(Deserialize)? {
-                    elements.push(v);
-                }
-
-                let element_ty = elements
-                    .iter()
-                    .try_fold(None, |mut ty, element| {
-                        let element_ty = element.ty();
-                        let ty = ty.get_or_insert(element_ty.clone());
-                        ty.common_type(&element_ty).map(Some).ok_or_else(|| {
-                            A::Error::custom(format!(
-                                "a common element type does not exist between `{ty}` and \
-                                 `{element_ty}`"
-                            ))
-                        })
-                    })?
-                    .unwrap_or(Type::Union);
-
-                let ty: Type = ArrayType::new(element_ty).into();
-                Ok(Array::new(None, ty.clone(), elements)
-                    .map_err(|e| A::Error::custom(format!("cannot coerce value to `{ty}`: {e:#}")))?
-                    .into())
-            }
-
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                let mut members = IndexMap::new();
-                while let Some(key) = map.next_key::<String>()? {
-                    members.insert(key, map.next_value_seed(Deserialize)?);
-                }
-
-                Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
-            }
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "a WDL value")
-            }
-        }
-
-        deserializer.deserialize_any(Visitor)
-    }
-}
-
 /// Represents a primitive WDL value.
 ///
 /// Primitive values are cheap to clone.
@@ -1029,6 +947,20 @@ impl PrimitiveValue {
     /// Creates a new `Directory` value.
     pub fn new_directory(path: impl Into<String>) -> Self {
         Self::Directory(Arc::new(path.into()).into())
+    }
+
+    /// Create either a new `File` or `Directory` value, depending on whether
+    /// the `is_file` argument is `true`.
+    ///
+    /// This is a bit awkward, but can save a lot of repetition in code that
+    /// treats files and directories largely the same until having to
+    /// remember which enum variant the path needs to be stuffed back into.
+    pub fn new_file_or_directory(is_file: bool, path: impl Into<HostPath>) -> Self {
+        if is_file {
+            Self::File(path.into())
+        } else {
+            Self::Directory(path.into())
+        }
     }
 
     /// Gets the type of the value.
@@ -2299,20 +2231,16 @@ impl CompoundValue {
         Ok(())
     }
 
-    /// Mutably visits each `File` or `Directory` value contained in this value.
-    ///
-    /// If the provided callback returns `Ok(false)`, the `File` or `Directory`
-    /// value will be replaced with `None`.
-    ///
-    /// Note that paths may be specified as URLs.
-    fn ensure_paths_exist<'a, F>(
-        &'a mut self,
+    /// Like [`Value::resolve_paths()`], but for recurring into
+    /// [`CompoundValue`]s.
+    fn resolve_paths<'a, F>(
+        &'a self,
         base_dir: Option<&'a Path>,
         transferer: Option<&'a dyn Transferer>,
         translate: &'a F,
-    ) -> BoxFuture<'a, Result<()>>
+    ) -> BoxFuture<'a, Result<Self>>
     where
-        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+        F: Fn(&HostPath) -> Result<HostPath> + Send + Sync,
     {
         async move {
             match self {
@@ -2320,112 +2248,104 @@ impl CompoundValue {
                     let ty = pair.ty.as_pair().expect("should be a pair type");
                     let (left_optional, right_optional) =
                         (ty.left_type().is_optional(), ty.right_type().is_optional());
-                    let values = Arc::make_mut(&mut pair.values);
-                    values
-                        .0
-                        .ensure_paths_exist(left_optional, base_dir, transferer, translate)
+                    let (fst, snd) = pair.values.as_ref();
+                    let fst = fst
+                        .resolve_paths(left_optional, base_dir, transferer, translate)
                         .await?;
-                    values
-                        .1
-                        .ensure_paths_exist(right_optional, base_dir, transferer, translate)
+                    let snd = snd
+                        .resolve_paths(right_optional, base_dir, transferer, translate)
                         .await?;
+                    Ok(Self::Pair(Pair::new_unchecked(ty.clone().into(), fst, snd)))
                 }
                 Self::Array(array) => {
                     let ty = array.ty.as_array().expect("should be an array type");
                     let optional = ty.element_type().is_optional();
-                    if let Some(elements) = &mut array.elements {
-                        for v in Arc::make_mut(elements) {
-                            v.ensure_paths_exist(optional, base_dir, transferer, translate)
-                                .await?;
-                        }
+                    if let Some(elements) = &array.elements {
+                        let resolved_elements = futures::stream::iter(elements.iter())
+                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Array(Array::new_unchecked(
+                            ty.clone().into(),
+                            resolved_elements,
+                        )))
+                    } else {
+                        Ok(self.clone())
                     }
                 }
                 Self::Map(map) => {
-                    let ty = map.ty.as_map().expect("should be a map type");
+                    let ty = map.ty.as_map().expect("should be a map type").clone();
                     let (key_optional, value_optional) =
                         (ty.key_type().is_optional(), ty.value_type().is_optional());
-                    if let Some(elements) = &mut map.elements {
-                        if elements
-                            .iter()
-                            .find_map(|(k, _)| {
-                                k.as_ref().map(|v| {
-                                    matches!(
-                                        v,
-                                        PrimitiveValue::File(_) | PrimitiveValue::Directory(_)
-                                    )
-                                })
-                            })
-                            .unwrap_or(false)
-                        {
-                            // The key type contains a path, we need to rebuild the map to alter the
-                            // keys
-                            let elements = Arc::make_mut(elements);
-                            let mut new = Vec::with_capacity(elements.len());
-                            for (mut k, mut v) in elements.drain(..) {
-                                if let Some(v) = k {
-                                    let mut v: Value = v.into();
-                                    v.ensure_paths_exist(
-                                        key_optional,
-                                        base_dir,
-                                        transferer,
-                                        translate,
-                                    )
+                    if let Some(elements) = &map.elements {
+                        let resolved_elements = futures::stream::iter(elements.iter())
+                            .then(async |(k, v)| {
+                                let resolved_key = if let Some(k) = k {
+                                    Value::from(k.clone())
+                                        .resolve_paths(
+                                            key_optional,
+                                            base_dir,
+                                            transferer,
+                                            translate,
+                                        )
+                                        .await?
+                                        .as_primitive()
+                                        .cloned()
+                                } else {
+                                    None
+                                };
+                                let resolved_value = v
+                                    .resolve_paths(value_optional, base_dir, transferer, translate)
                                     .await?;
-                                    k = match v {
-                                        Value::None(_) => None,
-                                        Value::Primitive(v) => Some(v),
-                                        _ => unreachable!("unexpected value"),
-                                    };
-                                }
-
-                                v.ensure_paths_exist(
-                                    value_optional,
-                                    base_dir,
-                                    transferer,
-                                    translate,
-                                )
-                                .await?;
-                                new.push((k, v));
-                            }
-
-                            elements.extend(new);
-                        } else {
-                            // Otherwise, we can just mutate the values in place
-                            for v in Arc::make_mut(elements).values_mut() {
-                                v.ensure_paths_exist(
-                                    value_optional,
-                                    base_dir,
-                                    transferer,
-                                    translate,
-                                )
-                                .await?;
-                            }
-                        }
+                                Ok::<_, anyhow::Error>((resolved_key, resolved_value))
+                            })
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Map(Map::new_unchecked(ty.into(), resolved_elements)))
+                    } else {
+                        Ok(Self::Map(Map::new_unchecked(ty.into(), IndexMap::new())))
                     }
                 }
                 Self::Object(object) => {
-                    if let Some(members) = &mut object.members {
-                        for v in Arc::make_mut(members).values_mut() {
-                            v.ensure_paths_exist(false, base_dir, transferer, translate)
-                                .await?;
-                        }
+                    if let Some(members) = &object.members {
+                        let resolved_members = futures::stream::iter(members.iter())
+                            .then(async |(n, v)| {
+                                let resolved = v
+                                    .resolve_paths(false, base_dir, transferer, translate)
+                                    .await?;
+                                Ok::<_, anyhow::Error>((n.to_string(), resolved))
+                            })
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Object(Object::new(resolved_members)))
+                    } else {
+                        Ok(self.clone())
                     }
                 }
                 Self::Struct(s) => {
                     let ty = s.ty.as_struct().expect("should be a struct type");
-                    for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
-                        v.ensure_paths_exist(
-                            ty.members()[n].is_optional(),
-                            base_dir,
-                            transferer,
-                            translate,
-                        )
+                    let name = s.name();
+                    let resolved_members = futures::stream::iter(s.iter())
+                        .then(async |(n, v)| {
+                            let resolved = v
+                                .resolve_paths(
+                                    ty.members()[n].is_optional(),
+                                    base_dir,
+                                    transferer,
+                                    translate,
+                                )
+                                .await?;
+                            Ok::<_, anyhow::Error>((n.to_string(), resolved))
+                        })
+                        .try_collect()
                         .await?;
-                    }
+                    Ok(Self::Struct(Struct::new_unchecked(
+                        ty.clone().into(),
+                        name.clone(),
+                        Arc::new(resolved_members),
+                    )))
                 }
             }
-
-            Ok(())
         }
         .boxed()
     }

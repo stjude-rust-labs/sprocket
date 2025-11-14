@@ -10,7 +10,7 @@ use wdl::engine::path::EvaluationPath;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::diagnostics::Mode;
-use crate::inputs::Inputs;
+use crate::inputs::Invocation;
 use crate::inputs::OriginPaths;
 
 /// Arguments for the `validate` subcommand.
@@ -86,7 +86,7 @@ pub async fn validate(args: Args) -> Result<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
         .await
         .with_context(|| {
             format!(
@@ -94,7 +94,7 @@ pub async fn validate(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
+        .into_engine_invocation(document)?;
 
     let (name, inputs, _) = if let Some(inputs) = inputs {
         inputs

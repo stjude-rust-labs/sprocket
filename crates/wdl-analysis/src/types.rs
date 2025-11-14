@@ -854,7 +854,7 @@ impl Coercible for MapType {
 }
 
 /// Represents the type of a struct.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructType {
     /// The name of the struct.
     name: Arc<String>,
