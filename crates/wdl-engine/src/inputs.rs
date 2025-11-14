@@ -937,8 +937,8 @@ impl Inputs {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
-            let value =
-                Value::try_from(value).with_context(|| format!("invalid input key `{key}`"))?;
+            let value = Value::try_from(value)
+                .with_context(|| format!("invalid input value for key `{key}`"))?;
 
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
