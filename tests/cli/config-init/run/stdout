@@ -29,6 +29,7 @@ runs_dir = "runs"
 [run.task]
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache = "off"
 
 [run.storage.azure]
 

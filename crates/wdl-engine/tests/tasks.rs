@@ -132,7 +132,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
         let evaluator =
-            TaskEvaluator::new(config.engine, Default::default(), Events::none()).await?;
+            TaskEvaluator::new(config.engine, Default::default(), Events::disabled()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
@@ -182,7 +182,11 @@ fn compare_evaluation_results(
     temp_dir: &Path,
     evaluated: &EvaluatedTask,
 ) -> Result<()> {
-    let command_path = evaluated.attempt_dir().join("command");
+    let command_path = evaluated
+        .work_dir()
+        .join("../command")
+        .unwrap()
+        .unwrap_local();
     let command = fs::read_to_string(&command_path).with_context(|| {
         format!(
             "failed to read task command file `{path}`",

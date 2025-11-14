@@ -104,7 +104,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
         let evaluator =
-            WorkflowEvaluator::new(config.engine, Default::default(), Events::none()).await?;
+            WorkflowEvaluator::new(config.engine, Default::default(), Events::disabled()).await?;
         match evaluator
             .evaluate(result.document(), inputs.clone(), &dir)
             .await
