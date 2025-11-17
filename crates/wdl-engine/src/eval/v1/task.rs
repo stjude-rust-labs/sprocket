@@ -1,6 +1,7 @@
 //! Implementation of evaluation for V1 tasks.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 use std::mem;
@@ -688,6 +689,10 @@ struct State<'a> {
     ///
     /// Environment variables do not change between retries.
     env: IndexMap<String, String>,
+    /// The map of inputs to evaluated values.
+    ///
+    /// This is used for calculating the call cache key for the task.
+    inputs: BTreeMap<String, Value>,
     /// The trie for mapping backend inputs.
     backend_inputs: InputTrie,
     /// A bi-map of host paths and guest paths.
@@ -743,6 +748,7 @@ impl<'a> State<'a> {
             task,
             scopes,
             env: Default::default(),
+            inputs: Default::default(),
             backend_inputs,
             path_map: Default::default(),
         })
@@ -1057,7 +1063,8 @@ impl TopLevelEvaluator {
                 if cacheable(&hints, &self.config) {
                     let request = KeyRequest {
                         document: state.document,
-                        task_id: id,
+                        task_name: task.name(),
+                        inputs: &state.inputs,
                         command: &command,
                         requirements: requirements.as_ref(),
                         hints: hints.as_ref(),
@@ -1068,7 +1075,7 @@ impl TopLevelEvaluator {
                             .shell
                             .as_deref()
                             .unwrap_or(DEFAULT_TASK_SHELL),
-                        inputs: &backend_inputs,
+                        backend_inputs: &backend_inputs,
                     };
 
                     match cache.key(request).await {
@@ -1430,6 +1437,7 @@ impl<'a> State<'a> {
 
         // Insert the name into the scope
         self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
+        self.inputs.insert(name.text().to_string(), value.clone());
 
         // Insert an environment variable, if it is one
         if decl.env().is_some() {

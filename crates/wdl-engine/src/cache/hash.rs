@@ -90,7 +90,7 @@ enum PathKind {
 }
 
 /// Hashes a sequence of hashable items.
-fn hash_sequence<'a, T: Hashable + 'a>(
+pub fn hash_sequence<'a, T: Hashable + 'a>(
     hasher: &mut Hasher,
     items: impl ExactSizeIterator<Item = T>,
 ) {

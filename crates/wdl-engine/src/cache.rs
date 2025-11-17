@@ -1,5 +1,6 @@
 //! Implementation of the call and digest caches.
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::BufReader;
@@ -23,6 +24,7 @@ use crate::Input;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
+use crate::cache::hash::hash_sequence;
 use crate::cache::lock::LockedFile;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
@@ -137,7 +139,7 @@ pub struct CallCacheEntry {
     requirements: HashMap<String, ArrayString<64>>,
     /// The hint digests of the task.
     hints: HashMap<String, ArrayString<64>>,
-    /// The input digests of the task.
+    /// The digests of the backend inputs of the task.
     inputs: HashMap<String, ArrayString<64>>,
     /// The task's last exit code.
     exit: i32,
@@ -174,8 +176,8 @@ pub struct Key {
     requirements: HashMap<String, ArrayString<64>>,
     /// The hint digests of the task.
     hints: HashMap<String, ArrayString<64>>,
-    /// The input content digests of the task.
-    inputs: HashMap<String, ArrayString<64>>,
+    /// The content digests of the backend inputs to the task.
+    backend_inputs: HashMap<String, ArrayString<64>>,
 }
 
 impl Key {
@@ -227,7 +229,7 @@ impl Key {
 
         compare_maps(&self.requirements, &entry.requirements, "task requirement")?;
         compare_maps(&self.hints, &entry.hints, "task hint")?;
-        compare_maps(&self.inputs, &entry.inputs, "task input")?;
+        compare_maps(&self.backend_inputs, &entry.inputs, "content of task input")?;
         Ok(())
     }
 }
@@ -242,8 +244,10 @@ impl fmt::Display for Key {
 pub struct KeyRequest<'a> {
     /// The document containing the task.
     pub document: &'a Document,
-    /// The task identifier.
-    pub task_id: &'a str,
+    /// The name of the task.
+    pub task_name: &'a str,
+    /// The map of evaluated input values for the task.
+    pub inputs: &'a BTreeMap<String, Value>,
     /// The evaluated command of the task.
     pub command: &'a str,
     /// The container used by the task.
@@ -255,7 +259,7 @@ pub struct KeyRequest<'a> {
     /// The evaluated hints of the task.
     pub hints: &'a HashMap<String, Value>,
     /// The backend inputs of the task.
-    pub inputs: &'a [Input],
+    pub backend_inputs: &'a [Input],
 }
 
 /// Represents an evaluation call cache.
@@ -333,20 +337,22 @@ impl CallCache {
             })
             .collect();
 
-        // Calculate the input digests
-        let mut input_digests = HashMap::with_capacity(request.inputs.len());
-        for input in request.inputs {
+        // Calculate the digests of the backend inputs
+        let mut backend_inputs = HashMap::with_capacity(request.backend_inputs.len());
+        for input in request.backend_inputs {
             let digest = input
                 .path()
                 .calculate_digest(self.0.transferer.as_ref(), input.kind())
                 .await?;
 
-            input_digests.insert(input.path().to_string(), digest.to_hex());
+            backend_inputs.insert(input.path().to_string(), digest.to_hex());
         }
 
+        // Calculate the task's cache key
         let mut hasher = blake3::Hasher::new();
         request.document.uri().as_ref().hash(&mut hasher);
-        request.task_id.hash(&mut hasher);
+        request.task_name.hash(&mut hasher);
+        hash_sequence(&mut hasher, request.inputs.iter());
         let key = hasher.finalize().to_hex();
 
         Ok(Key {
@@ -356,7 +362,7 @@ impl CallCache {
             shell: request.shell.into(),
             requirements: requirement_digests,
             hints: hint_digests,
-            inputs: input_digests,
+            backend_inputs,
         })
     }
 
@@ -425,7 +431,7 @@ impl CallCache {
             shell: key.shell,
             requirements: key.requirements,
             hints: key.hints,
-            inputs: key.inputs,
+            inputs: key.backend_inputs,
             exit: result.exit_code,
             stdout: Content::from_evaluation_path(
                 self.0.transferer.as_ref(),
