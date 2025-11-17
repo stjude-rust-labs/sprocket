@@ -27,6 +27,7 @@ indexmap = { workspace = true }
 itertools = { workspace = true }
 libc = { workspace = true }
 nonempty = { workspace = true }
+num_enum = { workspace = true }
 ordered-float = { workspace = true }
 path-clean = { workspace = true }
 petgraph = { workspace = true }

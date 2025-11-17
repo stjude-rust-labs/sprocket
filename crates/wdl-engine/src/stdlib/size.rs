@@ -383,7 +383,7 @@ mod test {
         );
         env.insert_name(
             "dir",
-            PrimitiveValue::new_directory(env.base_dir().to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_directory(env.base_dir().to_string()),
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "size('foo', 'invalid')")

@@ -2145,7 +2145,7 @@ pub(crate) mod test {
         env.insert_struct("Foo", foo_ty);
         env.insert_struct("Bar", bar_ty);
 
-        let mut base_dir = env.base_dir().to_str().unwrap().to_string();
+        let mut base_dir = env.base_dir().to_string();
         base_dir.push(std::path::MAIN_SEPARATOR);
 
         let value = eval_v1_expr(
@@ -2205,7 +2205,7 @@ pub(crate) mod test {
         env.insert_name("bar", false);
         env.insert_name("baz", PrimitiveValue::new_file("file"));
 
-        let mut base_dir = env.base_dir().to_str().unwrap().to_string();
+        let mut base_dir = env.base_dir().to_string();
         base_dir.push(std::path::MAIN_SEPARATOR);
 
         let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then "foo" else "bar""#)

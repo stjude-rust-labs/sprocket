@@ -2,16 +2,8 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
-use std::fs::File;
-use std::fs::TryLockError;
-use std::io;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Read;
-use std::io::Write;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -22,7 +14,7 @@ use anyhow::bail;
 use arrayvec::ArrayString;
 use serde::Deserialize;
 use serde::Serialize;
-use tokio::task::spawn_blocking;
+use tokio::fs;
 use tracing::info;
 use wdl_analysis::Document;
 
@@ -31,6 +23,7 @@ use crate::Input;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
+use crate::cache::lock::LockedFile;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
@@ -47,167 +40,9 @@ const CALL_CACHE_SUBDIR: &str = "calls";
 const CACHE_LOCK_FILE_NAME: &str = ".lock";
 
 mod hash;
+mod lock;
 
 pub use hash::Hashable;
-
-/// Represents a locked file.
-struct LockedFile(File);
-
-impl LockedFile {
-    /// Acquires a shared file lock for the given path.
-    ///
-    /// If `create` is `true`, the file is created if it does not exist.
-    ///
-    /// If `create` is `false` and the file does not exist, `Ok(None)` is
-    /// returned.
-    async fn acquire_shared(path: &Path, create: bool) -> Result<Option<Self>> {
-        let file = if create {
-            // Create or open the file, but do not truncate it if it exists
-            let mut options = fs::OpenOptions::new();
-            options.create(true).write(true);
-            options.open(path).with_context(|| {
-                format!(
-                    "failed to create call cache entry file `{path}`",
-                    path = path.display()
-                )
-            })?
-        } else {
-            match fs::File::open(path)
-                .map(Some)
-                .or_else(|e| {
-                    if e.kind() == io::ErrorKind::NotFound {
-                        Ok(None)
-                    } else {
-                        Err(e)
-                    }
-                })
-                .with_context(|| {
-                    format!(
-                        "failed to open call cache entry file `{path}`",
-                        path = path.display()
-                    )
-                })? {
-                Some(file) => file,
-                None => return Ok(None),
-            }
-        };
-
-        match file.try_lock_shared() {
-            Ok(_) => Ok(Some(Self(file))),
-            Err(TryLockError::WouldBlock) => {
-                let path = path.to_path_buf();
-                spawn_blocking(move || {
-                    info!(
-                        "waiting to acquire shared lock on cache entry file `{path}`",
-                        path = path.display()
-                    );
-
-                    file.lock_shared().with_context(|| {
-                        format!(
-                            "failed to acquire shared lock on cache entry file `{path}`",
-                            path = path.display()
-                        )
-                    })?;
-                    Ok(Some(Self(file)))
-                })
-                .await
-                .context("failed to join lock task")?
-            }
-            Err(TryLockError::Error(e)) => Err(e).with_context(|| {
-                format!(
-                    "failed to acquire shared lock on cache entry file `{path}`",
-                    path = path.display()
-                )
-            }),
-        }
-    }
-
-    /// Acquires an exclusive file lock for the given path.
-    ///
-    /// If the file does not exist, it is created.
-    ///
-    /// If the file exists, it is truncated once the lock is acquired.
-    async fn acquire_exclusive(path: &Path) -> Result<Self> {
-        // Create or open the file, but do not truncate it if it exists before the lock
-        // is acquired
-        let mut options = fs::OpenOptions::new();
-        options.create(true).write(true);
-        let file = options.open(path).with_context(|| {
-            format!(
-                "failed to create call cache entry file `{path}`",
-                path = path.display()
-            )
-        })?;
-
-        let file = match file.try_lock() {
-            Ok(_) => Ok(Self(file)),
-            Err(TryLockError::WouldBlock) => {
-                let path = path.to_path_buf();
-                spawn_blocking(move || {
-                    info!(
-                        "waiting to acquire exclusive lock on cache entry file `{path}`",
-                        path = path.display()
-                    );
-
-                    file.lock().with_context(|| {
-                        format!(
-                            "failed to acquire exclusive lock on cache entry file `{path}`",
-                            path = path.display()
-                        )
-                    })?;
-                    Ok(Self(file))
-                })
-                .await
-                .context("failed to join lock task")?
-            }
-            Err(TryLockError::Error(e)) => Err(e).with_context(|| {
-                format!(
-                    "failed to acquire exclusive lock on cache entry file `{path}`",
-                    path = path.display()
-                )
-            }),
-        }?;
-
-        file.set_len(0).with_context(|| {
-            format!(
-                "failed to truncate cache entry file `{path}`",
-                path = path.display()
-            )
-        })?;
-
-        Ok(file)
-    }
-}
-
-impl Deref for LockedFile {
-    type Target = File;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for LockedFile {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Read for LockedFile {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.0.read(buf)
-    }
-}
-
-impl Write for LockedFile {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
-    }
-}
 
 /// Represents the internal state of the call cache.
 #[derive(Clone)]
@@ -219,8 +54,9 @@ struct State {
     ///
     /// Operations to clean the cache will acquire an exclusive lock to ensure
     /// the cache is cleaned only when no evaluations are taking place.
-    #[allow(dead_code)]
-    lock: Arc<LockedFile>,
+    // This is kept alive as long as a reference to the cache exists; it is not used by the cache
+    // itself.
+    _lock: Arc<LockedFile>,
     /// The path to the root call cache directory.
     cache_dir: Arc<PathBuf>,
     /// The file transferer that can be used for calculating remote file
@@ -264,8 +100,9 @@ impl Content {
 
     /// Converts the [`Content`] to an evaluation path.
     ///
-    /// Returns an error if the current digest of the location does not match
-    /// the stored digest.
+    /// Returns an error if the current (as it was first calculated and cached
+    /// during evaluation) digest of the location does not match the stored
+    /// digest.
     async fn to_evaluation_path(
         &self,
         transferer: &dyn Transferer,
@@ -314,7 +151,15 @@ pub struct CallCacheEntry {
 
 /// Represents a key for a [`CallCache`].
 ///
-/// Additionally stores digests used to validate cache entries.
+/// This type additionally stores digests used to validate cache entries during
+/// a call to [`Cache::get`].
+///
+/// The digests are calculated once prior to accessing the cache.
+///
+/// If the digests match, the entry is considered valid and returned.
+///
+/// If the digests do not match, the entry is considered invalid and these
+/// digests are used to overwrite the existing cache entry.
 #[derive(Debug)]
 pub struct Key {
     /// The cache key for the task.
@@ -329,7 +174,7 @@ pub struct Key {
     requirements: HashMap<String, ArrayString<64>>,
     /// The hint digests of the task.
     hints: HashMap<String, ArrayString<64>>,
-    /// The input digests of the task.
+    /// The input content digests of the task.
     inputs: HashMap<String, ArrayString<64>>,
 }
 
@@ -439,7 +284,7 @@ impl CallCache {
             cache_dir = cache_dir.display()
         );
 
-        fs::create_dir_all(&cache_dir).with_context(|| {
+        fs::create_dir_all(&cache_dir).await.with_context(|| {
             format!(
                 "failed to create call cache directory `{dir}`",
                 dir = cache_dir.display()
@@ -447,7 +292,7 @@ impl CallCache {
         })?;
 
         Ok(Self(State {
-            lock: LockedFile::acquire_shared(&cache_dir.join(CACHE_LOCK_FILE_NAME), true)
+            _lock: LockedFile::acquire_shared(&cache_dir.join(CACHE_LOCK_FILE_NAME), true)
                 .await?
                 .expect("file should exist")
                 .into(),
@@ -496,19 +341,7 @@ impl CallCache {
                 .calculate_digest(self.0.transferer.as_ref(), input.kind())
                 .await?;
 
-            input_digests.insert(
-                input
-                    .path()
-                    .to_str()
-                    .with_context(|| {
-                        format!(
-                            "input path `{path}` is not UTF-8",
-                            path = input.path().as_local().unwrap().display()
-                        )
-                    })?
-                    .to_string(),
-                digest.to_hex(),
-            );
+            input_digests.insert(input.path().to_string(), digest.to_hex());
         }
 
         let mut hasher = blake3::Hasher::new();

@@ -26,6 +26,7 @@ rust-version = "1.91.1"
 [workspace.dependencies]
 ammonia = "4.1.2"
 anyhow = "1.0.98"
+num_enum = "0.7.5"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
 bimap = "0.6.3"

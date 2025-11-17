@@ -84,16 +84,6 @@ impl EvaluationPath {
         }
     }
 
-    /// Gets a string representation of the path.
-    ///
-    /// Returns `None` if the path is local and cannot be represented in UTF-8.
-    pub fn to_str(&self) -> Option<&str> {
-        match self {
-            Self::Local(path) => path.to_str(),
-            Self::Remote(url) => Some(url.as_str()),
-        }
-    }
-
     /// Converts the path to a local path.
     ///
     /// Returns `None` if the path is remote.
@@ -252,6 +242,15 @@ impl TryFrom<EvaluationPath> for String {
                 ),
             },
             EvaluationPath::Remote(url) => Ok(url.into()),
+        }
+    }
+}
+
+impl fmt::Display for EvaluationPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local(path) => path.display().fmt(f),
+            Self::Remote(url) => url.fmt(f),
         }
     }
 }

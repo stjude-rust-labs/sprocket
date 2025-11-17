@@ -2812,7 +2812,7 @@ impl PreviousTaskDataValue {
     /// data (first attempt).
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_MEMORY => Some(
+            TASK_FIELD_MEMORY => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.memory))
@@ -2820,7 +2820,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Integer).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(
+            TASK_FIELD_CPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.cpu))
@@ -2828,7 +2828,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Float).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_CONTAINER => Some(
                 self.0
                     .as_ref()
                     .and_then(|data| {
@@ -2840,7 +2840,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::String).optional())
                     }),
             ),
-            n if n == TASK_FIELD_GPU => Some(
+            TASK_FIELD_GPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.gpu.clone()))
@@ -2851,7 +2851,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_FPGA => Some(
+            TASK_FIELD_FPGA => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.fpga.clone()))
@@ -2862,7 +2862,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_DISKS => Some(
+            TASK_FIELD_DISKS => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.disks.clone()))
@@ -2876,7 +2876,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_MAX_RETRIES => Some(
+            TASK_FIELD_MAX_RETRIES => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.max_retries))
@@ -2967,13 +2967,13 @@ impl TaskPreEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if n == TASK_FIELD_PREVIOUS => {
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_PREVIOUS => {
                 Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
             }
             _ => None,
@@ -3191,10 +3191,10 @@ impl TaskPostEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_CONTAINER => Some(
                 self.data
                     .container
                     .clone()
@@ -3206,34 +3206,30 @@ impl TaskPostEvaluationValue {
                         )
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(self.data.cpu.into()),
-            n if n == TASK_FIELD_MEMORY => Some(self.data.memory.into()),
-            n if n == TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
-            n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
-            n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
-            n if n == TASK_FIELD_END_TIME => {
-                Some(self.end_time.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_RETURN_CODE => {
-                Some(self.return_code.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+            TASK_FIELD_CPU => Some(self.data.cpu.into()),
+            TASK_FIELD_MEMORY => Some(self.data.memory.into()),
+            TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
+            TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
+            TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
+            TASK_FIELD_END_TIME => Some(self.end_time.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_RETURN_CODE => Some(self.return_code.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
                 Some(self.data.max_retries.into())
             }
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+            TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
                 Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
             }
             _ => None,

@@ -4,7 +4,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use blake3::Hasher;
+use num_enum::IntoPrimitive;
 use url::Url;
+use wdl_analysis::types::Type;
 
 use crate::Array;
 use crate::CompoundValue;
@@ -21,51 +23,71 @@ use crate::Value;
 use crate::digest::Digest;
 use crate::path::EvaluationPath;
 
-/// The variant tag for `None` values.
-const NONE_VARIANT_TAG: u8 = 0;
-/// The variant tag for `Boolean` values.
-const BOOLEAN_VARIANT_TAG: u8 = 1;
-/// The variant tag for `Int` values.
-const INTEGER_VARIANT_TAG: u8 = 2;
-/// The variant tag for `Float` values.
-const FLOAT_VARIANT_TAG: u8 = 3;
-/// The variant tag for `String` values.
-const STRING_VARIANT_TAG: u8 = 4;
-/// The variant tag for `File` values.
-const FILE_VARIANT_TAG: u8 = 5;
-/// The variant tag for `Directory` values.
-const DIRECTORY_VARIANT_TAG: u8 = 6;
-/// The variant tag for `Pair` values.
-const PAIR_VARIANT_TAG: u8 = 7;
-/// The variant tag for `Array` values.
-const ARRAY_VARIANT_TAG: u8 = 8;
-/// The variant tag for `Map` values.
-const MAP_VARIANT_TAG: u8 = 9;
-/// The variant tag for `Object` values.
-const OBJECT_VARIANT_TAG: u8 = 10;
-/// The variant tag for `Struct` values.
-const STRUCT_VARIANT_TAG: u8 = 11;
-/// The variant tag for `hints` values.
-const HINTS_VARIANT_TAG: u8 = 12;
-/// The variant tag for `input` values.
-const INPUT_VARIANT_TAG: u8 = 13;
-/// The variant tag for `output` values.
-const OUTPUT_VARIANT_TAG: u8 = 14;
+/// Represents the kind of hashed value.
+#[derive(IntoPrimitive)]
+#[repr(u8)]
+enum ValueKind {
+    /// The value is a `None`.
+    None,
+    /// The value is a `Boolean`.
+    Boolean,
+    /// The value is an `Int`.
+    Integer,
+    /// The value is a `Float`.
+    Float,
+    /// The value is a `String`.
+    String,
+    /// The value is a `File`
+    File,
+    /// The value is a `Directory`.
+    Directory,
+    /// The value is a `Pair`.
+    Pair,
+    /// The value is an `Array`.
+    Array,
+    /// The value is a `Map`.
+    Map,
+    /// The value is an `Object`.
+    Object,
+    /// The value is a `Struct`.
+    Struct,
+    /// The value is a `Hints` (hidden type).
+    Hints,
+    /// The value is an `Inputs` (hidden type).
+    Inputs,
+    /// The value is an `Outputs` (hidden type).
+    Outputs,
+}
 
-/// The variant tag for local evaluation paths.
-const LOCAL_PATH_VARIANT_TAG: u8 = 0;
-/// The variant tag for remote evaluation paths.
-const REMOTE_PATH_VARIANT_TAG: u8 = 1;
+/// Represents the kind of a content digest header.
+#[derive(IntoPrimitive)]
+#[repr(u8)]
+enum ContentDigestKind {
+    /// The content digest is from a hash algorithm.
+    Hash,
+    /// The content digest is from an ETag header.
+    ETag,
+}
 
-/// The variant tag for hash-based remote content digests.
-const CONTENT_HASH_VARIANT_TAG: u8 = 0;
-/// The variant tag for ETag based remote content digests.
-const CONTENT_ETAG_VARIANT_TAG: u8 = 1;
+/// Represents the kind of a digest.
+#[derive(IntoPrimitive)]
+#[repr(u8)]
+enum DigestKind {
+    /// The content digest is for a file.
+    File,
+    /// The content digest is for a directory.
+    Directory,
+}
 
-/// The variant tag for file digests.
-const DIGEST_FILE_VARIANT_TAG: u8 = 0;
-/// The variant tag for directory digests.
-const DIGEST_DIRECTORY_VARIANT_TAG: u8 = 1;
+/// Represents the kind of a hashed evaluation path.
+#[derive(IntoPrimitive)]
+#[repr(u8)]
+enum PathKind {
+    /// The path is to a local file.
+    Local,
+    /// The path is a URL to a remote file.
+    Remote,
+}
 
 /// Hashes a sequence of hashable items.
 fn hash_sequence<'a, T: Hashable + 'a>(
@@ -106,7 +128,7 @@ impl Hashable for &[u8] {
 impl Hashable for Path {
     fn hash(&self, hasher: &mut Hasher) {
         hasher.update(&(self.as_os_str().len() as u32).to_le_bytes());
-        hasher.update(self.as_os_str().as_encoded_bytes());
+        hasher.update(self.to_string_lossy().as_bytes());
     }
 }
 
@@ -126,12 +148,12 @@ impl Hashable for cloud_copy::ContentDigest {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             cloud_copy::ContentDigest::Hash { algorithm, digest } => {
-                hasher.update(&[CONTENT_HASH_VARIANT_TAG]);
+                hasher.update(&[ContentDigestKind::Hash.into()]);
                 algorithm.hash(hasher);
                 digest.as_slice().hash(hasher);
             }
             cloud_copy::ContentDigest::ETag(etag) => {
-                hasher.update(&[CONTENT_ETAG_VARIANT_TAG]);
+                hasher.update(&[ContentDigestKind::ETag.into()]);
                 etag.hash(hasher);
             }
         }
@@ -142,11 +164,11 @@ impl Hashable for Digest {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             Digest::File(digest) => {
-                hasher.update(&[DIGEST_FILE_VARIANT_TAG]);
+                hasher.update(&[DigestKind::File.into()]);
                 digest.as_bytes().as_slice().hash(hasher);
             }
             Digest::Directory(digest) => {
-                hasher.update(&[DIGEST_DIRECTORY_VARIANT_TAG]);
+                hasher.update(&[DigestKind::Directory.into()]);
                 digest.as_bytes().as_slice().hash(hasher);
             }
         }
@@ -157,11 +179,11 @@ impl Hashable for EvaluationPath {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             Self::Local(path) => {
-                hasher.update(&[LOCAL_PATH_VARIANT_TAG]);
+                hasher.update(&[PathKind::Local.into()]);
                 path.hash(hasher);
             }
             Self::Remote(url) => {
-                hasher.update(&[REMOTE_PATH_VARIANT_TAG]);
+                hasher.update(&[PathKind::Remote.into()]);
                 url.hash(hasher);
             }
         }
@@ -173,7 +195,9 @@ impl Hashable for Option<PrimitiveValue> {
         match self {
             Some(v) => v.hash(hasher),
             None => {
-                hasher.update(&[NONE_VARIANT_TAG]);
+                // A `None` for an optional primitive value (used in map keys) represents a WDL
+                // `None` value, so hash it as one
+                Value::None(Type::None).hash(hasher)
             }
         }
     }
@@ -196,7 +220,7 @@ impl Hashable for Value {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             Self::None(_) => {
-                hasher.update(&[NONE_VARIANT_TAG]);
+                hasher.update(&[ValueKind::None.into()]);
             }
             Self::Primitive(v) => {
                 v.hash(hasher);
@@ -223,27 +247,27 @@ impl Hashable for PrimitiveValue {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             Self::Boolean(v) => {
-                hasher.update(&[BOOLEAN_VARIANT_TAG]);
+                hasher.update(&[ValueKind::Boolean.into()]);
                 hasher.update(&[if *v { 1u8 } else { 0u8 }]);
             }
             Self::Integer(v) => {
-                hasher.update(&[INTEGER_VARIANT_TAG]);
+                hasher.update(&[ValueKind::Integer.into()]);
                 hasher.update(&v.to_le_bytes());
             }
             Self::Float(v) => {
-                hasher.update(&[FLOAT_VARIANT_TAG]);
+                hasher.update(&[ValueKind::Float.into()]);
                 hasher.update(&v.to_le_bytes());
             }
             Self::String(v) => {
-                hasher.update(&[STRING_VARIANT_TAG]);
+                hasher.update(&[ValueKind::String.into()]);
                 v.as_str().hash(hasher);
             }
             Self::File(v) => {
-                hasher.update(&[FILE_VARIANT_TAG]);
+                hasher.update(&[ValueKind::File.into()]);
                 v.as_str().hash(hasher);
             }
             Self::Directory(v) => {
-                hasher.update(&[DIRECTORY_VARIANT_TAG]);
+                hasher.update(&[ValueKind::Directory.into()]);
                 v.as_str().hash(hasher);
             }
         }
@@ -264,7 +288,7 @@ impl Hashable for CompoundValue {
 
 impl Hashable for Pair {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[PAIR_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Pair.into()]);
         self.left().hash(hasher);
         self.right().hash(hasher);
     }
@@ -272,49 +296,49 @@ impl Hashable for Pair {
 
 impl Hashable for Array {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[ARRAY_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Array.into()]);
         hash_sequence(hasher, self.as_slice().iter());
     }
 }
 
 impl Hashable for Map {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[MAP_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Map.into()]);
         hash_sequence(hasher, self.iter());
     }
 }
 
 impl Hashable for Object {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[OBJECT_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Object.into()]);
         hash_sequence(hasher, self.iter());
     }
 }
 
 impl Hashable for Struct {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[STRUCT_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Struct.into()]);
         hash_sequence(hasher, self.iter());
     }
 }
 
 impl Hashable for HintsValue {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[HINTS_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Hints.into()]);
         hash_sequence(hasher, self.as_object().iter());
     }
 }
 
 impl Hashable for InputValue {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[INPUT_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Inputs.into()]);
         hash_sequence(hasher, self.as_object().iter());
     }
 }
 
 impl Hashable for OutputValue {
     fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[OUTPUT_VARIANT_TAG]);
+        hasher.update(&[ValueKind::Outputs.into()]);
         hash_sequence(hasher, self.as_object().iter());
     }
 }
