@@ -311,10 +311,7 @@ mod test {
         trie.insert(ContentKind::File, "C:\\foo\\bar\\baz", &base_dir)
             .unwrap();
         assert_eq!(trie.as_slice().len(), 1);
-        assert_eq!(
-            trie.as_slice()[0].path().to_str(),
-            Some("C:\\foo\\bar\\baz")
-        );
+        assert_eq!(trie.as_slice()[0].path().to_string(), "C:\\foo\\bar\\baz");
         assert!(trie.as_slice()[0].guest_path().is_none());
     }
 
@@ -546,7 +543,7 @@ mod test {
             .iter()
             .map(|i| {
                 (
-                    i.path().to_str().expect("should be a string"),
+                    i.path().to_string(),
                     i.guest_path().expect("should have guest path").as_str(),
                 )
             })
@@ -555,23 +552,41 @@ mod test {
         assert_eq!(
             paths,
             [
-                ("C:\\", "/inputs/1/.root"),
-                ("C:\\foo\\bar\\foo.txt", "/inputs/4/foo.txt"),
-                ("C:\\foo\\bar\\bar.txt", "/inputs/4/bar.txt"),
-                ("C:\\foo\\baz\\foo.txt", "/inputs/7/foo.txt"),
-                ("C:\\foo\\baz\\bar.txt", "/inputs/7/bar.txt"),
-                ("C:\\bar\\foo\\foo.txt", "/inputs/11/foo.txt"),
-                ("C:\\bar\\foo\\bar.txt", "/inputs/11/bar.txt"),
-                ("C:\\baz", "/inputs/2/baz"),
-                ("https://example.com/", "/inputs/16/.root"),
-                ("https://example.com/foo/bar/foo.txt", "/inputs/19/foo.txt"),
-                ("https://example.com/foo/bar/bar.txt", "/inputs/19/bar.txt"),
-                ("https://example.com/foo/baz/foo.txt", "/inputs/22/foo.txt"),
-                ("https://example.com/foo/baz/bar.txt", "/inputs/22/bar.txt"),
-                ("https://example.com/bar/foo/foo.txt", "/inputs/26/foo.txt"),
-                ("https://example.com/bar/foo/bar.txt", "/inputs/26/bar.txt"),
-                ("https://foo.com/bar", "/inputs/29/bar"),
-                ("C:\\base\\foo.txt", "/inputs/31/foo.txt"),
+                ("C:\\".to_string(), "/inputs/1/.root"),
+                ("C:\\foo\\bar\\foo.txt".to_string(), "/inputs/4/foo.txt"),
+                ("C:\\foo\\bar\\bar.txt".to_string(), "/inputs/4/bar.txt"),
+                ("C:\\foo\\baz\\foo.txt".to_string(), "/inputs/7/foo.txt"),
+                ("C:\\foo\\baz\\bar.txt".to_string(), "/inputs/7/bar.txt"),
+                ("C:\\bar\\foo\\foo.txt".to_string(), "/inputs/11/foo.txt"),
+                ("C:\\bar\\foo\\bar.txt".to_string(), "/inputs/11/bar.txt"),
+                ("C:\\baz".to_string(), "/inputs/2/baz"),
+                ("https://example.com/".to_string(), "/inputs/16/.root"),
+                (
+                    "https://example.com/foo/bar/foo.txt".to_string(),
+                    "/inputs/19/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/bar/bar.txt".to_string(),
+                    "/inputs/19/bar.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/foo.txt".to_string(),
+                    "/inputs/22/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/bar.txt".to_string(),
+                    "/inputs/22/bar.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/foo.txt".to_string(),
+                    "/inputs/26/foo.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/bar.txt".to_string(),
+                    "/inputs/26/bar.txt"
+                ),
+                ("https://foo.com/bar".to_string(), "/inputs/29/bar"),
+                ("C:\\base\\foo.txt".to_string(), "/inputs/31/foo.txt"),
             ]
         );
     }
