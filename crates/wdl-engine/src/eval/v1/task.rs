@@ -1091,22 +1091,27 @@ impl TopLevelEvaluator {
                             None
                         }
                     }
-                } else if self.config.task.cache == CallCachingMode::On {
-                    debug!(
-                        task_id = id,
-                        task_name = state.task.name(),
-                        document = state.document.uri().as_str(),
-                        "task is not cacheable due to `cacheable` hint set to `false`"
-                    );
-                    None
                 } else {
-                    debug!(
-                        task_id = id,
-                        task_name = state.task.name(),
-                        document = state.document.uri().as_str(),
-                        "task is not cacheable due to `cacheable` hint not set to `true` \
-                         (explicit mode)"
-                    );
+                    // Task wasn't cacheable, explain why.
+                    match self.config.task.cache {
+                        CallCachingMode::Off => {
+                            unreachable!("cache was used despite not being enabled")
+                        }
+                        CallCachingMode::On => debug!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "task is not cacheable due to `cacheable` hint being set to `false`"
+                        ),
+                        CallCachingMode::Explicit => debug!(
+                            task_id = id,
+                            task_name = state.task.name(),
+                            document = state.document.uri().as_str(),
+                            "task is not cacheable due to `cacheable` hint not being explicitly \
+                             set to `true`"
+                        ),
+                    }
+
                     None
                 }
             } else {
