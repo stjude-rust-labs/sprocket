@@ -84,7 +84,6 @@ pub trait Database: Send + Sync {
     /// Create an index log entry.
     async fn create_index_log_entry(
         &self,
-        id: Uuid,
         workflow_id: Uuid,
         index_path: String,
         target_path: String,
@@ -95,4 +94,7 @@ pub trait Database: Send + Sync {
         &self,
         workflow_id: Uuid,
     ) -> Result<Vec<IndexLogEntry>>;
+
+    /// List the latest index log entry for each unique index path.
+    async fn list_latest_index_entries(&self) -> Result<Vec<IndexLogEntry>>;
 }

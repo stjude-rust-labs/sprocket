@@ -166,6 +166,7 @@ indicatif.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
+pathdiff.workspace = true
 pest.workspace = true
 pretty_assertions.workspace = true
 regex.workspace = true

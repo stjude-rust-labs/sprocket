@@ -58,7 +58,7 @@ create index idx_workflows_created_at on workflows(created_at);
 -- Index log table
 create table if not exists index_log (
     -- Unique identifier for this index log entry
-    id text primary key not null,
+    id integer primary key autoincrement not null,
     -- Foreign key to the workflow that created this index entry
     workflow_id text not null,
     -- Path to the symlink in the index directory
@@ -71,4 +71,15 @@ create table if not exists index_log (
 );
 
 create index idx_index_log_workflow_id on index_log(workflow_id);
-create index idx_index_log_index_path on index_log(index_path);
+create index idx_index_log_index_path_created_at on index_log(index_path, created_at desc);
+
+-- View for getting the latest index entry for each unique index path
+create view latest_index_entries as
+select id, workflow_id, index_path, target_path, created_at
+from (
+    select *,
+           row_number() over (partition by index_path order by created_at desc) as rn
+    from index_log
+) ranked
+where rn = 1
+order by index_path;

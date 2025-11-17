@@ -228,26 +228,26 @@ impl Database for SqliteDatabase {
 
     async fn create_index_log_entry(
         &self,
-        id: Uuid,
         workflow_id: Uuid,
         index_path: String,
         target_path: String,
     ) -> Result<IndexLogEntry> {
-        sqlx::query(
-            "insert into index_log (id, workflow_id, index_path, target_path) values (?, ?, ?, ?)",
+        let result = sqlx::query(
+            "insert into index_log (workflow_id, index_path, target_path) values (?, ?, ?)",
         )
-        .bind(id.to_string())
         .bind(workflow_id.to_string())
         .bind(&index_path)
         .bind(&target_path)
         .execute(&self.pool)
         .await?;
 
+        let id = result.last_insert_rowid();
+
         let entry: IndexLogEntry = sqlx::query_as(
             "select id, workflow_id, index_path, target_path, created_at from index_log where id \
              = ?",
         )
-        .bind(id.to_string())
+        .bind(id)
         .fetch_one(&self.pool)
         .await?;
 
@@ -263,6 +263,16 @@ impl Database for SqliteDatabase {
              workflow_id = ? order by created_at",
         )
         .bind(workflow_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(entries)
+    }
+
+    async fn list_latest_index_entries(&self) -> Result<Vec<IndexLogEntry>> {
+        let entries: Vec<IndexLogEntry> = sqlx::query_as(
+            "select id, workflow_id, index_path, target_path, created_at from latest_index_entries",
+        )
         .fetch_all(&self.pool)
         .await?;
 

@@ -259,10 +259,8 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
     .await
     .unwrap();
 
-    let entry_id = Uuid::new_v4();
     let entry = db
         .create_index_log_entry(
-            entry_id,
             workflow_id,
             String::from("/index/output.txt"),
             String::from("/tmp/output.txt"),
@@ -270,7 +268,6 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(entry.id, entry_id);
     assert_eq!(entry.workflow_id, workflow_id);
     assert_eq!(entry.index_path, Path::new("/index/output.txt"));
     assert_eq!(entry.target_path, Path::new("/tmp/output.txt"));
@@ -281,7 +278,7 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0].id, entry_id);
+    assert_eq!(entries[0].id, entry.id);
     assert_eq!(entries[0].workflow_id, workflow_id);
     assert_eq!(entries[0].index_path, Path::new("/index/output.txt"));
     assert_eq!(entries[0].target_path, Path::new("/tmp/output.txt"));
@@ -407,11 +404,9 @@ async fn create_index_log_with_invalid_workflow_id(pool: SqlitePool) {
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
 
     let workflow_id = Uuid::new_v4();
-    let entry_id = Uuid::new_v4();
 
     let result = db
         .create_index_log_entry(
-            entry_id,
             workflow_id,
             String::from("/index/output.txt"),
             String::from("/tmp/output.txt"),
@@ -508,36 +503,32 @@ async fn list_index_entries_ordered_by_created_at(pool: SqlitePool) {
     .await
     .unwrap();
 
-    let entry_id_1 = Uuid::new_v4();
-    let entry_id_2 = Uuid::new_v4();
-    let entry_id_3 = Uuid::new_v4();
+    let entry1 = db
+        .create_index_log_entry(
+            workflow_id,
+            String::from("/index/output1.txt"),
+            String::from("/tmp/output1.txt"),
+        )
+        .await
+        .unwrap();
 
-    db.create_index_log_entry(
-        entry_id_1,
-        workflow_id,
-        String::from("/index/output1.txt"),
-        String::from("/tmp/output1.txt"),
-    )
-    .await
-    .unwrap();
+    let entry2 = db
+        .create_index_log_entry(
+            workflow_id,
+            String::from("/index/output2.txt"),
+            String::from("/tmp/output2.txt"),
+        )
+        .await
+        .unwrap();
 
-    db.create_index_log_entry(
-        entry_id_2,
-        workflow_id,
-        String::from("/index/output2.txt"),
-        String::from("/tmp/output2.txt"),
-    )
-    .await
-    .unwrap();
-
-    db.create_index_log_entry(
-        entry_id_3,
-        workflow_id,
-        String::from("/index/output3.txt"),
-        String::from("/tmp/output3.txt"),
-    )
-    .await
-    .unwrap();
+    let entry3 = db
+        .create_index_log_entry(
+            workflow_id,
+            String::from("/index/output3.txt"),
+            String::from("/tmp/output3.txt"),
+        )
+        .await
+        .unwrap();
 
     let entries = db
         .list_index_log_entries_by_workflow(workflow_id)
@@ -545,9 +536,9 @@ async fn list_index_entries_ordered_by_created_at(pool: SqlitePool) {
         .unwrap();
 
     assert_eq!(entries.len(), 3);
-    assert_eq!(entries[0].id, entry_id_1);
-    assert_eq!(entries[1].id, entry_id_2);
-    assert_eq!(entries[2].id, entry_id_3);
+    assert_eq!(entries[0].id, entry1.id);
+    assert_eq!(entries[1].id, entry2.id);
+    assert_eq!(entries[2].id, entry3.id);
     assert!(entries[0].created_at <= entries[1].created_at);
     assert!(entries[1].created_at <= entries[2].created_at);
 }
@@ -677,12 +668,7 @@ async fn multiple_index_entries_for_same_workflow(pool: SqlitePool) {
     .await
     .unwrap();
 
-    let entry_id_1 = Uuid::new_v4();
-    let entry_id_2 = Uuid::new_v4();
-    let entry_id_3 = Uuid::new_v4();
-
     db.create_index_log_entry(
-        entry_id_1,
         workflow_id,
         String::from("/index/output1.txt"),
         String::from("/tmp/output1.txt"),
@@ -691,7 +677,6 @@ async fn multiple_index_entries_for_same_workflow(pool: SqlitePool) {
     .unwrap();
 
     db.create_index_log_entry(
-        entry_id_2,
         workflow_id,
         String::from("/index/output2.txt"),
         String::from("/tmp/output2.txt"),
@@ -700,7 +685,6 @@ async fn multiple_index_entries_for_same_workflow(pool: SqlitePool) {
     .unwrap();
 
     db.create_index_log_entry(
-        entry_id_3,
         workflow_id,
         String::from("/index/output3.txt"),
         String::from("/tmp/output3.txt"),
