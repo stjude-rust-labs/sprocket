@@ -925,6 +925,24 @@ impl TopLevelEvaluator {
             transferer,
         }
     }
+
+    // TODO ACF 2025-11-17: we shouldn't need to leak Arcs in these types once we
+    // stop cloning and recreating the top-level stuff
+    pub fn config(&self) -> &Arc<Config> {
+        &self.config
+    }
+
+    pub fn backend(&self) -> &Arc<dyn TaskExecutionBackend> {
+        &self.backend
+    }
+
+    pub fn cancellation(&self) -> &CancellationContext {
+        &self.cancellation
+    }
+
+    pub fn transferer(&self) -> &Arc<dyn Transferer> {
+        &self.transferer
+    }
 }
 
 /// Evaluates the given task.
@@ -942,7 +960,7 @@ pub async fn evaluate_task(
         return Err(anyhow!("cannot evaluate a document with errors").into());
     }
 
-    let result = perform_evaluation(
+    let result = perform_task_evaluation(
         top_level,
         document,
         task,
@@ -963,7 +981,7 @@ pub async fn evaluate_task(
 ///
 /// This method skips checking the document (and its transitive imports) for
 /// analysis errors as the check occurs at the `evaluate` entrypoint.
-pub(crate) async fn perform_evaluation(
+pub(crate) async fn perform_task_evaluation(
     top_level: &TopLevelEvaluator,
     document: &Document,
     task: &Task,
