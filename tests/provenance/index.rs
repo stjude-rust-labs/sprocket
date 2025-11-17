@@ -26,6 +26,11 @@ use wdl::engine::Value;
 #[path = "index/rebuild.rs"]
 mod rebuild;
 
+/// Normalizes a path to use forward slashes for cross-platform consistency.
+fn normalize_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 /// Helper to create a file output value and write the file.
 fn make_file_output(
     exec_dir: &Path,
@@ -117,29 +122,29 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     assert_eq!(entries.len(), 3);
     assert_eq!(entries[0].workflow_id, workflow_id);
     assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
+        normalize_path(entries[0].index_path.to_str().unwrap()),
         "index/yak/outputs.json"
     );
     assert_eq!(
-        entries[0].target_path.to_str().unwrap(),
+        normalize_path(entries[0].target_path.to_str().unwrap()),
         "runs/test-workflow/outputs.json"
     );
     assert_eq!(entries[1].workflow_id, workflow_id);
     assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
+        normalize_path(entries[1].index_path.to_str().unwrap()),
         "index/yak/satisfaction_survey.tsv"
     );
     assert_eq!(
-        entries[1].target_path.to_str().unwrap(),
+        normalize_path(entries[1].target_path.to_str().unwrap()),
         "runs/test-workflow/satisfaction_survey.tsv"
     );
     assert_eq!(entries[2].workflow_id, workflow_id);
     assert_eq!(
-        entries[2].index_path.to_str().unwrap(),
+        normalize_path(entries[2].index_path.to_str().unwrap()),
         "index/yak/styling_metrics.json"
     );
     assert_eq!(
-        entries[2].target_path.to_str().unwrap(),
+        normalize_path(entries[2].target_path.to_str().unwrap()),
         "runs/test-workflow/styling_metrics.json"
     );
 
@@ -198,20 +203,20 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[0].workflow_id, workflow_id);
     assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
+        normalize_path(entries[0].index_path.to_str().unwrap()),
         "index/yak/outputs.json"
     );
     assert_eq!(
-        entries[0].target_path.to_str().unwrap(),
+        normalize_path(entries[0].target_path.to_str().unwrap()),
         "runs/test-workflow/outputs.json"
     );
     assert_eq!(entries[1].workflow_id, workflow_id);
     assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
+        normalize_path(entries[1].index_path.to_str().unwrap()),
         "index/yak/styled_yaks"
     );
     assert_eq!(
-        entries[1].target_path.to_str().unwrap(),
+        normalize_path(entries[1].target_path.to_str().unwrap()),
         "runs/test-workflow/styled_yaks"
     );
 
@@ -295,19 +300,19 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
     let entries = db.list_index_log_entries_by_workflow(workflow_id).await?;
     assert_eq!(entries.len(), 4);
     assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
+        normalize_path(entries[0].index_path.to_str().unwrap()),
         "index/yak/outputs.json"
     );
     assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
+        normalize_path(entries[1].index_path.to_str().unwrap()),
         "index/yak/result1.txt"
     );
     assert_eq!(
-        entries[2].index_path.to_str().unwrap(),
+        normalize_path(entries[2].index_path.to_str().unwrap()),
         "index/yak/result2.txt"
     );
     assert_eq!(
-        entries[3].index_path.to_str().unwrap(),
+        normalize_path(entries[3].index_path.to_str().unwrap()),
         "index/yak/result3.txt"
     );
 

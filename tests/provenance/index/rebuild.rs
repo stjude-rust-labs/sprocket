@@ -17,6 +17,8 @@ use wdl::engine::HostPath;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
 
+use super::normalize_path;
+
 #[sqlx::test]
 async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     let temp = TempDir::new()?;
@@ -159,33 +161,33 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     // Verify first entry: `outputs.json` from `workflow_id2`
     assert_eq!(all_entries[0].workflow_id, workflow_id2);
     assert_eq!(
-        all_entries[0].index_path.to_str().unwrap(),
+        normalize_path(all_entries[0].index_path.to_str().unwrap()),
         "index/yak/outputs.json"
     );
     assert_eq!(
-        all_entries[0].target_path.to_str().unwrap(),
+        normalize_path(all_entries[0].target_path.to_str().unwrap()),
         "runs/test-workflow-run2/outputs.json"
     );
 
     // Verify second entry: `satisfaction_survey.tsv` from `workflow_id2`
     assert_eq!(all_entries[1].workflow_id, workflow_id2);
     assert_eq!(
-        all_entries[1].index_path.to_str().unwrap(),
+        normalize_path(all_entries[1].index_path.to_str().unwrap()),
         "index/yak/satisfaction_survey.tsv"
     );
     assert_eq!(
-        all_entries[1].target_path.to_str().unwrap(),
+        normalize_path(all_entries[1].target_path.to_str().unwrap()),
         "runs/test-workflow-run2/satisfaction_survey.tsv"
     );
 
     // Verify third entry: `styling_metrics.json` from `workflow_id2`
     assert_eq!(all_entries[2].workflow_id, workflow_id2);
     assert_eq!(
-        all_entries[2].index_path.to_str().unwrap(),
+        normalize_path(all_entries[2].index_path.to_str().unwrap()),
         "index/yak/styling_metrics.json"
     );
     assert_eq!(
-        all_entries[2].target_path.to_str().unwrap(),
+        normalize_path(all_entries[2].target_path.to_str().unwrap()),
         "runs/test-workflow-run2/styling_metrics.json"
     );
 
