@@ -65,13 +65,12 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
-use crate::CancellationContext;
+use super::TopLevelEvaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationResult;
-use crate::Events;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Input;
@@ -83,7 +82,6 @@ use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
 use crate::StorageUnit;
-use crate::TaskExecutionBackend;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
@@ -100,7 +98,6 @@ use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
 use crate::eval::EvaluatedTask;
 use crate::eval::trie::InputTrie;
-use crate::http::HttpTransferer;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
@@ -866,83 +863,6 @@ struct EvaluatedSections {
     requirements: Arc<HashMap<String, Value>>,
     /// The evaluated hints.
     hints: Arc<HashMap<String, Value>>,
-}
-
-/// Represents a WDL V1 task evaluator.
-pub struct TopLevelEvaluator {
-    /// The associated evaluation configuration.
-    config: Arc<Config>,
-    /// The associated task execution backend.
-    backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation context for cancelling task evaluation.
-    cancellation: CancellationContext,
-    /// The transferer to use for expression evaluation.
-    transferer: Arc<dyn Transferer>,
-}
-
-impl TopLevelEvaluator {
-    /// Constructs a new task evaluator with the given evaluation
-    /// configuration, cancellation context, and events sender.
-    ///
-    /// Returns an error if the configuration isn't valid.
-    pub async fn new(
-        config: Config,
-        cancellation: CancellationContext,
-        events: Events,
-    ) -> Result<Self> {
-        config.validate().await?;
-
-        let config = Arc::new(config);
-        let backend = config.create_backend(events.crankshaft().clone()).await?;
-        let transferer = HttpTransferer::new(
-            config.clone(),
-            cancellation.token(),
-            events.transfer().clone(),
-        )?;
-
-        Ok(Self {
-            config,
-            backend,
-            cancellation,
-            transferer: Arc::new(transferer),
-        })
-    }
-
-    /// Creates a new task evaluator with the given configuration, backend,
-    /// cancellation token, and transferer.
-    ///
-    /// This method does not validate the configuration.
-    pub(crate) fn new_unchecked(
-        config: Arc<Config>,
-        backend: Arc<dyn TaskExecutionBackend>,
-        cancellation: CancellationContext,
-        transferer: Arc<dyn Transferer>,
-    ) -> Self {
-        Self {
-            config,
-            backend,
-            cancellation,
-            transferer,
-        }
-    }
-
-    // TODO ACF 2025-11-17: we shouldn't need to leak Arcs in these types once we
-    // stop cloning and recreating the top-level stuff
-    pub fn config(&self) -> &Arc<Config> {
-        &self.config
-    }
-
-    pub fn backend(&self) -> &Arc<dyn TaskExecutionBackend> {
-        &self.backend
-    }
-
-    pub fn cancellation(&self) -> &CancellationContext {
-        &self.cancellation
-    }
-
-    pub fn transferer(&self) -> &Arc<dyn Transferer> {
-        &self.transferer
-    }
 }
 
 /// Evaluates the given task.

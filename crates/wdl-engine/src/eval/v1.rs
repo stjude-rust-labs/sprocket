@@ -7,6 +7,7 @@ mod workflow;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -14,6 +15,13 @@ pub use expr::*;
 use serde::Serialize;
 pub use task::*;
 pub use workflow::*;
+
+use super::CancellationContext;
+use super::Events;
+use crate::TaskExecutionBackend;
+use crate::config::Config;
+use crate::http::HttpTransferer;
+use crate::http::Transferer;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -30,4 +38,86 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
         .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
     serde_json::to_writer_pretty(BufWriter::new(file), value)
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))
+}
+
+/// The top-level evaluation context.
+///
+/// "Top-level" here means the outermost invocation of a task or workflow across
+/// an entire execution. This type is suitable for once-per-execution values
+/// like a shared container image cache, and new instances should not be created
+/// for evaluating subgraphs of the initial execution.
+pub struct TopLevelEvaluator {
+    /// The associated evaluation configuration.
+    config: Arc<Config>,
+    /// The associated task execution backend.
+    backend: Arc<dyn TaskExecutionBackend>,
+    /// The cancellation context for cancelling task evaluation.
+    cancellation: CancellationContext,
+    /// The transferer to use for expression evaluation.
+    transferer: Arc<dyn Transferer>,
+}
+
+impl TopLevelEvaluator {
+    /// Constructs a new task evaluator with the given evaluation
+    /// configuration, cancellation context, and events sender.
+    ///
+    /// Returns an error if the configuration isn't valid.
+    pub async fn new(
+        config: Config,
+        cancellation: CancellationContext,
+        events: Events,
+    ) -> Result<Self> {
+        config.validate().await?;
+
+        let config = Arc::new(config);
+        let backend = config.create_backend(events.crankshaft().clone()).await?;
+        let transferer = HttpTransferer::new(
+            config.clone(),
+            cancellation.token(),
+            events.transfer().clone(),
+        )?;
+
+        Ok(Self {
+            config,
+            backend,
+            cancellation,
+            transferer: Arc::new(transferer),
+        })
+    }
+
+    /// Creates a new task evaluator with the given configuration, backend,
+    /// cancellation token, and transferer.
+    ///
+    /// This method does not validate the configuration.
+    pub(crate) fn new_unchecked(
+        config: Arc<Config>,
+        backend: Arc<dyn TaskExecutionBackend>,
+        cancellation: CancellationContext,
+        transferer: Arc<dyn Transferer>,
+    ) -> Self {
+        Self {
+            config,
+            backend,
+            cancellation,
+            transferer,
+        }
+    }
+
+    // TODO ACF 2025-11-17: we shouldn't need to leak Arcs in these types once we
+    // stop cloning and recreating the top-level stuff
+    pub fn config(&self) -> &Arc<Config> {
+        &self.config
+    }
+
+    pub fn backend(&self) -> &Arc<dyn TaskExecutionBackend> {
+        &self.backend
+    }
+
+    pub fn cancellation(&self) -> &CancellationContext {
+        &self.cancellation
+    }
+
+    pub fn transferer(&self) -> &Arc<dyn Transferer> {
+        &self.transferer
+    }
 }
