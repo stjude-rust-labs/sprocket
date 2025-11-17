@@ -1096,7 +1096,7 @@ impl TopLevelEvaluator {
                         task_id = id,
                         task_name = state.task.name(),
                         document = state.document.uri().as_str(),
-                        "task is not cacheable due to `cacheable` hint set to `true`"
+                        "task is not cacheable due to `cacheable` hint set to `false`"
                     );
                     None
                 } else {
