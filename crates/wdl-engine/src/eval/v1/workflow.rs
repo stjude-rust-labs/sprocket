@@ -88,7 +88,8 @@ use crate::tree::SyntaxToken;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::TaskEvaluator;
+use crate::v1::TopLevelEvaluator;
+use crate::v1::perform_evaluation;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -1567,7 +1568,7 @@ impl WorkflowEvaluator {
         /// Abstracts evaluation for both task and workflow calls.
         enum Evaluator<'a> {
             /// Used to evaluate a task call.
-            Task(&'a Task, TaskEvaluator),
+            Task(&'a Task, TopLevelEvaluator),
             /// Used to evaluate a workflow call.
             Workflow(WorkflowEvaluator),
         }
@@ -1585,18 +1586,18 @@ impl WorkflowEvaluator {
                 callee_id: &str,
             ) -> EvaluationResult<Outputs> {
                 match self {
-                    Evaluator::Task(task, evaluator) => {
+                    Evaluator::Task(task, top_level) => {
                         debug!(caller_id, callee_id, "evaluating call to task");
-                        evaluator
-                            .perform_evaluation(
-                                document,
-                                task,
-                                &inputs.unwrap_task_inputs(),
-                                root_dir,
-                                callee_id,
-                            )
-                            .await?
-                            .outputs
+                        perform_evaluation(
+                            &top_level,
+                            document,
+                            task,
+                            &inputs.unwrap_task_inputs(),
+                            root_dir,
+                            callee_id,
+                        )
+                        .await?
+                        .outputs
                     }
                     Evaluator::Workflow(evaluator) => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
@@ -1681,7 +1682,7 @@ impl WorkflowEvaluator {
                 inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                 Evaluator::Task(
                     task,
-                    TaskEvaluator::new_unchecked(
+                    TopLevelEvaluator::new_unchecked(
                         state.config.clone(),
                         state.backend.clone(),
                         state.cancellation.clone(),

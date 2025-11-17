@@ -49,7 +49,8 @@ use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::path::EvaluationPath;
-use wdl_engine::v1::TaskEvaluator;
+use wdl_engine::v1::TopLevelEvaluator;
+use wdl_engine::v1::evaluate_task;
 
 mod common;
 
@@ -132,7 +133,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
         let evaluator =
-            TaskEvaluator::new(config.engine, Default::default(), Events::none()).await?;
+            TopLevelEvaluator::new(config.engine, Default::default(), Events::none()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
@@ -142,10 +143,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
 
-        match evaluator
-            .evaluate(result.document(), task, &inputs, dir.path())
-            .await
-        {
+        match evaluate_task(&evaluator, result.document(), task, &inputs, dir.path()).await {
             Ok(evaluated) => {
                 compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;
 
