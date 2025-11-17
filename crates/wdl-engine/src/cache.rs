@@ -229,7 +229,7 @@ struct State {
 }
 
 impl State {
-    /// Gets the path to anb entry in the cache given the [`Key`].
+    /// Gets the path to an entry in the cache given the [`Key`].
     fn entry_path(&self, key: &Key) -> PathBuf {
         self.cache_dir.join(key.as_str())
     }
