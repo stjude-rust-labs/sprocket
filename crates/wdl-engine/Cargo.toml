@@ -10,11 +10,6 @@ homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-engine"
 documentation = "https://docs.rs/wdl-engine"
 
-[features]
-default = []
-codespan = ["wdl-ast/codespan"]
-codespan-reporting = ["codespan", "dep:codespan-reporting"]
-
 [dependencies]
 anyhow = { workspace = true }
 bimap = { workspace = true }
@@ -22,7 +17,7 @@ blake3 = { workspace = true }
 bytesize = { workspace = true }
 chrono = { workspace = true }
 cloud-copy = { workspace = true }
-codespan-reporting = { workspace = true, optional = true }
+codespan-reporting = { workspace = true }
 crankshaft = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
@@ -70,15 +65,12 @@ workspace = true
 
 [[test]]
 name = "inputs"
-required-features = ["codespan-reporting"]
 harness = false
 
 [[test]]
 name = "tasks"
-required-features = ["codespan-reporting"]
 harness = false
 
 [[test]]
 name = "workflows"
-required-features = ["codespan-reporting"]
 harness = false

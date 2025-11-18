@@ -1821,7 +1821,6 @@ impl WorkflowEvaluator {
 }
 
 #[cfg(test)]
-#[cfg(feature = "codespan-reporting")]
 mod test {
     use std::fs::read_to_string;
     use std::sync::atomic::AtomicUsize;
