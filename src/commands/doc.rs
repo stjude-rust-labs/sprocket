@@ -170,8 +170,8 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    let analysis_config = AnalysisConfig::default()
-        .with_diagnostics_config(DiagnosticsConfig::except_all());
+    let analysis_config =
+        AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all());
     let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .init_light_mode(args.light_mode)
