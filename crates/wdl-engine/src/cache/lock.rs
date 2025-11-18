@@ -25,7 +25,8 @@ impl LockedFile {
     ///
     /// If `create` is `false` and the file does not exist, `Ok(None)` is
     /// returned.
-    pub async fn acquire_shared(path: &Path, create: bool) -> Result<Option<Self>> {
+    pub async fn acquire_shared(path: impl AsRef<Path>, create: bool) -> Result<Option<Self>> {
+        let path = path.as_ref();
         let file = if create {
             // Create or open the file, but do not truncate it if it exists
             let mut options = fs::OpenOptions::new();
@@ -92,7 +93,8 @@ impl LockedFile {
     /// If the file does not exist, it is created.
     ///
     /// If the file exists, it is truncated once the lock is acquired.
-    pub async fn acquire_exclusive(path: &Path) -> Result<Self> {
+    pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
         // Create or open the file, but do not truncate it if it exists before the lock
         // is acquired
         let mut options = fs::OpenOptions::new();
@@ -171,5 +173,51 @@ impl Write for LockedFile {
 
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::time::Duration;
+
+    use tempfile::NamedTempFile;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn acquire_shared_no_create() {
+        assert!(
+            LockedFile::acquire_shared("does-not-exist", false)
+                .await
+                .unwrap()
+                .is_none(),
+            "should not file"
+        );
+    }
+
+    #[tokio::test]
+    async fn acquire_shared() {
+        let path = NamedTempFile::new().unwrap();
+        let _first = LockedFile::acquire_shared(path.path(), true)
+            .await
+            .unwrap()
+            .expect("should have locked file");
+        let _second = LockedFile::acquire_shared(path.path(), true)
+            .await
+            .unwrap()
+            .expect("should have locked file");
+    }
+
+    #[tokio::test]
+    async fn acquire_exclusive() {
+        let path = NamedTempFile::new().unwrap();
+        let _first = LockedFile::acquire_exclusive(path.path()).await.unwrap();
+
+        // As acquiring a shared lock will dead lock, wait at most 3 seconds for
+        // acquiring the shared lock and panic if we acquire it
+        tokio::select! {
+            _ = tokio::time::sleep(Duration::from_secs(3)) => {}
+            _ = LockedFile::acquire_shared(path.path(), true) => panic!("a shared lock should not be acquired")
+        }
     }
 }
