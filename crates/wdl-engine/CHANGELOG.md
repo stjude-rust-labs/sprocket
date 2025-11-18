@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
 * Changed a number of types in the public interface in preparation for a larger refactoring ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
 
-
 #### Fixed
 
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
