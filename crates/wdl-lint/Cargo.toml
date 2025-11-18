@@ -11,9 +11,6 @@ repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-
 documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
 
-[features]
-codespan = ["wdl-ast/codespan"]
-
 [dependencies]
 anyhow = { workspace = true }
 convert_case = { workspace = true }
@@ -43,5 +40,4 @@ workspace = true
 
 [[test]]
 name = "lints"
-required-features = ["codespan"]
 harness = false
