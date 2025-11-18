@@ -10,9 +10,6 @@ homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-ast"
 documentation = "https://docs.rs/wdl-ast"
 
-[features]
-codespan = ["wdl-grammar/codespan"]
-
 [dependencies]
 macropol = { workspace = true }
 paste = { workspace = true }

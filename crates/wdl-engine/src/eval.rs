@@ -382,7 +382,6 @@ impl EvaluationError {
     }
 
     /// Helper for tests for converting an evaluation error to a string.
-    #[cfg(feature = "codespan-reporting")]
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         use codespan_reporting::diagnostic::Label;

@@ -293,7 +293,6 @@ impl Diagnostic {
     /// The provided file identifier is used for the diagnostic.
     ///
     /// [Diagnostic]: codespan_reporting::diagnostic::Diagnostic
-    #[cfg(feature = "codespan")]
     pub fn to_codespan<FileId: Copy>(
         &self,
         file_id: FileId,

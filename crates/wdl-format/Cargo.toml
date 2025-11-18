@@ -12,7 +12,7 @@ documentation = "https://docs.rs/wdl-format"
 [dependencies]
 nonempty.workspace = true
 thiserror.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.18.0", features = ["codespan"] }
+wdl-ast = { path = "../wdl-ast", version = "0.18.0" }
 
 [dev-dependencies]
 anyhow = { workspace = true }
