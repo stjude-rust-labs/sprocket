@@ -522,8 +522,6 @@ pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config
 struct TaskEvaluationContext<'a, 'b> {
     /// The associated evaluation state.
     state: &'a mut State<'b>,
-    /// The transferer to use for expression evaluation.
-    transferer: &'a dyn Transferer,
     /// The current evaluation scope.
     scope: ScopeIndex,
     /// The task work directory.
@@ -546,14 +544,9 @@ struct TaskEvaluationContext<'a, 'b> {
 
 impl<'a, 'b> TaskEvaluationContext<'a, 'b> {
     /// Constructs a new expression evaluation context.
-    pub fn new(
-        state: &'a mut State<'b>,
-        transferer: &'a dyn Transferer,
-        scope: ScopeIndex,
-    ) -> Self {
+    pub fn new(state: &'a mut State<'b>, scope: ScopeIndex) -> Self {
         Self {
             state,
-            transferer,
             scope,
             work_dir: None,
             stdout: None,
@@ -633,7 +626,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn transferer(&self) -> &dyn Transferer {
-        self.transferer
+        self.state.transferer().as_ref()
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
@@ -652,6 +645,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 
 /// Represents task evaluation state.
 struct State<'a> {
+    top_level: TopLevelEvaluator,
     /// The temp directory.
     temp_dir: &'a Path,
     /// The base directory for evaluation.
@@ -682,8 +676,13 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
+    fn transferer(&self) -> &Arc<dyn Transferer> {
+        &self.top_level.transferer
+    }
+
     /// Constructs a new task evaluation state.
     fn new(
+        top_level: TopLevelEvaluator,
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
@@ -717,6 +716,7 @@ impl<'a> State<'a> {
         base_dir.make_absolute();
 
         Ok(Self {
+            top_level,
             temp_dir,
             base_dir,
             document,
@@ -743,7 +743,7 @@ impl<'a> State<'a> {
         &mut self,
         is_optional: bool,
         value: &mut Value,
-        transferer: &Arc<dyn Transferer>,
+        transferer: Arc<dyn Transferer>,
         needs_local_inputs: bool,
     ) -> Result<()> {
         // For WDL 1.2 documents, start by ensuring paths exist.
@@ -966,6 +966,7 @@ pub(crate) async fn perform_task_evaluation(
     write_json_file(root_dir.join(INPUTS_FILE), inputs)?;
 
     let mut state = State::new(
+        top_level.clone(),
         document,
         task,
         &temp_dir,
@@ -976,12 +977,12 @@ pub(crate) async fn perform_task_evaluation(
     while current < nodes.len() {
         match &graph[nodes[current]] {
             TaskGraphNode::Input(decl) => {
-                evaluate_input(top_level, id, &mut state, decl, inputs)
+                evaluate_input(id, &mut state, decl, inputs)
                     .await
                     .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
             }
             TaskGraphNode::Decl(decl) => {
-                evaluate_decl(top_level, id, &mut state, decl)
+                evaluate_decl(id, &mut state, decl)
                     .await
                     .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
             }
@@ -1015,7 +1016,6 @@ pub(crate) async fn perform_task_evaluation(
             requirements,
             hints,
         } = evaluate_sections(
-            top_level,
             id,
             &mut state,
             &definition,
@@ -1044,7 +1044,7 @@ pub(crate) async fn perform_task_evaluation(
             id.to_string(),
             TaskSpawnInfo::new(
                 command,
-                localize_inputs(top_level, id, &mut state).await?,
+                localize_inputs(id, &mut state).await?,
                 requirements.clone(),
                 hints.clone(),
                 env.clone(),
@@ -1094,7 +1094,7 @@ pub(crate) async fn perform_task_evaluation(
         }
 
         if let Err(e) = evaluated
-            .handle_exit(&requirements, top_level.transferer.as_ref())
+            .handle_exit(&requirements, state.transferer().as_ref())
             .await
         {
             if attempt >= max_retries {
@@ -1134,12 +1134,12 @@ pub(crate) async fn perform_task_evaluation(
     for index in &nodes[current..] {
         match &graph[*index] {
             TaskGraphNode::Decl(decl) => {
-                evaluate_decl(top_level, id, &mut state, decl)
+                evaluate_decl(id, &mut state, decl)
                     .await
                     .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
             }
             TaskGraphNode::Output(decl) => {
-                evaluate_output(top_level, id, &mut state, decl, &evaluated)
+                evaluate_output(id, &mut state, decl, &evaluated)
                     .await
                     .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
             }
@@ -1169,7 +1169,6 @@ pub(crate) async fn perform_task_evaluation(
 
 /// Evaluates a task input.
 async fn evaluate_input(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     decl: &Decl<SyntaxNode>,
@@ -1201,11 +1200,8 @@ async fn evaluate_input(
                     "evaluating input default expression"
                 );
 
-                let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-                    state,
-                    top_level.transferer.as_ref(),
-                    ROOT_SCOPE_INDEX,
-                ));
+                let mut evaluator =
+                    ExprEvaluator::new(TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX));
                 (evaluator.evaluate_expr(&expr).await?, expr.span())
             } else {
                 (input.clone(), name.span())
@@ -1221,11 +1217,8 @@ async fn evaluate_input(
                     "evaluating input default expression"
                 );
 
-                let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-                    state,
-                    top_level.transferer.as_ref(),
-                    ROOT_SCOPE_INDEX,
-                ));
+                let mut evaluator =
+                    ExprEvaluator::new(TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX));
                 (evaluator.evaluate_expr(&expr).await?, expr.span())
             }
             _ => {
@@ -1238,11 +1231,7 @@ async fn evaluate_input(
     // Coerce the value to the expected type
     let mut value = value
         .coerce(
-            Some(&TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
-            )),
+            Some(&TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX)),
             &expected_ty,
         )
         .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
@@ -1252,8 +1241,8 @@ async fn evaluate_input(
         .add_backend_inputs(
             decl_ty.is_optional(),
             &mut value,
-            &top_level.transferer,
-            top_level.backend.needs_local_inputs(),
+            state.transferer().clone(),
+            state.top_level.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1275,11 +1264,7 @@ async fn evaluate_input(
         let value = value
             .as_primitive()
             .expect("value should be primitive")
-            .raw(Some(&TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
-            )))
+            .raw(Some(&TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX)))
             .to_string();
         state.env.insert(name.text().to_string(), value);
     }
@@ -1289,7 +1274,6 @@ async fn evaluate_input(
 
 /// Evaluates a task private declaration.
 async fn evaluate_decl(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     decl: &Decl<SyntaxNode>,
@@ -1306,21 +1290,13 @@ async fn evaluate_decl(
     let decl_ty = decl.ty();
     let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
 
-    let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-        state,
-        top_level.transferer.as_ref(),
-        ROOT_SCOPE_INDEX,
-    ));
+    let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX));
 
     let expr = decl.expr().expect("private decls should have expressions");
     let value = evaluator.evaluate_expr(&expr).await?;
     let mut value = value
         .coerce(
-            Some(&TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
-            )),
+            Some(&TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX)),
             &ty,
         )
         .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
@@ -1330,8 +1306,8 @@ async fn evaluate_decl(
         .add_backend_inputs(
             decl_ty.is_optional(),
             &mut value,
-            &top_level.transferer,
-            top_level.backend.needs_local_inputs(),
+            state.transferer().clone(),
+            state.top_level.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1345,11 +1321,7 @@ async fn evaluate_decl(
         let value = value
             .as_primitive()
             .expect("value should be primitive")
-            .raw(Some(&TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                ROOT_SCOPE_INDEX,
-            )))
+            .raw(Some(&TaskEvaluationContext::new(state, ROOT_SCOPE_INDEX)))
             .to_string();
         state.env.insert(name.text().to_string(), value);
     }
@@ -1361,7 +1333,6 @@ async fn evaluate_decl(
 ///
 /// Returns both the task's hints and requirements.
 async fn evaluate_runtime_section(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     section: &RuntimeSection<SyntaxNode>,
@@ -1404,11 +1375,7 @@ async fn evaluate_runtime_section(
             }
         }
 
-        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-            state,
-            top_level.transferer.as_ref(),
-            scope_index,
-        ));
+        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(state, scope_index));
 
         let (types, requirement) = match task_requirement_types(version, name.text()) {
             Some(types) => (Some(types), true),
@@ -1426,14 +1393,7 @@ async fn evaluate_runtime_section(
                 .iter()
                 .find_map(|ty| {
                     value
-                        .coerce(
-                            Some(&TaskEvaluationContext::new(
-                                state,
-                                top_level.transferer.as_ref(),
-                                scope_index,
-                            )),
-                            ty,
-                        )
+                        .coerce(Some(&TaskEvaluationContext::new(state, scope_index)), ty)
                         .ok()
                 })
                 .ok_or_else(|| {
@@ -1453,7 +1413,6 @@ async fn evaluate_runtime_section(
 
 /// Evaluates the requirements section.
 async fn evaluate_requirements_section(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     section: &RequirementsSection<SyntaxNode>,
@@ -1487,11 +1446,7 @@ async fn evaluate_requirements_section(
             continue;
         }
 
-        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-            state,
-            top_level.transferer.as_ref(),
-            scope_index,
-        ));
+        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(state, scope_index));
 
         let types =
             task_requirement_types(version, name.text()).expect("requirement should be known");
@@ -1503,14 +1458,7 @@ async fn evaluate_requirements_section(
             .iter()
             .find_map(|ty| {
                 value
-                    .coerce(
-                        Some(&TaskEvaluationContext::new(
-                            state,
-                            top_level.transferer.as_ref(),
-                            scope_index,
-                        )),
-                        ty,
-                    )
+                    .coerce(Some(&TaskEvaluationContext::new(state, scope_index)), ty)
                     .ok()
             })
             .ok_or_else(|| multiple_type_mismatch(types, name.span(), &value.ty(), expr.span()))?;
@@ -1523,7 +1471,6 @@ async fn evaluate_requirements_section(
 
 /// Evaluates the hints section.
 async fn evaluate_hints_section(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     section: &TaskHintsSection<SyntaxNode>,
@@ -1557,10 +1504,8 @@ async fn evaluate_hints_section(
             continue;
         }
 
-        let mut evaluator = ExprEvaluator::new(
-            TaskEvaluationContext::new(state, top_level.transferer.as_ref(), scope_index)
-                .with_task(),
-        );
+        let mut evaluator =
+            ExprEvaluator::new(TaskEvaluationContext::new(state, scope_index).with_task());
 
         let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
         hints.insert(name.text().to_string(), value);
@@ -1573,7 +1518,6 @@ async fn evaluate_hints_section(
 ///
 /// Returns the evaluated command as a string.
 async fn evaluate_command(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     section: &CommandSection<SyntaxNode>,
@@ -1589,11 +1533,8 @@ async fn evaluate_command(
     let mut command = String::new();
     match section.strip_whitespace() {
         Some(parts) => {
-            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                TASK_SCOPE_INDEX,
-            ));
+            let mut evaluator =
+                ExprEvaluator::new(TaskEvaluationContext::new(state, TASK_SCOPE_INDEX));
 
             for part in parts {
                 match part {
@@ -1617,11 +1558,8 @@ async fn evaluate_command(
                 uri = state.document.uri(),
             );
 
-            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(
-                state,
-                top_level.transferer.as_ref(),
-                TASK_SCOPE_INDEX,
-            ));
+            let mut evaluator =
+                ExprEvaluator::new(TaskEvaluationContext::new(state, TASK_SCOPE_INDEX));
 
             let heredoc = section.is_heredoc();
             for part in section.parts() {
@@ -1651,7 +1589,6 @@ async fn evaluate_command(
 ///   * hints
 ///   * command
 async fn evaluate_sections(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     definition: &TaskDefinition<SyntaxNode>,
@@ -1700,20 +1637,18 @@ async fn evaluate_sections(
 
     // Evaluate requirements and hints
     let (requirements, hints) = match definition.runtime() {
-        Some(section) => evaluate_runtime_section(top_level, id, state, &section, inputs)
+        Some(section) => evaluate_runtime_section(id, state, &section, inputs)
             .await
             .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
         _ => (
             match definition.requirements() {
-                Some(section) => {
-                    evaluate_requirements_section(top_level, id, state, &section, inputs)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?
-                }
+                Some(section) => evaluate_requirements_section(id, state, &section, inputs)
+                    .await
+                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
                 None => Default::default(),
             },
             match definition.hints() {
-                Some(section) => evaluate_hints_section(top_level, id, state, &section, inputs)
+                Some(section) => evaluate_hints_section(id, state, &section, inputs)
                     .await
                     .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
                 None => Default::default(),
@@ -1726,7 +1661,8 @@ async fn evaluate_sections(
     // command/output sections are evaluated.
     if version >= Some(SupportedVersion::V1(V1::Two)) {
         // Get the execution constraints
-        let constraints = top_level
+        let constraints = state
+            .top_level
             .backend
             .constraints(&requirements, &hints)
             .with_context(|| {
@@ -1736,7 +1672,7 @@ async fn evaluate_sections(
                 )
             })?;
 
-        let max_retries = max_retries(&requirements, &top_level.config);
+        let max_retries = max_retries(&requirements, &state.top_level.config);
 
         let mut task = TaskPostEvaluationValue::new(
             state.task.name(),
@@ -1776,7 +1712,6 @@ async fn evaluate_sections(
     }
 
     let command = evaluate_command(
-        top_level,
         id,
         state,
         &definition.command().expect("must have command section"),
@@ -1792,7 +1727,6 @@ async fn evaluate_sections(
 
 /// Evaluates a task output.
 async fn evaluate_output(
-    top_level: &TopLevelEvaluator,
     id: &str,
     state: &mut State<'_>,
     decl: &Decl<SyntaxNode>,
@@ -1810,7 +1744,7 @@ async fn evaluate_output(
     let decl_ty = decl.ty();
     let ty = crate::convert_ast_type_v1(state.document, &decl_ty)?;
     let mut evaluator = ExprEvaluator::new(
-        TaskEvaluationContext::new(state, top_level.transferer.as_ref(), TASK_SCOPE_INDEX)
+        TaskEvaluationContext::new(state, TASK_SCOPE_INDEX)
             .with_work_dir(&evaluated.result.work_dir)
             .with_stdout(&evaluated.result.stdout)
             .with_stderr(&evaluated.result.stderr),
@@ -1827,7 +1761,7 @@ async fn evaluate_output(
         .resolve_paths(
             ty.is_optional(),
             state.base_dir.as_local(),
-            Some(top_level.transferer.as_ref()),
+            Some(state.transferer().as_ref()),
             &|path| {
                 // Join the path with the work directory.
                 let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
@@ -1887,13 +1821,9 @@ async fn evaluate_output(
 /// Localizes inputs for execution.
 ///
 /// Returns the inputs to pass to the backend.
-async fn localize_inputs(
-    top_level: &TopLevelEvaluator,
-    task_id: &str,
-    state: &mut State<'_>,
-) -> EvaluationResult<Vec<Input>> {
+async fn localize_inputs(task_id: &str, state: &mut State<'_>) -> EvaluationResult<Vec<Input>> {
     // If the backend needs local inputs, download them now
-    if top_level.backend.needs_local_inputs() {
+    if state.top_level.backend.needs_local_inputs() {
         let mut downloads = JoinSet::new();
 
         // Download any necessary files
@@ -1903,7 +1833,7 @@ async fn localize_inputs(
             }
 
             if let EvaluationPath::Remote(url) = input.path() {
-                let transferer = top_level.transferer.clone();
+                let transferer = state.top_level.transferer.clone();
                 let url = url.clone();
                 downloads.spawn(async move {
                     transferer
