@@ -15,6 +15,7 @@ use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
 use wdl::doc::install_theme;
 
+use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 
 /// Arguments for the `doc` subcommand.
@@ -170,8 +171,9 @@ pub async fn doc(args: Args) -> Result<()> {
         std::fs::remove_dir_all(&docs_dir)?;
     }
 
-    let analysis_config =
-        AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all());
+    let analysis_config = AnalysisConfig::default()
+        .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
+        .with_diagnostics_config(DiagnosticsConfig::except_all());
     let config = Config::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .init_light_mode(args.light_mode)
