@@ -76,13 +76,6 @@ impl Analysis {
         self
     }
 
-    /// Sets the ignorefile basename.
-    #[allow(unused)]
-    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
-        self.ignore_filename = filename;
-        self
-    }
-
     /// Sets the initialization callback.
     pub fn init<F>(mut self, init: F) -> Self
     where
