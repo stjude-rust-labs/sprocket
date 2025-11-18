@@ -561,6 +561,7 @@ struct State {
 }
 
 impl State {
+    /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &dyn Transferer {
         self.top_level.transferer.as_ref()
     }
@@ -1498,6 +1499,7 @@ async fn evaluate_call(
     scope: ScopeIndex,
     stmt: &CallStatement<SyntaxNode>,
 ) -> EvaluationResult<()> {
+    #[allow(clippy::missing_docs_in_private_items)]
     enum Target<'a> {
         Task(&'a Task),
         Workflow,
@@ -1520,7 +1522,7 @@ async fn evaluate_call(
                 Target::Task(task) => {
                     debug!(caller_id, callee_id, "evaluating call to task");
                     perform_task_evaluation(
-                        &top_level,
+                        top_level,
                         document,
                         task,
                         &inputs.unwrap_task_inputs(),
@@ -1533,7 +1535,7 @@ async fn evaluate_call(
                 Target::Workflow => {
                     debug!(caller_id, callee_id, "evaluating call to workflow");
                     perform_workflow_evaluation(
-                        &top_level,
+                        top_level,
                         document,
                         inputs.unwrap_workflow_inputs(),
                         root_dir,

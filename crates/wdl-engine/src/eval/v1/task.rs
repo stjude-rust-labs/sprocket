@@ -645,6 +645,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 
 /// Represents task evaluation state.
 struct State<'a> {
+    /// The top-level evaluation context.
     top_level: TopLevelEvaluator,
     /// The temp directory.
     temp_dir: &'a Path,
@@ -676,6 +677,7 @@ struct State<'a> {
 }
 
 impl<'a> State<'a> {
+    /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &Arc<dyn Transferer> {
         &self.top_level.transferer
     }
