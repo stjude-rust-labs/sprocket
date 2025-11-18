@@ -60,7 +60,6 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::CallLocation;
 use crate::CallValue;
-use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
@@ -71,10 +70,8 @@ use crate::Outputs;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
-use crate::TaskExecutionBackend;
 use crate::Value;
 use crate::WorkflowInputs;
-use crate::config::Config;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
@@ -176,7 +173,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn transferer(&self) -> &dyn Transferer {
-        self.state.transferer.as_ref()
+        self.state.transferer()
     }
 }
 
@@ -541,12 +538,8 @@ impl Subgraph {
 
 /// Represents workflow evaluation state.
 struct State {
-    /// The evaluation configuration to use.
-    config: Arc<Config>,
-    /// The task execution backend to use.
-    backend: Arc<dyn TaskExecutionBackend>,
-    /// The cancellation context for cancelling workflow evaluation.
-    cancellation: CancellationContext,
+    /// The top-level evaluation context.
+    top_level: TopLevelEvaluator,
     /// The document containing the workflow being evaluated.
     document: Document,
     /// The workflow's inputs.
@@ -565,8 +558,12 @@ struct State {
     temp_dir: PathBuf,
     /// The calls directory path.
     calls_dir: PathBuf,
-    /// The transferer for expression evaluation.
-    transferer: Arc<dyn Transferer>,
+}
+
+impl State {
+    fn transferer(&self) -> &dyn Transferer {
+        self.top_level.transferer.as_ref()
+    }
 }
 
 /// Evaluates the workflow of the given document.
@@ -596,7 +593,7 @@ pub async fn evaluate_workflow(
     )
     .await;
 
-    if top_level.cancellation().user_canceled() {
+    if top_level.cancellation.user_canceled() {
         return Err(EvaluationError::Canceled);
     }
 
@@ -664,11 +661,11 @@ async fn perform_workflow_evaluation(
     let subgraphs = subgraph.split(&graph);
 
     let max_concurrency = top_level
-        .config()
+        .config
         .workflow
         .scatter
         .concurrency
-        .unwrap_or_else(|| top_level.backend().max_concurrency());
+        .unwrap_or_else(|| top_level.backend.max_concurrency());
 
     // Create the temp directory now as it may be needed for workflow evaluation
     let temp_dir = root_dir.join("tmp");
@@ -697,10 +694,7 @@ async fn perform_workflow_evaluation(
     base_dir.make_absolute();
 
     let state = Arc::new(State {
-        // TODO ACF 2025-11-17: `State` should just have a reference to `TopLevelEvaluator`
-        config: top_level.config().clone(),
-        backend: top_level.backend().clone(),
-        cancellation: top_level.cancellation().clone(),
+        top_level: top_level.clone(),
         document: document.clone(),
         inputs,
         scopes: Default::default(),
@@ -709,7 +703,6 @@ async fn perform_workflow_evaluation(
         base_dir,
         temp_dir,
         calls_dir,
-        transferer: top_level.transferer().clone(),
     });
 
     // Evaluate the root graph to completion
@@ -752,7 +745,7 @@ fn evaluate_subgraph(
     id: Arc<String>,
 ) -> BoxFuture<'static, EvaluationResult<()>> {
     async move {
-        let cancellation = state.cancellation.clone();
+        let cancellation = state.top_level.cancellation.clone();
         let mut futures = JoinSet::new();
         match perform_subgraph_evaluation(state, scope, subgraph, max_concurrency, id, &mut futures)
             .await
@@ -893,7 +886,7 @@ async fn perform_subgraph_evaluation(
                     let state = state.clone();
                     let stmt = stmt.clone();
                     futures.spawn(async move {
-                        let cancellation = state.cancellation.clone();
+                        let cancellation = state.top_level.cancellation.clone();
                         let mut futures = JoinSet::new();
                         match evaluate_scatter(
                             id,
@@ -1030,7 +1023,7 @@ async fn evaluate_input(
             .resolve_paths(
                 expected_ty.is_optional(),
                 state.base_dir.as_local(),
-                Some(state.transferer.as_ref()),
+                Some(state.transferer()),
                 &|path| Ok(path.clone()),
             )
             .await
@@ -1098,7 +1091,7 @@ async fn evaluate_decl(
             .resolve_paths(
                 expected_ty.is_optional(),
                 state.base_dir.as_local(),
-                Some(state.transferer.as_ref()),
+                Some(state.transferer()),
                 &|path| Ok(path.clone()),
             )
             .await
@@ -1158,7 +1151,7 @@ async fn evaluate_output(
         .resolve_paths(
             expected_ty.is_optional(),
             state.base_dir.as_local(),
-            Some(state.transferer.as_ref()),
+            Some(state.transferer()),
             &|path| {
                 if !path::is_supported_url(path.as_str()) && Path::new(path.as_str()).is_relative()
                 {
@@ -1444,7 +1437,7 @@ async fn evaluate_scatter(
 
     let mut gathers: HashMap<_, Gather> = HashMap::new();
     for (i, value) in array.iter().enumerate() {
-        if state.cancellation.state() != CancellationContextState::NotCanceled {
+        if state.top_level.cancellation.state() != CancellationContextState::NotCanceled {
             break;
         }
 
@@ -1485,7 +1478,7 @@ async fn evaluate_scatter(
     }
 
     // Return an error if all the tasks completed but there was a cancellation
-    if state.cancellation.state() != CancellationContextState::NotCanceled {
+    if state.top_level.cancellation.state() != CancellationContextState::NotCanceled {
         return Err(EvaluationError::Canceled);
     }
 
@@ -1505,20 +1498,18 @@ async fn evaluate_call(
     scope: ScopeIndex,
     stmt: &CallStatement<SyntaxNode>,
 ) -> EvaluationResult<()> {
-    /// Abstracts evaluation for both task and workflow calls.
-    enum Evaluator<'a> {
-        /// Used to evaluate a task call.
-        Task(&'a Task, TopLevelEvaluator),
-        /// Used to evaluate a workflow call.
-        Workflow(TopLevelEvaluator),
+    enum Target<'a> {
+        Task(&'a Task),
+        Workflow,
     }
 
-    impl Evaluator<'_> {
+    impl Target<'_> {
         /// Runs evaluation with the given inputs.
         ///
         /// Returns the passed in context and the result of the evaluation.
         async fn evaluate(
             self,
+            top_level: &TopLevelEvaluator,
             caller_id: &str,
             document: &Document,
             inputs: Inputs,
@@ -1526,7 +1517,7 @@ async fn evaluate_call(
             callee_id: &str,
         ) -> EvaluationResult<Outputs> {
             match self {
-                Evaluator::Task(task, top_level) => {
+                Target::Task(task) => {
                     debug!(caller_id, callee_id, "evaluating call to task");
                     perform_task_evaluation(
                         &top_level,
@@ -1539,7 +1530,7 @@ async fn evaluate_call(
                     .await?
                     .outputs
                 }
-                Evaluator::Workflow(top_level) => {
+                Target::Workflow => {
                     debug!(caller_id, callee_id, "evaluating call to workflow");
                     perform_workflow_evaluation(
                         &top_level,
@@ -1617,28 +1608,15 @@ async fn evaluate_call(
         .as_ref()
         .map(|(_, ns)| ns.document())
         .unwrap_or(&state.document);
-    let (mut inputs, evaluator) = match document.task_by_name(target.text()) {
+    let (mut inputs, call_target) = match document.task_by_name(target.text()) {
         Some(task) => (
             inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
-            Evaluator::Task(
-                task,
-                TopLevelEvaluator::new_unchecked(
-                    state.config.clone(),
-                    state.backend.clone(),
-                    state.cancellation.clone(),
-                    state.transferer.clone(),
-                ),
-            ),
+            Target::Task(task),
         ),
         _ => match document.workflow() {
             Some(workflow) if workflow.name() == target.text() => (
                 inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                Evaluator::Workflow(TopLevelEvaluator::new_unchecked(
-                    state.config.clone(),
-                    state.backend.clone(),
-                    state.cancellation.clone(),
-                    state.transferer.clone(),
-                )),
+                Target::Workflow,
             ),
             _ => {
                 return Err(EvaluationError::new(
@@ -1672,8 +1650,15 @@ async fn evaluate_call(
     );
 
     // Finally, evaluate the task or workflow and return the outputs
-    let outputs = evaluator
-        .evaluate(id, document, inputs, &state.calls_dir.join(&dir), &call_id)
+    let outputs = call_target
+        .evaluate(
+            &state.top_level,
+            id,
+            document,
+            inputs,
+            &state.calls_dir.join(&dir),
+            &call_id,
+        )
         .await
         .map_err(|mut e| {
             if let EvaluationError::Source(e) = &mut e {
@@ -1778,8 +1763,10 @@ mod test {
     use wdl_analysis::FeatureFlags;
 
     use super::*;
+    use crate::CancellationContext;
     use crate::Events;
     use crate::config::BackendConfig;
+    use crate::config::Config;
     use crate::config::FailureMode;
 
     #[tokio::test]

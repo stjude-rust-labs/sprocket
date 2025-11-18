@@ -46,6 +46,10 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
 /// an entire execution. This type is suitable for once-per-execution values
 /// like a shared container image cache, and new instances should not be created
 /// for evaluating subgraphs of the initial execution.
+///
+/// This type is meant to be cheaply cloned and sendable between threads. When
+/// adding to it, make sure to use an `Arc` for any non-trivially-sized data.
+#[derive(Clone)]
 pub struct TopLevelEvaluator {
     /// The associated evaluation configuration.
     config: Arc<Config>,
@@ -83,41 +87,5 @@ impl TopLevelEvaluator {
             cancellation,
             transferer: Arc::new(transferer),
         })
-    }
-
-    /// Creates a new task evaluator with the given configuration, backend,
-    /// cancellation token, and transferer.
-    ///
-    /// This method does not validate the configuration.
-    pub(crate) fn new_unchecked(
-        config: Arc<Config>,
-        backend: Arc<dyn TaskExecutionBackend>,
-        cancellation: CancellationContext,
-        transferer: Arc<dyn Transferer>,
-    ) -> Self {
-        Self {
-            config,
-            backend,
-            cancellation,
-            transferer,
-        }
-    }
-
-    // TODO ACF 2025-11-17: we shouldn't need to leak Arcs in these types once we
-    // stop cloning and recreating the top-level stuff
-    pub fn config(&self) -> &Arc<Config> {
-        &self.config
-    }
-
-    pub fn backend(&self) -> &Arc<dyn TaskExecutionBackend> {
-        &self.backend
-    }
-
-    pub fn cancellation(&self) -> &CancellationContext {
-        &self.cancellation
-    }
-
-    pub fn transferer(&self) -> &Arc<dyn Transferer> {
-        &self.transferer
     }
 }
