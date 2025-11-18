@@ -132,8 +132,6 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
-        let evaluator =
-            TopLevelEvaluator::new(config.engine, Default::default(), Events::none()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
@@ -143,6 +141,13 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
 
+        let evaluator = TopLevelEvaluator::new(
+            dir.path(),
+            config.engine,
+            Default::default(),
+            Events::none(),
+        )
+        .await?;
         match evaluate_task(&evaluator, result.document(), task, &inputs, dir.path()).await {
             Ok(evaluated) => {
                 compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;

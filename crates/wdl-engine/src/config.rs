@@ -1,6 +1,7 @@
 //! Implementation of engine configuration.
 
 use std::borrow::Cow;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -299,6 +300,7 @@ impl Config {
     /// Creates a new task execution backend based on this configuration.
     pub async fn create_backend(
         self: &Arc<Self>,
+        run_root_dir: &Path,
         events: Option<broadcast::Sender<Event>>,
     ) -> Result<Arc<dyn TaskExecutionBackend>> {
         let config = if self.backend.is_none() && self.backends.len() < 2 {
@@ -332,11 +334,13 @@ impl Config {
                 TesBackend::new(self.clone(), config, events).await?,
             )),
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                run_root_dir,
                 self.clone(),
                 config.clone(),
                 events,
             ))),
             BackendConfig::SlurmApptainer(config) => Ok(Arc::new(SlurmApptainerBackend::new(
+                run_root_dir,
                 self.clone(),
                 config.clone(),
                 events,

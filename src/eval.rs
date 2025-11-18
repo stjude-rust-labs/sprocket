@@ -84,7 +84,9 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = TopLevelEvaluator::new(self.config, cancellation, events).await?;
+                let evaluator =
+                    TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
+                        .await?;
                 evaluate_task(&evaluator, self.document, task, inputs, self.output_dir)
                     .await
                     .and_then(EvaluatedTask::into_result)
@@ -112,7 +114,9 @@ impl<'a> Evaluator<'a> {
                     })
                     .await?;
 
-                let evaluator = TopLevelEvaluator::new(self.config, cancellation, events).await?;
+                let evaluator =
+                    TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
+                        .await?;
                 evaluate_workflow(&evaluator, self.document, inputs, self.output_dir).await
             }
         }

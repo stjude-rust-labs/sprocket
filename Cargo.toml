@@ -21,7 +21,7 @@ edition = "2024"
 authors = ["The Sprocket project contributors"]
 homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-rust-version = "1.89.0"
+rust-version = "1.91.1"
 
 [workspace.dependencies]
 ammonia = "4.1.2"

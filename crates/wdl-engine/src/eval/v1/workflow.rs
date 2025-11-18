@@ -574,6 +574,7 @@ pub async fn evaluate_workflow(
     top_level: &TopLevelEvaluator,
     document: &Document,
     inputs: WorkflowInputs,
+    // TODO ACF 2025-11-18: redundant with top_level
     root_dir: impl AsRef<Path>,
 ) -> EvaluationResult<Outputs> {
     let workflow = document
@@ -1847,9 +1848,10 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(config, Default::default(), Events::none())
-            .await
-            .unwrap();
+        let evaluator =
+            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), Events::none())
+                .await
+                .unwrap();
 
         // Evaluate the `test` workflow in `source.wdl` using the default local backend
         let mut inputs = WorkflowInputs::default();
@@ -2003,9 +2005,10 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(config, Default::default(), Events::none())
-            .await
-            .unwrap();
+        let evaluator =
+            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), Events::none())
+                .await
+                .unwrap();
 
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
@@ -2246,7 +2249,7 @@ workflow w {
             }
         });
 
-        let evaluator = TopLevelEvaluator::new(config, Default::default(), events)
+        let evaluator = TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
             .await
             .unwrap();
 
@@ -2323,9 +2326,14 @@ workflow w {
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = TopLevelEvaluator::new(config, cancellation.clone(), Events::none())
-            .await
-            .unwrap();
+        let evaluator = TopLevelEvaluator::new(
+            root_dir.path(),
+            config,
+            cancellation.clone(),
+            Events::none(),
+        )
+        .await
+        .unwrap();
 
         let mut evaluation = evaluate_workflow(
             &evaluator,

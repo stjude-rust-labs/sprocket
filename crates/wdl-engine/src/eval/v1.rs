@@ -7,6 +7,7 @@ mod workflow;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -51,6 +52,9 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
 /// adding to it, make sure to use an `Arc` for any non-trivially-sized data.
 #[derive(Clone)]
 pub struct TopLevelEvaluator {
+    /// The root directory of this evaluation.
+    #[expect(unused, reason = "future refactoring will remove redundant arguments")]
+    root_dir: PathBuf,
     /// The associated evaluation configuration.
     config: Arc<Config>,
     /// The associated task execution backend.
@@ -62,11 +66,13 @@ pub struct TopLevelEvaluator {
 }
 
 impl TopLevelEvaluator {
-    /// Constructs a new task evaluator with the given evaluation
-    /// configuration, cancellation context, and events sender.
+    /// Constructs a new task evaluator with the given evaluation root
+    /// directory, evaluation configuration, cancellation context, and
+    /// events sender.
     ///
     /// Returns an error if the configuration isn't valid.
     pub async fn new(
+        root_dir: &Path,
         config: Config,
         cancellation: CancellationContext,
         events: Events,
@@ -74,7 +80,9 @@ impl TopLevelEvaluator {
         config.validate().await?;
 
         let config = Arc::new(config);
-        let backend = config.create_backend(events.crankshaft().clone()).await?;
+        let backend = config
+            .create_backend(root_dir, events.crankshaft().clone())
+            .await?;
         let transferer = HttpTransferer::new(
             config.clone(),
             cancellation.token(),
@@ -82,6 +90,7 @@ impl TopLevelEvaluator {
         )?;
 
         Ok(Self {
+            root_dir: root_dir.to_path_buf(),
             config,
             backend,
             cancellation,
