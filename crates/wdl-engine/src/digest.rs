@@ -305,6 +305,11 @@ pub(crate) mod test {
     use super::*;
     use crate::http::Location;
 
+    /// Helper for clearing the cached digests for tests
+    pub fn clear_digest_cache() {
+        DIGESTS.lock().expect("failed to lock digests").clear();
+    }
+
     pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);
 
     impl DigestTransferer {

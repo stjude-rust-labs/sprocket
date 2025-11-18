@@ -156,7 +156,8 @@ pub struct CallCacheEntry {
 /// This type additionally stores digests used to validate cache entries during
 /// a call to [`Cache::get`].
 ///
-/// The digests are calculated once prior to accessing the cache.
+/// The digests are calculated once prior to accessing the cache and reused for
+/// putting an entry into the cache.
 ///
 /// If the digests match, the entry is considered valid and returned.
 ///
@@ -229,7 +230,7 @@ impl Key {
 
         compare_maps(&self.requirements, &entry.requirements, "task requirement")?;
         compare_maps(&self.hints, &entry.hints, "task hint")?;
-        compare_maps(&self.backend_inputs, &entry.inputs, "content of task input")?;
+        compare_maps(&self.backend_inputs, &entry.inputs, "task input")?;
         Ok(())
     }
 }
@@ -241,24 +242,43 @@ impl fmt::Display for Key {
 }
 
 /// Represents a request to calculate a [`Key`].
+#[derive(Debug, Copy, Clone)]
 pub struct KeyRequest<'a> {
     /// The document containing the task.
+    ///
+    /// This field directly contributes to the cache key.
     pub document: &'a Document,
     /// The name of the task.
+    ///
+    /// This field directly contributes to the cache key.
     pub task_name: &'a str,
     /// The map of evaluated input values for the task.
+    ///
+    /// This field directly contributes to the cache key.
     pub inputs: &'a BTreeMap<String, Value>,
     /// The evaluated command of the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub command: &'a str,
     /// The container used by the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub container: &'a str,
     /// The shell used by the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub shell: &'a str,
     /// The evaluated requirements of the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub requirements: &'a HashMap<String, Value>,
     /// The evaluated hints of the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub hints: &'a HashMap<String, Value>,
     /// The backend inputs of the task.
+    ///
+    /// This field contributes to the digests stored in a cache entry.
     pub backend_inputs: &'a [Input],
 }
 
@@ -470,5 +490,427 @@ impl CallCache {
             )
         })?;
         Ok(key.key)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
+    use wdl_analysis::Analyzer;
+    use wdl_analysis::Config as AnalysisConfig;
+    use wdl_analysis::DiagnosticsConfig;
+
+    use super::*;
+    use crate::GuestPath;
+    use crate::digest::test::DigestTransferer;
+    use crate::digest::test::clear_digest_cache;
+
+    #[tokio::test]
+    async fn test_call_cache() {
+        // Create the cache directory
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate a root directory
+        // We're not actually evaluating the WDL, so we'll create a stdout/stderr file
+        // and work directory
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+task test {
+    input {
+        File file
+    }
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+
+    hints {
+        foo: "bar"
+    }
+
+    command <<<cat ~{file}>>>
+}
+"#,
+        )
+        .await
+        .expect("failed to write WDL source file");
+
+        // Write input files to the task
+        let input = root_dir.path().join("input");
+        fs::write(&input, "hello world!").await.unwrap();
+        let input2 = root_dir.path().join("input2");
+        fs::write(&input2, "hello world!!!").await.unwrap();
+
+        // Write the stdout as if we evaluated the task
+        let stdout = root_dir.path().join("stdout");
+        fs::write(&stdout, "hello world!").await.unwrap();
+
+        // Write the stderr as if we evaluated the task
+        let stderr = root_dir.path().join("stderr");
+        fs::write(&stderr, "").await.unwrap();
+
+        // Create a work directory as if we evaluated the task
+        let work_dir = root_dir.path().join("work");
+        fs::create_dir(&work_dir).await.unwrap();
+
+        // Analyze the source file
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path().to_path_buf())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        // Store the "evaluated" requirements and hints
+        let requirements = HashMap::from_iter([(
+            "container".into(),
+            PrimitiveValue::new_string("ubuntu:latest").into(),
+        )]);
+        let hints = HashMap::from_iter([("foo".into(), PrimitiveValue::new_string("bar").into())]);
+
+        // Store the "evaluated" inputs and backend inputs
+        let inputs = BTreeMap::from([("file".into(), PrimitiveValue::new_file("input").into())]);
+        let backend_input = Input::new(
+            ContentKind::File,
+            EvaluationPath::Local(input.clone()),
+            Some(GuestPath::new("/mnt/task/0/input")),
+        );
+        let backend_input2 = Input::new(
+            ContentKind::File,
+            EvaluationPath::Local(input2.clone()),
+            Some(GuestPath::new("/mnt/task/0/input2")),
+        );
+
+        let request = KeyRequest {
+            document: results.first().expect("should have result").document(),
+            task_name: "test",
+            inputs: &inputs,
+            command: "cat /mnt/task/0/input",
+            container: "ubuntu:latest",
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            backend_inputs: std::slice::from_ref(&backend_input),
+        };
+
+        // Get a key for the cache (should not exist)
+        let key = cache.key(request).await.unwrap();
+        assert!(cache.get(&key).await.unwrap().is_none());
+
+        // Cache an execution result
+        let result = TaskExecutionResult {
+            exit_code: 0,
+            work_dir: EvaluationPath::Local(work_dir.clone()),
+            stdout: PrimitiveValue::new_file(stdout.to_str().unwrap()).into(),
+            stderr: PrimitiveValue::new_file(stderr.to_str().unwrap()).into(),
+        };
+        cache.put(key, &result).await.unwrap();
+
+        // Get the entry we just put and ensure the same result is returned
+        let key = cache.key(request).await.unwrap();
+        let cached_result = cache
+            .get(&key)
+            .await
+            .unwrap()
+            .expect("should have cache entry");
+        assert_eq!(
+            result.exit_code, cached_result.exit_code,
+            "exit code mismatch"
+        );
+        assert_eq!(
+            result.work_dir, cached_result.work_dir,
+            "work directory mismatch"
+        );
+        assert_eq!(
+            result.stdout.as_file().unwrap(),
+            cached_result.stdout.as_file().unwrap(),
+            "stdout mismatch"
+        );
+        assert_eq!(
+            result.stderr.as_file().unwrap(),
+            cached_result.stderr.as_file().unwrap(),
+            "stderr mismatch"
+        );
+
+        // Check for changed command
+        let key = cache
+            .key(KeyRequest {
+                command: "changed!",
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "the command of the task was modified"
+        );
+
+        // Check for changed container
+        let key = cache
+            .key(KeyRequest {
+                container: "changed!",
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "the container used by the task was modified"
+        );
+
+        // Check for changed shell
+        let key = cache
+            .key(KeyRequest {
+                shell: "changed!",
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "the shell used by the task was modified"
+        );
+
+        // Check for removing a requirement
+        let key = cache
+            .key(KeyRequest {
+                requirements: &Default::default(),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task requirement `container` was removed"
+        );
+
+        // Check for adding a requirement
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([
+                    (
+                        "container".into(),
+                        PrimitiveValue::new_string("ubuntu:latest").into(),
+                    ),
+                    ("memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task requirement `memory` was added"
+        );
+
+        // Check for changing a requirement
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:cthulhu").into(),
+                )]),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task requirement `container` was modified"
+        );
+
+        // Check for removing a hint
+        let key = cache
+            .key(KeyRequest {
+                hints: &Default::default(),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task hint `foo` was removed"
+        );
+
+        // Check for adding a hint
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("bar").into()),
+                    ("max_memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task hint `max_memory` was added"
+        );
+
+        // Check for changing a hint
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([(
+                    "foo".into(),
+                    PrimitiveValue::new_string("baz!").into(),
+                )]),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task hint `foo` was modified"
+        );
+
+        // Check for removing a backend input
+        let key = cache
+            .key(KeyRequest {
+                backend_inputs: &[],
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!(
+                "task input `{}` was removed",
+                backend_input.path().display()
+            )
+        );
+
+        // Check for adding a backend input
+        let key = cache
+            .key(KeyRequest {
+                backend_inputs: &[backend_input.clone(), backend_input2.clone()],
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("task input `{}` was added", backend_input2.path().display())
+        );
+
+        // Change the input file and clear the digest cache
+        fs::write(&input, "changed!").await.unwrap();
+        clear_digest_cache();
+
+        // Check for changing a backend input
+        let key = cache
+            .key(KeyRequest {
+                backend_inputs: std::slice::from_ref(&backend_input),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!(
+                "task input `{}` was modified",
+                backend_input.path().display()
+            )
+        );
+
+        // Restore the input file
+        fs::write(&input, "hello world!").await.unwrap();
+
+        // Change the cached stdout and clear the digest cache
+        fs::write(&stdout, "changed!").await.unwrap();
+        clear_digest_cache();
+
+        // Check for changed cached stdout
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("cached content `{}` was modified", stdout.display())
+        );
+
+        // Restore the stdout file
+        fs::write(&stdout, "hello world!").await.unwrap();
+
+        // Change the cached stderr and clear the digest cache
+        fs::write(&stderr, "changed!").await.unwrap();
+        clear_digest_cache();
+
+        // Check for changed cached stderr
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("cached content `{}` was modified", stderr.display())
+        );
+
+        // Restore the stderr file
+        fs::write(&stderr, "").await.unwrap();
+
+        // Modify the work directory by creating a file and clear the digest cache
+        fs::write(work_dir.join("foo"), "bar").await.unwrap();
+        clear_digest_cache();
+
+        // Check for changed cached work directory
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("cached content `{}` was modified", work_dir.display())
+        );
+
+        // Restore the work directory
+        fs::remove_file(work_dir.join("foo")).await.unwrap();
+
+        // Delete the stdout file and clear the digest cache
+        fs::remove_file(&stdout).await.unwrap();
+        clear_digest_cache();
+
+        // Check for missing stdout file
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("failed to read metadata of `{}`", stdout.display())
+        );
+
+        // Restore the stdout file
+        fs::write(&stdout, "hello world!").await.unwrap();
+
+        // Delete the stderr file and clear the digest cache
+        fs::remove_file(&stderr).await.unwrap();
+        clear_digest_cache();
+
+        // Check for missing stderr file
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("failed to read metadata of `{}`", stderr.display())
+        );
+
+        // Restore the stderr file
+        fs::write(&stderr, "").await.unwrap();
+
+        // Delete the work directory and clear the digest cache
+        fs::remove_dir_all(&work_dir).await.unwrap();
+        clear_digest_cache();
+
+        // Check for missing work directory
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("failed to read metadata of `{}`", work_dir.display())
+        );
     }
 }

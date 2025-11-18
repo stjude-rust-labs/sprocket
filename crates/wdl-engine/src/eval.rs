@@ -988,7 +988,11 @@ pub struct Input {
 
 impl Input {
     /// Creates a new input with the given path and guest path.
-    fn new(kind: ContentKind, path: EvaluationPath, guest_path: Option<GuestPath>) -> Self {
+    pub(crate) fn new(
+        kind: ContentKind,
+        path: EvaluationPath,
+        guest_path: Option<GuestPath>,
+    ) -> Self {
         Self {
             kind,
             path,
