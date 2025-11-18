@@ -19,7 +19,6 @@ use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use super::explain::ALL_TAG_NAMES;
-use crate::IGNORE_FILENAME;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::diagnostics::Mode;
@@ -302,7 +301,6 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .extend_exceptions(args.common.except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .run()
         .await
     {
