@@ -26,11 +26,6 @@ use crate::cache::Hashable;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
-/// The variant tag for files.
-const FILE_VARIANT_TAG: u8 = 0;
-/// The variant tag for directories.
-const DIRECTORY_VARIANT_TAG: u8 = 1;
-
 /// Represents a calculated [Blake3](https://github.com/BLAKE3-team/BLAKE3) digest of a file or directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Digest {
@@ -179,6 +174,11 @@ pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Di
                         )
                     })?;
 
+                    // Ignore the root
+                    if entry.path() == path {
+                        continue;
+                    }
+
                     let entry_path = entry.path();
                     let metadata = entry.metadata().with_context(|| {
                         format!(
@@ -198,19 +198,18 @@ pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Di
                         .hash(&mut hasher);
 
                     if metadata.is_file() {
-                        // If entry is a file, hash its tag and content
-                        hasher
-                            .update(&[FILE_VARIANT_TAG])
-                            .update_mmap_rayon(entry_path)
-                            .with_context(|| {
-                                format!(
-                                    "failed to calculate digest of file `{path}`",
-                                    path = entry_path.display()
-                                )
-                            })?;
+                        // If entry is a file, hash the tag, length, and content
+                        ContentKind::File.hash(&mut hasher);
+                        hasher.update(&metadata.len().to_le_bytes());
+                        hasher.update_mmap_rayon(entry_path).with_context(|| {
+                            format!(
+                                "failed to calculate digest of file `{path}`",
+                                path = entry_path.display()
+                            )
+                        })?;
                     } else {
                         // Otherwise for a directory, just hash the tag
-                        hasher.update(&[DIRECTORY_VARIANT_TAG]);
+                        ContentKind::Directory.hash(&mut hasher);
                     }
 
                     entries += 1;
@@ -288,4 +287,314 @@ pub async fn calculate_remote_digest(
             Ok(Digest::Directory(hasher.finalize()))
         })
         .await?)
+}
+
+#[cfg(test)]
+pub(crate) mod test {
+    use std::fs;
+    use std::io::Write;
+    use std::path::MAIN_SEPARATOR;
+
+    use anyhow::anyhow;
+    use futures::FutureExt;
+    use futures::future::BoxFuture;
+    use pretty_assertions::assert_eq;
+    use tempfile::NamedTempFile;
+    use tempfile::tempdir;
+
+    use super::*;
+    use crate::http::Location;
+
+    pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);
+
+    impl DigestTransferer {
+        pub fn new<C>(c: C) -> Self
+        where
+            C: IntoIterator<Item = (&'static str, Option<ContentDigest>)>,
+        {
+            Self(HashMap::from_iter(
+                c.into_iter().map(|(k, v)| (k, v.map(Into::into))),
+            ))
+        }
+    }
+
+    impl Transferer for DigestTransferer {
+        fn download<'a>(&'a self, _source: &'a Url) -> BoxFuture<'a, Result<Location>> {
+            unimplemented!()
+        }
+
+        fn upload<'a>(
+            &'a self,
+            _source: &'a Path,
+            _destination: &'a Url,
+        ) -> BoxFuture<'a, Result<()>> {
+            unimplemented!()
+        }
+
+        fn size<'a>(&'a self, _url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>> {
+            unimplemented!()
+        }
+
+        fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+            async {
+                let mut entries = Vec::new();
+                for k in self.0.keys() {
+                    if let Some(path) = k.strip_prefix(url.as_str()) {
+                        let path = path.strip_prefix("/").unwrap_or(path);
+                        entries.push(path.to_string());
+                    }
+                }
+
+                entries.sort();
+                Ok(entries.into())
+            }
+            .boxed()
+        }
+
+        fn exists<'a>(&'a self, _url: &'a Url) -> BoxFuture<'a, Result<bool>> {
+            unimplemented!()
+        }
+
+        fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+            async {
+                Ok(self
+                    .0
+                    .get(url.as_str())
+                    .ok_or_else(|| anyhow!("does not exist"))?
+                    .clone())
+            }
+            .boxed()
+        }
+    }
+
+    #[tokio::test]
+    async fn local_file_digest() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"hello world!").unwrap();
+
+        let digest = calculate_local_digest(file.path(), ContentKind::File)
+            .await
+            .unwrap();
+        // Digest of `hello world!` from https://emn178.github.io/online-tools/blake3/
+        assert_eq!(
+            *digest.to_hex(),
+            *"3aa61c409fd7717c9d9c639202af2fae470c0ef669be7ba2caea5779cb534e9d"
+        );
+    }
+
+    #[tokio::test]
+    async fn local_directory_digest() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a"), b"a").unwrap();
+        fs::write(dir.path().join("b"), b"b").unwrap();
+        fs::write(dir.path().join("c"), b"c").unwrap();
+
+        let subdir = dir.path().join("subdir");
+        fs::create_dir(&subdir).unwrap();
+        fs::write(subdir.join("z"), b"z").unwrap();
+        fs::write(subdir.join("y"), b"y").unwrap();
+        fs::write(subdir.join("x"), b"x").unwrap();
+
+        let digest = calculate_local_digest(dir.path(), ContentKind::Directory)
+            .await
+            .unwrap();
+
+        let mut hasher = Hasher::new();
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("a".as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"a"); // File contents
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("b".as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"b"); // File contents
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("c".as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"c"); // File contents
+        hasher.update(&6u32.to_le_bytes()); // Path length
+        hasher.update("subdir".as_bytes()); // Path
+        hasher.update(&[1]); // Directory tag
+        hasher.update(&8u32.to_le_bytes()); // Path length
+        hasher.update(format!("subdir{}x", MAIN_SEPARATOR).as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"x"); // File contents
+        hasher.update(&8u32.to_le_bytes()); // Path length
+        hasher.update(format!("subdir{}y", MAIN_SEPARATOR).as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"y"); // File contents
+        hasher.update(&8u32.to_le_bytes()); // Path length
+        hasher.update(format!("subdir{}z", MAIN_SEPARATOR).as_bytes()); // Path
+        hasher.update(&[0]); // File tag
+        hasher.update(&1u64.to_le_bytes()); // File length
+        hasher.update(b"z"); // File contents
+        hasher.update(&7u32.to_le_bytes()); // Number of entries
+        assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+    }
+
+    #[tokio::test]
+    async fn remote_file_digest() {
+        // SHA-256 of `hello world!`
+        let content_digest =
+            Hash::from_hex("7509e5bda0c762d2bac7f90d758b5b2263fa01ccbc542ab5e3df163be08e6ca9")
+                .unwrap();
+
+        let transferer = DigestTransferer::new([
+            (
+                "http://example.com/foo",
+                Some(ContentDigest::Hash {
+                    algorithm: "sha256".to_string(),
+                    digest: content_digest.as_bytes().into(),
+                }),
+            ),
+            (
+                "http://example.com/bar",
+                Some(ContentDigest::ETag("etag".into())),
+            ),
+            ("http://example.com/baz", None),
+        ]);
+
+        // URL with Content-Digest header
+        let digest = calculate_remote_digest(
+            &transferer,
+            &"http://example.com/foo".parse().unwrap(),
+            ContentKind::File,
+        )
+        .await
+        .unwrap();
+
+        let mut hasher = Hasher::new();
+        hasher.update(&[0]); // Hash tag
+        hasher.update(&6u32.to_le_bytes()); // Algorithm length
+        hasher.update("sha256".as_bytes()); // Algorithm
+        hasher.update(&32u32.to_le_bytes()); // Digest length
+        hasher.update(content_digest.as_bytes()); // Digest bytes
+        assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+
+        // URL with ETag header
+        let digest = calculate_remote_digest(
+            &transferer,
+            &"http://example.com/bar".parse().unwrap(),
+            ContentKind::File,
+        )
+        .await
+        .unwrap();
+
+        let mut hasher = Hasher::new();
+        hasher.update(&[1]); // ETag tag
+        hasher.update(&4u32.to_le_bytes()); // ETag length
+        hasher.update("etag".as_bytes()); // ETag
+        assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+
+        // URL with no digest
+        assert_eq!(
+            calculate_remote_digest(
+                &transferer,
+                &"http://example.com/baz".parse().unwrap(),
+                ContentKind::File,
+            )
+            .await
+            .unwrap_err()
+            .to_string(),
+            "URL `http://example.com/baz` does not have a known content digest"
+        );
+
+        // 404
+        assert_eq!(
+            format!(
+                "{:#}",
+                calculate_remote_digest(
+                    &transferer,
+                    &"http://example.com/nope".parse().unwrap(),
+                    ContentKind::File,
+                )
+                .await
+                .unwrap_err()
+            ),
+            "failed to get content digest of URL `http://example.com/nope`: does not exist"
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_directory_digest() {
+        // SHA-256 of `hello world!`
+        let content_digest =
+            Hash::from_hex("7509e5bda0c762d2bac7f90d758b5b2263fa01ccbc542ab5e3df163be08e6ca9")
+                .unwrap();
+
+        let transferer = DigestTransferer::new([
+            (
+                "http://example.com/dir/foo",
+                Some(ContentDigest::Hash {
+                    algorithm: "sha256".to_string(),
+                    digest: content_digest.as_bytes().into(),
+                }),
+            ),
+            (
+                "http://example.com/dir/bar/baz",
+                Some(ContentDigest::ETag("etag".into())),
+            ),
+            ("http://example.com/missing/baz", None),
+        ]);
+
+        // Digest of a remote "directory"
+        let digest = calculate_remote_digest(
+            &transferer,
+            &"http://example.com/dir".parse().unwrap(),
+            ContentKind::Directory,
+        )
+        .await
+        .unwrap();
+
+        let mut hasher = Hasher::new();
+        hasher.update(&7u32.to_le_bytes()); // Path length
+        hasher.update("bar/baz".as_bytes()); // Path
+        hasher.update(&[1]); // ETag tag
+        hasher.update(&4u32.to_le_bytes()); // ETag length
+        hasher.update("etag".as_bytes()); // ETag
+        hasher.update(&3u32.to_le_bytes()); // Path length
+        hasher.update("foo".as_bytes()); // Path
+        hasher.update(&[0]); // Hash tag
+        hasher.update(&6u32.to_le_bytes()); // Algorithm length
+        hasher.update("sha256".as_bytes()); // Algorithm
+        hasher.update(&32u32.to_le_bytes()); // Digest length
+        hasher.update(content_digest.as_bytes()); // Digest bytes
+        hasher.update(&2u32.to_le_bytes()); // Number of entries
+        assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+
+        // Digest of a remote "directory" that is "empty"
+        // We can't distinguish between a non-existent directory and an empty one
+        let digest = calculate_remote_digest(
+            &transferer,
+            &"http://example.com/empty".parse().unwrap(),
+            ContentKind::Directory,
+        )
+        .await
+        .unwrap();
+
+        let mut hasher = Hasher::new();
+        hasher.update(&0u32.to_le_bytes()); // Number of entries
+        assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+
+        // Digest of a remote "directory" containing a file with a missing content
+        // digest
+        assert_eq!(
+            format!(
+                "{:#}",
+                calculate_remote_digest(
+                    &transferer,
+                    &"http://example.com/missing".parse().unwrap(),
+                    ContentKind::Directory,
+                )
+                .await
+                .unwrap_err()
+            ),
+            "URL `http://example.com/missing/baz` does not have a known content digest"
+        );
+    }
 }

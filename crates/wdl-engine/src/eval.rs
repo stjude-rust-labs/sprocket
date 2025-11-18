@@ -17,6 +17,7 @@ use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use num_enum::IntoPrimitive;
 use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
@@ -35,6 +36,7 @@ use crate::Outputs;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
+use crate::cache::Hashable;
 use crate::config::FailureMode;
 use crate::http::Location;
 use crate::http::Transferer;
@@ -943,12 +945,19 @@ impl EvaluatedTask {
 }
 
 /// Gets the kind of content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
+#[repr(u8)]
 pub enum ContentKind {
     /// The content is a single file.
     File,
     /// The content is a directory.
     Directory,
+}
+
+impl Hashable for ContentKind {
+    fn hash(&self, hasher: &mut blake3::Hasher) {
+        hasher.update(&[(*self).into()]);
+    }
 }
 
 impl From<ContentKind> for crankshaft::engine::task::input::Type {

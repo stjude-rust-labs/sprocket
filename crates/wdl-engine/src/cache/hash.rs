@@ -10,6 +10,7 @@ use wdl_analysis::types::Type;
 
 use crate::Array;
 use crate::CompoundValue;
+use crate::ContentKind;
 use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
@@ -82,22 +83,6 @@ enum ContentDigestKind {
 }
 
 impl Hashable for ContentDigestKind {
-    fn hash(&self, hasher: &mut Hasher) {
-        hasher.update(&[(*self).into()]);
-    }
-}
-
-/// Represents the kind of a digest.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, IntoPrimitive)]
-#[repr(u8)]
-enum DigestKind {
-    /// The content digest is for a file.
-    File,
-    /// The content digest is for a directory.
-    Directory,
-}
-
-impl Hashable for DigestKind {
     fn hash(&self, hasher: &mut Hasher) {
         hasher.update(&[(*self).into()]);
     }
@@ -187,11 +172,11 @@ impl Hashable for Digest {
     fn hash(&self, hasher: &mut Hasher) {
         match self {
             Digest::File(digest) => {
-                DigestKind::File.hash(hasher);
+                ContentKind::File.hash(hasher);
                 digest.as_bytes().as_slice().hash(hasher);
             }
             Digest::Directory(digest) => {
-                DigestKind::Directory.hash(hasher);
+                ContentKind::Directory.hash(hasher);
                 digest.as_bytes().as_slice().hash(hasher);
             }
         }
@@ -371,6 +356,7 @@ mod test {
     use blake3::Hash;
     use cloud_copy::ContentDigest;
     use indexmap::IndexMap;
+    use pretty_assertions::assert_eq;
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::MapType;
     use wdl_analysis::types::PairType;
