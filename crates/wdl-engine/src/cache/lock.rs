@@ -178,8 +178,6 @@ impl Write for LockedFile {
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
-
     use tempfile::NamedTempFile;
 
     use super::*;
@@ -197,12 +195,12 @@ mod test {
 
     #[tokio::test]
     async fn acquire_shared() {
-        let path = NamedTempFile::new().unwrap();
-        let _first = LockedFile::acquire_shared(path.path(), true)
+        let file = NamedTempFile::new().unwrap();
+        let _first = LockedFile::acquire_shared(file.path(), true)
             .await
             .unwrap()
             .expect("should have locked file");
-        let _second = LockedFile::acquire_shared(path.path(), true)
+        let _second = LockedFile::acquire_shared(file.path(), true)
             .await
             .unwrap()
             .expect("should have locked file");
@@ -210,14 +208,13 @@ mod test {
 
     #[tokio::test]
     async fn acquire_exclusive() {
-        let path = NamedTempFile::new().unwrap();
-        let _first = LockedFile::acquire_exclusive(path.path()).await.unwrap();
+        let file = NamedTempFile::new().unwrap();
+        let _exclusive = LockedFile::acquire_exclusive(file.path()).await.unwrap();
 
-        // As acquiring a shared lock will dead lock, wait at most 3 seconds for
-        // acquiring the shared lock and panic if we acquire it
-        tokio::select! {
-            _ = tokio::time::sleep(Duration::from_secs(3)) => {}
-            _ = LockedFile::acquire_shared(path.path(), true) => panic!("a shared lock should not be acquired")
-        }
+        // Ensure we can't acquire a shared lock
+        assert!(matches!(
+            file.as_file().try_lock_shared(),
+            Err(TryLockError::WouldBlock)
+        ));
     }
 }
