@@ -1,7 +1,6 @@
 //! Facilities for unit testing WDL documents.
 
-use std::collections::BTreeMap;
-
+use indexmap::IndexMap;
 use serde_yaml_ng::Mapping;
 use serde_yaml_ng::Value;
 use tracing::warn;
@@ -13,7 +12,7 @@ pub(crate) struct DocumentTests {
     ///
     /// Each task or workflow may have one or more test definitions.
     #[serde(flatten)]
-    pub entrypoints: BTreeMap<String, Vec<TestDefinition>>,
+    pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
 }
 
 /// Matrix of inputs to combinatorially execute.
@@ -39,7 +38,7 @@ pub(crate) struct TestDefinition {
 impl TestDefinition {
     /// Parse the defined [`InputMatrix`] into an ordered map of input names to
     /// values.
-    pub fn parse_inputs(&self) -> Vec<BTreeMap<String, Value>> {
+    pub fn parse_inputs(&self) -> Vec<IndexMap<String, Value>> {
         let mut results = vec![];
 
         for mapping in &self.inputs {
@@ -54,14 +53,14 @@ impl TestDefinition {
                         Some((key, v.clone()))
                     }
                 })
-                .collect::<BTreeMap<_, _>>();
+                .collect::<IndexMap<_, _>>();
             results.push(kvs);
         }
         results
     }
 
     /// Parse the defined assertions into an ordered map.
-    pub fn parse_assertions(&self) -> BTreeMap<String, Value> {
+    pub fn parse_assertions(&self) -> IndexMap<String, Value> {
         self.assertions
             .iter()
             .filter_map(|(k, v)| {
