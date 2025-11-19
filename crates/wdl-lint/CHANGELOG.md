@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Removed
+
+* Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
+
 ## 0.17.0 - 10-14-2025
 
 #### Added
