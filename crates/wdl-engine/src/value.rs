@@ -1014,13 +1014,13 @@ impl PrimitiveValue {
     }
 
     /// Creates a new `File` value.
-    pub fn new_file(path: impl Into<String>) -> Self {
-        Self::File(Arc::new(path.into()).into())
+    pub fn new_file(path: impl Into<HostPath>) -> Self {
+        Self::File(path.into())
     }
 
     /// Creates a new `Directory` value.
-    pub fn new_directory(path: impl Into<String>) -> Self {
-        Self::Directory(Arc::new(path.into()).into())
+    pub fn new_directory(path: impl Into<HostPath>) -> Self {
+        Self::Directory(path.into())
     }
 
     /// Create either a new `File` or `Directory` value, depending on whether
@@ -1029,7 +1029,7 @@ impl PrimitiveValue {
     /// This is a bit awkward, but can save a lot of repetition in code that
     /// treats files and directories largely the same until having to
     /// remember which enum variant the path needs to be stuffed back into.
-    pub fn new_file_or_directory(is_file: bool, path: impl Into<HostPath>) -> Self {
+    fn new_file_or_directory(is_file: bool, path: impl Into<HostPath>) -> Self {
         if is_file {
             Self::File(path.into())
         } else {

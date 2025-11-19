@@ -494,6 +494,24 @@ impl From<HostPath> for Arc<String> {
     }
 }
 
+impl From<String> for HostPath {
+    fn from(s: String) -> Self {
+        Arc::new(s).into()
+    }
+}
+
+impl<'a> From<&'a str> for HostPath {
+    fn from(s: &'a str) -> Self {
+        s.to_string().into()
+    }
+}
+
+impl From<url::Url> for HostPath {
+    fn from(url: url::Url) -> Self {
+        url.as_str().into()
+    }
+}
+
 /// Represents a path to a file or directory on the guest.
 ///
 /// The guest in this context is the container where tasks are run.

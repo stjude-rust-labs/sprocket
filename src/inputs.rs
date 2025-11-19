@@ -1,10 +1,10 @@
 //! Invocations (inputs and entrypoints) parsed in from the command line.
 
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
 use anyhow::bail;
-use indexmap::IndexMap;
 use regex::Regex;
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -139,8 +139,7 @@ impl FromStr for Input {
 
 /// The map structure used for parsed inputs that have not yet had their paths
 /// normalized and converted to engine values.
-// TODO ACF 2025-11-11: why is this an `IndexMap` and not a built-in map type?
-type JsonInputMap = IndexMap<String, LocatedJsonValue>;
+type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 
 /// A command-line invocation of a WDL workflow or task.
 ///
@@ -241,7 +240,7 @@ impl Invocation {
         document: &Document,
     ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {
         let (origins, values) = self.inputs.into_iter().fold(
-            (IndexMap::new(), serde_json::Map::new()),
+            (BTreeMap::new(), serde_json::Map::new()),
             |(mut origins, mut values), (key, LocatedJsonValue { origin, value })| {
                 origins.insert(key.clone(), origin);
                 values.insert(key, value);
@@ -272,7 +271,7 @@ impl Invocation {
                         (key, path)
                     }
                 })
-                .collect::<IndexMap<_, _>>();
+                .collect::<BTreeMap<_, _>>();
 
             (callee_name, inputs, OriginPaths::Map(origins))
         }))

@@ -896,7 +896,7 @@ impl Inputs {
         for key in object.keys() {
             let Some((prefix, _)) = key.split_once('.') else {
                 bail!(
-                    "invalid input key `{key}`: expected the value to be prefixed with the \
+                    "invalid input key `{key}`: expected the key to be prefixed with the \
                      workflow or task name",
                 )
             };
@@ -911,7 +911,7 @@ impl Inputs {
             .collect::<Vec<_>>()
             .as_slice()
         {
-            [] => bail!("no entrypoint candidates for inputs; report this as a bug"),
+            [] => panic!("no entrypoint candidates for inputs; report this as a bug"),
             [entrypoint_name] => entrypoint_name.to_string(),
             _ => bail!(
                 "invalid inputs: expected each input key to be prefixed with the same workflow or \
