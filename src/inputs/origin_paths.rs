@@ -9,7 +9,8 @@
 //! inputs, we know the prefix to join to those paths to resolve the final
 //! location of each path.
 
-use indexmap::IndexMap;
+use std::collections::BTreeMap;
+
 use wdl::engine::path::EvaluationPath;
 
 /// An associated set of path origins for a set of input keys.
@@ -22,7 +23,7 @@ pub enum OriginPaths {
     /// A single origin path for all inputs.
     Single(EvaluationPath),
     /// A dynamic mapping of input keys to origin paths.
-    Map(IndexMap<String, EvaluationPath>),
+    Map(BTreeMap<String, EvaluationPath>),
 }
 
 impl OriginPaths {
