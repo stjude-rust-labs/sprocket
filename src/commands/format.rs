@@ -20,7 +20,6 @@ use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
-use crate::IGNORE_FILENAME;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::diagnostics::Mode;
@@ -161,7 +160,6 @@ pub async fn format(args: Args) -> Result<()> {
 
             let results = match Analysis::default()
                 .extend_sources(sources.clone())
-                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
                 .run()
                 .await
             {
@@ -267,7 +265,6 @@ pub async fn format(args: Args) -> Result<()> {
 
             let results = match Analysis::default()
                 .extend_sources(sources.clone())
-                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
                 .run()
                 .await
             {
