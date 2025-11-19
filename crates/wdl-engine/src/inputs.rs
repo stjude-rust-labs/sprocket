@@ -896,8 +896,8 @@ impl Inputs {
         for key in object.keys() {
             let Some((prefix, _)) = key.split_once('.') else {
                 bail!(
-                    "invalid input key `{key}`: expected the key to be prefixed with the \
-                     workflow or task name",
+                    "invalid input key `{key}`: expected the key to be prefixed with the workflow \
+                     or task name",
                 )
             };
             entrypoint_candidates.insert(prefix);

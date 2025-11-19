@@ -106,8 +106,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file `empty.json`: EOF \
-             while parsing a value at line 1 column 0"
+            "call to function `read_json` failed: failed to deserialize JSON file `empty.json`: \
+             EOF while parsing a value at line 1 column 0"
         );
     }
 
@@ -118,8 +118,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file `not-json.json`: \
-             expected ident at line 1 column 2"
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `not-json.json`: expected ident at line 1 column 2"
         );
     }
 
@@ -189,8 +189,9 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to deserialize JSON file `bad_array.json`: a \
-             common element type does not exist between `Int` and `String` at line 1 column 11"
+            "call to function `read_json` failed: failed to deserialize JSON file \
+             `bad_array.json`: a common element type does not exist between `Int` and `String` at \
+             line 1 column 11"
         );
     }
 
