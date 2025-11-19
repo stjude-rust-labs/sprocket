@@ -940,30 +940,34 @@ impl<'de> serde::Deserialize<'de> for Value {
             where
                 A: serde::de::SeqAccess<'de>,
             {
-                use serde::de::Error;
+                use serde::de::Error as _;
 
-                let mut elements = Vec::new();
-                while let Some(v) = seq.next_element::<Value>()? {
-                    elements.push(v);
+                let mut elements = vec![];
+                while let Some(element) = seq.next_element::<Value>()? {
+                    elements.push(element);
                 }
 
-                let element_ty = elements
-                    .iter()
-                    .try_fold(None, |mut ty, element| {
-                        let element_ty = element.ty();
-                        let ty = ty.get_or_insert(element_ty.clone());
-                        ty.common_type(&element_ty).map(Some).ok_or_else(|| {
-                            A::Error::custom(format!(
-                                "a common element type does not exist between `{ty}` and \
-                                 `{element_ty}`"
-                            ))
-                        })
+                // Try to find a mutually-agreeable common type for the elements of the array.
+                let mut candidate_ty = None;
+                for element in elements.iter() {
+                    let new_candidate_ty = element.ty();
+                    let old_candidate_ty =
+                        candidate_ty.get_or_insert_with(|| new_candidate_ty.clone());
+                    let Some(new_common_ty) = old_candidate_ty.common_type(&new_candidate_ty)
+                    else {
+                        return Err(A::Error::custom(format!(
+                            "a common element type does not exist between `{old_candidate_ty}` \
+                             and `{new_candidate_ty}`"
+                        )));
+                    };
+                    candidate_ty = Some(new_common_ty);
+                }
+                // An empty array's elements have the `Union` type.
+                let array_ty: Type = ArrayType::new(candidate_ty.unwrap_or(Type::Union)).into();
+                Ok(Array::new(None, array_ty.clone(), elements)
+                    .map_err(|e| {
+                        A::Error::custom(format!("cannot coerce value to `{array_ty}`: {e:#}"))
                     })?
-                    .unwrap_or(Type::Union);
-
-                let ty: Type = ArrayType::new(element_ty).into();
-                Ok(Array::new(None, ty.clone(), elements)
-                    .map_err(|e| A::Error::custom(format!("cannot coerce value to `{ty}`: {e:#}")))?
                     .into())
             }
 
