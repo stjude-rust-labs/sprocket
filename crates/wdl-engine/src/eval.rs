@@ -803,6 +803,8 @@ impl<'a> ScopeRef<'a> {
 /// Represents an evaluated task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
+    /// Whether or not the execution result was from the call cache.
+    cached: bool,
     /// The task execution result.
     result: TaskExecutionResult,
     /// The evaluated outputs of the task.
@@ -817,11 +819,18 @@ pub struct EvaluatedTask {
 
 impl EvaluatedTask {
     /// Constructs a new evaluated task.
-    fn new(result: TaskExecutionResult) -> Self {
+    fn new(cached: bool, result: TaskExecutionResult) -> Self {
         Self {
+            cached,
             result,
             outputs: Ok(Default::default()),
         }
+    }
+
+    /// Determines whether or not the task execution result was used from the
+    /// call cache.
+    pub fn cached(&self) -> bool {
+        self.cached
     }
 
     /// Gets the exit code of the evaluated task.

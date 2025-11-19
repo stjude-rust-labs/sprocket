@@ -1833,7 +1833,7 @@ workflow test {
             |(), _, _, _| async {},
         );
         analyzer
-            .add_directory(root_dir.path().to_path_buf())
+            .add_directory(root_dir.path())
             .await
             .expect("failed to add directory");
         let results = analyzer
@@ -1993,7 +1993,7 @@ workflow foo {
             |(), _, _, _| async {},
         );
         analyzer
-            .add_directory(root_dir.path().to_path_buf())
+            .add_directory(root_dir.path())
             .await
             .expect("failed to add directory");
         let results = analyzer
@@ -2204,7 +2204,7 @@ workflow w {
             |(), _, _, _| async {},
         );
         analyzer
-            .add_directory(root_dir.path().to_path_buf())
+            .add_directory(root_dir.path())
             .await
             .expect("failed to add directory");
         let results = analyzer
@@ -2318,7 +2318,7 @@ workflow w {
             |(), _, _, _| async {},
         );
         analyzer
-            .add_directory(root_dir.path().to_path_buf())
+            .add_directory(root_dir.path())
             .await
             .expect("failed to add directory");
         let results = analyzer

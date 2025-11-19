@@ -1152,7 +1152,7 @@ workflow test {
         // Add all three documents to the analyzer
         let analyzer = Analyzer::default();
         analyzer
-            .add_directory(dir.path().to_path_buf())
+            .add_directory(dir.path())
             .await
             .expect("should add documents");
 

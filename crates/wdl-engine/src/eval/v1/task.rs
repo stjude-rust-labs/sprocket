@@ -1025,7 +1025,7 @@ impl TopLevelEvaluator {
             current += 1;
         }
 
-        let mut perform_cleanup = false;
+        let mut cached;
         let env = Arc::new(mem::take(&mut state.env));
         // Spawn the task in a retry loop
         let mut attempt = 0;
@@ -1126,6 +1126,7 @@ impl TopLevelEvaluator {
             };
 
             // Lookup the results from the cache
+            cached = false;
             let result = if let Some(cache_key) = &key {
                 match self
                     .cache
@@ -1144,6 +1145,7 @@ impl TopLevelEvaluator {
                         );
 
                         // Notify that we've reused a cached execution result.
+                        cached = true;
                         if let Some(sender) = &self.events {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
@@ -1200,7 +1202,6 @@ impl TopLevelEvaluator {
                         temp_dir.clone(),
                     );
 
-                    perform_cleanup = true;
                     self.backend
                         .spawn(request, self.cancellation.token())
                         .with_context(|| {
@@ -1222,7 +1223,7 @@ impl TopLevelEvaluator {
             };
 
             // Update the task variable
-            let evaluated = EvaluatedTask::new(result);
+            let evaluated = EvaluatedTask::new(cached, result);
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -1296,7 +1297,7 @@ impl TopLevelEvaluator {
         };
 
         // Perform backend cleanup before output evaluation
-        if perform_cleanup
+        if !cached
             && let Some(cleanup) = self
                 .backend
                 .cleanup(&evaluated.result.work_dir, self.cancellation.token())
@@ -2102,5 +2103,363 @@ impl<'a> State<'a> {
         }
 
         Ok(self.backend_inputs.as_slice().into())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::fs;
+    use std::path::Path;
+
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
+    use tracing_test::traced_test;
+    use wdl_analysis::Analyzer;
+    use wdl_analysis::Config as AnalysisConfig;
+    use wdl_analysis::DiagnosticsConfig;
+
+    use crate::CancellationContext;
+    use crate::EvaluatedTask;
+    use crate::Events;
+    use crate::TaskInputs;
+    use crate::config::BackendConfig;
+    use crate::config::CallCachingMode;
+    use crate::config::Config;
+    use crate::v1::TaskEvaluator;
+
+    /// Helper for evaluating a simple task with the given call cache mode.
+    async fn evaluate_task(mode: CallCachingMode, root_dir: &Path, source: &str) -> EvaluatedTask {
+        fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
+
+        // Analyze the source file
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir)
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let document = results.first().expect("should have result").document();
+
+        let mut config = Config::default();
+        config.task.cache = mode;
+        config.task.cache_dir = Some(root_dir.join("cache"));
+        config
+            .backends
+            .insert("default".into(), BackendConfig::Local(Default::default()));
+
+        let evaluator =
+            TaskEvaluator::new(config, CancellationContext::default(), Events::disabled())
+                .await
+                .unwrap();
+
+        let runs_dir = root_dir.join("runs");
+        evaluator
+            .evaluate(
+                document,
+                document.task_by_name("test").expect("should have task"),
+                &TaskInputs::default(),
+                &runs_dir,
+            )
+            .await
+            .unwrap()
+    }
+
+    /// Tests task evaluation when call caching is disabled.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_off() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        String name = "friend"
+    }
+
+    command <<<echo "hello, ~{name}!">>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let evaluated = evaluate_task(CallCachingMode::Off, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("call caching is disabled"),
+            "expected cache to be off"
+        );
+    }
+
+    /// Tests task evaluation when call caching is enabled.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_on() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        String name = "friend"
+    }
+
+    command <<<echo "hello, ~{name}!">>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(logs_contain("spawning task"), "expected the task to spawn");
+
+        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+    }
+
+    /// Tests task evaluation when call caching is enabled, but the task is not
+    /// cacheable.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_on_not_cacheable() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        String name = "friend"
+    }
+
+    command <<<echo "hello, ~{name}!">>>
+
+    hints {
+        cacheable: false
+    }
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("task is not cacheable due to `cacheable` hint being set to `false`"),
+            "expected task to not be cacheable"
+        );
+
+        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            !logs_contain("task execution was skipped"),
+            "expected second run to not skip execution"
+        );
+    }
+
+    /// Tests task evaluation when call caching is enabled in explicit mode and
+    /// the task is not explicitly marked cacheable.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_explicit() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        String name = "friend"
+    }
+
+    command <<<echo "hello, ~{name}!">>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain(
+                "task is not cacheable due to `cacheable` hint not being explicitly set to `true`"
+            ),
+            "expected task to not be cacheable"
+        );
+
+        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            !logs_contain("task execution was skipped"),
+            "expected second run to not skip execution"
+        );
+    }
+
+    /// Tests task evaluation when call caching is enabled in explicit mode and
+    /// the task is explicitly marked cacheable.
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_explicit_cacheable() {
+        const SOURCE: &str = r#"
+version 1.2
+
+task test {
+    input {
+        String name = "friend"
+    }
+
+    command <<<echo "hello, ~{name}!">>>
+
+    hints {
+        cacheable: true
+    }
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(logs_contain("spawning task"), "expected the task to spawn");
+
+        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello, friend!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
     }
 }
