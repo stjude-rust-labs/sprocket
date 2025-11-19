@@ -21,7 +21,6 @@ use itertools::Either;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
-use serde_json::Value as JsonValue;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
@@ -761,63 +760,6 @@ impl Coercible for Value {
     }
 }
 
-impl TryFrom<JsonValue> for Value {
-    type Error = anyhow::Error;
-
-    fn try_from(value: JsonValue) -> std::result::Result<Self, Self::Error> {
-        match value {
-            JsonValue::Null => Ok(Value::new_none(Type::None)),
-            JsonValue::Bool(v) => Ok(Value::Primitive(PrimitiveValue::Boolean(v))),
-            JsonValue::Number(number) => {
-                if let Some(i) = number.as_i64() {
-                    Ok(Value::Primitive(PrimitiveValue::Integer(i)))
-                } else if let Some(f) = number.as_f64() {
-                    Ok(Value::Primitive(PrimitiveValue::Float(f.into())))
-                } else {
-                    Err(anyhow!(
-                        "JSON number `{number}` could not be represented as a signed 64-bit \
-                         integer or a 64-bit float"
-                    ))
-                }
-            }
-            JsonValue::String(s) => Ok(Value::Primitive(PrimitiveValue::new_string(s))),
-            JsonValue::Array(values) => {
-                let elements = values
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .collect::<Result<Vec<Self>, _>>()?;
-                // Try to find a mutually-agreeable common type for the elements of the array.
-                let mut candidate_ty = None;
-                for element in elements.iter() {
-                    let new_candidate_ty = element.ty();
-                    let old_candidate_ty =
-                        candidate_ty.get_or_insert_with(|| new_candidate_ty.clone());
-                    let Some(new_common_ty) = old_candidate_ty.common_type(&new_candidate_ty)
-                    else {
-                        bail!(
-                            "a common element type does not exist between `{old_candidate_ty}` \
-                             and `{new_candidate_ty}`"
-                        );
-                    };
-                    candidate_ty = Some(new_common_ty);
-                }
-                // An empty array's elements have the `Union` type.
-                let array_ty: Type = ArrayType::new(candidate_ty.unwrap_or(Type::Union)).into();
-                Ok(Array::new(None, array_ty.clone(), elements)
-                    .map_err(|e| anyhow!("cannot coerce value to `{array_ty}`: {e:#}"))?
-                    .into())
-            }
-            JsonValue::Object(map) => {
-                let mut members = IndexMap::new();
-                for (key, value) in map {
-                    members.insert(key, value.try_into()?);
-                }
-                Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
-            }
-        }
-    }
-}
-
 impl From<bool> for Value {
     fn from(value: bool) -> Self {
         Self::Primitive(value.into())
@@ -911,6 +853,138 @@ impl From<HintsValue> for Value {
 impl From<CallValue> for Value {
     fn from(value: CallValue) -> Self {
         Self::Call(value)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Value {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::Deserialize as _;
+
+        /// Visitor for deserialization.
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = Value;
+
+            fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::new_none(Type::None))
+            }
+
+            fn visit_none<E>(self) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::new_none(Type::None))
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                Value::deserialize(deserializer)
+            }
+
+            fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Boolean(v)))
+            }
+
+            fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(v)))
+            }
+
+            fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Integer(
+                    v.try_into().map_err(|_| {
+                        E::custom("integer not in range for a 64-bit signed integer")
+                    })?,
+                )))
+            }
+
+            fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::Float(v.into())))
+            }
+
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(v)))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                use serde::de::Error;
+
+                let mut elements = Vec::new();
+                while let Some(v) = seq.next_element::<Value>()? {
+                    elements.push(v);
+                }
+
+                let element_ty = elements
+                    .iter()
+                    .try_fold(None, |mut ty, element| {
+                        let element_ty = element.ty();
+                        let ty = ty.get_or_insert(element_ty.clone());
+                        ty.common_type(&element_ty).map(Some).ok_or_else(|| {
+                            A::Error::custom(format!(
+                                "a common element type does not exist between `{ty}` and \
+                                 `{element_ty}`"
+                            ))
+                        })
+                    })?
+                    .unwrap_or(Type::Union);
+
+                let ty: Type = ArrayType::new(element_ty).into();
+                Ok(Array::new(None, ty.clone(), elements)
+                    .map_err(|e| A::Error::custom(format!("cannot coerce value to `{ty}`: {e:#}")))?
+                    .into())
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut members = IndexMap::new();
+                while let Some(key) = map.next_key::<String>()? {
+                    members.insert(key, map.next_value()?);
+                }
+
+                Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
+            }
+
+            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "a WDL value")
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
     }
 }
 

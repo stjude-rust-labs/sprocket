@@ -6,6 +6,7 @@ use std::io::BufReader;
 use anyhow::Context;
 use futures::FutureExt;
 use futures::future::BoxFuture;
+use serde::Deserialize;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -46,16 +47,14 @@ fn read_json(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
                 function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
             })?;
 
-        serde_json::from_reader::<_, serde_json::Value>(BufReader::new(file))
-            .map_err(anyhow::Error::new)
-            .and_then(Value::try_from)
-            .map_err(|e| {
-                function_call_failed(
-                    FUNCTION_NAME,
-                    format!("failed to read JSON file `{path}`: {e}"),
-                    context.call_site,
-                )
-            })
+        let mut deserializer = serde_json::Deserializer::from_reader(BufReader::new(file));
+        Value::deserialize(&mut deserializer).map_err(|e| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!("failed to deserialize JSON file `{path}`: {e}"),
+                context.call_site,
+            )
+        })
     }
     .boxed()
 }
@@ -107,7 +106,7 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to read JSON file `empty.json`: EOF \
+            "call to function `read_json` failed: failed to deserialize JSON file `empty.json`: EOF \
              while parsing a value at line 1 column 0"
         );
     }
@@ -119,7 +118,7 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to read JSON file `not-json.json`: \
+            "call to function `read_json` failed: failed to deserialize JSON file `not-json.json`: \
              expected ident at line 1 column 2"
         );
     }
@@ -190,8 +189,8 @@ mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "call to function `read_json` failed: failed to read JSON file `bad_array.json`: a \
-             common element type does not exist between `Int` and `String`"
+            "call to function `read_json` failed: failed to deserialize JSON file `bad_array.json`: a \
+             common element type does not exist between `Int` and `String` at line 1 column 11"
         );
     }
 
