@@ -22,6 +22,8 @@ pub use source::Source;
 use wdl::lint::Rule;
 use wdl::lint::TagSet;
 
+use crate::IGNORE_FILENAME;
+
 /// The type of the initialization callback.
 type InitCb = Box<dyn Fn() + 'static>;
 
@@ -71,12 +73,6 @@ impl Analysis {
     /// Adds multiple rules to the excepted rules list.
     pub fn extend_exceptions(mut self, rules: impl IntoIterator<Item = String>) -> Self {
         self.exceptions.extend(rules);
-        self
-    }
-
-    /// Sets the ignorefile basename.
-    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
-        self.ignore_filename = filename;
         self
     }
 
@@ -180,7 +176,7 @@ impl Default for Analysis {
             exceptions: Default::default(),
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
-            ignore_filename: None,
+            ignore_filename: Some(IGNORE_FILENAME.to_string()),
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

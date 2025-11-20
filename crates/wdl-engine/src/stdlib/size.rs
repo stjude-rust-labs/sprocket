@@ -67,7 +67,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         let value = match context.arguments[0].value.as_string() {
             Some(s) => {
                 // If the path is a URL that isn't `file` schemed, treat as a file
-                if !path::is_file_url(s) && path::is_url(s) {
+                if !path::is_file_url(s) && path::is_supported_url(s) {
                     PrimitiveValue::File(s.clone().into()).into()
                 } else {
                     let path = ensure_local_path(context.base_dir(), s).map_err(|e| {
@@ -139,7 +139,7 @@ async fn file_path_size(
     path: &str,
 ) -> Result<u64> {
     // If the path is a URL, get the resource size
-    if let Some(url) = path::parse_url(path) {
+    if let Some(url) = path::parse_supported_url(path) {
         return resource_size(transferer, &url).await;
     }
 

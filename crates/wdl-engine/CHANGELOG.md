@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Azure Storage authentication configuration has been changed to use shared key authentication rather than explicit SAS token authentication; SAS token authentication can still be used by directly adding the query parameters to any input URLs (#[454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
 * Changed how cancellation is supported by the engine; the engine can now wait for executing tasks to complete before canceling them (slow failure mode) or immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
+* Changed a number of types in the public interface in preparation for a larger refactoring ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
+
 
 #### Fixed
 
