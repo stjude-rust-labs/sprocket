@@ -1,17 +1,18 @@
-//! Index creation and management for workflow outputs.
+//! Index creation and management for run outputs.
 
 use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use indexmap::IndexMap;
 use uuid::Uuid;
+use wdl::engine::Outputs;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
 
 use crate::OutputDirectory;
 use crate::database::Database;
+use crate::execution::RunDirectory;
 
 /// Files to always symlink from execution directory to index directory.
 const DEFAULT_SYMLINK_FILES: &[&str] = &["outputs.json"];
@@ -83,9 +84,8 @@ pub fn create_or_resymlink(link: &Path, target: &Path) -> Result<()> {
 /// Symlink a single file and log it to the database.
 async fn symlink_and_log(
     db: &dyn Database,
-    workflow_id: Uuid,
-    output_directory: &OutputDirectory,
-    workflow_name: &str,
+    run_id: Uuid,
+    run_dir: &RunDirectory,
     index_path: &str,
     file_path: &Path,
 ) -> Result<()> {
@@ -93,8 +93,11 @@ async fn symlink_and_log(
         .file_name()
         .ok_or_else(|| anyhow!("invalid file path `{}`", file_path.display()))?;
 
-    let target = output_directory.workflow_run(workflow_name).join(file_path);
-    let link = output_directory.index_dir(index_path).join(file_name);
+    let target = run_dir.root().join(file_path);
+    let link = run_dir
+        .output_directory()
+        .index_dir(index_path)
+        .join(file_name);
 
     if !target.exists() {
         return Err(anyhow!("target `{}` does not exist", target.display()));
@@ -102,23 +105,17 @@ async fn symlink_and_log(
 
     create_or_resymlink(&link, &target)?;
 
-    // SAFETY: both `link` and `target` are constructed from
-    // `output_directory.root()`, so `strip_prefix` will always succeed.
-    let relative_link = link
-        .strip_prefix(output_directory.root())
-        .unwrap()
-        .to_str()
-        .ok_or_else(|| anyhow!("path `{}` contains invalid UTF-8", link.display()))?
-        .to_string();
+    let relative_link = run_dir
+        .output_directory()
+        .make_relative_to(&link)
+        .expect("link should be within output directory");
 
-    let relative_target = target
-        .strip_prefix(output_directory.root())
-        .unwrap()
-        .to_str()
-        .ok_or_else(|| anyhow!("path `{}` contains invalid UTF-8", target.display()))?
-        .to_string();
+    let relative_target = run_dir
+        .output_directory()
+        .make_relative_to(&target)
+        .expect("target should be within output directory");
 
-    db.create_index_log_entry(workflow_id, relative_link, relative_target)
+    db.create_index_log_entry(run_id, &relative_link, &relative_target)
         .await?;
 
     Ok(())
@@ -127,41 +124,34 @@ async fn symlink_and_log(
 /// Create index entries for a completed workflow.
 pub async fn create_index_entries(
     db: &dyn Database,
-    workflow_id: Uuid,
-    output_directory: &OutputDirectory,
-    workflow_name: &str,
+    run_id: Uuid,
+    run_dir: &RunDirectory,
     index_path: &str,
-    outputs: &IndexMap<String, Value>,
+    outputs: &Outputs,
 ) -> Result<()> {
     // Ensure index directory exists
-    output_directory.ensure_index_dir(index_path).map_err(|e| {
-        anyhow!(
-            "failed to create index directory for `{}` ({})",
-            index_path,
-            e
-        )
-    })?;
+    run_dir
+        .output_directory()
+        .ensure_index_dir(index_path)
+        .map_err(|e| {
+            anyhow!(
+                "failed to create index directory for `{}` ({})",
+                index_path,
+                e
+            )
+        })?;
 
     let mut files_to_symlink: Vec<PathBuf> =
         DEFAULT_SYMLINK_FILES.iter().map(PathBuf::from).collect();
 
-    for (_, value) in outputs {
+    for (_, value) in outputs.iter() {
         extract_symlink_paths(value, &mut files_to_symlink);
     }
 
     let mut had_errors = false;
 
     for file_path in files_to_symlink {
-        if let Err(e) = symlink_and_log(
-            db,
-            workflow_id,
-            output_directory,
-            workflow_name,
-            index_path,
-            &file_path,
-        )
-        .await
-        {
+        if let Err(e) = symlink_and_log(db, run_id, run_dir, index_path, &file_path).await {
             tracing::error!(
                 "failed to create index entry for `{}`: {}",
                 file_path.display(),
@@ -211,36 +201,44 @@ pub async fn rebuild_index(db: &dyn Database, output_directory: &OutputDirectory
         let link = output_directory.root().join(&index_path);
         let target = output_directory.root().join(&target_path);
 
-        let result: Result<()> = {
-            // Create parent directory for link if needed
-            if let Some(parent) = link.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| {
-                    anyhow!(
-                        "failed to create parent directory `{}` ({})",
-                        parent.display(),
-                        e
-                    )
-                })?;
-            }
-
-            // Check if target exists
-            if !target.exists() {
-                return Err(anyhow!("target `{}` does not exist", target.display()));
-            }
-
-            // Create or replace symlink
-            create_or_resymlink(&link, &target)?;
-
-            Ok(())
-        };
-
-        if let Err(e) = result {
+        // Create parent directory for link if needed
+        if let Some(parent) = link.parent()
+            && let Err(e) = std::fs::create_dir_all(parent).map_err(|e| {
+                anyhow!(
+                    "failed to create parent directory `{}` ({})",
+                    parent.display(),
+                    e
+                )
+            })
+        {
             tracing::error!(
                 "failed to rebuild index entry for `{}`: {}",
                 index_path.display(),
                 e
             );
             had_errors = true;
+            continue;
+        }
+
+        // Check if target exists
+        if !target.exists() {
+            tracing::warn!(
+                "skipping index entry for `{}`: target `{}` does not exist",
+                index_path.display(),
+                target.display()
+            );
+            continue;
+        }
+
+        // Create or replace symlink
+        if let Err(e) = create_or_resymlink(&link, &target) {
+            tracing::error!(
+                "failed to rebuild index entry for `{}`: {}",
+                index_path.display(),
+                e
+            );
+            had_errors = true;
+            continue;
         }
     }
 

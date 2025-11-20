@@ -175,7 +175,7 @@ pub struct Args {
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: engine::config::Config,
+    pub engine: engine::Config,
 }
 
 impl Args {

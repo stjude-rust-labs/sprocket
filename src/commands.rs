@@ -12,6 +12,7 @@ pub mod format;
 pub mod inputs;
 pub mod lock;
 pub mod run;
+pub mod server;
 pub mod validate;
 
 /// Represents the available commands for the Sprocket CLI.
@@ -45,6 +46,9 @@ pub enum Commands {
 
     /// Runs a task or workflow.
     Run(run::Args),
+
+    /// Runs the HTTP API server for workflow execution.
+    Server(server::Args),
 
     /// Validate a set of inputs against a task or workflow.
     ///

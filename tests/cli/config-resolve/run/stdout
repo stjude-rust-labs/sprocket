@@ -60,6 +60,36 @@ secret_access_key = "<REDACTED>"
 access_key = "foo"
 secret = "<REDACTED>"
 
+[server]
+host = "127.0.0.1"
+port = 8080
+allowed_origins = []
+
+[server.database]
+max_connections = 20
+
+[execution]
+output_directory = "./out"
+allowed_file_paths = []
+allowed_urls = []
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+
+[execution.http]
+
+[execution.workflow.scatter]
+
+[execution.task]
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+
+[execution.storage.azure]
+
+[execution.storage.s3]
+
+[execution.storage.google]
+
 [common]
 color = true
 report_mode = "Full"

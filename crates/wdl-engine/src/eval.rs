@@ -150,7 +150,7 @@ impl CancellationContextState {
 /// Represents context for cancelling workflow or task evaluation.
 ///
 /// Uses a default failure mode of [`Slow`](FailureMode::Slow).
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CancellationContext {
     /// The failure mode for the cancellation context.
     mode: FailureMode,

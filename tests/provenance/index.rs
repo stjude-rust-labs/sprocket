@@ -4,7 +4,6 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use sprocket::OutputDirectory;
 use sprocket::database::Database;
 use sprocket::database::InvocationMethod;
@@ -20,6 +19,7 @@ use wdl::analysis::types::Type;
 use wdl::engine::Array;
 use wdl::engine::CompoundValue;
 use wdl::engine::HostPath;
+use wdl::engine::Outputs;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
 
@@ -58,32 +58,32 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     let db = SqliteDatabase::from_pool(pool).await?;
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Cli, None)
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
         .await?;
 
-    let workflow_id = Uuid::new_v4();
-    db.create_workflow(
-        workflow_id,
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
         invocation_id,
-        String::from("test"),
-        String::from("file://test.wdl"),
-        String::from("{}"),
-        String::from("test-workflow"),
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
     )
     .await?;
 
-    let exec_dir = output_dir.ensure_workflow_run("test-workflow")?;
-    fs::write(exec_dir.join("outputs.json"), "{}")?;
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.outputs_file(), "{}")?;
 
-    let outputs: IndexMap<String, Value> = [
+    let outputs: Outputs = [
         make_file_output(
-            &exec_dir,
+            run_dir.root(),
             "satisfaction_survey",
             "satisfaction_survey.tsv",
             "test content",
         )?,
         make_file_output(
-            &exec_dir,
+            run_dir.root(),
             "styling_metrics",
             "styling_metrics.json",
             "log content",
@@ -92,15 +92,7 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(
-        &db,
-        workflow_id,
-        &output_dir,
-        "test-workflow",
-        "yak",
-        &outputs,
-    )
-    .await?;
+    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
 
     let index_dir = output_dir.index_dir("yak");
     assert!(index_dir.join("outputs.json").exists());
@@ -113,34 +105,31 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     let content = fs::read_to_string(index_dir.join("satisfaction_survey.tsv"))?;
     assert_eq!(content, "test content");
 
-    let entries = db.list_index_log_entries_by_workflow(workflow_id).await?;
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 3);
-    assert_eq!(entries[0].workflow_id, workflow_id);
+    assert_eq!(entries[0].run_id, run_id);
+    assert_eq!(entries[0].index_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
-        "index/yak/outputs.json"
+        entries[0].target_path.as_str(),
+        "./runs/test-workflow/outputs.json"
+    );
+    assert_eq!(entries[1].run_id, run_id);
+    assert_eq!(
+        entries[1].index_path.as_str(),
+        "./index/yak/satisfaction_survey.tsv"
     );
     assert_eq!(
-        entries[0].target_path.to_str().unwrap(),
-        "runs/test-workflow/outputs.json"
+        entries[1].target_path.as_str(),
+        "./runs/test-workflow/satisfaction_survey.tsv"
     );
-    assert_eq!(entries[1].workflow_id, workflow_id);
+    assert_eq!(entries[2].run_id, run_id);
     assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
-        "index/yak/satisfaction_survey.tsv"
-    );
-    assert_eq!(
-        entries[1].target_path.to_str().unwrap(),
-        "runs/test-workflow/satisfaction_survey.tsv"
-    );
-    assert_eq!(entries[2].workflow_id, workflow_id);
-    assert_eq!(
-        entries[2].index_path.to_str().unwrap(),
-        "index/yak/styling_metrics.json"
+        entries[2].index_path.as_str(),
+        "./index/yak/styling_metrics.json"
     );
     assert_eq!(
-        entries[2].target_path.to_str().unwrap(),
-        "runs/test-workflow/styling_metrics.json"
+        entries[2].target_path.as_str(),
+        "./runs/test-workflow/styling_metrics.json"
     );
 
     Ok(())
@@ -153,39 +142,31 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
     let db = SqliteDatabase::from_pool(pool).await?;
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Cli, None)
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
         .await?;
 
-    let workflow_id = Uuid::new_v4();
-    db.create_workflow(
-        workflow_id,
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
         invocation_id,
-        String::from("test"),
-        String::from("file://test.wdl"),
-        String::from("{}"),
-        String::from("test-workflow"),
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
     )
     .await?;
 
-    let exec_dir = output_dir.ensure_workflow_run("test-workflow")?;
-    fs::write(exec_dir.join("outputs.json"), "{}")?;
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
-    let (name, value) = make_directory_output(&exec_dir, "styled_yaks", "styled_yaks")?;
-    let styled_yaks_dir = exec_dir.join("styled_yaks");
+    let (name, value) = make_directory_output(run_dir.root(), "styled_yaks", "styled_yaks")?;
+    let styled_yaks_dir = run_dir.root().join("styled_yaks");
     fs::write(styled_yaks_dir.join("file1.txt"), "content1")?;
     fs::write(styled_yaks_dir.join("file2.txt"), "content2")?;
 
-    let outputs: IndexMap<String, Value> = [(name, value)].into_iter().collect();
+    let outputs: Outputs = [(name, value)].into_iter().collect();
 
-    create_index_entries(
-        &db,
-        workflow_id,
-        &output_dir,
-        "test-workflow",
-        "yak",
-        &outputs,
-    )
-    .await?;
+    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
 
     let index_dir = output_dir.index_dir("yak");
     let yak_link = index_dir.join("styled_yaks");
@@ -194,25 +175,19 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
     assert!(yak_link.join("file1.txt").exists());
     assert!(yak_link.join("file2.txt").exists());
 
-    let entries = db.list_index_log_entries_by_workflow(workflow_id).await?;
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].workflow_id, workflow_id);
+    assert_eq!(entries[0].run_id, run_id);
+    assert_eq!(entries[0].index_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
-        "index/yak/outputs.json"
+        entries[0].target_path.as_str(),
+        "./runs/test-workflow/outputs.json"
     );
+    assert_eq!(entries[1].run_id, run_id);
+    assert_eq!(entries[1].index_path.as_str(), "./index/yak/styled_yaks");
     assert_eq!(
-        entries[0].target_path.to_str().unwrap(),
-        "runs/test-workflow/outputs.json"
-    );
-    assert_eq!(entries[1].workflow_id, workflow_id);
-    assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
-        "index/yak/styled_yaks"
-    );
-    assert_eq!(
-        entries[1].target_path.to_str().unwrap(),
-        "runs/test-workflow/styled_yaks"
+        entries[1].target_path.as_str(),
+        "./runs/test-workflow/styled_yaks"
     );
 
     Ok(())
@@ -225,28 +200,28 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
     let db = SqliteDatabase::from_pool(pool).await?;
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Cli, None)
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
         .await?;
 
-    let workflow_id = Uuid::new_v4();
-    db.create_workflow(
-        workflow_id,
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
         invocation_id,
-        String::from("test"),
-        String::from("file://test.wdl"),
-        String::from("{}"),
-        String::from("test-workflow"),
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
     )
     .await?;
 
-    let exec_dir = output_dir.ensure_workflow_run("test-workflow")?;
-    fs::write(exec_dir.join("outputs.json"), "{}")?;
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
-    fs::write(exec_dir.join("result1.txt"), "content1")?;
-    fs::write(exec_dir.join("result2.txt"), "content2")?;
-    fs::write(exec_dir.join("result3.txt"), "content3")?;
+    fs::write(run_dir.root().join("result1.txt"), "content1")?;
+    fs::write(run_dir.root().join("result2.txt"), "content2")?;
+    fs::write(run_dir.root().join("result3.txt"), "content3")?;
 
-    let outputs: IndexMap<String, Value> = [(
+    let outputs: Outputs = [(
         "results".to_string(),
         Value::Compound(CompoundValue::Array(
             Array::new(
@@ -270,15 +245,7 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(
-        &db,
-        workflow_id,
-        &output_dir,
-        "test-workflow",
-        "yak",
-        &outputs,
-    )
-    .await?;
+    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
 
     let index_dir = output_dir.index_dir("yak");
     assert!(index_dir.join("outputs.json").exists());
@@ -292,24 +259,12 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
     let content = fs::read_to_string(index_dir.join("result1.txt"))?;
     assert_eq!(content, "content1");
 
-    let entries = db.list_index_log_entries_by_workflow(workflow_id).await?;
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 4);
-    assert_eq!(
-        entries[0].index_path.to_str().unwrap(),
-        "index/yak/outputs.json"
-    );
-    assert_eq!(
-        entries[1].index_path.to_str().unwrap(),
-        "index/yak/result1.txt"
-    );
-    assert_eq!(
-        entries[2].index_path.to_str().unwrap(),
-        "index/yak/result2.txt"
-    );
-    assert_eq!(
-        entries[3].index_path.to_str().unwrap(),
-        "index/yak/result3.txt"
-    );
+    assert_eq!(entries[0].index_path.as_str(), "./index/yak/outputs.json");
+    assert_eq!(entries[1].index_path.as_str(), "./index/yak/result1.txt");
+    assert_eq!(entries[2].index_path.as_str(), "./index/yak/result2.txt");
+    assert_eq!(entries[3].index_path.as_str(), "./index/yak/result3.txt");
 
     Ok(())
 }
@@ -321,26 +276,26 @@ async fn create_index_with_missing_files(pool: SqlitePool) -> Result<()> {
     let db = SqliteDatabase::from_pool(pool).await?;
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Cli, None)
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
         .await?;
 
-    let workflow_id = Uuid::new_v4();
-    db.create_workflow(
-        workflow_id,
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
         invocation_id,
-        String::from("test"),
-        String::from("file://test.wdl"),
-        String::from("{}"),
-        String::from("test-workflow"),
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
     )
     .await?;
 
-    let exec_dir = output_dir.ensure_workflow_run("test-workflow")?;
-    fs::write(exec_dir.join("outputs.json"), "{}")?;
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
     // Create outputs that reference files that don't exist (both output files
     // don't exist)
-    let outputs: IndexMap<String, Value> = [
+    let outputs: Outputs = [
         (
             "satisfaction_survey".to_string(),
             Value::Primitive(PrimitiveValue::File(HostPath::new(
@@ -356,15 +311,7 @@ async fn create_index_with_missing_files(pool: SqlitePool) -> Result<()> {
     .collect();
 
     // This should fail because neither of the output files exist
-    let result = create_index_entries(
-        &db,
-        workflow_id,
-        &output_dir,
-        "test-workflow",
-        "yak",
-        &outputs,
-    )
-    .await;
+    let result = create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await;
 
     assert!(result.is_err());
     assert!(
@@ -384,28 +331,28 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
     let db = SqliteDatabase::from_pool(pool).await?;
 
     let invocation_id = Uuid::new_v4();
-    db.create_invocation(invocation_id, InvocationMethod::Cli, None)
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
         .await?;
 
-    let workflow_id = Uuid::new_v4();
-    db.create_workflow(
-        workflow_id,
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
         invocation_id,
-        String::from("test"),
-        String::from("file://test.wdl"),
-        String::from("{}"),
-        String::from("test-workflow"),
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
     )
     .await?;
 
-    let exec_dir = output_dir.ensure_workflow_run("test-workflow")?;
-    fs::write(exec_dir.join("outputs.json"), "{}")?;
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
     // Create one file that exists and one that doesn't (`styling_metrics.json` is
     // missing)
-    let outputs: IndexMap<String, Value> = [
+    let outputs: Outputs = [
         make_file_output(
-            &exec_dir,
+            run_dir.root(),
             "satisfaction_survey",
             "satisfaction_survey.tsv",
             "test content",
@@ -419,15 +366,7 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
     .collect();
 
     // This should fail because `styling_metrics.json` is missing
-    let result = create_index_entries(
-        &db,
-        workflow_id,
-        &output_dir,
-        "test-workflow",
-        "yak",
-        &outputs,
-    )
-    .await;
+    let result = create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await;
 
     assert!(result.is_err());
 
@@ -437,8 +376,326 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
 
     // And database entries were logged for the successful ones
-    let entries = db.list_index_log_entries_by_workflow(workflow_id).await?;
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2); // `outputs.json` and `satisfaction_survey.tsv`
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_with_nested_directory_structure(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let invocation_id = Uuid::new_v4();
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
+        .await?;
+
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
+        invocation_id,
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
+    )
+    .await?;
+
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
+
+    let nested_path = "data/results/final/output.txt";
+    fs::create_dir_all(run_dir.root().join("data/results/final"))?;
+    fs::write(run_dir.root().join(nested_path), "nested content")?;
+
+    let outputs: Outputs = [(
+        "nested_output".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new(nested_path))),
+    )]
+    .into_iter()
+    .collect();
+
+    create_index_entries(&db, run_id, &run_dir, "dataset/experiment1", &outputs).await?;
+
+    let index_dir = output_dir.index_dir("dataset/experiment1");
+    assert!(index_dir.exists());
+    assert!(index_dir.join("outputs.json").exists());
+    assert!(index_dir.join("outputs.json").is_symlink());
+    assert!(index_dir.join("output.txt").exists());
+    assert!(index_dir.join("output.txt").is_symlink());
+
+    let content = fs::read_to_string(index_dir.join("output.txt"))?;
+    assert_eq!(content, "nested content");
+
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
+    assert_eq!(entries.len(), 2);
+    assert!(entries[1].index_path.contains("dataset/experiment1"));
+    assert!(entries[1].index_path.contains("output.txt"));
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let invocation_id = Uuid::new_v4();
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
+        .await?;
+
+    // First workflow
+    let run_id_1 = Uuid::new_v4();
+    db.create_run(
+        run_id_1,
+        invocation_id,
+        "test1",
+        "file://test.wdl",
+        "{}",
+        "test-workflow-1",
+    )
+    .await?;
+
+    let run_dir_1 = output_dir.ensure_workflow_run("test-workflow-1")?;
+    fs::write(run_dir_1.root().join("outputs.json"), "{}")?;
+    fs::write(run_dir_1.root().join("result.txt"), "old result")?;
+
+    let outputs_1: Outputs = [(
+        "result".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new("result.txt"))),
+    )]
+    .into_iter()
+    .collect();
+
+    create_index_entries(&db, run_id_1, &run_dir_1, "experiment", &outputs_1).await?;
+
+    let index_dir = output_dir.index_dir("experiment");
+    let content = fs::read_to_string(index_dir.join("result.txt"))?;
+    assert_eq!(content, "old result");
+
+    // Sleep to ensure different timestamp.
+    // SQLite `current_timestamp` has second precision.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    // Second workflow - should replace the index
+    let run_id_2 = Uuid::new_v4();
+    db.create_run(
+        run_id_2,
+        invocation_id,
+        "test2",
+        "file://test.wdl",
+        "{}",
+        "test-workflow-2",
+    )
+    .await?;
+
+    let run_dir_2 = output_dir.ensure_workflow_run("test-workflow-2")?;
+    fs::write(run_dir_2.root().join("outputs.json"), "{}")?;
+    fs::write(run_dir_2.root().join("result.txt"), "new result")?;
+
+    let outputs_2: Outputs = [(
+        "result".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new("result.txt"))),
+    )]
+    .into_iter()
+    .collect();
+
+    create_index_entries(&db, run_id_2, &run_dir_2, "experiment", &outputs_2).await?;
+
+    // Verify index now points to new workflow
+    let content = fs::read_to_string(index_dir.join("result.txt"))?;
+    assert_eq!(content, "new result");
+
+    // Verify both workflows have entries in database
+    let entries_1 = db.list_index_log_entries_by_run(run_id_1).await?;
+    assert_eq!(entries_1.len(), 2);
+
+    let entries_2 = db.list_index_log_entries_by_run(run_id_2).await?;
+    assert_eq!(entries_2.len(), 2);
+
+    // Verify latest entries point to second workflow
+    let latest_entries = db.list_latest_index_entries().await?;
+    let result_entry = latest_entries
+        .iter()
+        .find(|e| e.index_path.contains("result.txt"))
+        .unwrap();
+    assert_eq!(result_entry.run_id, run_id_2);
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_with_empty_outputs(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let invocation_id = Uuid::new_v4();
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
+        .await?;
+
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
+        invocation_id,
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
+    )
+    .await?;
+
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
+
+    let outputs: Outputs = Outputs::new();
+
+    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+
+    let index_dir = output_dir.index_dir("yak");
+    assert!(index_dir.exists());
+    assert!(index_dir.join("outputs.json").exists());
+    assert!(index_dir.join("outputs.json").is_symlink());
+
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
+    assert_eq!(entries.len(), 1);
+    assert!(entries[0].index_path.contains("outputs.json"));
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_with_special_characters_in_index_name(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let invocation_id = Uuid::new_v4();
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
+        .await?;
+
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
+        invocation_id,
+        "test",
+        "file://test.wdl",
+        "{}",
+        "test-workflow",
+    )
+    .await?;
+
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("outputs.json"), "{}")?;
+    fs::write(run_dir.root().join("data.txt"), "content")?;
+
+    let outputs: Outputs = [(
+        "data".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new("data.txt"))),
+    )]
+    .into_iter()
+    .collect();
+
+    let index_name = "my experiment_2024/batch 1_🎉";
+    create_index_entries(&db, run_id, &run_dir, index_name, &outputs).await?;
+
+    let index_dir = output_dir.index_dir(index_name);
+    assert!(index_dir.exists());
+    assert!(index_dir.join("outputs.json").exists());
+    assert!(index_dir.join("data.txt").exists());
+    assert!(index_dir.join("data.txt").is_symlink());
+
+    let content = fs::read_to_string(index_dir.join("data.txt"))?;
+    assert_eq!(content, "content");
+
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
+    assert_eq!(entries.len(), 2);
+    assert!(entries[1].index_path.contains(index_name));
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let invocation_id = Uuid::new_v4();
+    db.create_invocation(invocation_id, InvocationMethod::Run, "test_user")
+        .await?;
+
+    // First workflow with result.txt
+    let run_id_1 = Uuid::new_v4();
+    db.create_run(
+        run_id_1,
+        invocation_id,
+        "test1",
+        "file://test.wdl",
+        "{}",
+        "test-workflow-1",
+    )
+    .await?;
+
+    let run_dir_1 = output_dir.ensure_workflow_run("test-workflow-1")?;
+    fs::write(run_dir_1.root().join("outputs.json"), "{}")?;
+    fs::write(run_dir_1.root().join("result.txt"), "first workflow result")?;
+
+    let outputs_1: Outputs = [(
+        "output".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new("result.txt"))),
+    )]
+    .into_iter()
+    .collect();
+
+    create_index_entries(&db, run_id_1, &run_dir_1, "experiment", &outputs_1).await?;
+
+    let index_dir = output_dir.index_dir("experiment");
+    let content = fs::read_to_string(index_dir.join("result.txt"))?;
+    assert_eq!(content, "first workflow result");
+
+    // Sleep to ensure different timestamp.
+    // SQLite `current_timestamp` has second precision.
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    // Second workflow also with result.txt - should replace the symlink
+    let run_id_2 = Uuid::new_v4();
+    db.create_run(
+        run_id_2,
+        invocation_id,
+        "test2",
+        "file://test.wdl",
+        "{}",
+        "test-workflow-2",
+    )
+    .await?;
+
+    let run_dir_2 = output_dir.ensure_workflow_run("test-workflow-2")?;
+    fs::write(run_dir_2.root().join("outputs.json"), "{}")?;
+    fs::write(
+        run_dir_2.root().join("result.txt"),
+        "second workflow result",
+    )?;
+
+    let outputs_2: Outputs = [(
+        "output".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new("result.txt"))),
+    )]
+    .into_iter()
+    .collect();
+
+    create_index_entries(&db, run_id_2, &run_dir_2, "experiment", &outputs_2).await?;
+
+    // Verify symlink was replaced and now points to second workflow
+    let content = fs::read_to_string(index_dir.join("result.txt"))?;
+    assert_eq!(content, "second workflow result");
+
+    // Verify only one result.txt symlink exists
+    assert!(index_dir.join("result.txt").exists());
+    assert!(index_dir.join("result.txt").is_symlink());
 
     Ok(())
 }

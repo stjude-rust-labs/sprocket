@@ -17,6 +17,7 @@ mod value;
 use std::sync::LazyLock;
 
 pub use backend::*;
+pub use config::Config;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;
