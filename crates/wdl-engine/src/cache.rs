@@ -442,7 +442,7 @@ impl CallCache {
     /// Upon a successful update of the key, returns the key as an
     /// [`ArrayString`].
     pub async fn put(&self, key: Key, result: &TaskExecutionResult) -> Result<ArrayString<64>> {
-        let file = LockedFile::acquire_exclusive(&self.0.entry_path(&key)).await?;
+        let file = LockedFile::acquire_exclusive_truncated(&self.0.entry_path(&key)).await?;
 
         let entry = CallCacheEntry {
             version: CURRENT_CACHE_VERSION,
@@ -506,21 +506,105 @@ mod test {
     use crate::digest::test::DigestTransferer;
     use crate::digest::test::clear_digest_cache;
 
-    #[tokio::test]
-    async fn test_call_cache() {
-        // Create the cache directory
-        let cache_dir = tempdir().unwrap();
-        let transfer = Arc::new(DigestTransferer::new([]));
-        let cache = CallCache::new(Some(cache_dir.path()), transfer)
-            .await
-            .unwrap();
+    /// Stores paths used in the test.
+    struct Paths {
+        /// The path to the WDL source being analyzed.
+        source: PathBuf,
+        /// The input file.
+        input: PathBuf,
+        /// The path to the stdout file.
+        stdout: PathBuf,
+        /// The path to the stderr file.
+        stderr: PathBuf,
+        /// The path to the task's working directory.
+        work_dir: PathBuf,
+    }
 
-        // Populate a root directory
-        // We're not actually evaluating the WDL, so we'll create a stdout/stderr file
-        // and work directory
-        let root_dir = tempdir().expect("failed to create temporary directory");
+    /// Represents the "evaluated" task for the tests.
+    struct Task {
+        paths: Paths,
+        document: Document,
+        inputs: BTreeMap<String, Value>,
+        requirements: HashMap<String, Value>,
+        hints: HashMap<String, Value>,
+        backend_inputs: [Input; 1],
+    }
+
+    impl Task {
+        /// Constructs a new "evaluated" task.
+        fn new(paths: Paths, document: Document) -> Self {
+            // These values correspond to what would be evaluated for the WDL source in
+            // `prepare_task`.
+            let input = paths.input.clone();
+            Self {
+                paths,
+                document,
+                inputs: BTreeMap::from([(
+                    "file".into(),
+                    PrimitiveValue::new_file(input.to_str().unwrap()).into(),
+                )]),
+                requirements: HashMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:latest").into(),
+                )]),
+                hints: HashMap::from_iter([(
+                    "foo".into(),
+                    PrimitiveValue::new_string("bar").into(),
+                )]),
+                backend_inputs: [Input::new(
+                    ContentKind::File,
+                    EvaluationPath::Local(input),
+                    Some(GuestPath::new("/mnt/task/0/input")),
+                )],
+            }
+        }
+
+        /// Gets a cache key request from the "evaluated" task.
+        fn key_request(&self) -> KeyRequest<'_> {
+            // These values correspond to what would be evaluated for the WDL source in
+            // `prepare_task`.
+            KeyRequest {
+                document: &self.document,
+                task_name: "test",
+                inputs: &self.inputs,
+                command: "cat /mnt/task/0/input",
+                container: "ubuntu:latest",
+                shell: "bash",
+                requirements: &self.requirements,
+                hints: &self.hints,
+                backend_inputs: &self.backend_inputs,
+            }
+        }
+    }
+
+    /// Prepares an "evaluated" task.
+    ///
+    /// This populates the root directory with a source file, inputs, and
+    /// outputs.
+    ///
+    /// This does not actually evaluate the WDL source; instead it returns
+    /// enough information for interacting with a call cache as if an evaluation
+    /// occurred.
+    async fn prepare_task(root_dir: &Path) -> Task {
+        let source_dir = root_dir.join("src");
+        fs::create_dir_all(&source_dir).await.unwrap();
+
+        let inputs_dir = root_dir.join("inputs");
+        fs::create_dir_all(&inputs_dir).await.unwrap();
+
+        let outputs_dir = root_dir.join("outputs");
+        fs::create_dir_all(&outputs_dir).await.unwrap();
+
+        let paths = Paths {
+            source: source_dir.join("source.wdl"),
+            input: inputs_dir.join("input"),
+            stdout: outputs_dir.join("stdout"),
+            stderr: outputs_dir.join("stderr"),
+            work_dir: outputs_dir.join("work"),
+        };
+
         fs::write(
-            root_dir.path().join("source.wdl"),
+            &paths.source,
             r#"
 version 1.2
 
@@ -544,31 +628,25 @@ task test {
         .await
         .expect("failed to write WDL source file");
 
-        // Write input files to the task
-        let input = root_dir.path().join("input");
-        fs::write(&input, "hello world!").await.unwrap();
-        let input2 = root_dir.path().join("input2");
-        fs::write(&input2, "hello world!!!").await.unwrap();
+        // Write the input file
+        fs::write(&paths.input, "hello world!").await.unwrap();
 
         // Write the stdout as if we evaluated the task
-        let stdout = root_dir.path().join("stdout");
-        fs::write(&stdout, "hello world!").await.unwrap();
+        fs::write(&paths.stdout, "hello world!").await.unwrap();
 
         // Write the stderr as if we evaluated the task
-        let stderr = root_dir.path().join("stderr");
-        fs::write(&stderr, "").await.unwrap();
+        fs::write(&paths.stderr, "").await.unwrap();
 
         // Create a work directory as if we evaluated the task
-        let work_dir = root_dir.path().join("work");
-        fs::create_dir(&work_dir).await.unwrap();
+        fs::create_dir(&paths.work_dir).await.unwrap();
 
-        // Analyze the source file
+        // Analyze the
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
-            .add_directory(root_dir.path())
+            .add_directory(&source_dir)
             .await
             .expect("failed to add directory");
         let results = analyzer
@@ -576,38 +654,18 @@ task test {
             .await
             .expect("failed to analyze document");
         assert_eq!(results.len(), 1, "expected only one result");
+        let document = results
+            .first()
+            .expect("should have result")
+            .document()
+            .clone();
 
-        // Store the "evaluated" requirements and hints
-        let requirements = HashMap::from_iter([(
-            "container".into(),
-            PrimitiveValue::new_string("ubuntu:latest").into(),
-        )]);
-        let hints = HashMap::from_iter([("foo".into(), PrimitiveValue::new_string("bar").into())]);
+        Task::new(paths, document)
+    }
 
-        // Store the "evaluated" inputs and backend inputs
-        let inputs = BTreeMap::from([("file".into(), PrimitiveValue::new_file("input").into())]);
-        let backend_input = Input::new(
-            ContentKind::File,
-            EvaluationPath::Local(input.clone()),
-            Some(GuestPath::new("/mnt/task/0/input")),
-        );
-        let backend_input2 = Input::new(
-            ContentKind::File,
-            EvaluationPath::Local(input2.clone()),
-            Some(GuestPath::new("/mnt/task/0/input2")),
-        );
-
-        let request = KeyRequest {
-            document: results.first().expect("should have result").document(),
-            task_name: "test",
-            inputs: &inputs,
-            command: "cat /mnt/task/0/input",
-            container: "ubuntu:latest",
-            shell: "bash",
-            requirements: &requirements,
-            hints: &hints,
-            backend_inputs: std::slice::from_ref(&backend_input),
-        };
+    /// Populates a call cache with the baseline cache entry.
+    async fn populate_cache(cache: &CallCache, task: &Task) {
+        let request = task.key_request();
 
         // Get a key for the cache (should not exist)
         let key = cache.key(request).await.unwrap();
@@ -616,9 +674,9 @@ task test {
         // Cache an execution result
         let result = TaskExecutionResult {
             exit_code: 0,
-            work_dir: EvaluationPath::Local(work_dir.clone()),
-            stdout: PrimitiveValue::new_file(stdout.to_str().unwrap()).into(),
-            stderr: PrimitiveValue::new_file(stderr.to_str().unwrap()).into(),
+            work_dir: EvaluationPath::Local(task.paths.work_dir.clone()),
+            stdout: PrimitiveValue::new_file(task.paths.stdout.to_str().unwrap()).into(),
+            stderr: PrimitiveValue::new_file(task.paths.stderr.to_str().unwrap()).into(),
         };
         cache.put(key, &result).await.unwrap();
 
@@ -647,11 +705,30 @@ task test {
             cached_result.stderr.as_file().unwrap(),
             "stderr mismatch"
         );
+    }
 
-        // Check for changed command
+    #[tokio::test]
+    async fn modified_command() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Check for modified command
         let key = cache
             .key(KeyRequest {
-                command: "changed!",
+                command: "modified!",
                 ..request
             })
             .await
@@ -660,11 +737,30 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "the command of the task was modified"
         );
+    }
 
-        // Check for changed container
+    #[tokio::test]
+    async fn modified_container() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Check for modified container
         let key = cache
             .key(KeyRequest {
-                container: "changed!",
+                container: "modified!",
                 ..request
             })
             .await
@@ -673,11 +769,30 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "the container used by the task was modified"
         );
+    }
 
-        // Check for changed shell
+    #[tokio::test]
+    async fn modified_shell() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Check for modified shell
         let key = cache
             .key(KeyRequest {
-                shell: "changed!",
+                shell: "modified!",
                 ..request
             })
             .await
@@ -686,6 +801,25 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "the shell used by the task was modified"
         );
+    }
+
+    #[tokio::test]
+    async fn requirement_removed() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
 
         // Check for removing a requirement
         let key = cache
@@ -699,6 +833,25 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was removed"
         );
+    }
+
+    #[tokio::test]
+    async fn requirement_added() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
 
         // Check for adding a requirement
         let key = cache
@@ -718,8 +871,27 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `memory` was added"
         );
+    }
 
-        // Check for changing a requirement
+    #[tokio::test]
+    async fn requirement_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Check for modifying a requirement
         let key = cache
             .key(KeyRequest {
                 requirements: &HashMap::from_iter([(
@@ -734,6 +906,25 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was modified"
         );
+    }
+
+    #[tokio::test]
+    async fn hint_removed() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
 
         // Check for removing a hint
         let key = cache
@@ -747,6 +938,25 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was removed"
         );
+    }
+
+    #[tokio::test]
+    async fn hint_added() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
 
         // Check for adding a hint
         let key = cache
@@ -763,8 +973,27 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task hint `max_memory` was added"
         );
+    }
 
-        // Check for changing a hint
+    #[tokio::test]
+    async fn hint_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Check for modifying a hint
         let key = cache
             .key(KeyRequest {
                 hints: &HashMap::from_iter([(
@@ -779,6 +1008,25 @@ task test {
             cache.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was modified"
         );
+    }
+
+    #[tokio::test]
+    async fn backend_input_removed() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
 
         // Check for removing a backend input
         let key = cache
@@ -790,127 +1038,280 @@ task test {
             .unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!(
-                "task input `{}` was removed",
-                backend_input.path().display()
-            )
+            format!("task input `{}` was removed", task.paths.input.display())
         );
+    }
+
+    #[tokio::test]
+    async fn backend_input_added() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Create a new input file
+        let input2 = task.paths.input.with_file_name("input2");
+        fs::write(&input2, "hello world!!!").await.unwrap();
 
         // Check for adding a backend input
         let key = cache
             .key(KeyRequest {
-                backend_inputs: &[backend_input.clone(), backend_input2.clone()],
+                backend_inputs: &[
+                    task.backend_inputs[0].clone(),
+                    Input::new(
+                        ContentKind::File,
+                        EvaluationPath::Local(input2.clone()),
+                        Some(GuestPath::new("/mnt/task/0/input2")),
+                    ),
+                ],
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("task input `{}` was added", backend_input2.path().display())
+            format!("task input `{}` was added", input2.display())
         );
+    }
 
-        // Change the input file and clear the digest cache
-        fs::write(&input, "changed!").await.unwrap();
-        clear_digest_cache();
+    #[tokio::test]
+    async fn backend_input_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Check for changing a backend input
-        let key = cache
-            .key(KeyRequest {
-                backend_inputs: std::slice::from_ref(&backend_input),
-                ..request
-            })
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
             .await
             .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Modify the input file
+        fs::write(&task.paths.input, "modified!").await.unwrap();
+
+        // Check for modifying a backend input
+        clear_digest_cache();
+        let key = cache.key(request).await.unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            format!("task input `{}` was modified", task.paths.input.display())
+        );
+    }
+
+    #[tokio::test]
+    async fn stdout_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
+
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Modify the stdout file
+        fs::write(&task.paths.stdout, "modified!").await.unwrap();
+
+        // Check for changed cached stdout
+        clear_digest_cache();
+        let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
             format!(
-                "task input `{}` was modified",
-                backend_input.path().display()
+                "cached content `{}` was modified",
+                task.paths.stdout.display()
             )
         );
+    }
 
-        // Restore the input file
-        fs::write(&input, "hello world!").await.unwrap();
+    #[tokio::test]
+    async fn stdout_missing() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Change the cached stdout and clear the digest cache
-        fs::write(&stdout, "changed!").await.unwrap();
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Delete the stdout file
+        fs::remove_file(&task.paths.stdout).await.unwrap();
+
+        // Check for deleted cached stdout
         clear_digest_cache();
-
-        // Check for changed cached stdout
         let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("cached content `{}` was modified", stdout.display())
+            format!(
+                "failed to read metadata of `{}`",
+                task.paths.stdout.display()
+            )
         );
+    }
 
-        // Restore the stdout file
-        fs::write(&stdout, "hello world!").await.unwrap();
+    #[tokio::test]
+    async fn stderr_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Change the cached stderr and clear the digest cache
-        fs::write(&stderr, "changed!").await.unwrap();
-        clear_digest_cache();
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Modify the stderr file
+        fs::write(&task.paths.stderr, "modified!").await.unwrap();
 
         // Check for changed cached stderr
-        let key = cache.key(request).await.unwrap();
-        assert_eq!(
-            cache.get(&key).await.unwrap_err().to_string(),
-            format!("cached content `{}` was modified", stderr.display())
-        );
-
-        // Restore the stderr file
-        fs::write(&stderr, "").await.unwrap();
-
-        // Modify the work directory by creating a file and clear the digest cache
-        fs::write(work_dir.join("foo"), "bar").await.unwrap();
         clear_digest_cache();
-
-        // Check for changed cached work directory
         let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("cached content `{}` was modified", work_dir.display())
+            format!(
+                "cached content `{}` was modified",
+                task.paths.stderr.display()
+            )
         );
+    }
 
-        // Restore the work directory
-        fs::remove_file(work_dir.join("foo")).await.unwrap();
+    #[tokio::test]
+    async fn stderr_missing() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Delete the stdout file and clear the digest cache
-        fs::remove_file(&stdout).await.unwrap();
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Delete the stderr file
+        fs::remove_file(&task.paths.stderr).await.unwrap();
+
+        // Check for deleted cached stderr
         clear_digest_cache();
-
-        // Check for missing stdout file
         let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("failed to read metadata of `{}`", stdout.display())
+            format!(
+                "failed to read metadata of `{}`",
+                task.paths.stderr.display()
+            )
         );
+    }
 
-        // Restore the stdout file
-        fs::write(&stdout, "hello world!").await.unwrap();
+    #[tokio::test]
+    async fn work_dir_modified() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Delete the stderr file and clear the digest cache
-        fs::remove_file(&stderr).await.unwrap();
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Modify the working directory by creating a new file in it
+        fs::write(&task.paths.work_dir.join("foo"), "added!")
+            .await
+            .unwrap();
+
+        // Check for changed cached work dir
         clear_digest_cache();
-
-        // Check for missing stderr file
         let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("failed to read metadata of `{}`", stderr.display())
+            format!(
+                "cached content `{}` was modified",
+                task.paths.work_dir.display()
+            )
         );
+    }
 
-        // Restore the stderr file
-        fs::write(&stderr, "").await.unwrap();
+    #[tokio::test]
+    async fn work_dir_deleted() {
+        // Prepare an evaluated task for the test
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let task = prepare_task(root_dir.path()).await;
 
-        // Delete the work directory and clear the digest cache
-        fs::remove_dir_all(&work_dir).await.unwrap();
+        // Create the cache
+        let cache_dir = tempdir().unwrap();
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(Some(cache_dir.path()), transfer)
+            .await
+            .unwrap();
+
+        // Populate the cache with the initial entry
+        populate_cache(&cache, &task).await;
+
+        let request = task.key_request();
+
+        // Delete the working directory
+        fs::remove_dir_all(&task.paths.work_dir).await.unwrap();
+
+        // Check for deleted cached work dir
         clear_digest_cache();
-
-        // Check for missing work directory
         let key = cache.key(request).await.unwrap();
         assert_eq!(
             cache.get(&key).await.unwrap_err().to_string(),
-            format!("failed to read metadata of `{}`", work_dir.display())
+            format!(
+                "failed to read metadata of `{}`",
+                task.paths.work_dir.display()
+            )
         );
     }
 }

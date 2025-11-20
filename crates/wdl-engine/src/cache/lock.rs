@@ -93,7 +93,7 @@ impl LockedFile {
     /// If the file does not exist, it is created.
     ///
     /// If the file exists, it is truncated once the lock is acquired.
-    pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
+    pub async fn acquire_exclusive_truncated(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         // Create or open the file, but do not truncate it if it exists before the lock
         // is acquired
@@ -209,7 +209,9 @@ mod test {
     #[tokio::test]
     async fn acquire_exclusive() {
         let file = NamedTempFile::new().unwrap();
-        let _exclusive = LockedFile::acquire_exclusive(file.path()).await.unwrap();
+        let _exclusive = LockedFile::acquire_exclusive_truncated(file.path())
+            .await
+            .unwrap();
 
         // Ensure we can't acquire a shared lock
         assert!(matches!(
