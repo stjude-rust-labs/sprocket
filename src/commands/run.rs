@@ -1,6 +1,8 @@
 //! Implementation of the `run` subcommand.
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -373,6 +375,9 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
 ///
+/// Staging includes writing a `.sprocketignore` file with contents `*` in the
+/// `root` if an existing ignorefile is not found.
+///
 /// Notably, this function does not actually create the execution directory at
 /// the returned path, as that is handled by execution itself.
 ///
@@ -382,6 +387,14 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
     let root = root.join(entrypoint);
     std::fs::create_dir_all(&root)
         .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
+
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        let ignorefile = File::create(&ignore_path)
+            .with_context(|| format!("creating ignorefile: `{}`", ignore_path.display()))?;
+        writeln!(&ignorefile, "*")
+            .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
+    }
 
     let timestamp = chrono::Utc::now();
 
