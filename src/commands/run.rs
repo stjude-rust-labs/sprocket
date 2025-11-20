@@ -383,10 +383,10 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
     std::fs::create_dir_all(&root)
         .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
 
-    let ignore_path = root.join(".sprocketignore");
+    let ignore_path = root.join(IGNORE_FILENAME);
     if !ignore_path.exists() {
-        std::fs::write(&ignore_path, "*\n")
-            .with_context(|| format!("failed to write ignore file: {} ", ignore_path.display()))?;
+        std::fs::writeLN(&ignore_path, "*")
+            .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
 
     let timestamp = chrono::Utc::now();
