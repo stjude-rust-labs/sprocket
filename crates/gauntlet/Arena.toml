@@ -17,6 +17,11 @@ filters = ["/template/task-templates.wdl"]
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:100:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L100"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:10:34: note[CommentWhitespace]: in-line comments should be preceded by two spaces"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L10"
 
@@ -109,6 +114,11 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:180:32: note[ExpressionSpacing]: operators must be surrounded by whitespace"
 permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L180"
+
+[[diagnostics]]
+document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:182:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L182"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
@@ -307,8 +317,8 @@ permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:95:3: note[ShellCheck]: running `shellcheck` on command section"
-permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L95"
+message = "ww-fastq-to-cram.wdl:99:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-fastq-to-cram/blob/2d1e1989a57402642c06d15f4b623ac66fd9ed7d/ww-fastq-to-cram.wdl/#L99"
 
 [[diagnostics]]
 document = "getwilds/ww-fastq-to-cram:/ww-fastq-to-cram.wdl"
@@ -352,6 +362,21 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:380:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L380"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:381:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L381"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:382:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L382"
+
+[[diagnostics]]
+document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:38:82: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L38"
 
@@ -369,11 +394,6 @@ permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:454:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L454"
-
-[[diagnostics]]
-document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:60:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/ww-star-deseq2/blob/499c0cbedfadd574b6c9d5590785d79a8b831f2c/ww-star-deseq2.wdl/#L60"
 
 [[diagnostics]]
 document = "getwilds/ww-star-deseq2:/ww-star-deseq2.wdl"
@@ -722,11 +742,6 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
-message = "ww-vc-trio.wdl:26:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L26"
-
-[[diagnostics]]
-document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:26:5: note[CommentWhitespace]: comment not sufficiently indented"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L26"
 
@@ -799,6 +814,21 @@ permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f87
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
 message = "ww-vc-trio.wdl:306:17: warning[SnakeCase]: input name `known_indels_sites_VCFs` is not snake_case"
 permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L306"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:322:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L322"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:323:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L323"
+
+[[diagnostics]]
+document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
+message = "ww-vc-trio.wdl:332:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/ww-vc-trio/blob/c2c13e85efda8ac7aca7f8765fbaa7c2cacb08b2/ww-vc-trio.wdl/#L332"
 
 [[diagnostics]]
 document = "getwilds/ww-vc-trio:/ww-vc-trio.wdl"
@@ -1372,11 +1402,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:16:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/data_structures/read_group.wdl/#L16"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:359:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/data_structures/read_group.wdl/#L359"
 
@@ -1437,11 +1462,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastp.wdl"
-message = "fastp.wdl:195:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/fastp.wdl/#L195"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fastp.wdl"
 message = "fastp.wdl:228:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/fastp.wdl/#L228"
 
@@ -1454,11 +1474,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:170:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/fq.wdl/#L170"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/fq.wdl"
-message = "fq.wdl:78:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/fq.wdl/#L78"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -1494,11 +1509,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:69:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/gatk4.wdl/#L69"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/htseq.wdl"
-message = "htseq.wdl:124:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/htseq.wdl/#L124"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
@@ -1659,11 +1669,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
 message = "qualimap.wdl:161:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/qualimap.wdl/#L161"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/qualimap.wdl"
-message = "qualimap.wdl:85:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/tools/qualimap.wdl/#L85"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/qualimap.wdl"
@@ -1869,8 +1874,3 @@ permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:184:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/workflows/rnaseq/rnaseq-standard.wdl/#L184"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:66:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/2213187864006b6492ccb0f9318c149bc1a823cd/workflows/rnaseq/rnaseq-variant-calling.wdl/#L66"
