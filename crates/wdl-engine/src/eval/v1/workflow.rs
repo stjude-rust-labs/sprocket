@@ -708,14 +708,15 @@ impl TopLevelEvaluator {
         });
 
         // Evaluate the root graph to completion
-        evaluate_subgraph(
-            state.clone(),
-            Scopes::ROOT_INDEX,
-            subgraph,
-            max_concurrency,
-            Arc::new(id.to_string()),
-        )
-        .await?;
+        state
+            .clone()
+            .evaluate_subgraph(
+                Scopes::ROOT_INDEX,
+                subgraph,
+                max_concurrency,
+                Arc::new(id.to_string()),
+            )
+            .await?;
 
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
         if let Some(section) = definition.output() {
@@ -733,584 +734,617 @@ impl TopLevelEvaluator {
     }
 }
 
-/// Evaluates a subgraph to completion.
-///
-/// Note that this method is not `async` because it is indirectly recursive.
-///
-/// The boxed future breaks the cycle that would otherwise exist when trying
-/// to have the Rust compiler create an opaque type for the future returned
-/// by an `async` method.
-fn evaluate_subgraph(
-    state: Arc<State>,
-    scope: ScopeIndex,
-    subgraph: Subgraph,
-    max_concurrency: u64,
-    id: Arc<String>,
-) -> BoxFuture<'static, EvaluationResult<()>> {
-    async move {
-        let cancellation = state.top_level.cancellation.clone();
-        let mut futures = JoinSet::new();
-        match perform_subgraph_evaluation(state, scope, subgraph, max_concurrency, id, &mut futures)
-            .await
-        {
-            Ok(_) => {
-                // There should be no more pending futures
-                assert!(futures.is_empty());
-                Ok(())
-            }
-            Err(e) => {
-                // Perform a cancellation and wait for the futures to complete
-                cancellation.error(&e);
-                futures.join_all().await;
-                Err(e)
-            }
-        }
-    }
-    .boxed()
-}
-
-/// Performs subgraph evaluation.
-///
-/// This exists as a separate function from `evaluate_subgraph` so that we
-/// can gracefully cancel outstanding futures on error.
-async fn perform_subgraph_evaluation(
-    state: Arc<State>,
-    scope: ScopeIndex,
-    mut subgraph: Subgraph,
-    max_concurrency: u64,
-    id: Arc<String>,
-    futures: &mut JoinSet<EvaluationResult<NodeIndex>>,
-) -> EvaluationResult<()> {
-    // The set of nodes being processed
-    let mut processing: Vec<NodeIndex> = Vec::new();
-    // The set of graph nodes being awaited on
-    let mut awaiting: HashSet<NodeIndex> = HashSet::new();
-
-    while !subgraph.0.is_empty() {
-        // Add nodes with indegree 0 that we aren't already waiting on
-        processing.extend(subgraph.0.iter().filter_map(|(node, indegree)| {
-            if *indegree == 0 && !awaiting.contains(node) {
-                Some(*node)
-            } else {
-                None
-            }
-        }));
-
-        // If no graph nodes can be processed, await on any futures
-        if processing.is_empty() {
-            let node: EvaluationResult<NodeIndex> = futures
-                .join_next()
+impl State {
+    /// Evaluates a subgraph to completion.
+    ///
+    /// Note that this method is not `async` because it is indirectly recursive.
+    ///
+    /// The boxed future breaks the cycle that would otherwise exist when trying
+    /// to have the Rust compiler create an opaque type for the future returned
+    /// by an `async` method.
+    fn evaluate_subgraph(
+        self: Arc<State>,
+        scope: ScopeIndex,
+        subgraph: Subgraph,
+        max_concurrency: u64,
+        id: Arc<String>,
+    ) -> BoxFuture<'static, EvaluationResult<()>> {
+        async move {
+            let cancellation = self.top_level.cancellation.clone();
+            let mut futures = JoinSet::new();
+            match self
+                .perform_subgraph_evaluation(scope, subgraph, max_concurrency, id, &mut futures)
                 .await
-                .expect("should have a future to wait on")
-                .expect("failed to join future");
+            {
+                Ok(_) => {
+                    // There should be no more pending futures
+                    assert!(futures.is_empty());
+                    Ok(())
+                }
+                Err(e) => {
+                    // Perform a cancellation and wait for the futures to complete
+                    cancellation.error(&e);
+                    futures.join_all().await;
+                    Err(e)
+                }
+            }
+        }
+        .boxed()
+    }
 
-            let node = node?;
-            match &state.graph[node] {
-                WorkflowGraphNode::Call(stmt) => {
-                    let call_name = stmt
-                        .alias()
-                        .map(|a| a.name())
-                        .unwrap_or_else(|| stmt.target().names().last().unwrap());
-                    debug!(
-                        workflow_id = id.as_str(),
-                        workflow_name = state.document.workflow().unwrap().name(),
-                        document = state.document.uri().as_str(),
-                        call_name = call_name.text(),
-                        "evaluation of call statement has completed",
-                    )
+    /// Performs subgraph evaluation.
+    ///
+    /// This exists as a separate function from `evaluate_subgraph` so that we
+    /// can gracefully cancel outstanding futures on error.
+    async fn perform_subgraph_evaluation(
+        self: Arc<State>,
+        scope: ScopeIndex,
+        mut subgraph: Subgraph,
+        max_concurrency: u64,
+        id: Arc<String>,
+        futures: &mut JoinSet<EvaluationResult<NodeIndex>>,
+    ) -> EvaluationResult<()> {
+        // The set of nodes being processed
+        let mut processing: Vec<NodeIndex> = Vec::new();
+        // The set of graph nodes being awaited on
+        let mut awaiting: HashSet<NodeIndex> = HashSet::new();
+
+        while !subgraph.0.is_empty() {
+            // Add nodes with indegree 0 that we aren't already waiting on
+            processing.extend(subgraph.0.iter().filter_map(|(node, indegree)| {
+                if *indegree == 0 && !awaiting.contains(node) {
+                    Some(*node)
+                } else {
+                    None
                 }
-                WorkflowGraphNode::ConditionalClause(clause, _) => debug!(
-                    workflow_id = id.as_str(),
-                    workflow_name = state.document.workflow().unwrap().name(),
-                    document = state.document.uri().as_str(),
-                    clause_kind = format!("{}", clause.kind()),
-                    expr = clause.expr().as_ref().map(|e| e.text().to_string()),
-                    "evaluation of conditional clause has completed"
-                ),
-                WorkflowGraphNode::Conditional(..) => debug!(
-                    workflow_id = id.as_str(),
-                    workflow_name = state.document.workflow().unwrap().name(),
-                    document = state.document.uri().as_str(),
-                    "evaluation of conditional statement has completed",
-                ),
-                WorkflowGraphNode::Scatter(stmt, _) => {
-                    let variable = stmt.variable();
-                    debug!(
+            }));
+
+            // If no graph nodes can be processed, await on any futures
+            if processing.is_empty() {
+                let node: EvaluationResult<NodeIndex> = futures
+                    .join_next()
+                    .await
+                    .expect("should have a future to wait on")
+                    .expect("failed to join future");
+
+                let node = node?;
+                match &self.graph[node] {
+                    WorkflowGraphNode::Call(stmt) => {
+                        let call_name = stmt
+                            .alias()
+                            .map(|a| a.name())
+                            .unwrap_or_else(|| stmt.target().names().last().unwrap());
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = self.document.workflow().unwrap().name(),
+                            document = self.document.uri().as_str(),
+                            call_name = call_name.text(),
+                            "evaluation of call statement has completed",
+                        )
+                    }
+                    WorkflowGraphNode::ConditionalClause(clause, _) => debug!(
                         workflow_id = id.as_str(),
-                        workflow_name = state.document.workflow().unwrap().name(),
-                        document = state.document.uri().as_str(),
-                        variable = variable.text(),
-                        "evaluation of scatter statement has completed",
-                    )
+                        workflow_name = self.document.workflow().unwrap().name(),
+                        document = self.document.uri().as_str(),
+                        clause_kind = format!("{}", clause.kind()),
+                        expr = clause.expr().as_ref().map(|e| e.text().to_string()),
+                        "evaluation of conditional clause has completed"
+                    ),
+                    WorkflowGraphNode::Conditional(..) => debug!(
+                        workflow_id = id.as_str(),
+                        workflow_name = self.document.workflow().unwrap().name(),
+                        document = self.document.uri().as_str(),
+                        "evaluation of conditional statement has completed",
+                    ),
+                    WorkflowGraphNode::Scatter(stmt, _) => {
+                        let variable = stmt.variable();
+                        debug!(
+                            workflow_id = id.as_str(),
+                            workflow_name = self.document.workflow().unwrap().name(),
+                            document = self.document.uri().as_str(),
+                            variable = variable.text(),
+                            "evaluation of scatter statement has completed",
+                        )
+                    }
+                    _ => unreachable!(),
                 }
-                _ => unreachable!(),
+
+                awaiting.remove(&node);
+                subgraph.remove_node(&self.graph, node);
+
+                // Continue to see if we can progress further in the subgraph; if not we'll
+                // await more futures
+                continue;
             }
 
-            awaiting.remove(&node);
-            subgraph.remove_node(&state.graph, node);
-
-            // Continue to see if we can progress further in the subgraph; if not we'll
-            // await more futures
-            continue;
-        }
-
-        // Process the node now or spawn a future
-        for node in processing.iter().copied() {
-            trace!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                "evaluating node `{n:?}` ({node:?})",
-                n = state.graph[node]
-            );
-            match &state.graph[node] {
-                WorkflowGraphNode::Input(decl) => evaluate_input(&id, &state, decl)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
-                WorkflowGraphNode::Decl(decl) => evaluate_decl(&id, &state, scope, decl)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
-                WorkflowGraphNode::Output(decl) => evaluate_output(&id, &state, decl)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?,
-                WorkflowGraphNode::Conditional(stmt, _) => {
-                    let id = id.clone();
-                    let state = state.clone();
-                    let stmt = stmt.clone();
-                    futures.spawn(async move {
-                        evaluate_conditional(id, state, scope, node, &stmt, max_concurrency)
-                            .await?;
-                        Ok(node)
-                    });
-                    awaiting.insert(node);
-                }
-                WorkflowGraphNode::Scatter(stmt, _) => {
-                    let id = id.clone();
-                    let state = state.clone();
-                    let stmt = stmt.clone();
-                    futures.spawn(async move {
-                        let cancellation = state.top_level.cancellation.clone();
-                        let mut futures = JoinSet::new();
-                        match evaluate_scatter(
-                            id,
-                            state,
-                            scope,
-                            node,
-                            &stmt,
-                            max_concurrency,
-                            &mut futures,
-                        )
+            // Process the node now or spawn a future
+            for node in processing.iter().copied() {
+                trace!(
+                    workflow_id = id.as_str(),
+                    workflow_name = self.document.workflow().unwrap().name(),
+                    document = self.document.uri().as_str(),
+                    "evaluating node `{n:?}` ({node:?})",
+                    n = self.graph[node]
+                );
+                match &self.graph[node] {
+                    WorkflowGraphNode::Input(decl) => self
+                        .evaluate_input(&id, decl)
                         .await
-                        {
-                            Ok(_) => {
-                                // All futures should have completed
-                                assert!(futures.is_empty());
-                                Ok(node)
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    WorkflowGraphNode::Decl(decl) => self
+                        .evaluate_decl(&id, scope, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    WorkflowGraphNode::Output(decl) => self
+                        .evaluate_output(&id, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    WorkflowGraphNode::Conditional(stmt, _) => {
+                        let id = id.clone();
+                        let state = self.clone();
+                        let stmt = stmt.clone();
+                        futures.spawn(async move {
+                            state
+                                .evaluate_conditional(id, scope, node, &stmt, max_concurrency)
+                                .await?;
+                            Ok(node)
+                        });
+                        awaiting.insert(node);
+                    }
+                    WorkflowGraphNode::Scatter(stmt, _) => {
+                        let id = id.clone();
+                        let state = self.clone();
+                        let stmt = stmt.clone();
+                        futures.spawn(async move {
+                            let cancellation = state.top_level.cancellation.clone();
+                            let mut futures = JoinSet::new();
+                            match state
+                                .evaluate_scatter(
+                                    id,
+                                    scope,
+                                    node,
+                                    &stmt,
+                                    max_concurrency,
+                                    &mut futures,
+                                )
+                                .await
+                            {
+                                Ok(_) => {
+                                    // All futures should have completed
+                                    assert!(futures.is_empty());
+                                    Ok(node)
+                                }
+                                Err(e) => {
+                                    // Perform a cancellation and wait for the futures to complete
+                                    cancellation.error(&e);
+                                    futures.join_all().await;
+                                    Err(e)
+                                }
                             }
-                            Err(e) => {
-                                // Perform a cancellation and wait for the futures to complete
-                                cancellation.error(&e);
-                                futures.join_all().await;
-                                Err(e)
-                            }
-                        }
-                    });
-                    awaiting.insert(node);
+                        });
+                        awaiting.insert(node);
+                    }
+                    WorkflowGraphNode::Call(stmt) => {
+                        let id = id.clone();
+                        let state = self.clone();
+                        let stmt = stmt.clone();
+                        futures.spawn(async move {
+                            state.evaluate_call(&id, scope, &stmt).await?;
+                            Ok(node)
+                        });
+                        awaiting.insert(node);
+                    }
+                    WorkflowGraphNode::ConditionalClause(..)
+                    | WorkflowGraphNode::ExitConditional(_)
+                    | WorkflowGraphNode::ExitScatter(_) => {
+                        // Handled directly in `evaluate_conditional` and `evaluate_scatter`
+                        continue;
+                    }
                 }
-                WorkflowGraphNode::Call(stmt) => {
-                    let id = id.clone();
-                    let state = state.clone();
-                    let stmt = stmt.clone();
-                    futures.spawn(async move {
-                        evaluate_call(&id, state, scope, &stmt).await?;
-                        Ok(node)
-                    });
-                    awaiting.insert(node);
-                }
-                WorkflowGraphNode::ConditionalClause(..)
-                | WorkflowGraphNode::ExitConditional(_)
-                | WorkflowGraphNode::ExitScatter(_) => {
-                    // Handled directly in `evaluate_conditional` and `evaluate_scatter`
+            }
+
+            // Remove nodes that have completed
+            for node in processing.drain(..) {
+                if awaiting.contains(&node) {
                     continue;
                 }
+
+                subgraph.remove_node(&self.graph, node);
             }
         }
 
-        // Remove nodes that have completed
-        for node in processing.drain(..) {
-            if awaiting.contains(&node) {
-                continue;
-            }
-
-            subgraph.remove_node(&state.graph, node);
-        }
+        Ok(())
     }
 
-    Ok(())
-}
+    /// Evaluates a workflow input.
+    async fn evaluate_input(&self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        let expected_ty = crate::convert_ast_type_v1(&self.document, &decl.ty())?;
+        let expr = decl.expr();
 
-/// Evaluates a workflow input.
-async fn evaluate_input(
-    id: &str,
-    state: &State,
-    decl: &Decl<SyntaxNode>,
-) -> Result<(), Diagnostic> {
-    let name = decl.name();
-    let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
-    let expr = decl.expr();
-
-    // Either use the specified input or evaluate the input's expression
-    let (value, span) = match state.inputs.get(name.text()) {
-        Some(input) => {
-            // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
-            // will invoke the default expression
-            if input.is_none()
-                && !expected_ty.is_optional()
-                && state
-                    .document
-                    .version()
-                    .map(|v| v >= SupportedVersion::V1(V1::Two))
-                    .unwrap_or(false)
-                && let Some(expr) = decl.expr()
-            {
-                debug!(
-                    workflow_id = id,
-                    workflow_name = state.document.workflow().unwrap().name(),
-                    document = state.document.uri().as_str(),
-                    input_name = name.text(),
-                    "evaluating input default expression",
-                );
-
-                (
-                    evaluate_expr(state, Scopes::ROOT_INDEX, &expr).await?,
-                    expr.span(),
-                )
-            } else {
-                (input.clone(), name.span())
-            }
-        }
-        None => {
-            if let Some(expr) = expr {
-                debug!(
-                    workflow_id = id,
-                    workflow_name = state.document.workflow().unwrap().name(),
-                    document = state.document.uri().as_str(),
-                    input_name = name.text(),
-                    "evaluating input default expression",
-                );
-
-                (
-                    evaluate_expr(state, Scopes::ROOT_INDEX, &expr).await?,
-                    expr.span(),
-                )
-            } else {
-                assert!(expected_ty.is_optional(), "type should be optional");
-                (Value::new_none(expected_ty.clone()), name.span())
-            }
-        }
-    };
-
-    // Coerce the value to the expected type
-    let mut value = value
-        .coerce(None, &expected_ty)
-        .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
-
-    // Ensure paths exist for WDL 1.2+
-    if state
-        .document
-        .version()
-        .expect("document should have a version")
-        >= SupportedVersion::V1(V1::Two)
-    {
-        value = value
-            .resolve_paths(
-                expected_ty.is_optional(),
-                state.base_dir.as_local(),
-                Some(state.transferer()),
-                &|path| Ok(path.clone()),
-            )
-            .await
-            .map_err(|e| {
-                decl_evaluation_failed(
-                    e,
-                    state
+        // Either use the specified input or evaluate the input's expression
+        let (value, span) = match self.inputs.get(name.text()) {
+            Some(input) => {
+                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // will invoke the default expression
+                if input.is_none()
+                    && !expected_ty.is_optional()
+                    && self
                         .document
-                        .workflow()
-                        .expect("should have workflow")
-                        .name(),
-                    false,
-                    name.text(),
-                    Some(Io::Input),
-                    name.span(),
-                )
-            })?;
-    }
-
-    // Write the value into the root scope
-    state
-        .scopes
-        .write()
-        .await
-        .get_mut(Scopes::ROOT_INDEX)
-        .insert(name.text(), value);
-    Ok(())
-}
-
-/// Evaluates a workflow private declaration.
-async fn evaluate_decl(
-    id: &str,
-    state: &State,
-    scope: ScopeIndex,
-    decl: &Decl<SyntaxNode>,
-) -> Result<(), Diagnostic> {
-    let name = decl.name();
-    let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
-    let expr = decl.expr().expect("declaration should have expression");
-
-    debug!(
-        workflow_id = id,
-        workflow_name = state.document.workflow().unwrap().name(),
-        document = state.document.uri().as_str(),
-        decl_name = name.text(),
-        "evaluating private declaration",
-    );
-
-    // Evaluate the decl's expression
-    let value = evaluate_expr(state, scope, &expr).await?;
-
-    // Coerce the value to the expected type
-    let mut value = value.coerce(None, &expected_ty).map_err(|e| {
-        runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
-    })?;
-
-    // Ensure paths exist for WDL 1.2+
-    if state
-        .document
-        .version()
-        .expect("document should have a version")
-        >= SupportedVersion::V1(V1::Two)
-    {
-        value = value
-            .resolve_paths(
-                expected_ty.is_optional(),
-                state.base_dir.as_local(),
-                Some(state.transferer()),
-                &|path| Ok(path.clone()),
-            )
-            .await
-            .map_err(|e| {
-                decl_evaluation_failed(
-                    e,
-                    state
-                        .document
-                        .workflow()
-                        .expect("should have workflow")
-                        .name(),
-                    false,
-                    name.text(),
-                    None,
-                    name.span(),
-                )
-            })?;
-    }
-
-    state
-        .scopes
-        .write()
-        .await
-        .get_mut(scope)
-        .insert(name.text(), value);
-    Ok(())
-}
-
-/// Evaluates a workflow output.
-async fn evaluate_output(
-    id: &str,
-    state: &State,
-    decl: &Decl<SyntaxNode>,
-) -> Result<(), Diagnostic> {
-    let name = decl.name();
-    let expected_ty = crate::convert_ast_type_v1(&state.document, &decl.ty())?;
-    let expr = decl.expr().expect("declaration should have expression");
-
-    debug!(
-        workflow_id = id,
-        workflow_name = state.document.workflow().unwrap().name(),
-        document = state.document.uri().as_str(),
-        output_name = name.text(),
-        "evaluating output",
-    );
-
-    // Evaluate the decl's expression
-    let value = evaluate_expr(state, Scopes::OUTPUT_INDEX, &expr).await?;
-
-    // Coerce the value to the expected type
-    let mut value = value.coerce(None, &expected_ty).map_err(|e| {
-        runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
-    })?;
-
-    // Finally ensure output files exist
-    value = value
-        .resolve_paths(
-            expected_ty.is_optional(),
-            state.base_dir.as_local(),
-            Some(state.transferer()),
-            &|path| {
-                if !path::is_supported_url(path.as_str()) && Path::new(path.as_str()).is_relative()
+                        .version()
+                        .map(|v| v >= SupportedVersion::V1(V1::Two))
+                        .unwrap_or(false)
+                    && let Some(expr) = decl.expr()
                 {
-                    bail!("relative path `{path}` cannot be used as a workflow output");
-                }
+                    debug!(
+                        workflow_id = id,
+                        workflow_name = self.document.workflow().unwrap().name(),
+                        document = self.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression",
+                    );
 
-                Ok(path.clone())
-            },
-        )
-        .await
-        .map_err(|e| {
-            decl_evaluation_failed(
-                e,
-                state
-                    .document
-                    .workflow()
-                    .expect("should have workflow")
-                    .name(),
-                false,
-                name.text(),
-                Some(Io::Output),
-                name.span(),
-            )
+                    (
+                        self.evaluate_expr(Scopes::ROOT_INDEX, &expr).await?,
+                        expr.span(),
+                    )
+                } else {
+                    (input.clone(), name.span())
+                }
+            }
+            None => {
+                if let Some(expr) = expr {
+                    debug!(
+                        workflow_id = id,
+                        workflow_name = self.document.workflow().unwrap().name(),
+                        document = self.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression",
+                    );
+
+                    (
+                        self.evaluate_expr(Scopes::ROOT_INDEX, &expr).await?,
+                        expr.span(),
+                    )
+                } else {
+                    assert!(expected_ty.is_optional(), "type should be optional");
+                    (Value::new_none(expected_ty.clone()), name.span())
+                }
+            }
+        };
+
+        // Coerce the value to the expected type
+        let mut value = value
+            .coerce(None, &expected_ty)
+            .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+
+        // Ensure paths exist for WDL 1.2+
+        if self
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value = value
+                .resolve_paths(
+                    expected_ty.is_optional(),
+                    self.base_dir.as_local(),
+                    Some(self.transferer()),
+                    &|path| Ok(path.clone()),
+                )
+                .await
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        self.document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        Some(Io::Input),
+                        name.span(),
+                    )
+                })?;
+        }
+
+        // Write the value into the root scope
+        self.scopes
+            .write()
+            .await
+            .get_mut(Scopes::ROOT_INDEX)
+            .insert(name.text(), value);
+        Ok(())
+    }
+
+    /// Evaluates a workflow private declaration.
+    async fn evaluate_decl(
+        &self,
+        id: &str,
+        scope: ScopeIndex,
+        decl: &Decl<SyntaxNode>,
+    ) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        let expected_ty = crate::convert_ast_type_v1(&self.document, &decl.ty())?;
+        let expr = decl.expr().expect("declaration should have expression");
+
+        debug!(
+            workflow_id = id,
+            workflow_name = self.document.workflow().unwrap().name(),
+            document = self.document.uri().as_str(),
+            decl_name = name.text(),
+            "evaluating private declaration",
+        );
+
+        // Evaluate the decl's expression
+        let value = self.evaluate_expr(scope, &expr).await?;
+
+        // Coerce the value to the expected type
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+            runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
 
-    // Write the value into the output scope
-    state
-        .scopes
-        .write()
-        .await
-        .get_mut(Scopes::OUTPUT_INDEX)
-        .insert(name.text(), value);
-    Ok(())
-}
-
-/// Evaluates a workflow conditional statement.
-async fn evaluate_conditional(
-    id: Arc<String>,
-    state: Arc<State>,
-    parent: ScopeIndex,
-    entry: NodeIndex,
-    stmt: &ConditionalStatement<SyntaxNode>,
-    max_concurrency: u64,
-) -> EvaluationResult<()> {
-    let mut scope_union = ScopeUnion::new();
-    for clause in stmt.clauses() {
-        if let Some(braced_scope_span) = clause.braced_scope_span() {
-            let clause_scope = state
-                .document
-                .find_scope_by_position(braced_scope_span.start())
-                .expect("should have scope");
-
-            scope_union.insert(
-                clause_scope,
-                matches!(clause.kind(), ConditionalStatementClauseKind::Else),
-            );
+        // Ensure paths exist for WDL 1.2+
+        if self
+            .document
+            .version()
+            .expect("document should have a version")
+            >= SupportedVersion::V1(V1::Two)
+        {
+            value = value
+                .resolve_paths(
+                    expected_ty.is_optional(),
+                    self.base_dir.as_local(),
+                    Some(self.transferer()),
+                    &|path| Ok(path.clone()),
+                )
+                .await
+                .map_err(|e| {
+                    decl_evaluation_failed(
+                        e,
+                        self.document
+                            .workflow()
+                            .expect("should have workflow")
+                            .name(),
+                        false,
+                        name.text(),
+                        None,
+                        name.span(),
+                    )
+                })?;
         }
+
+        self.scopes
+            .write()
+            .await
+            .get_mut(scope)
+            .insert(name.text(), value);
+        Ok(())
     }
 
-    let all_names = scope_union
-        .resolve()
-        .expect("scope union should resolve without errors");
+    /// Evaluates a workflow output.
+    async fn evaluate_output(&self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        let expected_ty = crate::convert_ast_type_v1(&self.document, &decl.ty())?;
+        let expr = decl.expr().expect("declaration should have expression");
 
-    for clause in stmt.clauses() {
-        // Check if the clause has an expression to evaluate
-        if let Some(expr) = clause.expr() {
-            debug!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                expr = expr.text().to_string(),
-                "evaluating conditional statement expression",
-            );
+        debug!(
+            workflow_id = id,
+            workflow_name = self.document.workflow().unwrap().name(),
+            document = self.document.uri().as_str(),
+            output_name = name.text(),
+            "evaluating output",
+        );
 
-            // Evaluate the conditional expression
-            let value = evaluate_expr(&state, parent, &expr)
-                .await
-                .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+        // Evaluate the decl's expression
+        let value = self.evaluate_expr(Scopes::OUTPUT_INDEX, &expr).await?;
 
-            // Coerce to boolean and check if the branch should be taken
-            if !value
-                .coerce(None, &PrimitiveType::Boolean.into())
-                .map_err(|e| {
-                    EvaluationError::new(
-                        state.document.clone(),
-                        if_conditional_mismatch(e, &value.ty(), expr.span()),
-                    )
-                })?
-                .unwrap_boolean()
-            {
-                debug!(
-                    workflow_id = id.as_str(),
-                    workflow_name = state.document.workflow().unwrap().name(),
-                    document = state.document.uri().as_str(),
-                    "conditional statement branch was not taken and subgraph will be skipped"
+        // Coerce the value to the expected type
+        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+            runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
+        })?;
+
+        // Finally ensure output files exist
+        value = value
+            .resolve_paths(
+                expected_ty.is_optional(),
+                self.base_dir.as_local(),
+                Some(self.transferer()),
+                &|path| {
+                    if !path::is_supported_url(path.as_str())
+                        && Path::new(path.as_str()).is_relative()
+                    {
+                        bail!("relative path `{path}` cannot be used as a workflow output");
+                    }
+
+                    Ok(path.clone())
+                },
+            )
+            .await
+            .map_err(|e| {
+                decl_evaluation_failed(
+                    e,
+                    self.document
+                        .workflow()
+                        .expect("should have workflow")
+                        .name(),
+                    false,
+                    name.text(),
+                    Some(Io::Output),
+                    name.span(),
+                )
+            })?;
+
+        // Write the value into the output scope
+        self.scopes
+            .write()
+            .await
+            .get_mut(Scopes::OUTPUT_INDEX)
+            .insert(name.text(), value);
+        Ok(())
+    }
+
+    /// Evaluates a workflow conditional statement.
+    async fn evaluate_conditional(
+        self: Arc<State>,
+        id: Arc<String>,
+        parent: ScopeIndex,
+        entry: NodeIndex,
+        stmt: &ConditionalStatement<SyntaxNode>,
+        max_concurrency: u64,
+    ) -> EvaluationResult<()> {
+        let mut scope_union = ScopeUnion::new();
+        for clause in stmt.clauses() {
+            if let Some(braced_scope_span) = clause.braced_scope_span() {
+                let clause_scope = self
+                    .document
+                    .find_scope_by_position(braced_scope_span.start())
+                    .expect("should have scope");
+
+                scope_union.insert(
+                    clause_scope,
+                    matches!(clause.kind(), ConditionalStatementClauseKind::Else),
                 );
-                continue;
             }
-
-            debug!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                expr = expr.text().to_string(),
-                "conditional statement branch was taken and subgraph will be evaluated"
-            );
-        } else {
-            // No expression means this is an else clause
-            debug!(
-                workflow_id = id.as_str(),
-                workflow_name = state.document.workflow().unwrap().name(),
-                document = state.document.uri().as_str(),
-                "else branch was taken and subgraph will be evaluated"
-            );
         }
 
-        // If we reach here, this clause should be executed
-        let clause_node = state
-            .graph
-            .edges_directed(entry, Direction::Outgoing)
-            .find_map(|edge| {
-                let target = edge.target();
-                match &state.graph[target] {
-                    WorkflowGraphNode::ConditionalClause(c, _) if c.inner() == clause.inner() => {
-                        Some(target)
-                    }
-                    _ => None,
+        let all_names = scope_union
+            .resolve()
+            .expect("scope union should resolve without errors");
+
+        for clause in stmt.clauses() {
+            // Check if the clause has an expression to evaluate
+            if let Some(expr) = clause.expr() {
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = self.document.workflow().unwrap().name(),
+                    document = self.document.uri().as_str(),
+                    expr = expr.text().to_string(),
+                    "evaluating conditional statement expression",
+                );
+
+                // Evaluate the conditional expression
+                let value = self
+                    .evaluate_expr(parent, &expr)
+                    .await
+                    .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
+
+                // Coerce to boolean and check if the branch should be taken
+                if !value
+                    .coerce(None, &PrimitiveType::Boolean.into())
+                    .map_err(|e| {
+                        EvaluationError::new(
+                            self.document.clone(),
+                            if_conditional_mismatch(e, &value.ty(), expr.span()),
+                        )
+                    })?
+                    .unwrap_boolean()
+                {
+                    debug!(
+                        workflow_id = id.as_str(),
+                        workflow_name = self.document.workflow().unwrap().name(),
+                        document = self.document.uri().as_str(),
+                        "conditional statement branch was not taken and subgraph will be skipped"
+                    );
+                    continue;
                 }
-            })
-            .expect("clause node should exist in graph");
 
-        // Intentionally drop the write lock before evaluating the subgraph
-        let scope = { state.scopes.write().await.alloc(parent) };
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = self.document.workflow().unwrap().name(),
+                    document = self.document.uri().as_str(),
+                    expr = expr.text().to_string(),
+                    "conditional statement branch was taken and subgraph will be evaluated"
+                );
+            } else {
+                // No expression means this is an else clause
+                debug!(
+                    workflow_id = id.as_str(),
+                    workflow_name = self.document.workflow().unwrap().name(),
+                    document = self.document.uri().as_str(),
+                    "else branch was taken and subgraph will be evaluated"
+                );
+            }
 
-        // Evaluate this clause's subgraph
-        evaluate_subgraph(
-            state.clone(),
-            scope,
-            state.subgraphs[&clause_node].clone(),
-            max_concurrency,
-            id,
-        )
-        .await?;
+            // If we reach here, this clause should be executed
+            let clause_node = self
+                .graph
+                .edges_directed(entry, Direction::Outgoing)
+                .find_map(|edge| {
+                    let target = edge.target();
+                    match &self.graph[target] {
+                        WorkflowGraphNode::ConditionalClause(c, _)
+                            if c.inner() == clause.inner() =>
+                        {
+                            Some(target)
+                        }
+                        _ => None,
+                    }
+                })
+                .expect("clause node should exist in graph");
 
-        let mut scopes = state.scopes.write().await;
-        let (parent, child) = scopes.parent_mut(scope);
+            // Intentionally drop the write lock before evaluating the subgraph
+            let scope = { self.scopes.write().await.alloc(parent) };
 
+            // Evaluate this clause's subgraph
+            self.clone()
+                .evaluate_subgraph(
+                    scope,
+                    self.subgraphs[&clause_node].clone(),
+                    max_concurrency,
+                    id,
+                )
+                .await?;
+
+            let mut scopes = self.scopes.write().await;
+            let (parent, child) = scopes.parent_mut(scope);
+
+            for (name, name_info) in all_names {
+                let value = child
+                    .local()
+                    .find(|(n, _)| *n == name)
+                    .map(|(_, v)| v.clone());
+
+                if let Some(value) = value {
+                    parent.insert(name, value);
+                } else if let Type::Call(call_ty) = &name_info.ty() {
+                    parent.insert(
+                        name,
+                        CallValue::new_unchecked(
+                            call_ty.clone(),
+                            Outputs::from_iter(
+                                call_ty
+                                    .outputs()
+                                    .iter()
+                                    .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
+                            )
+                            .into(),
+                        ),
+                    );
+                } else {
+                    parent.insert(name, Value::new_none(name_info.ty().clone()));
+                }
+            }
+
+            scopes.free(scope);
+            return Ok(());
+        }
+
+        debug!(
+            workflow_id = id.as_str(),
+            workflow_name = self.document.workflow().unwrap().name(),
+            document = self.document.uri().as_str(),
+            "no conditional statement branch was taken"
+        );
+
+        // All conditionals evaluated to false; set the expected names to `None` in the
+        // parent scope.
+        let mut scopes = self.scopes.write().await;
+        let parent = scopes.get_mut(parent);
+
+        // Set all names to `None` with appropriate types
         for (name, name_info) in all_names {
-            let value = child
-                .local()
-                .find(|(n, _)| *n == name)
-                .map(|(_, v)| v.clone());
-
-            if let Some(value) = value {
-                parent.insert(name, value);
-            } else if let Type::Call(call_ty) = &name_info.ty() {
+            if let Type::Call(call_ty) = name_info.ty() {
                 parent.insert(
                     name,
                     CallValue::new_unchecked(
@@ -1329,426 +1363,394 @@ async fn evaluate_conditional(
             }
         }
 
-        scopes.free(scope);
-        return Ok(());
-    }
-
-    debug!(
-        workflow_id = id.as_str(),
-        workflow_name = state.document.workflow().unwrap().name(),
-        document = state.document.uri().as_str(),
-        "no conditional statement branch was taken"
-    );
-
-    // All conditionals evaluated to false; set the expected names to `None` in the
-    // parent scope.
-    let mut scopes = state.scopes.write().await;
-    let parent = scopes.get_mut(parent);
-
-    // Set all names to `None` with appropriate types
-    for (name, name_info) in all_names {
-        if let Type::Call(call_ty) = name_info.ty() {
-            parent.insert(
-                name,
-                CallValue::new_unchecked(
-                    call_ty.clone(),
-                    Outputs::from_iter(
-                        call_ty
-                            .outputs()
-                            .iter()
-                            .map(|(n, o)| (n.clone(), Value::new_none(o.ty().clone()))),
-                    )
-                    .into(),
-                ),
-            );
-        } else {
-            parent.insert(name, Value::new_none(name_info.ty().clone()));
-        }
-    }
-
-    Ok(())
-}
-
-/// Evaluates a workflow scatter statement.
-async fn evaluate_scatter(
-    id: Arc<String>,
-    state: Arc<State>,
-    parent: ScopeIndex,
-    entry: NodeIndex,
-    stmt: &ScatterStatement<SyntaxNode>,
-    max_concurrency: u64,
-    futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
-) -> EvaluationResult<()> {
-    /// Awaits the next future in the set of futures.
-    async fn await_next(
-        futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
-        scopes: &RwLock<Scopes>,
-        gathers: &mut HashMap<String, Gather>,
-        capacity: usize,
-    ) -> EvaluationResult<()> {
-        let (index, scope) = futures
-            .join_next()
-            .await
-            .expect("should have a future to wait on")
-            .expect("failed to join future")?;
-
-        // Append the result to the gather (the first two variables in scope are always
-        // the scatter index and variable)
-        let mut scopes = scopes.write().await;
-        for (name, value) in scopes.get_mut(scope).local().skip(2) {
-            match gathers.get_mut(name) {
-                Some(gather) => gather.set(index, value.clone())?,
-                None => {
-                    let prev = gathers.insert(
-                        name.to_string(),
-                        Gather::new(capacity, index, value.clone()),
-                    );
-                    assert!(prev.is_none());
-                }
-            }
-        }
-
-        scopes.free(scope);
         Ok(())
     }
 
-    let variable = stmt.variable();
-    let expr = stmt.expr();
+    /// Evaluates a workflow scatter statement.
+    async fn evaluate_scatter(
+        self: Arc<State>,
+        id: Arc<String>,
+        parent: ScopeIndex,
+        entry: NodeIndex,
+        stmt: &ScatterStatement<SyntaxNode>,
+        max_concurrency: u64,
+        futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
+    ) -> EvaluationResult<()> {
+        /// Awaits the next future in the set of futures.
+        async fn await_next(
+            futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
+            scopes: &RwLock<Scopes>,
+            gathers: &mut HashMap<String, Gather>,
+            capacity: usize,
+        ) -> EvaluationResult<()> {
+            let (index, scope) = futures
+                .join_next()
+                .await
+                .expect("should have a future to wait on")
+                .expect("failed to join future")?;
 
-    debug!(
-        workflow_id = id.as_str(),
-        workflow_name = state.document.workflow().unwrap().name(),
-        document = state.document.uri().as_str(),
-        variable = variable.text(),
-        "evaluating scatter statement",
-    );
-
-    // Evaluate the scatter array expression
-    let value = evaluate_expr(&state, parent, &expr)
-        .await
-        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-
-    let array = value
-        .as_array()
-        .ok_or_else(|| {
-            EvaluationError::new(
-                state.document.clone(),
-                type_is_not_array(&value.ty(), expr.span()),
-            )
-        })?
-        .as_slice();
-
-    let mut gathers: HashMap<_, Gather> = HashMap::new();
-    for (i, value) in array.iter().enumerate() {
-        if state.top_level.cancellation.state() != CancellationContextState::NotCanceled {
-            break;
-        }
-
-        // Allocate a scope
-        let scope = {
-            let mut scopes = state.scopes.write().await;
-            let index = scopes.alloc(parent);
-            let scope = scopes.get_mut(index);
-            scope.insert(
-                SCATTER_INDEX_VAR,
-                i64::try_from(i).map_err(|_| anyhow!("array index out of bounds"))?,
-            );
-            scope.insert(variable.text(), value.clone());
-            index
-        };
-
-        // Evaluate the subgraph
-        {
-            let state = state.clone();
-            let subgraph = state.subgraphs[&entry].clone();
-            let id = id.clone();
-            futures.spawn(async move {
-                evaluate_subgraph(state.clone(), scope, subgraph, max_concurrency, id).await?;
-
-                Ok((i, scope))
-            });
-        }
-
-        // If we've reached the concurrency limit, await one of the futures to complete
-        if futures.len() as u64 >= max_concurrency {
-            await_next(futures, &state.scopes, &mut gathers, array.len()).await?;
-        }
-    }
-
-    // Complete any outstanding futures
-    while !futures.is_empty() {
-        await_next(futures, &state.scopes, &mut gathers, array.len()).await?;
-    }
-
-    // Return an error if all the tasks completed but there was a cancellation
-    if state.top_level.cancellation.state() != CancellationContextState::NotCanceled {
-        return Err(EvaluationError::Canceled);
-    }
-
-    let mut scopes = state.scopes.write().await;
-    let scope = scopes.get_mut(parent);
-    for (name, gather) in gathers {
-        scope.insert(name, gather.into_value());
-    }
-
-    Ok(())
-}
-
-/// Evaluates a workflow call statement.
-async fn evaluate_call(
-    id: &str,
-    state: Arc<State>,
-    scope: ScopeIndex,
-    stmt: &CallStatement<SyntaxNode>,
-) -> EvaluationResult<()> {
-    #[allow(clippy::missing_docs_in_private_items)]
-    enum Target<'a> {
-        Task(&'a Task),
-        Workflow,
-    }
-
-    impl Target<'_> {
-        /// Runs evaluation with the given inputs.
-        ///
-        /// Returns the passed in context and the result of the evaluation.
-        async fn evaluate(
-            self,
-            top_level: &TopLevelEvaluator,
-            caller_id: &str,
-            document: &Document,
-            inputs: Inputs,
-            root_dir: &Path,
-            callee_id: &str,
-        ) -> EvaluationResult<Outputs> {
-            match self {
-                Target::Task(task) => {
-                    debug!(caller_id, callee_id, "evaluating call to task");
-                    top_level
-                        .perform_task_evaluation(
-                            document,
-                            task,
-                            &inputs.unwrap_task_inputs(),
-                            root_dir,
-                            callee_id,
-                        )
-                        .await?
-                        .outputs
-                }
-                Target::Workflow => {
-                    debug!(caller_id, callee_id, "evaluating call to workflow");
-                    top_level
-                        .perform_workflow_evaluation(
-                            document,
-                            inputs.unwrap_workflow_inputs(),
-                            root_dir,
-                            callee_id,
-                        )
-                        .await
+            // Append the result to the gather (the first two variables in scope are always
+            // the scatter index and variable)
+            let mut scopes = scopes.write().await;
+            for (name, value) in scopes.get_mut(scope).local().skip(2) {
+                match gathers.get_mut(name) {
+                    Some(gather) => gather.set(index, value.clone())?,
+                    None => {
+                        let prev = gathers.insert(
+                            name.to_string(),
+                            Gather::new(capacity, index, value.clone()),
+                        );
+                        assert!(prev.is_none());
+                    }
                 }
             }
-        }
-    }
 
-    let alias = stmt.alias();
-    let target = stmt.target();
-    let mut names = target.names().peekable();
-    let mut namespace = None;
-    let mut target = None;
-
-    // Resolve the target and namespace for the call
-    while let Some(name) = names.next() {
-        if names.peek().is_none() {
-            target = Some(name);
-            break;
+            scopes.free(scope);
+            Ok(())
         }
 
-        if namespace.is_some() {
-            return Err(EvaluationError::new(
-                state.document.clone(),
-                only_one_namespace(name.span()),
-            ));
-        }
+        let variable = stmt.variable();
+        let expr = stmt.expr();
 
-        let ns = state.document.namespace(name.text()).ok_or_else(|| {
-            EvaluationError::new(state.document.clone(), unknown_namespace(&name))
-        })?;
+        debug!(
+            workflow_id = id.as_str(),
+            workflow_name = self.document.workflow().unwrap().name(),
+            document = self.document.uri().as_str(),
+            variable = variable.text(),
+            "evaluating scatter statement",
+        );
 
-        namespace = Some((name, ns));
-    }
+        // Evaluate the scatter array expression
+        let value = self
+            .evaluate_expr(parent, &expr)
+            .await
+            .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
 
-    let target = target.expect("expected at least one name");
+        let array = value
+            .as_array()
+            .ok_or_else(|| {
+                EvaluationError::new(
+                    self.document.clone(),
+                    type_is_not_array(&value.ty(), expr.span()),
+                )
+            })?
+            .as_slice();
 
-    let alias = alias
-        .as_ref()
-        .map(|t| t.name())
-        .unwrap_or_else(|| target.clone());
-
-    debug!(
-        workflow_id = id,
-        workflow_name = state.document.workflow().unwrap().name(),
-        document = state.document.uri().as_str(),
-        call_name = alias.text(),
-        "evaluating call statement",
-    );
-
-    // Check for a directly recursive workflow call
-    if namespace.is_none()
-        && target.text()
-            == state
-                .document
-                .workflow()
-                .expect("should have workflow")
-                .name()
-    {
-        return Err(EvaluationError::new(
-            state.document.clone(),
-            recursive_workflow_call(target.text(), target.span()),
-        ));
-    }
-
-    // Determine the inputs and evaluator to use for the task or workflow call
-    let inputs = state.inputs.calls().get(alias.text()).cloned();
-    let document = namespace
-        .as_ref()
-        .map(|(_, ns)| ns.document())
-        .unwrap_or(&state.document);
-    let (mut inputs, call_target) = match document.task_by_name(target.text()) {
-        Some(task) => (
-            inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
-            Target::Task(task),
-        ),
-        _ => match document.workflow() {
-            Some(workflow) if workflow.name() == target.text() => (
-                inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                Target::Workflow,
-            ),
-            _ => {
-                return Err(EvaluationError::new(
-                    state.document.clone(),
-                    unknown_task_or_workflow(
-                        namespace.as_ref().map(|(_, ns)| ns.span()),
-                        target.text(),
-                        target.span(),
-                    ),
-                ));
+        let mut gathers: HashMap<_, Gather> = HashMap::new();
+        for (i, value) in array.iter().enumerate() {
+            if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+                break;
             }
-        },
-    };
 
-    // Evaluate the inputs
-    let scatter_index = evaluate_call_inputs(&state, stmt, scope, &mut inputs)
-        .await
-        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+            // Allocate a scope
+            let scope = {
+                let mut scopes = self.scopes.write().await;
+                let index = scopes.alloc(parent);
+                let scope = scopes.get_mut(index);
+                scope.insert(
+                    SCATTER_INDEX_VAR,
+                    i64::try_from(i).map_err(|_| anyhow!("array index out of bounds"))?,
+                );
+                scope.insert(variable.text(), value.clone());
+                index
+            };
 
-    let dir = format!(
-        "{alias}{sep}{scatter_index}",
-        alias = alias.text(),
-        sep = if scatter_index.is_empty() { "" } else { "-" },
-    );
+            // Evaluate the subgraph
+            {
+                let state = self.clone();
+                let subgraph = self.subgraphs[&entry].clone();
+                let id = id.clone();
+                futures.spawn(async move {
+                    state
+                        .evaluate_subgraph(scope, subgraph, max_concurrency, id)
+                        .await?;
 
-    let call_id = format_id(
-        namespace.as_ref().map(|(n, _)| n.text()),
-        target.text(),
-        alias.text(),
-        &scatter_index,
-    );
-
-    // Finally, evaluate the task or workflow and return the outputs
-    let outputs = call_target
-        .evaluate(
-            &state.top_level,
-            id,
-            document,
-            inputs,
-            &state.calls_dir.join(&dir),
-            &call_id,
-        )
-        .await
-        .map_err(|mut e| {
-            if let EvaluationError::Source(e) = &mut e {
-                e.backtrace.push(CallLocation {
-                    document: state.document.clone(),
-                    span: stmt
-                        .token::<CallKeyword<SyntaxToken>>()
-                        .expect("should have call keyword")
-                        .span(),
+                    Ok((i, scope))
                 });
             }
 
-            e
-        })?
-        .with_name(alias.text());
-
-    let ty = state
-        .document
-        .workflow()
-        .expect("should have workflow")
-        .calls()
-        .get(alias.text())
-        .expect("should have call");
-    state.scopes.write().await.get_mut(scope).insert(
-        alias.text(),
-        Value::Call(CallValue::new_unchecked(ty.clone(), Arc::new(outputs))),
-    );
-
-    Ok(())
-}
-
-/// Evaluates an expression.
-///
-/// This takes a read lock on the scopes.
-async fn evaluate_expr(
-    state: &State,
-    scope: ScopeIndex,
-    expr: &Expr<SyntaxNode>,
-) -> Result<Value, Diagnostic> {
-    let scopes = state.scopes.read().await;
-    ExprEvaluator::new(WorkflowEvaluationContext::new(
-        state,
-        scopes.reference(scope),
-    ))
-    .evaluate_expr(expr)
-    .await
-}
-
-/// Evaluates the call inputs of a call statement.
-///
-/// Returns the scatter index for the provided scope.
-///
-/// This takes a read lock on the scopes.
-async fn evaluate_call_inputs(
-    state: &State,
-    stmt: &CallStatement<SyntaxNode>,
-    scope: ScopeIndex,
-    inputs: &mut Inputs,
-) -> Result<String, Diagnostic> {
-    let scopes = state.scopes.read().await;
-    for input in stmt.inputs() {
-        let name = input.name();
-        let value = match input.expr() {
-            Some(expr) => {
-                let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
-                    state,
-                    scopes.reference(scope),
-                ));
-
-                evaluator.evaluate_expr(&expr).await?
+            // If we've reached the concurrency limit, await one of the futures to complete
+            if futures.len() as u64 >= max_concurrency {
+                await_next(futures, &self.scopes, &mut gathers, array.len()).await?;
             }
-            None => scopes
-                .reference(scope)
-                .lookup(name.text())
-                .cloned()
-                .ok_or_else(|| unknown_name(name.text(), name.span()))?,
-        };
+        }
 
-        let prev = inputs.set(input.name().text(), value);
-        assert!(
-            prev.is_none(),
-            "attempted to override a specified call input"
-        );
+        // Complete any outstanding futures
+        while !futures.is_empty() {
+            await_next(futures, &self.scopes, &mut gathers, array.len()).await?;
+        }
+
+        // Return an error if all the tasks completed but there was a cancellation
+        if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+            return Err(EvaluationError::Canceled);
+        }
+
+        let mut scopes = self.scopes.write().await;
+        let scope = scopes.get_mut(parent);
+        for (name, gather) in gathers {
+            scope.insert(name, gather.into_value());
+        }
+
+        Ok(())
     }
 
-    Ok(scopes.scatter_index(scope))
+    /// Evaluates a workflow call statement.
+    async fn evaluate_call(
+        self: Arc<State>,
+        id: &str,
+        scope: ScopeIndex,
+        stmt: &CallStatement<SyntaxNode>,
+    ) -> EvaluationResult<()> {
+        #[allow(clippy::missing_docs_in_private_items)]
+        enum Target<'a> {
+            Task(&'a Task),
+            Workflow,
+        }
+
+        impl Target<'_> {
+            /// Runs evaluation with the given inputs.
+            ///
+            /// Returns the passed in context and the result of the evaluation.
+            async fn evaluate(
+                self,
+                top_level: &TopLevelEvaluator,
+                caller_id: &str,
+                document: &Document,
+                inputs: Inputs,
+                root_dir: &Path,
+                callee_id: &str,
+            ) -> EvaluationResult<Outputs> {
+                match self {
+                    Target::Task(task) => {
+                        debug!(caller_id, callee_id, "evaluating call to task");
+                        top_level
+                            .perform_task_evaluation(
+                                document,
+                                task,
+                                &inputs.unwrap_task_inputs(),
+                                root_dir,
+                                callee_id,
+                            )
+                            .await?
+                            .outputs
+                    }
+                    Target::Workflow => {
+                        debug!(caller_id, callee_id, "evaluating call to workflow");
+                        top_level
+                            .perform_workflow_evaluation(
+                                document,
+                                inputs.unwrap_workflow_inputs(),
+                                root_dir,
+                                callee_id,
+                            )
+                            .await
+                    }
+                }
+            }
+        }
+
+        let alias = stmt.alias();
+        let target = stmt.target();
+        let mut names = target.names().peekable();
+        let mut namespace = None;
+        let mut target = None;
+
+        // Resolve the target and namespace for the call
+        while let Some(name) = names.next() {
+            if names.peek().is_none() {
+                target = Some(name);
+                break;
+            }
+
+            if namespace.is_some() {
+                return Err(EvaluationError::new(
+                    self.document.clone(),
+                    only_one_namespace(name.span()),
+                ));
+            }
+
+            let ns = self.document.namespace(name.text()).ok_or_else(|| {
+                EvaluationError::new(self.document.clone(), unknown_namespace(&name))
+            })?;
+
+            namespace = Some((name, ns));
+        }
+
+        let target = target.expect("expected at least one name");
+
+        let alias = alias
+            .as_ref()
+            .map(|t| t.name())
+            .unwrap_or_else(|| target.clone());
+
+        debug!(
+            workflow_id = id,
+            workflow_name = self.document.workflow().unwrap().name(),
+            document = self.document.uri().as_str(),
+            call_name = alias.text(),
+            "evaluating call statement",
+        );
+
+        // Check for a directly recursive workflow call
+        if namespace.is_none()
+            && target.text()
+                == self
+                    .document
+                    .workflow()
+                    .expect("should have workflow")
+                    .name()
+        {
+            return Err(EvaluationError::new(
+                self.document.clone(),
+                recursive_workflow_call(target.text(), target.span()),
+            ));
+        }
+
+        // Determine the inputs and evaluator to use for the task or workflow call
+        let inputs = self.inputs.calls().get(alias.text()).cloned();
+        let document = namespace
+            .as_ref()
+            .map(|(_, ns)| ns.document())
+            .unwrap_or(&self.document);
+        let (mut inputs, call_target) = match document.task_by_name(target.text()) {
+            Some(task) => (
+                inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
+                Target::Task(task),
+            ),
+            _ => match document.workflow() {
+                Some(workflow) if workflow.name() == target.text() => (
+                    inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
+                    Target::Workflow,
+                ),
+                _ => {
+                    return Err(EvaluationError::new(
+                        self.document.clone(),
+                        unknown_task_or_workflow(
+                            namespace.as_ref().map(|(_, ns)| ns.span()),
+                            target.text(),
+                            target.span(),
+                        ),
+                    ));
+                }
+            },
+        };
+
+        // Evaluate the inputs
+        let scatter_index = self
+            .evaluate_call_inputs(stmt, scope, &mut inputs)
+            .await
+            .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
+
+        let dir = format!(
+            "{alias}{sep}{scatter_index}",
+            alias = alias.text(),
+            sep = if scatter_index.is_empty() { "" } else { "-" },
+        );
+
+        let call_id = format_id(
+            namespace.as_ref().map(|(n, _)| n.text()),
+            target.text(),
+            alias.text(),
+            &scatter_index,
+        );
+
+        // Finally, evaluate the task or workflow and return the outputs
+        let outputs = call_target
+            .evaluate(
+                &self.top_level,
+                id,
+                document,
+                inputs,
+                &self.calls_dir.join(&dir),
+                &call_id,
+            )
+            .await
+            .map_err(|mut e| {
+                if let EvaluationError::Source(e) = &mut e {
+                    e.backtrace.push(CallLocation {
+                        document: self.document.clone(),
+                        span: stmt
+                            .token::<CallKeyword<SyntaxToken>>()
+                            .expect("should have call keyword")
+                            .span(),
+                    });
+                }
+
+                e
+            })?
+            .with_name(alias.text());
+
+        let ty = self
+            .document
+            .workflow()
+            .expect("should have workflow")
+            .calls()
+            .get(alias.text())
+            .expect("should have call");
+        self.scopes.write().await.get_mut(scope).insert(
+            alias.text(),
+            Value::Call(CallValue::new_unchecked(ty.clone(), Arc::new(outputs))),
+        );
+
+        Ok(())
+    }
+
+    /// Evaluates an expression.
+    ///
+    /// This takes a read lock on the scopes.
+    async fn evaluate_expr(
+        &self,
+        scope: ScopeIndex,
+        expr: &Expr<SyntaxNode>,
+    ) -> Result<Value, Diagnostic> {
+        let scopes = self.scopes.read().await;
+        ExprEvaluator::new(WorkflowEvaluationContext::new(
+            self,
+            scopes.reference(scope),
+        ))
+        .evaluate_expr(expr)
+        .await
+    }
+
+    /// Evaluates the call inputs of a call statement.
+    ///
+    /// Returns the scatter index for the provided scope.
+    ///
+    /// This takes a read lock on the scopes.
+    async fn evaluate_call_inputs(
+        &self,
+        stmt: &CallStatement<SyntaxNode>,
+        scope: ScopeIndex,
+        inputs: &mut Inputs,
+    ) -> Result<String, Diagnostic> {
+        let scopes = self.scopes.read().await;
+        for input in stmt.inputs() {
+            let name = input.name();
+            let value = match input.expr() {
+                Some(expr) => {
+                    let mut evaluator = ExprEvaluator::new(WorkflowEvaluationContext::new(
+                        self,
+                        scopes.reference(scope),
+                    ));
+
+                    evaluator.evaluate_expr(&expr).await?
+                }
+                None => scopes
+                    .reference(scope)
+                    .lookup(name.text())
+                    .cloned()
+                    .ok_or_else(|| unknown_name(name.text(), name.span()))?,
+            };
+
+            let prev = inputs.set(input.name().text(), value);
+            assert!(
+                prev.is_none(),
+                "attempted to override a specified call input"
+            );
+        }
+
+        Ok(scopes.scatter_index(scope))
+    }
 }
 
 #[cfg(test)]
