@@ -211,6 +211,156 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
+    let (app, _, temp) = create_test_server().pool(pool).call().await;
+
+    let wdl_file = temp.path().join("wdl").join("test.wdl");
+    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    // Submit first run
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id_1 = submit_response["id"].as_str().unwrap();
+
+    // Wait for first run to complete
+    let mut completed = false;
+    for _ in 0..100 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/runs/{}", run_id_1))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        if status_json["status"] == "completed" {
+            completed = true;
+            break;
+        }
+    }
+
+    assert!(completed, "first run should complete");
+
+    let run_dir = temp.path().join("runs").join("test");
+    let latest_symlink = run_dir.join("_latest");
+
+    // Get first execution directory
+    let execution_dirs: Vec<_> = std::fs::read_dir(&run_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| !p.file_name().unwrap().to_str().unwrap().starts_with('_'))
+        .collect();
+    assert_eq!(execution_dirs.len(), 1);
+    let first_execution_dir = &execution_dirs[0];
+
+    // Verify `_latest` points to first run
+    let target = std::fs::read_link(&latest_symlink).unwrap();
+    let resolved = latest_symlink.parent().unwrap().join(&target);
+    assert_eq!(
+        std::fs::canonicalize(&resolved).unwrap(),
+        std::fs::canonicalize(first_execution_dir).unwrap(),
+        "`_latest` should point to first run"
+    );
+
+    // Submit second run
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id_2 = submit_response["id"].as_str().unwrap();
+
+    // Wait for second run to complete
+    let mut completed = false;
+    for _ in 0..100 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/runs/{}", run_id_2))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        if status_json["status"] == "completed" {
+            completed = true;
+            break;
+        }
+    }
+
+    assert!(completed, "second run should complete");
+
+    // Get all execution directories
+    let execution_dirs: Vec<_> = std::fs::read_dir(&run_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| !p.file_name().unwrap().to_str().unwrap().starts_with('_'))
+        .collect();
+    assert_eq!(execution_dirs.len(), 2, "should have two execution directories");
+
+    // Find the second execution directory (most recent)
+    let second_execution_dir = execution_dirs
+        .iter()
+        .filter(|p| *p != first_execution_dir)
+        .next()
+        .unwrap();
+
+    // Verify `_latest` now points to second run
+    let target = std::fs::read_link(&latest_symlink).unwrap();
+    let resolved = latest_symlink.parent().unwrap().join(&target);
+    assert_eq!(
+        std::fs::canonicalize(&resolved).unwrap(),
+        std::fs::canonicalize(second_execution_dir).unwrap(),
+        "`_latest` should be updated to point to second run"
+    );
+}
+
+#[sqlx::test]
 async fn cancel_running_run(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 

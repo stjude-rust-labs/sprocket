@@ -13,7 +13,7 @@ insert into metadata (key, value) values ('schema_version', '1');
 -- Invocations table
 create table if not exists invocations (
     -- Unique identifier for this invocation
-    id blob primary key not null,
+    id text primary key not null,
     -- How the runs were submitted
     method text not null check(method in ('run', 'server')),
     -- User or system that created this invocation
@@ -25,9 +25,9 @@ create table if not exists invocations (
 -- Runs table
 create table if not exists runs (
     -- Unique identifier for this run
-    id blob primary key not null,
+    id text primary key not null,
     -- Foreign key to the invocation that submitted this run
-    invocation_id blob not null,
+    invocation_id text not null,
     -- Name of the run
     "name" text not null,
     -- Source WDL file path or URL
@@ -62,7 +62,7 @@ create table if not exists index_log (
     -- Unique identifier for this index log entry
     id integer primary key autoincrement not null,
     -- Foreign key to the run that created this index entry
-    run_id blob not null,
+    run_id text not null,
     -- Path to the symlink in the index directory
     index_path text not null,
     -- Path to the actual run output file being symlinked

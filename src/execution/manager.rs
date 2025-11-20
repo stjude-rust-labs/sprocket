@@ -470,6 +470,10 @@ impl RunManager {
             self.db
                 .update_run_status(id, db_status, Some(task.context.started_at), None)
                 .await?;
+
+            if db_status == RunStatus::Canceled {
+                self.runs.remove(&id);
+            }
         }
 
         Ok(CancelResponse { id })

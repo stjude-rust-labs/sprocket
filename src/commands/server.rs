@@ -22,9 +22,9 @@ pub struct Args {
     #[arg(long)]
     pub database_url: Option<String>,
 
-    /// The output directory.
-    #[clap(short, long, default_value = "./out", value_name = "OUTPUT_DIR")]
-    pub output_directory: PathBuf,
+    /// The output directory (default: `./out`).
+    #[clap(short, long, value_name = "OUTPUT_DIR")]
+    pub output_directory: Option<PathBuf>,
 
     /// Maximum database connections.
     #[arg(long)]
@@ -60,6 +60,10 @@ impl Args {
 
         if let Some(max_connections) = self.max_connections {
             config.server.database.max_connections = max_connections;
+        }
+
+        if let Some(output_directory) = self.output_directory {
+            config.execution.output_directory = output_directory;
         }
 
         config
