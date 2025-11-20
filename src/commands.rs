@@ -47,7 +47,7 @@ pub enum Commands {
     /// Runs a task or workflow.
     Run(run::Args),
 
-    /// Runs the HTTP API server for workflow execution.
+    /// Runs the HTTP API server for run execution.
     Server(server::Args),
 
     /// Validate a set of inputs against a task or workflow.
