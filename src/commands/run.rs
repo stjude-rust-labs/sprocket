@@ -385,7 +385,7 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 
     let ignore_path = root.join(IGNORE_FILENAME);
     if !ignore_path.exists() {
-        std::fs::writeln(&ignore_path, "*")
+        writeln!(&ignore_path, "*")
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
 
