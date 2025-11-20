@@ -104,7 +104,7 @@ use crate::http::HttpTransferer;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
-use crate::path::is_url;
+use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
@@ -757,12 +757,12 @@ impl<'a> State<'a> {
             .expect("document should have a version")
             >= SupportedVersion::V1(V1::Two)
         {
-            value
-                .ensure_paths_exist(
+            *value = value
+                .resolve_paths(
                     is_optional,
                     self.base_dir.as_local(),
                     Some(transferer.as_ref()),
-                    &|_| Ok(()),
+                    &|path| Ok(path.clone()),
                 )
                 .await?;
         }
@@ -783,7 +783,7 @@ impl<'a> State<'a> {
                 // localized; if so, we must localize it now
                 if needs_local_inputs
                     && self.backend_inputs.as_slice()[index].guest_path.is_none()
-                    && is_url(path.as_str())
+                    && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
                 {
                     urls.push((path.clone(), index));
@@ -1880,9 +1880,8 @@ impl TaskEvaluator {
         let mut value = value
             .coerce(Some(evaluator.context()), &ty)
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
-
-        value
-            .ensure_paths_exist(
+        value = value
+            .resolve_paths(
                 ty.is_optional(),
                 state.base_dir.as_local(),
                 Some(self.transferer.as_ref()),
@@ -1927,8 +1926,7 @@ impl TaskEvaluator {
                         }
                     };
 
-                    *path = output_path;
-                    Ok(())
+                    Ok(output_path)
                 },
             )
             .await

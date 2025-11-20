@@ -38,7 +38,7 @@ use crate::analysis::Source;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
-use crate::inputs::Inputs;
+use crate::inputs::Invocation;
 use crate::inputs::OriginPaths;
 
 /// The delay in showing the progress bar.
@@ -503,7 +503,7 @@ pub async fn run(args: Args) -> Result<()> {
     let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
         .await
         .with_context(|| {
             format!(
@@ -511,7 +511,7 @@ pub async fn run(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
+        .into_engine_invocation(document)?;
 
     let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
         inputs
@@ -524,17 +524,10 @@ pub async fn run(args: Args) -> Result<()> {
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) => {
-                    if workflow.name() == name {
-                        (name, EngineInputs::Workflow(Default::default()), origins)
-                    } else {
-                        bail!(
-                            "no task or workflow with name `{name}` was found in document `{path}`",
-                            path = document.path()
-                        );
-                    }
+                (None, Some(workflow)) if workflow.name() == name => {
+                    (name, EngineInputs::Workflow(Default::default()), origins)
                 }
-                (None, None) => bail!(
+                _ => bail!(
                     "no task or workflow with name `{name}` was found in document `{path}`",
                     path = document.path()
                 ),

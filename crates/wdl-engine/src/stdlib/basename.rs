@@ -43,7 +43,7 @@ fn basename(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(0, PrimitiveType::String)
         .unwrap_string();
 
-    if let Some(url) = path::parse_url(&path) {
+    if let Some(url) = path::parse_supported_url(&path) {
         let base = url
             .path_segments()
             .and_then(|mut segments| segments.next_back())
