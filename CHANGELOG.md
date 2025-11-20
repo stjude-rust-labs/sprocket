@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* running `sprocket run` now writes a `.sprocketignore` file to the runs directory, which will tell subsequent Sprocket commands to ignore its contents ([#469](https://github.com/stjude-rust-labs/sprocket/pull/469)).
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
 * Fixed the handling of unusual filenames in generated Apptainer scripts ([#459](https://github.com/stjude-rust-labs/sprocket/pull/459)).
 
