@@ -1062,7 +1062,7 @@ impl TopLevelEvaluator {
             {
                 if cacheable(&hints, &self.config) {
                     let request = KeyRequest {
-                        document: state.document,
+                        document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
@@ -2125,7 +2125,7 @@ mod test {
     use crate::config::BackendConfig;
     use crate::config::CallCachingMode;
     use crate::config::Config;
-    use crate::v1::TaskEvaluator;
+    use crate::v1::TopLevelEvaluator;
 
     /// Helper for evaluating a simple task with the given call cache mode.
     async fn evaluate_task(mode: CallCachingMode, root_dir: &Path, source: &str) -> EvaluatedTask {
@@ -2155,14 +2155,18 @@ mod test {
             .backends
             .insert("default".into(), BackendConfig::Local(Default::default()));
 
-        let evaluator =
-            TaskEvaluator::new(config, CancellationContext::default(), Events::disabled())
-                .await
-                .unwrap();
+        let evaluator = TopLevelEvaluator::new(
+            &root_dir.join("runs"),
+            config,
+            CancellationContext::default(),
+            Events::disabled(),
+        )
+        .await
+        .unwrap();
 
         let runs_dir = root_dir.join("runs");
         evaluator
-            .evaluate(
+            .evaluate_task(
                 document,
                 document.task_by_name("test").expect("should have task"),
                 &TaskInputs::default(),
