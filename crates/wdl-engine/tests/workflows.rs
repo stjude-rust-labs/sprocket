@@ -39,7 +39,6 @@ use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TopLevelEvaluator;
-use wdl_engine::v1::evaluate_workflow;
 
 mod common;
 
@@ -111,7 +110,10 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             Events::none(),
         )
         .await?;
-        match evaluate_workflow(&evaluator, result.document(), inputs.clone(), &dir).await {
+        match evaluator
+            .evaluate_workflow(result.document(), inputs.clone(), &dir)
+            .await
+        {
             Ok(outputs) => {
                 let outputs = outputs.with_name(workflow.name());
                 let outputs = to_string_pretty(&outputs).context("failed to serialize outputs")?;

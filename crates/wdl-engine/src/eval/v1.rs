@@ -15,7 +15,6 @@ use anyhow::Result;
 pub use expr::*;
 use serde::Serialize;
 pub use task::*;
-pub use workflow::*;
 
 use super::CancellationContext;
 use super::Events;

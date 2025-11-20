@@ -50,7 +50,6 @@ use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::path::EvaluationPath;
 use wdl_engine::v1::TopLevelEvaluator;
-use wdl_engine::v1::evaluate_task;
 
 mod common;
 
@@ -148,7 +147,10 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             Events::none(),
         )
         .await?;
-        match evaluate_task(&evaluator, result.document(), task, &inputs, dir.path()).await {
+        match evaluator
+            .evaluate_task(result.document(), task, &inputs, dir.path())
+            .await
+        {
             Ok(evaluated) => {
                 compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;
 

@@ -646,7 +646,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 /// Represents task evaluation state.
 struct State<'a> {
     /// The top-level evaluation context.
-    top_level: TopLevelEvaluator,
+    top_level: &'a TopLevelEvaluator,
     /// The temp directory.
     temp_dir: &'a Path,
     /// The base directory for evaluation.
@@ -684,11 +684,10 @@ impl<'a> State<'a> {
 
     /// Constructs a new task evaluation state.
     fn new(
-        top_level: TopLevelEvaluator,
+        top_level: &'a TopLevelEvaluator,
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
-        guest_inputs_dir: Option<&'static str>,
     ) -> Result<Self> {
         // Tasks have a root scope (index 0), an output scope (index 1), and a `task`
         // variable scope (index 2). The output scope inherits from the root scope and
@@ -704,7 +703,7 @@ impl<'a> State<'a> {
             Scope::new(OUTPUT_SCOPE_INDEX),
         ];
 
-        let backend_inputs = if let Some(guest_inputs_dir) = guest_inputs_dir {
+        let backend_inputs = if let Some(guest_inputs_dir) = top_level.backend.guest_inputs_dir() {
             InputTrie::new_with_guest_dir(guest_inputs_dir)
         } else {
             InputTrie::new()
@@ -867,306 +866,300 @@ struct EvaluatedSections {
     hints: Arc<HashMap<String, Value>>,
 }
 
-/// Evaluates the given task.
-///
-/// Upon success, returns the evaluated task.
-pub async fn evaluate_task(
-    top_level: &TopLevelEvaluator,
-    document: &Document,
-    task: &Task,
-    inputs: &TaskInputs,
-    root: impl AsRef<Path>,
-) -> EvaluationResult<EvaluatedTask> {
-    // We cannot evaluate a document with errors
-    if document.has_errors() {
-        return Err(anyhow!("cannot evaluate a document with errors").into());
-    }
-
-    let result = perform_task_evaluation(
-        top_level,
-        document,
-        task,
-        inputs,
-        root.as_ref(),
-        task.name(),
-    )
-    .await;
-
-    if top_level.cancellation.user_canceled() {
-        return Err(EvaluationError::Canceled);
-    }
-
-    result
-}
-
-/// Performs the evaluation of the given task.
-///
-/// This method skips checking the document (and its transitive imports) for
-/// analysis errors as the check occurs at the `evaluate` entrypoint.
-pub(crate) async fn perform_task_evaluation(
-    top_level: &TopLevelEvaluator,
-    document: &Document,
-    task: &Task,
-    inputs: &TaskInputs,
-    root: &Path,
-    id: &str,
-) -> EvaluationResult<EvaluatedTask> {
-    inputs.validate(document, task, None).with_context(|| {
-        format!(
-            "failed to validate the inputs to task `{task}`",
-            task = task.name()
-        )
-    })?;
-
-    let ast = match document.root().morph().ast() {
-        Ast::V1(ast) => ast,
-        _ => {
-            return Err(anyhow!("task evaluation is only supported for WDL 1.x documents").into());
-        }
-    };
-
-    // Find the task in the AST
-    let definition = ast
-        .tasks()
-        .find(|t| t.name().text() == task.name())
-        .expect("task should exist in the AST");
-
-    let version = document.version().expect("document should have version");
-
-    // Build an evaluation graph for the task
-    let mut diagnostics = Vec::new();
-    let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
-    assert!(
-        diagnostics.is_empty(),
-        "task evaluation graph should have no diagnostics"
-    );
-
-    debug!(
-        task_id = id,
-        task_name = task.name(),
-        document = document.uri().as_str(),
-        "evaluating task"
-    );
-
-    let root_dir = absolute(root).with_context(|| {
-        format!(
-            "failed to determine absolute path of `{path}`",
-            path = root.display()
-        )
-    })?;
-
-    // Create the temp directory now as it may be needed for task evaluation
-    let temp_dir = root_dir.join("tmp");
-    fs::create_dir_all(&temp_dir).with_context(|| {
-        format!(
-            "failed to create directory `{path}`",
-            path = temp_dir.display()
-        )
-    })?;
-
-    // Write the inputs to the task's root directory
-    write_json_file(root_dir.join(INPUTS_FILE), inputs)?;
-
-    let mut state = State::new(
-        top_level.clone(),
-        document,
-        task,
-        &temp_dir,
-        top_level.backend.guest_inputs_dir(),
-    )?;
-    let nodes = toposort(&graph, None).expect("graph should be acyclic");
-    let mut current = 0;
-    while current < nodes.len() {
-        match &graph[nodes[current]] {
-            TaskGraphNode::Input(decl) => {
-                evaluate_input(id, &mut state, decl, inputs)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-            }
-            TaskGraphNode::Decl(decl) => {
-                evaluate_decl(id, &mut state, decl)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-            }
-            TaskGraphNode::Output(_) => {
-                // Stop at the first output
-                break;
-            }
-            TaskGraphNode::Command(_)
-            | TaskGraphNode::Runtime(_)
-            | TaskGraphNode::Requirements(_)
-            | TaskGraphNode::Hints(_) => {
-                // Skip these sections for now; they'll evaluate in the
-                // retry loop
-            }
+impl TopLevelEvaluator {
+    /// Evaluates the given task.
+    ///
+    /// Upon success, returns the evaluated task.
+    pub async fn evaluate_task(
+        &self,
+        document: &Document,
+        task: &Task,
+        inputs: &TaskInputs,
+        task_eval_root: impl AsRef<Path>,
+    ) -> EvaluationResult<EvaluatedTask> {
+        // We cannot evaluate a document with errors
+        if document.has_errors() {
+            return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
-        current += 1;
-    }
+        let result = self
+            .perform_task_evaluation(document, task, inputs, task_eval_root.as_ref(), task.name())
+            .await;
 
-    let env = Arc::new(mem::take(&mut state.env));
-    // Spawn the task in a retry loop
-    let mut attempt = 0;
-    let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
-    let mut evaluated = loop {
-        if top_level.cancellation.state() != CancellationContextState::NotCanceled {
+        if self.cancellation.user_canceled() {
             return Err(EvaluationError::Canceled);
         }
 
-        let EvaluatedSections {
-            command,
-            requirements,
-            hints,
-        } = evaluate_sections(
-            id,
-            &mut state,
-            &definition,
-            inputs,
-            attempt,
-            previous_task_data.clone(),
-        )
-        .await?;
+        result
+    }
 
-        // Get the maximum number of retries, either from the task's requirements or
-        // from configuration
-        let max_retries = max_retries(&requirements, &top_level.config);
-
-        if max_retries > MAX_RETRIES {
-            return Err(anyhow!(
-                "task `max_retries` requirement of {max_retries} cannot exceed {MAX_RETRIES}"
+    /// Performs the evaluation of the given task.
+    ///
+    /// This method skips checking the document (and its transitive imports) for
+    /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    pub(crate) async fn perform_task_evaluation(
+        &self,
+        document: &Document,
+        task: &Task,
+        inputs: &TaskInputs,
+        task_eval_root: &Path,
+        id: &str,
+    ) -> EvaluationResult<EvaluatedTask> {
+        inputs.validate(document, task, None).with_context(|| {
+            format!(
+                "failed to validate the inputs to task `{task}`",
+                task = task.name()
             )
-            .into());
-        }
+        })?;
 
-        let mut attempt_dir = root_dir.clone();
-        attempt_dir.push("attempts");
-        attempt_dir.push(attempt.to_string());
+        let ast = match document.root().morph().ast() {
+            Ast::V1(ast) => ast,
+            _ => {
+                return Err(
+                    anyhow!("task evaluation is only supported for WDL 1.x documents").into(),
+                );
+            }
+        };
 
-        let request = TaskSpawnRequest::new(
-            id.to_string(),
-            TaskSpawnInfo::new(
-                command,
-                localize_inputs(id, &mut state).await?,
-                requirements.clone(),
-                hints.clone(),
-                env.clone(),
-                top_level.transferer.clone(),
-            ),
-            attempt,
-            attempt_dir.clone(),
-            root_dir.clone(),
-            temp_dir.clone(),
+        // Find the task in the AST
+        let definition = ast
+            .tasks()
+            .find(|t| t.name().text() == task.name())
+            .expect("task should exist in the AST");
+
+        let version = document.version().expect("document should have version");
+
+        // Build an evaluation graph for the task
+        let mut diagnostics = Vec::new();
+        let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
+        assert!(
+            diagnostics.is_empty(),
+            "task evaluation graph should have no diagnostics"
         );
 
-        let result = top_level
-            .backend
-            .spawn(request, top_level.cancellation.token())
-            .with_context(|| {
-                format!(
-                    "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
-                    name = task.name(),
-                    path = document.path(),
-                )
-            })?
-            .await
-            .expect("failed to receive response from spawned task")
-            .map_err(|e| {
-                EvaluationError::new(
-                    state.document.clone(),
-                    task_execution_failed(e, task.name(), id, task.name_span()),
-                )
-            })?;
+        debug!(
+            task_id = id,
+            task_name = task.name(),
+            document = document.uri().as_str(),
+            "evaluating task"
+        );
 
-        // Update the task variable
-        let evaluated = EvaluatedTask::new(attempt_dir, result)?;
-        if version >= SupportedVersion::V1(V1::Two) {
-            let task = state.scopes[TASK_SCOPE_INDEX.0]
-                .get_mut(TASK_VAR_NAME)
-                .expect("task variable should exist in scope for WDL v1.2+")
-                .as_task_post_evaluation_mut()
-                .expect("task should be a post evaluation task at this point");
+        let task_eval_root = absolute(task_eval_root).with_context(|| {
+            format!(
+                "failed to determine absolute path of `{path}`",
+                path = task_eval_root.display()
+            )
+        })?;
 
-            task.set_attempt(attempt.try_into().with_context(|| {
-                format!(
-                    "too many attempts were made to run task `{task}`",
-                    task = state.task.name()
-                )
-            })?);
-            task.set_return_code(evaluated.result.exit_code);
+        // Create the temp directory now as it may be needed for task evaluation
+        let temp_dir = task_eval_root.join("tmp");
+        fs::create_dir_all(&temp_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        // Write the inputs to the task's root directory
+        write_json_file(task_eval_root.join(INPUTS_FILE), inputs)?;
+
+        let mut state = State::new(self, document, task, &temp_dir)?;
+        let nodes = toposort(&graph, None).expect("graph should be acyclic");
+        let mut current = 0;
+        while current < nodes.len() {
+            match &graph[nodes[current]] {
+                TaskGraphNode::Input(decl) => {
+                    evaluate_input(id, &mut state, decl, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                }
+                TaskGraphNode::Decl(decl) => {
+                    evaluate_decl(id, &mut state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                }
+                TaskGraphNode::Output(_) => {
+                    // Stop at the first output
+                    break;
+                }
+                TaskGraphNode::Command(_)
+                | TaskGraphNode::Runtime(_)
+                | TaskGraphNode::Requirements(_)
+                | TaskGraphNode::Hints(_) => {
+                    // Skip these sections for now; they'll evaluate in the
+                    // retry loop
+                }
+            }
+
+            current += 1;
         }
 
-        if let Err(e) = evaluated
-            .handle_exit(&requirements, state.transferer().as_ref())
-            .await
-        {
-            if attempt >= max_retries {
-                return Err(EvaluationError::new(
-                    state.document.clone(),
-                    task_execution_failed(e, task.name(), id, task.name_span()),
-                ));
+        let env = Arc::new(mem::take(&mut state.env));
+        // Spawn the task in a retry loop
+        let mut attempt = 0;
+        let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
+        let mut evaluated = loop {
+            if self.cancellation.state() != CancellationContextState::NotCanceled {
+                return Err(EvaluationError::Canceled);
             }
 
-            attempt += 1;
+            let EvaluatedSections {
+                command,
+                requirements,
+                hints,
+            } = evaluate_sections(
+                id,
+                &mut state,
+                &definition,
+                inputs,
+                attempt,
+                previous_task_data.clone(),
+            )
+            .await?;
 
-            if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
-                // SAFETY: task variable should always be TaskPostEvaluation at this point
-                let task = task.as_task_post_evaluation().unwrap();
-                previous_task_data = Some(task.data().clone());
+            // Get the maximum number of retries, either from the task's requirements or
+            // from configuration
+            let max_retries = max_retries(&requirements, &self.config);
+
+            if max_retries > MAX_RETRIES {
+                return Err(anyhow!(
+                    "task `max_retries` requirement of {max_retries} cannot exceed {MAX_RETRIES}"
+                )
+                .into());
             }
 
-            info!(
-                "retrying execution of task `{name}` (retry {attempt})",
-                name = state.task.name()
+            let mut attempt_dir = task_eval_root.clone();
+            attempt_dir.push("attempts");
+            attempt_dir.push(attempt.to_string());
+
+            let request = TaskSpawnRequest::new(
+                id.to_string(),
+                TaskSpawnInfo::new(
+                    command,
+                    localize_inputs(id, &mut state).await?,
+                    requirements.clone(),
+                    hints.clone(),
+                    env.clone(),
+                    self.transferer.clone(),
+                ),
+                attempt,
+                attempt_dir.clone(),
+                task_eval_root.clone(),
+                temp_dir.clone(),
             );
-            continue;
+
+            let result = self
+                .backend
+                .spawn(request, self.cancellation.token())
+                .with_context(|| {
+                    format!(
+                        "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
+                        name = task.name(),
+                        path = document.path(),
+                    )
+                })?
+                .await
+                .expect("failed to receive response from spawned task")
+                .map_err(|e| {
+                    EvaluationError::new(
+                        state.document.clone(),
+                        task_execution_failed(e, task.name(), id, task.name_span()),
+                    )
+                })?;
+
+            // Update the task variable
+            let evaluated = EvaluatedTask::new(attempt_dir, result)?;
+            if version >= SupportedVersion::V1(V1::Two) {
+                let task = state.scopes[TASK_SCOPE_INDEX.0]
+                    .get_mut(TASK_VAR_NAME)
+                    .expect("task variable should exist in scope for WDL v1.2+")
+                    .as_task_post_evaluation_mut()
+                    .expect("task should be a post evaluation task at this point");
+
+                task.set_attempt(attempt.try_into().with_context(|| {
+                    format!(
+                        "too many attempts were made to run task `{task}`",
+                        task = state.task.name()
+                    )
+                })?);
+                task.set_return_code(evaluated.result.exit_code);
+            }
+
+            if let Err(e) = evaluated
+                .handle_exit(&requirements, state.transferer().as_ref())
+                .await
+            {
+                if attempt >= max_retries {
+                    return Err(EvaluationError::new(
+                        state.document.clone(),
+                        task_execution_failed(e, task.name(), id, task.name_span()),
+                    ));
+                }
+
+                attempt += 1;
+
+                if let Some(task) = state.scopes[TASK_SCOPE_INDEX.0].names.get(TASK_VAR_NAME) {
+                    // SAFETY: task variable should always be TaskPostEvaluation at this point
+                    let task = task.as_task_post_evaluation().unwrap();
+                    previous_task_data = Some(task.data().clone());
+                }
+
+                info!(
+                    "retrying execution of task `{name}` (retry {attempt})",
+                    name = state.task.name()
+                );
+                continue;
+            }
+
+            break evaluated;
+        };
+
+        // Perform backend cleanup before output evaluation
+        if let Some(cleanup) = self
+            .backend
+            .cleanup(&evaluated.result.work_dir, self.cancellation.token())
+        {
+            cleanup.await;
         }
 
-        break evaluated;
-    };
-
-    // Perform backend cleanup before output evaluation
-    if let Some(cleanup) = top_level
-        .backend
-        .cleanup(&evaluated.result.work_dir, top_level.cancellation.token())
-    {
-        cleanup.await;
-    }
-
-    // Evaluate the remaining inputs (unused), and decls, and outputs
-    for index in &nodes[current..] {
-        match &graph[*index] {
-            TaskGraphNode::Decl(decl) => {
-                evaluate_decl(id, &mut state, decl)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-            }
-            TaskGraphNode::Output(decl) => {
-                evaluate_output(id, &mut state, decl, &evaluated)
-                    .await
-                    .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-            }
-            _ => {
-                unreachable!("only declarations and outputs should be evaluated after the command")
+        // Evaluate the remaining inputs (unused), and decls, and outputs
+        for index in &nodes[current..] {
+            match &graph[*index] {
+                TaskGraphNode::Decl(decl) => {
+                    evaluate_decl(id, &mut state, decl)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                }
+                TaskGraphNode::Output(decl) => {
+                    evaluate_output(id, &mut state, decl, &evaluated)
+                        .await
+                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                }
+                _ => {
+                    unreachable!(
+                        "only declarations and outputs should be evaluated after the command"
+                    )
+                }
             }
         }
+
+        // Take the output scope and return it in declaration sort order
+        let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
+        if let Some(section) = definition.output() {
+            let indexes: HashMap<_, _> = section
+                .declarations()
+                .enumerate()
+                .map(|(i, d)| (d.name().hashable(), i))
+                .collect();
+            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+        }
+
+        // Write the outputs to the task's root directory
+        write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
+
+        evaluated.outputs = Ok(outputs);
+        Ok(evaluated)
     }
-
-    // Take the output scope and return it in declaration sort order
-    let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
-    if let Some(section) = definition.output() {
-        let indexes: HashMap<_, _> = section
-            .declarations()
-            .enumerate()
-            .map(|(i, d)| (d.name().hashable(), i))
-            .collect();
-        outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
-    }
-
-    // Write the outputs to the task's root directory
-    write_json_file(root_dir.join(OUTPUTS_FILE), &outputs)?;
-
-    evaluated.outputs = Ok(outputs);
-    Ok(evaluated)
 }
 
 /// Evaluates a task input.

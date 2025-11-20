@@ -84,7 +84,6 @@ use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::TopLevelEvaluator;
-use crate::v1::perform_task_evaluation;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -567,169 +566,171 @@ impl State {
     }
 }
 
-/// Evaluates the workflow of the given document.
-///
-/// Upon success, returns the outputs of the workflow.
-pub async fn evaluate_workflow(
-    top_level: &TopLevelEvaluator,
-    document: &Document,
-    inputs: WorkflowInputs,
-    // TODO ACF 2025-11-18: redundant with top_level
-    root_dir: impl AsRef<Path>,
-) -> EvaluationResult<Outputs> {
-    let workflow = document
-        .workflow()
-        .context("document does not contain a workflow")?;
+impl TopLevelEvaluator {
+    /// Evaluates the workflow of the given document.
+    ///
+    /// Upon success, returns the outputs of the workflow.
+    pub async fn evaluate_workflow(
+        &self,
+        document: &Document,
+        inputs: WorkflowInputs,
+        workflow_eval_root_dir: impl AsRef<Path>,
+    ) -> EvaluationResult<Outputs> {
+        let workflow = document
+            .workflow()
+            .context("document does not contain a workflow")?;
 
-    // We cannot evaluate a document with errors
-    if document.has_errors() {
-        return Err(anyhow!("cannot evaluate a document with errors").into());
-    }
-
-    let result = perform_workflow_evaluation(
-        top_level,
-        document,
-        inputs,
-        root_dir.as_ref(),
-        workflow.name(),
-    )
-    .await;
-
-    if top_level.cancellation.user_canceled() {
-        return Err(EvaluationError::Canceled);
-    }
-
-    result
-}
-
-/// Performs the evaluation of the workflow of the given document.
-///
-/// This method skips checking the document (and its transitive imports) for
-/// analysis errors as the check occurs at the `evaluate` entrypoint.
-async fn perform_workflow_evaluation(
-    top_level: &TopLevelEvaluator,
-    document: &Document,
-    inputs: WorkflowInputs,
-    root_dir: &Path,
-    id: &str,
-) -> EvaluationResult<Outputs> {
-    // Validate the inputs for the workflow
-    let workflow = document
-        .workflow()
-        .context("document does not contain a workflow")?;
-    inputs.validate(document, workflow, None).with_context(|| {
-        format!(
-            "failed to validate the inputs to workflow `{workflow}`",
-            workflow = workflow.name()
-        )
-    })?;
-
-    let ast = match document.root().morph().ast() {
-        Ast::V1(ast) => ast,
-        _ => {
-            return Err(
-                anyhow!("workflow evaluation is only supported for WDL 1.x documents").into(),
-            );
+        // We cannot evaluate a document with errors
+        if document.has_errors() {
+            return Err(anyhow!("cannot evaluate a document with errors").into());
         }
-    };
 
-    debug!(
-        workflow_id = id,
-        workflow_name = workflow.name(),
-        document = document.uri().as_str(),
-        "evaluating workflow",
-    );
+        let result = self
+            .perform_workflow_evaluation(
+                document,
+                inputs,
+                workflow_eval_root_dir.as_ref(),
+                workflow.name(),
+            )
+            .await;
 
-    // Find the workflow in the AST
-    let definition = ast
-        .workflows()
-        .next()
-        .expect("workflow should exist in the AST");
+        if self.cancellation.user_canceled() {
+            return Err(EvaluationError::Canceled);
+        }
 
-    // Build an evaluation graph for the workflow
-    let mut diagnostics = Vec::new();
-
-    // We need to provide inputs to the workflow graph builder to avoid adding
-    // dependency edges from the default expressions if a value was provided
-    let graph = WorkflowGraphBuilder::default()
-        .build(&definition, &mut diagnostics, |name| inputs.contains(name));
-    assert!(
-        diagnostics.is_empty(),
-        "workflow evaluation graph should have no diagnostics"
-    );
-
-    // Split the root subgraph for every conditional and scatter statement
-    let mut subgraph = Subgraph::new(&graph);
-    let subgraphs = subgraph.split(&graph);
-
-    let max_concurrency = top_level
-        .config
-        .workflow
-        .scatter
-        .concurrency
-        .unwrap_or_else(|| top_level.backend.max_concurrency());
-
-    // Create the temp directory now as it may be needed for workflow evaluation
-    let temp_dir = root_dir.join("tmp");
-    fs::create_dir_all(&temp_dir).with_context(|| {
-        format!(
-            "failed to create directory `{path}`",
-            path = temp_dir.display()
-        )
-    })?;
-
-    // Write the inputs to the workflow's root directory
-    write_json_file(root_dir.join(INPUTS_FILE), &inputs)?;
-
-    let calls_dir = root_dir.join("calls");
-    fs::create_dir_all(&calls_dir).with_context(|| {
-        format!(
-            "failed to create directory `{path}`",
-            path = temp_dir.display()
-        )
-    })?;
-
-    let document_path = document.path();
-    let mut base_dir = EvaluationPath::parent_of(&document_path)
-        .with_context(|| format!("document `{document_path}` does not have a parent directory"))?;
-
-    base_dir.make_absolute();
-
-    let state = Arc::new(State {
-        top_level: top_level.clone(),
-        document: document.clone(),
-        inputs,
-        scopes: Default::default(),
-        graph,
-        subgraphs,
-        base_dir,
-        temp_dir,
-        calls_dir,
-    });
-
-    // Evaluate the root graph to completion
-    evaluate_subgraph(
-        state.clone(),
-        Scopes::ROOT_INDEX,
-        subgraph,
-        max_concurrency,
-        Arc::new(id.to_string()),
-    )
-    .await?;
-
-    let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
-    if let Some(section) = definition.output() {
-        let indexes: HashMap<_, _> = section
-            .declarations()
-            .enumerate()
-            .map(|(i, d)| (d.name().hashable(), i))
-            .collect();
-        outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+        result
     }
 
-    // Write the outputs to the workflow's root directory
-    write_json_file(root_dir.join(OUTPUTS_FILE), &outputs)?;
-    Ok(outputs)
+    /// Performs the evaluation of the workflow of the given document.
+    ///
+    /// This method skips checking the document (and its transitive imports) for
+    /// analysis errors as the check occurs at the `evaluate` entrypoint.
+    async fn perform_workflow_evaluation(
+        &self,
+        document: &Document,
+        inputs: WorkflowInputs,
+        workflow_eval_root_dir: &Path,
+        id: &str,
+    ) -> EvaluationResult<Outputs> {
+        // Validate the inputs for the workflow
+        let workflow = document
+            .workflow()
+            .context("document does not contain a workflow")?;
+        inputs.validate(document, workflow, None).with_context(|| {
+            format!(
+                "failed to validate the inputs to workflow `{workflow}`",
+                workflow = workflow.name()
+            )
+        })?;
+
+        let ast = match document.root().morph().ast() {
+            Ast::V1(ast) => ast,
+            _ => {
+                return Err(
+                    anyhow!("workflow evaluation is only supported for WDL 1.x documents").into(),
+                );
+            }
+        };
+
+        debug!(
+            workflow_id = id,
+            workflow_name = workflow.name(),
+            document = document.uri().as_str(),
+            "evaluating workflow",
+        );
+
+        // Find the workflow in the AST
+        let definition = ast
+            .workflows()
+            .next()
+            .expect("workflow should exist in the AST");
+
+        // Build an evaluation graph for the workflow
+        let mut diagnostics = Vec::new();
+
+        // We need to provide inputs to the workflow graph builder to avoid adding
+        // dependency edges from the default expressions if a value was provided
+        let graph = WorkflowGraphBuilder::default()
+            .build(&definition, &mut diagnostics, |name| inputs.contains(name));
+        assert!(
+            diagnostics.is_empty(),
+            "workflow evaluation graph should have no diagnostics"
+        );
+
+        // Split the root subgraph for every conditional and scatter statement
+        let mut subgraph = Subgraph::new(&graph);
+        let subgraphs = subgraph.split(&graph);
+
+        let max_concurrency = self
+            .config
+            .workflow
+            .scatter
+            .concurrency
+            .unwrap_or_else(|| self.backend.max_concurrency());
+
+        // Create the temp directory now as it may be needed for workflow evaluation
+        let temp_dir = workflow_eval_root_dir.join("tmp");
+        fs::create_dir_all(&temp_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        // Write the inputs to the workflow's root directory
+        write_json_file(workflow_eval_root_dir.join(INPUTS_FILE), &inputs)?;
+
+        let calls_dir = workflow_eval_root_dir.join("calls");
+        fs::create_dir_all(&calls_dir).with_context(|| {
+            format!(
+                "failed to create directory `{path}`",
+                path = temp_dir.display()
+            )
+        })?;
+
+        let document_path = document.path();
+        let mut base_dir = EvaluationPath::parent_of(&document_path).with_context(|| {
+            format!("document `{document_path}` does not have a parent directory")
+        })?;
+
+        base_dir.make_absolute();
+
+        let state = Arc::new(State {
+            top_level: self.clone(),
+            document: document.clone(),
+            inputs,
+            scopes: Default::default(),
+            graph,
+            subgraphs,
+            base_dir,
+            temp_dir,
+            calls_dir,
+        });
+
+        // Evaluate the root graph to completion
+        evaluate_subgraph(
+            state.clone(),
+            Scopes::ROOT_INDEX,
+            subgraph,
+            max_concurrency,
+            Arc::new(id.to_string()),
+        )
+        .await?;
+
+        let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
+        if let Some(section) = definition.output() {
+            let indexes: HashMap<_, _> = section
+                .declarations()
+                .enumerate()
+                .map(|(i, d)| (d.name().hashable(), i))
+                .collect();
+            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+        }
+
+        // Write the outputs to the workflow's root directory
+        write_json_file(workflow_eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
+        Ok(outputs)
+    }
 }
 
 /// Evaluates a subgraph to completion.
@@ -1522,27 +1523,27 @@ async fn evaluate_call(
             match self {
                 Target::Task(task) => {
                     debug!(caller_id, callee_id, "evaluating call to task");
-                    perform_task_evaluation(
-                        top_level,
-                        document,
-                        task,
-                        &inputs.unwrap_task_inputs(),
-                        root_dir,
-                        callee_id,
-                    )
-                    .await?
-                    .outputs
+                    top_level
+                        .perform_task_evaluation(
+                            document,
+                            task,
+                            &inputs.unwrap_task_inputs(),
+                            root_dir,
+                            callee_id,
+                        )
+                        .await?
+                        .outputs
                 }
                 Target::Workflow => {
                     debug!(caller_id, callee_id, "evaluating call to workflow");
-                    perform_workflow_evaluation(
-                        top_level,
-                        document,
-                        inputs.unwrap_workflow_inputs(),
-                        root_dir,
-                        callee_id,
-                    )
-                    .await
+                    top_level
+                        .perform_workflow_evaluation(
+                            document,
+                            inputs.unwrap_workflow_inputs(),
+                            root_dir,
+                            callee_id,
+                        )
+                        .await
                 }
             }
         }
@@ -1867,15 +1868,15 @@ workflow test {
             .unwrap(),
         );
         let outputs_dir = root_dir.path().join("outputs");
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results.first().expect("should have result").document(),
-            inputs,
-            &outputs_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
         assert_eq!(outputs.iter().count(), 3, "expected three outputs");
 
         // Check the workflow inputs.json
@@ -2013,15 +2014,15 @@ workflow foo {
         let mut inputs = WorkflowInputs::default();
         inputs.set("useBlue", true);
         let outputs_dir = root_dir.path().join("outputs_blue");
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results.first().expect("should have result").document(),
-            inputs,
-            &outputs_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow with useBlue");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useBlue");
 
         assert_eq!(
             outputs
@@ -2044,15 +2045,15 @@ workflow foo {
         let mut inputs = WorkflowInputs::default();
         inputs.set("useRed", true);
         let outputs_dir = root_dir.path().join("outputs_red");
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results.first().expect("should have result").document(),
-            inputs,
-            &outputs_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow with useRed");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useRed");
 
         assert_eq!(
             outputs
@@ -2080,15 +2081,15 @@ workflow foo {
         let mut inputs = WorkflowInputs::default();
         inputs.set("useGreen", true);
         let outputs_dir = root_dir.path().join("outputs_green");
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results.first().expect("should have result").document(),
-            inputs,
-            &outputs_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow with useGreen");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with useGreen");
 
         assert_eq!(
             outputs
@@ -2115,15 +2116,15 @@ workflow foo {
 
         let inputs = WorkflowInputs::default();
         let outputs_dir = root_dir.path().join("outputs_else");
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results.first().expect("should have result").document(),
-            inputs,
-            &outputs_dir,
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow with else");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results.first().expect("should have result").document(),
+                inputs,
+                &outputs_dir,
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow with else");
 
         assert_eq!(
             outputs
@@ -2255,19 +2256,19 @@ workflow w {
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
-        let outputs = evaluate_workflow(
-            &evaluator,
-            results
-                .iter()
-                .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
-                .expect("should have result")
-                .document(),
-            WorkflowInputs::default(),
-            root_dir.path(),
-        )
-        .await
-        .map_err(|e| e.to_string())
-        .expect("failed to evaluate workflow");
+        let outputs = evaluator
+            .evaluate_workflow(
+                results
+                    .iter()
+                    .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+                    .expect("should have result")
+                    .document(),
+                WorkflowInputs::default(),
+                root_dir.path(),
+            )
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
 
         drop(evaluator);
         task.await.expect("failed to await events task");
@@ -2335,17 +2336,17 @@ workflow w {
         .await
         .unwrap();
 
-        let mut evaluation = evaluate_workflow(
-            &evaluator,
-            results
-                .iter()
-                .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
-                .expect("should have result")
-                .document(),
-            WorkflowInputs::default(),
-            root_dir.path(),
-        )
-        .boxed();
+        let mut evaluation = evaluator
+            .evaluate_workflow(
+                results
+                    .iter()
+                    .find(|r| r.document().uri().as_str().ends_with("source.wdl"))
+                    .expect("should have result")
+                    .document(),
+                WorkflowInputs::default(),
+                root_dir.path(),
+            )
+            .boxed();
 
         let mut state = CancellationContextState::NotCanceled;
         loop {

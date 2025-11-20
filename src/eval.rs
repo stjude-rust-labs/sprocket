@@ -13,8 +13,6 @@ use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::Config;
 use wdl::engine::v1::TopLevelEvaluator;
-use wdl::engine::v1::evaluate_task;
-use wdl::engine::v1::evaluate_workflow;
 
 use crate::inputs::OriginPaths;
 
@@ -87,7 +85,8 @@ impl<'a> Evaluator<'a> {
                 let evaluator =
                     TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
                         .await?;
-                evaluate_task(&evaluator, self.document, task, inputs, self.output_dir)
+                evaluator
+                    .evaluate_task(self.document, task, inputs, self.output_dir)
                     .await
                     .and_then(EvaluatedTask::into_result)
             }
@@ -117,7 +116,9 @@ impl<'a> Evaluator<'a> {
                 let evaluator =
                     TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
                         .await?;
-                evaluate_workflow(&evaluator, self.document, inputs, self.output_dir).await
+                evaluator
+                    .evaluate_workflow(self.document, inputs, self.output_dir)
+                    .await
             }
         }
     }

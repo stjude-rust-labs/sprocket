@@ -158,7 +158,7 @@ pub struct TaskSpawnRequest {
     /// The attempt directory for the task's execution.
     attempt_dir: PathBuf,
     /// The root directory for the evaluation.
-    root_dir: PathBuf,
+    task_eval_root: PathBuf,
     /// The temp directory for the evaluation.
     temp_dir: PathBuf,
 }
@@ -170,7 +170,7 @@ impl TaskSpawnRequest {
         info: TaskSpawnInfo,
         attempt: u64,
         attempt_dir: PathBuf,
-        root_dir: PathBuf,
+        task_eval_root: PathBuf,
         temp_dir: PathBuf,
     ) -> Self {
         Self {
@@ -178,7 +178,7 @@ impl TaskSpawnRequest {
             info,
             attempt,
             attempt_dir,
-            root_dir,
+            task_eval_root,
             temp_dir,
         }
     }
@@ -230,9 +230,9 @@ impl TaskSpawnRequest {
         &self.attempt_dir
     }
 
-    /// The root directory for the evaluation.
-    pub fn root_dir(&self) -> &Path {
-        &self.root_dir
+    /// The root directory for the task's evaluation.
+    pub fn task_eval_root_dir(&self) -> &Path {
+        &self.task_eval_root
     }
 
     /// The temp directory for the evaluation.

@@ -38,13 +38,20 @@ pub struct ApptainerConfig {
     /// executing tasks.
     pub extra_apptainer_exec_args: Option<Vec<String>>,
     /// Deprecated field.
+    ///
+    /// This was kept for compatibility with previous versions of the Apptainer
+    /// configuration fields, and may be removed in a future version. The
+    /// Apptainer images are now stored at the top level root directory of an
+    /// evaluation.
     #[serde(default)]
+    #[deprecated]
     pub apptainer_images_dir: Option<String>,
 }
 
 impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
+        #[expect(deprecated)]
         if self.apptainer_images_dir.is_some() {
             warn!(
                 "`apptainer_images_dir` is deprecated and no longer has an effect. Converted \
@@ -266,7 +273,7 @@ mod tests {
             info,
             attempt: 0,
             attempt_dir: tmp.path().join("0"),
-            root_dir: tmp.path().to_path_buf(),
+            task_eval_root: tmp.path().to_path_buf(),
             temp_dir: tmp.path().join("tmp"),
         };
         (tmp, state, spawn_request)
