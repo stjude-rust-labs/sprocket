@@ -48,3 +48,10 @@ pub fn config(args: Args, mut config: Config) -> anyhow::Result<()> {
     println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
     Ok(())
 }
+
+
+impl Args{
+    pub fn is_init(&self)-> bool{
+        matches!(self.command,ConfigSubcommand::Init)
+    }
+}
