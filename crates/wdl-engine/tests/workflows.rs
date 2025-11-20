@@ -38,7 +38,7 @@ use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::path::EvaluationPath;
-use wdl_engine::v1::WorkflowEvaluator;
+use wdl_engine::v1::TopLevelEvaluator;
 
 mod common;
 
@@ -103,10 +103,15 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         } else {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
-        let evaluator =
-            WorkflowEvaluator::new(config.engine, Default::default(), Events::none()).await?;
+        let evaluator = TopLevelEvaluator::new(
+            dir.path(),
+            config.engine,
+            Default::default(),
+            Events::none(),
+        )
+        .await?;
         match evaluator
-            .evaluate(result.document(), inputs.clone(), &dir)
+            .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await
         {
             Ok(outputs) => {
