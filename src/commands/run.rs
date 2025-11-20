@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
 use colored::Colorize as _;
@@ -38,8 +39,9 @@ use wdl::engine::config::SecretString;
 use wdl::engine::path::EvaluationPath;
 
 use crate::analysis::Analysis;
-use crate::analysis::AnalysisResults;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
@@ -471,9 +473,9 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(args: Args) -> Result<()> {
+pub async fn run(args: Args) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `run` command");
+        return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
     let style = ProgressStyle::with_template(
@@ -484,7 +486,7 @@ pub async fn run(args: Args) -> Result<()> {
     let span = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
 
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
         .init({
             let span = span.clone();
@@ -514,18 +516,11 @@ pub async fn run(args: Args) -> Result<()> {
         })
         .run()
         .await
-    {
-        Ok(results) => results.into_inner(),
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     // Emits diagnostics for all analyzed documents
     let mut errors = 0;
-    for result in &results {
+    for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
         if diagnostics.peek().is_some() {
             let path = result.document().path().to_string();
@@ -548,15 +543,13 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     if errors > 0 {
-        bail!(
+        return Err(anyhow!(
             "aborting due to previous {errors} error{s}",
             s = if errors == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     }
 
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
     let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
@@ -583,24 +576,30 @@ pub async fn run(args: Args) -> Result<()> {
                 (None, Some(workflow)) if workflow.name() == name => {
                     (name, EngineInputs::Workflow(Default::default()), origins)
                 }
-                _ => bail!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
-                    path = document.path()
-                ),
+                _ => {
+                    return Err(anyhow!(
+                        "no task or workflow with name `{name}` was found in document `{path}`",
+                        path = document.path()
+                    )
+                    .into());
+                }
             }
         } else {
-            bail!("the `--entrypoint` option is required if no inputs are provided")
+            return Err(
+                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
+            );
         }
     };
 
     let output_dir = if let Some(supplied_dir) = args.output {
         if supplied_dir.exists() {
             if !args.overwrite {
-                bail!(
+                return Err(anyhow!(
                     "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
                      its contents",
                     dir = supplied_dir.display()
-                );
+                )
+                .into());
             }
 
             std::fs::remove_dir_all(&supplied_dir).with_context(|| {
@@ -675,7 +674,7 @@ pub async fn run(args: Args) -> Result<()> {
             _ = tokio::signal::ctrl_c() => {
                 // If we've already been waiting for executing tasks to cancel, immediately bail out
                 if cancellation.state() == CancellationContextState::Canceling {
-                    bail!("evaluation was interrupted");
+                    return Err(anyhow!("evaluation was interrupted").into());
                 }
 
                 // Log the message indicating whether we're waiting on completion or waiting on cancellation
@@ -695,10 +694,10 @@ pub async fn run(args: Args) -> Result<()> {
 
                 return match res {
                     Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint)).context("failed to serialize outputs")?);
                         Ok(())
                     }
-                    Err(EvaluationError::Canceled) => bail!("evaluation was interrupted"),
+                    Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
@@ -708,9 +707,9 @@ pub async fn run(args: Args) -> Result<()> {
                             args.report_mode.unwrap_or_default(),
                             args.no_color
                         )?;
-                        bail!("aborting due to evaluation error");
+                        Err(anyhow!("aborting due to evaluation error").into())
                     }
-                    Err(EvaluationError::Other(e)) => Err(e)
+                    Err(EvaluationError::Other(e)) => Err(e.into())
                 };
             },
         }

@@ -1,6 +1,9 @@
 //! Implementation of sprocket CLI commands.
 
+use std::sync::Arc;
+
 use clap::Subcommand;
+use nonempty::NonEmpty;
 
 pub mod analyzer;
 pub mod check;
@@ -13,6 +16,42 @@ pub mod inputs;
 pub mod lock;
 pub mod run;
 pub mod validate;
+
+/// Represents an error that may result from a command.
+///
+/// The error may be from a single error source or multiple errors resulting
+/// from WDL source file analysis.
+pub enum CommandError {
+    /// The error is a single `anyhow::Error`.
+    Single(anyhow::Error),
+    /// The error is multiple shared `anyhow::Error`.
+    Multiple(NonEmpty<Arc<anyhow::Error>>),
+}
+
+impl CommandError {
+    /// Gets the first inner error.
+    pub fn first(&self) -> &anyhow::Error {
+        match self {
+            Self::Single(e) => e,
+            Self::Multiple(errors) => errors.first(),
+        }
+    }
+}
+
+impl From<anyhow::Error> for CommandError {
+    fn from(e: anyhow::Error) -> Self {
+        Self::Single(e)
+    }
+}
+
+impl From<NonEmpty<Arc<anyhow::Error>>> for CommandError {
+    fn from(errors: NonEmpty<Arc<anyhow::Error>>) -> Self {
+        Self::Multiple(errors)
+    }
+}
+
+/// Represents the result of a command.
+pub type CommandResult<T> = std::result::Result<T, CommandError>;
 
 /// Represents the available commands for the Sprocket CLI.
 #[derive(Subcommand, Debug)]

@@ -39,6 +39,11 @@ impl AnalysisResults {
         self.0
     }
 
+    /// Gets the slice of analysis results.
+    pub fn as_slice(&self) -> &[AnalysisResult] {
+        &self.0
+    }
+
     /// Attempts to find all analysis results that match any of the provided
     /// sources.
     pub fn filter(&self, sources: &[&Source]) -> impl Iterator<Item = &AnalysisResult> {

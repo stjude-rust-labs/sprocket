@@ -3,15 +3,15 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use anyhow::Ok;
 use anyhow::anyhow;
-use anyhow::bail;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use colored::Colorize;
 use wdl::analysis;
 use wdl::lint;
 use wdl::lint::Tag;
+
+use crate::commands::CommandResult;
 
 /// Usage string for the `explain` subcommand.
 const USAGE: &str = "sprocket explain [RULE]
@@ -140,7 +140,7 @@ pub fn pretty_print_analysis_rule(rule: &dyn analysis::Rule) {
 }
 
 /// Explains a lint rule.
-pub fn explain(args: Args) -> anyhow::Result<()> {
+pub fn explain(args: Args) -> CommandResult<()> {
     if args.list_all_rules {
         println!("{}", list_all_rules());
         return Ok(());
@@ -169,7 +169,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
 
         if rules.is_empty() {
             println!("{}\n", list_all_tags());
-            bail!("no rules found with the tag `{tag}`");
+            return Err(anyhow!("no rules found with the tag `{tag}`").into());
         } else {
             println!("Rules with the tag `{tag}`:");
             let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
@@ -201,7 +201,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
                     }
                     None => {
                         println!("{rules}\n", rules = list_all_rules());
-                        bail!("no rule found with the name `{rule_name}`");
+                        return Err(anyhow!("no rule found with the name `{rule_name}`").into());
                     }
                 }
             }

@@ -3,8 +3,7 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
@@ -17,6 +16,7 @@ use wdl::doc::install_theme;
 
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
+use crate::commands::CommandResult;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -105,11 +105,11 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args) -> Result<()> {
+pub async fn doc(args: Args) -> CommandResult<()> {
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
-        bail!("`workspace` must be a local directory for the `doc` command")
+        return Err(anyhow!("`workspace` must be a local directory for the `doc` command").into());
     };
     if args.install {
         if let Some(theme_path) = &args.theme {
@@ -117,7 +117,10 @@ pub async fn doc(args: Args) -> Result<()> {
                 format!("failed to install theme from `{}`", theme_path.display())
             })?;
         } else {
-            bail!("the `--install` flag requires the `--theme` argument to be specified");
+            return Err(anyhow!(
+                "the `--install` flag requires the `--theme` argument to be specified"
+            )
+            .into());
         }
     }
 
@@ -168,7 +171,7 @@ pub async fn doc(args: Args) -> Result<()> {
     let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
     if args.overwrite && docs_dir.exists() {
-        std::fs::remove_dir_all(&docs_dir)?;
+        std::fs::remove_dir_all(&docs_dir).context("failed to delete docs directory")?;
     }
 
     let analysis_config = AnalysisConfig::default()
@@ -194,5 +197,5 @@ pub async fn doc(args: Args) -> Result<()> {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
 
-    anyhow::Ok(())
+    Ok(())
 }

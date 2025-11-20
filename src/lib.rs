@@ -29,6 +29,8 @@ use tracing::trace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 
+use crate::commands::CommandResult;
+
 mod analysis;
 mod commands;
 mod config;
@@ -64,7 +66,7 @@ struct Cli {
     skip_config_search: bool,
 }
 
-async fn inner() -> anyhow::Result<()> {
+async fn inner() -> CommandResult<()> {
     let cli = Cli::parse();
 
     match std::env::var("RUST_LOG") {
@@ -78,7 +80,8 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
         Err(_) => {
             let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
@@ -90,7 +93,8 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
     };
 
@@ -130,6 +134,8 @@ async fn inner() -> anyhow::Result<()> {
 /// The Sprocket command line entrypoint.
 pub async fn sprocket_main() {
     if let Err(e) = inner().await {
+        // Only display the first error if multiple errors were encountered
+        let e = e.first();
         eprintln!(
             "{error}: {e:?}",
             error = if std::io::stderr().is_terminal() {
