@@ -312,7 +312,7 @@ pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResu
     // Add document
     let uri = source.to_url();
     analyzer
-        .add_document(uri)
+        .add_document(uri.clone())
         .await
         .context("failed to add document")?;
 
@@ -322,8 +322,10 @@ pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResu
         .await
         .context("failed to analyze document")?;
 
-    // Get first result
-    results.into_iter().next().context("no analysis results")
+    results
+        .into_iter()
+        .find(|result| **result.document().uri() == uri)
+        .context("no analysis results")
 }
 
 /// Validates the analysis result for parsing and diagnostic errors.
