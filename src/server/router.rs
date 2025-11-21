@@ -5,7 +5,13 @@ use std::sync::Arc;
 use anyhow::Context;
 use axum::Router;
 use axum::http::HeaderValue;
+use tower_http::LatencyUnit;
 use tower_http::cors::CorsLayer;
+use tower_http::trace::DefaultMakeSpan;
+use tower_http::trace::DefaultOnRequest;
+use tower_http::trace::DefaultOnResponse;
+use tower_http::trace::TraceLayer;
+use tracing::Level;
 use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -25,6 +31,15 @@ const EVENTS_CHANNEL_CAPACITY: usize = 100;
 /// Create the application router.
 #[bon::builder]
 pub fn create_router(state: AppState, cors: CorsLayer) -> Router {
+    let trace = TraceLayer::new_for_http()
+        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+        .on_request(DefaultOnRequest::new().level(Level::INFO))
+        .on_response(
+            DefaultOnResponse::new()
+                .level(Level::INFO)
+                .latency_unit(LatencyUnit::Millis),
+        );
+
     Router::new()
         .merge(
             SwaggerUi::new("/api/v1/swagger-ui")
@@ -32,6 +47,7 @@ pub fn create_router(state: AppState, cors: CorsLayer) -> Router {
         )
         .nest("/api", super::api::create_router(state))
         .layer(cors)
+        .layer(trace)
 }
 
 /// Run the server.
