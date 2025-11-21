@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::extract::rejection::QueryRejection;
 use uuid::Uuid;
 
 use super::AppState;
@@ -79,8 +80,15 @@ pub async fn get_run(
 )]
 pub async fn list_runs(
     State(state): State<AppState>,
-    Query(query): Query<ListRunsQuery>,
+    query: Result<Query<ListRunsQuery>, QueryRejection>,
 ) -> Result<Json<ListResponse>, Error> {
+    let Query(query) = query.map_err(|rejection| match rejection {
+        QueryRejection::FailedToDeserializeQueryString(err) => {
+            Error::BadRequest(format!("invalid query parameters: {}", err))
+        }
+        _ => Error::BadRequest("invalid query parameters".to_string()),
+    })?;
+
     let response = send_command(&state.manager, |rx| ManagerCommand::List {
         status: query.status,
         limit: query.limit,

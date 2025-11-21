@@ -4,6 +4,7 @@ use axum::Json;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::extract::rejection::QueryRejection;
 use uuid::Uuid;
 
 use super::AppState;
@@ -26,8 +27,15 @@ use crate::execution::ManagerCommand;
 )]
 pub async fn list_invocations(
     State(state): State<AppState>,
-    Query(query): Query<ListInvocationsQuery>,
+    query: Result<Query<ListInvocationsQuery>, QueryRejection>,
 ) -> Result<Json<ListInvocationsResponse>, Error> {
+    let Query(query) = query.map_err(|rejection| match rejection {
+        QueryRejection::FailedToDeserializeQueryString(err) => {
+            Error::BadRequest(format!("invalid query parameters: {}", err))
+        }
+        _ => Error::BadRequest("invalid query parameters".to_string()),
+    })?;
+
     let response = send_command(&state.manager, |rx| ManagerCommand::ListInvocations {
         limit: query.limit,
         offset: query.offset,
