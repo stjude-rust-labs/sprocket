@@ -144,7 +144,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             dir.path(),
             config.engine,
             Default::default(),
-            Events::none(),
+            Events::disabled(),
         )
         .await?;
         match evaluator
@@ -187,7 +187,11 @@ fn compare_evaluation_results(
     temp_dir: &Path,
     evaluated: &EvaluatedTask,
 ) -> Result<()> {
-    let command_path = evaluated.attempt_dir().join("command");
+    let command_path = evaluated
+        .work_dir()
+        .join("../command")
+        .unwrap()
+        .unwrap_local();
     let command = fs::read_to_string(&command_path).with_context(|| {
         format!(
             "failed to read task command file `{path}`",

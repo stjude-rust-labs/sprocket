@@ -122,7 +122,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
         },
     );
     analyzer
-        .add_directory(test.to_path_buf())
+        .add_directory(test)
         .await
         .context("adding directory")?;
     let results = analyzer.analyze(()).await.context("running analysis")?;
