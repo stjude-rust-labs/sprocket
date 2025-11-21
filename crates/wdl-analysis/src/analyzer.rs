@@ -434,11 +434,7 @@ where
 
             for result in walker {
                 let entry = result.with_context(|| {
-                    if let Some(ignore_filename) = config.ignore_filename() {
-                        format!("error parsing ignorefile with basename `{ignore_filename}`")
-                    } else {
-                        format!("failed to read directory `{path}`", path = path.display())
-                    }
+                    format!("failed to read directory `{path}`", path = path.display())
                 })?;
 
                 // Skip entries without a file type
