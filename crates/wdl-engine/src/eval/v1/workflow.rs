@@ -76,7 +76,6 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::http::Transferer;
-use crate::path;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
@@ -1152,7 +1151,7 @@ impl State {
                 self.base_dir.as_local(),
                 Some(self.transferer()),
                 &|path| {
-                    if !path::is_supported_url(path.as_str()) && path.is_relative() {
+                    if path.is_relative() {
                         bail!("relative path `{path}` cannot be used as a workflow output");
                     }
 
