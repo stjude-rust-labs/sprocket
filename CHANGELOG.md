@@ -373,4 +373,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed 
 
-* Fixed the sprocket config init bug where the unnecessary loading of default sprocket.toml that can be malformed is skipped 
+* Fixed a bug in `sprocket config init` where `sprocket.toml` was unnecessarily loaded and would fail if malformed ([#473](https://github.com/stjude-rust-labs/sprocket/pull/473)).
