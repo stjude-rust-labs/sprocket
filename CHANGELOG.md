@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed a bug in `sprocket config init` where `sprocket.toml` was unnecessarily loaded and would fail if malformed ([#473](https://github.com/stjude-rust-labs/sprocket/pull/473)).
 * Fixed Sprocket commands not always showing the full context of errors ([#472](https://github.com/stjude-rust-labs/sprocket/pull/472)).
 * running `sprocket run` now writes a `.sprocketignore` file to the runs directory, which will tell subsequent Sprocket commands to ignore its contents ([#469](https://github.com/stjude-rust-labs/sprocket/pull/469)).
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).

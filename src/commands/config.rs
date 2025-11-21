@@ -14,6 +14,13 @@ pub struct Args {
     command: ConfigSubcommand,
 }
 
+impl Args {
+    /// Returns `true` if the subcommand is 'Init'.
+    pub fn is_init(&self) -> bool {
+        matches!(self.command, ConfigSubcommand::Init)
+    }
+}
+
 /// Subcommands for the `config` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigSubcommand {
