@@ -14,6 +14,13 @@ pub struct Args {
     command: ConfigSubcommand,
 }
 
+impl Args {
+    /// Returns `true` if the subcommand is 'Init'.
+    pub fn is_init(&self) -> bool {
+        matches!(self.command, ConfigSubcommand::Init)
+    }
+}
+
 /// Subcommands for the `config` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigSubcommand {
@@ -48,11 +55,4 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
 
     println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
     Ok(())
-}
-
-
-impl Args{
-    pub fn is_init(&self)-> bool{
-        matches!(self.command,ConfigSubcommand::Init)
-    }
 }

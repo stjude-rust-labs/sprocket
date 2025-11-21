@@ -98,22 +98,22 @@ async fn inner() -> CommandResult<()> {
     };
 
     let config = match &cli.command {
-    Commands::Config(config_args) if config_args.is_init() => {
-        // For `config init`, skip loading and use default
-        Config::default()
-    }
-    _ => {
-        // For all other commands, load config normally
-        let config = Config::new(
-            cli.config.iter().map(PathBuf::as_path),
-            cli.skip_config_search,
-        )?;
-        config
-            .validate()
-            .with_context(|| "validating provided configuration")?;
-        config
-    }
-};
+        Commands::Config(config_args) if config_args.is_init() => {
+            // For `config init`, skip loading and use default
+            Config::default()
+        }
+        _ => {
+            // For all other commands, load config normally
+            let config = Config::new(
+                cli.config.iter().map(PathBuf::as_path),
+                cli.skip_config_search,
+            )?;
+            config
+                .validate()
+                .with_context(|| "validating provided configuration")?;
+            config
+        }
+    };
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
