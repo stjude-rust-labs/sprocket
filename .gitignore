@@ -6,7 +6,7 @@ target/
 
 rustc-ice*
 
-runs/
+out/
 
 .idea
 
