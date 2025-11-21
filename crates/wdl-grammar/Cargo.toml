@@ -1,6 +1,6 @@
 [package]
 name = "wdl-grammar"
-version = "0.18.0"
+version = "0.19.0"
 description = "A parse tree for Workflow Description Language (WDL) documents"
 authors.workspace = true
 rust-version.workspace = true

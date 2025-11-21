@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.15.0 - 11-21-2025
+
 ## 0.14.0 - 10-14-2025
 
 * Added support for signature help ([#409](https://github.com/stjude-rust-labs/sprocket/pull/409)).

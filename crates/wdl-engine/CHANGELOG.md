@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.10.0 - 11-21-2025
+
 #### Added
 
 * Added call caching configuration to `TaskConfig` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).

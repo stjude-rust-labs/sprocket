@@ -3700,7 +3700,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4806,7 +4806,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -4839,7 +4839,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4874,7 +4874,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -4891,7 +4891,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -4911,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "anyhow",
  "approx",
@@ -4965,7 +4965,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4978,7 +4978,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -4993,7 +4993,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -5019,7 +5019,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "anyhow",
  "fs_extra",
