@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.0 - 11-21-2025
+
 ### Added
 
 * Added `run.task.cache` and `run.task.cache_dir` settings to `sprocket.toml`
