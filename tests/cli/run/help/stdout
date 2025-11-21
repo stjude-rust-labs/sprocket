@@ -90,6 +90,9 @@ Options:
   -c, --config <CONFIG>
           Path to the configuration file
 
+      --no-call-cache
+          Disables the use of the call cache for this run
+
   -s, --skip-config-search
           Skip searching for and loading configuration files.
           

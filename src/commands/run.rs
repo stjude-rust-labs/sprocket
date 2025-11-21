@@ -1,6 +1,9 @@
 //! Implementation of the `run` subcommand.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,10 +11,11 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
 use colored::Colorize as _;
-use crankshaft::events::Event;
+use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
@@ -26,15 +30,18 @@ use wdl::ast::Severity;
 use wdl::engine;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 use wdl::engine::path::EvaluationPath;
 
 use crate::analysis::Analysis;
-use crate::analysis::AnalysisResults;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
@@ -182,6 +189,10 @@ pub struct Args {
     )]
     pub google_hmac_secret: Option<SecretString>,
 
+    /// Disables the use of the call cache for this run.
+    #[clap(long)]
+    pub no_call_cache: bool,
+
     /// The engine configuration to use.
     ///
     /// This is not exposed via [`clap`] and is not settable by users.
@@ -246,6 +257,11 @@ impl Args {
             }
         }
 
+        // Disable the call cache if requested
+        if self.no_call_cache {
+            self.engine.task.cache = CallCachingMode::Off;
+        }
+
         self
     }
 }
@@ -289,29 +305,52 @@ struct State {
     failed: usize,
     /// The number of completed tasks.
     completed: usize,
+    /// The number of task results reused from the cache.
+    cached: usize,
 }
 
 /// Displays evaluation progress.
-async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
+async fn progress(
+    mut crankshaft: broadcast::Receiver<CrankshaftEvent>,
+    mut engine: broadcast::Receiver<EngineEvent>,
+    pb: tracing::Span,
+) {
     /// Helper for formatting the progress bar
     fn message(state: &State) -> String {
-        let executing = state.executing.len();
-        let ready = state.tasks.len() - executing;
-        format!(
-            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
-             task{s3}{sep}{tasks}",
-            c = state.completed,
-            completed = "completed".cyan(),
-            s1 = if state.completed == 1 { "" } else { "s" },
-            r = ready,
-            ready = "ready".cyan(),
-            s2 = if ready == 1 { "" } else { "s" },
-            e = executing,
-            executing = "executing".cyan(),
-            s3 = if executing == 1 { "" } else { "s" },
-            sep = if executing == 0 { "" } else { ": " },
-            tasks = Tasks(&state.executing)
-        )
+        fn append(message: &mut String, count: usize, kind: impl std::fmt::Display) {
+            if count > 0 {
+                let comma = if message.is_empty() {
+                    message.push_str(" -");
+                    false
+                } else {
+                    true
+                };
+
+                let _ = write!(
+                    message,
+                    "{comma} {count} {kind} task{s}",
+                    comma = if comma { "," } else { "" },
+                    s = if count == 1 { "" } else { "s" }
+                );
+            }
+        }
+
+        let mut message = String::new();
+        append(&mut message, state.completed, "completed".green());
+        append(&mut message, state.cached, "cached".green());
+        append(&mut message, state.failed, "failed".red());
+        append(
+            &mut message,
+            state.tasks.len() - state.executing.len(),
+            "waiting".yellow(),
+        );
+        append(&mut message, state.executing.len(), "executing".cyan());
+
+        if !state.executing.is_empty() {
+            let _ = write!(&mut message, ": {tasks}", tasks = Tasks(&state.executing));
+        }
+
+        message
     }
 
     let mut state = State::default();
@@ -321,50 +360,64 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
     pb.pb_start();
 
     loop {
-        match events.recv().await {
-            Ok(event) if !lagged => {
-                let message = match event {
-                    Event::TaskCreated { id, name, .. } => {
-                        state.tasks.insert(id, name.into());
-                        message(&state)
-                    }
-                    Event::TaskStarted { id } => {
-                        if let Some(name) = state.tasks.get(&id).cloned() {
-                            state.executing.insert(name);
+        tokio::select! {
+            r = crankshaft.recv() => match r {
+                Ok(event) if !lagged => {
+                    match event {
+                        CrankshaftEvent::TaskCreated { id, name, .. } => {
+                            state.tasks.insert(id, name.into());
                         }
-                        message(&state)
-                    }
-                    Event::TaskCompleted { id, .. } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
+                        CrankshaftEvent::TaskStarted { id } => {
+                            if let Some(name) = state.tasks.get(&id).cloned() {
+                                state.executing.insert(name);
+                            }
                         }
-                        state.completed += 1;
-                        message(&state)
-                    }
-                    Event::TaskFailed { id, .. } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
+                        CrankshaftEvent::TaskCompleted { id, .. } => {
+                            if let Some(name) = state.tasks.remove(&id) {
+                                state.executing.swap_remove(&name);
+                            }
+                            state.completed += 1;
                         }
-                        state.failed += 1;
-                        message(&state)
-                    }
-                    Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
+                        CrankshaftEvent::TaskFailed { id, .. } => {
+                            if let Some(name) = state.tasks.remove(&id) {
+                                state.executing.swap_remove(&name);
+                            }
+                            state.failed += 1;
                         }
-                        state.failed += 1;
-                        message(&state)
-                    }
-                    _ => continue,
-                };
+                        CrankshaftEvent::TaskCanceled { id } | CrankshaftEvent::TaskPreempted { id } => {
+                            if let Some(name) = state.tasks.remove(&id) {
+                                state.executing.swap_remove(&name);
+                            }
+                            state.failed += 1;
+                        }
+                        _ => continue,
+                    };
 
-                pb.pb_set_message(&message);
-            }
-            Ok(_) => continue,
-            Err(RecvError::Closed) => break,
-            Err(RecvError::Lagged(_)) => {
-                lagged = true;
-                pb.pb_set_message(" - evaluation progress is unavailable due to missed events");
+                    pb.pb_set_message(&message(&state));
+                }
+                Ok(_) => continue,
+                Err(RecvError::Closed) => break,
+                Err(RecvError::Lagged(_)) => {
+                    lagged = true;
+                    pb.pb_set_message(" - progress is unavailable due to missed events");
+                }
+            },
+            r = engine.recv() => match r {
+                Ok(event) if !lagged => {
+                    match event {
+                        EngineEvent::ReusedCachedExecutionResult { .. } => {
+                            state.cached += 1;
+                        }
+                    };
+
+                    pb.pb_set_message(&message(&state));
+                }
+                Ok(_) => continue,
+                Err(RecvError::Closed) => break,
+                Err(RecvError::Lagged(_)) => {
+                    lagged = true;
+                    pb.pb_set_message(" - progress is unavailable due to missed events");
+                }
             }
         }
     }
@@ -372,6 +425,9 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
 
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
+///
+/// Staging includes writing a `.sprocketignore` file with contents `*` in the
+/// `root` if an existing ignorefile is not found.
 ///
 /// Notably, this function does not actually create the execution directory at
 /// the returned path, as that is handled by execution itself.
@@ -382,6 +438,14 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
     let root = root.join(entrypoint);
     std::fs::create_dir_all(&root)
         .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
+
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        let ignorefile = File::create(&ignore_path)
+            .with_context(|| format!("creating ignorefile: `{}`", ignore_path.display()))?;
+        writeln!(&ignorefile, "*")
+            .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
+    }
 
     let timestamp = chrono::Utc::now();
 
@@ -409,9 +473,9 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(args: Args) -> Result<()> {
+pub async fn run(args: Args) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `run` command");
+        return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
     let style = ProgressStyle::with_template(
@@ -422,7 +486,7 @@ pub async fn run(args: Args) -> Result<()> {
     let span = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
 
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
         .init({
             let span = span.clone();
@@ -452,18 +516,11 @@ pub async fn run(args: Args) -> Result<()> {
         })
         .run()
         .await
-    {
-        Ok(results) => results.into_inner(),
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     // Emits diagnostics for all analyzed documents
     let mut errors = 0;
-    for result in &results {
+    for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
         if diagnostics.peek().is_some() {
             let path = result.document().path().to_string();
@@ -486,15 +543,13 @@ pub async fn run(args: Args) -> Result<()> {
     }
 
     if errors > 0 {
-        bail!(
+        return Err(anyhow!(
             "aborting due to previous {errors} error{s}",
             s = if errors == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     }
 
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
     let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
@@ -521,24 +576,30 @@ pub async fn run(args: Args) -> Result<()> {
                 (None, Some(workflow)) if workflow.name() == name => {
                     (name, EngineInputs::Workflow(Default::default()), origins)
                 }
-                _ => bail!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
-                    path = document.path()
-                ),
+                _ => {
+                    return Err(anyhow!(
+                        "no task or workflow with name `{name}` was found in document `{path}`",
+                        path = document.path()
+                    )
+                    .into());
+                }
             }
         } else {
-            bail!("the `--entrypoint` option is required if no inputs are provided")
+            return Err(
+                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
+            );
         }
     };
 
     let output_dir = if let Some(supplied_dir) = args.output {
         if supplied_dir.exists() {
             if !args.overwrite {
-                bail!(
+                return Err(anyhow!(
                     "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
                      its contents",
                     dir = supplied_dir.display()
-                );
+                )
+                .into());
             }
 
             std::fs::remove_dir_all(&supplied_dir).with_context(|| {
@@ -577,7 +638,7 @@ pub async fn run(args: Args) -> Result<()> {
     );
 
     let cancellation = CancellationContext::new(args.engine.failure_mode);
-    let events = Events::all(EVENTS_CHANNEL_CAPACITY);
+    let events = Events::new(EVENTS_CHANNEL_CAPACITY);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
@@ -588,6 +649,9 @@ pub async fn run(args: Args) -> Result<()> {
         events
             .subscribe_crankshaft()
             .expect("should have Crankshaft events"),
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
         span,
     ));
 
@@ -610,7 +674,7 @@ pub async fn run(args: Args) -> Result<()> {
             _ = tokio::signal::ctrl_c() => {
                 // If we've already been waiting for executing tasks to cancel, immediately bail out
                 if cancellation.state() == CancellationContextState::Canceling {
-                    bail!("evaluation was interrupted");
+                    return Err(anyhow!("evaluation was interrupted").into());
                 }
 
                 // Log the message indicating whether we're waiting on completion or waiting on cancellation
@@ -630,10 +694,10 @@ pub async fn run(args: Args) -> Result<()> {
 
                 return match res {
                     Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint)).context("failed to serialize outputs")?);
                         Ok(())
                     }
-                    Err(EvaluationError::Canceled) => bail!("evaluation was interrupted"),
+                    Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
@@ -643,9 +707,9 @@ pub async fn run(args: Args) -> Result<()> {
                             args.report_mode.unwrap_or_default(),
                             args.no_color
                         )?;
-                        bail!("aborting due to evaluation error");
+                        Err(anyhow!("aborting due to evaluation error").into())
                     }
-                    Err(EvaluationError::Other(e)) => Err(e)
+                    Err(EvaluationError::Other(e)) => Err(e.into())
                 };
             },
         }

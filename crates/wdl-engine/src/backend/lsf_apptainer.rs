@@ -11,6 +11,7 @@
 //! `bsub`/`apptainer` scripts.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -33,6 +34,7 @@ use tracing::error;
 use tracing::trace;
 use tracing::warn;
 
+use super::ApptainerState;
 use super::TaskExecutionBackend;
 use super::TaskManager;
 use super::TaskManagerRequest;
@@ -63,6 +65,8 @@ const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 struct LsfApptainerTaskRequest {
     /// The desired configuration of the backend.
     backend_config: Arc<LsfApptainerBackendConfig>,
+    /// The Apptainer state for the backend,
+    apptainer_state: Arc<ApptainerState>,
     /// The name of the task, potentially truncated to fit within the LSF job
     /// name length limit.
     name: String,
@@ -144,8 +148,7 @@ impl TaskManagerRequest for LsfApptainerTaskRequest {
         .await?;
 
         let apptainer_command = self
-            .backend_config
-            .apptainer_config
+            .apptainer_state
             .prepare_apptainer_command(
                 &self.container,
                 self.cancellation_token.clone(),
@@ -357,15 +360,25 @@ pub struct LsfApptainerBackend {
     manager: TaskManager<LsfApptainerTaskRequest>,
     /// Sender for crankshaft events.
     crankshaft_events: Option<broadcast::Sender<Event>>,
+    /// Apptainer state.
+    apptainer_state: Arc<ApptainerState>,
 }
 
 impl LsfApptainerBackend {
     /// Create a new backend.
+    ///
+    /// The `run_root_dir` argument should be a directory that exists for the
+    /// duration of the entire top-level evaluation. It is used to store
+    /// Apptainer images which should only be created once per container per
+    /// run.
     pub fn new(
+        run_root_dir: &Path,
         engine_config: Arc<Config>,
         backend_config: Arc<LsfApptainerBackendConfig>,
         crankshaft_events: Option<broadcast::Sender<Event>>,
     ) -> Self {
+        let apptainer_state =
+            ApptainerState::new(&backend_config.apptainer_config, run_root_dir).into();
         Self {
             engine_config,
             backend_config,
@@ -375,6 +388,7 @@ impl LsfApptainerBackend {
             // throw jobs at the cluster.
             manager: TaskManager::new_unlimited(u64::MAX, u64::MAX),
             crankshaft_events,
+            apptainer_state,
         }
     }
 }
@@ -386,8 +400,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
     fn constraints(
         &self,
-        requirements: &std::collections::HashMap<String, crate::Value>,
-        hints: &std::collections::HashMap<String, crate::Value>,
+        requirements: &HashMap<String, Value>,
+        hints: &HashMap<String, Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints> {
         let mut required_cpu = v1::cpu(requirements);
         let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
@@ -571,6 +585,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         self.manager.send(
             LsfApptainerTaskRequest {
                 backend_config: self.backend_config.clone(),
+                apptainer_state: self.apptainer_state.clone(),
                 spawn_request: request,
                 name,
                 container,
@@ -786,6 +801,9 @@ impl LsfApptainerBackendConfig {
         if let Some(queue) = self.fpga_lsf_queue.as_ref() {
             queue.validate("fpga").await?;
         }
+
+        self.apptainer_config.validate().await?;
+
         Ok(())
     }
 

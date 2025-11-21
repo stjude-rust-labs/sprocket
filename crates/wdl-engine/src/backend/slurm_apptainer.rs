@@ -11,6 +11,7 @@
 //! generated `srun`/`apptainer` scripts.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -34,6 +35,7 @@ use tracing::trace;
 use tracing::warn;
 
 use super::ApptainerConfig;
+use super::ApptainerState;
 use super::TaskExecutionBackend;
 use super::TaskManager;
 use super::TaskManagerRequest;
@@ -65,6 +67,8 @@ const SLURM_JOB_NAME_MAX_LENGTH: usize = 1024;
 struct SlurmApptainerTaskRequest {
     /// The desired configuration of the backend.
     backend_config: Arc<SlurmApptainerBackendConfig>,
+    /// The Apptainer state for the backend,
+    apptainer_state: Arc<ApptainerState>,
     /// The name of the task, potentially truncated to fit within the Slurm job
     /// name length limit.
     name: String,
@@ -146,8 +150,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         .await?;
 
         let apptainer_command = self
-            .backend_config
-            .apptainer_config
+            .apptainer_state
             .prepare_apptainer_command(
                 &self.container,
                 self.cancellation_token.clone(),
@@ -366,15 +369,20 @@ pub struct SlurmApptainerBackend {
     manager: TaskManager<SlurmApptainerTaskRequest>,
     /// Sender for crankshaft events.
     crankshaft_events: Option<broadcast::Sender<Event>>,
+    /// Apptainer state.
+    apptainer_state: Arc<ApptainerState>,
 }
 
 impl SlurmApptainerBackend {
     /// Create a new backend.
     pub fn new(
+        run_root_dir: &Path,
         engine_config: Arc<Config>,
         backend_config: Arc<SlurmApptainerBackendConfig>,
         crankshaft_events: Option<broadcast::Sender<Event>>,
     ) -> Self {
+        let apptainer_state =
+            ApptainerState::new(&backend_config.apptainer_config, run_root_dir).into();
         Self {
             engine_config,
             backend_config,
@@ -384,6 +392,7 @@ impl SlurmApptainerBackend {
             // just throw jobs at the cluster.
             manager: TaskManager::new_unlimited(u64::MAX, u64::MAX),
             crankshaft_events,
+            apptainer_state,
         }
     }
 }
@@ -395,8 +404,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
     fn constraints(
         &self,
-        requirements: &std::collections::HashMap<String, crate::Value>,
-        hints: &std::collections::HashMap<String, crate::Value>,
+        requirements: &HashMap<String, Value>,
+        hints: &HashMap<String, crate::Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints> {
         let mut required_cpu = v1::cpu(requirements);
         let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
@@ -592,6 +601,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         self.manager.send(
             SlurmApptainerTaskRequest {
                 backend_config: self.backend_config.clone(),
+                apptainer_state: self.apptainer_state.clone(),
                 spawn_request: request,
                 name,
                 container,
@@ -821,6 +831,9 @@ impl SlurmApptainerBackendConfig {
         if let Some(partition) = &self.fpga_slurm_partition {
             partition.validate("fpga").await?;
         }
+
+        self.apptainer_config.validate().await?;
+
         Ok(())
     }
 

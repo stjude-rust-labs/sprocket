@@ -14,6 +14,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use cloud_copy::ContentDigest;
 use cloud_copy::HttpClient;
 use cloud_copy::TransferEvent;
 use cloud_copy::UrlExt;
@@ -30,10 +31,10 @@ use tracing::debug;
 use url::Url;
 
 use crate::config::Config;
+use crate::config::cache_dir;
 
-/// The default cache subdirectory that is appended to the system cache
-/// directory.
-const DEFAULT_CACHE_SUBDIR: &str = "wdl";
+/// The default cache subdirectory for the HTTP downloads cache.
+const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
 
 /// Represents a location of a downloaded file.
 #[derive(Debug, Clone)]
@@ -87,7 +88,8 @@ pub trait Transferer: Send + Sync {
 
     /// Walks a given storage URL as if it were a directory.
     ///
-    /// Returns a list of relative paths from the given URL.
+    /// Returns a list of relative paths from the given URL that are in
+    /// lexicographical order.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
     fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>>;
@@ -97,6 +99,11 @@ pub trait Transferer: Send + Sync {
     /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
     /// URL returns at least one contained URL.
     fn exists<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<bool>>;
+
+    /// Gets the content digest of the resource identified by the given URL.
+    ///
+    /// Returns `Ok(None)` if the resource has no associated content digest.
+    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>>;
 }
 
 /// Used to cache results of transferer operations.
@@ -112,12 +119,14 @@ struct Cache {
     walks: HashMap<Url, Arc<OnceCell<Arc<[String]>>>>,
     /// Stores the results of checking for URL existence.
     exists: HashMap<Url, Arc<OnceCell<bool>>>,
+    /// Stores the results of retrieving content digests a URL.
+    digests: HashMap<Url, Arc<OnceCell<Option<Arc<ContentDigest>>>>>,
 }
 
 /// Represents the internal state of `HttpTransferer`.
 struct HttpTransfererInner {
     /// The configuration for transferring files.
-    copy_config: cloud_copy::Config,
+    config: cloud_copy::Config,
     /// The HTTP client to use.
     client: HttpClient,
     /// The cached results of transferer operations.
@@ -143,12 +152,9 @@ impl HttpTransferer {
         cancel: CancellationToken,
         events: Option<broadcast::Sender<TransferEvent>>,
     ) -> Result<Self> {
-        let cache_dir: Cow<'_, Path> = match &config.http.cache {
+        let cache_dir: Cow<'_, Path> = match &config.http.cache_dir {
             Some(dir) => dir.into(),
-            None => dirs::cache_dir()
-                .context("failed to determine system cache directory")?
-                .join(DEFAULT_CACHE_SUBDIR)
-                .into(),
+            None => cache_dir()?.join(DOWNLOADS_CACHE_SUBDIR).into(),
         };
 
         let temp_dir = cache_dir.join("tmp");
@@ -214,7 +220,7 @@ impl HttpTransferer {
         );
 
         Ok(Self(Arc::new(HttpTransfererInner {
-            copy_config,
+            config: copy_config,
             client,
             cache: Default::default(),
             temp_dir,
@@ -261,7 +267,7 @@ impl Transferer for HttpTransferer {
 
                         // Perform the download (always overwrite the local temp file)
                         cloud_copy::copy(
-                            self.0.copy_config.clone(),
+                            self.0.config.clone(),
                             self.0.client.clone(),
                             source,
                             &*temp_path,
@@ -305,7 +311,7 @@ impl Transferer for HttpTransferer {
                             .context("failed to acquire permit")?;
 
                         // Perform the upload (do not overwrite)
-                        let mut config = self.0.copy_config.clone();
+                        let mut config = self.0.config.clone();
                         config.set_overwrite(false);
                         match cloud_copy::copy(
                             config,
@@ -421,16 +427,15 @@ impl Transferer for HttpTransferer {
                         .await
                         .context("failed to acquire permit")?;
 
-                    anyhow::Ok(
-                        cloud_copy::walk(
-                            self.0.copy_config.clone(),
-                            self.0.client.clone(),
-                            url.clone(),
-                        )
-                        .await
-                        .with_context(|| format!("failed to walk URL `{url}`"))?
-                        .into(),
-                    )
+                    let mut entries =
+                        cloud_copy::walk(self.0.config.clone(), self.0.client.clone(), url.clone())
+                            .await
+                            .with_context(|| format!("failed to walk URL `{url}`"))?;
+
+                    // We return the entries in lexicographical order
+                    entries.sort();
+
+                    anyhow::Ok(entries.into())
                 })
                 .await?
                 .clone())
@@ -498,6 +503,39 @@ impl Transferer for HttpTransferer {
                     Ok(true)
                 })
                 .await?)
+        }
+        .boxed()
+    }
+
+    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+        async move {
+            let digest = {
+                let mut cache = self.0.cache.lock().expect("failed to lock cache");
+                cache.digests.entry(url.clone()).or_default().clone()
+            };
+
+            // Get an existing result or initialize a new one exactly once
+            Ok(digest
+                .get_or_try_init(|| async {
+                    let permit = self
+                        .0
+                        .semaphore
+                        .acquire()
+                        .await
+                        .context("failed to acquire permit")?;
+
+                    debug!("retrieving content digest for `{url}`", url = url.display());
+                    let digest = cloud_copy::get_content_digest(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                    )
+                    .await?;
+                    drop(permit);
+                    anyhow::Ok(digest.map(Into::into))
+                })
+                .await?
+                .clone())
         }
         .boxed()
     }

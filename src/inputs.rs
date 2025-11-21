@@ -321,14 +321,14 @@ mod tests {
         let input = "./tests/fixtures/inputs_one.json".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_one.json"
+            Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_one.json"
         ));
 
         // A valid YAML file path.
         let input = "tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
+            Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
         ));
 
         // A missing file path.

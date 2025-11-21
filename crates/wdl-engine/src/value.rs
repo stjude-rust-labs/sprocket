@@ -58,7 +58,7 @@ use crate::EvaluationContext;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Outputs;
-use crate::TaskExecutionConstraints;
+use crate::backend::TaskExecutionConstraints;
 use crate::http::Transferer;
 use crate::path;
 
@@ -87,33 +87,11 @@ pub enum Value {
     Primitive(PrimitiveValue),
     /// The value is a compound value.
     Compound(CompoundValue),
-    /// The value is a hints value.
+    /// The value is a hidden value.
     ///
-    /// Hints values only appear in a task hints section in WDL 1.2.
-    Hints(HintsValue),
-    /// The value is an input value.
-    ///
-    /// Input values only appear in a task hints section in WDL 1.2.
-    Input(InputValue),
-    /// The value is an output value.
-    ///
-    /// Output values only appear in a task hints section in WDL 1.2.
-    Output(OutputValue),
-    /// The value is a task variable before evaluation.
-    ///
-    /// This value occurs during requirements, hints, and runtime section
-    /// evaluation in WDL 1.3+ tasks.
-    TaskPreEvaluation(TaskPreEvaluationValue),
-    /// The value is a task variable after evaluation.
-    ///
-    /// This value occurs during command and output section evaluation in
-    /// WDL 1.2+ tasks.
-    TaskPostEvaluation(TaskPostEvaluationValue),
-    /// The value is a previous requirements value.
-    ///
-    /// This value contains the previous attempt's requirements and is available
-    /// in WDL 1.3+ via `task.previous`.
-    PreviousTaskData(PreviousTaskDataValue),
+    /// A hidden value is one that has a hidden (i.e. not expressible in WDL
+    /// source) type.
+    Hidden(HiddenValue),
     /// The value is the outputs of a call.
     Call(CallValue),
 }
@@ -161,12 +139,7 @@ impl Value {
             Self::None(ty) => ty.clone(),
             Self::Primitive(v) => v.ty(),
             Self::Compound(v) => v.ty(),
-            Self::Hints(_) => Type::Hidden(HiddenType::Hints),
-            Self::Input(_) => Type::Hidden(HiddenType::Input),
-            Self::Output(_) => Type::Hidden(HiddenType::Output),
-            Self::TaskPreEvaluation(_) => Type::Hidden(HiddenType::TaskPreEvaluation),
-            Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
-            Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
+            Self::Hidden(v) => v.ty(),
             Self::Call(v) => Type::Call(v.ty.clone()),
         }
     }
@@ -443,7 +416,7 @@ impl Value {
     /// Returns `None` if the value is not a pre-evaluation task.
     pub fn as_task_pre_evaluation(&self) -> Option<&TaskPreEvaluationValue> {
         match self {
-            Self::TaskPreEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPreEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -455,7 +428,7 @@ impl Value {
     /// Panics if the value is not a pre-evaluation task.
     pub fn unwrap_task_pre_evaluation(self) -> TaskPreEvaluationValue {
         match self {
-            Self::TaskPreEvaluation(v) => v,
+            Self::Hidden(HiddenValue::TaskPreEvaluation(v)) => v,
             _ => panic!("value is not a pre-evaluation task"),
         }
     }
@@ -465,7 +438,7 @@ impl Value {
     /// Returns `None` if the value is not a post-evaluation task.
     pub fn as_task_post_evaluation(&self) -> Option<&TaskPostEvaluationValue> {
         match self {
-            Self::TaskPostEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -475,7 +448,7 @@ impl Value {
     /// Returns `None` if the value is not a post-evaluation task.
     pub(crate) fn as_task_post_evaluation_mut(&mut self) -> Option<&mut TaskPostEvaluationValue> {
         match self {
-            Self::TaskPostEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -487,7 +460,7 @@ impl Value {
     /// Panics if the value is not a post-evaluation task.
     pub fn unwrap_task_post_evaluation(self) -> TaskPostEvaluationValue {
         match self {
-            Self::TaskPostEvaluation(v) => v,
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => v,
             _ => panic!("value is not a post-evaluation task"),
         }
     }
@@ -497,7 +470,7 @@ impl Value {
     /// Returns `None` if the value is not a hints value.
     pub fn as_hints(&self) -> Option<&HintsValue> {
         match self {
-            Self::Hints(v) => Some(v),
+            Self::Hidden(HiddenValue::Hints(v)) => Some(v),
             _ => None,
         }
     }
@@ -509,7 +482,7 @@ impl Value {
     /// Panics if the value is not a hints value.
     pub fn unwrap_hints(self) -> HintsValue {
         match self {
-            Self::Hints(v) => v,
+            Self::Hidden(HiddenValue::Hints(v)) => v,
             _ => panic!("value is not a hints value"),
         }
     }
@@ -688,11 +661,7 @@ impl fmt::Display for Value {
             Self::None(_) => write!(f, "None"),
             Self::Primitive(v) => v.fmt(f),
             Self::Compound(v) => v.fmt(f),
-            Self::Hints(v) => v.fmt(f),
-            Self::Input(v) => v.fmt(f),
-            Self::Output(v) => v.fmt(f),
-            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
-            Self::PreviousTaskData(_) => write!(f, "task.previous"),
+            Self::Hidden(v) => v.fmt(f),
             Self::Call(c) => c.fmt(f),
         }
     }
@@ -714,45 +683,7 @@ impl Coercible for Value {
             }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
-            Self::Hints(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Hints)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("hints values cannot be coerced to any other type");
-            }
-            Self::Input(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Input)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("input values cannot be coerced to any other type");
-            }
-            Self::Output(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Output)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("output values cannot be coerced to any other type");
-            }
-            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
-                if matches!(
-                    target,
-                    Type::Hidden(HiddenType::TaskPreEvaluation)
-                        | Type::Hidden(HiddenType::TaskPostEvaluation)
-                ) {
-                    return Ok(self.clone());
-                }
-
-                bail!("task variables cannot be coerced to any other type");
-            }
-            Self::PreviousTaskData(_) => {
-                if matches!(target, Type::Hidden(HiddenType::PreviousTaskData)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("previous task data values cannot be coerced to any other type");
-            }
+            Self::Hidden(v) => v.coerce(context, target).map(Self::Hidden),
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
             }
@@ -814,6 +745,12 @@ impl From<CompoundValue> for Value {
     }
 }
 
+impl From<HiddenValue> for Value {
+    fn from(value: HiddenValue) -> Self {
+        Self::Hidden(value)
+    }
+}
+
 impl From<Pair> for Value {
     fn from(value: Pair) -> Self {
         Self::Compound(value.into())
@@ -841,12 +778,6 @@ impl From<Object> for Value {
 impl From<Struct> for Value {
     fn from(value: Struct) -> Self {
         Self::Compound(value.into())
-    }
-}
-
-impl From<HintsValue> for Value {
-    fn from(value: HintsValue) -> Self {
-        Self::Hints(value)
     }
 }
 
@@ -1744,7 +1675,7 @@ impl Map {
     }
 
     /// Iterates the elements of the map.
-    pub fn iter(&self) -> impl Iterator<Item = (&Option<PrimitiveValue>, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&Option<PrimitiveValue>, &Value)> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.iter()))
@@ -1752,7 +1683,7 @@ impl Map {
     }
 
     /// Iterates the keys of the map.
-    pub fn keys(&self) -> impl Iterator<Item = &Option<PrimitiveValue>> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &Option<PrimitiveValue>> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.keys()))
@@ -1760,7 +1691,7 @@ impl Map {
     }
 
     /// Iterates the values of the map.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.values()))
@@ -1862,7 +1793,7 @@ impl Object {
     }
 
     /// Iterates the members of the object.
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.iter().map(|(k, v)| (k.as_str(), v))))
@@ -1870,7 +1801,7 @@ impl Object {
     }
 
     /// Iterates the keys of the object.
-    pub fn keys(&self) -> impl Iterator<Item = &str> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.keys().map(|k| k.as_str())))
@@ -1878,7 +1809,7 @@ impl Object {
     }
 
     /// Iterates the values of the object.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.values()))
@@ -2026,17 +1957,17 @@ impl Struct {
     }
 
     /// Iterates the members of the struct.
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
         self.members.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Iterates the keys of the struct.
-    pub fn keys(&self) -> impl Iterator<Item = &str> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
         self.members.keys().map(|k| k.as_str())
     }
 
     /// Iterates the values of the struct.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.members.values()
     }
 
@@ -2719,6 +2650,112 @@ impl From<Struct> for CompoundValue {
     }
 }
 
+/// Represents a hidden value.
+///
+/// Hidden values are cheap to clone.
+#[derive(Debug, Clone)]
+pub enum HiddenValue {
+    /// The value is a hints value.
+    ///
+    /// Hints values only appear in a task hints section in WDL 1.2.
+    Hints(HintsValue),
+    /// The value is an input value.
+    ///
+    /// Input values only appear in a task hints section in WDL 1.2.
+    Input(InputValue),
+    /// The value is an output value.
+    ///
+    /// Output values only appear in a task hints section in WDL 1.2.
+    Output(OutputValue),
+    /// The value is a task variable before evaluation.
+    ///
+    /// This value occurs during requirements, hints, and runtime section
+    /// evaluation in WDL 1.3+ tasks.
+    TaskPreEvaluation(TaskPreEvaluationValue),
+    /// The value is a task variable after evaluation.
+    ///
+    /// This value occurs during command and output section evaluation in
+    /// WDL 1.2+ tasks.
+    TaskPostEvaluation(TaskPostEvaluationValue),
+    /// The value is a previous requirements value.
+    ///
+    /// This value contains the previous attempt's requirements and is available
+    /// in WDL 1.3+ via `task.previous`.
+    PreviousTaskData(PreviousTaskDataValue),
+}
+
+impl HiddenValue {
+    /// Gets the type of the value.
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::Hints(_) => Type::Hidden(HiddenType::Hints),
+            Self::Input(_) => Type::Hidden(HiddenType::Input),
+            Self::Output(_) => Type::Hidden(HiddenType::Output),
+            Self::TaskPreEvaluation(_) => Type::Hidden(HiddenType::TaskPreEvaluation),
+            Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
+            Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
+        }
+    }
+}
+
+impl fmt::Display for HiddenValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hints(v) => v.fmt(f),
+            Self::Input(v) => v.fmt(f),
+            Self::Output(v) => v.fmt(f),
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
+            Self::PreviousTaskData(_) => write!(f, "task.previous"),
+        }
+    }
+}
+
+impl Coercible for HiddenValue {
+    fn coerce(&self, _: Option<&dyn EvaluationContext>, target: &Type) -> Result<Self> {
+        match self {
+            Self::Hints(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Hints)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("hints values cannot be coerced to any other type");
+            }
+            Self::Input(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Input)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("input values cannot be coerced to any other type");
+            }
+            Self::Output(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Output)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("output values cannot be coerced to any other type");
+            }
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
+                if matches!(
+                    target,
+                    Type::Hidden(HiddenType::TaskPreEvaluation)
+                        | Type::Hidden(HiddenType::TaskPostEvaluation)
+                ) {
+                    return Ok(self.clone());
+                }
+
+                bail!("task variables cannot be coerced to any other type");
+            }
+            Self::PreviousTaskData(_) => {
+                if matches!(target, Type::Hidden(HiddenType::PreviousTaskData)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("previous task data values cannot be coerced to any other type");
+            }
+        }
+    }
+}
+
 /// Immutable data for task values after requirements evaluation (WDL 1.2+).
 ///
 /// Contains all evaluated requirement fields.
@@ -2775,7 +2812,7 @@ impl PreviousTaskDataValue {
     /// data (first attempt).
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_MEMORY => Some(
+            TASK_FIELD_MEMORY => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.memory))
@@ -2783,7 +2820,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Integer).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(
+            TASK_FIELD_CPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.cpu))
@@ -2791,7 +2828,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Float).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_CONTAINER => Some(
                 self.0
                     .as_ref()
                     .and_then(|data| {
@@ -2803,7 +2840,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::String).optional())
                     }),
             ),
-            n if n == TASK_FIELD_GPU => Some(
+            TASK_FIELD_GPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.gpu.clone()))
@@ -2814,7 +2851,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_FPGA => Some(
+            TASK_FIELD_FPGA => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.fpga.clone()))
@@ -2825,7 +2862,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_DISKS => Some(
+            TASK_FIELD_DISKS => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.disks.clone()))
@@ -2839,7 +2876,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_MAX_RETRIES => Some(
+            TASK_FIELD_MAX_RETRIES => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.max_retries))
@@ -2930,13 +2967,15 @@ impl TaskPreEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if n == TASK_FIELD_PREVIOUS => Some(Value::PreviousTaskData(self.previous.clone())),
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_PREVIOUS => {
+                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
+            }
             _ => None,
         }
     }
@@ -3152,10 +3191,10 @@ impl TaskPostEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_CONTAINER => Some(
                 self.data
                     .container
                     .clone()
@@ -3167,35 +3206,31 @@ impl TaskPostEvaluationValue {
                         )
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(self.data.cpu.into()),
-            n if n == TASK_FIELD_MEMORY => Some(self.data.memory.into()),
-            n if n == TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
-            n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
-            n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
-            n if n == TASK_FIELD_END_TIME => {
-                Some(self.end_time.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_RETURN_CODE => {
-                Some(self.return_code.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+            TASK_FIELD_CPU => Some(self.data.cpu.into()),
+            TASK_FIELD_MEMORY => Some(self.data.memory.into()),
+            TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
+            TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
+            TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
+            TASK_FIELD_END_TIME => Some(self.end_time.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_RETURN_CODE => Some(self.return_code.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
                 Some(self.data.max_retries.into())
             }
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
-                Some(Value::PreviousTaskData(self.previous.clone()))
+            TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
+                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
             }
             _ => None,
         }
@@ -3381,13 +3416,9 @@ impl serde::Serialize for ValueSerializer<'_> {
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
             }
-            Value::Hints(_)
-            | Value::Input(_)
-            | Value::Output(_)
-            | Value::TaskPreEvaluation(_)
-            | Value::TaskPostEvaluation(_)
-            | Value::PreviousTaskData(_)
-            | Value::Call(_) => Err(S::Error::custom("value cannot be serialized")),
+            Value::Hidden(_) | Value::Call(_) => {
+                Err(S::Error::custom("value cannot be serialized"))
+            }
         }
     }
 }
