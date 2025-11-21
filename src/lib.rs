@@ -20,7 +20,6 @@ use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
-use colored::Colorize as _;
 use commands::Commands;
 pub use config::Config;
 use git_testament::git_testament;
@@ -134,16 +133,7 @@ async fn inner() -> CommandResult<()> {
 /// The Sprocket command line entrypoint.
 pub async fn sprocket_main() {
     if let Err(e) = inner().await {
-        // Only display the first error if multiple errors were encountered
-        let e = e.first();
-        eprintln!(
-            "{error}: {e:?}",
-            error = if std::io::stderr().is_terminal() {
-                "error".red().bold()
-            } else {
-                "error".normal()
-            }
-        );
+        eprintln!("{e}");
         std::process::exit(1);
     }
 }

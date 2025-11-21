@@ -1,8 +1,11 @@
 //! Implementation of sprocket CLI commands.
 
+use std::fmt;
+use std::io::IsTerminal;
 use std::sync::Arc;
 
 use clap::Subcommand;
+use colored::Colorize;
 use nonempty::NonEmpty;
 
 pub mod analyzer;
@@ -28,12 +31,33 @@ pub enum CommandError {
     Multiple(NonEmpty<Arc<anyhow::Error>>),
 }
 
-impl CommandError {
-    /// Gets the first inner error.
-    pub fn first(&self) -> &anyhow::Error {
+impl fmt::Display for CommandError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn write(f: &mut fmt::Formatter<'_>, e: &anyhow::Error) -> fmt::Result {
+            write!(
+                f,
+                "{error}: {e:?}",
+                error = if std::io::stderr().is_terminal() {
+                    "error".red().bold()
+                } else {
+                    "error".normal()
+                }
+            )
+        }
+
         match self {
-            Self::Single(e) => e,
-            Self::Multiple(errors) => errors.first(),
+            Self::Single(e) => write(f, e),
+            Self::Multiple(errors) => {
+                for (i, e) in errors.iter().enumerate() {
+                    if i > 0 {
+                        writeln!(f)?;
+                    }
+
+                    write(f, e)?;
+                }
+
+                Ok(())
+            }
         }
     }
 }
