@@ -12,9 +12,9 @@ use anyhow::Result;
 use anyhow::bail;
 use url::Url;
 
+use crate::ContentKind;
 use crate::GuestPath;
 use crate::Input;
-use crate::InputKind;
 use crate::eval::ROOT_NAME;
 use crate::path::EvaluationPath;
 
@@ -116,7 +116,7 @@ impl InputTrie {
     /// Returns an error for an invalid input path.
     pub fn insert(
         &mut self,
-        kind: InputKind,
+        kind: ContentKind,
         path: &str,
         base_dir: &EvaluationPath,
     ) -> Result<Option<usize>> {
@@ -147,7 +147,7 @@ impl InputTrie {
     }
 
     /// Inserts an input with a local path into the trie.
-    fn insert_path(&mut self, kind: InputKind, path: PathBuf) -> Result<usize> {
+    fn insert_path(&mut self, kind: ContentKind, path: PathBuf) -> Result<usize> {
         let mut components = path.components();
 
         let component = components
@@ -220,7 +220,7 @@ impl InputTrie {
     }
 
     /// Inserts an input with a URL into the trie.
-    fn insert_url(&mut self, kind: InputKind, url: Url) -> usize {
+    fn insert_url(&mut self, kind: ContentKind, url: Url) -> usize {
         // Insert for scheme
         let mut node = self
             .urls
@@ -296,10 +296,10 @@ mod test {
     fn unmapped_inputs_unix() {
         let mut trie = InputTrie::new();
         let base_dir: EvaluationPath = "/base".parse().unwrap();
-        trie.insert(InputKind::File, "/foo/bar/baz", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/baz", &base_dir)
             .unwrap();
         assert_eq!(trie.as_slice().len(), 1);
-        assert_eq!(trie.as_slice()[0].path().to_str(), Some("/foo/bar/baz"));
+        assert_eq!(trie.as_slice()[0].path().to_string(), "/foo/bar/baz");
         assert!(trie.as_slice()[0].guest_path().is_none());
     }
 
@@ -308,13 +308,10 @@ mod test {
     fn unmapped_inputs_windows() {
         let mut trie = InputTrie::new();
         let base_dir: EvaluationPath = "C:\\base".parse().unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\baz", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\baz", &base_dir)
             .unwrap();
         assert_eq!(trie.as_slice().len(), 1);
-        assert_eq!(
-            trie.as_slice()[0].path().to_str(),
-            Some("C:\\foo\\bar\\baz")
-        );
+        assert_eq!(trie.as_slice()[0].path().to_string(), "C:\\foo\\bar\\baz");
         assert!(trie.as_slice()[0].guest_path().is_none());
     }
 
@@ -323,79 +320,79 @@ mod test {
     fn non_empty_trie_unix() {
         let mut trie = InputTrie::new_with_guest_dir("/inputs/");
         let base_dir: EvaluationPath = "/base".parse().unwrap();
-        trie.insert(InputKind::Directory, "/", &base_dir)
+        trie.insert(ContentKind::Directory, "/", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/bar/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/bar/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/bar/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/baz/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/baz/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/foo/baz/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/foo/baz/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/bar/foo/foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "/bar/foo/foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "/bar/foo/bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "/bar/foo/bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::Directory, "/baz", &base_dir)
+        trie.insert(ContentKind::Directory, "/baz", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "https://example.com/", &base_dir)
+        trie.insert(ContentKind::File, "https://example.com/", &base_dir)
             .unwrap()
             .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
-        trie.insert(InputKind::File, "https://foo.com/bar", &base_dir)
+        trie.insert(ContentKind::File, "https://foo.com/bar", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "foo.txt", &base_dir)
             .unwrap()
             .unwrap();
 
@@ -408,7 +405,7 @@ mod test {
             .iter()
             .map(|i| {
                 (
-                    i.path().to_str().expect("should be a string"),
+                    i.path().to_string(),
                     i.guest_path().expect("should have guest path").as_str(),
                 )
             })
@@ -417,23 +414,41 @@ mod test {
         assert_eq!(
             paths,
             [
-                ("/", "/inputs/0/.root"),
-                ("/foo/bar/foo.txt", "/inputs/3/foo.txt"),
-                ("/foo/bar/bar.txt", "/inputs/3/bar.txt"),
-                ("/foo/baz/foo.txt", "/inputs/6/foo.txt"),
-                ("/foo/baz/bar.txt", "/inputs/6/bar.txt"),
-                ("/bar/foo/foo.txt", "/inputs/10/foo.txt"),
-                ("/bar/foo/bar.txt", "/inputs/10/bar.txt"),
-                ("/baz", "/inputs/1/baz"),
-                ("https://example.com/", "/inputs/15/.root"),
-                ("https://example.com/foo/bar/foo.txt", "/inputs/18/foo.txt"),
-                ("https://example.com/foo/bar/bar.txt", "/inputs/18/bar.txt"),
-                ("https://example.com/foo/baz/foo.txt", "/inputs/21/foo.txt"),
-                ("https://example.com/foo/baz/bar.txt", "/inputs/21/bar.txt"),
-                ("https://example.com/bar/foo/foo.txt", "/inputs/25/foo.txt"),
-                ("https://example.com/bar/foo/bar.txt", "/inputs/25/bar.txt"),
-                ("https://foo.com/bar", "/inputs/28/bar"),
-                ("/base/foo.txt", "/inputs/30/foo.txt"),
+                ("/".to_string(), "/inputs/0/.root"),
+                ("/foo/bar/foo.txt".to_string(), "/inputs/3/foo.txt"),
+                ("/foo/bar/bar.txt".to_string(), "/inputs/3/bar.txt"),
+                ("/foo/baz/foo.txt".to_string(), "/inputs/6/foo.txt"),
+                ("/foo/baz/bar.txt".to_string(), "/inputs/6/bar.txt"),
+                ("/bar/foo/foo.txt".to_string(), "/inputs/10/foo.txt"),
+                ("/bar/foo/bar.txt".to_string(), "/inputs/10/bar.txt"),
+                ("/baz".to_string(), "/inputs/1/baz"),
+                ("https://example.com/".to_string(), "/inputs/15/.root"),
+                (
+                    "https://example.com/foo/bar/foo.txt".to_string(),
+                    "/inputs/18/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/bar/bar.txt".to_string(),
+                    "/inputs/18/bar.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/foo.txt".to_string(),
+                    "/inputs/21/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/bar.txt".to_string(),
+                    "/inputs/21/bar.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/foo.txt".to_string(),
+                    "/inputs/25/foo.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/bar.txt".to_string(),
+                    "/inputs/25/bar.txt"
+                ),
+                ("https://foo.com/bar".to_string(), "/inputs/28/bar"),
+                ("/base/foo.txt".to_string(), "/inputs/30/foo.txt"),
             ]
         );
     }
@@ -443,79 +458,79 @@ mod test {
     fn non_empty_trie_windows() {
         let mut trie = InputTrie::new_with_guest_dir("/inputs/");
         let base_dir: EvaluationPath = "C:\\base".parse().unwrap();
-        trie.insert(InputKind::Directory, "C:\\", &base_dir)
+        trie.insert(ContentKind::Directory, "C:\\", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\bar\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\bar\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\baz\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\baz\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\foo\\baz\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\foo\\baz\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\bar\\foo\\foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\bar\\foo\\foo.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "C:\\bar\\foo\\bar.txt", &base_dir)
+        trie.insert(ContentKind::File, "C:\\bar\\foo\\bar.txt", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::Directory, "C:\\baz", &base_dir)
+        trie.insert(ContentKind::Directory, "C:\\baz", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "https://example.com/", &base_dir)
+        trie.insert(ContentKind::File, "https://example.com/", &base_dir)
             .unwrap()
             .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/bar/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/foo/baz/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/foo.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
         trie.insert(
-            InputKind::File,
+            ContentKind::File,
             "https://example.com/bar/foo/bar.txt",
             &base_dir,
         )
         .unwrap()
         .unwrap();
-        trie.insert(InputKind::File, "https://foo.com/bar", &base_dir)
+        trie.insert(ContentKind::File, "https://foo.com/bar", &base_dir)
             .unwrap()
             .unwrap();
-        trie.insert(InputKind::File, "foo.txt", &base_dir)
+        trie.insert(ContentKind::File, "foo.txt", &base_dir)
             .unwrap()
             .unwrap();
 
@@ -528,7 +543,7 @@ mod test {
             .iter()
             .map(|i| {
                 (
-                    i.path().to_str().expect("should be a string"),
+                    i.path().to_string(),
                     i.guest_path().expect("should have guest path").as_str(),
                 )
             })
@@ -537,23 +552,41 @@ mod test {
         assert_eq!(
             paths,
             [
-                ("C:\\", "/inputs/1/.root"),
-                ("C:\\foo\\bar\\foo.txt", "/inputs/4/foo.txt"),
-                ("C:\\foo\\bar\\bar.txt", "/inputs/4/bar.txt"),
-                ("C:\\foo\\baz\\foo.txt", "/inputs/7/foo.txt"),
-                ("C:\\foo\\baz\\bar.txt", "/inputs/7/bar.txt"),
-                ("C:\\bar\\foo\\foo.txt", "/inputs/11/foo.txt"),
-                ("C:\\bar\\foo\\bar.txt", "/inputs/11/bar.txt"),
-                ("C:\\baz", "/inputs/2/baz"),
-                ("https://example.com/", "/inputs/16/.root"),
-                ("https://example.com/foo/bar/foo.txt", "/inputs/19/foo.txt"),
-                ("https://example.com/foo/bar/bar.txt", "/inputs/19/bar.txt"),
-                ("https://example.com/foo/baz/foo.txt", "/inputs/22/foo.txt"),
-                ("https://example.com/foo/baz/bar.txt", "/inputs/22/bar.txt"),
-                ("https://example.com/bar/foo/foo.txt", "/inputs/26/foo.txt"),
-                ("https://example.com/bar/foo/bar.txt", "/inputs/26/bar.txt"),
-                ("https://foo.com/bar", "/inputs/29/bar"),
-                ("C:\\base\\foo.txt", "/inputs/31/foo.txt"),
+                ("C:\\".to_string(), "/inputs/1/.root"),
+                ("C:\\foo\\bar\\foo.txt".to_string(), "/inputs/4/foo.txt"),
+                ("C:\\foo\\bar\\bar.txt".to_string(), "/inputs/4/bar.txt"),
+                ("C:\\foo\\baz\\foo.txt".to_string(), "/inputs/7/foo.txt"),
+                ("C:\\foo\\baz\\bar.txt".to_string(), "/inputs/7/bar.txt"),
+                ("C:\\bar\\foo\\foo.txt".to_string(), "/inputs/11/foo.txt"),
+                ("C:\\bar\\foo\\bar.txt".to_string(), "/inputs/11/bar.txt"),
+                ("C:\\baz".to_string(), "/inputs/2/baz"),
+                ("https://example.com/".to_string(), "/inputs/16/.root"),
+                (
+                    "https://example.com/foo/bar/foo.txt".to_string(),
+                    "/inputs/19/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/bar/bar.txt".to_string(),
+                    "/inputs/19/bar.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/foo.txt".to_string(),
+                    "/inputs/22/foo.txt"
+                ),
+                (
+                    "https://example.com/foo/baz/bar.txt".to_string(),
+                    "/inputs/22/bar.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/foo.txt".to_string(),
+                    "/inputs/26/foo.txt"
+                ),
+                (
+                    "https://example.com/bar/foo/bar.txt".to_string(),
+                    "/inputs/26/bar.txt"
+                ),
+                ("https://foo.com/bar".to_string(), "/inputs/29/bar"),
+                ("C:\\base\\foo.txt".to_string(), "/inputs/31/foo.txt"),
             ]
         );
     }

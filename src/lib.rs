@@ -20,7 +20,6 @@ use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
-use colored::Colorize as _;
 use commands::Commands;
 pub use config::Config;
 use git_testament::git_testament;
@@ -28,6 +27,8 @@ use git_testament::render_testament;
 use tracing::trace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
+
+use crate::commands::CommandResult;
 
 mod analysis;
 mod commands;
@@ -65,7 +66,7 @@ struct Cli {
     skip_config_search: bool,
 }
 
-async fn inner() -> anyhow::Result<()> {
+async fn inner() -> CommandResult<()> {
     let cli = Cli::parse();
 
     match std::env::var("RUST_LOG") {
@@ -79,7 +80,8 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
         Err(_) => {
             let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
@@ -91,18 +93,28 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
     };
 
-    let config = Config::new(
-        cli.config.iter().map(PathBuf::as_path),
-        cli.skip_config_search,
-    )?;
-    config
-        .validate()
-        .with_context(|| "validating provided configuration")?;
-
+    let config = match &cli.command {
+        Commands::Config(config_args) if config_args.is_init() => {
+            // For `config init`, skip loading and use default
+            Config::default()
+        }
+        _ => {
+            // For all other commands, load config normally
+            let config = Config::new(
+                cli.config.iter().map(PathBuf::as_path),
+                cli.skip_config_search,
+            )?;
+            config
+                .validate()
+                .with_context(|| "validating provided configuration")?;
+            config
+        }
+    };
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
@@ -132,14 +144,7 @@ async fn inner() -> anyhow::Result<()> {
 /// The Sprocket command line entrypoint.
 pub async fn sprocket_main() {
     if let Err(e) = inner().await {
-        eprintln!(
-            "{error}: {e:?}",
-            error = if std::io::stderr().is_terminal() {
-                "error".red().bold()
-            } else {
-                "error".normal()
-            }
-        );
+        eprintln!("{e}");
         std::process::exit(1);
     }
 }

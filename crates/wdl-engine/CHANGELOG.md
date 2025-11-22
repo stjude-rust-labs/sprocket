@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added call caching configuration to `TaskConfig` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Implemented support for [call caching](https://github.com/stjude-rust-labs/rfcs/pull/2)
+  in `TaskEvaluator` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
 * Added a new `fail` configuration option for controlling the default failure mode of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
@@ -19,9 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-* Azure Storage authentication configuration has been changed to use shared key authentication rather than explicit SAS token authentication; SAS token authentication can still be used by directly adding the query parameters to any input URLs (#[454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
+* Azure Storage authentication configuration has been changed to use shared key authentication rather than explicit SAS token authentication; SAS token authentication can still be used by directly adding the query parameters to any input URLs ([#454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
 * Changed how cancellation is supported by the engine; the engine can now wait for executing tasks to complete before canceling them (slow failure mode) or immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
+* Changed a number of types in the public interface in preparation for a larger refactoring ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
+* Introduced a unified `TopLevelEvaluator` type as a common context for task and workflow evaluations ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+* Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
 
 #### Fixed
 

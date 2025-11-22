@@ -6,6 +6,8 @@ use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
 use crate::IGNORE_FILENAME;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::commands::explain::ALL_RULE_IDS;
 
 /// Arguments for the `analyzer` subcommand.
@@ -50,7 +52,7 @@ impl Args {
 }
 
 /// Runs the `analyzer` command.
-pub async fn analyzer(args: Args) -> anyhow::Result<()> {
+pub async fn analyzer(args: Args) -> CommandResult<()> {
     Server::run(ServerOptions {
         name: Some("Sprocket".into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
@@ -59,4 +61,5 @@ pub async fn analyzer(args: Args) -> anyhow::Result<()> {
         ignore_filename: Some(IGNORE_FILENAME.to_string()),
     })
     .await
+    .map_err(CommandError::from)
 }

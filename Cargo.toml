@@ -21,12 +21,13 @@ edition = "2024"
 authors = ["The Sprocket project contributors"]
 homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-rust-version = "1.89.0"
+rust-version = "1.91.1"
 
 [workspace.dependencies]
 ammonia = "4.1.2"
 anyhow = "1.0.98"
 approx = "0.5.1"
+arrayvec = { version = "0.7.6", features = ["serde"] }
 bimap = "0.6.3"
 blake3 = { version = "1.8.2", features = ["mmap"] }
 bytesize = { version = "2.1.0", features = ["serde"] }
@@ -61,6 +62,7 @@ macropol = "0.1.3"
 maud = "0.27.0"
 nonempty = "0.12.0"
 notify = "8.2.0"
+num_enum = "0.7.5"
 opener = "0.8.1"
 ordered-float = "5.0.0"
 parking_lot = "0.12.3"
@@ -104,6 +106,7 @@ tracing = "0.1.41"
 tracing-indicatif = "0.3.9"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-test = "0.2.5"
 url = "2.5.4"
 urlencoding = "2.1.3"
 uuid = "1.18.0"

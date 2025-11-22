@@ -41,20 +41,20 @@ use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::COMMAND_FILE_NAME;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::Value;
-use crate::WORK_DIR_NAME;
+use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
+use crate::backend::STDERR_FILE_NAME;
+use crate::backend::STDOUT_FILE_NAME;
+use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
-use crate::hash::UrlDigestExt;
-use crate::hash::calculate_path_digest;
+use crate::digest::UrlDigestExt;
+use crate::digest::calculate_local_digest;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -202,12 +202,13 @@ impl TaskManagerRequest for TesTaskRequest {
             match input.path() {
                 EvaluationPath::Local(path) => {
                     // Input is local, spawn an upload of it
+                    let kind = input.kind();
                     let path = path.to_path_buf();
                     let transferer = self.inner.transferer().clone();
                     let inputs_url = inputs_url.clone();
                     uploads.spawn(async move {
                         let url = inputs_url.join_digest(
-                            calculate_path_digest(&path).await.with_context(|| {
+                            calculate_local_digest(&path, kind).await.with_context(|| {
                                 format!(
                                     "failed to calculate digest of `{path}`",
                                     path = path.display()

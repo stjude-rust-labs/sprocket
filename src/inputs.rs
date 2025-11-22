@@ -1,23 +1,21 @@
-//! Inputs parsed in from the command line.
+//! Invocations (inputs and entrypoints) parsed in from the command line.
 
-use std::ops::Deref;
-use std::ops::DerefMut;
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
 use anyhow::bail;
-use indexmap::IndexMap;
 use regex::Regex;
-use serde_json::Value;
+use serde_json::Value as JsonValue;
 use thiserror::Error;
 use wdl::analysis::Document;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::LocatedJsonValue;
 use wdl::engine::path::EvaluationPath;
 
 pub mod file;
 pub mod origin_paths;
 
-pub use file::InputFile;
 pub use origin_paths::OriginPaths;
 
 /// A regex that matches a valid identifier.
@@ -88,7 +86,7 @@ pub enum Input {
         key: String,
 
         /// The value.
-        value: Value,
+        value: JsonValue,
     },
 }
 
@@ -111,7 +109,7 @@ impl FromStr for Input {
 
                 let value = serde_json::from_str(value).or_else(|_| {
                     if ASSUME_STRING_REGEX.is_match(value) {
-                        Ok(Value::String(value.to_owned()))
+                        Ok(JsonValue::String(value.to_owned()))
                     } else {
                         Err(Error::Deserialize(value.to_owned()))
                     }
@@ -139,26 +137,29 @@ impl FromStr for Input {
     }
 }
 
-/// The inner type for inputs (for convenience).
-type InputsInner = IndexMap<String, (EvaluationPath, Value)>;
+/// The map structure used for parsed inputs that have not yet had their paths
+/// normalized and converted to engine values.
+type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 
-/// A set of inputs parsed from the command line and compiled on top of one
-/// another.
+/// A command-line invocation of a WDL workflow or task.
+///
+/// An invocation is set of inputs parsed from the command line and/or read from
+/// files, along with an optional explicit specification of a named entrypoint.
 #[derive(Clone, Debug, Default)]
-pub struct Inputs {
+pub struct Invocation {
     /// The actual inputs map.
-    inputs: InputsInner,
+    inputs: JsonInputMap,
     /// The name of the task or workflow these inputs are provided for.
     entrypoint: Option<String>,
 }
 
-impl Inputs {
+impl Invocation {
     /// Adds an input read from the command line.
     async fn add_input(&mut self, input: &str) -> Result<()> {
         match input.parse::<Input>()? {
             Input::File(path) => {
-                let inputs = InputFile::read(&path).await.map_err(Error::File)?;
-                self.extend(inputs.into_inner());
+                let inputs = file::read_input_file(&path).await.map_err(Error::File)?;
+                self.inputs_mut().extend(inputs);
             }
             Input::Pair { key, value } => {
                 let cwd = std::env::current_dir().map_err(|_| Error::NoCurrentWorkingDirectory)?;
@@ -168,7 +169,13 @@ impl Inputs {
                 } else {
                     key
                 };
-                self.insert(key, (EvaluationPath::Local(cwd), value));
+                self.inputs_mut().insert(
+                    key,
+                    LocatedJsonValue {
+                        origin: EvaluationPath::Local(cwd),
+                        value,
+                    },
+                );
             }
         };
 
@@ -193,7 +200,7 @@ impl Inputs {
             return Err(Error::InvalidEntrypoint(ep.into()));
         }
 
-        let mut inputs = Inputs {
+        let mut inputs = Invocation {
             entrypoint,
             ..Default::default()
         };
@@ -205,12 +212,18 @@ impl Inputs {
         Ok(inputs)
     }
 
-    /// Consumes `self` and returns the inner index map.
-    pub fn into_inner(self) -> InputsInner {
-        self.inputs
+    /// Get a reference to the input map.
+    #[cfg_attr(not(test), expect(unused))]
+    pub fn inputs(&self) -> &JsonInputMap {
+        &self.inputs
     }
 
-    /// Converts a set of inputs to a set of engine inputs.
+    /// Get a mutable reference to the input map.
+    pub fn inputs_mut(&mut self) -> &mut JsonInputMap {
+        &mut self.inputs
+    }
+
+    /// Converts an [`EngineInvocation`] for the given [`Invocation`]
     ///
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
@@ -222,13 +235,13 @@ impl Inputs {
     /// - the name of the callee (the name of the task or workflow being run),
     /// - the transformed engine inputs, and
     /// - a map containing the origin path for each provided input key.
-    pub fn into_engine_inputs(
+    pub fn into_engine_invocation(
         self,
         document: &Document,
     ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {
         let (origins, values) = self.inputs.into_iter().fold(
-            (IndexMap::new(), serde_json::Map::new()),
-            |(mut origins, mut values), (key, (origin, value))| {
+            (BTreeMap::new(), serde_json::Map::new()),
+            |(mut origins, mut values), (key, LocatedJsonValue { origin, value })| {
                 origins.insert(key.clone(), origin);
                 values.insert(key, value);
                 (origins, values)
@@ -258,24 +271,10 @@ impl Inputs {
                         (key, path)
                     }
                 })
-                .collect::<IndexMap<_, _>>();
+                .collect::<BTreeMap<_, _>>();
 
             (callee_name, inputs, OriginPaths::Map(origins))
         }))
-    }
-}
-
-impl Deref for Inputs {
-    type Target = InputsInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inputs
-    }
-}
-
-impl DerefMut for Inputs {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inputs
     }
 }
 
@@ -291,7 +290,7 @@ mod tests {
         /// # Panics
         ///
         /// If the input is not a [`Input::Pair`].
-        pub fn unwrap_pair(self) -> (String, Value) {
+        pub fn unwrap_pair(self) -> (String, JsonValue) {
             match self {
                 Input::Pair { key, value } => (key, value),
                 v => panic!("{v:?} is not an `Input::Pair`"),
@@ -322,14 +321,14 @@ mod tests {
         let input = "./tests/fixtures/inputs_one.json".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_one.json"
+            Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_one.json"
         ));
 
         // A valid YAML file path.
         let input = "tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
         assert!(matches!(
             input,
-            Input::File(path) if path.to_str().unwrap().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
+            Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
         ));
 
         // A missing file path.
@@ -373,28 +372,28 @@ mod tests {
     #[tokio::test]
     async fn coalesce() {
         // Helper functions.
-        fn check_string_value(inputs: &Inputs, key: &str, value: &str) {
-            let (_, input) = inputs.get(key).unwrap();
+        fn check_string_value(invocation: &Invocation, key: &str, value: &str) {
+            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
 
-        fn check_float_value(inputs: &Inputs, key: &str, value: f64) {
-            let (_, input) = inputs.get(key).unwrap();
+        fn check_float_value(invocation: &Invocation, key: &str, value: f64) {
+            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
             assert_eq!(input.as_f64().unwrap(), value);
         }
 
-        fn check_boolean_value(inputs: &Inputs, key: &str, value: bool) {
-            let (_, input) = inputs.get(key).unwrap();
+        fn check_boolean_value(invocation: &Invocation, key: &str, value: bool) {
+            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
             assert_eq!(input.as_bool().unwrap(), value);
         }
 
-        fn check_integer_value(inputs: &Inputs, key: &str, value: i64) {
-            let (_, input) = inputs.get(key).unwrap();
+        fn check_integer_value(invocation: &Invocation, key: &str, value: i64) {
+            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
             assert_eq!(input.as_i64().unwrap(), value);
         }
 
         // The standard coalescing order.
-        let inputs = Inputs::coalesce(
+        let invocation = Invocation::coalesce(
             [
                 "./tests/fixtures/inputs_one.json",
                 "./tests/fixtures/inputs_two.json",
@@ -405,15 +404,15 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(inputs.len(), 5);
-        check_string_value(&inputs, "foo", "bar");
-        check_float_value(&inputs, "baz", 128.0);
-        check_string_value(&inputs, "quux", "qil");
-        check_string_value(&inputs, "new.key", "foobarbaz");
-        check_string_value(&inputs, "new_two.key", "bazbarfoo");
+        assert_eq!(invocation.inputs().len(), 5);
+        check_string_value(&invocation, "foo", "bar");
+        check_float_value(&invocation, "baz", 128.0);
+        check_string_value(&invocation, "quux", "qil");
+        check_string_value(&invocation, "new.key", "foobarbaz");
+        check_string_value(&invocation, "new_two.key", "bazbarfoo");
 
         // The opposite coalescing order.
-        let inputs = Inputs::coalesce(
+        let invocation = Invocation::coalesce(
             [
                 "./tests/fixtures/inputs_three.yml",
                 "./tests/fixtures/inputs_two.json",
@@ -424,15 +423,15 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(inputs.len(), 5);
-        check_string_value(&inputs, "foo", "bar");
-        check_float_value(&inputs, "baz", 42.0);
-        check_string_value(&inputs, "quux", "qil");
-        check_string_value(&inputs, "new.key", "foobarbaz");
-        check_string_value(&inputs, "new_two.key", "bazbarfoo");
+        assert_eq!(invocation.inputs().len(), 5);
+        check_string_value(&invocation, "foo", "bar");
+        check_float_value(&invocation, "baz", 42.0);
+        check_string_value(&invocation, "quux", "qil");
+        check_string_value(&invocation, "new.key", "foobarbaz");
+        check_string_value(&invocation, "new_two.key", "bazbarfoo");
 
         // An example with some random key-value pairs thrown in.
-        let inputs = Inputs::coalesce(
+        let invocation = Invocation::coalesce(
             [
                 r#"sandwich=-100"#,
                 "./tests/fixtures/inputs_one.json",
@@ -446,16 +445,16 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(inputs.len(), 6);
-        check_string_value(&inputs, "foo", "bar");
-        check_boolean_value(&inputs, "baz", false);
-        check_string_value(&inputs, "quux", "jacks");
-        check_string_value(&inputs, "new.key", "foobarbaz");
-        check_string_value(&inputs, "new_two.key", "bazbarfoo");
-        check_integer_value(&inputs, "sandwich", -100);
+        assert_eq!(invocation.inputs().len(), 6);
+        check_string_value(&invocation, "foo", "bar");
+        check_boolean_value(&invocation, "baz", false);
+        check_string_value(&invocation, "quux", "jacks");
+        check_string_value(&invocation, "new.key", "foobarbaz");
+        check_string_value(&invocation, "new_two.key", "bazbarfoo");
+        check_integer_value(&invocation, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error = Inputs::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
+        let error = Invocation::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
             .await
             .unwrap_err();
         assert_eq!(
@@ -464,7 +463,7 @@ mod tests {
         );
 
         // A missing file.
-        let error = Inputs::coalesce(
+        let error = Invocation::coalesce(
             [
                 "./tests/fixtures/inputs_one.json",
                 "./tests/fixtures/inputs_two.json",
@@ -484,14 +483,14 @@ mod tests {
     #[tokio::test]
     async fn coalesce_special_characters() {
         async fn check_can_coalesce_string(value: &str) {
-            let inputs = Inputs::coalesce([format!("input={}", value)], None)
+            let invocation = Invocation::coalesce([format!("input={}", value)], None)
                 .await
                 .unwrap();
-            let (_, input) = inputs.get("input").unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs().get("input").unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
         async fn check_cannot_coalesce_string(value: &str) {
-            let error = Inputs::coalesce([format!("input={}", value)], None)
+            let error = Invocation::coalesce([format!("input={}", value)], None)
                 .await
                 .unwrap_err();
             assert!(matches!(

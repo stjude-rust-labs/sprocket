@@ -18,6 +18,7 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
+use crate::HiddenValue;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
@@ -67,7 +68,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         let value = match context.arguments[0].value.as_string() {
             Some(s) => {
                 // If the path is a URL that isn't `file` schemed, treat as a file
-                if !path::is_file_url(s) && path::is_url(s) {
+                if !path::is_file_url(s) && path::is_supported_url(s) {
                     PrimitiveValue::File(s.clone().into()).into()
                 } else {
                     let path = ensure_local_path(context.base_dir(), s).map_err(|e| {
@@ -139,7 +140,7 @@ async fn file_path_size(
     path: &str,
 ) -> Result<u64> {
     // If the path is a URL, get the resource size
-    if let Some(url) = path::parse_url(path) {
+    if let Some(url) = path::parse_supported_url(path) {
         return resource_size(transferer, &url).await;
     }
 
@@ -172,13 +173,20 @@ fn calculate_disk_size<'a>(
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
             Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
-            Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
-            Value::Input(_) => bail!("the size of an input value cannot be calculated"),
-            Value::Output(_) => bail!("the size of an output value cannot be calculated"),
-            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
+            Value::Hidden(HiddenValue::Hints(_)) => {
+                bail!("the size of a hints value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Input(_)) => {
+                bail!("the size of an input value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Output(_)) => {
+                bail!("the size of an output value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::TaskPreEvaluation(_))
+            | Value::Hidden(HiddenValue::TaskPostEvaluation(_)) => {
                 bail!("the size of a task variable cannot be calculated")
             }
-            Value::PreviousTaskData(_) => {
+            Value::Hidden(HiddenValue::PreviousTaskData(_)) => {
                 bail!("the size of a task.previous value cannot be calculated")
             }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
@@ -375,7 +383,7 @@ mod test {
         );
         env.insert_name(
             "dir",
-            PrimitiveValue::new_directory(env.base_dir().to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_directory(env.base_dir().to_string()),
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "size('foo', 'invalid')")

@@ -105,7 +105,7 @@ fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
                 for path in paths.iter() {
                     // Add it to the list if it matches
                     if matcher.is_match(path) {
-                        matches.push(PrimitiveValue::new_file(path).into());
+                        matches.push(PrimitiveValue::new_file(path.as_str()).into());
                     }
                 }
             }

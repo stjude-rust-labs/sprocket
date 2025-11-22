@@ -49,7 +49,7 @@ use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
 use wdl_engine::path::EvaluationPath;
-use wdl_engine::v1::TaskEvaluator;
+use wdl_engine::v1::TopLevelEvaluator;
 
 mod common;
 
@@ -131,8 +131,6 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
         inputs.join_paths(task, |_| Ok(&test_dir_path)).await?;
 
-        let evaluator =
-            TaskEvaluator::new(config.engine, Default::default(), Events::none()).await?;
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
             .context("failed to create temporary directory")?;
         if env::var_os("SPROCKET_TEST_KEEP_TMPDIRS").is_some() {
@@ -142,8 +140,15 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
 
+        let evaluator = TopLevelEvaluator::new(
+            dir.path(),
+            config.engine,
+            Default::default(),
+            Events::disabled(),
+        )
+        .await?;
         match evaluator
-            .evaluate(result.document(), task, &inputs, dir.path())
+            .evaluate_task(result.document(), task, &inputs, dir.path())
             .await
         {
             Ok(evaluated) => {
@@ -182,7 +187,11 @@ fn compare_evaluation_results(
     temp_dir: &Path,
     evaluated: &EvaluatedTask,
 ) -> Result<()> {
-    let command_path = evaluated.attempt_dir().join("command");
+    let command_path = evaluated
+        .work_dir()
+        .join("../command")
+        .unwrap()
+        .unwrap_local();
     let command = fs::read_to_string(&command_path).with_context(|| {
         format!(
             "failed to read task command file `{path}`",

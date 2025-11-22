@@ -1,6 +1,7 @@
 //! Implementation of engine configuration.
 
 use std::borrow::Cow;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -27,7 +28,7 @@ use crate::SlurmApptainerBackendConfig;
 use crate::TaskExecutionBackend;
 use crate::TesBackend;
 use crate::convert_unit_string;
-use crate::path::is_url;
+use crate::path::is_supported_url;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub const MAX_RETRIES: u64 = 100;
@@ -40,6 +41,16 @@ pub const DEFAULT_BACKEND_NAME: &str = "default";
 
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
+
+/// Gets tne default root cache directory for the user.
+pub fn cache_dir() -> Result<PathBuf> {
+    /// The subdirectory within the user's cache directory for all caches
+    const CACHE_DIR_ROOT: &str = "sprocket";
+
+    Ok(dirs::cache_dir()
+        .context("failed to determine user cache directory")?
+        .join(CACHE_DIR_ROOT))
+}
 
 /// Represents a secret string that is, by default, redacted for serialization.
 ///
@@ -299,6 +310,7 @@ impl Config {
     /// Creates a new task execution backend based on this configuration.
     pub async fn create_backend(
         self: &Arc<Self>,
+        run_root_dir: &Path,
         events: Option<broadcast::Sender<Event>>,
     ) -> Result<Arc<dyn TaskExecutionBackend>> {
         let config = if self.backend.is_none() && self.backends.len() < 2 {
@@ -332,11 +344,13 @@ impl Config {
                 TesBackend::new(self.clone(), config, events).await?,
             )),
             BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
+                run_root_dir,
                 self.clone(),
                 config.clone(),
                 events,
             ))),
             BackendConfig::SlurmApptainer(config) => Ok(Arc::new(SlurmApptainerBackend::new(
+                run_root_dir,
                 self.clone(),
                 config.clone(),
                 events,
@@ -351,9 +365,9 @@ impl Config {
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
-    /// Defaults to using the system cache directory.
+    /// Defaults to an operating system specific cache directory for the user.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cache: Option<PathBuf>,
+    pub cache_dir: Option<PathBuf>,
     /// The number of retries for transferring files.
     ///
     /// Defaults to `5`.
@@ -671,6 +685,34 @@ impl ScatterConfig {
     }
 }
 
+/// Represents the supported call caching modes.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallCachingMode {
+    /// Call caching is disabled.
+    ///
+    /// The call cache is not checked and new entries are not added to the
+    /// cache.
+    ///
+    /// This is the default value.
+    #[default]
+    Off,
+    /// Call caching is enabled.
+    ///
+    /// The call cache is checked and new entries are added to the cache.
+    ///
+    /// Defaults the `cacheable` task hint to `true`.
+    On,
+    /// Call caching is enabled only for tasks that explicitly have a
+    /// `cacheable` hint set to `true`.
+    ///
+    /// The call cache is checked and new entries are added to the cache *only*
+    /// for tasks that have the `cacheable` hint set to `true`.
+    ///
+    /// Defaults the `cacheable` task hint to `false`.
+    Explicit,
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -703,6 +745,14 @@ pub struct TaskConfig {
     /// The behavior when a task's `memory` requirement cannot be met.
     #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
+    /// The call cache directory to use for caching task execution results.
+    ///
+    /// Defaults to an operating system specific cache directory for the user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_dir: Option<PathBuf>,
+    /// The call caching mode to use for tasks.
+    #[serde(default)]
+    pub cache: CallCachingMode,
 }
 
 impl TaskConfig {
@@ -1076,7 +1126,7 @@ impl TesBackendConfig {
 
         match &self.inputs {
             Some(url) => {
-                if !is_url(url.as_str()) {
+                if !is_supported_url(url.as_str()) {
                     bail!(
                         "TES backend storage configuration value `inputs` has invalid value \
                          `{url}`: URL scheme is not supported"
@@ -1095,7 +1145,7 @@ impl TesBackendConfig {
 
         match &self.outputs {
             Some(url) => {
-                if !is_url(url.as_str()) {
+                if !is_supported_url(url.as_str()) {
                     bail!(
                         "TES backend storage configuration value `outputs` has invalid value \
                          `{url}`: URL scheme is not supported"

@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `run.task.cache` and `run.task.cache_dir` settings to `sprocket.toml`
+  for controlling call caching ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Added `--no-call-cache` option to `sprocket run` to disable use of the call
+  cache for a specific run ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
 * Added `--azure-account-name` and `--azure-access-key` CLI options to
-  `sprocket run` (#[454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
+  `sprocket run` ([#454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
 * New lint rule `DocMetaStrings` to ensure reserved meta and parameter_meta
   keys have string values ([#407](https://github.com/stjude-rust-labs/sprocket/pull/407)).
 * A `run.fail` option was added to `sprocket.toml` for controlling the default
@@ -32,9 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
 * Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library
   crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
+* Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+
 
 ### Fixed
 
+* Fixed a bug in `sprocket config init` where `sprocket.toml` was unnecessarily loaded and would fail if malformed ([#473](https://github.com/stjude-rust-labs/sprocket/pull/473)).
+* Fixed Sprocket commands not always showing the full context of errors ([#472](https://github.com/stjude-rust-labs/sprocket/pull/472)).
+* running `sprocket run` now writes a `.sprocketignore` file to the runs directory, which will tell subsequent Sprocket commands to ignore its contents ([#469](https://github.com/stjude-rust-labs/sprocket/pull/469)).
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
 * Fixed the handling of unusual filenames in generated Apptainer scripts ([#459](https://github.com/stjude-rust-labs/sprocket/pull/459)).
 
@@ -53,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added support for accepting input file paths by URL (#[386](https://github.com/stjude-rust-labs/sprocket/pull/386)).
+* Added support for accepting input file paths by URL ([#386](https://github.com/stjude-rust-labs/sprocket/pull/386)).
 * Accept multiple `--config` options on the Sprocket CLI ([#383](https://github.com/stjude-rust-labs/sprocket/pull/383)).
 * `-c, --config` and `-s, --skip-config-search` are now global arguments (they can now appear after any subcommand) ([#365](https://github.com/stjude-rust-labs/sprocket/pull/365)).
 * Added experimental LSF + Apptainer backend ([#182](https://github.com/stjude-rust-labs/sprocket/pull/182), [#372](https://github.com/stjude-rust-labs/sprocket/pull/372), [#378](https://github.com/stjude-rust-labs/sprocket/pull/378), [#379](https://github.com/stjude-rust-labs/sprocket/pull/379), [#404](https://github.com/stjude-rust-labs/sprocket/pull/404))

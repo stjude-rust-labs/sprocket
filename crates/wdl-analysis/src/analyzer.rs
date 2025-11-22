@@ -434,11 +434,7 @@ where
 
             for result in walker {
                 let entry = result.with_context(|| {
-                    if let Some(ignore_filename) = config.ignore_filename() {
-                        format!("error parsing ignorefile with basename `{ignore_filename}`")
-                    } else {
-                        format!("failed to read directory `{path}`", path = path.display())
-                    }
+                    format!("failed to read directory `{path}`", path = path.display())
                 })?;
 
                 // Skip entries without a file type
@@ -1152,7 +1148,7 @@ workflow test {
         // Add all three documents to the analyzer
         let analyzer = Analyzer::default();
         analyzer
-            .add_directory(dir.path().to_path_buf())
+            .add_directory(dir.path())
             .await
             .expect("should add documents");
 
