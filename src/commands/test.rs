@@ -54,11 +54,10 @@ struct InputsToZip {
 
 impl InputsToZip {
     pub fn into_zip(self) -> Zip<(impl Iterator<Item = Input>,)> {
-        multizip((
-            self.sets_of_possible_inputs
-                .into_iter()
-                .flat_map(|set| set.into_inputs_iter()),
-        ))
+        multizip((self
+            .sets_of_possible_inputs
+            .into_iter()
+            .flat_map(|set| set.into_inputs_iter()),))
     }
 }
 
@@ -67,15 +66,15 @@ struct InputsToMultiply {
     pub sets_of_runs: Vec<InputsToZip>,
 }
 
-impl InputsToMultiply {
-    pub fn into_runs(self) -> impl IntoIterator<Item = Run> {
-        iproduct!(
-            self.sets_of_runs
-                .into_iter()
-                .flat_map(|to_be_zipped| to_be_zipped.into_zip()),
-        )
-    }
-}
+// impl InputsToMultiply {
+//     pub fn into_runs(self) -> impl IntoIterator<Item = Run> {
+//         iproduct!(
+//             self.sets_of_runs
+//                 .into_iter()
+//                 .flat_map(|to_be_zipped| to_be_zipped.into_zip()),
+//         )
+//     }
+// }
 
 fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) {
     let mut transformed_matrix = Vec::new();
