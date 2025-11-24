@@ -29,10 +29,12 @@ pub struct Args {
     pub source: Option<Source>,
 }
 
-/// A tuple of an input name (`String`) and an input value (as a [`Value`] which has not been converted into a WDL value yet)
+/// A tuple of an input name (`String`) and an input value (as a [`Value`] which
+/// has not been converted into a WDL value yet)
 type Input = (String, Value);
-/// Collection of [`Input`]s which correspond to a single "run" for Sprocket to test with.
-/// Should be a complete set of required inputs (potentially with values for optional inputs).
+/// Collection of [`Input`]s which correspond to a single "run" for Sprocket to
+/// test with. Should be a complete set of required inputs (potentially with
+/// values for optional inputs).
 type Run = Vec<Input>;
 
 /// User defined (via test YAML) set of possible inputs for a single WDL input.
@@ -53,7 +55,8 @@ impl PossibleInputs {
 
 /// Inputs which should be zipped and iterated through together.
 ///
-/// An example would be a set of BAM input files and their corresponding BAI files.
+/// An example would be a set of BAM input files and their corresponding BAI
+/// files.
 #[derive(Debug)]
 struct InputsToZip {
     /// Inputs which should be zipped and iterated through together.
@@ -61,7 +64,8 @@ struct InputsToZip {
 }
 
 impl InputsToZip {
-    /// Transform into an iterator of `N` [`Input`]s which should be iterated through together.
+    /// Transform into an iterator of `N` [`Input`]s which should be iterated
+    /// through together.
     pub fn into_zip(self) -> Zip<(impl Iterator<Item = Input>,)> {
         multizip((self
             .sets_of_possible_inputs
@@ -70,7 +74,8 @@ impl InputsToZip {
     }
 }
 
-/// Collection of [`InputsToZip`] which together define a collection of [`Run`]s.
+/// Collection of [`InputsToZip`] which together define a collection of
+/// [`Run`]s.
 #[derive(Debug)]
 struct AllInputsToEntrypoint {
     /// Collection of all [`InputsToZip`] for a WDL task or workflow.
