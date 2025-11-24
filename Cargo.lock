@@ -725,7 +725,7 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -735,7 +735,7 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-config"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64",
  "bon",
@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "async-trait",
