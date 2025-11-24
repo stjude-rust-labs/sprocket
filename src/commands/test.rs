@@ -84,13 +84,18 @@ struct AllInputsToEntrypoint {
 
 impl AllInputsToEntrypoint {
     /// Transform into an iterator of [`Run`]s.
-    pub fn into_runs(self) -> impl Iterator<Item = Run> {
-        // Something with `iproduct!()`?
+    pub fn into_runs(self) -> Vec<((Input,),)> {
+        iproduct!(
+            self.sets_of_inputs
+                .into_iter()
+                .flat_map(|group_of_inputs| group_of_inputs.into_zip())
+        )
+        .collect::<Vec<_>>()
     }
 }
 
 /// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
-fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) -> impl Iterator<Item = Run> {
+fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) -> Vec<((Input,),)> {
     let mut all_inputs = Vec::new();
     for set in matrix {
         let mut inputs_to_zip = vec![];
