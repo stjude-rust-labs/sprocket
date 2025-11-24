@@ -10,7 +10,6 @@ use clap::Parser;
 use indexmap::IndexMap;
 use itertools::Zip;
 use itertools::iproduct;
-use itertools::izip;
 use itertools::multizip;
 use itertools::repeat_n;
 use serde_yaml_ng::Value;
@@ -30,29 +29,39 @@ pub struct Args {
     pub source: Option<Source>,
 }
 
+/// A tuple of an input name (`String`) and an input value (as a [`Value`] which has not been converted into a WDL value yet)
 type Input = (String, Value);
+/// Collection of [`Input`]s which correspond to a single "run" for Sprocket to test with.
+/// Should be a complete set of required inputs (potentially with values for optional inputs).
 type Run = Vec<Input>;
 
+/// User defined (via test YAML) set of possible inputs for a single WDL input.
 #[derive(Debug)]
 struct PossibleInputs {
+    /// Name of the input.
     pub name: String,
+    /// Collection of YAML [`Value`]s that correspond to the named input.
     pub values: Vec<Value>,
 }
 
 impl PossibleInputs {
+    /// Transform into an iterator of [`Input`]s for this individual input key.
     pub fn into_inputs_iter(self) -> impl Iterator<Item = Input> {
         zip(repeat_n(self.name.clone(), self.values.len()), self.values)
-            .collect::<Vec<_>>()
-            .into_iter()
     }
 }
 
+/// Inputs which should be zipped and iterated through together.
+///
+/// An example would be a set of BAM input files and their corresponding BAI files.
 #[derive(Debug)]
 struct InputsToZip {
+    /// Inputs which should be zipped and iterated through together.
     pub sets_of_possible_inputs: Vec<PossibleInputs>,
 }
 
 impl InputsToZip {
+    /// Transform into an iterator of `N` [`Input`]s which should be iterated through together.
     pub fn into_zip(self) -> Zip<(impl Iterator<Item = Input>,)> {
         multizip((self
             .sets_of_possible_inputs
@@ -61,23 +70,23 @@ impl InputsToZip {
     }
 }
 
+/// Collection of [`InputsToZip`] which together define a collection of [`Run`]s.
 #[derive(Debug)]
-struct InputsToMultiply {
-    pub sets_of_runs: Vec<InputsToZip>,
+struct AllInputsToEntrypoint {
+    /// Collection of all [`InputsToZip`] for a WDL task or workflow.
+    pub sets_of_inputs: Vec<InputsToZip>,
 }
 
-// impl InputsToMultiply {
-//     pub fn into_runs(self) -> impl IntoIterator<Item = Run> {
-//         iproduct!(
-//             self.sets_of_runs
-//                 .into_iter()
-//                 .flat_map(|to_be_zipped| to_be_zipped.into_zip()),
-//         )
-//     }
-// }
+impl AllInputsToEntrypoint {
+    /// Transform into an iterator of [`Run`]s.
+    pub fn into_runs(self) -> impl Iterator<Item = Run> {
+        // Something with `iproduct!()`?
+    }
+}
 
-fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) {
-    let mut transformed_matrix = Vec::new();
+/// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
+fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) -> impl Iterator<Item = Run> {
+    let mut all_inputs = Vec::new();
     for set in matrix {
         let mut inputs_to_zip = vec![];
         for (key, val) in set {
@@ -97,11 +106,12 @@ fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) {
         let transformed_set = InputsToZip {
             sets_of_possible_inputs: inputs_to_zip,
         };
-        transformed_matrix.push(transformed_set);
+        all_inputs.push(transformed_set);
     }
-    let mut outer = InputsToMultiply {
-        sets_of_runs: transformed_matrix,
+    let all_inputs = AllInputsToEntrypoint {
+        sets_of_inputs: all_inputs,
     };
+    all_inputs.into_runs()
 }
 
 /// Performs the `test` command.
@@ -155,11 +165,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
-                    // for run in compute_runs_from_matrix(input_matrix) {
-                    //     info!("execution with inputs: {:#?}", run);
-                    //     counter += 1;
-                    // }
-                    compute_runs_from_matrix(input_matrix);
+                    for run in compute_runs_from_matrix(input_matrix) {
+                        info!("execution with inputs: {:#?}", run);
+                        counter += 1;
+                    }
+                    // compute_runs_from_matrix(input_matrix);
                     info!("computed {counter} executions");
                 }
             } else if let Some(workflow) = document.workflow()
@@ -179,11 +189,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
                     let mut counter = 0;
-                    // for run in compute_runs_from_matrix(input_matrix) {
-                    //     info!("execution with inputs: {:#?}", run);
-                    //     counter += 1;
-                    // }
-                    compute_runs_from_matrix(input_matrix);
+                    for run in compute_runs_from_matrix(input_matrix) {
+                        info!("execution with inputs: {:#?}", run);
+                        counter += 1;
+                    }
+                    // compute_runs_from_matrix(input_matrix);
                     info!("computed {counter} executions");
                 }
             } else {
