@@ -442,7 +442,7 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
         writeln!(&ignorefile, "*")
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
-    let root = root.join(entrypoint);
+    let entrypoint_root = root.join(entrypoint);
     std::fs::create_dir_all(&root)
         .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
 
