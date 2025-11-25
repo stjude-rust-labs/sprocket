@@ -435,10 +435,6 @@ async fn progress(
 /// If running on a Unix system, a symlink to the returned path will be created
 /// at `<root>/<entrypoint>/_latest`.
 pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
-    let root = root.join(entrypoint);
-    std::fs::create_dir_all(&root)
-        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
-
     let ignore_path = root.join(crate::IGNORE_FILENAME);
     if !ignore_path.exists() {
         let ignorefile = File::create(&ignore_path)
@@ -446,6 +442,9 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
         writeln!(&ignorefile, "*")
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
+    let root = root.join(entrypoint);
+    std::fs::create_dir_all(&root)
+        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
 
     let timestamp = chrono::Utc::now();
 
