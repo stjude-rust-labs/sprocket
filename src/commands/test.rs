@@ -148,10 +148,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
     for result in results.filter(&[&source]) {
         let document = result.document();
         let wdl_path = PathBuf::from(document.path().as_ref());
-        let yaml_path = wdl_path.with_extension("yaml");
+        let mut yaml_path = wdl_path.with_extension("yaml");
         if !yaml_path.exists() {
-            trace!("no tests found for WDL document: `{}`", wdl_path.display());
-            continue;
+            yaml_path = wdl_path.with_extension("yml");
+            if !yaml_path.exists() {
+                trace!("no tests found for WDL document: `{}`", wdl_path.display());
+                continue;
+            }
         }
         info!("---------NEW WDL DOCUMENT----------");
         info!(
@@ -168,21 +171,21 @@ pub async fn test(args: Args) -> CommandResult<()> {
             if let Some(task) = document.task_by_name(entrypoint) {
                 info!("-------NEW TASK-------");
                 info!("found tests for task: `{}`", task.name());
-                info!(
-                    "task `{}` has the following input specification {:#?}",
-                    task.name(),
-                    task.inputs()
-                );
+                // info!(
+                //     "task `{}` has the following input specification {:#?}",
+                //     task.name(),
+                //     task.inputs()
+                // );
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
                     info!("---NEW TEST---");
                     info!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
-                    info!("logging each individual execution defined by test matrix");
+                    // info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
                     for run in compute_runs_from_matrix(input_matrix) {
-                        info!("execution with inputs: {:#?}", run);
+                        // info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
                     // compute_runs_from_matrix(input_matrix);
@@ -193,11 +196,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
             {
                 info!("-------NEW WORKFLOW-------");
                 info!("found tests for workflow: `{}`", workflow.name());
-                info!(
-                    "workflow `{}` has the following input specification {:#?}",
-                    workflow.name(),
-                    workflow.inputs()
-                );
+                // info!(
+                //     "workflow `{}` has the following input specification {:#?}",
+                //     workflow.name(),
+                //     workflow.inputs()
+                // );
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
@@ -206,7 +209,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("assertions: {:#?}", &assertions);
                     let mut counter = 0;
                     for run in compute_runs_from_matrix(input_matrix) {
-                        info!("execution with inputs: {:#?}", run);
+                        // info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
                     // compute_runs_from_matrix(input_matrix);
