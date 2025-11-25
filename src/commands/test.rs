@@ -55,8 +55,11 @@ impl PossibleInputs {
 
 /// Inputs which should be zipped and iterated through together.
 ///
-/// An example would be a set of BAM input files and their corresponding BAI
-/// files.
+/// Most of the time, this will be a `Vec` of length one, as most WDL inputs do
+/// not need to be specified together. An example where this would be of length
+/// > 1 is a set of BAM input files and their corresponding BAI files. A BAM
+/// file and a BAI file are often supplied as separate WDL inputs even though
+/// they have a 1-to-1 relationship and must be supplied in tandem.
 #[derive(Debug)]
 struct InputsToZip {
     /// Inputs which should be zipped and iterated through together.
@@ -66,6 +69,8 @@ struct InputsToZip {
 impl InputsToZip {
     /// Transform into an iterator of `N` [`Input`]s which should be iterated
     /// through together.
+    ///
+    /// This will often be a tuple of size 1.
     pub fn into_zip(self) -> Zip<(impl Iterator<Item = Input>,)> {
         multizip((self
             .sets_of_possible_inputs
@@ -84,18 +89,19 @@ struct AllInputsToEntrypoint {
 
 impl AllInputsToEntrypoint {
     /// Transform into an iterator of [`Run`]s.
-    pub fn into_runs(self) -> Vec<((Input,),)> {
+    pub fn into_runs(self) -> impl Iterator<Item = ((Input,),)> {
         iproduct!(
             self.sets_of_inputs
                 .into_iter()
                 .flat_map(|group_of_inputs| group_of_inputs.into_zip())
         )
-        .collect::<Vec<_>>()
     }
 }
 
 /// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
-fn compute_runs_from_matrix(matrix: Vec<IndexMap<String, Value>>) -> Vec<((Input,),)> {
+fn compute_runs_from_matrix(
+    matrix: Vec<IndexMap<String, Value>>,
+) -> impl Iterator<Item = ((Input,),)> {
     let mut all_inputs = Vec::new();
     for set in matrix {
         let mut inputs_to_zip = vec![];
