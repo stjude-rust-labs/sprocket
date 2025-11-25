@@ -31,10 +31,18 @@ pub struct Args {
 
 /// A tuple of an input name (`String`) and an input value (as a [`Value`] which
 /// has not been converted into a WDL value yet)
+///
+/// e.g. ("paired_end", true)
 type Input = (String, Value);
 /// Collection of [`Input`]s which correspond to a single "run" for Sprocket to
 /// test with. Should be a complete set of required inputs (potentially with
 /// values for optional inputs).
+///
+/// e.g.
+/// [
+///   ("bams", ["$FIXTURES/test1.bam", "$FIXTURES/test2.bam"]),
+///   ("prefix", "test.merged"),
+/// ]
 type Run = Vec<Input>;
 
 /// User defined (via test YAML) set of possible inputs for a single WDL input.
@@ -43,6 +51,9 @@ struct PossibleInputs {
     /// Name of the input.
     pub name: String,
     /// Collection of YAML [`Value`]s that correspond to the named input.
+    ///
+    /// e.g.
+    /// [true, false]
     pub values: Vec<Value>,
 }
 
@@ -104,14 +115,32 @@ fn compute_runs_from_matrix(
 ) -> impl Iterator<Item = ((Input,),)> {
     let mut all_inputs = Vec::new();
     for set in matrix {
+        // (extracted) input YAML may look like:
+        // ```yaml
+        // number:
+        //   - "0x900"
+        // ```
+        // or
+        // ```yaml
+        // bam:
+        //   - $FIXTURES/test1.bam
+        //   - $FIXTURES/test2.bam
+        //   - $FIXTURES/test3.bam
+        // bam_index:
+        //   - $FIXTURES/test1.bam.bai
+        //   - $FIXTURES/test2.bam.bai
+        //   - $FIXTURES/test3.bam.bai
+        // ```
         let mut inputs_to_zip = vec![];
         for (key, val) in set {
+            // key corresponds to ["number"] or ["bam", "bam_index"] in above examples
             let Some(seq) = val.as_sequence() else {
                 warn!("expected sequence of values, found `{:#?}`", val);
                 continue;
             };
             let mut possible_inputs = vec![];
             for val in seq {
+                // seq is innermost array in examples
                 possible_inputs.push(val.clone());
             }
             inputs_to_zip.push(PossibleInputs {
