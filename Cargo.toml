@@ -40,6 +40,7 @@ codespan-reporting = "0.12.0"
 colored = "3.0.0"
 convert_case = "0.8.0"
 crankshaft = { version = "0.7.0", path = "vendor/crankshaft/crankshaft", features = ["docker"] }
+criterion = "0.7.0"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
 figment = { version = "0.10.19", features = ["toml", "yaml"] }
@@ -113,6 +114,7 @@ uuid = "1.18.0"
 walkdir = "2.5.0"
 wdl = { version = "0.20.0", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc"] }
 which = "8.0.0"
+zip = "6.0.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
