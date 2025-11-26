@@ -108,10 +108,10 @@ pub struct Args {
 
     /// The root "runs" directory; defaults to `./runs/`.
     ///
-    /// Individual invocations of `sprocket run` will nest their execution
+    /// Individual sessions of `sprocket run` will nest their execution
     /// directories beneath this root directory at the path
     /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// invocation will be symlinked at `<entrypoint name>/_latest`.
+    /// session will be symlinked at `<entrypoint name>/_latest`.
     #[clap(short, long, value_name = "ROOT_DIR")]
     pub runs_dir: Option<PathBuf>,
 

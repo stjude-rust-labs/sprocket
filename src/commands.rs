@@ -47,9 +47,6 @@ pub enum Commands {
     /// Runs a task or workflow.
     Run(run::Args),
 
-    /// Runs the HTTP API server for run execution.
-    Server(server::Args),
-
     /// Validate a set of inputs against a task or workflow.
     ///
     /// This ensures that every required input is supplied, every supplied input
@@ -73,4 +70,6 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// Runs the HTTP API server for run execution.
+    Server(server::Args),
 }

@@ -18,7 +18,7 @@ use tracing::warn;
 use wdl::engine;
 
 use crate::diagnostics::Mode;
-use crate::execution::ExecutionConfig;
+use crate::system::v1::exec::ExecutionConfig;
 
 /// Default host.
 const DEFAULT_HOST: &str = "127.0.0.1";
@@ -137,7 +137,7 @@ pub struct RunConfig {
     #[serde(flatten)]
     pub engine: engine::Config,
 
-    /// The "runs" directory under which new `run` invocations' execution
+    /// The "runs" directory under which new `run` sessions' execution
     /// directories will be placed.
     pub runs_dir: PathBuf,
 }

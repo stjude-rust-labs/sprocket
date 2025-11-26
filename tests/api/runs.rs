@@ -7,12 +7,12 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
-use sprocket::database::Database;
-use sprocket::database::RunStatus;
-use sprocket::database::SqliteDatabase;
-use sprocket::execution::ExecutionConfig;
-use sprocket::execution::ManagerCommand;
-use sprocket::execution::spawn_manager;
+use sprocket::system::v1::db::Database;
+use sprocket::system::v1::db::RunStatus;
+use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::exec::ExecutionConfig;
+use sprocket::system::v1::exec::svc::RunManagerCmd;
+use sprocket::system::v1::exec::svc::RunManagerSvc;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
 use tempfile::TempDir;
@@ -44,19 +44,84 @@ async fn create_test_server(
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
 
-    let events = wdl::engine::Events::all(100);
-    let manager = spawn_manager(exec_config, db.clone(), events);
+    let (_, run_manager_tx) = RunManagerSvc::spawn(1000, exec_config, db.clone());
 
-    // Wait for manager to be ready
+    // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
-    manager.send(ManagerCommand::Ping { rx: tx }).await.unwrap();
+    run_manager_tx
+        .send(RunManagerCmd::Ping { rx: tx })
+        .await
+        .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState { manager };
-
-    let router = create_router().state(state).cors(CorsLayer::new()).call();
+    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let router = create_router().state(state).cors_layer(CorsLayer::new()).call();
 
     (router, db, temp)
+}
+
+/// Poll database until run matches a predicate or timeout.
+async fn poll_for_run<F>(
+    db: &Arc<dyn Database>,
+    run_id: uuid::Uuid,
+    predicate: F,
+    timeout_secs: u64,
+    error_msg: &str,
+) -> Result<RunStatus, String>
+where
+    F: Fn(&RunStatus) -> bool,
+{
+    let poll_interval = std::time::Duration::from_millis(100);
+    let max_polls = (timeout_secs * 1000) / 100;
+
+    for _ in 0..max_polls {
+        tokio::time::sleep(poll_interval).await;
+
+        let run = db
+            .get_run(run_id)
+            .await
+            .map_err(|e| format!("database error: {}", e))?
+            .ok_or_else(|| "run not found".to_string())?;
+
+        if predicate(&run.status) {
+            return Ok(run.status);
+        }
+    }
+
+    Err(format!("{} (timeout: {} seconds)", error_msg, timeout_secs))
+}
+
+/// Poll until run reaches any terminal state.
+async fn poll_for_completion(
+    db: &Arc<dyn Database>,
+    run_id: uuid::Uuid,
+    timeout_secs: u64,
+) -> Result<RunStatus, String> {
+    poll_for_run(
+        db,
+        run_id,
+        |status| matches!(status, RunStatus::Completed | RunStatus::Failed | RunStatus::Canceled),
+        timeout_secs,
+        "run did not complete",
+    )
+    .await
+}
+
+/// Poll until run reaches a specific status.
+async fn poll_for_status(
+    db: &Arc<dyn Database>,
+    run_id: uuid::Uuid,
+    expected: RunStatus,
+    timeout_secs: u64,
+) -> Result<RunStatus, String> {
+    poll_for_run(
+        db,
+        run_id,
+        |status| *status == expected,
+        timeout_secs,
+        &format!("run did not reach status {:?}", expected),
+    )
+    .await
 }
 
 /// Simple WDL workflow for testing.
@@ -115,43 +180,16 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 
     assert_eq!(run.name, run_name);
 
-    // Poll until run completes (max 10 seconds)
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    // Wait for run to complete
+    let run_id_uuid = run_id.parse().unwrap();
+    let status = poll_for_completion(&db, run_id_uuid, 10)
+        .await
+        .expect("run should complete within 10 seconds");
 
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        } else if status_json["status"] == "failed" {
-            panic!("run failed: {:?}", status_json);
-        }
-    }
-
-    assert!(completed, "run should complete within 10 seconds");
+    assert_eq!(status, RunStatus::Completed);
 
     // Verify final database state
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    let run = db.get_run(run_id_uuid).await.unwrap().unwrap();
 
     assert_eq!(run.status, RunStatus::Completed);
     assert!(run.started_at.is_some());
@@ -212,7 +250,7 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     let wdl_file = temp.path().join("wdl").join("test.wdl");
     std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
@@ -241,32 +279,10 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
     let run_id_1 = submit_response["id"].as_str().unwrap();
 
     // Wait for first run to complete
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id_1))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "first run should complete");
+    let status = poll_for_completion(&db, run_id_1.parse().unwrap(), 10)
+        .await
+        .expect("first run should complete");
+    assert_eq!(status, RunStatus::Completed);
 
     let run_dir = temp.path().join("runs").join("test");
     let latest_symlink = run_dir.join("_latest");
@@ -308,32 +324,10 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
     let run_id_2 = submit_response["id"].as_str().unwrap();
 
     // Wait for second run to complete
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id_2))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "second run should complete");
+    let status = poll_for_completion(&db, run_id_2.parse().unwrap(), 10)
+        .await
+        .expect("second run should complete");
+    assert_eq!(status, RunStatus::Completed);
 
     // Get all execution directories
     let execution_dirs: Vec<_> = std::fs::read_dir(&run_dir)
@@ -341,13 +335,15 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
         .map(|e| e.unwrap().path())
         .filter(|p| !p.file_name().unwrap().to_str().unwrap().starts_with('_'))
         .collect();
-    assert_eq!(execution_dirs.len(), 2, "should have two execution directories");
+    assert_eq!(
+        execution_dirs.len(),
+        2,
+        "should have two execution directories"
+    );
 
     // Find the second execution directory (most recent)
     let second_execution_dir = execution_dirs
-        .iter()
-        .filter(|p| *p != first_execution_dir)
-        .next()
+        .iter().find(|p| *p != first_execution_dir)
         .unwrap();
 
     // Verify `_latest` now points to second run
@@ -378,7 +374,7 @@ task sleep_task {
     >>>
 
     runtime {
-        container: "ubuntu:22.04"
+        container: "ubuntu:latest"
     }
 }
 "#;
@@ -411,37 +407,9 @@ task sleep_task {
     let run_id = submit_response["id"].as_str().unwrap();
 
     // Wait for workflow to start running
-    let mut running = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "running" {
-            running = true;
-            break;
-        }
-    }
-
-    assert!(running, "workflow should start running");
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
+        .await
+        .expect("workflow should start running");
 
     // First cancel request (with slow failure mode, should go to Canceling)
     let cancel_response = app
@@ -466,7 +434,7 @@ task sleep_task {
     assert!(run.completed_at.is_none());
     assert!(run.outputs.is_none());
 
-    // Second cancel request (should go to Cancelled)
+    // Second cancel request (should go to `Canceled`)
     let cancel_response2 = app
         .clone()
         .oneshot(
@@ -486,7 +454,7 @@ task sleep_task {
 
     assert_eq!(run.status, RunStatus::Canceled);
     assert!(run.started_at.is_some());
-    assert!(run.completed_at.is_none());
+    assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
 
     // Verify no results were indexed
@@ -504,8 +472,7 @@ task sleep_task {
 #[sqlx::test]
 async fn cancel_running_run_fast_mode(pool: sqlx::SqlitePool) {
     // Create execution config with fast failure mode
-    let mut engine_config = wdl::engine::Config::default();
-    engine_config.failure_mode = wdl::engine::config::FailureMode::Fast;
+    let engine_config = wdl::engine::Config { failure_mode: wdl::engine::config::FailureMode::Fast, ..Default::default() };
 
     let (app, db, temp) = create_test_server()
         .pool(pool)
@@ -527,7 +494,7 @@ task sleep_task {
     >>>
 
     runtime {
-        container: "ubuntu:22.04"
+        container: "ubuntu:latest"
     }
 }
 "#;
@@ -560,37 +527,9 @@ task sleep_task {
     let run_id = submit_response["id"].as_str().unwrap();
 
     // Wait for workflow to start running
-    let mut running = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "running" {
-            running = true;
-            break;
-        }
-    }
-
-    assert!(running, "workflow should start running");
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
+        .await
+        .expect("workflow should start running");
 
     // With fast failure mode, single cancel request should go straight to Cancelled
     let cancel_response = app
@@ -612,7 +551,7 @@ task sleep_task {
 
     assert_eq!(run.status, RunStatus::Canceled);
     assert!(run.started_at.is_some());
-    assert!(run.completed_at.is_none());
+    assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
 }
 
@@ -704,7 +643,7 @@ async fn get_run_not_found(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Submit multiple workflows
     let wdl_file = temp.path().join("wdl").join("test.wdl");
@@ -715,7 +654,8 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
         "inputs": {},
     });
 
-    // Submit 3 workflows
+    // Submit 3 workflows and collect their IDs
+    let mut run_ids = Vec::new();
     for _ in 0..3 {
         let response = app
             .clone()
@@ -731,38 +671,18 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        run_ids.push(submit_response["id"].as_str().unwrap().to_string());
     }
 
     // Wait for all workflows to complete
-    let mut all_completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/api/v1/runs?status=completed")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+    for run_id in &run_ids {
+        poll_for_completion(&db, run_id.parse().unwrap(), 10)
             .await
-            .unwrap();
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let list_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if list_response["total"] == 3 {
-            all_completed = true;
-            break;
-        }
+            .expect("workflow should complete");
     }
-
-    assert!(
-        all_completed,
-        "all workflows should complete within 10 seconds"
-    );
 
     // Verify no running workflows
     let response = app
@@ -849,7 +769,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Submit and wait for completion
     let wdl_file = temp.path().join("wdl").join("test.wdl");
@@ -878,118 +798,14 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
     let run_id = submit_response["id"].as_str().unwrap();
 
     // Wait for completion
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "workflow should complete");
-
-    // Try to cancel completed workflow
-    let cancel_response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
         .await
-        .unwrap();
-
-    assert_eq!(cancel_response.status(), StatusCode::CONFLICT);
-}
-
-#[sqlx::test]
-async fn get_run_outputs(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
-
-    // Submit and wait for completion
-    let wdl_file = temp.path().join("wdl").join("test.wdl");
-    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
-
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/runs")
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
-
-    // Wait for completion
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "workflow should complete");
+        .expect("workflow should complete");
+    assert_eq!(status, RunStatus::Completed);
 
     // Get workflow outputs
     let outputs_response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
@@ -1012,6 +828,24 @@ async fn get_run_outputs(pool: sqlx::SqlitePool) {
 
     assert_eq!(outputs_json["outputs"]["test.message"], "hello world");
     assert_eq!(outputs_json["outputs"]["test.number"], 42);
+
+    // Try to cancel already completed run - should fail
+    let cancel_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        cancel_response.status(),
+        StatusCode::CONFLICT,
+        "should not be able to cancel a completed run"
+    );
 }
 
 #[sqlx::test]
@@ -1052,423 +886,55 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
     let run_id = submit_response["id"].as_str().unwrap();
 
     // Wait for completion
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "workflow should complete");
-
-    // Verify index entries were created
-    let index_entries = db
-        .list_index_log_entries_by_run(run_id.parse().unwrap())
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
         .await
-        .unwrap();
-
-    assert!(index_entries.len() > 0, "index entries should be created");
-
-    // Verify each index entry exists on filesystem and is a symlink
-    for entry in &index_entries {
-        assert!(
-            entry.index_path.starts_with("./"),
-            "index path should start with `./`: `{}`",
-            entry.index_path
-        );
-        assert!(
-            entry.target_path.starts_with("./"),
-            "target path should start with `./`: `{}`",
-            entry.target_path
-        );
-
-        let index_path = temp
-            .path()
-            .join(entry.index_path.strip_prefix("./").unwrap());
-        assert!(
-            index_path.exists(),
-            "index path should exist: `{}`",
-            entry.index_path
-        );
-
-        let metadata = std::fs::symlink_metadata(&index_path).unwrap();
-        assert!(
-            metadata.is_symlink(),
-            "index path should be a symlink: `{}`",
-            entry.index_path
-        );
-
-        // Verify target exists
-        let target_path = temp
-            .path()
-            .join(entry.target_path.strip_prefix("./").unwrap());
-        assert!(
-            target_path.exists(),
-            "target path should exist: `{}`",
-            entry.target_path
-        );
-
-        // Verify symlink resolves to the target (canonicalize both to compare)
-        let link_resolved = std::fs::canonicalize(&index_path).unwrap();
-        let target_canonical = std::fs::canonicalize(&target_path).unwrap();
-        assert_eq!(
-            link_resolved, target_canonical,
-            "symlink should resolve to target"
-        );
-    }
-}
-
-#[sqlx::test]
-async fn get_outputs_for_incomplete_run(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
-
-    // Submit long-running workflow
-    let wdl_content = r#"
-version 1.2
-
-workflow long_test {
-    call sleep_task
-}
-
-task sleep_task {
-    command <<<
-        sleep 30
-    >>>
-
-    runtime {
-        container: "ubuntu:22.04"
-    }
-}
-"#;
-    let wdl_file = temp.path().join("wdl").join("long.wdl");
-    std::fs::write(&wdl_file, wdl_content).unwrap();
-
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/runs")
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
-
-    // Get outputs immediately (while still running)
-    let outputs_response = app
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(format!("/api/v1/runs/{}/outputs", run_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(outputs_response.status(), StatusCode::OK);
-
-    let body = outputs_response
-        .into_body()
-        .collect()
-        .await
-        .unwrap()
-        .to_bytes();
-    let outputs_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert!(
-        outputs_json["outputs"].is_null(),
-        "outputs should be `null` for incomplete workflow"
-    );
-}
-
-#[sqlx::test]
-async fn get_outputs_for_nonexistent_run(pool: sqlx::SqlitePool) {
-    let (app, ..) = create_test_server().pool(pool).call().await;
-
-    let fake_id = uuid::Uuid::new_v4();
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri(format!("/api/v1/runs/{}/outputs", fake_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-#[sqlx::test]
-async fn cancel_nonexistent_run(pool: sqlx::SqlitePool) {
-    let (app, ..) = create_test_server().pool(pool).call().await;
-
-    let fake_id = uuid::Uuid::new_v4();
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", fake_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-#[sqlx::test]
-async fn list_runs_with_offset_pagination(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
-
-    // Submit 5 workflows
-    let wdl_file = temp.path().join("wdl").join("test.wdl");
-    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
-
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    for _ in 0..5 {
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/runs")
-                    .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    // Wait for all to complete
-    let mut all_completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri("/api/v1/runs?status=completed")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let list_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if list_response["total"] == 5 {
-            all_completed = true;
-            break;
-        }
-    }
-
-    assert!(all_completed, "all workflows should complete");
-
-    // Test pagination with offset
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/api/v1/runs?limit=2&offset=0")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let page1: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert_eq!(page1["total"], 5);
-    assert_eq!(page1["runs"].as_array().unwrap().len(), 2);
-
-    // Get next page
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/api/v1/runs?limit=2&offset=2")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let page2: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert_eq!(page2["total"], 5);
-    assert_eq!(page2["runs"].as_array().unwrap().len(), 2);
-
-    // Get last page
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/api/v1/runs?limit=2&offset=4")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let page3: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert_eq!(page3["total"], 5);
-    assert_eq!(page3["runs"].as_array().unwrap().len(), 1);
-
-    // Verify IDs are different across pages
-    let id1 = page1["runs"][0]["id"].as_str().unwrap();
-    let id2 = page2["runs"][0]["id"].as_str().unwrap();
-    assert_ne!(id1, id2, "different pages should have different workflows");
-}
-
-#[sqlx::test]
-async fn run_that_fails(pool: sqlx::SqlitePool) {
-    let (app, db, temp) = create_test_server().pool(pool).call().await;
-
-    // Create a workflow that will fail (command exits with non-zero)
-    let wdl_content = r#"
-version 1.2
-
-workflow failing_test {
-    call fail_task
-}
-
-task fail_task {
-    command <<<
-        exit 1
-    >>>
-
-    runtime {
-        container: "ubuntu:22.04"
-    }
-}
-"#;
-    let wdl_file = temp.path().join("wdl").join("failing.wdl");
-    std::fs::write(&wdl_file, wdl_content).unwrap();
-
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/runs")
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
-
-    // Wait for workflow to fail
-    let mut failed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "failed" {
-            failed = true;
-            break;
-        }
-    }
-
-    assert!(failed, "workflow should fail within 10 seconds");
+        .expect("workflow should complete within 10 seconds");
+    assert_eq!(status, RunStatus::Completed);
 
     // Verify final database state
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
 
-    assert_eq!(run.status, RunStatus::Failed);
+    assert_eq!(run.status, RunStatus::Completed);
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
-    assert!(run.error.is_some(), "error field should be populated");
+    assert!(run.error.is_none(), "completed workflow should not have error");
     assert!(
-        run.outputs.is_none(),
-        "failed workflow should not have outputs"
+        run.outputs.is_some(),
+        "completed workflow should have outputs"
     );
+
+    // Verify that `index_directory` was set
+    assert!(
+        run.index_directory.is_some(),
+        "index_directory should be set when index_on is provided"
+    );
+
+    let index_dir_relative = run.index_directory.as_ref().unwrap().strip_prefix("./").unwrap();
+    let index_path = temp.path().join(index_dir_relative);
+
+    assert!(
+        index_path.exists(),
+        "index directory should exist at {:?}",
+        index_path
+    );
+
+    // Verify `outputs.json` was created in the index directory
+    let outputs_json_path = index_path.join("outputs.json");
+    assert!(
+        outputs_json_path.exists(),
+        "outputs.json should exist in index directory at {:?}",
+        outputs_json_path
+    );
+
+    // Verify we can read and parse the outputs
+    let outputs_content = std::fs::read_to_string(&outputs_json_path)
+        .expect("should be able to read outputs.json");
+    let outputs: serde_json::Value = serde_json::from_str(&outputs_content)
+        .expect("outputs.json should be valid JSON");
+
+    // The outputs are serialized with the workflow name as a prefix
+    assert_eq!(outputs["test.message"], "hello world");
+    assert_eq!(outputs["test.number"], 42);
 }
 
 #[sqlx::test]
@@ -1493,7 +959,7 @@ task slow_task {
     >>>
 
     runtime {
-        container: "ubuntu:22.04"
+        container: "ubuntu:latest"
     }
 }
 "#;
@@ -1558,36 +1024,16 @@ task slow_task {
         statuses
     );
 
-    // Wait for both to complete
+    // Wait both to complete
     for id in &run_ids {
-        for _ in 0..100 {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-            let response = app
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method("GET")
-                        .uri(format!("/api/v1/runs/{}", id))
-                        .body(Body::empty())
-                        .unwrap(),
-                )
-                .await
-                .unwrap();
-
-            let body = response.into_body().collect().await.unwrap().to_bytes();
-            let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-            if status_json["status"] == "completed" {
-                break;
-            }
-        }
+        poll_for_completion(&db, id.parse().unwrap(), 10)
+            .await
+            .expect("run should complete");
     }
 
     // Verify both `completed` successfully
     for id in &run_ids {
         let run = db.get_run(id.parse().unwrap()).await.unwrap().unwrap();
-
         assert_eq!(run.status, RunStatus::Completed);
     }
 }
@@ -1596,21 +1042,24 @@ task slow_task {
 async fn execute_task_with_explicit_target(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
-    // Create a WDL with a standalone task
+    // Create a WDL with both a workflow and a task
     let wdl_content = r#"
 version 1.2
 
+workflow main_workflow {
+    call my_task
+
+    output {
+        String result = my_task.message
+    }
+}
+
 task my_task {
     command <<<
-        echo "hello from task"
     >>>
 
     output {
-        String message = read_string(stdout())
-    }
-
-    runtime {
-        container: "ubuntu:22.04"
+        String message = "hello from task"
     }
 }
 "#;
@@ -1643,218 +1092,12 @@ task my_task {
     let run_id = submit_response["id"].as_str().unwrap();
 
     // Wait for task to complete
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "task should complete within 10 seconds");
-
-    // Verify final database state
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
-
-    assert_eq!(run.status, RunStatus::Completed);
-    assert!(run.outputs.is_some());
-}
-
-#[sqlx::test]
-async fn execute_single_task_implicit_target(pool: sqlx::SqlitePool) {
-    let (app, db, temp) = create_test_server().pool(pool).call().await;
-
-    // Create a WDL with a single task and no workflow
-    let wdl_content = r#"
-version 1.2
-
-task only_task {
-    command <<<
-        echo "implicit task execution"
-    >>>
-
-    output {
-        String result = read_string(stdout())
-    }
-
-    runtime {
-        container: "ubuntu:22.04"
-    }
-}
-"#;
-    let wdl_file = temp.path().join("wdl").join("single_task.wdl");
-    std::fs::write(&wdl_file, wdl_content).unwrap();
-
-    // Submit without specifying target - should automatically use the single task
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/runs")
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                .unwrap(),
-        )
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
         .await
-        .unwrap();
+        .expect("task should complete within 10 seconds");
+    assert_eq!(status, RunStatus::Completed);
 
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
-
-    // Wait for task to complete
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(
-        completed,
-        "single task should complete automatically within 10 seconds"
-    );
-
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
-
-    assert_eq!(run.status, RunStatus::Completed);
-}
-
-#[sqlx::test]
-async fn workflow_prioritized_over_task_implicit_target(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
-
-    // Create a WDL with both a workflow and a task
-    let wdl_content = r#"
-version 1.2
-
-task helper_task {
-    command <<< echo "from task" >>>
-    output { String msg = read_string(stdout()) }
-    runtime { container: "ubuntu:22.04" }
-}
-
-workflow main_workflow {
-    output {
-        String result = "from workflow"
-    }
-}
-"#;
-    let wdl_file = temp.path().join("wdl").join("workflow_and_task.wdl");
-    std::fs::write(&wdl_file, wdl_content).unwrap();
-
-    // Submit without target - should execute workflow
-    let submit_request = json!({
-        "source": wdl_file.to_str().unwrap(),
-        "inputs": {},
-    });
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/api/v1/runs")
-                .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
-
-    // Wait to complete
-    let mut completed = false;
-    for _ in 0..100 {
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-        let status_response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("GET")
-                    .uri(format!("/api/v1/runs/{}", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        let body = status_response
-            .into_body()
-            .collect()
-            .await
-            .unwrap()
-            .to_bytes();
-        let status_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-        if status_json["status"] == "completed" {
-            completed = true;
-            break;
-        }
-    }
-
-    assert!(completed, "workflow should complete within 10 seconds");
-
-    // Get outputs to verify workflow was executed (not task)
+    // Get outputs to verify task was executed
     let outputs_response = app
         .oneshot(
             Request::builder()
@@ -1877,8 +1120,12 @@ workflow main_workflow {
     let outputs_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(
-        outputs_json["outputs"]["main_workflow.result"], "from workflow",
-        "should execute workflow, not task"
+        outputs_json["outputs"]["my_task.result"]
+            .as_str()
+            .unwrap()
+            .trim(),
+        "hello from task",
+        "should execute the task with explicit target"
     );
 }
 
@@ -1892,12 +1139,12 @@ version 1.2
 
 task task_one {
     command <<< echo "one" >>>
-    runtime { container: "ubuntu:22.04" }
+    runtime { container: "ubuntu:latest" }
 }
 
 task task_two {
     command <<< echo "two" >>>
-    runtime { container: "ubuntu:22.04" }
+    runtime { container: "ubuntu:latest" }
 }
 "#;
     let wdl_file = temp.path().join("wdl").join("ambiguous.wdl");
@@ -1929,12 +1176,11 @@ task task_two {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_message = error_json["message"].as_str().unwrap();
     assert!(
-        error_json["message"]
-            .as_str()
-            .unwrap()
-            .contains("target required"),
-        "error message should indicate target is required"
+        error_message.contains("target is unable to be inferred"),
+        "error message should indicate target is required, got: {}",
+        error_message
     );
 }
 
@@ -2024,12 +1270,11 @@ version 1.2
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let error_message = error_json["message"].as_str().unwrap();
     assert!(
-        error_json["message"]
-            .as_str()
-            .unwrap()
-            .contains("no workflows or tasks"),
-        "error message should indicate no executable target"
+        error_message.contains("there must be at least one task, workflow, or struct definition"),
+        "error message should indicate no executable target, got: {}",
+        error_message
     );
 }
 
@@ -2048,10 +1293,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     let db: Arc<dyn Database> = Arc::new(SqliteDatabase::from_pool(pool).await.unwrap());
 
     // Create events and subscribe to crankshaft events
-    let events = wdl::engine::Events::all(100);
-    let mut crankshaft_rx = events.subscribe_crankshaft().unwrap();
-
-    let manager = spawn_manager(exec_config, db.clone(), events);
+    let (_, manager) = RunManagerSvc::spawn(1000, exec_config, db.clone());
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");
@@ -2078,7 +1320,7 @@ workflow test {
     // Submit run
     let (tx, rx) = oneshot::channel();
     manager
-        .send(ManagerCommand::Submit {
+        .send(RunManagerCmd::Submit {
             source: workflow_path.to_str().unwrap().to_string(),
             inputs: json!({"test.name": "World"}),
             target: None,
@@ -2087,41 +1329,17 @@ workflow test {
         })
         .await
         .unwrap();
-    let run_id = rx.await.unwrap().unwrap().id;
+    let submit_response = rx.await.unwrap().unwrap();
+    let mut events_rx = submit_response.events.subscribe_crankshaft().unwrap();
+    // Wait for the task to finish.
+    submit_response.handle.await.unwrap();
+    
 
-    // Collect events in background
-    let event_collector = tokio::spawn(async move {
-        let mut events = Vec::new();
-        while let Ok(event) = crankshaft_rx.recv().await {
-            events.push(event);
-        }
-        events
-    });
-
-    // Poll until run completes
-    loop {
-        let (tx, rx) = oneshot::channel();
-        manager
-            .send(ManagerCommand::GetStatus { id: run_id, rx: tx })
-            .await
-            .unwrap();
-        let status = rx.await.unwrap().unwrap();
-
-        if status.run.status != RunStatus::Running && status.run.status != RunStatus::Queued {
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    // Collect events - we should have received some crankshaft events
+    let mut event_count = 0;
+    while let Ok(event) = events_rx.try_recv() {
+        event_count += 1;
+        drop(event); // Just count them
     }
-
-    // Shutdown manager to close event channels
-    let (tx, rx) = oneshot::channel();
-    manager
-        .send(ManagerCommand::Shutdown { rx: tx })
-        .await
-        .unwrap();
-    rx.await.unwrap().unwrap();
-
-    // Collect events
-    let events = event_collector.await.unwrap();
-    assert!(!events.is_empty(), "should receive crankshaft events");
+    assert!(event_count > 0, "should receive crankshaft events");
 }

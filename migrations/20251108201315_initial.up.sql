@@ -1,45 +1,54 @@
--- Metadata table
+-- The metadata table.
+--
+-- The metadata table is a table that is expected to exist in all versions of
+-- Sprocket—it's intended to be queried by _any_ version of Sprocket to
+-- determine what the version of the current database/filesystem are being used.
+--
+-- Other version independent information may live here at your descretion.
 create table if not exists metadata (
-    -- Metadata key identifier
-    key text primary key not null,
-    -- Metadata value
-    value text not null,
+    -- Key of the metadata element
+    "key" text unique primary key not null,
+    -- Value of the metadata element
+    "value" text not null,
     -- Timestamp when the metadata entry was created
     created_at timestamp not null default current_timestamp
 );
 
-insert into metadata (key, value) values ('schema_version', '1');
-
--- Invocations table
-create table if not exists invocations (
-    -- Unique identifier for this invocation
+-- The sessions table.
+--
+-- Sessions are invocations of the Sprocket command line tool by a particular
+-- user. They are tracked for provenance purposes.
+create table if not exists "sessions" (
+    -- Unique identifier for this session
     id text primary key not null,
-    -- How the runs were submitted
-    method text not null check(method in ('run', 'server')),
-    -- User or system that created this invocation
+    -- The Sprocket subcommand used to create this session
+    subcommand text not null check(subcommand in ('run', 'server')),
+    -- User or account that started this session
     created_by text not null,
-    -- Timestamp when the invocation was created
+    -- Timestamp when the session was created
     created_at timestamp not null default current_timestamp
 );
 
--- Runs table
+-- The runs table.
+--
+-- A "run" represented a targeted WDL task or workflow to execute.
 create table if not exists runs (
     -- Unique identifier for this run
     id text primary key not null,
-    -- Foreign key to the invocation that submitted this run
-    invocation_id text not null,
+    -- Foreign key to the session that submitted this run
+    session_id text not null,
     -- Name of the run
     "name" text not null,
     -- Source WDL file path or URL
-    source text not null,
+    "source" text not null,
     -- Current run status
-    "status" text not null check(status in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled')),
+    "status" text not null check("status" in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled')),
     -- JSON-encoded inputs
     inputs text not null,
     -- JSON-encoded outputs
     outputs text,
-    -- Error message if run failed
-    error text,
+    -- Error message (`null` unless the run has failed)
+    "error" text,
     -- Path to the run directory
     directory text not null,
     -- Path to the indexed output directory (`null` if not indexed)
@@ -50,21 +59,25 @@ create table if not exists runs (
     completed_at timestamp,
     -- Timestamp when the run was created
     created_at timestamp not null default current_timestamp,
-    foreign key (invocation_id) references invocations(id)
+    foreign key (session_id) references sessions(id)
 );
 
-create index idx_runs_invocation_id on runs(invocation_id);
+create index idx_runs_session_id on runs(session_id);
 create index idx_runs_status on runs("status");
 create index idx_runs_created_at on runs(created_at);
 
--- Index log table
+-- The index log table.
+--
+-- The index log track _all_ entries that have ever been linked into the index.
+-- Its primary purpose is providing a mechanism to reconstruct what the index
+-- looked like at any point in time.
 create table if not exists index_log (
     -- Unique identifier for this index log entry
     id integer primary key autoincrement not null,
     -- Foreign key to the run that created this index entry
     run_id text not null,
     -- Path to the symlink in the index directory
-    index_path text not null,
+    link_path text not null,
     -- Path to the actual run output file being symlinked
     target_path text not null,
     -- Timestamp when the index entry was created
@@ -73,15 +86,67 @@ create table if not exists index_log (
 );
 
 create index idx_index_log_run_id on index_log(run_id);
-create index idx_index_log_index_path_created_at on index_log(index_path, created_at desc);
+create index idx_index_log_link_path_created_at on index_log(link_path, created_at desc);
 
--- View for getting the latest index entry for each unique index path
+-- The latest index entries view.
+--
+-- This is a view for getting the latest index entry for each unique link path.
+-- It's useful for reconstructing what the latest complete index looks like.
 create view latest_index_entries as
-select id, run_id, index_path, target_path, created_at
+select id, run_id, link_path, target_path, created_at
 from (
     select *,
-           row_number() over (partition by index_path order by created_at desc) as rn
+           row_number() over (partition by link_path order by created_at desc) as rn
     from index_log
 ) ranked
 where rn = 1
-order by index_path;
+order by link_path;
+
+-- The tasks table.
+--
+-- The tasks table tracks the status of tasks that execute underneath runs.
+create table if not exists tasks (
+    -- Task name from WDL
+    "name" text primary key not null,
+    -- Foreign key to the run managing this task
+    run_id text not null,
+    -- Current task status
+    "status" text not null check("status" in ('pending', 'running', 'completed', 'failed', 'canceled', 'preempted')),
+    -- Exit status from task completion
+    exit_status integer,
+    -- Error message (`null` unless task failed)
+    "error" text,
+    -- Timestamp when task was created
+    created_at timestamp not null default current_timestamp,
+    -- Timestamp when task started executing
+    started_at timestamp,
+    -- Timestamp when task reached a completed state
+    completed_at timestamp,
+
+    foreign key (run_id) references runs(id)
+);
+
+create index idx_tasks_run_id on tasks(run_id);
+create index idx_tasks_status on tasks("status");
+create index idx_tasks_created_at on tasks(created_at);
+
+-- The task logs table.
+--
+-- The table keeps track of all stdout and stderr logs from tasks.
+create table if not exists task_logs (
+    -- The unique ID for the task log entry
+    id integer primary key autoincrement not null,
+    -- A foreign key to the task that created this log
+    task_name text not null,
+    -- The source of the log (stderr or stdout)
+    "source" text not null check("source" in ('stdout', 'stderr')),
+    -- Raw log content as bytes
+    chunk blob not null,
+    -- Timestamp when log was received
+    created_at timestamp not null default current_timestamp,
+
+    foreign key (task_name) references tasks("name")
+);
+
+create index idx_task_logs_task on task_logs(task_name);
+create index idx_task_logs_created_at on task_logs(created_at);

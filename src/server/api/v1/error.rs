@@ -1,4 +1,4 @@
-//! API error types.
+//! API error types for v1 endpoints.
 
 use axum::Json;
 use axum::http::StatusCode;
@@ -6,14 +6,22 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use serde::Serialize;
 
-use crate::execution::ConfigError;
-use crate::execution::ManagerError;
+use crate::system::v1::db::DatabaseError;
+use crate::system::v1::exec::ConfigError;
+use crate::system::v1::exec::SelectTargetError;
+use crate::system::v1::exec::svc::run_manager::CancelRunError;
+use crate::system::v1::exec::svc::run_manager::GetRunError;
+use crate::system::v1::exec::svc::run_manager::GetRunOutputsError;
+use crate::system::v1::exec::svc::run_manager::GetSessionError;
+use crate::system::v1::exec::svc::run_manager::SubmitRunError;
 
-/// Internal server error message.
+/// The internal server error message.
+///
+/// This is intentionally vague to discourage leaking information.
 const INTERNAL_ERROR_MESSAGE: &str =
     "an internal server error occurred; contact the system administrator for more information";
 
-/// API error response.
+/// An API error response.
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     /// Error kind.
@@ -22,7 +30,7 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-/// API error type.
+/// An API error type.
 #[derive(Debug)]
 pub enum Error {
     /// A "bad request" error (`400`).
@@ -41,24 +49,66 @@ pub enum Error {
     Internal,
 }
 
-impl From<ManagerError> for Error {
-    fn from(err: ManagerError) -> Self {
+impl From<DatabaseError> for Error {
+    fn from(_err: DatabaseError) -> Self {
+        Self::Internal
+    }
+}
+
+impl From<SubmitRunError> for Error {
+    fn from(err: SubmitRunError) -> Self {
         match err {
-            ManagerError::RunNotFound => Self::NotFound(err.to_string()),
-            ManagerError::TargetNotFound(_) => Self::NotFound(err.to_string()),
-            ManagerError::TargetRequired => Self::BadRequest(err.to_string()),
-            ManagerError::NoExecutableTarget => Self::BadRequest(err.to_string()),
-            ManagerError::Analysis(_) => Self::BadRequest(err.to_string()),
-            ManagerError::Config(config_err) => match config_err {
-                ConfigError::FileNotFound(_) => Self::BadRequest(config_err.to_string()),
-                ConfigError::FilePathForbidden(_) => Self::Forbidden(config_err.to_string()),
-                ConfigError::UrlForbidden(_) => Self::Forbidden(config_err.to_string()),
+            SubmitRunError::Config(err) => match err {
+                ConfigError::FileNotFound(_) => Self::BadRequest(err.to_string()),
+                ConfigError::FilePathForbidden(_) => Self::Forbidden(err.to_string()),
+                ConfigError::UrlForbidden(_) => Self::Forbidden(err.to_string()),
                 ConfigError::FailedToCanonicalize(_) => Self::Internal,
-                ConfigError::InvalidUtf8(_) => Self::BadRequest(config_err.to_string()),
             },
-            ManagerError::CannotCancel(_) => Self::Conflict(err.to_string()),
-            ManagerError::Database(_) => Self::Internal,
-            ManagerError::Io(_) => Self::Internal,
+            SubmitRunError::Analysis(err) => Self::BadRequest(err.to_string()),
+            SubmitRunError::TargetSelection(err) => match err {
+                SelectTargetError::TargetNotFound(_) => Self::NotFound(err.to_string()),
+                SelectTargetError::TargetRequired => Self::BadRequest(err.to_string()),
+                SelectTargetError::NoExecutableTarget => Self::BadRequest(err.to_string()),
+            },
+            SubmitRunError::Database(_) => Self::Internal,
+            SubmitRunError::Io(_) => Self::Internal,
+        }
+    }
+}
+
+impl From<CancelRunError> for Error {
+    fn from(err: CancelRunError) -> Self {
+        match err {
+            CancelRunError::Database(_) => Self::Internal,
+            CancelRunError::NotFound(_) => Self::NotFound(err.to_string()),
+            CancelRunError::InvalidStatus { .. } => Self::Conflict(err.to_string()),
+        }
+    }
+}
+
+impl From<GetRunOutputsError> for Error {
+    fn from(err: GetRunOutputsError) -> Self {
+        match err {
+            GetRunOutputsError::Database(_) => Self::Internal,
+            GetRunOutputsError::NotFound(_) => Self::NotFound(err.to_string()),
+        }
+    }
+}
+
+impl From<GetRunError> for Error {
+    fn from(err: GetRunError) -> Self {
+        match err {
+            GetRunError::Database(_) => Self::Internal,
+            GetRunError::NotFound(_) => Self::NotFound(err.to_string()),
+        }
+    }
+}
+
+impl From<GetSessionError> for Error {
+    fn from(err: GetSessionError) -> Self {
+        match err {
+            GetSessionError::Database(_) => Self::Internal,
+            GetSessionError::NotFound(_) => Self::NotFound(err.to_string()),
         }
     }
 }

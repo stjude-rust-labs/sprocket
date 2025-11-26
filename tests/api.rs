@@ -3,5 +3,5 @@
 #[path = "api/runs.rs"]
 mod runs;
 
-#[path = "api/invocations.rs"]
-mod invocations;
+#[path = "api/sessions.rs"]
+mod sessions;
