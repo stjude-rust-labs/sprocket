@@ -83,5 +83,13 @@ impl Args {
 /// The main function for the `server` subcommand.
 pub async fn server(args: Args, config: Config) -> Result<()> {
     let config = args.apply(config);
+
+    // Validate that at least one source type is allowed
+    if config.execution.allowed_file_paths.is_empty() && config.execution.allowed_urls.is_empty() {
+        anyhow::bail!(
+            "at least one of `allowed_file_paths` or `allowed_urls` must be specified"
+        );
+    }
+
     crate::server::run(config.server, config.execution).await
 }
