@@ -435,6 +435,8 @@ async fn progress(
 /// If running on a Unix system, a symlink to the returned path will be created
 /// at `<root>/<entrypoint>/_latest`.
 pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
+    std::fs::create_dir_all(root)
+        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
     let ignore_path = root.join(crate::IGNORE_FILENAME);
     if !ignore_path.exists() {
         let ignorefile = File::create(&ignore_path)
@@ -443,12 +445,12 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
     let entrypoint_root = root.join(entrypoint);
-    std::fs::create_dir_all(&root)
-        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
+    std::fs::create_dir_all(&entrypoint_root)
+        .with_context(|| format!("failed to create entrypoint directory: `{}`", entrypoint_root.display()))?;
 
     let timestamp = chrono::Utc::now();
 
-    let output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
+    let output = entrypoint_root.join(timestamp.format("%F_%H%M%S%f").to_string());
 
     if output.exists() {
         bail!(
@@ -459,7 +461,7 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        let latest = root.join(LATEST);
+        let latest = entrypoint_root.join(LATEST);
         let _ = std::fs::remove_file(&latest);
         if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
             .is_err()
