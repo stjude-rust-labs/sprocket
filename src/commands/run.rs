@@ -445,8 +445,12 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
     let entrypoint_root = root.join(entrypoint);
-    std::fs::create_dir_all(&entrypoint_root)
-        .with_context(|| format!("failed to create entrypoint directory: `{}`", entrypoint_root.display()))?;
+    std::fs::create_dir_all(&entrypoint_root).with_context(|| {
+        format!(
+            "failed to create entrypoint directory: `{}`",
+            entrypoint_root.display()
+        )
+    })?;
 
     let timestamp = chrono::Utc::now();
 
