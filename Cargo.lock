@@ -3717,6 +3717,7 @@ dependencies = [
  "git-testament",
  "indexmap 2.12.0",
  "indicatif",
+ "itertools",
  "nonempty",
  "opener",
  "path-clean",
