@@ -42,6 +42,53 @@ type Input = (String, Value);
 /// ]
 type Run = Vec<Input>;
 
+/// "zip" may not be the most technically accurate term for this operation,
+/// but it transforms a `Vec<Vec<Input>>` into a different shape.
+///
+/// An example input:
+/// ```text
+/// [
+///     [
+///         [
+///             (output_singletons, true),
+///             (output_singletons, false),
+///         ],
+///     ],
+///     [
+///         [
+///             (bam, test1.bam),
+///             (bam, test2.bam),
+///         ],
+///         [
+///             (bam_index, test1.bam.bai),
+///             (bam_index, test2.bam.bai),
+///         ],
+///     ],
+/// ]
+/// ```
+/// would be zipped/transformed into:
+/// ```text
+/// [
+///     [
+///         [
+///             (output_singletons, true),
+///         ],
+///         [
+///             (output_singletons, false),
+///         ],
+///     ],
+///     [
+///         [
+///             (bam, test1.bam),
+///             (bam_index, test1.bam.bai),
+///         ],
+///         [
+///             (bam, test2.bam),
+///             (bam_index, test2.bam.bai),
+///         ],
+///     ],
+/// ]
+/// ```
 fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
     let mut result = Vec::new();
     for (outer_index, individual_input_with_possible_values) in enumerate(inputs_to_zip) {
@@ -68,16 +115,13 @@ fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> Vec<Run> {
             }
             inputs_to_zip.push(possible_inputs);
         }
-        // dbg!(&inputs_to_zip);
 
         let mut run_subsets = Vec::new();
         for run_subset in zip_inputs(inputs_to_zip) {
-            // dbg!(&run_subset);
             run_subsets.push(run_subset);
         }
         all_inputs.push(run_subsets);
     }
-    // dbg!(&all_inputs);
     let mut runs = Vec::new();
     for product in all_inputs.into_iter().multi_cartesian_product() {
         runs.push(product.into_iter().flatten().collect());
@@ -126,11 +170,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
             if let Some(task) = document.task_by_name(entrypoint) {
                 info!("-------NEW TASK-------");
                 info!("found tests for task: `{}`", task.name());
-                // info!(
-                //     "task `{}` has the following input specification {:#?}",
-                //     task.name(),
-                //     task.inputs()
-                // );
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
@@ -143,7 +182,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
-                    // compute_runs_from_matrix(input_matrix);
                     info!("computed {counter} executions");
                 }
             } else if let Some(workflow) = document.workflow()
@@ -151,11 +189,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
             {
                 info!("-------NEW WORKFLOW-------");
                 info!("found tests for workflow: `{}`", workflow.name());
-                // info!(
-                //     "workflow `{}` has the following input specification {:#?}",
-                //     workflow.name(),
-                //     workflow.inputs()
-                // );
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
@@ -168,7 +201,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
-                    // compute_runs_from_matrix(input_matrix);
                     info!("computed {counter} executions");
                 }
             } else {
