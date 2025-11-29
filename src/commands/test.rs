@@ -1,17 +1,13 @@
 //! Implementation of the `test` subcommand.
 
 use std::fs::read;
-use std::iter::zip;
 use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
-use indexmap::IndexMap;
-use itertools::Zip;
-use itertools::iproduct;
-use itertools::multizip;
-use itertools::repeat_n;
+use itertools::Itertools;
+use itertools::enumerate;
 use serde_yaml_ng::Value;
 use tracing::info;
 use tracing::trace;
@@ -21,6 +17,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::test::InputMapping;
 
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
@@ -45,118 +42,47 @@ type Input = (String, Value);
 /// ]
 type Run = Vec<Input>;
 
-/// User defined (via test YAML) set of possible inputs for a single WDL input.
-#[derive(Debug)]
-struct PossibleInputs {
-    /// Name of the input.
-    pub name: String,
-    /// Collection of YAML [`Value`]s that correspond to the named input.
-    ///
-    /// e.g.
-    /// [true, false]
-    pub values: Vec<Value>,
-}
-
-impl PossibleInputs {
-    /// Transform into an iterator of [`Input`]s for this individual input key.
-    pub fn into_inputs_iter(self) -> impl Iterator<Item = Input> {
-        zip(repeat_n(self.name.clone(), self.values.len()), self.values)
+fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
+    let mut result = Vec::new();
+    for (outer_index, individual_input_with_possible_values) in enumerate(inputs_to_zip) {
+        for (inner_index, possibility) in enumerate(individual_input_with_possible_values) {
+            if outer_index == 0 {
+                result.push(vec![possibility]);
+            } else {
+                result[inner_index].push(possibility);
+            }
+        }
     }
-}
-
-/// Inputs which should be zipped and iterated through together.
-///
-/// Most of the time, this will be a `Vec` of length one, as most WDL inputs do
-/// not need to be specified together. An example where this would be of length
-/// > 1 is a set of BAM input files and their corresponding BAI files. A BAM
-/// file and a BAI file are often supplied as separate WDL inputs even though
-/// they have a 1-to-1 relationship and must be supplied in tandem.
-#[derive(Debug)]
-struct InputsToZip {
-    /// Inputs which should be zipped and iterated through together.
-    pub sets_of_possible_inputs: Vec<PossibleInputs>,
-}
-
-impl InputsToZip {
-    /// Transform into an iterator of `N` [`Input`]s which should be iterated
-    /// through together.
-    ///
-    /// This will often be a tuple of size 1.
-    pub fn into_zip(self) -> Zip<(impl Iterator<Item = Input>,)> {
-        multizip((self
-            .sets_of_possible_inputs
-            .into_iter()
-            .flat_map(|set| set.into_inputs_iter()),))
-    }
-}
-
-/// Collection of [`InputsToZip`] which together define a collection of
-/// [`Run`]s.
-#[derive(Debug)]
-struct AllInputsToEntrypoint {
-    /// Collection of all [`InputsToZip`] for a WDL task or workflow.
-    pub sets_of_inputs: Vec<InputsToZip>,
-}
-
-impl AllInputsToEntrypoint {
-    /// Transform into an iterator of [`Run`]s.
-    pub fn into_runs(self) -> impl Iterator<Item = ((Input,),)> {
-        iproduct!(
-            self.sets_of_inputs
-                .into_iter()
-                .flat_map(|group_of_inputs| group_of_inputs.into_zip())
-        )
-    }
+    result
 }
 
 /// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
-fn compute_runs_from_matrix(
-    matrix: Vec<IndexMap<String, Value>>,
-) -> impl Iterator<Item = ((Input,),)> {
+fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> Vec<Run> {
     let mut all_inputs = Vec::new();
-    for set in matrix {
-        // (extracted) input YAML may look like:
-        // ```yaml
-        // number:
-        //   - "0x900"
-        // ```
-        // or
-        // ```yaml
-        // bam:
-        //   - $FIXTURES/test1.bam
-        //   - $FIXTURES/test2.bam
-        //   - $FIXTURES/test3.bam
-        // bam_index:
-        //   - $FIXTURES/test1.bam.bai
-        //   - $FIXTURES/test2.bam.bai
-        //   - $FIXTURES/test3.bam.bai
-        // ```
+    for input_mapping in matrix {
         let mut inputs_to_zip = vec![];
-        for (key, val) in set {
-            // key corresponds to ["number"] or ["bam", "bam_index"] in above examples
-            let Some(seq) = val.as_sequence() else {
-                warn!("expected sequence of values, found `{:#?}`", val);
-                continue;
-            };
-            let mut possible_inputs = vec![];
-            for val in seq {
-                // seq is innermost array in examples
-                possible_inputs.push(val.clone());
+        for (key, vals) in input_mapping {
+            let mut possible_inputs = Vec::new();
+            for possible_val in vals {
+                possible_inputs.push((key.clone(), possible_val));
             }
-            inputs_to_zip.push(PossibleInputs {
-                name: key,
-                values: possible_inputs,
-            });
+            inputs_to_zip.push(possible_inputs);
         }
-        let transformed_set = InputsToZip {
-            sets_of_possible_inputs: inputs_to_zip,
-        };
-        all_inputs.push(transformed_set);
+        // dbg!(&inputs_to_zip);
+
+        let mut run_subsets = Vec::new();
+        for run_subset in zip_inputs(inputs_to_zip) {
+            // dbg!(&run_subset);
+            run_subsets.push(run_subset);
+        }
+        all_inputs.push(run_subsets);
     }
-    let all_inputs = AllInputsToEntrypoint {
-        sets_of_inputs: all_inputs,
-    };
-    all_inputs.into_runs()
+    // dbg!(&all_inputs);
+    let mut runs = Vec::new();
+    for product in all_inputs.into_iter().multi_cartesian_product() {
+        runs.push(product.into_iter().flatten().collect());
+    }
+    runs
 }
 
 /// Performs the `test` command.
@@ -211,10 +137,10 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("---NEW TEST---");
                     info!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
-                    // info!("logging each individual execution defined by test matrix");
+                    info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
                     for run in compute_runs_from_matrix(input_matrix) {
-                        // info!("execution with inputs: {:#?}", run);
+                        info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
                     // compute_runs_from_matrix(input_matrix);
@@ -236,9 +162,10 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("---NEW TEST---");
                     info!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
+                    info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
                     for run in compute_runs_from_matrix(input_matrix) {
-                        // info!("execution with inputs: {:#?}", run);
+                        info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
                     // compute_runs_from_matrix(input_matrix);

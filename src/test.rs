@@ -17,6 +17,7 @@ pub(crate) struct DocumentTests {
 
 /// Matrix of inputs to combinatorially execute.
 pub(crate) type InputMatrix = Vec<Mapping>;
+pub(crate) type InputMapping = IndexMap<String, Vec<Value>>;
 
 /// A test definition. Defines at least a single execution, but may define many
 /// executions.
@@ -38,20 +39,20 @@ pub(crate) struct TestDefinition {
 impl TestDefinition {
     /// Parse the defined [`InputMatrix`] into an ordered map of input names to
     /// values.
-    pub fn parse_inputs(&self) -> Vec<IndexMap<String, Value>> {
+    pub fn parse_inputs(&self) -> Vec<InputMapping> {
         let mut results = vec![];
 
         for mapping in &self.inputs {
             let kvs = mapping
                 .iter()
-                .filter_map(|(k, v)| {
-                    if !k.is_string() {
-                        warn!("skipping non-string key: `{:?}`", k);
-                        None
-                    } else {
-                        let key = k.as_str().unwrap().to_string();
-                        Some((key, v.clone()))
-                    }
+                .map(|(k, v)| {
+                    let Value::String(k) = k else {
+                        panic!("expected string, got `{k:?}`");
+                    };
+                    let Value::Sequence(vs) = v else {
+                        panic!("expected sequence, got `{k:?}`");
+                    };
+                    (k.to_string(), vs.to_vec())
                 })
                 .collect::<IndexMap<_, _>>();
             results.push(kvs);
