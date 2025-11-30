@@ -156,7 +156,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
             }
         }
         info!("---------NEW WDL DOCUMENT----------");
-        info!(
+        println!(
             "found tests in `{}` for WDL document `{}`",
             yaml_path.display(),
             wdl_path.display()
@@ -169,12 +169,12 @@ pub async fn test(args: Args) -> CommandResult<()> {
         for (entrypoint, tests) in document_tests.entrypoints.iter() {
             if let Some(task) = document.task_by_name(entrypoint) {
                 info!("-------NEW TASK-------");
-                info!("found tests for task: `{}`", task.name());
+                println!("found tests for task: `{}`", task.name());
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
                     info!("---NEW TEST---");
-                    info!("test name: `{}`", &test.name);
+                    println!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
@@ -182,18 +182,18 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
-                    info!("computed {counter} executions");
+                    println!("computed {counter} executions");
                 }
             } else if let Some(workflow) = document.workflow()
                 && workflow.name() == entrypoint
             {
                 info!("-------NEW WORKFLOW-------");
-                info!("found tests for workflow: `{}`", workflow.name());
+                println!("found tests for workflow: `{}`", workflow.name());
                 for test in tests {
                     let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
                     info!("---NEW TEST---");
-                    info!("test name: `{}`", &test.name);
+                    println!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
@@ -201,7 +201,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
-                    info!("computed {counter} executions");
+                    println!("computed {counter} executions");
                 }
             } else {
                 warn!(
