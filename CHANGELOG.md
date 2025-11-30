@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* `doc` now properly initializes pages in dark mode by default ([#478](https://github.com/stjude-rust-labs/sprocket/pull/478)).
+
 ## 0.19.0 - 11-21-2025
 
 ### Added
