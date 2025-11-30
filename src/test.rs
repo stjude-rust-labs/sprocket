@@ -15,8 +15,6 @@ pub(crate) struct DocumentTests {
     pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
 }
 
-/// Matrix of inputs to combinatorially execute.
-pub(crate) type InputMatrix = Vec<Mapping>;
 pub(crate) type InputMapping = IndexMap<String, Vec<Value>>;
 
 /// A test definition. Defines at least a single execution, but may define many
@@ -27,7 +25,7 @@ pub(crate) struct TestDefinition {
     pub name: String,
     /// Matrix of inputs to combinatorially execute.
     #[serde(default)]
-    inputs: InputMatrix,
+    inputs: Mapping,
     /// Assertions (shared for all executions).
     ///
     /// If no assertions defined, it is assumed that failing execution for any
@@ -42,20 +40,31 @@ impl TestDefinition {
     pub fn parse_inputs(&self) -> Vec<InputMapping> {
         let mut results = vec![];
 
-        for mapping in &self.inputs {
-            let kvs = mapping
-                .iter()
-                .map(|(k, v)| {
-                    let Value::String(k) = k else {
-                        panic!("expected string, got `{k:?}`");
+        for (key, val) in &self.inputs {
+            let Value::String(k) = key else {
+                panic!("expected string, got `{key:?}`");
+            };
+            if k.starts_with('$') {
+                let Value::Mapping(map) = val else {
+                    panic!("expected mapping, got `{val:?}`");
+                };
+                let mut new_map = IndexMap::new();
+                for (nested_key, nested_val) in map {
+                    let Value::String(k) = nested_key else {
+                        panic!("expected string, got `{nested_key:?}`");
                     };
-                    let Value::Sequence(vs) = v else {
-                        panic!("expected sequence, got `{k:?}`");
+                    let Value::Sequence(vals) = nested_val else {
+                        panic!("expected sequence, got `{nested_val:?}`");
                     };
-                    (k.to_string(), vs.to_vec())
-                })
-                .collect::<IndexMap<_, _>>();
-            results.push(kvs);
+                    new_map.insert(k.to_string(), vals.to_vec());
+                }
+                results.push(new_map);
+            } else {
+                let Value::Sequence(vals) = val else {
+                    panic!("expected sequence, got `{val:?}`");
+                };
+                results.push(IndexMap::from_iter(vec![(k.to_string(), vals.to_vec())]));
+            }
         }
         results
     }
