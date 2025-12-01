@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added an experimental and still under construction `sprocket dev test` command ([#468](https://github.com/stjude-rust-labs/sprocket/pull/468)).
+    * This version merely parses and logs information about found test definitions. **It does not actually execute any WDL code.**
 
 ### Fixed
 
