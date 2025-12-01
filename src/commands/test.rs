@@ -23,16 +23,16 @@ use crate::test::InputMapping;
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Path to the local WDL workspace to document.
+    /// Local path to a WDL document or workspace to unit test.
     pub source: Option<Source>,
 }
 
 /// A tuple of an input name (`String`) and an input value (as a
 /// [`serde_yaml_ng::Value`] which has not been converted into a WDL value yet)
 type Input = (String, Value);
-/// A map of input keys to values which correspond to a single "run" or execution for
-/// Sprocket to test with. Should be a complete set of required inputs
-/// (potentially with values for optional inputs).
+/// A map of input keys to values which correspond to a single "run" or
+/// execution for Sprocket to test with. Should be a complete set of required
+/// inputs (potentially with values for optional inputs).
 ///
 /// e.g.
 /// {
