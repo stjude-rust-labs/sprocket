@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use indexmap::IndexMap;
 use itertools::Itertools;
 use itertools::enumerate;
 use serde_yaml_ng::Value;
@@ -28,19 +29,17 @@ pub struct Args {
 
 /// A tuple of an input name (`String`) and an input value (as a [`Value`] which
 /// has not been converted into a WDL value yet)
-///
-/// e.g. ("paired_end", true)
 type Input = (String, Value);
-/// Collection of [`Input`]s which correspond to a single "run" for Sprocket to
-/// test with. Should be a complete set of required inputs (potentially with
-/// values for optional inputs).
+/// Collection of [`Input`]s which correspond to a single "run" or execution for
+/// Sprocket to test with. Should be a complete set of required inputs
+/// (potentially with values for optional inputs).
 ///
 /// e.g.
-/// [
-///   ("bams", ["$FIXTURES/test1.bam", "$FIXTURES/test2.bam"]),
-///   ("prefix", "test.merged"),
-/// ]
-type Run = Vec<Input>;
+/// {
+///   "bams": ["$FIXTURES/test1.bam", "$FIXTURES/test2.bam"],
+///   "prefix": "test.merged",
+/// }
+type Run = IndexMap<String, Value>;
 
 /// "zip" may not be the most technically accurate term for this operation,
 /// but it transforms a `Vec<Vec<Input>>` into a different shape.
@@ -66,7 +65,7 @@ type Run = Vec<Input>;
 ///     ],
 /// ]
 /// ```
-/// would be zipped/transformed into:
+/// would be transformed into:
 /// ```text
 /// [
 ///     [
@@ -104,7 +103,7 @@ fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
 }
 
 /// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
-fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> Vec<Run> {
+fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> impl Iterator<Item = Run> {
     let mut all_inputs = Vec::new();
     for input_mapping in matrix {
         let mut inputs_to_zip = vec![];
@@ -122,11 +121,10 @@ fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> Vec<Run> {
         }
         all_inputs.push(run_subsets);
     }
-    let mut runs = Vec::new();
-    for product in all_inputs.into_iter().multi_cartesian_product() {
-        runs.push(product.into_iter().flatten().collect());
-    }
-    runs
+    all_inputs
+        .into_iter()
+        .multi_cartesian_product()
+        .map(|product| product.into_iter().flatten().collect())
 }
 
 /// Performs the `test` command.

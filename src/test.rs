@@ -35,8 +35,13 @@ pub(crate) struct TestDefinition {
 }
 
 impl TestDefinition {
-    /// Parse the defined [`InputMatrix`] into an ordered map of input names to
-    /// values.
+    /// Parse the user-defined input matrix into a collection of ordered maps of
+    /// input names to values.
+    ///
+    /// Each map represents a set of input keys whose values should be iterated
+    /// through together. The trivial case is a single input key with a set
+    /// of possible values. Groups of inputs that should be iterated through
+    /// together are designated by a YAML map key starting with `$`.
     pub fn parse_inputs(&self) -> Vec<InputMapping> {
         let mut results = vec![];
 
