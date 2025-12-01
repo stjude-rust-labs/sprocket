@@ -44,24 +44,12 @@ type Run = IndexMap<String, Value>;
 /// "zip" may not be the most technically accurate term for this operation,
 /// but it transforms a `Vec<Vec<Input>>` into a different shape.
 ///
-/// An example input:
+/// Example A:
 /// ```text
 /// [
 ///     [
-///         [
-///             (output_singletons, true),
-///             (output_singletons, false),
-///         ],
-///     ],
-///     [
-///         [
-///             (bam, test1.bam),
-///             (bam, test2.bam),
-///         ],
-///         [
-///             (bam_index, test1.bam.bai),
-///             (bam_index, test2.bam.bai),
-///         ],
+///         (output_singletons, true),
+///         (output_singletons, false),
 ///     ],
 /// ]
 /// ```
@@ -69,24 +57,70 @@ type Run = IndexMap<String, Value>;
 /// ```text
 /// [
 ///     [
-///         [
-///             (output_singletons, true),
-///         ],
-///         [
-///             (output_singletons, false),
-///         ],
+///         (output_singletons, true),
 ///     ],
 ///     [
-///         [
-///             (bam, test1.bam),
-///             (bam_index, test1.bam.bai),
-///         ],
-///         [
-///             (bam, test2.bam),
-///             (bam_index, test2.bam.bai),
-///         ],
+///         (output_singletons, false),
 ///     ],
 /// ]
+/// ```
+/// Example B:
+/// ```text
+/// [
+///     [
+///         (bam, test1.bam),
+///         (bam, test2.bam),
+///     ],
+///     [
+///         (bam_index, test1.bam.bai),
+///         (bam_index, test2.bam.bai),
+///     ],
+/// ]
+/// ```
+/// would be transformed into:
+/// ```text
+/// [
+///     [
+///         (bam, test1.bam),
+///         (bam_index, test1.bam.bai),
+///     ],
+///     [
+///         (bam, test2.bam),
+///         (bam_index, test2.bam.bai),
+///     ],
+/// ],
+/// ```
+/// Example C:
+/// ```text
+/// [
+///     [
+///         (bam, test.hg19.bam),
+///         (bam, test.GRCh38.bam),
+///     ],
+///     [
+///         (bam_index, test.hg19.bam.bai),
+///         (bam_index, test.GRCh38.bam.bai),
+///     ],
+///     [
+///         (ref_fasta, hg19.fasta),
+///         (ref_fasta, GRCh38.fasta)
+///     ],
+/// ]
+/// ```
+/// would be transformed into:
+/// ```text
+/// [
+///     [
+///         (bam, test.hg19.bam),
+///         (bam_index, test.hg19.bam.bai),
+///         (ref_fasta, hg19.fasta),
+///     ],
+///     [
+///         (bam, test.GRCh38.bam),
+///         (bam_index, test.GRCh38.bam.bai),
+///         (ref_fasta, GRCh38.fasta),
+///     ],
+/// ],
 /// ```
 fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
     let mut result = Vec::new();
@@ -103,6 +137,20 @@ fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
 }
 
 /// Compute an iterator of [`Run`]s from a user provided matrix of inputs.
+///
+/// Steps to complete transformation:
+/// 1. distribute (by duplication) inner input keys to each "possible value" for
+///    that key.
+///     - this converts `IndexMap<String, Vec<Value>>` to `Vec<(String, Value)>`
+/// 2. zip groups of possible inputs with [`zip_inputs`]
+///     - this reshapes a `Vec<Vec<(String, Value)>>` (the type signature
+///       remains the same, but the nested structure changes)
+/// 3. take the cartesian product of all zipped groups
+///     - this yields items of type `Vec<Vec<(String, Value)>>`
+/// 4. flatten each item yielded
+///     - results in a `Vec<(String, value)>`
+/// 5. convert each item into a [`Run`] (which is a type alias for
+///    `IndexMap<String, Value>`)
 fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> impl Iterator<Item = Run> {
     let mut all_inputs = Vec::new();
     for input_mapping in matrix {
@@ -110,12 +158,14 @@ fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> impl Iterator<Item = R
         for (key, vals) in input_mapping {
             let mut possible_inputs = Vec::new();
             for possible_val in vals {
+                // step 1
                 possible_inputs.push((key.clone(), possible_val));
             }
             inputs_to_zip.push(possible_inputs);
         }
 
         let mut run_subsets = Vec::new();
+        // step 2
         for run_subset in zip_inputs(inputs_to_zip) {
             run_subsets.push(run_subset);
         }
@@ -123,8 +173,8 @@ fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> impl Iterator<Item = R
     }
     all_inputs
         .into_iter()
-        .multi_cartesian_product()
-        .map(|product| product.into_iter().flatten().collect())
+        .multi_cartesian_product() // step 3
+        .map(|product| product.into_iter().flatten().collect()) // step 4 and 5
 }
 
 /// Performs the `test` command.
