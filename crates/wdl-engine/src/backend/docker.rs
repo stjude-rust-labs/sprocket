@@ -406,6 +406,60 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
+        if let Some(mcpu) = max_cpu(hints)
+            && (self.max_cpu as f64) < mcpu
+        {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the execution backend has a maximum of {max}",
+                    max = self.max_cpu
+                )
+            };
+            match self.config.task.cpu_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requests a maximum of {mcpu} CPU{s}{env_specific}",
+                        s = if mcpu == 1.0 { "" } else { "s" }
+                    );
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requests a maximum of {mcpu} CPU{s}{env_specific}",
+                        s = if mcpu == 1.0 { "" } else { "s" }
+                    );
+                }
+            }
+        }
+
+        if let Some(mmem) = max_memory(hints)?.map(|m| m as u64)
+            && self.max_memory < mmem
+        {
+            let env_specific = if self.config.suppress_env_specific_output {
+                String::new()
+            } else {
+                format!(
+                    ", but the execution backend has a maximum of {max_memory} GiB",
+                    max_memory = self.max_memory as f64 / ONE_GIBIBYTE
+                )
+            };
+            match self.config.task.cpu_limit_behavior {
+                TaskResourceLimitBehavior::TryWithMax => {
+                    warn!(
+                        "task requests a maximum of {memory} GiB of memory{env_specific}",
+                        memory = mmem as f64 / ONE_GIBIBYTE
+                    );
+                }
+                TaskResourceLimitBehavior::Deny => {
+                    bail!(
+                        "task requests a maximum of {memory} GiB of memory{env_specific}",
+                        memory = mmem as f64 / ONE_GIBIBYTE,
+                    );
+                }
+            }
+        }
+
         // Generate GPU specification strings in the format "<type>-gpu-<index>".
         // Each string represents one allocated GPU, indexed from 0. The type prefix
         // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
@@ -452,8 +506,14 @@ impl TaskExecutionBackend for DockerBackend {
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.max_memory);
         }
-        let max_cpu = max_cpu(hints);
-        let max_memory = max_memory(hints)?.map(|i| i as u64);
+        let mut max_cpu = max_cpu(hints);
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
+            max_cpu = max_cpu.map(|mcpu| f64::min(mcpu, self.max_cpu as f64));
+        }
+        let mut max_memory = max_memory(hints)?.map(|i| i as u64);
+        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
+            max_memory = max_memory.map(|mmem| std::cmp::min(mmem, self.max_memory));
+        }
         let gpu = gpu(requirements, hints);
 
         let name = format!(
