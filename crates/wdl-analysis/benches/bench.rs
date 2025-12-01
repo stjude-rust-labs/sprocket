@@ -1,15 +1,19 @@
 #![allow(missing_docs)]
 
+use std::ffi::OsStr;
 use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 
+use criterion::BenchmarkGroup;
 use criterion::Criterion;
 use criterion::criterion_group;
 use criterion::criterion_main;
+use criterion::measurement::Measurement;
 use reqwest::StatusCode;
 use tempfile::TempDir;
 use tempfile::tempdir;
+use url::Url;
 use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -32,7 +36,7 @@ struct AnalyzeWorkflows {
 impl AnalyzeWorkflows {
     /// Create a new Tokio runtime with the given parameters, and run the
     /// analysis on the entire `workflows` repo.
-    fn analyze(&self) -> Vec<AnalysisResult> {
+    fn analyze_all(&self) -> Vec<AnalysisResult> {
         let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
         if let Some(worker_threads) = self.worker_threads {
             runtime_builder.worker_threads(worker_threads);
@@ -45,6 +49,28 @@ impl AnalyzeWorkflows {
             let config = AnalysisConfig::default();
             let analyzer = Analyzer::new(config, |_, _, _, _| async {});
             analyzer.add_directory(&self.repo_root).await.unwrap();
+            analyzer.analyze(()).await.unwrap()
+        })
+    }
+
+    /// Create a new Tokio runtime with the given parameters, and run the
+    /// analysis on a single document within the `workflows` repo specified
+    /// by relative path.
+    fn analyze_document(&self, path: impl AsRef<Path>) -> Vec<AnalysisResult> {
+        assert!(path.as_ref().is_relative());
+        let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
+        if let Some(worker_threads) = self.worker_threads {
+            runtime_builder.worker_threads(worker_threads);
+        }
+        if let Some(max_blocking_threads) = self.blocking_threads {
+            runtime_builder.max_blocking_threads(max_blocking_threads);
+        }
+        let runtime = runtime_builder.enable_all().build().unwrap();
+        runtime.block_on(async {
+            let config = AnalysisConfig::default();
+            let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+            let document = Url::from_file_path(self.repo_root.join(path)).unwrap();
+            analyzer.add_document(document).await.unwrap();
             analyzer.analyze(()).await.unwrap()
         })
     }
@@ -95,6 +121,22 @@ fn get_workflows_repo() -> Result<TempDir, anyhow::Error> {
     Ok(tempdir)
 }
 
+fn bench_analyze_workflows_document<M: Measurement>(
+    group: &mut BenchmarkGroup<'_, M>,
+    repo_root: impl AsRef<Path>,
+    path: impl AsRef<Path>,
+) {
+    group.bench_function(&path.as_ref().display().to_string(), |b| {
+        let analyze = AnalyzeWorkflows {
+            repo_root: repo_root.as_ref().to_path_buf(),
+            worker_threads: None,
+            blocking_threads: None,
+        };
+        let path = path.as_ref();
+        b.iter(|| analyze.analyze_document(path))
+    });
+}
+
 fn bench_analyze_workflows(c: &mut Criterion) {
     let workflows_repo = get_workflows_repo().unwrap();
     {
@@ -106,7 +148,7 @@ fn bench_analyze_workflows(c: &mut Criterion) {
                 blocking_threads: None,
             };
             workers_group.bench_with_input(worker_threads.to_string(), &analyze, |b, analyze| {
-                b.iter(|| analyze.analyze());
+                b.iter(|| analyze.analyze_all());
             });
         }
     }
@@ -123,8 +165,21 @@ fn bench_analyze_workflows(c: &mut Criterion) {
                 blocking_threads.to_string(),
                 &analyze,
                 |b, analyze| {
-                    b.iter(|| analyze.analyze());
+                    b.iter(|| analyze.analyze_all());
                 },
+            );
+        }
+    }
+    let mut standalone_documents = c.benchmark_group("standalone_documents");
+    for entry in walkdir::WalkDir::new(workflows_repo.path()) {
+        if let Ok(e) = entry
+            && e.path().extension() == Some(OsStr::new("wdl"))
+        {
+            let relative = e.path().strip_prefix(workflows_repo.path()).unwrap();
+            bench_analyze_workflows_document(
+                &mut standalone_documents,
+                workflows_repo.path(),
+                relative,
             );
         }
     }

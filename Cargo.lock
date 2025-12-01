@@ -5171,6 +5171,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+ "walkdir",
  "wdl-ast",
  "wdl-format",
  "wdl-grammar",
