@@ -35,17 +35,15 @@ pub(crate) struct TestDefinition {
 }
 
 impl TestDefinition {
-    /// Parse the user-defined input matrix into a collection of ordered maps of
+    /// Parse the user-defined input matrix into an iterator of ordered maps of
     /// input names to values.
     ///
     /// Each map represents a set of input keys whose values should be iterated
     /// through together. The trivial case is a single input key with a set
     /// of possible values. Groups of inputs that should be iterated through
     /// together are designated by a YAML map key starting with `$`.
-    pub fn parse_inputs(&self) -> Vec<InputMapping> {
-        let mut results = vec![];
-
-        for (key, val) in &self.inputs {
+    pub fn parse_inputs(&self) -> impl Iterator<Item = InputMapping> {
+        self.inputs.iter().map(|(key, val)| {
             let Value::String(k) = key else {
                 panic!("expected string, got `{key:?}`");
             };
@@ -63,15 +61,14 @@ impl TestDefinition {
                     };
                     new_map.insert(k.to_string(), vals.to_vec());
                 }
-                results.push(new_map);
+                new_map
             } else {
                 let Value::Sequence(vals) = val else {
                     panic!("expected sequence, got `{val:?}`");
                 };
-                results.push(IndexMap::from_iter(vec![(k.to_string(), vals.to_vec())]));
+                IndexMap::from_iter(vec![(k.to_string(), vals.to_vec())])
             }
-        }
-        results
+        })
     }
 
     /// Parse the defined assertions into an ordered map.

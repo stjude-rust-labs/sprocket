@@ -43,85 +43,6 @@ type Run = IndexMap<String, Value>;
 
 /// "zip" may not be the most technically accurate term for this operation,
 /// but it transforms a `Vec<Vec<Input>>` into a different shape.
-///
-/// Example A:
-/// ```text
-/// [
-///     [
-///         (output_singletons, true),
-///         (output_singletons, false),
-///     ],
-/// ]
-/// ```
-/// would be transformed into:
-/// ```text
-/// [
-///     [
-///         (output_singletons, true),
-///     ],
-///     [
-///         (output_singletons, false),
-///     ],
-/// ]
-/// ```
-/// Example B:
-/// ```text
-/// [
-///     [
-///         (bam, test1.bam),
-///         (bam, test2.bam),
-///     ],
-///     [
-///         (bam_index, test1.bam.bai),
-///         (bam_index, test2.bam.bai),
-///     ],
-/// ]
-/// ```
-/// would be transformed into:
-/// ```text
-/// [
-///     [
-///         (bam, test1.bam),
-///         (bam_index, test1.bam.bai),
-///     ],
-///     [
-///         (bam, test2.bam),
-///         (bam_index, test2.bam.bai),
-///     ],
-/// ],
-/// ```
-/// Example C:
-/// ```text
-/// [
-///     [
-///         (bam, test.hg19.bam),
-///         (bam, test.GRCh38.bam),
-///     ],
-///     [
-///         (bam_index, test.hg19.bam.bai),
-///         (bam_index, test.GRCh38.bam.bai),
-///     ],
-///     [
-///         (ref_fasta, hg19.fasta),
-///         (ref_fasta, GRCh38.fasta)
-///     ],
-/// ]
-/// ```
-/// would be transformed into:
-/// ```text
-/// [
-///     [
-///         (bam, test.hg19.bam),
-///         (bam_index, test.hg19.bam.bai),
-///         (ref_fasta, hg19.fasta),
-///     ],
-///     [
-///         (bam, test.GRCh38.bam),
-///         (bam_index, test.GRCh38.bam.bai),
-///         (ref_fasta, GRCh38.fasta),
-///     ],
-/// ],
-/// ```
 fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
     let mut result = Vec::new();
     let mut initial_len = None;
@@ -160,27 +81,28 @@ fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
 ///     - results in a `Vec<(String, value)>`
 /// 5. convert each item into a [`Run`] (which is a type alias for
 ///    `IndexMap<String, Value>`)
-fn compute_runs_from_matrix(matrix: Vec<InputMapping>) -> impl Iterator<Item = Run> {
-    let mut all_inputs = Vec::new();
-    for input_mapping in matrix {
-        let mut inputs_to_zip = vec![];
-        for (key, vals) in input_mapping {
-            let mut possible_inputs = Vec::new();
-            for possible_val in vals {
+fn compute_runs_from_matrix(
+    matrix: impl Iterator<Item = InputMapping>,
+) -> impl Iterator<Item = Run> {
+    matrix
+        .map(|input_mapping| {
+            let mut inputs_to_zip = vec![];
+            for (key, vals) in input_mapping {
+                let mut possible_inputs = Vec::new();
                 // step 1
-                possible_inputs.push((key.clone(), possible_val));
+                for possible_val in vals {
+                    possible_inputs.push((key.clone(), possible_val));
+                }
+                inputs_to_zip.push(possible_inputs);
             }
-            inputs_to_zip.push(possible_inputs);
-        }
 
-        let mut run_subsets = Vec::new();
-        // step 2
-        for run_subset in zip_inputs(inputs_to_zip) {
-            run_subsets.push(run_subset);
-        }
-        all_inputs.push(run_subsets);
-    }
-    all_inputs
+            let mut run_subsets = Vec::new();
+            // step 2
+            for run_subset in zip_inputs(inputs_to_zip) {
+                run_subsets.push(run_subset);
+            }
+            run_subsets
+        })
         .into_iter()
         .multi_cartesian_product() // step 3
         .map(|product| product.into_iter().flatten().collect()) // step 4 and 5
@@ -228,14 +150,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("-------NEW TASK-------");
                 println!("found tests for task: `{}`", task.name());
                 for test in tests {
-                    let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
                     info!("---NEW TEST---");
                     println!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
-                    for run in compute_runs_from_matrix(input_matrix) {
+                    for run in compute_runs_from_matrix(test.parse_inputs()) {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
@@ -247,14 +168,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("-------NEW WORKFLOW-------");
                 println!("found tests for workflow: `{}`", workflow.name());
                 for test in tests {
-                    let input_matrix = test.parse_inputs();
                     let assertions = test.parse_assertions();
                     info!("---NEW TEST---");
                     println!("test name: `{}`", &test.name);
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
-                    for run in compute_runs_from_matrix(input_matrix) {
+                    for run in compute_runs_from_matrix(test.parse_inputs()) {
                         info!("execution with inputs: {:#?}", run);
                         counter += 1;
                     }
@@ -270,4 +190,139 @@ pub async fn test(args: Args) -> CommandResult<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn zip_1_by_2() {
+        let start = vec![vec![
+            ("output_singletons".to_string(), Value::Bool(true)),
+            ("output_singletons".to_string(), Value::Bool(false)),
+        ]];
+        let end = zip_inputs(start);
+        assert_eq!(
+            end,
+            vec![
+                vec![("output_singletons".to_string(), Value::Bool(true)),],
+                vec![("output_singletons".to_string(), Value::Bool(false)),]
+            ]
+        )
+    }
+
+    #[test]
+    fn zip_2_by_2() {
+        let start = vec![
+            vec![
+                ("bam".to_string(), Value::String("test1.bam".to_string())),
+                ("bam".to_string(), Value::String("test2.bam".to_string())),
+            ],
+            vec![
+                (
+                    "bam_index".to_string(),
+                    Value::String("test1.bam.bai".to_string()),
+                ),
+                (
+                    "bam_index".to_string(),
+                    Value::String("test2.bam.bai".to_string()),
+                ),
+            ],
+        ];
+        let end = zip_inputs(start);
+        // let end = zip_inputs(start.into_iter()).collect::<Vec<_>>();
+        assert_eq!(
+            end,
+            vec![
+                vec![
+                    ("bam".to_string(),
+    Value::String("test1.bam".to_string())),                 (
+                        "bam_index".to_string(),
+                        Value::String("test1.bam.bai".to_string())
+                    ),
+                ],
+                vec![
+                    ("bam".to_string(),
+    Value::String("test2.bam".to_string())),                 (
+                        "bam_index".to_string(),
+                        Value::String("test2.bam.bai".to_string())
+                    ),
+                ],
+            ]
+        )
+    }
+
+    #[test]
+    fn zip_2_by_3() {
+        let start = vec![
+            vec![
+                (
+                    "bam".to_string(),
+                    Value::String("test.hg19.bam".to_string()),
+                ),
+                (
+                    "bam".to_string(),
+                    Value::String("test.GRCh38.bam".to_string()),
+                ),
+            ],
+            vec![
+                (
+                    "bam_index".to_string(),
+                    Value::String("test.hg19.bam.bai".to_string()),
+                ),
+                (
+                    "bam_index".to_string(),
+                    Value::String("test.GRCh38.bam.bai".to_string()),
+                ),
+            ],
+            vec![
+                (
+                    "ref_fasta".to_string(),
+                    Value::String("hg19.fasta".to_string()),
+                ),
+                (
+                    "ref_fasta".to_string(),
+                    Value::String("GRCh38.fasta".to_string()),
+                ),
+            ],
+        ];
+        // let end = zip_inputs(start.into_iter()).collect::<Vec<_>>();
+        let end = zip_inputs(start);
+        assert_eq!(
+            end,
+            vec![
+                vec![
+                    (
+                        "bam".to_string(),
+                        Value::String("test.hg19.bam".to_string())
+                    ),
+                    (
+                        "bam_index".to_string(),
+                        Value::String("test.hg19.bam.bai".to_string())
+                    ),
+                    (
+                        "ref_fasta".to_string(),
+                        Value::String("hg19.fasta".to_string())
+                    ),
+                ],
+                vec![
+                    (
+                        "bam".to_string(),
+                        Value::String("test.GRCh38.bam".to_string())
+                    ),
+                    (
+                        "bam_index".to_string(),
+                        Value::String("test.GRCh38.bam.bai".to_string())
+                    ),
+                    (
+                        "ref_fasta".to_string(),
+                        Value::String("GRCh38.fasta".to_string())
+                    ),
+                ],
+            ]
+        )
+    }
 }
