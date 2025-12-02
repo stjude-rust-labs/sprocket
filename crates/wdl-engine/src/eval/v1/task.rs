@@ -69,6 +69,7 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::TopLevelEvaluator;
+use super::validators::{ResourceKind, ensure_non_negative_i64, invalid_numeric_value_message};
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::ContentKind;
@@ -138,6 +139,31 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
+/// Returns the first entry in `map` that matches the provided keys.
+fn lookup_value<'a>(
+    map: &'a HashMap<String, Value>,
+    keys: &[&'static str],
+) -> Option<(&'a Value, &'static str)> {
+    keys.iter()
+        .find_map(|key| map.get(*key).map(|value| (value, *key)))
+}
+
+/// Parses an integer or byte-unit string into a byte count using the supplied
+/// `error_message` formatter when conversion fails.
+fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) -> Result<i64> {
+    if let Some(v) = value.as_integer() {
+        return Ok(v);
+    }
+
+    if let Some(s) = value.as_string() {
+        return convert_unit_string(s)
+            .and_then(|v| v.try_into().ok())
+            .with_context(|| error_message(s));
+    }
+
+    unreachable!("value should be an integer or string");
+}
+
 /// Gets the `container` requirement from a requirements map.
 pub(crate) fn container<'a>(
     requirements: &'a HashMap<String, Value>,
@@ -205,48 +231,28 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
 
 /// Gets the `memory` requirement from a requirements map.
 pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    Ok(requirements
-        .get(TASK_REQUIREMENT_MEMORY)
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
+    if let Some((value, key)) = lookup_value(requirements, &[TASK_REQUIREMENT_MEMORY]) {
+        let bytes = parse_storage_value(value, |raw| {
+            invalid_numeric_value_message(ResourceKind::Requirement, key, raw)
+        })?;
 
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
+        return ensure_non_negative_i64(ResourceKind::Requirement, key, bytes);
+    }
 
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()?
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MEMORY))
+    Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
 }
 
 /// Gets the `max_memory` hint from a hints map.
 pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    hints
-        .get(TASK_HINT_MAX_MEMORY)
-        .or_else(|| hints.get(TASK_HINT_MAX_MEMORY_ALIAS))
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
-
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
-
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()
+    match lookup_value(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
+        Some((value, key)) => {
+            let bytes = parse_storage_value(value, |raw| {
+                invalid_numeric_value_message(ResourceKind::Hint, key, raw)
+            })?;
+            ensure_non_negative_i64(ResourceKind::Hint, key, bytes).map(Some)
+        }
+        None => Ok(None),
+    }
 }
 
 /// Gets the number of required GPUs from requirements and hints.
@@ -498,32 +504,43 @@ pub(crate) fn disks<'a>(
 /// This hint is not part of the WDL standard but is used for compatibility with
 /// Cromwell where backends can support preemptible retries before using
 /// dedicated instances.
-pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
+pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
     const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
-    hints
+    Ok(hints
         .get(TASK_HINT_PREEMPTIBLE)
         .and_then(|v| {
-            Some(
-                v.coerce(None, &PrimitiveType::Integer.into())
-                    .ok()?
-                    .unwrap_integer(),
-            )
+            v.coerce(None, &PrimitiveType::Integer.into())
+                .ok()
+                .map(|value| value.unwrap_integer())
         })
-        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+        .map(|value| ensure_non_negative_i64(ResourceKind::Hint, TASK_HINT_PREEMPTIBLE, value))
+        .transpose()?
+        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
 }
 
 /// Gets the `max_retries` requirement from a requirements map with config
 /// fallback.
-pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> u64 {
-    requirements
-        .get(TASK_REQUIREMENT_MAX_RETRIES)
-        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-        .and_then(|v| v.as_integer())
-        .map(|v| v as u64)
-        .or(config.task.retries)
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
+pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
+    if let Some((value, key)) = lookup_value(
+        requirements,
+        &[
+            TASK_REQUIREMENT_MAX_RETRIES,
+            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
+        ],
+    ) {
+        let retries = value
+            .as_integer()
+            .expect("`max_retries` requirement should be an integer");
+        return ensure_non_negative_i64(ResourceKind::Requirement, key, retries)
+            .map(|value| value as u64);
+    }
+
+    Ok(config
+        .task
+        .retries
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
 /// Gets the `cacheable` hint from a hints map with config fallback.
@@ -1045,7 +1062,7 @@ impl TopLevelEvaluator {
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = max_retries(&requirements, &self.config);
+            let max_retries = max_retries(&requirements, &self.config)?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1853,7 +1870,7 @@ impl<'a> State<'a> {
                     )
                 })?;
 
-            let max_retries = max_retries(&requirements, &self.top_level.config);
+            let max_retries = max_retries(&requirements, &self.top_level.config)?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -2103,6 +2120,50 @@ impl<'a> State<'a> {
         }
 
         Ok(self.backend_inputs.as_slice().into())
+    }
+}
+
+#[cfg(test)]
+mod resource_validation_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+        map.insert(key.to_string(), value);
+        map
+    }
+
+    #[test]
+    fn memory_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
+        let err = memory(&requirements).expect_err("`memory` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `memory` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn max_retries_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
+        let err = max_retries(&requirements, &Config::default())
+            .expect_err("`max_retries` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `max_retries` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn preemptible_disallows_negative_values() {
+        let mut hints = HashMap::new();
+        hints.insert("preemptible".to_string(), Value::from(-3));
+        let err = preemptible(&hints).expect_err("`preemptible` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task hint `preemptible` cannot be less than zero")
+        );
     }
 }
 
