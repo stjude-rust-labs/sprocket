@@ -124,7 +124,16 @@ type Run = IndexMap<String, Value>;
 /// ```
 fn zip_inputs(inputs_to_zip: Vec<Vec<Input>>) -> Vec<Vec<Input>> {
     let mut result = Vec::new();
+    let mut initial_len = None;
     for (outer_index, individual_input_with_possible_values) in enumerate(inputs_to_zip) {
+        if let Some(prev_len) = initial_len
+            && prev_len != individual_input_with_possible_values.len()
+        {
+            panic!("dimensions of input matrix are inconsistent")
+        }
+        if initial_len.is_none() {
+            initial_len = Some(individual_input_with_possible_values.len());
+        }
         for (inner_index, possibility) in enumerate(individual_input_with_possible_values) {
             if outer_index == 0 {
                 result.push(vec![possibility]);
