@@ -69,7 +69,9 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::TopLevelEvaluator;
-use super::validators::{ResourceKind, ensure_non_negative_i64, invalid_numeric_value_message};
+use super::validators::ResourceKind;
+use super::validators::ensure_non_negative_i64;
+use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::ContentKind;
@@ -2125,8 +2127,9 @@ impl<'a> State<'a> {
 
 #[cfg(test)]
 mod resource_validation_tests {
-    use super::*;
     use std::collections::HashMap;
+
+    use super::*;
 
     fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
         let mut map = HashMap::new();

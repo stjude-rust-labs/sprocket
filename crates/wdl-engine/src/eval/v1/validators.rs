@@ -1,4 +1,5 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
+use anyhow::bail;
 
 /// Identifies the source of a numeric task setting used for diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
