@@ -103,7 +103,6 @@ fn compute_runs_from_matrix(
             }
             run_subsets
         })
-        .into_iter()
         .multi_cartesian_product() // step 3
         .map(|product| product.into_iter().flatten().collect()) // step 4 and 5
 }
@@ -237,15 +236,15 @@ mod tests {
             end,
             vec![
                 vec![
-                    ("bam".to_string(),
-    Value::String("test1.bam".to_string())),                 (
+                    ("bam".to_string(), Value::String("test1.bam".to_string())),
+                    (
                         "bam_index".to_string(),
                         Value::String("test1.bam.bai".to_string())
                     ),
                 ],
                 vec![
-                    ("bam".to_string(),
-    Value::String("test2.bam".to_string())),                 (
+                    ("bam".to_string(), Value::String("test2.bam".to_string())),
+                    (
                         "bam_index".to_string(),
                         Value::String("test2.bam.bai".to_string())
                     ),
