@@ -233,7 +233,6 @@ mod tests {
             ],
         ];
         let end = zip_inputs(start);
-        // let end = zip_inputs(start.into_iter()).collect::<Vec<_>>();
         assert_eq!(
             end,
             vec![
@@ -289,7 +288,6 @@ mod tests {
                 ),
             ],
         ];
-        // let end = zip_inputs(start.into_iter()).collect::<Vec<_>>();
         let end = zip_inputs(start);
         assert_eq!(
             end,
