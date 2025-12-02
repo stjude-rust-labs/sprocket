@@ -70,6 +70,7 @@ parking_lot = "0.12.3"
 paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
+peak_alloc = "0.3.0"
 petgraph = "0.8.1"
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
@@ -167,6 +168,7 @@ indicatif.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
+peak_alloc = { workspace = true, optional = true }
 pretty_assertions.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -190,6 +192,9 @@ wdl.workspace = true
 shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
+
+[features]
+memory_stats = ["dep:peak_alloc"]
 
 [lints]
 workspace = true
