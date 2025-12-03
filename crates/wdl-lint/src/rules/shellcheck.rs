@@ -20,6 +20,7 @@ use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
+use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -353,13 +354,12 @@ impl EvaluationContext for CommandContext<'_> {
     fn resolve_type_name(
         &mut self,
         name: &str,
-        _span: Span,
+        span: Span,
     ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
-        dbg!(&self.scope);
-        match self.scope.lookup(name).map(|n| n.ty().clone()) {
-            Some(ty) => Ok(ty),
-            None => unreachable!("should have found type for name `{name}`")
-        }
+        self.scope
+            .lookup(name)
+            .map(|n| n.ty().clone())
+            .ok_or_else(|| unknown_type(name, span))
     }
 
     fn task(&self) -> Option<&wdl_analysis::document::Task> {
