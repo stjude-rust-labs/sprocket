@@ -31,5 +31,11 @@ workflow enum_primitive_values {
     String blue_value = value(Color.Blue)
     Boolean red_equals_red = Color.Red == Color.Red
     Boolean red_not_equals_blue = Color.Red != Color.Blue
+
+    # Test parenthesized enum type name access
+    Status paren_inactive = (Status).Inactive
+    Status paren_active = (Status).Active
+    Color paren_red = (Color).Red
+    Color paren_blue = (Color).Blue
   }
 }

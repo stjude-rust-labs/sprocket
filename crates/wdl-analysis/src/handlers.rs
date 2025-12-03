@@ -71,6 +71,33 @@ impl EvaluationContext for TypeEvalContext<'_> {
         {
             return Ok(ty.clone());
         }
+
+        if let Some(ty) = self.document.structs().find_map(|(s_name, s)| {
+            if name == s_name
+                && let Some(ty) = s.ty()
+            {
+                ty.as_custom()
+                    .map(|c| crate::types::Type::TypeNameRef(c.clone()))
+            } else {
+                None
+            }
+        }) {
+            return Ok(ty);
+        }
+
+        if let Some(ty) = self.document.enums().find_map(|(e_name, e)| {
+            if name == e_name
+                && let Some(ty) = e.ty()
+            {
+                ty.as_custom()
+                    .map(|c| crate::types::Type::TypeNameRef(c.clone()))
+            } else {
+                None
+            }
+        }) {
+            return Ok(ty);
+        }
+
         Err(diagnostics::unknown_type(name, span))
     }
 

@@ -111,6 +111,7 @@ use crate::diagnostics::missing_struct_members;
 use crate::diagnostics::multiple_type_mismatch;
 use crate::diagnostics::negation_mismatch;
 use crate::diagnostics::no_common_type;
+use crate::diagnostics::not_a_custom_type;
 use crate::diagnostics::not_a_pair_accessor;
 use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
@@ -132,6 +133,7 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
+use crate::types::CustomType;
 
 /// Gets the type of a `task` variable member for pre-evaluation contexts.
 ///
@@ -600,7 +602,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
             Expr::NameRef(r) => {
                 let name = r.name();
-                self.context.resolve_name(name.text(), name.span())
+                self.resolve_name(&name)
             }
             Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()),
             Expr::If(expr) => self.evaluate_if_expr(expr),
@@ -750,7 +752,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     Type::Primitive(..)
                     | Type::Union
                     | Type::None
-                    | Type::Compound(CompoundType::Enum(_), _) => {}
+                    | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
@@ -913,7 +915,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
                 let ty = match ty {
-                    Type::Compound(CompoundType::Struct(ty), false) => ty,
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,
                     _ => panic!("type should be a required struct"),
                 };
 
@@ -982,7 +984,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         .add_diagnostic(missing_struct_members(&name, count, &members));
                 }
 
-                Some(Type::Compound(CompoundType::Struct(ty), false))
+                Some(Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false))
             }
             Err(diagnostic) => {
                 self.context.add_diagnostic(diagnostic);
@@ -1184,7 +1186,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             };
 
             match ty {
-                Type::Compound(CompoundType::Struct(ty), _) => s = Some(ty),
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => s = Some(ty),
                 _ if names.peek().is_some() => {
                     self.context.add_diagnostic(not_a_struct(&name, i == 0));
                     break;
@@ -1408,12 +1410,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     Type::Compound(CompoundType::Map(b), _),
                 ) => a == b,
                 (
-                    Type::Compound(CompoundType::Struct(a), _),
-                    Type::Compound(CompoundType::Struct(b), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(b)), _),
                 ) => a == b,
                 (
-                    Type::Compound(CompoundType::Enum(a), _),
-                    Type::Compound(CompoundType::Enum(b), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(b)), _),
                 ) => a == b,
                 _ => false,
             };
@@ -1737,7 +1739,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
         // Check to see if it's a compound type or call output
         match &ty {
-            Type::Compound(CompoundType::Struct(ty), _) => {
+            Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
                 if let Some(ty) = ty.members.get(name.text()) {
                     return Some(ty.clone());
                 }
@@ -1746,9 +1748,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     .add_diagnostic(not_a_struct_member(ty.name(), &name));
                 return None;
             }
-            Type::Compound(CompoundType::Enum(ty), _) => {
+            Type::Compound(CompoundType::Custom(CustomType::Enum(ty)), _) => {
                 if ty.variants().contains_key(name.text()) {
-                    return Some(Type::Compound(CompoundType::Enum(ty.clone()), false));
+                    return Some(Type::Compound(CompoundType::Custom(CustomType::Enum(ty.clone())), false));
                 }
 
                 self.context
@@ -1845,5 +1847,28 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 .with_severity(severity)
                 .with_fix(fix),
         )
+    }
+
+    /// Attempts to resolve a name to a type using the following priority order:
+    ///
+    /// - Names in scope (variables)
+    /// - Type name references
+    fn resolve_name<T: TreeToken>(&mut self, name: &Ident<T>) -> Option<Type> {
+        self.context
+            .resolve_name(name.text(), name.span())
+            .or_else(|| {
+                // No name in scope
+                self.context
+                    .resolve_type_name(name.text(), name.span())
+                    .ok()
+                    .and_then(|ty| {
+                        if let Type::Compound(CompoundType::Custom(ty), _) = ty {
+                            Some(Type::TypeNameRef(ty))
+                        } else {
+                            self.context.add_diagnostic(not_a_custom_type(name));
+                            None
+                        }
+                    })
+            })
     }
 }

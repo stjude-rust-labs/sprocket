@@ -182,6 +182,9 @@ fn calculate_disk_size<'a>(
                 bail!("the size of a task.previous value cannot be calculated")
             }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
+            Value::TypeNameRef(_) => {
+                bail!("the size of a type name reference cannot be calculated")
+            }
         }
     }
     .boxed()

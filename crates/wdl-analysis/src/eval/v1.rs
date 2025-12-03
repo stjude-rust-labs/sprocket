@@ -120,9 +120,33 @@ pub struct TaskGraphBuilder<N: TreeNode = SyntaxNode> {
     hints: Option<NodeIndex>,
     /// Space for DFS operations when building the graph.
     space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode<N>, ()> as Visitable>::Map>,
+    /// The set of struct names that are valid references but do not create
+    /// runtime dependencies.
+    struct_names: HashSet<String>,
+    /// The set of enum names that are valid references but do not create
+    /// runtime dependencies.
+    enum_names: HashSet<String>,
 }
 
 impl<N: TreeNode> TaskGraphBuilder<N> {
+    /// Sets the struct names for the builder.
+    ///
+    /// These are struct type names that are valid references but do not create
+    /// runtime dependencies in the workflow graph.
+    pub fn with_struct_names(mut self, names: HashSet<String>) -> Self {
+        self.struct_names = names;
+        self
+    }
+
+    /// Sets the enum names for the builder.
+    ///
+    /// These are enum type names that are valid references but do not create
+    /// runtime dependencies in the workflow graph.
+    pub fn with_enum_names(mut self, names: HashSet<String>) -> Self {
+        self.enum_names = names;
+        self
+    }
+
     /// Builds a new task evaluation graph.
     ///
     /// The nodes are [`TaskGraphNode`] and the edges represent a reverse
@@ -300,7 +324,10 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     graph.update_edge(*to, from, false);
                 }
                 _ => {
-                    if name.text() != TASK_VAR_NAME || !allow_task_var {
+                    if (name.text() != TASK_VAR_NAME || !allow_task_var) 
+                        && !self.struct_names.contains(name.text())
+                        && !self.enum_names.contains(name.text())
+                    {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
@@ -438,7 +465,10 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     graph.update_edge(*to, from, false);
                 }
                 _ => {
-                    if name.text() != TASK_VAR_NAME || !allow_task_var {
+                    if (name.text() != TASK_VAR_NAME || !allow_task_var)
+                        && !self.struct_names.contains(name.text())
+                        && !self.enum_names.contains(name.text())
+                    {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
@@ -456,6 +486,8 @@ impl<N: TreeNode> Default for TaskGraphBuilder<N> {
             requirements: Default::default(),
             hints: Default::default(),
             space: Default::default(),
+            struct_names: Default::default(),
+            enum_names: Default::default(),
         }
     }
 }
@@ -600,18 +632,30 @@ pub struct WorkflowGraphBuilder<N: TreeNode = SyntaxNode> {
     space: DfsSpace<NodeIndex, <DiGraph<WorkflowGraphNode<N>, ()> as Visitable>::Map>,
     /// The common ancestor finder used when building the graph.
     ancestor_finder: CommonAncestorFinder<N>,
-    /// The set of compiled enum names that are valid references but do not
-    /// create runtime dependencies.
-    compiled_enum_names: HashSet<String>,
+    /// The set of struct names that are valid references but do not create
+    /// runtime dependencies.
+    struct_names: HashSet<String>,
+    /// The set of enum names that are valid references but do not create
+    /// runtime dependencies.
+    enum_names: HashSet<String>,
 }
 
 impl<N: TreeNode> WorkflowGraphBuilder<N> {
-    /// Sets the compiled enum names for the builder.
+    /// Sets the struct names for the builder.
+    ///
+    /// These are struct type names that are valid references but do not create
+    /// runtime dependencies in the workflow graph.
+    pub fn with_struct_names(mut self, names: HashSet<String>) -> Self {
+        self.struct_names = names;
+        self
+    }
+
+    /// Sets the enum names for the builder.
     ///
     /// These are enum type names that are valid references but do not create
     /// runtime dependencies in the workflow graph.
-    pub fn with_compiled_enum_names(mut self, names: HashSet<String>) -> Self {
-        self.compiled_enum_names = names;
+    pub fn with_enum_names(mut self, names: HashSet<String>) -> Self {
+        self.enum_names = names;
         self
     }
 
@@ -1072,9 +1116,10 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 _ => {
-                    // Check if this is a compiled enum name
-                    // These are valid references but don't create runtime dependencies
-                    if !self.compiled_enum_names.contains(name.text()) {
+                    // Check if this is a struct or enum name.
+                    if !self.struct_names.contains(name.text())
+                        && !self.enum_names.contains(name.text())
+                    {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
@@ -1177,7 +1222,8 @@ impl<N: TreeNode> Default for WorkflowGraphBuilder<N> {
             entry_exits: Default::default(),
             space: Default::default(),
             ancestor_finder: Default::default(),
-            compiled_enum_names: Default::default(),
+            struct_names: Default::default(),
+            enum_names: Default::default(),
         }
     }
 }

@@ -812,12 +812,26 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         None => Default::default(),
     };
 
+    let structs = document
+        .structs
+        .iter()
+        .map(|(name, _)| name.to_owned())
+        .collect::<HashSet<_>>();
+    let enums = document
+        .enums
+        .iter()
+        .map(|(name, _)| name.to_owned())
+        .collect::<HashSet<_>>();
+
     // Process the task in evaluation order
-    let graph = TaskGraphBuilder::default().build(
-        document.version.unwrap(),
-        definition,
-        &mut document.analysis_diagnostics,
-    );
+    let graph = TaskGraphBuilder::default()
+        .with_struct_names(structs)
+        .with_enum_names(enums)
+        .build(
+            document.version.unwrap(),
+            definition,
+            &mut document.analysis_diagnostics,
+        );
 
     let mut task = Task {
         name_span: name.span(),
@@ -1135,12 +1149,14 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     )];
     let mut output_scope = None;
 
-    let compiled_enum_names: HashSet<String> = document.enums.keys().cloned().collect();
+    let struct_names: HashSet<String> = document.structs.keys().cloned().collect();
+    let enum_names: HashSet<String> = document.enums.keys().cloned().collect();
 
     // For static analysis, we don't need to provide inputs to the workflow graph
     // builder
     let graph = WorkflowGraphBuilder::default()
-        .with_compiled_enum_names(compiled_enum_names)
+        .with_struct_names(struct_names)
+        .with_enum_names(enum_names)
         .build(workflow, &mut document.analysis_diagnostics, |_| false);
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {

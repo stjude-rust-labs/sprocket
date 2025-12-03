@@ -42,6 +42,7 @@ pub const fn descriptor() -> Function {
 #[cfg(test)]
 mod test {
     use wdl_analysis::types::CompoundType;
+    use wdl_analysis::types::CustomType;
     use wdl_analysis::types::EnumType;
     use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::Type;
@@ -71,7 +72,7 @@ mod test {
 
         let color_red = EnumVariant::new(
             None,
-            Type::Compound(CompoundType::Enum(enum_ty.clone().into()), false),
+            Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty.clone().into())), false),
             "Red",
             PrimitiveValue::new_string("#FF0000"),
         )
@@ -99,7 +100,7 @@ mod test {
 
         let status_active = EnumVariant::new(
             None,
-            Type::Compound(CompoundType::Enum(int_enum.clone().into()), false),
+            Type::Compound(CompoundType::Custom(CustomType::Enum(int_enum.clone().into())), false),
             "Active",
             PrimitiveValue::Integer(1),
         )
@@ -107,7 +108,7 @@ mod test {
 
         let status_inactive = EnumVariant::new(
             None,
-            Type::Compound(CompoundType::Enum(int_enum.clone().into()), false),
+            Type::Compound(CompoundType::Custom(CustomType::Enum(int_enum.clone().into())), false),
             "Inactive",
             PrimitiveValue::Integer(42),
         )

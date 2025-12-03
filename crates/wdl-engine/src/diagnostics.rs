@@ -193,3 +193,22 @@ pub fn task_execution_failed(e: anyhow::Error, name: &str, id: &str, span: Span)
     })
     .with_label("this task failed to execute", span)
 }
+
+/// Creates a "cannot access on type name reference" diagnostic.
+pub(crate) fn cannot_access_type_name_ref(ty: &Type, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("cannot use `.` operator on type `{ty}`"))
+        .with_label("type name reference", span)
+}
+
+/// Creates an "unknown enum variant" diagnostic.
+pub(crate) fn unknown_enum_variant<T: TreeToken>(enum_ty: &Type, variant_name: &Ident<T>) -> Diagnostic {
+    let enum_name = enum_ty.as_enum()
+        .expect("expected enum type")
+        .name();
+
+    Diagnostic::error(format!(
+        "enum `{enum_name}` has no variant named `{}`",
+        variant_name.text()
+    ))
+    .with_label("unknown variant", variant_name.span())
+}

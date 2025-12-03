@@ -42,6 +42,7 @@ use wdl_analysis::eval::v1::WorkflowGraphNode;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -223,7 +224,7 @@ fn extract_literal_value(ty: &Type, expr: &Expr) -> Option<Value> {
                     .expect("map construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Struct(struct_ty), _) => {
+        Type::Compound(CompoundType::Custom(CustomType::Struct(struct_ty)), _) => {
             expect_ty_match!(expr, Struct(s) => "Struct");
             let members: Option<indexmap::IndexMap<String, Value>> = s
                 .items()
@@ -270,7 +271,7 @@ pub(crate) fn build_enums(document: &Document) -> HashMap<String, Enum> {
 
     for (name, r#enum) in document.enums() {
         let ty = r#enum.ty().expect("enum should have type");
-        let Type::Compound(CompoundType::Enum(enum_type), _) = ty else {
+        let Type::Compound(CompoundType::Custom(CustomType::Enum(enum_type)), _) = ty else {
             unreachable!("non-enum was returned by `document.enums()`");
         };
 
@@ -894,14 +895,21 @@ impl WorkflowEvaluator {
         // Build an evaluation graph for the workflow
         let mut diagnostics = Vec::new();
 
-        // Get enum names from the document
-        let enum_names: HashSet<String> =
-            document.enums().map(|(name, _)| name.to_string()).collect();
+        // Get struct and enum names from the document
+        let struct_names = document
+            .structs()
+            .map(|(name, _)| name.to_string())
+            .collect::<HashSet<_>>();
+        let enum_names = document
+            .enums()
+            .map(|(name, _)| name.to_string())
+            .collect::<HashSet<_>>();
 
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided
         let graph = WorkflowGraphBuilder::default()
-            .with_compiled_enum_names(enum_names)
+            .with_struct_names(struct_names)
+            .with_enum_names(enum_names)
             .build(&definition, &mut diagnostics, |name| inputs.contains(name));
         assert!(
             diagnostics.is_empty(),

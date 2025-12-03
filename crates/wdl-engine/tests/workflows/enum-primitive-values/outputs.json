@@ -14,5 +14,9 @@
   "enum_primitive_values.green_value": "#00FF00",
   "enum_primitive_values.blue_value": "#0000FF",
   "enum_primitive_values.red_equals_red": true,
-  "enum_primitive_values.red_not_equals_blue": true
+  "enum_primitive_values.red_not_equals_blue": true,
+  "enum_primitive_values.paren_inactive": "Inactive",
+  "enum_primitive_values.paren_active": "Active",
+  "enum_primitive_values.paren_red": "Red",
+  "enum_primitive_values.paren_blue": "Blue"
 }

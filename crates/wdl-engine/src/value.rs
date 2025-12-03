@@ -24,6 +24,7 @@ use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::EnumType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
@@ -115,6 +116,8 @@ pub enum Value {
     PreviousTaskData(PreviousTaskDataValue),
     /// The value is the outputs of a call.
     Call(CallValue),
+    /// The value is a reference to a user-defined type.
+    TypeNameRef(Type),
 }
 
 impl Value {
@@ -167,6 +170,7 @@ impl Value {
             Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
             Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
             Self::Call(v) => Type::Call(v.ty.clone()),
+            Self::TypeNameRef(ty) => ty.clone(),
         }
     }
 
@@ -689,6 +693,7 @@ impl fmt::Display for Value {
             Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
             Self::PreviousTaskData(_) => write!(f, "task.previous"),
             Self::Call(c) => c.fmt(f),
+            Self::TypeNameRef(ty) => ty.fmt(f),
         }
     }
 }
@@ -785,6 +790,9 @@ impl Coercible for Value {
             }
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
+            }
+            Self::TypeNameRef(_) => {
+                bail!("type name references cannot be coerced to any other type");
             }
         }
     }
@@ -1983,7 +1991,7 @@ impl Struct {
         V: Into<Value>,
     {
         let ty = ty.into();
-        if let Type::Compound(CompoundType::Struct(ty), optional) = ty {
+        if let Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), optional) = ty {
             let mut members = members
                 .into_iter()
                 .map(|(n, v)| {
@@ -2017,7 +2025,7 @@ impl Struct {
 
             let name = ty.name().to_string();
             return Ok(Self {
-                ty: Type::Compound(CompoundType::Struct(ty), optional),
+                ty: Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), optional),
                 name: Arc::new(name),
                 members: Arc::new(members),
             });
@@ -2131,7 +2139,7 @@ impl EnumVariant {
         let variant_name = variant_name.into();
         let value = value.into();
 
-        if let Type::Compound(CompoundType::Enum(enum_ty), optional) = ty {
+        if let Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), optional) = ty {
             // Check that the variant exists
             if !enum_ty.variants().contains_key(&variant_name) {
                 bail!(
@@ -2153,7 +2161,7 @@ impl EnumVariant {
                 })?;
 
             return Ok(Self {
-                ty: Type::Compound(CompoundType::Enum(enum_ty.clone()), optional),
+                ty: Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty.clone())), optional),
                 enum_name: Arc::new(enum_ty.name().to_string()),
                 variant_name: Arc::new(variant_name),
                 value: Arc::new(coerced_value),
@@ -2696,7 +2704,7 @@ impl Coercible for CompoundValue {
                     )?));
                 }
                 // Map[X, Y] -> Struct where: X -> String
-                (Self::Map(v), CompoundType::Struct(target_ty)) => {
+                (Self::Map(v), CompoundType::Custom(CustomType::Struct(target_ty))) => {
                     let len = v.len();
                     let expected_len = target_ty.members().len();
 
@@ -2807,7 +2815,7 @@ impl Coercible for CompoundValue {
                     )));
                 }
                 // Object -> Struct
-                (Self::Object(v), CompoundType::Struct(_)) => {
+                (Self::Object(v), CompoundType::Custom(CustomType::Struct(_))) => {
                     return Ok(Self::Struct(Struct::new(
                         context,
                         target.clone(),
@@ -2815,7 +2823,7 @@ impl Coercible for CompoundValue {
                     )?));
                 }
                 // Struct -> Struct
-                (Self::Struct(v), CompoundType::Struct(struct_ty)) => {
+                (Self::Struct(v), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
                     let len = v.members.len();
                     let expected_len = struct_ty.members().len();
 
@@ -3595,7 +3603,8 @@ impl serde::Serialize for ValueSerializer<'_> {
             | Value::TaskPreEvaluation(_)
             | Value::TaskPostEvaluation(_)
             | Value::PreviousTaskData(_)
-            | Value::Call(_) => Err(S::Error::custom("value cannot be serialized")),
+            | Value::Call(_)
+            | Value::TypeNameRef(_) => Err(S::Error::custom("value cannot be serialized")),
         }
     }
 }
@@ -4432,5 +4441,65 @@ Caused by:
         let value_serializer = ValueSerializer::new(&array, true);
         let serialized = serde_json::to_string(&value_serializer).expect("should serialize");
         assert_eq!(serialized, r#"[{"left":"foo","right":"bar"}]"#);
+    }
+
+    #[test]
+    fn type_name_ref_equality() {
+        use std::sync::Arc;
+        use wdl_analysis::types::EnumType;
+
+        let enum_type = Type::Compound(
+            CompoundType::Custom(CustomType::Enum(Arc::new(
+                EnumType::new(
+                    "MyEnum",
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Vec::<(&str, Type)>::new(),
+                )
+                .expect("should create enum type"),
+            ))),
+            false,
+        );
+
+        let value1 = Value::TypeNameRef(enum_type.clone());
+        let value2 = Value::TypeNameRef(enum_type.clone());
+
+        assert_eq!(value1.ty(), value2.ty());
+    }
+
+    #[test]
+    fn type_name_ref_ty() {
+        use std::sync::Arc;
+
+        let struct_type = Type::Compound(
+            CompoundType::Custom(CustomType::Struct(Arc::new(StructType::new(
+                "MyStruct",
+                Vec::<(&str, Type)>::new(),
+            )))),
+            false,
+        );
+
+        let value = Value::TypeNameRef(struct_type.clone());
+        assert_eq!(value.ty(), struct_type);
+    }
+
+    #[test]
+    fn type_name_ref_display() {
+        use std::sync::Arc;
+        use wdl_analysis::types::EnumType;
+
+        let enum_type = Type::Compound(
+            CompoundType::Custom(CustomType::Enum(Arc::new(
+                EnumType::new(
+                    "Color",
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Vec::<(&str, Type)>::new(),
+                )
+                .expect("should create enum type"),
+            ))),
+            false,
+        );
+
+        let value = Value::TypeNameRef(enum_type);
+        assert_eq!(value.to_string(), "Color");
     }
 }

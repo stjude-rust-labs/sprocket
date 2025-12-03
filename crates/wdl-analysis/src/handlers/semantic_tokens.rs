@@ -38,6 +38,7 @@ use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::position;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::Type;
 
 /// The supported semantic token types for WDL.
@@ -285,7 +286,7 @@ fn resolve_identifier_ty(
     {
         return match name_info.ty() {
             Type::Call(_) => Some(SemanticTokenType::VARIABLE),
-            Type::Compound(CompoundType::Struct(_), _) => Some(SemanticTokenType::STRUCT),
+            Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _) => Some(SemanticTokenType::STRUCT),
             _ => {
                 let offset = name_info.span().start().try_into().ok()?;
                 let root = document.root();

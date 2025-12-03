@@ -82,6 +82,7 @@ use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::task_hint_types;
 use crate::types::v1::task_member_type_post_evaluation;
@@ -478,7 +479,7 @@ fn add_member_access_completions(
     let target_type = evaluate_expr_type(&target_expr, scope, document);
 
     match (accessor_token.kind(), target_type) {
-        (SyntaxKind::Dot, Type::Compound(CompoundType::Struct(s), _)) => {
+        (SyntaxKind::Dot, Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _)) => {
             for (name, ty) in s.members() {
                 items.push(CompletionItem {
                     label: name.to_string(),
@@ -513,7 +514,7 @@ fn add_member_access_completions(
                 ..Default::default()
             });
         }
-        (SyntaxKind::Dot, Type::Compound(CompoundType::Enum(e), _)) => {
+        (SyntaxKind::Dot, Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _)) => {
             let enum_type = e.value_type();
             for (variant_name, _) in e.variants() {
                 items.push(CompletionItem {

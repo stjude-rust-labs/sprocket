@@ -191,6 +191,8 @@ pub enum Type {
     Hidden(HiddenType),
     /// The type is a call output.
     Call(CallType),
+    /// A reference to a custom type name (struct or enum).
+    TypeNameRef(CustomType),
 }
 
 impl Type {
@@ -249,7 +251,7 @@ impl Type {
     /// Returns `None` if the type is not a struct type.
     pub fn as_struct(&self) -> Option<&StructType> {
         match self {
-            Self::Compound(CompoundType::Struct(ty), _) => Some(ty),
+            Self::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => Some(ty),
             _ => None,
         }
     }
@@ -259,7 +261,27 @@ impl Type {
     /// Returns `None` if the type is not an enum type.
     pub fn as_enum(&self) -> Option<&EnumType> {
         match self {
-            Self::Compound(CompoundType::Enum(ty), _) => Some(ty),
+            Self::Compound(CompoundType::Custom(CustomType::Enum(ty)), _) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the type to a custom type.
+    ///
+    /// Returns `None` if the type is not a custom type.
+    pub fn as_custom(&self) -> Option<&CustomType> {
+        match self {
+            Self::Compound(CompoundType::Custom(ty), _) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the type to a type name reference.
+    ///
+    /// Returns `None` if the type is not a type name reference.
+    pub fn as_type_name_ref(&self) -> Option<&CustomType> {
+        match self {
+            Self::TypeNameRef(custom_ty) => Some(custom_ty),
             _ => None,
         }
     }
@@ -359,7 +381,11 @@ impl fmt::Display for Type {
             }
             Self::Compound(ty, optional) => {
                 ty.fmt(f)?;
-                if *optional { write!(f, "?") } else { Ok(()) }
+                if *optional {
+                    write!(f, "?")
+                } else {
+                    Ok(())
+                }
             }
             Self::Object => {
                 write!(f, "Object")
@@ -371,6 +397,7 @@ impl fmt::Display for Type {
             Self::None => write!(f, "None"),
             Self::Hidden(ty) => ty.fmt(f),
             Self::Call(ty) => ty.fmt(f),
+            Self::TypeNameRef(ty) => ty.fmt(f),
         }
     }
 }
@@ -381,7 +408,9 @@ impl Optional for Type {
             Self::Primitive(_, optional) => *optional,
             Self::Compound(_, optional) => *optional,
             Self::OptionalObject | Self::None => true,
-            Self::Object | Self::Union | Self::Hidden(_) | Self::Call(_) => false,
+            Self::Object | Self::Union | Self::Hidden(_) | Self::Call(_) | Self::TypeNameRef(_) => {
+                false
+            }
         }
     }
 
@@ -445,7 +474,7 @@ impl Coercible for Type {
                 CompoundType::Map(src) => {
                     src.key_type.is_coercible_to(&PrimitiveType::String.into())
                 }
-                CompoundType::Struct(_) => true,
+                CompoundType::Custom(CustomType::Struct(_)) => true,
                 _ => false,
             },
 
@@ -460,7 +489,7 @@ impl Coercible for Type {
                     CompoundType::Map(target) => {
                         Type::from(PrimitiveType::String).is_coercible_to(&target.key_type)
                     }
-                    CompoundType::Struct(_) => {
+                    CompoundType::Custom(CustomType::Struct(_)) => {
                         // Note: checking object keys and values is a runtime constraint
                         true
                     }
@@ -528,6 +557,66 @@ impl From<CallType> for Type {
     }
 }
 
+/// Represents a custom type (struct or enum).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CustomType {
+    /// The type is a struct (e.g. `Foo`).
+    Struct(Arc<StructType>),
+    /// The type is an enum.
+    Enum(Arc<EnumType>),
+}
+
+impl CustomType {
+    /// Gets the name of the custom type.
+    pub fn name(&self) -> &Arc<String> {
+        match self {
+            Self::Struct(ty) => ty.name(),
+            Self::Enum(ty) => ty.name(),
+        }
+    }
+
+    /// Converts the custom type to a struct type.
+    ///
+    /// Returns `None` if the custom type is not a struct.
+    pub fn as_struct(&self) -> Option<&StructType> {
+        match self {
+            Self::Struct(ty) => Some(ty),
+            _ => None,
+        }
+    }
+
+    /// Converts the custom type to an enum type.
+    ///
+    /// Returns `None` if the custom type is not an enum.
+    pub fn as_enum(&self) -> Option<&EnumType> {
+        match self {
+            Self::Enum(ty) => Some(ty),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for CustomType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CustomType::Struct(ty) => ty.fmt(f),
+            CustomType::Enum(ty) => ty.fmt(f),
+        }
+    }
+}
+
+impl From<StructType> for CustomType {
+    fn from(value: StructType) -> Self {
+        Self::Struct(value.into())
+    }
+}
+
+impl From<EnumType> for CustomType {
+    fn from(value: EnumType) -> Self {
+        Self::Enum(value.into())
+    }
+}
+
 /// Represents a compound type definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompoundType {
@@ -537,10 +626,8 @@ pub enum CompoundType {
     Pair(Arc<PairType>),
     /// The type is a `Map`.
     Map(Arc<MapType>),
-    /// The type is a struct (e.g. `Foo`).
-    Struct(Arc<StructType>),
-    /// The type is an enum.
-    Enum(Arc<EnumType>),
+    /// The type is a custom type (struct or enum).
+    Custom(CustomType),
 }
 
 impl CompoundType {
@@ -579,7 +666,7 @@ impl CompoundType {
     /// Returns `None` if the compound type is not a struct type.
     pub fn as_struct(&self) -> Option<&StructType> {
         match self {
-            Self::Struct(ty) => Some(ty),
+            Self::Custom(ty) => ty.as_struct(),
             _ => None,
         }
     }
@@ -589,7 +676,17 @@ impl CompoundType {
     /// Returns `None` if the compound type is not an enum type.
     pub fn as_enum(&self) -> Option<&EnumType> {
         match self {
-            Self::Enum(ty) => Some(ty),
+            Self::Custom(ty) => ty.as_enum(),
+            _ => None,
+        }
+    }
+
+    /// Converts the compound type to a custom type.
+    ///
+    /// Returns `None` if the compound type is not a custom type.
+    pub fn as_custom(&self) -> Option<&CustomType> {
+        match self {
+            Self::Custom(ty) => Some(ty),
             _ => None,
         }
     }
@@ -627,8 +724,10 @@ impl fmt::Display for CompoundType {
             Self::Array(ty) => ty.fmt(f),
             Self::Pair(ty) => ty.fmt(f),
             Self::Map(ty) => ty.fmt(f),
-            Self::Struct(ty) => ty.fmt(f),
-            Self::Enum(ty) => ty.fmt(f),
+            Self::Custom(ty) => match ty {
+                CustomType::Struct(ty) => ty.fmt(f),
+                CustomType::Enum(ty) => ty.fmt(f),
+            },
         }
     }
 }
@@ -650,14 +749,18 @@ impl Coercible for CompoundType {
 
             // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where: all member names match
             // and all member types coerce
-            (Self::Struct(src), Self::Struct(target)) => src.is_coercible_to(target),
+            (Self::Custom(CustomType::Struct(src)), Self::Custom(CustomType::Struct(target))) => {
+                src.is_coercible_to(target)
+            }
 
             // Enum -> Enum where: same enum type
-            (Self::Enum(src), Self::Enum(target)) => src.is_coercible_to(target),
+            (Self::Custom(CustomType::Enum(src)), Self::Custom(CustomType::Enum(target))) => {
+                src.is_coercible_to(target)
+            }
 
             // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
             // keys match member names, and Y -> member type
-            (Self::Map(src), Self::Struct(target)) => {
+            (Self::Map(src), Self::Custom(CustomType::Struct(target))) => {
                 if !src.key_type.is_coercible_to(&PrimitiveType::String.into()) {
                     return false;
                 }
@@ -677,7 +780,7 @@ impl Coercible for CompoundType {
 
             // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X
             // and member types -> Y
-            (Self::Struct(src), Self::Map(target)) => {
+            (Self::Custom(CustomType::Struct(src)), Self::Map(target)) => {
                 if !Type::from(PrimitiveType::String).is_coercible_to(&target.key_type) {
                     return false;
                 }
@@ -719,13 +822,19 @@ impl From<MapType> for CompoundType {
 
 impl From<StructType> for CompoundType {
     fn from(value: StructType) -> Self {
-        Self::Struct(value.into())
+        Self::Custom(CustomType::from(value))
     }
 }
 
 impl From<EnumType> for CompoundType {
     fn from(value: EnumType) -> Self {
-        Self::Enum(value.into())
+        Self::Custom(CustomType::from(value))
+    }
+}
+
+impl From<CustomType> for CompoundType {
+    fn from(value: CustomType) -> Self {
+        Self::Custom(value)
     }
 }
 
@@ -2266,7 +2375,10 @@ mod test {
 
         // Test From<EnumType> for CompoundType
         let compound: CompoundType = enum_type.clone().into();
-        assert!(matches!(compound, CompoundType::Enum(_)));
+        assert!(matches!(
+            compound,
+            CompoundType::Custom(CustomType::Enum(_))
+        ));
 
         // Test From<EnumType> for Type
         let ty: Type = enum_type.into();

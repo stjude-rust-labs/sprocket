@@ -13,6 +13,7 @@ use wdl_ast::version::V1;
 use crate::types::ArrayType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -584,7 +585,7 @@ impl GenericEnumValueType {
                     .expect("variant parameter should be present");
 
                 match variant_ty {
-                    Some(Type::Compound(CompoundType::Enum(enum_ty), _)) => {
+                    Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
                         enum_ty.value_type().fmt(f)
                     }
                     // NOTE: non-enums should gracefully fail.
@@ -603,7 +604,7 @@ impl GenericEnumValueType {
             .expect("variant parameter should be present");
 
         match variant_ty {
-            Some(Type::Compound(CompoundType::Enum(enum_ty), _)) => {
+            Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
                 Some(enum_ty.value_type().clone())
             }
             // NOTE: non-enums should gracefully fail.

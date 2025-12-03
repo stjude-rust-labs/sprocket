@@ -905,3 +905,12 @@ pub fn invalid_regex_pattern(
     ))
     .with_label("invalid regular expression", span)
 }
+
+/// Creates a "not a custom type" diagnostic.
+pub fn not_a_custom_type<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
+    Diagnostic::error(format!("`{}` is not a custom type", name.text()))
+        .with_label(
+            "only struct and enum types can be referenced as values",
+            name.span(),
+        )
+}

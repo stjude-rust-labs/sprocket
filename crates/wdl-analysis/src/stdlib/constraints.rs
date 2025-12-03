@@ -4,6 +4,7 @@ use std::fmt;
 
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
 
@@ -47,8 +48,8 @@ impl Constraint for SizeableConstraint {
                 CompoundType::Map(ty) => {
                     type_is_sizable(ty.key_type()) | type_is_sizable(ty.value_type())
                 }
-                CompoundType::Struct(s) => s.members().values().any(type_is_sizable),
-                CompoundType::Enum(_) => false,
+                CompoundType::Custom(CustomType::Struct(s)) => s.members().values().any(type_is_sizable),
+                CompoundType::Custom(CustomType::Enum(_)) => false,
             }
         }
 
@@ -63,7 +64,7 @@ impl Constraint for SizeableConstraint {
                 }
                 // Treat unions as sizable as they can only be checked at runtime
                 Type::Union | Type::None => true,
-                Type::Hidden(_) | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) | Type::TypeNameRef(_) => false,
             }
         }
 
@@ -81,7 +82,7 @@ impl Constraint for StructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Compound(CompoundType::Struct(_), _))
+        matches!(ty, Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _))
     }
 }
 
@@ -96,7 +97,7 @@ impl Constraint for PrimitiveStructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        if let Type::Compound(CompoundType::Struct(ty), _) = ty {
+        if let Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) = ty {
             return ty
                 .members()
                 .values()
@@ -126,8 +127,8 @@ impl Constraint for JsonSerializableConstraint {
                     ty.key_type().is_coercible_to(&PrimitiveType::String.into())
                         && type_is_serializable(ty.value_type())
                 }
-                CompoundType::Struct(s) => s.members().values().all(type_is_serializable),
-                CompoundType::Enum(e) => type_is_serializable(e.value_type()),
+                CompoundType::Custom(CustomType::Struct(s)) => s.members().values().all(type_is_serializable),
+                CompoundType::Custom(CustomType::Enum(e)) => type_is_serializable(e.value_type()),
             }
         }
 
@@ -141,7 +142,7 @@ impl Constraint for JsonSerializableConstraint {
                 | Type::Union
                 | Type::None => true,
                 Type::Compound(ty, _) => compound_type_is_serializable(ty),
-                Type::Hidden(_) | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) | Type::TypeNameRef(_) => false,
             }
         }
 
@@ -167,7 +168,8 @@ impl Constraint for PrimitiveTypeConstraint {
             | Type::Object
             | Type::OptionalObject
             | Type::Hidden(_)
-            | Type::Call(_) => false,
+            | Type::Call(_)
+            | Type::TypeNameRef(_) => false,
         }
     }
 }
@@ -182,7 +184,7 @@ impl Constraint for EnumVariantConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Compound(CompoundType::Enum(_), _))
+        matches!(ty, Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _))
     }
 }
 

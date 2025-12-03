@@ -45,6 +45,7 @@ use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::Type;
 
 /// Handles a hover request.
@@ -262,7 +263,7 @@ fn resolve_hover_by_context(
             let target_type = evaluate_expr_type(&expr, scope, document);
 
             let (member_ty, documentation) = match target_type {
-                Type::Compound(CompoundType::Struct(s), _) => {
+                Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(ns_name) = s.namespace() {
                             // SAFETY: we just found a struct with this namespace name and the
@@ -295,7 +296,7 @@ fn resolve_hover_by_context(
                     "right" => (Some(p.right_type().clone()), None),
                     _ => (None, None),
                 },
-                Type::Compound(CompoundType::Enum(e), _) => {
+                Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
                     if e.variants().contains_key(member.text()) {
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
