@@ -1927,7 +1927,7 @@ fn set_enum_types(document: &mut DocumentData) {
     }
 
     // Collect all variants and type parameters from locally defined enums
-    let enum_info: Vec<_> = document
+    let enum_info = document
         .enums
         .iter()
         .enumerate()
@@ -1966,7 +1966,7 @@ fn set_enum_types(document: &mut DocumentData) {
             let type_param = definition.type_parameter().map(|t| t.ty());
             Some((index, name.clone(), variants, type_param, e.name_span))
         })
-        .collect();
+        .collect::<Vec<_>>();
 
     // Create and assign enum types
     for (index, name, variants, type_param, name_span) in enum_info {
@@ -2054,8 +2054,8 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                 }
                 Some(Type::Object)
             }
+            LiteralExpr::None(_) => Some(Type::None),
             LiteralExpr::Struct(_)
-            | LiteralExpr::None(_)
             | LiteralExpr::Hints(_)
             | LiteralExpr::Input(_)
             | LiteralExpr::Output(_) => None,
@@ -2136,11 +2136,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _: Span) -> Option<Type> {
-        self.scope
-            .lookup(name)
-            .map(|n| n.ty().clone())
-            // Enum types can be the target of member access directly
-            .or_else(|| self.document.enums.get(name).and_then(|e| e.ty().cloned()))
+        self.scope.lookup(name).map(|n| n.ty().clone())
     }
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {

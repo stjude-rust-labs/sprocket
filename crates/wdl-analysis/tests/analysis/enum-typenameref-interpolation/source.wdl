@@ -7,7 +7,7 @@ enum Status {
 
 task enum_type_name_command_interpolation {
   command <<<
-    # This should fail: cannot interpolate type name references
+    # This should fail, cannot interpolate type name references
     echo ~{Status}
   >>>
 

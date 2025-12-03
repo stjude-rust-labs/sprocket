@@ -1734,11 +1734,6 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            _ => {}
-        }
-
-        // Check to see if it's a compound type or call output
-        match &ty {
             Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
                 if let Some(ty) = ty.members.get(name.text()) {
                     return Some(ty.clone());
@@ -1776,6 +1771,17 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 self.context
                     .add_diagnostic(unknown_call_io(ty, &name, Io::Output));
                 return None;
+            },
+            Type::TypeNameRef(ty) => {
+                match ty {
+                    CustomType::Struct(_) => {
+                        // Let struct type name references fall through so that
+                        // they will return a `cannot_access` error.
+                    }
+                    CustomType::Enum(_) => {
+                        return Some(Type::from(CompoundType::Custom(ty.clone())));
+                    }
+                }
             }
             _ => {}
         }
