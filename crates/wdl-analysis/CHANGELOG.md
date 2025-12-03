@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-* Improved error messages for enum type mismatches to include specific type information ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Refactored `ScopeUnion` to use `ScopeRef` instead of direct slice indexing, allowing it to be reused in the runtime engine for proper type reconciliation across conditional branches ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * The `wdl-analysis` config flag that enables experimental WDL v1.3 features was renamed from `experimental_versions` to `wdl_1_3` ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
 
