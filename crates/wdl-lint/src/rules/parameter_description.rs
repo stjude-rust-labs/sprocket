@@ -87,18 +87,13 @@ impl Rule for ParameterDescriptionRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Sprocket's documentation command expects each parameter in `parameter_meta` and each \
-         output in `meta.outputs` to have a description. A valid description is either a simple \
-         `String` value or an object containing a `description` key with a `String` value. \
-         Parameters without proper descriptions may not be documented correctly."
+        "Documentation is expected for each parameter (in `parameter_meta`) and each output (in \
+         `meta.outputs`). A valid description is either a simple `String` value or an object \
+         containing a `description` key with a `String` value."
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[
-            Tag::Documentation,
-            Tag::Completeness,
-            Tag::SprocketCompatibility,
-        ])
+        TagSet::new(&[Tag::Documentation, Tag::Completeness])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {

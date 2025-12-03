@@ -1,4 +1,4 @@
-#@ except: MetaDescription, DocMetaStrings, ParameterMetaMatched
+#@ except: MetaDescription, DocMetaStrings
 
 version 1.1
 
@@ -24,18 +24,18 @@ workflow test_parameter_description{
     parameter_meta {
         # Valid: simple string description
         valid_input: "A valid input with description"
-        # Valid: object with description key
-        number_input: {
-            description: "A number to process",
-            help: "Enter a positive integer",
-        }
+        # INVALID: non-string, non-object value
+        missing_desc_input: 456
         # INVALID: object without description key
         flag_input: {
             help: "Some help for the flag",
             group: "options",
         }
-        # INVALID: non-string, non-object value
-        missing_desc_input: 456
+        # Valid: object with description key
+        number_input: {
+            description: "A number to process",
+            help: "Enter a positive integer",
+        }
     }
 
     input {
@@ -43,5 +43,12 @@ workflow test_parameter_description{
         String missing_desc_input
         Boolean flag_input
         Int number_input
+    }
+
+    output {
+        String result = "final result value"
+        Int count = 42
+        String error_output = "error message"
+        Int bad_output = 999
     }
 }
