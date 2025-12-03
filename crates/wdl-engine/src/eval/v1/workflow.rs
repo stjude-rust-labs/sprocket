@@ -895,22 +895,14 @@ impl WorkflowEvaluator {
         // Build an evaluation graph for the workflow
         let mut diagnostics = Vec::new();
 
-        // Get struct and enum names from the document
-        let struct_names = document
-            .structs()
-            .map(|(name, _)| name.to_string())
-            .collect::<HashSet<_>>();
-        let enum_names = document
-            .enums()
-            .map(|(name, _)| name.to_string())
-            .collect::<HashSet<_>>();
-
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided
-        let graph = WorkflowGraphBuilder::default()
-            .with_struct_names(struct_names)
-            .with_enum_names(enum_names)
-            .build(&definition, &mut diagnostics, |name| inputs.contains(name));
+        let graph = WorkflowGraphBuilder::default().build(
+            &definition,
+            &mut diagnostics,
+            |name| inputs.contains(name),
+            |name| document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some(),
+        );
         assert!(
             diagnostics.is_empty(),
             "workflow evaluation graph should have no diagnostics"

@@ -10,3 +10,15 @@ error: enumerations are not supported in WDL v1.2
   │  
   = fix: use WDL v1.3 or higher to use enumerations
 
+error: unknown type name `Status`
+   ┌─ tests/analysis/enum-requires-feature-flag/source.wdl:12:5
+   │
+12 │     Status s = Status.Active
+   │     ^^^^^^
+
+error: unknown name `Status`
+   ┌─ tests/analysis/enum-requires-feature-flag/source.wdl:12:16
+   │
+12 │     Status s = Status.Active
+   │                ^^^^^^
+

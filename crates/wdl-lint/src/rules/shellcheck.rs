@@ -355,7 +355,11 @@ impl EvaluationContext for CommandContext<'_> {
         name: &str,
         _span: Span,
     ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
-        Ok(self.scope.lookup(name).map(|n| n.ty().clone()).unwrap())
+        dbg!(&self.scope);
+        match self.scope.lookup(name).map(|n| n.ty().clone()) {
+            Some(ty) => Ok(ty),
+            None => unreachable!("should have found type for name `{name}`")
+        }
     }
 
     fn task(&self) -> Option<&wdl_analysis::document::Task> {

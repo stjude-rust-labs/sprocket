@@ -1,8 +1,8 @@
 //! Evaluation graphs for WDL 1.x.
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt;
+use std::fmt::Debug;
 
 use petgraph::algo::DfsSpace;
 use petgraph::algo::has_path_connecting;
@@ -120,33 +120,9 @@ pub struct TaskGraphBuilder<N: TreeNode = SyntaxNode> {
     hints: Option<NodeIndex>,
     /// Space for DFS operations when building the graph.
     space: DfsSpace<NodeIndex, <DiGraph<TaskGraphNode<N>, ()> as Visitable>::Map>,
-    /// The set of struct names that are valid references but do not create
-    /// runtime dependencies.
-    struct_names: HashSet<String>,
-    /// The set of enum names that are valid references but do not create
-    /// runtime dependencies.
-    enum_names: HashSet<String>,
 }
 
 impl<N: TreeNode> TaskGraphBuilder<N> {
-    /// Sets the struct names for the builder.
-    ///
-    /// These are struct type names that are valid references but do not create
-    /// runtime dependencies in the workflow graph.
-    pub fn with_struct_names(mut self, names: HashSet<String>) -> Self {
-        self.struct_names = names;
-        self
-    }
-
-    /// Sets the enum names for the builder.
-    ///
-    /// These are enum type names that are valid references but do not create
-    /// runtime dependencies in the workflow graph.
-    pub fn with_enum_names(mut self, names: HashSet<String>) -> Self {
-        self.enum_names = names;
-        self
-    }
-
     /// Builds a new task evaluation graph.
     ///
     /// The nodes are [`TaskGraphNode`] and the edges represent a reverse
@@ -164,6 +140,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         version: SupportedVersion,
         task: &TaskDefinition<N>,
         diagnostics: &mut Vec<Diagnostic>,
+        custom_type_present: impl Fn(&str) -> bool,
     ) -> DiGraph<TaskGraphNode<N>, bool> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::default();
@@ -218,7 +195,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         }
 
         // Add name reference edges before adding the outputs
-        self.add_reference_edges(version, None, &mut graph, diagnostics);
+        self.add_reference_edges(version, None, &mut graph, diagnostics, &custom_type_present);
 
         // Add the outputs
         let count = graph.node_count();
@@ -234,7 +211,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        self.add_reference_edges(version, Some(count), &mut graph, diagnostics);
+        self.add_reference_edges(version, Some(count), &mut graph, diagnostics, &custom_type_present);
 
         // Finally, add implicit edges to and from the command
         if let Some(command) = self.command {
@@ -312,6 +289,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         allow_task_var: bool,
         graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
+        custom_type_present: impl Fn(&str) -> bool,
     ) {
         // Add edges for any descendant name references
         for r in descendants {
@@ -325,8 +303,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                 }
                 _ => {
                     if (name.text() != TASK_VAR_NAME || !allow_task_var) 
-                        && !self.struct_names.contains(name.text())
-                        && !self.enum_names.contains(name.text())
+                        && !custom_type_present(name.text())
                     {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
@@ -342,13 +319,14 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         skip: Option<usize>,
         graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
+        custom_type_present: impl Fn(&str) -> bool,
     ) {
         // Populate edges for any nodes that reference other nodes by name
         for from in graph.node_indices().skip(skip.unwrap_or(0)) {
             match graph[from].clone() {
                 TaskGraphNode::Input(decl) | TaskGraphNode::Decl(decl) => {
                     if let Some(expr) = decl.expr() {
-                        self.add_expr_edges(from, expr, false, graph, diagnostics);
+                        self.add_expr_edges(from, expr, false, graph, diagnostics, &custom_type_present);
                     }
                 }
                 TaskGraphNode::Output(decl) => {
@@ -359,6 +337,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Two),
                             graph,
                             diagnostics,
+                            &custom_type_present,
                         );
                     }
                 }
@@ -373,6 +352,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                                 version >= SupportedVersion::V1(V1::Two),
                                 graph,
                                 diagnostics,
+                                &custom_type_present,
                             );
                         }
                     }
@@ -387,6 +367,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
+                            &custom_type_present
                         );
                     }
                 }
@@ -400,6 +381,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
+                            &custom_type_present
                         );
                     }
                 }
@@ -413,6 +395,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
+                            &custom_type_present
                         );
                     }
                 }
@@ -428,6 +411,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         allow_task_var: bool,
         graph: &mut DiGraph<TaskGraphNode<N>, bool>,
         diagnostics: &mut Vec<Diagnostic>,
+        custom_type_present: impl Fn(&str) -> bool,
     ) {
         for r in expr.descendants::<NameRefExpr<N>>() {
             let name = r.name();
@@ -466,8 +450,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                 }
                 _ => {
                     if (name.text() != TASK_VAR_NAME || !allow_task_var)
-                        && !self.struct_names.contains(name.text())
-                        && !self.enum_names.contains(name.text())
+                        && !custom_type_present(name.text())
                     {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
@@ -486,8 +469,6 @@ impl<N: TreeNode> Default for TaskGraphBuilder<N> {
             requirements: Default::default(),
             hints: Default::default(),
             space: Default::default(),
-            struct_names: Default::default(),
-            enum_names: Default::default(),
         }
     }
 }
@@ -632,33 +613,9 @@ pub struct WorkflowGraphBuilder<N: TreeNode = SyntaxNode> {
     space: DfsSpace<NodeIndex, <DiGraph<WorkflowGraphNode<N>, ()> as Visitable>::Map>,
     /// The common ancestor finder used when building the graph.
     ancestor_finder: CommonAncestorFinder<N>,
-    /// The set of struct names that are valid references but do not create
-    /// runtime dependencies.
-    struct_names: HashSet<String>,
-    /// The set of enum names that are valid references but do not create
-    /// runtime dependencies.
-    enum_names: HashSet<String>,
 }
 
 impl<N: TreeNode> WorkflowGraphBuilder<N> {
-    /// Sets the struct names for the builder.
-    ///
-    /// These are struct type names that are valid references but do not create
-    /// runtime dependencies in the workflow graph.
-    pub fn with_struct_names(mut self, names: HashSet<String>) -> Self {
-        self.struct_names = names;
-        self
-    }
-
-    /// Sets the enum names for the builder.
-    ///
-    /// These are enum type names that are valid references but do not create
-    /// runtime dependencies in the workflow graph.
-    pub fn with_enum_names(mut self, names: HashSet<String>) -> Self {
-        self.enum_names = names;
-        self
-    }
-
     /// Builds a new workflow evaluation graph.
     ///
     /// The nodes are [`WorkflowGraphNode`] and the edges represent a reverse
@@ -668,6 +625,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         workflow: &WorkflowDefinition<N>,
         diagnostics: &mut Vec<Diagnostic>,
         input_present: impl Fn(&str) -> bool,
+        custom_type_present: impl Fn(&str) -> bool,
     ) -> DiGraph<WorkflowGraphNode<N>, ()> {
         // Populate the declaration types and build a name reference graph
         let mut graph = DiGraph::new();
@@ -726,7 +684,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add name reference edges before adding the outputs
-        self.add_reference_edges(None, &mut graph, diagnostics, &input_present);
+        self.add_reference_edges(None, &mut graph, diagnostics, &input_present, &custom_type_present);
 
         let count = graph.node_count();
         if let Some(section) = outputs {
@@ -741,7 +699,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        self.add_reference_edges(Some(count), &mut graph, diagnostics, &input_present);
+        self.add_reference_edges(Some(count), &mut graph, diagnostics, &input_present, &custom_type_present);
         graph
     }
 
@@ -965,6 +923,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
         input_present: impl Fn(&str) -> bool,
+        custom_type_present: impl Fn(&str) -> bool,
     ) {
         // Populate edges for any nodes that reference other nodes by name
         for from in graph.node_indices().skip(skip.unwrap_or(0)) {
@@ -974,19 +933,19 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     if !input_present(decl.name().text())
                         && let Some(expr) = decl.expr()
                     {
-                        self.add_expr_edges(from, expr, graph, diagnostics);
+                        self.add_expr_edges(from, expr, graph, diagnostics, &custom_type_present);
                     }
                 }
 
                 WorkflowGraphNode::Decl(decl) | WorkflowGraphNode::Output(decl) => {
                     if let Some(expr) = decl.expr() {
-                        self.add_expr_edges(from, expr, graph, diagnostics);
+                        self.add_expr_edges(from, expr, graph, diagnostics, &custom_type_present);
                     }
                 }
                 WorkflowGraphNode::Conditional(statement, _) => {
                     for clause in statement.clauses() {
                         let Some(expr) = clause.expr() else { continue };
-                        self.add_expr_edges(from, expr, graph, diagnostics);
+                        self.add_expr_edges(from, expr, graph, diagnostics, &custom_type_present);
                     }
                 }
                 WorkflowGraphNode::ConditionalClause(..) => {
@@ -994,7 +953,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     // in the [`WorkflowGraphNode::Conditional`] case.
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
-                    self.add_expr_edges(from, statement.expr(), graph, diagnostics);
+                    self.add_expr_edges(from, statement.expr(), graph, diagnostics, &custom_type_present);
                 }
                 WorkflowGraphNode::Call(statement) => {
                     // Add edges for the input expressions
@@ -1003,7 +962,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                         let name = input.name();
                         match input.expr() {
                             Some(expr) => {
-                                self.add_expr_edges(from, expr, graph, diagnostics);
+                                self.add_expr_edges(from, expr, graph, diagnostics, &custom_type_present);
                             }
                             _ => {
                                 if let Some(nodes) =
@@ -1077,6 +1036,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         expr: Expr<N>,
         graph: &mut DiGraph<WorkflowGraphNode<N>, ()>,
         diagnostics: &mut Vec<Diagnostic>,
+        custom_type_present: impl Fn(&str) -> bool,
     ) {
         for r in expr.inner().descendants().filter_map(NameRefExpr::cast) {
             let name = r.name();
@@ -1116,9 +1076,8 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     }
                 }
                 _ => {
-                    // Check if this is a struct or enum name.
-                    if !self.struct_names.contains(name.text())
-                        && !self.enum_names.contains(name.text())
+                    // Check if name points to a custom type(a struct or an enum).
+                    if !custom_type_present(name.text())
                     {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
@@ -1222,8 +1181,6 @@ impl<N: TreeNode> Default for WorkflowGraphBuilder<N> {
             entry_exits: Default::default(),
             space: Default::default(),
             ancestor_finder: Default::default(),
-            struct_names: Default::default(),
-            enum_names: Default::default(),
         }
     }
 }
@@ -1336,7 +1293,7 @@ mod test {
         let mut diagnostics = Vec::new();
 
         // Testing without providing inputs i.e. static analysis
-        let graph = WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |_| false);
+        let graph = WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |_| false, |_| false);
 
         let t1_out = graph
             .node_indices()
@@ -1392,7 +1349,7 @@ mod test {
         // Testing with providing input y i.e. runtime analysis - case for wdl_engine
         let mut diagnostics = Vec::new();
         let graph =
-            WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |name| name == "y");
+            WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |name| name == "y", |_| false);
 
         assert!(
             !graph.contains_edge(t1_out, y),

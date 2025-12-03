@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fs;
 use std::mem;
 use std::path::Path;
@@ -989,21 +988,12 @@ impl TaskEvaluator {
 
         let version = document.version().expect("document should have version");
 
-        let structs = document
-            .structs()
-            .map(|(name, _)| name.to_owned())
-            .collect::<HashSet<_>>();
-        let enums = document
-            .enums()
-            .map(|(name, _)| name.to_owned())
-            .collect::<HashSet<_>>();
-
         // Build an evaluation graph for the task
         let mut diagnostics = Vec::new();
-        let graph = TaskGraphBuilder::default()
-            .with_struct_names(structs)
-            .with_enum_names(enums)
-            .build(version, &definition, &mut diagnostics);
+        let graph =
+            TaskGraphBuilder::default().build(version, &definition, &mut diagnostics, |name| {
+                document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some()
+            });
         assert!(
             diagnostics.is_empty(),
             "task evaluation graph should have no diagnostics"

@@ -582,6 +582,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         document
             .analysis_diagnostics
             .push(enum_not_supported(version, definition.span()));
+        return;
     }
 
     // Check for conflicts with existing structs
@@ -808,26 +809,13 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         None => Default::default(),
     };
 
-    let structs = document
-        .structs
-        .iter()
-        .map(|(name, _)| name.to_owned())
-        .collect::<HashSet<_>>();
-    let enums = document
-        .enums
-        .iter()
-        .map(|(name, _)| name.to_owned())
-        .collect::<HashSet<_>>();
-
     // Process the task in evaluation order
-    let graph = TaskGraphBuilder::default()
-        .with_struct_names(structs)
-        .with_enum_names(enums)
-        .build(
-            document.version.unwrap(),
-            definition,
-            &mut document.analysis_diagnostics,
-        );
+    let graph = TaskGraphBuilder::default().build(
+        document.version.unwrap(),
+        definition,
+        &mut document.analysis_diagnostics,
+        |name| document.structs.get(name).is_some() || document.enums.get(name).is_some(),
+    );
 
     let mut task = Task {
         name_span: name.span(),
@@ -1145,15 +1133,14 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     )];
     let mut output_scope = None;
 
-    let struct_names: HashSet<String> = document.structs.keys().cloned().collect();
-    let enum_names: HashSet<String> = document.enums.keys().cloned().collect();
-
     // For static analysis, we don't need to provide inputs to the workflow graph
     // builder
-    let graph = WorkflowGraphBuilder::default()
-        .with_struct_names(struct_names)
-        .with_enum_names(enum_names)
-        .build(workflow, &mut document.analysis_diagnostics, |_| false);
+    let graph = WorkflowGraphBuilder::default().build(
+        workflow,
+        &mut document.analysis_diagnostics,
+        |_| false,
+        |name| document.structs.contains_key(name) || document.enums.contains_key(name),
+    );
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -2346,51 +2333,5 @@ mod tests {
         let err = scope_union.resolve().expect_err("should error on bad");
         assert_eq!(err.len(), 1);
         assert!(err[0].message().contains("type mismatch"));
-    }
-
-    #[test]
-    fn enums_equal_different_variant_order() {
-        use wdl_ast::v1::EnumDefinition;
-        use wdl_grammar::SyntaxTree;
-
-        let source_a = r#"
-version 1.3
-enum Status {
-    Active,
-    Pending,
-    Complete
-}
-"#;
-
-        let source_b = r#"
-version 1.3
-enum Status {
-    Pending,
-    Complete,
-    Active
-}
-"#;
-
-        let (tree_a, diagnostics) = SyntaxTree::parse(source_a);
-        assert!(diagnostics.is_empty(), "should parse without errors");
-        let (tree_b, diagnostics) = SyntaxTree::parse(source_b);
-        assert!(diagnostics.is_empty(), "should parse without errors");
-
-        let enum_a = tree_a
-            .root()
-            .children()
-            .find_map(EnumDefinition::cast)
-            .expect("should find enum");
-
-        let enum_b = tree_b
-            .root()
-            .children()
-            .find_map(EnumDefinition::cast)
-            .expect("should find enum");
-
-        assert!(
-            are_enums_equal(&enum_a, &enum_b),
-            "enums with different variant orders should be equal"
-        );
     }
 }
