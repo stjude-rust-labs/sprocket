@@ -1,20 +1,20 @@
-warning[ParameterDescription]: output `error_output` is missing a description in meta.outputs
+warning[ParameterDescription]: output `error_output` is missing a description in `meta.outputs`
    ┌─ tests/lints/parameter-description/source.wdl:16:13
    │  
 16 │ ╭             error_output: {
 17 │ │                 help: "Some help text"
 18 │ │             },
-   │ ╰─────────────^ output should have either a string description or an object with a `description` key
+   │ ╰─────────────^ output should be documented with either a `String` description or an object with a `description` key
    │  
-   = fix: add a description for `error_output` in meta.outputs (e.g., `error_output: "description"` or `error_output: { description: "description" }`)
+   = fix: add a description for `error_output` (e.g., `error_output: "description"` or `error_output: { description: "description" }`)
 
-warning[ParameterDescription]: output `bad_output` is missing a description in meta.outputs
+warning[ParameterDescription]: output `bad_output` is missing a description in `meta.outputs`
    ┌─ tests/lints/parameter-description/source.wdl:20:13
    │
 20 │             bad_output: 123,
-   │             ^^^^^^^^^^^^^^^ output should have either a string description or an object with a `description` key
+   │             ^^^^^^^^^^^^^^^ output should be documented with either a `String` description or an object with a `description` key
    │
-   = fix: add a description for `bad_output` in meta.outputs (e.g., `bad_output: "description"` or `bad_output: { description: "description" }`)
+   = fix: add a description for `bad_output` (e.g., `bad_output: "description"` or `bad_output: { description: "description" }`)
 
 warning[ParameterDescription]: parameter `flag_input` is missing a description
    ┌─ tests/lints/parameter-description/source.wdl:33:9
@@ -23,7 +23,7 @@ warning[ParameterDescription]: parameter `flag_input` is missing a description
 34 │ │             help: "Some help for the flag",
 35 │ │             group: "options",
 36 │ │         }
-   │ ╰─────────^ parameter should have either a string description or an object with a `description` key
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
    │  
    = fix: add a description for `flag_input` (e.g., `flag_input: "description"` or `flag_input: { description: "description" }`)
 
@@ -31,7 +31,7 @@ warning[ParameterDescription]: parameter `missing_desc_input` is missing a descr
    ┌─ tests/lints/parameter-description/source.wdl:38:9
    │
 38 │         missing_desc_input: 456
-   │         ^^^^^^^^^^^^^^^^^^^^^^^ parameter should have either a string description or an object with a `description` key
+   │         ^^^^^^^^^^^^^^^^^^^^^^^ parameter should be documented with either a `String` description or an object with a `description` key
    │
    = fix: add a description for `missing_desc_input` (e.g., `missing_desc_input: "description"` or `missing_desc_input: { description: "description" }`)
 

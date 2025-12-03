@@ -20,39 +20,31 @@ use crate::TagSet;
 /// The identifier for the parameter description rule.
 const ID: &str = "ParameterDescription";
 
-/// Creates a diagnostic for missing parameter descriptions.
-fn missing_description_diagnostic(param_name: &str, span: Span) -> Diagnostic {
+/// The reserved key name for descriptions.
+const DESCRIPTION_KEY: &str = "description";
+
+/// Creates a diagnostic for missing descriptions.
+fn missing_description_diagnostic(name: &str, is_output: bool, span: Span) -> Diagnostic {
+    let item_type = if is_output { "output" } else { "parameter" };
+    let location = if is_output { " in `meta.outputs`" } else { "" };
+
     Diagnostic::warning(format!(
-        "parameter `{}` is missing a description",
-        param_name
+        "{} `{}` is missing a description{}",
+        item_type, name, location
     ))
     .with_rule(ID)
     .with_label(
-        "parameter should have either a string description or an object with a `description` key",
+        format!(
+            "{} should be documented with either a `String` description or an object with a \
+             `description` key",
+            item_type
+        ),
         span,
     )
     .with_fix(format!(
         "add a description for `{}` (e.g., `{}: \"description\"` or `{}: {{ description: \
          \"description\" }}`)",
-        param_name, param_name, param_name
-    ))
-}
-
-/// Creates a diagnostic for missing output descriptions.
-fn missing_output_description_diagnostic(output_name: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!(
-        "output `{}` is missing a description in meta.outputs",
-        output_name
-    ))
-    .with_rule(ID)
-    .with_label(
-        "output should have either a string description or an object with a `description` key",
-        span,
-    )
-    .with_fix(format!(
-        "add a description for `{}` in meta.outputs (e.g., `{}: \"description\"` or `{}: {{ \
-         description: \"description\" }}`)",
-        output_name, output_name, output_name
+        name, name, name
     ))
 }
 
@@ -67,7 +59,7 @@ fn has_valid_description(value: &MetadataValue) -> bool {
             for item in obj.items() {
                 let name = item.name();
                 let key = name.text();
-                if key == "description" {
+                if key == DESCRIPTION_KEY {
                     // Found description key, check if it's a string
                     return matches!(item.value(), MetadataValue::String(_));
                 }
@@ -97,8 +89,8 @@ impl Rule for ParameterDescriptionRule {
     fn explanation(&self) -> &'static str {
         "Sprocket's documentation command expects each parameter in `parameter_meta` and each \
          output in `meta.outputs` to have a description. A valid description is either a simple \
-         string value or an object containing a `description` key with a string value. Parameters \
-         without proper descriptions may not be documented correctly."
+         `String` value or an object containing a `description` key with a `String` value. \
+         Parameters without proper descriptions may not be documented correctly."
     }
 
     fn tags(&self) -> TagSet {
@@ -159,7 +151,7 @@ impl Visitor for ParameterDescriptionRule {
                     // Check if this output has a valid description
                     if !has_valid_description(&output_value) {
                         diagnostics.exceptable_add(
-                            missing_output_description_diagnostic(output_name, output_item.span()),
+                            missing_description_diagnostic(output_name, true, output_item.span()),
                             SyntaxElement::from(output_item.inner().clone()),
                             &self.exceptable_nodes(),
                         );
@@ -188,7 +180,7 @@ impl Visitor for ParameterDescriptionRule {
             // Check if this parameter has a valid description
             if !has_valid_description(&value) {
                 diagnostics.exceptable_add(
-                    missing_description_diagnostic(param_name, item.span()),
+                    missing_description_diagnostic(param_name, false, item.span()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
