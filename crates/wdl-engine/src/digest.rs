@@ -156,6 +156,7 @@ fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest
         }
 
         // Sort the entries by name so that the digest order is consistent
+        drop(dir);
         entries.sort_by_key(|e| e.file_name());
 
         let mut hasher = Hasher::new();
