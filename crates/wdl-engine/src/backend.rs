@@ -24,11 +24,11 @@ use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use wdl_ast::Diagnostic;
 
-use crate::tree::SyntaxNode;
 use crate::Input;
 use crate::Value;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
+use crate::tree::SyntaxNode;
 
 mod apptainer;
 mod docker;
