@@ -189,13 +189,20 @@ walkdir.workspace = true
 wdl.workspace = true
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
+zip.workspace = true
 
 [lints]
 workspace = true
 
 [[test]]
 name = "cli"
+harness = false
+
+[[bench]]
+name = "bench"
 harness = false
