@@ -1845,13 +1845,8 @@ impl<'a> State<'a> {
             let constraints = self
                 .top_level
                 .backend
-                .constraints(&requirements, &hints)
-                .with_context(|| {
-                    format!(
-                        "failed to get constraints for task `{task}`",
-                        task = self.task.name()
-                    )
-                })?;
+                .constraints(definition, &requirements, &hints)
+                .map_err(|diagnostic| EvaluationError::new(self.document.clone(), diagnostic))?;
 
             let max_retries = max_retries(&requirements, &self.top_level.config);
 

@@ -33,6 +33,10 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 use tracing::warn;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::ApptainerState;
 use super::TaskExecutionBackend;
@@ -400,11 +404,22 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
     fn constraints(
         &self,
+        task: &wdl_ast::v1::TaskDefinition<crate::tree::SyntaxNode>,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> anyhow::Result<super::TaskExecutionConstraints> {
+    ) -> anyhow::Result<super::TaskExecutionConstraints, wdl_ast::Diagnostic> {
         let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+        let mut required_memory = ByteSize::b(v1::memory(requirements).map_err(|e| {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+        })? as u64);
 
         // Determine whether CPU or memory limits are set for this queue, and clamp or
         // deny them as appropriate if the limits are exceeded
@@ -416,6 +431,14 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             if let Some(max_cpu) = queue.max_cpu_per_task()
                 && required_cpu > max_cpu as f64
             {
+                let span = task
+                    .runtime()
+                    .and_then(|r| {
+                        r.items()
+                            .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_CPU)
+                    })
+                    .map(|i| i.span())
+                    .unwrap_or_else(|| task.span());
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -431,16 +454,26 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                         required_cpu = max_cpu as f64;
                     }
                     TaskResourceLimitBehavior::Deny => {
-                        bail!(
+                        let msg = format!(
                             "task requires at least {required_cpu} CPU{s}{env_specific}",
                             s = if required_cpu == 1.0 { "" } else { "s" },
                         );
+                        return Err(Diagnostic::error(msg)
+                            .with_label("this requirement exceeds the available CPUs", span));
                     }
                 }
             }
             if let Some(max_memory) = queue.max_memory_per_task()
                 && required_memory > max_memory
             {
+                let span = task
+                    .runtime()
+                    .and_then(|r| {
+                        r.items()
+                            .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_MEMORY)
+                    })
+                    .map(|i| i.span())
+                    .unwrap_or_else(|| task.span());
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -459,10 +492,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                         required_memory = max_memory;
                     }
                     TaskResourceLimitBehavior::Deny => {
-                        bail!(
+                        let msg = format!(
                             "task requires at least {required_memory} GiB of memory{env_specific}",
                             required_memory = required_memory.as_u64() as f64 / ONE_GIBIBYTE
                         );
+                        return Err(Diagnostic::error(msg)
+                            .with_label("this requirement exceeds the available memory", span));
                     }
                 }
             }

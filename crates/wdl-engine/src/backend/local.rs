@@ -25,6 +25,11 @@ use tokio::sync::oneshot::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::v1::TASK_REQUIREMENT_CPU;
+use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -47,6 +52,7 @@ use crate::config::LocalBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
 use crate::path::EvaluationPath;
+use crate::tree::SyntaxNode;
 use crate::v1::cpu;
 use crate::v1::memory;
 
@@ -294,11 +300,17 @@ impl TaskExecutionBackend for LocalBackend {
 
     fn constraints(
         &self,
+        task: &wdl_ast::v1::TaskDefinition<SyntaxNode>,
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints> {
+    ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let mut cpu = cpu(requirements);
         if (self.cpu as f64) < cpu {
+            let span = task
+                .runtime()
+                .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -317,16 +329,37 @@ impl TaskExecutionBackend for LocalBackend {
                     cpu = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available CPUs", span));
                 }
             }
         }
 
-        let mut memory = memory(requirements)?;
+        let mut memory = memory(requirements).map_err(|e| {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+        })?;
         if self.memory < memory as u64 {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -346,11 +379,13 @@ impl TaskExecutionBackend for LocalBackend {
                     memory = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available memory", span));
                 }
             }
         }

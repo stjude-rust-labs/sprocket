@@ -30,6 +30,13 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
 use url::Url;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::v1::TASK_HINT_MAX_CPU;
+use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_CPU;
+use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -50,6 +57,7 @@ use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
+use crate::tree::SyntaxNode;
 use crate::v1::container;
 use crate::v1::cpu;
 use crate::v1::gpu;
@@ -343,13 +351,19 @@ impl TaskExecutionBackend for DockerBackend {
 
     fn constraints(
         &self,
+        task: &wdl_ast::v1::TaskDefinition<SyntaxNode>,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints> {
+    ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let container = container(requirements, self.config.task.container.as_deref());
 
         let mut cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
+            let span = task
+                .runtime()
+                .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -368,16 +382,36 @@ impl TaskExecutionBackend for DockerBackend {
                     cpu = self.max_cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available CPUs", span));
                 }
             }
         }
 
-        let mut memory = memory(requirements)?;
+        let mut memory = memory(requirements).map_err(|e| {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+        })?;
         if self.max_memory < memory as u64 {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -397,11 +431,13 @@ impl TaskExecutionBackend for DockerBackend {
                     memory = self.max_memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available memory", span));
                 }
             }
         }
@@ -409,6 +445,11 @@ impl TaskExecutionBackend for DockerBackend {
         if let Some(mcpu) = max_cpu(hints)
             && (self.max_cpu as f64) < mcpu
         {
+            let span = task
+                .hints()
+                .and_then(|h| h.items().find(|i| i.name().text() == TASK_HINT_MAX_CPU))
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -425,37 +466,55 @@ impl TaskExecutionBackend for DockerBackend {
                     );
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requests a maximum of {mcpu} CPU{s}{env_specific}",
                         s = if mcpu == 1.0 { "" } else { "s" }
+                    );
+                    return Err(
+                        Diagnostic::error(msg).with_label("this hint exceeds available CPUs", span)
                     );
                 }
             }
         }
 
-        if let Some(mmem) = max_memory(hints)?.map(|m| m as u64)
-            && self.max_memory < mmem
-        {
-            let env_specific = if self.config.suppress_env_specific_output {
-                String::new()
-            } else {
-                format!(
-                    ", but the execution backend has a maximum of {max_memory} GiB",
-                    max_memory = self.max_memory as f64 / ONE_GIBIBYTE
-                )
-            };
-            match self.config.task.cpu_limit_behavior {
-                TaskResourceLimitBehavior::TryWithMax => {
-                    warn!(
-                        "task requests a maximum of {memory} GiB of memory{env_specific}",
-                        memory = mmem as f64 / ONE_GIBIBYTE
-                    );
-                }
-                TaskResourceLimitBehavior::Deny => {
-                    bail!(
-                        "task requests a maximum of {memory} GiB of memory{env_specific}",
-                        memory = mmem as f64 / ONE_GIBIBYTE,
-                    );
+        let max_mem = max_memory(hints).map_err(|e| {
+            let span = task
+                .hints()
+                .and_then(|h| h.items().find(|i| i.name().text() == TASK_HINT_MAX_MEMORY))
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+        })?;
+        if let Some(mmem) = max_mem.map(|m| m as u64) {
+            if self.max_memory < mmem {
+                let span = task
+                    .hints()
+                    .and_then(|h| h.items().find(|i| i.name().text() == TASK_HINT_MAX_MEMORY))
+                    .map(|i| i.span())
+                    .unwrap_or_else(|| task.span());
+                let env_specific = if self.config.suppress_env_specific_output {
+                    String::new()
+                } else {
+                    format!(
+                        ", but the execution backend has a maximum of {max_memory} GiB",
+                        max_memory = self.max_memory as f64 / ONE_GIBIBYTE
+                    )
+                };
+                match self.config.task.cpu_limit_behavior {
+                    TaskResourceLimitBehavior::TryWithMax => {
+                        warn!(
+                            "task requests a maximum of {memory} GiB of memory{env_specific}",
+                            memory = mmem as f64 / ONE_GIBIBYTE
+                        );
+                    }
+                    TaskResourceLimitBehavior::Deny => {
+                        let msg = format!(
+                            "task requests a maximum of {memory} GiB of memory{env_specific}",
+                            memory = mmem as f64 / ONE_GIBIBYTE,
+                        );
+                        return Err(Diagnostic::error(msg)
+                            .with_label("this hint exceeds the available memory", span));
+                    }
                 }
             }
         }

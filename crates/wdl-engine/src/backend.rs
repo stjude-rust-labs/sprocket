@@ -22,7 +22,9 @@ use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
+use wdl_ast::Diagnostic;
 
+use crate::tree::SyntaxNode;
 use crate::Input;
 use crate::Value;
 use crate::http::Transferer;
@@ -288,9 +290,10 @@ pub trait TaskExecutionBackend: Send + Sync {
     /// environment or if the task specifies invalid requirements.
     fn constraints(
         &self,
+        task: &wdl_ast::v1::TaskDefinition<SyntaxNode>,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints>;
+    ) -> Result<TaskExecutionConstraints, Diagnostic>;
 
     /// Gets the guest (container) inputs directory of the backend.
     ///

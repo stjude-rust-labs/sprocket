@@ -33,7 +33,12 @@ use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Diagnostic;
+use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
+use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -462,35 +467,69 @@ impl TaskExecutionBackend for TesBackend {
 
     fn constraints(
         &self,
+        task: &wdl_ast::v1::TaskDefinition<crate::tree::SyntaxNode>,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints> {
+    ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let container = container(requirements, self.config.task.container.as_deref());
 
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
-            bail!(
+            let span = task
+                .runtime()
+                .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            let msg = format!(
                 "task requires at least {cpu} CPU{s}, but the execution backend has a maximum of \
                  {max_cpu}",
                 s = if cpu == 1.0 { "" } else { "s" },
                 max_cpu = self.max_cpu,
             );
+            return Err(Diagnostic::error(msg).with_label("this requirement cannot be met", span));
         }
 
-        let memory = memory(requirements)?;
+        let memory = memory(requirements).map_err(|e| {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
+            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+        })?;
         if self.max_memory < memory as u64 {
+            let span = task
+                .runtime()
+                .and_then(|r| {
+                    r.items()
+                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
+                })
+                .map(|i| i.span())
+                .unwrap_or_else(|| task.span());
             // Display the error in GiB, as it is the most common unit for memory
             let memory = memory as f64 / ONE_GIBIBYTE;
             let max_memory = self.max_memory as f64 / ONE_GIBIBYTE;
 
-            bail!(
+            let msg = format!(
                 "task requires at least {memory} GiB of memory, but the execution backend has a \
                  maximum of {max_memory} GiB",
             );
+            return Err(Diagnostic::error(msg).with_label("this requirement cannot be met", span));
         }
 
         // TODO: only parse the disks requirement once
-        let disks = disks(requirements, hints)?
+        let disks = disks(requirements, hints)
+            .map_err(|e| {
+                let span = task
+                    .runtime()
+                    .and_then(|r| r.items().find(|i| i.name().text() == "disks"))
+                    .map(|i| i.span())
+                    .unwrap_or_else(|| task.span());
+                Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
+            })?
             .into_iter()
             .map(|(mp, disk)| (mp.to_string(), disk.size))
             .collect();
