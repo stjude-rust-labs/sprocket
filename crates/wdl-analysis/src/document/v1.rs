@@ -478,16 +478,12 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
         _ => return false,
     }
 
-    // Compare variants
-    let mut vars_a: Vec<_> = a.variants().collect();
-    let mut vars_b: Vec<_> = b.variants().collect();
+    let vars_a = a.variants().collect::<Vec<_>>();
+    let vars_b = b.variants().collect::<Vec<_>>();
 
     if vars_a.len() != vars_b.len() {
         return false;
     }
-
-    vars_a.sort_by(|a, b| a.name().text().cmp(b.name().text()));
-    vars_b.sort_by(|a, b| a.name().text().cmp(b.name().text()));
 
     for (var_a, var_b) in vars_a.iter().zip(vars_b.iter()) {
         if var_a.name().text() != var_b.name().text() {
