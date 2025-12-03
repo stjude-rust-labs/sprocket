@@ -1,4 +1,12 @@
-failed to get constraints for task `hello_task`
+error: task requires at least 4200 CPUs
+   ┌─ tests/tasks/cpu_limit/source.wdl:5:1
+   │  
+ 5 │ ╭ task hello_task {
+ 6 │ │   input {
+ 7 │ │     File infile
+ 8 │ │     String pattern
+   · │
+22 │ │   }
+23 │ │ }
+   │ ╰─^ this requirement exceeds the available CPUs
 
-Caused by:
-    task requires at least 4200 CPUs
