@@ -168,7 +168,7 @@ indicatif.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
-peak_alloc = { workspace = true, optional = true }
+peak_alloc.workspace = true
 pretty_assertions.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -192,9 +192,6 @@ wdl.workspace = true
 shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
-
-[features]
-memory_stats = ["dep:peak_alloc"]
 
 [lints]
 workspace = true

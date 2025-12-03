@@ -36,7 +36,6 @@ mod config;
 mod diagnostics;
 mod eval;
 mod inputs;
-mod memory_stats;
 
 /// ignorefile basename to respect.
 const IGNORE_FILENAME: &str = ".sprocketignore";
@@ -67,7 +66,6 @@ struct Cli {
 }
 
 async fn inner() -> CommandResult<()> {
-    let memory_stats_guard = memory_stats::MemoryStatsGuard;
     let cli = Cli::parse();
 
     match std::env::var("RUST_LOG") {
@@ -138,14 +136,13 @@ async fn inner() -> CommandResult<()> {
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
-    }?;
-    drop(memory_stats_guard);
-    Ok(())
+    }
 }
 
 /// The Sprocket command line entrypoint.
-pub async fn sprocket_main() {
+pub async fn sprocket_main<Guard>(guard: Guard) {
     if let Err(e) = inner().await {
+        drop(guard);
         eprintln!("{e}");
         std::process::exit(1);
     }
