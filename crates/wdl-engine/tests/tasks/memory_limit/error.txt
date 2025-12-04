@@ -1,12 +1,6 @@
 error: task requires at least 20000 GiB of memory
-   ┌─ tests/tasks/memory_limit/source.wdl:5:1
-   │  
- 5 │ ╭ task hello_task {
- 6 │ │   input {
- 7 │ │     File infile
- 8 │ │     String pattern
-   · │
-22 │ │   }
-23 │ │ }
-   │ ╰─^ this requirement exceeds the available memory
+   ┌─ tests/tasks/memory_limit/source.wdl:17:5
+   │
+17 │     memory: "20000 GiB"
+   │     ^^^^^^^^^^^^^^^^^^^ this requirement exceeds the available memory
 
