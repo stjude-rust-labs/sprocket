@@ -152,6 +152,9 @@ fn lookup_value<'a>(
 
 /// Parses an integer or byte-unit string into a byte count using the supplied
 /// `error_message` formatter when conversion fails.
+/// # Panics
+///
+/// Panics if the given value is not an integer or string.
 fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) -> Result<i64> {
     if let Some(v) = value.as_integer() {
         return Ok(v);
