@@ -55,14 +55,14 @@ use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::container;
 use crate::v1::cpu;
-use crate::v1::cpu_from_map;
+use crate::v1::cpu_from_values;
 use crate::v1::gpu;
 use crate::v1::max_cpu;
-use crate::v1::max_cpu_from_map;
+use crate::v1::max_cpu_from_values;
 use crate::v1::max_memory;
-use crate::v1::max_memory_from_map;
+use crate::v1::max_memory_from_values;
 use crate::v1::memory;
-use crate::v1::memory_from_map;
+use crate::v1::memory_from_values;
 
 /// The root guest path for inputs.
 const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
@@ -532,19 +532,19 @@ impl TaskExecutionBackend for DockerBackend {
         let hints = request.hints();
 
         let container = container(requirements, self.config.task.container.as_deref()).into_owned();
-        let mut cpu = cpu_from_map(requirements);
+        let mut cpu = cpu_from_values(requirements);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             cpu = std::cmp::min(cpu.ceil() as u64, self.max_cpu) as f64;
         }
-        let mut memory = memory_from_map(requirements)? as u64;
+        let mut memory = memory_from_values(requirements)? as u64;
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.max_memory);
         }
-        let mut max_cpu = max_cpu_from_map(hints);
+        let mut max_cpu = max_cpu_from_values(hints);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             max_cpu = max_cpu.map(|mcpu| f64::min(mcpu, self.max_cpu as f64));
         }
-        let mut max_memory = max_memory_from_map(hints)?.map(|i| i as u64);
+        let mut max_memory = max_memory_from_values(hints)?.map(|i| i as u64);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             max_memory = max_memory.map(|mmem| std::cmp::min(mmem, self.max_memory));
         }

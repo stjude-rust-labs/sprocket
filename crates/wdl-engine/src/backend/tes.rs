@@ -62,12 +62,12 @@ use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
-use crate::v1::cpu_from_map;
+use crate::v1::cpu_from_values;
 use crate::v1::disks;
-use crate::v1::max_cpu_from_map;
-use crate::v1::max_memory_from_map;
+use crate::v1::max_cpu_from_values;
+use crate::v1::max_memory_from_values;
 use crate::v1::memory;
-use crate::v1::memory_from_map;
+use crate::v1::memory_from_values;
 use crate::v1::preemptible;
 
 /// The root guest path for inputs.
@@ -543,10 +543,10 @@ impl TaskExecutionBackend for TesBackend {
         let hints = request.hints();
 
         let container = container(requirements, self.config.task.container.as_deref()).into_owned();
-        let cpu = cpu_from_map(requirements);
-        let memory = memory_from_map(requirements)? as u64;
-        let max_cpu = max_cpu_from_map(hints);
-        let max_memory = max_memory_from_map(hints)?.map(|i| i as u64);
+        let cpu = cpu_from_values(requirements);
+        let memory = memory_from_values(requirements)? as u64;
+        let max_cpu = max_cpu_from_values(hints);
+        let max_memory = max_memory_from_values(hints)?.map(|i| i as u64);
         let preemptible = preemptible(hints)?;
 
         let name = format!(

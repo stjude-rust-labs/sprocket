@@ -243,8 +243,10 @@ pub(crate) fn container<'a>(
         })
 }
 
-/// Gets the `cpu` requirement from a requirements map.
-pub(crate) fn cpu_from_map(requirements: &HashMap<String, Value>) -> f64 {
+/// Gets the `cpu` requirement from a map of requirement values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn cpu_from_values(requirements: &HashMap<String, Value>) -> f64 {
     requirements
         .get(TASK_REQUIREMENT_CPU)
         .map(|v| {
@@ -255,19 +257,21 @@ pub(crate) fn cpu_from_map(requirements: &HashMap<String, Value>) -> f64 {
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_CPU)
 }
 
-/// Builds the `cpu` value and span from task.
+/// Gets the `cpu` task requirement value and its corresponding source span.
 pub(crate) fn cpu(
     task: &TaskDefinition<SyntaxNode>,
     requirements: &HashMap<String, Value>,
 ) -> Spanned<f64> {
     Spanned {
-        value: cpu_from_map(requirements),
+        value: cpu_from_values(requirements),
         span: find_requirements_or_runtime_item_span(task, TASK_REQUIREMENT_CPU),
     }
 }
 
-/// Gets the `max_cpu` hint from a hints map.
-pub(crate) fn max_cpu_from_map(hints: &HashMap<String, Value>) -> Option<f64> {
+/// Gets the `max_cpu` hint from a map of hint values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn max_cpu_from_values(hints: &HashMap<String, Value>) -> Option<f64> {
     hints
         .get(TASK_HINT_MAX_CPU)
         .or_else(|| hints.get(TASK_HINT_MAX_CPU_ALIAS))
@@ -278,19 +282,21 @@ pub(crate) fn max_cpu_from_map(hints: &HashMap<String, Value>) -> Option<f64> {
         })
 }
 
-/// Builds the `max_cpu` value and span from task.
+/// Gets the `max_cpu` task hint value and its corresponding source span.
 pub(crate) fn max_cpu(
     task: &TaskDefinition<SyntaxNode>,
     hints: &HashMap<String, Value>,
 ) -> Option<Spanned<f64>> {
-    max_cpu_from_map(hints).map(|value| Spanned {
+    max_cpu_from_values(hints).map(|value| Spanned {
         value,
         span: find_hint_item_span(task, TASK_HINT_MAX_CPU),
     })
 }
 
-/// Gets the `memory` requirement from a requirements map.
-pub(crate) fn memory_from_map(requirements: &HashMap<String, Value>) -> Result<i64> {
+/// Gets the `memory` requirement from a map of requirement values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn memory_from_values(requirements: &HashMap<String, Value>) -> Result<i64> {
     if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
         let bytes = parse_storage_value(value, |raw| {
             invalid_numeric_value_message(SettingSource::Requirement, key, raw)
@@ -302,7 +308,7 @@ pub(crate) fn memory_from_map(requirements: &HashMap<String, Value>) -> Result<i
     Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
 }
 
-/// Builds the `memory` value and span from task.
+/// Gets the `memory` task requirement value and its corresponding source span.
 pub(crate) fn memory(
     task: &TaskDefinition<SyntaxNode>,
     requirements: &HashMap<String, Value>,
@@ -328,8 +334,10 @@ pub(crate) fn memory(
     })
 }
 
-/// Gets the `max_memory` hint from a hints map.
-pub(crate) fn max_memory_from_map(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
+/// Gets the `max_memory` hint from a map of hint values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn max_memory_from_values(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
     match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
         Some((key, value)) => {
             let bytes = parse_storage_value(value, |raw| {
@@ -341,7 +349,7 @@ pub(crate) fn max_memory_from_map(hints: &HashMap<String, Value>) -> Result<Opti
     }
 }
 
-/// Builds the `max_memory` value and span from task.
+/// Gets the `max_memory` task hint value and its corresponding source span.
 pub(crate) fn max_memory(
     task: &TaskDefinition<SyntaxNode>,
     hints: &HashMap<String, Value>,
@@ -2243,7 +2251,7 @@ mod resource_validation_tests {
     #[test]
     fn memory_disallows_negative_values() {
         let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
-        let err = memory_from_map(&requirements).expect_err("`memory` should reject negatives");
+        let err = memory_from_values(&requirements).expect_err("`memory` should reject negatives");
         assert!(
             err.to_string()
                 .contains("task requirement `memory` cannot be less than zero")

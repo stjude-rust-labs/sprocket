@@ -520,8 +520,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let container =
             v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
 
-        let mut required_cpu = v1::cpu_from_map(requirements);
-        let mut required_memory = ByteSize::b(v1::memory_from_map(requirements)? as u64);
+        let mut required_cpu = v1::cpu_from_values(requirements);
+        let mut required_memory = ByteSize::b(v1::memory_from_values(requirements)? as u64);
 
         // Determine whether CPU or memory limits are set for this queue, and clamp or
         // deny them as appropriate if the limits are exceeded
@@ -585,9 +585,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // distinction, but we could potentially use a max as part of the
         // resource request. That would likely mean using `bsub -n min,max`
         // syntax as it doesn't seem that `affinity` strings support ranges
-        let _max_cpu = v1::max_cpu_from_map(hints);
+        let _max_cpu = v1::max_cpu_from_values(hints);
         // TODO ACF 2025-09-11: set a hard memory limit with `bsub -M !`?
-        let _max_memory = v1::max_memory_from_map(hints)?.map(|i| i as u64);
+        let _max_memory = v1::max_memory_from_values(hints)?.map(|i| i as u64);
 
         // Truncate the request ID to fit in the LSF job name length limit.
         let request_id = request.id();

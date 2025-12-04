@@ -51,9 +51,9 @@ use crate::convert_unit_string;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::cpu;
-use crate::v1::cpu_from_map;
+use crate::v1::cpu_from_values;
 use crate::v1::memory;
-use crate::v1::memory_from_map;
+use crate::v1::memory_from_values;
 
 /// Represents a local task request.
 ///
@@ -396,11 +396,11 @@ impl TaskExecutionBackend for LocalBackend {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
-        let mut cpu = cpu_from_map(requirements);
+        let mut cpu = cpu_from_values(requirements);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             cpu = std::cmp::min(cpu.ceil() as u64, self.cpu) as f64;
         }
-        let mut memory = memory_from_map(requirements)? as u64;
+        let mut memory = memory_from_values(requirements)? as u64;
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.memory);
         }
