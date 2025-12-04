@@ -567,7 +567,7 @@ impl TaskExecutionBackend for TesBackend {
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);
         let max_memory = max_memory(hints)?.map(|i| i as u64);
-        let preemptible = preemptible(hints);
+        let preemptible = preemptible(hints)?;
 
         let name = format!(
             "{id}-{generated}",
