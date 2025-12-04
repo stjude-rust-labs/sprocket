@@ -142,7 +142,10 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
-/// Looks up both `runtime` and `requirements` section to find span of item.
+/// Finds the span of a requirements item within a task definition.
+///
+/// It checks both `requirements` and `runtime` sections. If the item is not
+/// found, it falls back to the span of the entire task.
 fn find_requirements_or_runtime_item_span(task: &TaskDefinition<SyntaxNode>, key: &str) -> Span {
     if let Some(requirements) = task.requirements() {
         requirements
@@ -160,7 +163,9 @@ fn find_requirements_or_runtime_item_span(task: &TaskDefinition<SyntaxNode>, key
     .unwrap_or_else(|| task.span())
 }
 
-/// Looks up task `hints` section to find span of item.
+/// Finds the span of a hint item within a task definition.
+///
+/// If the item is not found, it falls back to the span of the entire task.
 fn find_hint_item_span(task: &TaskDefinition<SyntaxNode>, key: &str) -> Span {
     task.hints()
         .and_then(|h| h.items().find(|i| i.name().text() == key))
