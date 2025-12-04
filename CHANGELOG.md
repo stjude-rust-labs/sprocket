@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added peak memory usage reporting at the DEBUG verbosity level ([#482](https://github.com/stjude-rust-labs/sprocket/pull/482)).
 
+### Fixed
+
+* `doc` now properly initializes pages in dark mode by default ([#478](https://github.com/stjude-rust-labs/sprocket/pull/478)).
+
 ## 0.19.0 - 11-21-2025
 
 ### Added
@@ -43,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Removed the `wdl-cli` crate, absorbing its code into the `sprocket` library
   crate in preparation for future refactoring ([#450](https://github.com/stjude-rust-labs/sprocket/pull/450)).
 * Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+* `sprocket run` now writes a `.sprocketignore` file directly to the `runs/` directory instead of the `runs/<entrypoint>/` directory ([#481](https://github.com/stjude-rust-labs/sprocket/pull/481)).
 
 
 ### Fixed
