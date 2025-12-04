@@ -303,9 +303,9 @@ impl TaskExecutionBackend for LocalBackend {
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints, Diagnostic> {
-        let mut cpu = cpu(task, requirements);
-        if (self.cpu as f64) < cpu.value {
-            let span = cpu.span;
+        let mut required_cpu = cpu(task, requirements);
+        if (self.cpu as f64) < required_cpu.value {
+            let span = required_cpu.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -318,17 +318,17 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        cpu = cpu.value,
-                        s = if cpu.value == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
                     // clamp the reported constraint to what's available
-                    cpu.value = self.cpu as f64;
+                    required_cpu.value = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     let msg = format!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        cpu = cpu.value,
-                        s = if cpu.value == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
                     return Err(Diagnostic::error(msg)
                         .with_label("this requirement exceeds the available CPUs", span));
@@ -336,9 +336,9 @@ impl TaskExecutionBackend for LocalBackend {
             }
         }
 
-        let mut memory = memory(task, requirements)?;
-        if self.memory < memory.value as u64 {
-            let span = memory.span;
+        let mut required_memory = memory(task, requirements)?;
+        if self.memory < required_memory.value as u64 {
+            let span = required_memory.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -352,16 +352,16 @@ impl TaskExecutionBackend for LocalBackend {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory.value as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
-                    memory.value = self.memory.try_into().unwrap_or(i64::MAX);
+                    required_memory.value = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
                     let msg = format!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory.value as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
                     return Err(Diagnostic::error(msg)
                         .with_label("this requirement exceeds the available memory", span));
@@ -371,8 +371,8 @@ impl TaskExecutionBackend for LocalBackend {
 
         Ok(TaskExecutionConstraints {
             container: None,
-            cpu: cpu.value,
-            memory: memory.value,
+            cpu: required_cpu.value,
+            memory: required_memory.value,
             gpu: Default::default(),
             fpga: Default::default(),
             disks: Default::default(),

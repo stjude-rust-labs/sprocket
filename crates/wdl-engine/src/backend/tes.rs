@@ -473,24 +473,24 @@ impl TaskExecutionBackend for TesBackend {
     ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let container = container(requirements, self.config.task.container.as_deref());
 
-        let cpu = cpu(task, requirements);
-        if (self.max_cpu as f64) < cpu.value {
-            let span = cpu.span;
+        let required_cpu = cpu(task, requirements);
+        if (self.max_cpu as f64) < required_cpu.value {
+            let span = required_cpu.span;
             let msg = format!(
                 "task requires at least {cpu} CPU{s}, but the execution backend has a maximum of \
                  {max_cpu}",
-                cpu = cpu.value,
-                s = if cpu.value == 1.0 { "" } else { "s" },
+                cpu = required_cpu.value,
+                s = if required_cpu.value == 1.0 { "" } else { "s" },
                 max_cpu = self.max_cpu,
             );
             return Err(Diagnostic::error(msg).with_label("this requirement cannot be met", span));
         }
 
-        let memory = memory(task, requirements)?;
-        if self.max_memory < memory.value as u64 {
-            let span = memory.span;
+        let required_memory = memory(task, requirements)?;
+        if self.max_memory < required_memory.value as u64 {
+            let span = required_memory.span;
             // Display the error in GiB, as it is the most common unit for memory
-            let memory = memory.value as f64 / ONE_GIBIBYTE;
+            let memory = required_memory.value as f64 / ONE_GIBIBYTE;
             let max_memory = self.max_memory as f64 / ONE_GIBIBYTE;
 
             let msg = format!(
@@ -516,8 +516,8 @@ impl TaskExecutionBackend for TesBackend {
 
         Ok(TaskExecutionConstraints {
             container: Some(container.into_owned()),
-            cpu: cpu.value,
-            memory: memory.value,
+            cpu: required_cpu.value,
+            memory: required_memory.value,
             gpu: Default::default(),
             fpga: Default::default(),
             disks,

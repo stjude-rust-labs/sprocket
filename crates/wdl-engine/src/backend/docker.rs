@@ -356,9 +356,9 @@ impl TaskExecutionBackend for DockerBackend {
     ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let container = container(requirements, self.config.task.container.as_deref());
 
-        let mut cpu = cpu(task, requirements);
-        if (self.max_cpu as f64) < cpu.value {
-            let span = cpu.span;
+        let mut required_cpu = cpu(task, requirements);
+        if (self.max_cpu as f64) < required_cpu.value {
+            let span = required_cpu.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -371,17 +371,17 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        cpu = cpu.value,
-                        s = if cpu.value == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
                     // clamp the reported constraint to what's available
-                    cpu.value = self.max_cpu as f64;
+                    required_cpu.value = self.max_cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     let msg = format!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        cpu = cpu.value,
-                        s = if cpu.value == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
                     return Err(Diagnostic::error(msg)
                         .with_label("this requirement exceeds the available CPUs", span));
@@ -389,9 +389,9 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        let mut memory = memory(task, requirements)?;
-        if self.max_memory < memory.value as u64 {
-            let span = memory.span;
+        let mut required_memory = memory(task, requirements)?;
+        if self.max_memory < required_memory.value as u64 {
+            let span = required_memory.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -405,16 +405,16 @@ impl TaskExecutionBackend for DockerBackend {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory.value as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
-                    memory.value = self.max_memory.try_into().unwrap_or(i64::MAX);
+                    required_memory.value = self.max_memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
                     let msg = format!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory.value as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
                     return Err(Diagnostic::error(msg)
                         .with_label("this requirement exceeds the available memory", span));
@@ -422,10 +422,10 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        if let Some(mcpu) = max_cpu(task, hints)
-            && (self.max_cpu as f64) < mcpu.value
+        if let Some(required_max_cpu) = max_cpu(task, hints)
+            && (self.max_cpu as f64) < required_max_cpu.value
         {
-            let span = mcpu.span;
+            let span = required_max_cpu.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -438,15 +438,23 @@ impl TaskExecutionBackend for DockerBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requests a maximum of {mcpu} CPU{s}{env_specific}",
-                        mcpu = mcpu.value,
-                        s = if mcpu.value == 1.0 { "" } else { "s" }
+                        mcpu = required_max_cpu.value,
+                        s = if required_max_cpu.value == 1.0 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     );
                 }
                 TaskResourceLimitBehavior::Deny => {
                     let msg = format!(
                         "task requests a maximum of {mcpu} CPU{s}{env_specific}",
-                        mcpu = mcpu.value,
-                        s = if mcpu.value == 1.0 { "" } else { "s" }
+                        mcpu = required_max_cpu.value,
+                        s = if required_max_cpu.value == 1.0 {
+                            ""
+                        } else {
+                            "s"
+                        }
                     );
                     return Err(
                         Diagnostic::error(msg).with_label("this hint exceeds available CPUs", span)
@@ -455,8 +463,8 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        let max_mem = max_memory(task, hints)?;
-        if let Some(mmem) = max_mem.as_ref()
+        let required_max_memory = max_memory(task, hints)?;
+        if let Some(mmem) = required_max_memory.as_ref()
             && self.max_memory < mmem.value as u64
         {
             let span = mmem.span;
@@ -497,8 +505,8 @@ impl TaskExecutionBackend for DockerBackend {
 
         Ok(TaskExecutionConstraints {
             container: Some(container.into_owned()),
-            cpu: cpu.value,
-            memory: memory.value,
+            cpu: required_cpu.value,
+            memory: required_memory.value,
             gpu,
             fpga: Default::default(),
             disks: Default::default(),
