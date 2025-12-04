@@ -476,7 +476,7 @@ impl TaskExecutionBackend for TesBackend {
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
                 .map(|i| i.span())
                 .unwrap_or_else(|| task.span());
@@ -491,7 +491,7 @@ impl TaskExecutionBackend for TesBackend {
 
         let memory = memory(requirements).map_err(|e| {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| {
                     r.items()
                         .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
@@ -502,7 +502,7 @@ impl TaskExecutionBackend for TesBackend {
         })?;
         if self.max_memory < memory as u64 {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| {
                     r.items()
                         .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
@@ -524,7 +524,7 @@ impl TaskExecutionBackend for TesBackend {
         let disks = disks(requirements, hints)
             .map_err(|e| {
                 let span = task
-                    .runtime()
+                    .requirements()
                     .and_then(|r| r.items().find(|i| i.name().text() == "disks"))
                     .map(|i| i.span())
                     .unwrap_or_else(|| task.span());

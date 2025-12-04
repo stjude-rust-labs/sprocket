@@ -411,7 +411,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let mut required_cpu = v1::cpu(requirements);
         let mut required_memory = ByteSize::b(v1::memory(requirements).map_err(|e| {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| {
                     r.items()
                         .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
@@ -432,7 +432,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 && required_cpu > max_cpu as f64
             {
                 let span = task
-                    .runtime()
+                    .requirements()
                     .and_then(|r| {
                         r.items()
                             .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_CPU)
@@ -467,7 +467,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 && required_memory > max_memory
             {
                 let span = task
-                    .runtime()
+                    .requirements()
                     .and_then(|r| {
                         r.items()
                             .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_MEMORY)

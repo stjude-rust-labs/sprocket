@@ -307,7 +307,7 @@ impl TaskExecutionBackend for LocalBackend {
         let mut cpu = cpu(requirements);
         if (self.cpu as f64) < cpu {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
                 .map(|i| i.span())
                 .unwrap_or_else(|| task.span());
@@ -341,7 +341,7 @@ impl TaskExecutionBackend for LocalBackend {
 
         let mut memory = memory(requirements).map_err(|e| {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| {
                     r.items()
                         .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_MEMORY)
@@ -352,7 +352,7 @@ impl TaskExecutionBackend for LocalBackend {
         })?;
         if self.memory < memory as u64 {
             let span = task
-                .runtime()
+                .requirements()
                 .and_then(|r| {
                     r.items()
                         .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
