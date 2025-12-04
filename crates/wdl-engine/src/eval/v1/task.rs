@@ -142,12 +142,12 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
 /// Returns the first entry in `map` that matches the provided keys.
-fn lookup_value<'a>(
+fn lookup_entry<'a>(
     map: &'a HashMap<String, Value>,
     keys: &[&'static str],
-) -> Option<(&'a Value, &'static str)> {
+) -> Option<(&'static str, &'a Value)> {
     keys.iter()
-        .find_map(|key| map.get(*key).map(|value| (value, *key)))
+        .find_map(|key| map.get(*key).map(|value| (*key, value)))
 }
 
 /// Parses an integer or byte-unit string into a byte count using the supplied
@@ -237,7 +237,7 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
 
 /// Gets the `memory` requirement from a requirements map.
 pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    if let Some((value, key)) = lookup_value(requirements, &[TASK_REQUIREMENT_MEMORY]) {
+    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
         let bytes = parse_storage_value(value, |raw| {
             invalid_numeric_value_message(SettingSource::Requirement, key, raw)
         })?;
@@ -250,8 +250,8 @@ pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
 
 /// Gets the `max_memory` hint from a hints map.
 pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    match lookup_value(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
-        Some((value, key)) => {
+    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
+        Some((key, value)) => {
             let bytes = parse_storage_value(value, |raw| {
                 invalid_numeric_value_message(SettingSource::Hint, key, raw)
             })?;
@@ -529,7 +529,7 @@ pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
 /// Gets the `max_retries` requirement from a requirements map with config
 /// fallback.
 pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
-    if let Some((value, key)) = lookup_value(
+    if let Some((key, value)) = lookup_entry(
         requirements,
         &[
             TASK_REQUIREMENT_MAX_RETRIES,
