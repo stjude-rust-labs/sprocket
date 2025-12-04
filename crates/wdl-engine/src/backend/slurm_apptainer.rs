@@ -33,11 +33,7 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 use tracing::warn;
-use wdl_ast::AstNode;
-use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::v1::TASK_REQUIREMENT_CPU;
-use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::ApptainerConfig;
 use super::ApptainerState;
@@ -414,18 +410,12 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, crate::Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints, Diagnostic> {
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements).map_err(|e| {
-            let span = task
-                .requirements()
-                .and_then(|r| {
-                    r.items()
-                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
-                })
-                .map(|i| i.span())
-                .unwrap_or_else(|| task.span());
-            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
-        })? as u64);
+        let mut required_cpu = v1::cpu(task, requirements);
+        let required_memory = v1::memory(task, requirements)?;
+        let (mut required_memory, required_memory_span) = (
+            ByteSize::b(required_memory.value as u64),
+            required_memory.span,
+        );
 
         // Determine whether CPU or memory limits are set for this partition, and clamp
         // or deny them as appropriate if the limits are exceeded
@@ -438,13 +428,9 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             .slurm_partition_for_task(requirements, hints)
         {
             if let Some(max_cpu) = partition.max_cpu_per_task()
-                && required_cpu > max_cpu as f64
+                && required_cpu.value > max_cpu as f64
             {
-                let span = task
-                    .requirements()
-                    .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
-                    .map(|i| i.span())
-                    .unwrap_or_else(|| task.span());
+                let span = required_cpu.span;
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -454,15 +440,17 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     TaskResourceLimitBehavior::TryWithMax => {
                         warn!(
                             "task requires at least {required_cpu} CPU{s}{env_specific}",
-                            s = if required_cpu == 1.0 { "" } else { "s" },
+                            required_cpu = required_cpu.value,
+                            s = if required_cpu.value == 1.0 { "" } else { "s" },
                         );
                         // clamp the reported constraint to what's available
-                        required_cpu = max_cpu as f64;
+                        required_cpu.value = max_cpu as f64;
                     }
                     TaskResourceLimitBehavior::Deny => {
                         let msg = format!(
                             "task requires at least {required_cpu} CPU{s}{env_specific}",
-                            s = if required_cpu == 1.0 { "" } else { "s" },
+                            required_cpu = required_cpu.value,
+                            s = if required_cpu.value == 1.0 { "" } else { "s" },
                         );
                         return Err(Diagnostic::error(msg)
                             .with_label("this requirement exceeds the available CPUs", span));
@@ -472,14 +460,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             if let Some(max_memory) = partition.max_memory_per_task()
                 && required_memory > max_memory
             {
-                let span = task
-                    .requirements()
-                    .and_then(|r| {
-                        r.items()
-                            .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
-                    })
-                    .map(|i| i.span())
-                    .unwrap_or_else(|| task.span());
+                let span = required_memory_span;
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -518,7 +499,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             //
             // sinfo -p <partition> -s --json | jq .sinfo[0].cpus
             // sinfo -p <partition> -s --json | jq .sinfo[0].memory
-            cpu: required_cpu,
+            cpu: required_cpu.value,
             memory: required_memory.as_u64().try_into().unwrap_or(i64::MAX),
             // TODO ACF 2025-10-16: these are almost certainly wrong
             gpu: Default::default(),
@@ -548,8 +529,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         let container =
             v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
 
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+        let mut required_cpu = v1::cpu_from_map(requirements);
+        let mut required_memory = ByteSize::b(v1::memory_from_map(requirements)? as u64);
 
         // Determine whether CPU or memory limits are set for this partition, and clamp
         // or deny them as appropriate if the limits are exceeded
@@ -618,8 +599,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
         // TODO ACF 2025-10-23: investigate whether Slurm offers hard vs soft limits for
         // CPU and memory
-        let _max_cpu = v1::max_cpu(hints);
-        let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
+        let _max_cpu = v1::max_cpu_from_map(hints);
+        let _max_memory = v1::max_memory_from_map(hints)?.map(|i| i as u64);
 
         // Truncate the request ID to fit in the Slurm job name length limit.
         let request_id = request.id();

@@ -36,9 +36,7 @@ use tracing::info;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::v1::TASK_REQUIREMENT_CPU;
 use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
-use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -64,10 +62,12 @@ use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
+use crate::v1::cpu_from_map;
 use crate::v1::disks;
-use crate::v1::max_cpu;
-use crate::v1::max_memory;
+use crate::v1::max_cpu_from_map;
+use crate::v1::max_memory_from_map;
 use crate::v1::memory;
+use crate::v1::memory_from_map;
 use crate::v1::preemptible;
 
 /// The root guest path for inputs.
@@ -473,44 +473,24 @@ impl TaskExecutionBackend for TesBackend {
     ) -> Result<TaskExecutionConstraints, Diagnostic> {
         let container = container(requirements, self.config.task.container.as_deref());
 
-        let cpu = cpu(requirements);
-        if (self.max_cpu as f64) < cpu {
-            let span = task
-                .requirements()
-                .and_then(|r| r.items().find(|i| i.name().text() == TASK_REQUIREMENT_CPU))
-                .map(|i| i.span())
-                .unwrap_or_else(|| task.span());
+        let cpu = cpu(task, requirements);
+        if (self.max_cpu as f64) < cpu.value {
+            let span = cpu.span;
             let msg = format!(
                 "task requires at least {cpu} CPU{s}, but the execution backend has a maximum of \
                  {max_cpu}",
-                s = if cpu == 1.0 { "" } else { "s" },
+                cpu = cpu.value,
+                s = if cpu.value == 1.0 { "" } else { "s" },
                 max_cpu = self.max_cpu,
             );
             return Err(Diagnostic::error(msg).with_label("this requirement cannot be met", span));
         }
 
-        let memory = memory(requirements).map_err(|e| {
-            let span = task
-                .requirements()
-                .and_then(|r| {
-                    r.items()
-                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
-                })
-                .map(|i| i.span())
-                .unwrap_or_else(|| task.span());
-            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
-        })?;
-        if self.max_memory < memory as u64 {
-            let span = task
-                .requirements()
-                .and_then(|r| {
-                    r.items()
-                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
-                })
-                .map(|i| i.span())
-                .unwrap_or_else(|| task.span());
+        let memory = memory(task, requirements)?;
+        if self.max_memory < memory.value as u64 {
+            let span = memory.span;
             // Display the error in GiB, as it is the most common unit for memory
-            let memory = memory as f64 / ONE_GIBIBYTE;
+            let memory = memory.value as f64 / ONE_GIBIBYTE;
             let max_memory = self.max_memory as f64 / ONE_GIBIBYTE;
 
             let msg = format!(
@@ -536,8 +516,8 @@ impl TaskExecutionBackend for TesBackend {
 
         Ok(TaskExecutionConstraints {
             container: Some(container.into_owned()),
-            cpu,
-            memory,
+            cpu: cpu.value,
+            memory: memory.value,
             gpu: Default::default(),
             fpga: Default::default(),
             disks,
@@ -563,10 +543,10 @@ impl TaskExecutionBackend for TesBackend {
         let hints = request.hints();
 
         let container = container(requirements, self.config.task.container.as_deref()).into_owned();
-        let cpu = cpu(requirements);
-        let memory = memory(requirements)? as u64;
-        let max_cpu = max_cpu(hints);
-        let max_memory = max_memory(hints)?.map(|i| i as u64);
+        let cpu = cpu_from_map(requirements);
+        let memory = memory_from_map(requirements)? as u64;
+        let max_cpu = max_cpu_from_map(hints);
+        let max_memory = max_memory_from_map(hints)?.map(|i| i as u64);
         let preemptible = preemptible(hints)?;
 
         let name = format!(

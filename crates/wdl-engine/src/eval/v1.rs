@@ -18,6 +18,7 @@ use serde::Serialize;
 pub use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
+use wdl_ast::Span;
 
 use super::CancellationContext;
 use super::Events;
@@ -44,6 +45,15 @@ fn write_json_file(path: impl AsRef<Path>, value: &impl Serialize) -> Result<()>
         .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
     serde_json::to_writer_pretty(BufWriter::new(file), value)
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))
+}
+
+/// A helper struct to associate a value with it's source span.
+#[derive(Debug)]
+pub struct Spanned<T> {
+    /// The value
+    pub value: T,
+    /// The span from the source document.
+    pub span: Span,
 }
 
 /// The top-level evaluation context.

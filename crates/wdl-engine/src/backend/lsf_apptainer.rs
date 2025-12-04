@@ -33,10 +33,8 @@ use tracing::debug;
 use tracing::error;
 use tracing::trace;
 use tracing::warn;
-use wdl_ast::AstNode;
-use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
-use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TaskDefinition;
 
 use super::ApptainerState;
 use super::TaskExecutionBackend;
@@ -51,7 +49,10 @@ use crate::Value;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::path::EvaluationPath;
+use crate::tree::SyntaxNode;
 use crate::v1;
+use crate::v1::cpu;
+use crate::v1::memory;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -404,22 +405,16 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
     fn constraints(
         &self,
-        task: &wdl_ast::v1::TaskDefinition<crate::tree::SyntaxNode>,
+        task: &TaskDefinition<SyntaxNode>,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> anyhow::Result<super::TaskExecutionConstraints, wdl_ast::Diagnostic> {
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements).map_err(|e| {
-            let span = task
-                .requirements()
-                .and_then(|r| {
-                    r.items()
-                        .find(|i| i.name().text() == TASK_REQUIREMENT_MEMORY)
-                })
-                .map(|i| i.span())
-                .unwrap_or_else(|| task.span());
-            Diagnostic::error(e.to_string()).with_label("this requirement is invalid", span)
-        })? as u64);
+        let mut required_cpu = cpu(task, requirements);
+        let required_memory = memory(task, requirements)?;
+        let (mut required_memory, required_memory_span) = (
+            ByteSize::b(required_memory.value as u64),
+            required_memory.span,
+        );
 
         // Determine whether CPU or memory limits are set for this queue, and clamp or
         // deny them as appropriate if the limits are exceeded
@@ -429,16 +424,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // resource request)
         if let Some(queue) = self.backend_config.lsf_queue_for_task(requirements, hints) {
             if let Some(max_cpu) = queue.max_cpu_per_task()
-                && required_cpu > max_cpu as f64
+                && required_cpu.value > max_cpu as f64
             {
-                let span = task
-                    .requirements()
-                    .and_then(|r| {
-                        r.items()
-                            .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_CPU)
-                    })
-                    .map(|i| i.span())
-                    .unwrap_or_else(|| task.span());
+                let span = required_cpu.span;
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -448,15 +436,17 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                     TaskResourceLimitBehavior::TryWithMax => {
                         warn!(
                             "task requires at least {required_cpu} CPU{s}{env_specific}",
-                            s = if required_cpu == 1.0 { "" } else { "s" },
+                            required_cpu = required_cpu.value,
+                            s = if required_cpu.value == 1.0 { "" } else { "s" },
                         );
                         // clamp the reported constraint to what's available
-                        required_cpu = max_cpu as f64;
+                        required_cpu.value = max_cpu as f64;
                     }
                     TaskResourceLimitBehavior::Deny => {
                         let msg = format!(
                             "task requires at least {required_cpu} CPU{s}{env_specific}",
-                            s = if required_cpu == 1.0 { "" } else { "s" },
+                            required_cpu = required_cpu.value,
+                            s = if required_cpu.value == 1.0 { "" } else { "s" },
                         );
                         return Err(Diagnostic::error(msg)
                             .with_label("this requirement exceeds the available CPUs", span));
@@ -466,14 +456,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             if let Some(max_memory) = queue.max_memory_per_task()
                 && required_memory > max_memory
             {
-                let span = task
-                    .requirements()
-                    .and_then(|r| {
-                        r.items()
-                            .find(|i| i.name().text() == wdl_ast::v1::TASK_REQUIREMENT_MEMORY)
-                    })
-                    .map(|i| i.span())
-                    .unwrap_or_else(|| task.span());
+                let span = required_memory_span;
                 let env_specific = if self.engine_config.suppress_env_specific_output {
                     String::new()
                 } else {
@@ -507,7 +490,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 v1::container(requirements, self.engine_config.task.container.as_deref())
                     .into_owned(),
             ),
-            cpu: required_cpu,
+            cpu: required_cpu.value,
             memory: required_memory.as_u64().try_into().unwrap_or(i64::MAX),
             // TODO ACF 2025-10-16: these are almost certainly wrong
             gpu: Default::default(),
@@ -537,8 +520,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let container =
             v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
 
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+        let mut required_cpu = v1::cpu_from_map(requirements);
+        let mut required_memory = ByteSize::b(v1::memory_from_map(requirements)? as u64);
 
         // Determine whether CPU or memory limits are set for this queue, and clamp or
         // deny them as appropriate if the limits are exceeded
@@ -602,9 +585,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // distinction, but we could potentially use a max as part of the
         // resource request. That would likely mean using `bsub -n min,max`
         // syntax as it doesn't seem that `affinity` strings support ranges
-        let _max_cpu = v1::max_cpu(hints);
+        let _max_cpu = v1::max_cpu_from_map(hints);
         // TODO ACF 2025-09-11: set a hard memory limit with `bsub -M !`?
-        let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
+        let _max_memory = v1::max_memory_from_map(hints)?.map(|i| i as u64);
 
         // Truncate the request ID to fit in the LSF job name length limit.
         let request_id = request.id();
