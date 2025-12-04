@@ -3,7 +3,7 @@ use anyhow::bail;
 
 /// Identifies the source of a numeric task setting used for diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ResourceKind {
+pub(crate) enum SettingSource {
     /// The source is a requirement.
     Requirement,
     /// The source is a hint.
