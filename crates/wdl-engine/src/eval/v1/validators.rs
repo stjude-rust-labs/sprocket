@@ -6,7 +6,7 @@ use anyhow::bail;
 pub(crate) enum ResourceKind {
     /// The source is a requirement.
     Requirement,
-    /// Hint values that tweak backend behavior.
+    /// The source is a hint.
     Hint,
 }
 
