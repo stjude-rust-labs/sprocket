@@ -152,6 +152,7 @@ fn lookup_value<'a>(
 
 /// Parses an integer or byte-unit string into a byte count using the supplied
 /// `error_message` formatter when conversion fails.
+
 /// # Panics
 ///
 /// Panics if the given value is not an integer or string.
