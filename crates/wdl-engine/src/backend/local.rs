@@ -33,8 +33,6 @@ use super::TaskExecutionConstraints;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::v1::cpu_from_map;
-use crate::v1::memory_from_map;
 use crate::COMMAND_FILE_NAME;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
@@ -53,7 +51,9 @@ use crate::convert_unit_string;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::cpu;
+use crate::v1::cpu_from_map;
 use crate::v1::memory;
+use crate::v1::memory_from_map;
 
 /// Represents a local task request.
 ///
