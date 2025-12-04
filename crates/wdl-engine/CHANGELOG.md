@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Added shared validation for task runtime and hint numeric settings (memory, max_memory, max_retries, preemptible), rejecting invalid or negative values earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+
+
 ## 0.10.0 - 11-21-2025
 
 #### Added
