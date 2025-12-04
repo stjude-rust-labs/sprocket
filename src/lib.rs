@@ -30,8 +30,13 @@ use tracing_subscriber::layer::SubscriberExt as _;
 
 use crate::commands::CommandResult;
 
-mod analysis;
-mod commands;
+// Access to these modules is useful for integration testing and benchmarking,
+// but since this is not intended to be used as a public interface, we hide them
+// from generated rustdoc.
+#[doc(hidden)]
+pub mod analysis;
+#[doc(hidden)]
+pub mod commands;
 mod config;
 mod diagnostics;
 mod eval;

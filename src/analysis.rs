@@ -32,6 +32,9 @@ type ProgressCb =
     Box<dyn Fn(ProgressKind, usize, usize) -> BoxFuture<'static, ()> + Send + Sync + 'static>;
 
 /// An analysis.
+// For some reason, `missing_debug_implementations` fires for this even though a Debug impl is not
+// derivable for this type.
+#[expect(missing_debug_implementations)]
 pub struct Analysis {
     /// The set of root nodes to analyze.
     ///
