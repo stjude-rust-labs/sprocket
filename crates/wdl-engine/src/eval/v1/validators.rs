@@ -4,7 +4,7 @@ use anyhow::bail;
 /// Identifies the source of a numeric task setting used for diagnostics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResourceKind {
-    /// Values supplied under the `runtime` requirements block.
+    /// The source is a requirement.
     Requirement,
     /// Hint values that tweak backend behavior.
     Hint,
