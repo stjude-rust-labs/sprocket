@@ -69,7 +69,7 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::TopLevelEvaluator;
-use super::validators::ResourceKind;
+use super::validators::SettingSource;
 use super::validators::ensure_non_negative_i64;
 use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
@@ -238,10 +238,10 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
 pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
     if let Some((value, key)) = lookup_value(requirements, &[TASK_REQUIREMENT_MEMORY]) {
         let bytes = parse_storage_value(value, |raw| {
-            invalid_numeric_value_message(ResourceKind::Requirement, key, raw)
+            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
         })?;
 
-        return ensure_non_negative_i64(ResourceKind::Requirement, key, bytes);
+        return ensure_non_negative_i64(SettingSource::Requirement, key, bytes);
     }
 
     Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
@@ -252,9 +252,9 @@ pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> 
     match lookup_value(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
         Some((value, key)) => {
             let bytes = parse_storage_value(value, |raw| {
-                invalid_numeric_value_message(ResourceKind::Hint, key, raw)
+                invalid_numeric_value_message(SettingSource::Hint, key, raw)
             })?;
-            ensure_non_negative_i64(ResourceKind::Hint, key, bytes).map(Some)
+            ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
         }
         None => Ok(None),
     }
@@ -520,7 +520,7 @@ pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
                 .ok()
                 .map(|value| value.unwrap_integer())
         })
-        .map(|value| ensure_non_negative_i64(ResourceKind::Hint, TASK_HINT_PREEMPTIBLE, value))
+        .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
         .transpose()?
         .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
 }
@@ -538,7 +538,7 @@ pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config
         let retries = value
             .as_integer()
             .expect("`max_retries` requirement should be an integer");
-        return ensure_non_negative_i64(ResourceKind::Requirement, key, retries)
+        return ensure_non_negative_i64(SettingSource::Requirement, key, retries)
             .map(|value| value as u64);
     }
 
