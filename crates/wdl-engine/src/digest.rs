@@ -170,7 +170,7 @@ fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest
 
             // Hash the relative path to the entry
             let entry_rel_path = entry_path
-                .strip_prefix(&path)
+                .strip_prefix(path)
                 .unwrap_or(&entry_path)
                 .to_str()
                 .with_context(|| {
