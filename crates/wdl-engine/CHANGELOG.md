@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added shared validation for task runtime and hint numeric settings (memory, max_memory, max_retries, preemptible), rejecting invalid or negative values earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
 
+#### Fixed
+
+* Validate constraints in the Docker backend, and point error messages to problematic `hints`/`requirements` sections for all backends ([#484](https://github.com/stjude-rust-labs/sprocket/pull/484)).
 
 ## 0.10.0 - 11-21-2025
 

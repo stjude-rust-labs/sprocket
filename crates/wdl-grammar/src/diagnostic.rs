@@ -94,6 +94,15 @@ impl From<TextRange> for Span {
     }
 }
 
+/// A helper struct to associate a value with it's source span.
+#[derive(Debug)]
+pub struct Spanned<T> {
+    /// The value
+    pub value: T,
+    /// The span from the source document.
+    pub span: Span,
+}
+
 /// Represents the severity of a diagnostic.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize,
