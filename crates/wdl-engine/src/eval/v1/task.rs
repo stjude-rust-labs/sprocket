@@ -67,6 +67,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
+use wdl_grammar::Spanned;
 
 use super::TopLevelEvaluator;
 use super::validators::SettingSource;
@@ -116,7 +117,6 @@ use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::Spanned;
 use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
 
