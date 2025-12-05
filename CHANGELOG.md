@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added peak memory usage reporting at the DEBUG verbosity level ([#482](https://github.com/stjude-rust-labs/sprocket/pull/482)).
+
 ### Fixed
 
 * `doc` now properly initializes pages in dark mode by default ([#478](https://github.com/stjude-rust-labs/sprocket/pull/478)).
