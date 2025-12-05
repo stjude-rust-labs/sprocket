@@ -30,8 +30,13 @@ use tracing_subscriber::layer::SubscriberExt as _;
 
 use crate::commands::CommandResult;
 
-mod analysis;
-mod commands;
+// Access to these modules is useful for integration testing and benchmarking,
+// but since this is not intended to be used as a public interface, we hide them
+// from generated rustdoc.
+#[doc(hidden)]
+pub mod analysis;
+#[doc(hidden)]
+pub mod commands;
 mod config;
 mod diagnostics;
 mod eval;
@@ -140,8 +145,9 @@ async fn inner() -> CommandResult<()> {
 }
 
 /// The Sprocket command line entrypoint.
-pub async fn sprocket_main() {
+pub async fn sprocket_main<Guard>(guard: Guard) {
     if let Err(e) = inner().await {
+        drop(guard);
         eprintln!("{e}");
         std::process::exit(1);
     }
