@@ -140,7 +140,6 @@ async fn calculate_file_digest(path: &Path) -> Result<Digest> {
 ///
 /// Returns a boxed future to break the type recursion.
 fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest>> + Send {
-    let path = path.to_path_buf();
     async move {
         let mut dir = tokio::fs::read_dir(&path)
             .await
