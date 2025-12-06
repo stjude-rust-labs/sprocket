@@ -25,6 +25,7 @@ pub mod validate;
 ///
 /// The error may be from a single error source or multiple errors resulting
 /// from WDL source file analysis.
+#[derive(Debug)]
 pub enum CommandError {
     /// The error is a single `anyhow::Error`.
     Single(anyhow::Error),
