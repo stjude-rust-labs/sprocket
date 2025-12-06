@@ -1,5 +1,6 @@
 //! Facilities for unit testing WDL documents.
 
+use std::collections::HashSet;
 use std::iter::once;
 
 use anyhow::Result;
@@ -128,6 +129,7 @@ impl TestDefinition {
     /// should be iterated through together are designated by a YAML map key
     /// starting with `$`.
     pub fn parse_inputs(&self) -> Result<InputMatrix> {
+        let mut keys = HashSet::new();
         let result = self
             .inputs
             .iter()
@@ -139,20 +141,34 @@ impl TestDefinition {
                     let Value::Mapping(map) = val else {
                         bail!("expected a YAML `Mapping`: `{val:?}`");
                     };
+                    let mut group_len = None;
                     let group = map
                         .iter()
                         .map(|(nested_key, nested_val)| {
                             let Value::String(k) = nested_key else {
                                 bail!("expected a YAML `String`: `{nested_key:?}`");
                             };
+                            if !keys.insert(k) {
+                                bail!("input `{key}` provided more than once");
+                            }
                             let Value::Sequence(vals) = nested_val else {
                                 bail!("expected a YAML `Sequence`: `{nested_val:?}`");
                             };
+                            if let Some(len) = group_len
+                                && len != vals.len()
+                            {
+                                bail!("sequences within `{key}` are of unequal length");
+                            } else {
+                                group_len = Some(vals.len());
+                            }
                             Ok((k.to_string(), vals.clone()))
                         })
                         .collect::<Result<Vec<_>, _>>()?;
                     Ok(InputMapping::Group(Group(group)))
                 } else {
+                    if !keys.insert(key) {
+                        bail!("input `{key}` provided more than once");
+                    }
                     let Value::Sequence(vals) = val else {
                         bail!("expected a YAML `Sequence`: `{val:?}`");
                     };
