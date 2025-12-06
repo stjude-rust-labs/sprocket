@@ -1,9 +1,14 @@
 //! Facilities for unit testing WDL documents.
 
+use std::iter::once;
+
+use anyhow::Result;
+use anyhow::bail;
 use indexmap::IndexMap;
+use itertools::Either;
+use itertools::Itertools;
 use serde_yaml_ng::Mapping;
 use serde_yaml_ng::Value;
-use tracing::warn;
 
 /// Collection of tests for an entire WDL document.
 #[derive(serde::Deserialize, Debug)]
@@ -15,7 +20,87 @@ pub(crate) struct DocumentTests {
     pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
 }
 
-pub(crate) type InputMapping = IndexMap<String, Vec<Value>>;
+/// Represents a grouping of input sequences that must be iterated through
+/// together.
+struct Group(Vec<(String, Vec<Value>)>);
+
+impl Group {
+    /// Gets the nth zipped sequence of the group.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given index is out of range for any inner sequence.
+    fn nth(&self, index: usize) -> impl Iterator<Item = (&str, &Value)> + Clone {
+        self.0.iter().map(move |(n, s)| (n.as_str(), &s[index]))
+    }
+
+    /// Gets the number of values in the group.
+    fn len(&self) -> usize {
+        // Assumption: all inner sequences are the same length
+        self.0.first().map(|(_, s)| s.len()).unwrap_or(0)
+    }
+}
+
+/// Represents an input mapping.
+enum InputMapping {
+    /// The mapping is a sequence of values.
+    Sequence(String, Vec<Value>),
+    /// The mapping is a group.
+    Group(Group),
+}
+
+impl InputMapping {
+    /// Gets the nth sequence of the mapping.
+    ///
+    /// If the mapping is a sequence, this returns an iterator that yields a
+    /// single name-value pair for the given index.
+    ///
+    /// If the mapping is a group, this returns an iterator that effectively
+    /// zips the inner sequences at the given index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given index is out of range.
+    fn nth(&self, index: usize) -> impl Iterator<Item = (&str, &Value)> + Clone {
+        match self {
+            Self::Sequence(name, values) => Either::Left(once((name.as_str(), &values[index]))),
+            Self::Group(group) => Either::Right(group.nth(index)),
+        }
+    }
+
+    /// Gets the number of values in the input mapping.
+    fn len(&self) -> usize {
+        match self {
+            Self::Sequence(_, values) => values.len(),
+            Self::Group(group) => group.len(),
+        }
+    }
+
+    /// Gets an iterator over every sequence of key-value pairs in the mapping.
+    fn iter(&self) -> impl Iterator<Item = impl Iterator<Item = (&str, &Value)> + Clone> + Clone {
+        (0..self.len()).map(|i| self.nth(i))
+    }
+}
+
+/// Represent a test input matrix.
+pub(crate) struct InputMatrix(Vec<InputMapping>);
+
+impl InputMatrix {
+    /// Gets the cartesian product of the inputs.
+    ///
+    /// Returns an iterator that yields iterators of (name, value) pairs making
+    /// up a set of inputs for a single execution.
+    pub fn cartesian_product(&self) -> impl Iterator<Item = impl Iterator<Item = (&str, &Value)>> {
+        // `multi_cartesian_product` returns a `Vec` of iterators of iterators.
+        // here we flatten each element in the set so that we produce a single
+        // iterator over the name value pairs that make up the set
+        self.0
+            .iter()
+            .map(InputMapping::iter)
+            .multi_cartesian_product()
+            .map(|s| s.into_iter().flatten())
+    }
+}
 
 /// A test definition. Defines at least a single execution, but may define many
 /// executions.
@@ -35,54 +120,59 @@ pub(crate) struct TestDefinition {
 }
 
 impl TestDefinition {
-    /// Parse the user-defined input matrix into an iterator of ordered maps of
-    /// input names to values.
+    /// Parse the user-defined input matrix
     ///
-    /// Each map represents a set of input keys whose values should be iterated
-    /// through together. The trivial case is a single input key with a set
-    /// of possible values. Groups of inputs that should be iterated through
-    /// together are designated by a YAML map key starting with `$`.
-    pub fn parse_inputs(&self) -> impl Iterator<Item = InputMapping> {
-        self.inputs.iter().map(|(key, val)| {
-            let Value::String(k) = key else {
-                panic!("expected string, got `{key:?}`");
-            };
-            if k.starts_with('$') {
-                let Value::Mapping(map) = val else {
-                    panic!("expected mapping, got `{val:?}`");
+    /// Each [`Mapping`] in `inputs` represents a set of input keys whose values
+    /// should be iterated through together. The trivial case is a single
+    /// input key with a set of possible values. Groups of inputs that
+    /// should be iterated through together are designated by a YAML map key
+    /// starting with `$`.
+    pub fn parse_inputs(&self) -> Result<InputMatrix> {
+        let result = self
+            .inputs
+            .iter()
+            .map(|(key, val)| {
+                let Value::String(key) = key else {
+                    bail!("expected a YAML `String`: `{key:?}`");
                 };
-                let mut new_map = IndexMap::new();
-                for (nested_key, nested_val) in map {
-                    let Value::String(k) = nested_key else {
-                        panic!("expected string, got `{nested_key:?}`");
+                if key.starts_with('$') {
+                    let Value::Mapping(map) = val else {
+                        bail!("expected a YAML `Mapping`: `{val:?}`");
                     };
-                    let Value::Sequence(vals) = nested_val else {
-                        panic!("expected sequence, got `{nested_val:?}`");
+                    let group = map
+                        .iter()
+                        .map(|(nested_key, nested_val)| {
+                            let Value::String(k) = nested_key else {
+                                bail!("expected a YAML `String`: `{nested_key:?}`");
+                            };
+                            let Value::Sequence(vals) = nested_val else {
+                                bail!("expected a YAML `Sequence`: `{nested_val:?}`");
+                            };
+                            Ok((k.to_string(), vals.clone()))
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok(InputMapping::Group(Group(group)))
+                } else {
+                    let Value::Sequence(vals) = val else {
+                        bail!("expected a YAML `Sequence`: `{val:?}`");
                     };
-                    new_map.insert(k.to_string(), vals.to_vec());
+                    Ok(InputMapping::Sequence(key.to_string(), vals.clone()))
                 }
-                new_map
-            } else {
-                let Value::Sequence(vals) = val else {
-                    panic!("expected sequence, got `{val:?}`");
-                };
-                IndexMap::from_iter(vec![(k.to_string(), vals.to_vec())])
-            }
-        })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(InputMatrix(result))
     }
 
     /// Parse the defined assertions into an ordered map.
-    pub fn parse_assertions(&self) -> IndexMap<String, Value> {
+    pub fn parse_assertions(&self) -> Result<IndexMap<String, Value>> {
         self.assertions
             .iter()
-            .filter_map(|(k, v)| {
-                if !k.is_string() {
-                    warn!("skipping non-string key: `{:?}`", k);
-                    None
-                } else {
-                    let key = k.as_str().unwrap().to_string();
-                    Some((key, v.clone()))
-                }
+            .map(|(key, val)| {
+                let Value::String(key) = key else {
+                    bail!("expected a YAML `String`: `{key:?}`");
+                };
+                Ok((key.clone(), val.clone()))
             })
             .collect()
     }
