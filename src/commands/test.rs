@@ -2,10 +2,12 @@
 
 use std::fs::read;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use nonempty::NonEmpty;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
@@ -37,6 +39,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
         .await
         .map_err(CommandError::from)?;
 
+    let mut errors = Vec::new();
     for result in results.filter(&[&source]) {
         let document = result.document();
         let wdl_path = PathBuf::from(document.path().as_ref());
@@ -70,7 +73,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
-                    let matrix = test.parse_inputs()?;
+                    let matrix = match test.parse_inputs().with_context(|| {
+                        format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
+                    }) {
+                        Ok(matrix) => matrix,
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            continue;
+                        }
+                    };
                     for run in matrix.cartesian_product() {
                         info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
                         counter += 1;
@@ -89,7 +100,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("assertions: {:#?}", &assertions);
                     info!("logging each individual execution defined by test matrix");
                     let mut counter = 0;
-                    let matrix = test.parse_inputs()?;
+                    let matrix = match test.parse_inputs().with_context(|| {
+                        format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
+                    }) {
+                        Ok(matrix) => matrix,
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            continue;
+                        }
+                    };
                     for run in matrix.cartesian_product() {
                         info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
                         counter += 1;
@@ -104,6 +123,10 @@ pub async fn test(args: Args) -> CommandResult<()> {
             }
         }
     }
+
+    if let Some(errors) = NonEmpty::from_vec(errors) {
+        return Err(CommandError::from(errors));
+    };
 
     Ok(())
 }
