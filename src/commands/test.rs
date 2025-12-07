@@ -35,7 +35,7 @@ pub struct Args {
         num_args = 1,
         conflicts_with="filter_tags",
     )]
-    pub include_tags: Vec<String>,
+    pub include_tag: Vec<String>,
     /// Filter out any tests with a matching tag.
     ///
     /// Can be repeated multiple times.
@@ -43,7 +43,7 @@ pub struct Args {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub filter_tags: Vec<String>,
+    pub filter_tag: Vec<String>,
 }
 
 const NESTED_TEST_DIR_NAME: &str = "test";
@@ -113,8 +113,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
         }
         Source::Directory(_) | Source::File(_) => source,
     };
-    let include_tags = HashSet::from_iter(args.include_tags.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tags.into_iter());
+    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
+    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
 
     let results = Analysis::default()
         .add_source(source.clone())
