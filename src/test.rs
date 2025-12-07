@@ -11,16 +11,6 @@ use itertools::Itertools;
 use serde_yaml_ng::Mapping;
 use serde_yaml_ng::Value;
 
-/// Collection of tests for an entire WDL document.
-#[derive(serde::Deserialize, Debug)]
-pub(crate) struct DocumentTests {
-    /// Tasks or Workflows with test definitions.
-    ///
-    /// Each task or workflow may have one or more test definitions.
-    #[serde(flatten)]
-    pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
-}
-
 /// Represents a grouping of input sequences that must be iterated through
 /// together.
 struct Group(Vec<(String, Vec<Value>)>);
@@ -103,6 +93,16 @@ impl InputMatrix {
     }
 }
 
+/// Collection of tests for an entire WDL document.
+#[derive(serde::Deserialize, Debug)]
+pub(crate) struct DocumentTests {
+    /// Tasks or Workflows with test definitions.
+    ///
+    /// Each task or workflow may have one or more test definitions.
+    #[serde(flatten)]
+    pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
+}
+
 /// A test definition. Defines at least a single execution, but may define many
 /// executions.
 #[derive(serde::Deserialize, Debug)]
@@ -141,6 +141,7 @@ impl TestDefinition {
                     bail!("expected a YAML `String`: `{key:?}`");
                 };
                 if key.starts_with('$') {
+                    // group of inputs
                     let Value::Mapping(map) = val else {
                         bail!("expected a YAML `Mapping`: `{val:?}`");
                     };
@@ -169,6 +170,7 @@ impl TestDefinition {
                         .collect::<Result<Vec<_>, _>>()?;
                     Ok(InputMapping::Group(Group(group)))
                 } else {
+                    // sequence of inputs
                     if !keys.insert(key) {
                         bail!("input `{key}` provided more than once");
                     }
