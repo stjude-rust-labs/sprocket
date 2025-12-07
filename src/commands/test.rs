@@ -1,15 +1,18 @@
 //! Implementation of the `test` subcommand.
 
 use std::fs::read;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
+use anyhow::Result;
 use anyhow::anyhow;
+use anyhow::bail;
 use clap::Parser;
 use nonempty::NonEmpty;
+use tracing::debug;
 use tracing::info;
-use tracing::trace;
 use tracing::warn;
 
 use crate::analysis::Analysis;
@@ -22,6 +25,35 @@ use crate::commands::CommandResult;
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
     pub source: Option<Source>,
+}
+
+const NESTED_TEST_DIR_NAME: &str = "test";
+
+fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
+    let mut result = None;
+    let mut inner = |path: &Path| {
+        let yaml = path.with_extension("yaml");
+        if yaml.exists() && result.is_none() {
+            result = Some(yaml);
+        } else if yaml.exists() {
+            bail!("more than one test YAML for `{}`", wdl_path.display());
+        }
+        let yml = path.with_extension("yml");
+        if yml.exists() && result.is_none() {
+            result = Some(yml);
+        } else if yml.exists() {
+            bail!("more than one test YAML for `{}`", wdl_path.display());
+        };
+        Ok(())
+    };
+    inner(wdl_path)?;
+
+    let parent = wdl_path.parent().expect("should have parent");
+    let nested = parent
+        .join(NESTED_TEST_DIR_NAME)
+        .join(wdl_path.file_name().expect("should have filename"));
+    inner(&nested)?;
+    Ok(result)
 }
 
 /// Performs the `test` command.
@@ -43,14 +75,16 @@ pub async fn test(args: Args) -> CommandResult<()> {
     for result in results.filter(&[&source]) {
         let document = result.document();
         let wdl_path = PathBuf::from(document.path().as_ref());
-        let mut yaml_path = wdl_path.with_extension("yaml");
-        if !yaml_path.exists() {
-            yaml_path = wdl_path.with_extension("yml");
-            if !yaml_path.exists() {
-                trace!("no tests found for WDL document: `{}`", wdl_path.display());
+        let yaml_path = match find_yaml(&wdl_path)? {
+            Some(p) => p,
+            None => {
+                debug!(
+                    "no test YAML found for WDL document `{}`",
+                    wdl_path.display()
+                );
                 continue;
             }
-        }
+        };
         info!("---------NEW WDL DOCUMENT----------");
         println!(
             "found tests in `{}` for WDL document `{}`",

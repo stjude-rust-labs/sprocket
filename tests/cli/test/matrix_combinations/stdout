@@ -7,7 +7,7 @@ computed 4 executions
 found tests for task: `has_a_reference`
 test name: `complex_groups`
 computed 8 executions
-found tests in `flag_filter.yml` for WDL document `flag_filter.wdl`
+found tests in `test/flag_filter.yml` for WDL document `flag_filter.wdl`
 found tests for task: `validate_string_is_12bit_int`
 test name: `decimal_passes`
 computed 1 executions
