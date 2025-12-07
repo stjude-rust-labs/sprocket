@@ -109,6 +109,9 @@ impl InputMatrix {
 pub(crate) struct TestDefinition {
     /// Name for the test.
     pub name: String,
+    /// Any tags associated with the test.
+    #[serde(default)]
+    pub tags: HashSet<String>,
     /// Matrix of inputs to combinatorially execute.
     #[serde(default)]
     inputs: Mapping,

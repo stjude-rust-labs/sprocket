@@ -1,5 +1,6 @@
 so_many_options:
   - name: kitchen_sink
+    tags: [slow, slow]
     inputs:
       $files:
         bam:

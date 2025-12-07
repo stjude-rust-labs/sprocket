@@ -1,5 +1,6 @@
 //! Implementation of the `test` subcommand.
 
+use std::collections::HashSet;
 use std::fs::read;
 use std::path::Path;
 use std::path::PathBuf;
@@ -19,12 +20,30 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::test::TestDefinition;
 
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
     pub source: Option<Source>,
+    /// Specific test tag that should be run.
+    ///
+    /// Can be repeated multiple times.
+    #[clap(short='t', long, value_name = "TAG",
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        conflicts_with="filter_tags",
+    )]
+    pub include_tags: Vec<String>,
+    /// Filter out any tests with a matching tag.
+    ///
+    /// Can be repeated multiple times.
+    #[clap(short, long, value_name = "TAG",
+        action = clap::ArgAction::Append,
+        num_args = 1,
+    )]
+    pub filter_tags: Vec<String>,
 }
 
 const NESTED_TEST_DIR_NAME: &str = "test";
@@ -56,6 +75,35 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
     Ok(result)
 }
 
+fn log_test(
+    test: &TestDefinition,
+    include_tags: &HashSet<String>,
+    filter_tags: &HashSet<String>,
+) -> Result<()> {
+    let assertions = test.parse_assertions();
+    info!("---NEW TEST---");
+    println!("test name: `{}`", &test.name);
+    info!("assertions: {:#?}", &assertions);
+    info!("tags: {:?}", &test.tags);
+    if !include_tags.is_empty() && !test.tags.iter().any(|t| include_tags.contains(t)) {
+        println!("skipping test because of tag");
+        return Ok(());
+    }
+    if test.tags.iter().any(|t| filter_tags.contains(t)) {
+        println!("skipping test because of tag");
+        return Ok(());
+    }
+    info!("logging each individual execution defined by test matrix");
+    let mut counter = 0;
+    let matrix = test.parse_inputs()?;
+    for run in matrix.cartesian_product() {
+        info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
+        counter += 1;
+    }
+    println!("computed {counter} executions");
+    Ok(())
+}
+
 /// Performs the `test` command.
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
@@ -65,6 +113,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
         }
         Source::Directory(_) | Source::File(_) => source,
     };
+    let include_tags = HashSet::from_iter(args.include_tags.into_iter());
+    let filter_tags = HashSet::from_iter(args.filter_tags.into_iter());
+
     let results = Analysis::default()
         .add_source(source.clone())
         .run()
@@ -101,26 +152,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("-------NEW TASK-------");
                 println!("found tests for task: `{}`", task.name());
                 for test in tests {
-                    let assertions = test.parse_assertions();
-                    info!("---NEW TEST---");
-                    println!("test name: `{}`", &test.name);
-                    info!("assertions: {:#?}", &assertions);
-                    info!("logging each individual execution defined by test matrix");
-                    let mut counter = 0;
-                    let matrix = match test.parse_inputs().with_context(|| {
+                    if let Err(e) = log_test(test, &include_tags, &filter_tags).with_context(|| {
                         format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
                     }) {
-                        Ok(matrix) => matrix,
-                        Err(e) => {
-                            errors.push(Arc::new(e));
-                            continue;
-                        }
-                    };
-                    for run in matrix.cartesian_product() {
-                        info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
-                        counter += 1;
+                        errors.push(Arc::new(e));
                     }
-                    println!("computed {counter} executions");
                 }
             } else if let Some(workflow) = document.workflow()
                 && workflow.name() == entrypoint
@@ -128,26 +164,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("-------NEW WORKFLOW-------");
                 println!("found tests for workflow: `{}`", workflow.name());
                 for test in tests {
-                    let assertions = test.parse_assertions();
-                    info!("---NEW TEST---");
-                    println!("test name: `{}`", &test.name);
-                    info!("assertions: {:#?}", &assertions);
-                    info!("logging each individual execution defined by test matrix");
-                    let mut counter = 0;
-                    let matrix = match test.parse_inputs().with_context(|| {
+                    if let Err(e) = log_test(test, &include_tags, &filter_tags).with_context(|| {
                         format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
                     }) {
-                        Ok(matrix) => matrix,
-                        Err(e) => {
-                            errors.push(Arc::new(e));
-                            continue;
-                        }
-                    };
-                    for run in matrix.cartesian_product() {
-                        info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
-                        counter += 1;
+                        errors.push(Arc::new(e));
                     }
-                    println!("computed {counter} executions");
                 }
             } else {
                 warn!(
