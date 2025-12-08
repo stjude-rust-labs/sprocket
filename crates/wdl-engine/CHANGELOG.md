@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-* Cache file digests that are calculated during a directory digest calculation ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
+* Cache file digests that are calculated during local directory digest
+  calculation. Note: this change will bust existing local cache entries ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
 
 ## 0.10.0 - 11-21-2025
 
