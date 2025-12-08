@@ -18,6 +18,7 @@ pub mod format;
 pub mod inputs;
 pub mod lock;
 pub mod run;
+pub mod test;
 pub mod validate;
 
 /// Represents an error that may result from a command.
@@ -133,4 +134,11 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// [UNDER CONSTRUCTION] Runs unit tests for a WDL workspace. [DOES NOT
+    /// EXECUTE ANY TESTS]
+    ///
+    /// Currently, this command will parse test definitions and log information
+    /// about found tests at the `INFO` level. To see these logs, add the `-v`
+    /// flag to the command.
+    Test(test::Args),
 }

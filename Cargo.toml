@@ -165,6 +165,7 @@ futures.workspace = true
 git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
+itertools.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
