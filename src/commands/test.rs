@@ -49,20 +49,23 @@ pub struct Args {
 const NESTED_TEST_DIR_NAME: &str = "test";
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
-    let mut result = None;
+    let mut result: Option<PathBuf> = None;
     let mut inner = |path: &Path| {
-        let yaml = path.with_extension("yaml");
-        if yaml.exists() && result.is_none() {
-            result = Some(yaml);
-        } else if yaml.exists() {
-            bail!("more than one test YAML for `{}`", wdl_path.display());
+        for ext in ["yaml", "yml"] {
+            let yaml = path.with_extension(ext);
+            match (yaml.exists(), &result) {
+                (true, Some(previous)) => bail!(
+                    "test file `{path}` conflicts with test file `{previous}`",
+                    path = yaml.display(),
+                    previous = previous.display()
+                ),
+                (true, None) => {
+                    result = Some(yaml);
+                }
+                _ => {}
+            }
         }
-        let yml = path.with_extension("yml");
-        if yml.exists() && result.is_none() {
-            result = Some(yml);
-        } else if yml.exists() {
-            bail!("more than one test YAML for `{}`", wdl_path.display());
-        };
+
         Ok(())
     };
     inner(wdl_path)?;
