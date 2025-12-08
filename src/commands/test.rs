@@ -33,7 +33,7 @@ pub struct Args {
     #[clap(short='t', long, value_name = "TAG",
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with="filter_tags",
+        conflicts_with="filter_tag",
     )]
     pub include_tag: Vec<String>,
     /// Filter out any tests with a matching tag.
