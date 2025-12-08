@@ -16,10 +16,11 @@ use blake3::Hash;
 use blake3::Hasher;
 use cloud_copy::ContentDigest;
 use cloud_copy::UrlExt;
+use futures::FutureExt;
 use tokio::sync::OnceCell;
 use tokio::task::spawn_blocking;
+use tracing::debug;
 use url::Url;
-use walkdir::WalkDir;
 
 use crate::ContentKind;
 use crate::cache::Hashable;
@@ -114,6 +115,86 @@ async fn get_content_digest(transferer: &dyn Transferer, url: &Url) -> Result<Ar
     }
 }
 
+/// Calculates the digest of a local file.
+async fn calculate_file_digest(path: &Path) -> Result<Digest> {
+    let path = path.to_path_buf();
+    spawn_blocking(move || {
+        let mut hasher = Hasher::new();
+        hasher.update_mmap_rayon(&path).with_context(|| {
+            format!(
+                "failed to calculate digest of `{path}`",
+                path = path.display()
+            )
+        })?;
+
+        anyhow::Ok(Digest::File(hasher.finalize()))
+    })
+    .await
+    .context("file digest task panicked")?
+}
+
+/// Calculates the digest of a local directory.
+///
+/// This is a recursive operation where every file and directory recursively
+/// contained in the directory will have their content digests calculated.
+///
+/// Returns a boxed future to break the type recursion.
+fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest>> + Send {
+    async move {
+        let mut dir = tokio::fs::read_dir(&path)
+            .await
+            .with_context(|| format!("failed to read directory `{path}`", path = path.display()))?;
+
+        let mut entries = Vec::new();
+        while let Some(entry) = dir
+            .next_entry()
+            .await
+            .with_context(|| format!("failed to read directory `{path}`", path = path.display()))?
+        {
+            entries.push(entry);
+        }
+
+        // Sort the entries by name so that the digest order is consistent
+        drop(dir);
+        entries.sort_by_key(|e| e.file_name());
+
+        let mut hasher = Hasher::new();
+        for entry in &entries {
+            let entry_path = entry.path();
+            let metadata = entry.metadata().await.with_context(|| {
+                format!(
+                    "failed to read metadata for path `{path}`",
+                    path = entry_path.display()
+                )
+            })?;
+
+            // Hash the relative path to the entry
+            let entry_rel_path = entry_path
+                .strip_prefix(path)
+                .expect("entry path should be relative")
+                .to_str()
+                .with_context(|| {
+                    format!("path `{path}` is not UTF-8", path = entry_path.display())
+                })?;
+            entry_rel_path.hash(&mut hasher);
+
+            let kind = if metadata.is_file() {
+                ContentKind::File
+            } else {
+                ContentKind::Directory
+            };
+
+            // Recursively calculate the entry's digest
+            let digest = calculate_local_digest(&entry_path, kind).await?;
+            digest.hash(&mut hasher);
+        }
+
+        hasher.update(&(entries.len() as u32).to_le_bytes());
+        Ok(Digest::Directory(hasher.finalize()))
+    }
+    .boxed()
+}
+
 /// Calculates the content digest of a local path.
 ///
 /// If the path is a file, a [blake3](blake3) digest is calculated for the
@@ -140,86 +221,32 @@ pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Di
 
     // Get an existing result or initialize a new one exactly once
     Ok(*digest
-        .get_or_try_init(|| async {
-            let path = path.to_path_buf();
-            spawn_blocking(move || {
-                let metadata = path.metadata().with_context(|| {
-                    format!("failed to read metadata of `{path}`", path = path.display())
-                })?;
+        .get_or_try_init(|| async move {
+            let metadata = path.metadata().with_context(|| {
+                format!("failed to read metadata of `{path}`", path = path.display())
+            })?;
 
-                // If the path is a file, hash just the file.
-                if kind == ContentKind::File {
-                    if !metadata.is_file() {
-                        bail!("expected path `{path}` to be a file", path = path.display());
-                    }
+            debug!(
+                "calculating content digest of `{path}`",
+                path = path.display()
+            );
 
-                    let mut hasher = Hasher::new();
-                    hasher.update_mmap_rayon(&path).with_context(|| {
-                        format!(
-                            "failed to calculate digest of `{path}`",
-                            path = path.display()
-                        )
-                    })?;
-                    return anyhow::Ok(Digest::File(hasher.finalize()));
+            if kind == ContentKind::File {
+                if !metadata.is_file() {
+                    bail!("expected path `{path}` to be a file", path = path.display());
                 }
 
-                // Otherwise, walk the directory and calculate a directory digest.
-                let mut entries: usize = 0;
-                let mut hasher = Hasher::new();
-                for entry in WalkDir::new(&path).sort_by_file_name() {
-                    let entry = entry.with_context(|| {
-                        format!(
-                            "failed to walk directory contents of `{path}`",
-                            path = path.display()
-                        )
-                    })?;
-
-                    // Ignore the root
-                    if entry.path() == path {
-                        continue;
-                    }
-
-                    let entry_path = entry.path();
-                    let metadata = entry.metadata().with_context(|| {
-                        format!(
-                            "failed to read metadata for path `{path}`",
-                            path = entry_path.display()
-                        )
-                    })?;
-
-                    // Hash the relative path to the entry
-                    entry_path
-                        .strip_prefix(&path)
-                        .unwrap_or(entry_path)
-                        .to_str()
-                        .with_context(|| {
-                            format!("path `{path}` is not UTF-8", path = entry_path.display())
-                        })?
-                        .hash(&mut hasher);
-
-                    if metadata.is_file() {
-                        // If entry is a file, hash the tag, length, and content
-                        ContentKind::File.hash(&mut hasher);
-                        hasher.update(&metadata.len().to_le_bytes());
-                        hasher.update_mmap_rayon(entry_path).with_context(|| {
-                            format!(
-                                "failed to calculate digest of file `{path}`",
-                                path = entry_path.display()
-                            )
-                        })?;
-                    } else {
-                        // Otherwise for a directory, just hash the tag
-                        ContentKind::Directory.hash(&mut hasher);
-                    }
-
-                    entries += 1;
+                calculate_file_digest(path).await
+            } else {
+                if metadata.is_file() {
+                    bail!(
+                        "expected path `{path}` to be a directory",
+                        path = path.display()
+                    );
                 }
 
-                hasher.update(&(entries as u32).to_le_bytes());
-                Ok(Digest::Directory(hasher.finalize()))
-            })
-            .await
-            .expect("digest task failed")
+                calculate_directory_digest(path).await
+            }
         })
         .await?)
 }
@@ -253,6 +280,8 @@ pub async fn calculate_remote_digest(
     // Get an existing result or initialize a new one exactly once
     Ok(*digest
         .get_or_try_init(|| async {
+            debug!("calculating content digest of `{url}`", url = url.display());
+
             // If there were no entries, treat the URL as a file
             if kind == ContentKind::File {
                 let digest = get_content_digest(transferer, url).await?;
@@ -293,7 +322,6 @@ pub async fn calculate_remote_digest(
 pub(crate) mod test {
     use std::fs;
     use std::io::Write;
-    use std::path::MAIN_SEPARATOR;
 
     use anyhow::anyhow;
     use futures::FutureExt;
@@ -404,41 +432,79 @@ pub(crate) mod test {
             .await
             .unwrap();
 
+        // Calculate the digest of the `subdir`
+        let mut hasher = Hasher::new();
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("x".as_bytes()); // Path
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `x` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("3ae7d805f6789a6402acb70ad4096a85a56bf6804eaf25c0493ac697548d30b5")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("y".as_bytes()); // Path
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `y` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("08112a9e334ce73042b531c25668cf5cb12a1ee040a4326afeac065461079a06")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
+        hasher.update(&1u32.to_le_bytes()); // Path length
+        hasher.update("z".as_bytes()); // Path
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `z` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("1104908ab930e671002c7cd7f3fc921570b1bf64ecfa12fe363585c630eaca6b")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
+        hasher.update(&3u32.to_le_bytes()); // Number of entries
+        let subdir_digest = hasher.finalize();
+
+        // Calculate the digest of the parent directory
         let mut hasher = Hasher::new();
         hasher.update(&1u32.to_le_bytes()); // Path length
         hasher.update("a".as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"a"); // File contents
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `a` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("17762fddd969a453925d65717ac3eea21320b66b54342fde15128d6caf21215f")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
         hasher.update(&1u32.to_le_bytes()); // Path length
         hasher.update("b".as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"b"); // File contents
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `b` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("10e5cf3d3c8a4f9f3468c8cc58eea84892a22fdadbc1acb22410190044c1d553")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
         hasher.update(&1u32.to_le_bytes()); // Path length
         hasher.update("c".as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"c"); // File contents
+        hasher.update(&[0]); // File digest tag
+        hasher.update(&32u32.to_le_bytes()); // File digest length
+        hasher.update(
+            // Digest of `c` from https://emn178.github.io/online-tools/blake3/
+            Hash::from_hex("ea7aa1fc9efdbe106dbb70369a75e9671fa29d52bd55536711bf197477b8f021")
+                .unwrap()
+                .as_bytes(),
+        ); // File digest
         hasher.update(&6u32.to_le_bytes()); // Path length
         hasher.update("subdir".as_bytes()); // Path
-        hasher.update(&[1]); // Directory tag
-        hasher.update(&8u32.to_le_bytes()); // Path length
-        hasher.update(format!("subdir{}x", MAIN_SEPARATOR).as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"x"); // File contents
-        hasher.update(&8u32.to_le_bytes()); // Path length
-        hasher.update(format!("subdir{}y", MAIN_SEPARATOR).as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"y"); // File contents
-        hasher.update(&8u32.to_le_bytes()); // Path length
-        hasher.update(format!("subdir{}z", MAIN_SEPARATOR).as_bytes()); // Path
-        hasher.update(&[0]); // File tag
-        hasher.update(&1u64.to_le_bytes()); // File length
-        hasher.update(b"z"); // File contents
-        hasher.update(&7u32.to_le_bytes()); // Number of entries
+        hasher.update(&[1]); // Directory digest tag
+        hasher.update(&32u32.to_le_bytes()); // Directory digest length
+        hasher.update(subdir_digest.as_bytes()); // Directory digest
+        hasher.update(&4u32.to_le_bytes()); // Number of entries
         assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
     }
 
