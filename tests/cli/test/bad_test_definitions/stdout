@@ -1,0 +1,7 @@
+found tests in `bar.yaml` for WDL document `bar.wdl`
+found tests for task: `bar`
+test name: `repeated key`
+test name: `scalar instead of sequence`
+found tests in `foo.yaml` for WDL document `foo.wdl`
+found tests for task: `foo`
+test name: `unequal lengths`
