@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::fs::read;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -11,9 +12,10 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use indexmap::IndexMap;
 use nonempty::NonEmpty;
+use path_clean::PathClean;
 use serde_json::Value as JsonValue;
+use tokio::fs::remove_dir_all;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -28,12 +30,13 @@ use crate::commands::CommandResult;
 use crate::commands::run::EVENTS_CHANNEL_CAPACITY;
 use crate::eval::Evaluator;
 use crate::inputs::OriginPaths;
+use crate::test::Assertion;
 use crate::test::InputMatrix;
 use crate::test::TestDefinition;
 
 const TEST_DIR: &str = "test";
 const FIXTURES_DIR: &str = "fixtures";
-const EXECUTIONS_ROOT: &str = "executions";
+const RUNS_DIR: &str = "runs";
 
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
@@ -152,6 +155,14 @@ pub async fn test(args: Args) -> CommandResult<()> {
             std::env::current_dir().context("failed to get current directory")?,
         ),
     };
+    let workspace = absolute(&workspace)
+        .with_context(|| {
+            format!(
+                "resolving absolute path to workspace: `{}`",
+                workspace.display()
+            )
+        })?
+        .clean();
 
     let results = Analysis::default()
         .add_source(source.clone())
@@ -200,6 +211,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
     let mut errors = Vec::new();
+    let mut success_counter = 0;
+    let mut fail_counter = 0;
     for (analysis, test_definitions) in documents {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
@@ -266,10 +279,10 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let Some((_derived_ep, wdl_inputs)) = engine_inputs else {
                         todo!("handle empty inputs");
                     };
-                    let run_dir = test_dir
-                        .join(EXECUTIONS_ROOT)
-                        .join(&entrypoint)
-                        .join(&test.name);
+                    let run_dir = test_dir.join(RUNS_DIR).join(&entrypoint).join(&test.name);
+                    if run_dir.exists() {
+                        remove_dir_all(&run_dir).await.with_context(|| "removing prior run dir")?;
+                    }
                     let evaluator = Evaluator::new(
                         wdl_document,
                         &entrypoint,
@@ -281,17 +294,22 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let result = evaluator.run(cancellation.clone(), &events).await;
                     match result {
                         Ok(outputs) => {
-                            dbg!("success: ", outputs);
+                            dbg!("success!");
+                            success_counter += 1;
                         }
                         Err(e) => {
                             let e_str = e.to_string();
                             dbg!("fail: ", e_str);
+                            fail_counter += 1;
                         }
                     }
                 }
             }
         }
     }
+    
+    println!("successful tests: {success_counter}");
+    println!("failed tests: {fail_counter}");
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
         return Err(CommandError::from(errors));
