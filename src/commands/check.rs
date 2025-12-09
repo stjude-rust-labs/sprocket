@@ -245,7 +245,7 @@ pub async fn check(args: CheckArgs) -> CommandResult<()> {
     let show_remote_diagnostics = {
         let any_remote_sources = sources
             .iter()
-            .any(|source| matches!(source, Source::Remote(_)));
+            .any(|source| matches!(source, Source::File(url) if url.scheme() != "file"));
 
         if any_remote_sources {
             info!("remote source detected, showing all remote diagnostics");

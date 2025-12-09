@@ -18,14 +18,15 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
+use crate::EvaluationPath;
 use crate::HiddenValue;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::http::Transferer;
-use crate::path;
-use crate::path::EvaluationPath;
+use crate::is_file_url;
+use crate::is_supported_url;
 use crate::stdlib::ensure_local_path;
 
 /// The name of the function defined in this file for use in diagnostics.
@@ -68,7 +69,7 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         let value = match context.arguments[0].value.as_string() {
             Some(s) => {
                 // If the path is a URL that isn't `file` schemed, treat as a file
-                if !path::is_file_url(s) && path::is_supported_url(s) {
+                if !is_file_url(s) && is_supported_url(s) {
                     PrimitiveValue::File(s.clone().into()).into()
                 } else {
                     let path = ensure_local_path(context.base_dir(), s).map_err(|e| {
@@ -140,7 +141,9 @@ async fn file_path_size(
     path: &str,
 ) -> Result<u64> {
     // If the path is a URL, get the resource size
-    if let Some(url) = path::parse_supported_url(path) {
+    if is_supported_url(path)
+        && let Ok(url) = path.parse()
+    {
         return resource_size(transferer, &url).await;
     }
 
@@ -149,9 +152,13 @@ async fn file_path_size(
         return file_size(path).await;
     }
 
-    match base_dir.join(path)? {
-        EvaluationPath::Local(path) => file_size(path).await,
-        EvaluationPath::Remote(url) => resource_size(transferer, &url).await,
+    let path = base_dir.join(path)?;
+    if let Some(path) = path.as_local() {
+        file_size(path).await
+    } else if let Some(url) = path.as_remote() {
+        resource_size(transferer, url).await
+    } else {
+        unreachable!("evaluation path should be either local or remote");
     }
 }
 
@@ -416,7 +423,7 @@ mod test {
                 .starts_with("call to function `size` failed: failed to read metadata for file")
         );
 
-        let source = format!("size('{path}', 'B')", path = env.base_dir().display());
+        let source = format!("size('{path}', 'B')", path = env.base_dir());
         let value = eval_v1_expr(&env, V1::Two, &source).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 
