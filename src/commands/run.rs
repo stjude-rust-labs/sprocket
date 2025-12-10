@@ -73,7 +73,7 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 ///
 /// The value of `100` was chosen simply as a reasonable default that will make
 /// lagging unlikely.
-const EVENTS_CHANNEL_CAPACITY: usize = 100;
+pub(crate) const EVENTS_CHANNEL_CAPACITY: usize = 100;
 
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
@@ -669,7 +669,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
         &output_dir,
     );
 
-    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
+    let mut evaluate = evaluator.run(cancellation.clone(), &events).boxed();
 
     loop {
         select! {

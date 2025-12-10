@@ -1,5 +1,6 @@
 //! Facilities for unit testing WDL documents.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::once;
 
@@ -120,7 +121,19 @@ pub(crate) struct TestDefinition {
     /// If no assertions defined, it is assumed that failing execution for any
     /// reason is considered a test fail.
     #[serde(default)]
-    assertions: Mapping,
+    pub assertions: Assertions,
+}
+
+/// Possible assertions for a test.
+#[derive(Default, serde::Deserialize, Debug)]
+pub(crate) struct Assertions {
+    #[serde(default)]
+    pub exit_code: isize,
+    #[serde(default)]
+    pub should_fail: bool,
+    #[serde(default)]
+    pub outputs: HashMap<String, Value>,
+    pub custom: Option<String>,
 }
 
 impl TestDefinition {
@@ -183,18 +196,5 @@ impl TestDefinition {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(InputMatrix(result))
-    }
-
-    /// Parse the defined assertions into an ordered map.
-    pub fn parse_assertions(&self) -> Result<IndexMap<String, Value>> {
-        self.assertions
-            .iter()
-            .map(|(key, val)| {
-                let Value::String(key) = key else {
-                    bail!("expected a YAML `String`: `{key:?}`");
-                };
-                Ok((key.clone(), val.clone()))
-            })
-            .collect()
     }
 }

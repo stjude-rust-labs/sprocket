@@ -144,7 +144,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             dir.path(),
             config.engine,
             Default::default(),
-            Events::disabled(),
+            &Events::disabled(),
         )
         .await?;
         match evaluator
