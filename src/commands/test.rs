@@ -20,8 +20,10 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use wdl::engine::CancellationContext;
+use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::Outputs;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -30,8 +32,7 @@ use crate::commands::CommandResult;
 use crate::commands::run::EVENTS_CHANNEL_CAPACITY;
 use crate::eval::Evaluator;
 use crate::inputs::OriginPaths;
-use crate::test::Assertion;
-use crate::test::InputMatrix;
+use crate::test::Assertions;
 use crate::test::TestDefinition;
 
 const TEST_DIR: &str = "test";
@@ -126,16 +127,24 @@ fn filter_test(
     false
 }
 
-fn parse_test(
-    test: &TestDefinition,
-) -> Result<(IndexMap<String, serde_yaml_ng::Value>, InputMatrix)> {
-    let assertions = test
-        .parse_assertions()
-        .with_context(|| format!("parsing assertions of `{}`", test.name))?;
-    let matrix = test
-        .parse_inputs()
-        .with_context(|| format!("parsing inputs of `{}`", test.name))?;
-    Ok((assertions, matrix))
+fn evaluate_test_result(
+    assertions: &Assertions,
+    result: std::result::Result<Outputs, EvaluationError>,
+) -> Result<bool> {
+    match result {
+        Ok(outputs) => {
+            if assertions.exit_code == 0 {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        Err(eval_err) => match eval_err {
+            EvaluationError::Canceled => Err(anyhow!("test was cancelled")),
+            EvaluationError::Source(source_err) => Err(anyhow!("source error!")),
+            EvaluationError::Other(other_err) => Err(anyhow!("other error?")),
+        },
+    }
 }
 
 /// Performs the `test` command.
@@ -205,7 +214,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
     let fixture_origins = OriginPaths::Single(wdl::engine::path::EvaluationPath::Local(
         test_dir.join(FIXTURES_DIR),
     ));
-    let cancellation = CancellationContext::new(args.engine.failure_mode);
     let events = Events::new(EVENTS_CHANNEL_CAPACITY);
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
@@ -213,6 +221,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
     let mut errors = Vec::new();
     let mut success_counter = 0;
     let mut fail_counter = 0;
+    let mut err_counter = 0;
     for (analysis, test_definitions) in documents {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
@@ -239,14 +248,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("skipping `{}`", test.name);
                     continue;
                 }
-                let (_assertions, matrix) = match parse_test(test)
-                    .with_context(|| format!("parsing test definition of `{}`", test.name))
+                let matrix = match test
+                    .parse_inputs()
+                    .with_context(|| format!("parsing input matrix of `{}`", test.name))
                 {
                     Ok(res) => res,
                     Err(e) => {
                         errors.push(Arc::new(e));
                         warn!(
-                            "skipping test `{}` due to problem with definition",
+                            "skipping test `{}` due to problem with input matrix",
                             test.name
                         );
                         continue;
@@ -279,41 +289,50 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let Some((_derived_ep, wdl_inputs)) = engine_inputs else {
                         todo!("handle empty inputs");
                     };
-                    let run_dir = test_dir.join(RUNS_DIR).join(&entrypoint).join(&test.name);
+                    let run_dir = test_dir.join(RUNS_DIR).join(entrypoint).join(&test.name);
                     if run_dir.exists() {
-                        remove_dir_all(&run_dir).await.with_context(|| "removing prior run dir")?;
+                        remove_dir_all(&run_dir)
+                            .await
+                            .with_context(|| "removing prior run dir")?;
                     }
                     let evaluator = Evaluator::new(
                         wdl_document,
-                        &entrypoint,
+                        entrypoint,
                         wdl_inputs,
                         fixture_origins.clone(),
                         args.engine.clone(),
                         &run_dir,
                     );
-                    let result = evaluator.run(cancellation.clone(), &events).await;
-                    match result {
-                        Ok(outputs) => {
+                    let cancellation = CancellationContext::new(args.engine.failure_mode);
+                    let result = evaluator.run(cancellation, &events).await;
+                    match evaluate_test_result(&test.assertions, result)
+                        .with_context(|| format!("evaluating `{}` results", test.name))
+                    {
+                        Ok(true) => {
                             dbg!("success!");
                             success_counter += 1;
                         }
-                        Err(e) => {
-                            let e_str = e.to_string();
-                            dbg!("fail: ", e_str);
+                        Ok(false) => {
+                            dbg!("fail :(");
                             fail_counter += 1;
+                        }
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            err_counter += 1;
                         }
                     }
                 }
             }
         }
     }
-    
-    println!("successful tests: {success_counter}");
-    println!("failed tests: {fail_counter}");
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
         return Err(CommandError::from(errors));
     };
+
+    println!("successful tests: {success_counter}");
+    println!("failed tests: {fail_counter}");
+    println!("errored tests: {err_counter}");
 
     Ok(())
 }
