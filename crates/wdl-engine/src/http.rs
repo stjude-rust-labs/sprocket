@@ -13,7 +13,6 @@ use std::thread::available_parallelism;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
 use cloud_copy::ContentDigest;
 use cloud_copy::HttpClient;
 use cloud_copy::TransferEvent;
@@ -26,7 +25,6 @@ use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::Level;
 use tracing::debug;
 use url::Url;
 
@@ -361,49 +359,19 @@ impl Transferer for HttpTransferer {
             // Get an existing result or initialize a new one exactly once
             Ok(*size
                 .get_or_try_init(|| async {
-                    let permit = self
+                    let _permit = self
                         .0
                         .semaphore
                         .acquire()
                         .await
                         .context("failed to acquire permit")?;
 
-                    // Perform the HEAD request
-                    debug!("sending HEAD for `{url}`", url = url.display());
-                    let response =
-                        self.0
-                            .client
-                            .head(url.as_str())
-                            .send()
-                            .await
-                            .with_context(|| {
-                                format!("failed to retrieve size of `{url}`", url = url.display())
-                            })?;
-
-                    drop(permit);
-
-                    let status = response.status();
-                    if !status.is_success() {
-                        if tracing::enabled!(Level::DEBUG)
-                            && let Ok(text) = response.text().await
-                        {
-                            debug!(
-                                "response from HEAD of `{url}` was `{text}`",
-                                url = url.display()
-                            );
-                        }
-
-                        bail!(
-                            "failed to retrieve size of `{url}`: server responded with status \
-                             {status}",
-                            url = url.display()
-                        );
-                    }
-
-                    Ok(response
-                        .headers()
-                        .get("content-length")
-                        .and_then(|v| v.to_str().ok().and_then(|v| v.parse().ok())))
+                    // Get the size
+                    cloud_copy::size(self.0.config.clone(), self.0.client.clone(), url.clone())
+                        .await
+                        .with_context(|| {
+                            format!("failed to retrieve size of `{url}`", url = url.display())
+                        })
                 })
                 .await?)
         }
@@ -461,46 +429,22 @@ impl Transferer for HttpTransferer {
             // Get an existing result or initialize a new one exactly once
             Ok(*exists
                 .get_or_try_init(|| async {
-                    let permit = self
+                    let _permit = self
                         .0
                         .semaphore
                         .acquire()
                         .await
                         .context("failed to acquire permit")?;
 
-                    // Perform the HEAD request
-                    debug!("sending HEAD for `{url}`", url = url.display());
-                    let response =
-                        self.0
-                            .client
-                            .head(url.as_str())
-                            .send()
-                            .await
-                            .with_context(|| {
-                                format!(
-                                    "failed to determine existence of `{url}`",
-                                    url = url.display()
-                                )
-                            })?;
-
-                    drop(permit);
-
-                    let status = response.status();
-                    if !status.is_success() {
-                        // The URL might be a "directory"; check to see if a walk produces at least
-                        // one URL
-                        if status.as_u16() == 404 {
-                            return Ok(!self.walk(url).await?.is_empty());
-                        }
-
-                        bail!(
-                            "failed to check existence of `{url}`: server responded with status \
-                             {status}",
-                            url = url.display()
-                        );
-                    }
-
-                    Ok(true)
+                    // Determine if the URL exists
+                    cloud_copy::exists(self.0.config.clone(), self.0.client.clone(), url.clone())
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "failed to determine existence of `{url}`",
+                                url = url.display()
+                            )
+                        })
                 })
                 .await?)
         }
