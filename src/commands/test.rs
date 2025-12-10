@@ -326,13 +326,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
         }
     }
 
-    if let Some(errors) = NonEmpty::from_vec(errors) {
-        return Err(CommandError::from(errors));
-    };
-
     println!("successful tests: {success_counter}");
     println!("failed tests: {fail_counter}");
     println!("errored tests: {err_counter}");
+
+    if let Some(errors) = NonEmpty::from_vec(errors) {
+        return Err(CommandError::from(errors));
+    };
 
     Ok(())
 }
