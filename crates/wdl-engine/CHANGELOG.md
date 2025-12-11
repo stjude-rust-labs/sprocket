@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed authentication issue for cloud storage URLs by moving implementations
+  into the `cloud-copy` crate ([#490](https://github.com/stjude-rust-labs/sprocket/pull/490)).
 * Cache file digests that are calculated during local directory digest
   calculation. Note: this change will bust existing local cache entries ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
 
