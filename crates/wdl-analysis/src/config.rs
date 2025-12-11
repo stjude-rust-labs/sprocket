@@ -189,7 +189,7 @@ struct ConfigInner {
 }
 
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FeatureFlags {
     /// When available, enables experimental WDL 1.3 features.
     #[serde(default)]

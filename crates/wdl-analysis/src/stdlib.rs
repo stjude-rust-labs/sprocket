@@ -586,7 +586,7 @@ impl GenericEnumValueType {
 
                 match variant_ty {
                     Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                        enum_ty.value_type().fmt(f)
+                        enum_ty.inner_value_type().fmt(f)
                     }
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "T"),
@@ -605,7 +605,7 @@ impl GenericEnumValueType {
 
         match variant_ty {
             Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                Some(enum_ty.value_type().clone())
+                Some(enum_ty.inner_value_type().clone())
             }
             // NOTE: non-enums should gracefully fail.
             _ => None,

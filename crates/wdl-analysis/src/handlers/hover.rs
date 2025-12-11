@@ -33,7 +33,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::handlers::common::evaluate_expr_type;
+use crate::handlers::TypeEvalContext;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
@@ -47,6 +47,7 @@ use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
 use crate::types::CustomType;
 use crate::types::Type;
+use crate::types::v1::ExprTypeEvaluator;
 
 /// Handles a hover request.
 ///
@@ -260,7 +261,10 @@ fn resolve_hover_by_context(
                 return Ok(None);
             };
 
-            let target_type = evaluate_expr_type(&expr, scope, document);
+
+            let mut ctx = TypeEvalContext { scope, document };
+            let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
+            let target_type = evaluator.evaluate_expr(&expr).unwrap_or(crate::types::Type::Union);
 
             let (member_ty, documentation) = match target_type {
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
@@ -302,7 +306,7 @@ fn resolve_hover_by_context(
                             "```wdl\n{}.{}[{}]\n```",
                             e.name(),
                             member.text(),
-                            e.value_type()
+                            e.inner_value_type()
                         );
                         return Ok(Some(content));
                     }

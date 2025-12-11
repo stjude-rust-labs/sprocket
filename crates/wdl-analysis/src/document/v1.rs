@@ -110,6 +110,7 @@ use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::EnumType;
 use crate::types::HiddenType;
 use crate::types::MapType;
 use crate::types::Optional;
@@ -667,11 +668,7 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                     self.0.namespaces[ns].used = true;
                 }
 
-                if let Some(ty) = e.ty() {
-                    return Ok(ty.clone());
-                } else {
-                    return Ok(Type::Union);
-                }
+                return Ok(e.ty().expect("enum should have type").clone());
             }
 
             Err(unknown_type(name, span))
@@ -1920,10 +1917,27 @@ fn set_struct_types(document: &mut DocumentData) {
 
 /// Populates enum types for all locally defined enums in the document.
 fn set_enum_types(document: &mut DocumentData) {
-    use crate::types::EnumType;
-
     if document.enums.is_empty() {
         return;
+    }
+
+    struct EnumInfo {
+        /// The index of the enum in the document.
+        pub index: usize,
+        /// The name of the enum.
+        pub name: String,
+        /// The inner type of the enum.
+        pub inner_type_param: Option<wdl_ast::v1::Type>,
+        /// The span pointing to the enum's name.
+        pub span: Span,
+        /// The variants of the enum and their related types.
+        pub variants: Vec<(String, Type)>,
+        /// The span of each variant—one matching per `variants`.
+        ///
+        /// Note that spans are stored separately because they are just used for
+        /// diagnostic purposes. Later down the line, `variants` is taken
+        /// ownership by an `EnumType` while the spans are dropped.
+        pub variant_spans: Vec<Span>,
     }
 
     // Collect all variants and type parameters from locally defined enums
@@ -1960,33 +1974,55 @@ fn set_enum_types(document: &mut DocumentData) {
                     // Default to `String` type if no value is specified
                     PrimitiveType::String.into()
                 };
-                variants.push((variant_name, variant_type));
+                variants.push((
+                    variant_name,
+                    variant_type,
+                    Span::new(variant.span().start() + e.offset(), variant.span().len()),
+                ));
             }
 
             let type_param = definition.type_parameter().map(|t| t.ty());
-            Some((index, name.clone(), variants, type_param, e.name_span))
+
+            // Note that `variant_spans` is separated out from `variants`
+            // because, down the line, `EnumType` takes ownership of just the
+            // name and types, but the spans are passed in by reference for
+            // diagnostic creation only.
+            let (variants, variant_spans) = variants
+                .into_iter()
+                .map(|(name, ty, span)| ((name, ty), span))
+                .unzip();
+
+            Some(EnumInfo {
+                index,
+                name: name.to_owned(),
+                span: e.name_span,
+                inner_type_param: type_param,
+                variants,
+                variant_spans,
+            })
         })
         .collect::<Vec<_>>();
 
-    // Create and assign enum types
-    for (index, name, variants, type_param, name_span) in enum_info {
-        let enum_ty = if let Some(ty) = type_param {
-            // Explicit type parameter: use it directly
-            let explicit_type = convert_ast_type(document, &ty);
-            EnumType::new(name, explicit_type, variants)
+    for info in enum_info {
+        let result = if let Some(explicit_inner_type) = info.inner_type_param {
+            let explicit_inner_type = convert_ast_type(document, &explicit_inner_type);
+            EnumType::new(
+                info.name,
+                info.span,
+                explicit_inner_type,
+                info.variants,
+                &info.variant_spans,
+            )
         } else {
-            // No type parameter: infer from variant values
-            EnumType::infer(name, variants)
+            EnumType::infer(info.name, info.variants, &info.variant_spans)
         };
 
-        match enum_ty {
-            Ok(ty) => {
-                document.enums[index].ty = Some(ty.into());
+        match result {
+            Ok(enum_ty) => {
+                document.enums[info.index].ty = Some(enum_ty.into());
             }
-            Err(err) => {
-                document
-                    .analysis_diagnostics
-                    .push(Diagnostic::error(err).with_label("enum defined here", name_span));
+            Err(diagnostic) => {
+                document.analysis_diagnostics.push(diagnostic);
             }
         }
     }
@@ -2136,7 +2172,28 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _: Span) -> Option<Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+        if let Some(s) = self.document.structs.get(name).and_then(|s| s.ty()) {
+            return Some(
+                s.type_name_ref()
+                    .expect("type name ref to be created from struct"),
+            );
+        }
+
+        // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+        if let Some(e) = self.document.enums.get(name).and_then(|e| e.ty()) {
+            return Some(
+                e.type_name_ref()
+                    .expect("type name ref to be created from enum"),
+            );
+        }
+
+        None
     }
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {

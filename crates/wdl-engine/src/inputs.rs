@@ -30,7 +30,6 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
 use crate::Coercible;
-use crate::Enum;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::path::EvaluationPath;
@@ -241,7 +240,6 @@ impl TaskInputs {
         task: &Task,
         path: &str,
         value: Value,
-        enums: &HashMap<String, Enum>,
     ) -> Result<()> {
         let version = document.version().expect("document should have a version");
 
@@ -322,12 +320,8 @@ impl TaskInputs {
                 if let Some(enum_ty) = expected.as_enum()
                     && let Value::Primitive(PrimitiveValue::String(variant_name)) = &value
                 {
-                    let data = enums
-                        .get(enum_ty.name().as_str())
-                        .expect("enum should exist in enum data");
-
-                    if let Some(enum_value) = data.variants.get(variant_name.as_str()) {
-                        self.inputs.insert(path.to_string(), enum_value.clone());
+                    if enum_ty.variants().get(variant_name.as_str()).is_some() {
+                        self.inputs.insert(path.to_string(), value);
                         return Ok(());
                     } else {
                         bail!(
@@ -571,8 +565,7 @@ impl WorkflowInputs {
         document: &Document,
         workflow: &Workflow,
         path: &str,
-        value: Value,
-        enums: &HashMap<String, Enum>,
+        value: Value
     ) -> Result<()> {
         match path.split_once('.') {
             Some((name, remainder)) => {
@@ -634,7 +627,7 @@ impl WorkflowInputs {
                         inputs
                             .as_task_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(document, task, remainder, value, enums)
+                            .set_path_value(document, task, remainder, value)
                     }
                     CallKind::Workflow => {
                         let workflow = document.workflow().expect("should have a workflow");
@@ -646,7 +639,7 @@ impl WorkflowInputs {
                         inputs
                             .as_workflow_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(document, workflow, remainder, value, enums)
+                            .set_path_value(document, workflow, remainder, value)
                     }
                 }
             }
@@ -674,12 +667,8 @@ impl WorkflowInputs {
                 if let Some(enum_ty) = expected.as_enum()
                     && let Value::Primitive(PrimitiveValue::String(variant_name)) = &value
                 {
-                    let data = enums
-                        .get(enum_ty.name().as_str())
-                        .expect("enum should exist in enum data");
-
-                    if let Some(enum_value) = data.variants.get(variant_name.as_str()) {
-                        self.inputs.insert(path.to_string(), enum_value.clone());
+                    if enum_ty.variants().get(variant_name.as_str()).is_some() {
+                        self.inputs.insert(path.to_string(), value);
                         return Ok(());
                     } else {
                         bail!(
@@ -965,15 +954,6 @@ impl Inputs {
         task: &Task,
         object: JsonMap,
     ) -> Result<(String, Self)> {
-        // TODO(clay): here, the enums for most execution cases are built
-        // twice—once when evaluating inputs and once when evaluating the
-        // document. I've decided that, since this operation is relatively
-        // inexpensive, it's worth paying the cost to do it twice rather than
-        // re-architect the flow such that enums must, say, be pre-computed and
-        // passed through to the downstream evaluation. Perhaps we should
-        // revisit this in the future.
-        let enum_data = crate::eval::v1::build_enums(document);
-
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
@@ -983,7 +963,7 @@ impl Inputs {
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
                     inputs
-                        .set_path_value(document, task, remainder, value, &enum_data)
+                        .set_path_value(document, task, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
@@ -1004,15 +984,6 @@ impl Inputs {
         workflow: &Workflow,
         object: JsonMap,
     ) -> Result<(String, Self)> {
-        // TODO(clay): here, the enums for most execution cases are built
-        // twice—once when evaluating inputs and once when evaluating the
-        // document. I've decided that, since this operation is relatively
-        // inexpensive, it's worth paying the cost to do it twice rather than
-        // re-architect the flow such that enums must, say, be pre-computed and
-        // passed through to the downstream evaluation. Perhaps we should
-        // revisit this in the future.
-        let enum_data = crate::eval::v1::build_enums(document);
-
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
@@ -1022,7 +993,7 @@ impl Inputs {
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == workflow.name() => {
                     inputs
-                        .set_path_value(document, workflow, remainder, value, &enum_data)
+                        .set_path_value(document, workflow, remainder, value)
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {

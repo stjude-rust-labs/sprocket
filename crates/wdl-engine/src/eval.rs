@@ -549,12 +549,12 @@ pub trait EvaluationContext: Send + Sync {
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
-    /// Gets the enums map for this evaluation context.
-    ///
-    /// Returns `None` if the context has not loaded enums.
-    fn enums(&self) -> Option<&HashMap<String, Enum>> {
-        None
-    }
+    /// Returns the literal value of an enum variant.
+    fn enum_variant_value(
+        &self,
+        enum_name: &str,
+        variant_name: &str,
+    ) -> Result<Value, Diagnostic>;
 
     /// Gets the base directory for the evaluation.
     ///
@@ -642,15 +642,6 @@ impl From<ScopeIndex> for usize {
     fn from(index: ScopeIndex) -> Self {
         index.0
     }
-}
-
-/// Represents enums stored in evaluation contexts.
-#[derive(Debug)]
-pub struct Enum {
-    /// The enum type.
-    pub ty: Type,
-    /// Pre-computed map of variant names to their values.
-    pub variants: HashMap<String, Value>,
 }
 
 /// Represents an evaluation scope in a WDL document.

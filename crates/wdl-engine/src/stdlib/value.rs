@@ -16,7 +16,7 @@ const FUNCTION_NAME: &str = "value";
 fn value(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 
-    let enum_value = context.arguments[0]
+    let variant = context.arguments[0]
         .value
         .as_compound()
         .and_then(|c| c.as_enum_variant())
@@ -24,7 +24,7 @@ fn value(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             function_call_failed(FUNCTION_NAME, "expected an enum value", context.call_site)
         })?;
 
-    Ok((*enum_value.value()).clone())
+    Ok(variant.value().clone())
 }
 
 /// Gets the function describing `value`.
@@ -41,11 +41,11 @@ pub const fn descriptor() -> Function {
 
 #[cfg(test)]
 mod test {
-    use wdl_analysis::types::CompoundType;
-    use wdl_analysis::types::CustomType;
+    use std::sync::Arc;
+
     use wdl_analysis::types::EnumType;
     use wdl_analysis::types::PrimitiveType;
-    use wdl_analysis::types::Type;
+    use wdl_ast::Span;
     use wdl_ast::version::V1;
 
     use crate::CompoundValue;
@@ -61,22 +61,23 @@ mod test {
 
         let enum_ty = EnumType::new(
             "Color",
-            PrimitiveType::String,
-            [
-                ("Red", PrimitiveType::String),
-                ("Green", PrimitiveType::String),
-                ("Blue", PrimitiveType::String),
+            Span::new(0, 0),
+            PrimitiveType::String.into(),
+            vec![
+                ("Red".into(), PrimitiveType::String.into()),
+                ("Green".into(), PrimitiveType::String.into()),
+                ("Blue".into(), PrimitiveType::String.into()),
             ],
+            &[Span::new(0, 0), Span::new(0, 0), Span::new(0, 0)],
         )
         .unwrap();
+        env.insert_enum("Color", enum_ty.clone());
 
         let color_red = EnumVariant::new(
-            None,
-            Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty.clone().into())), false),
+            enum_ty.clone(),
             "Red",
-            PrimitiveValue::new_string("#FF0000"),
-        )
-        .unwrap();
+            PrimitiveValue::String(Arc::new(String::from("#FF0000"))),
+        );
 
         env.insert_name(
             "color_red",
@@ -90,29 +91,20 @@ mod test {
 
         let int_enum = EnumType::new(
             "Status",
-            PrimitiveType::Integer,
-            [
-                ("Active", PrimitiveType::Integer),
-                ("Inactive", PrimitiveType::Integer),
+            Span::new(0, 0),
+            PrimitiveType::Integer.into(),
+            vec![
+                ("Active".into(), PrimitiveType::Integer.into()),
+                ("Inactive".into(), PrimitiveType::Integer.into()),
             ],
+            &[Span::new(0, 0), Span::new(0, 0)],
         )
         .unwrap();
 
-        let status_active = EnumVariant::new(
-            None,
-            Type::Compound(CompoundType::Custom(CustomType::Enum(int_enum.clone().into())), false),
-            "Active",
-            PrimitiveValue::Integer(1),
-        )
-        .unwrap();
-
-        let status_inactive = EnumVariant::new(
-            None,
-            Type::Compound(CompoundType::Custom(CustomType::Enum(int_enum.clone().into())), false),
-            "Inactive",
-            PrimitiveValue::Integer(42),
-        )
-        .unwrap();
+        let status_active =
+            EnumVariant::new(int_enum.clone(), "Active", PrimitiveValue::Integer(1));
+        let status_inactive =
+            EnumVariant::new(int_enum.clone(), "Inactive", PrimitiveValue::Integer(42));
 
         env.insert_name(
             "status_active",

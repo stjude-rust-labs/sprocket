@@ -69,7 +69,7 @@ use crate::document::ScopeRef;
 use crate::document::TASK_VAR_NAME;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::handlers::common::evaluate_expr_type;
+use crate::handlers::TypeEvalContext;
 use crate::handlers::common::make_md_docs;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
@@ -84,6 +84,7 @@ use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
 use crate::types::CustomType;
 use crate::types::Type;
+use crate::types::v1::ExprTypeEvaluator;
 use crate::types::v1::task_hint_types;
 use crate::types::v1::task_member_type_post_evaluation;
 use crate::types::v1::task_member_type_pre_evaluation;
@@ -191,24 +192,26 @@ pub fn completion(
             match node.kind() {
                 SyntaxKind::WorkflowDefinitionNode => {
                     add_keyword_completions(&WORKFLOW_ITEM_EXPECTED_SET, &mut items);
-                    if let Some(scope) = document.find_scope_by_position(offset.into()) {
+                    let scope = document.find_scope_by_position(offset.into());
+                    if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(&mut items);
-                    add_struct_completions(document, &mut items);
-                    add_enum_type_completions(document, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
                     add_callable_completions(document, &mut items);
                     break;
                 }
                 SyntaxKind::ScatterStatementNode | SyntaxKind::ConditionalStatementNode => {
                     add_keyword_completions(&NESTED_WORKFLOW_STATEMENT_KEYWORDS, &mut items);
-                    if let Some(scope) = document.find_scope_by_position(offset.into()) {
+                    let scope = document.find_scope_by_position(offset.into());
+                    if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(&mut items);
-                    add_struct_completions(document, &mut items);
-                    add_enum_type_completions(document, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
                     add_callable_completions(document, &mut items);
                     break;
@@ -216,18 +219,19 @@ pub fn completion(
 
                 SyntaxKind::TaskDefinitionNode => {
                     add_keyword_completions(&TASK_ITEM_EXPECTED_SET, &mut items);
-                    if let Some(scope) = document.find_scope_by_position(offset.into()) {
+                    let scope = document.find_scope_by_position(offset.into());
+                    if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
                     add_stdlib_completions(&mut items);
-                    add_struct_completions(document, &mut items);
-                    add_enum_type_completions(document, &mut items);
+                    add_struct_completions(document, scope, &mut items);
+                    add_enum_type_completions(document, scope, &mut items);
                     break;
                 }
 
                 SyntaxKind::StructDefinitionNode => {
-                    add_struct_completions(document, &mut items);
-                    add_enum_type_completions(document, &mut items);
+                    add_struct_completions(document, None, &mut items);
+                    add_enum_type_completions(document, None, &mut items);
                     add_keyword_completions(&STRUCT_SECTION_KEYWORDS, &mut items);
                     break;
                 }
@@ -253,8 +257,8 @@ pub fn completion(
 
                 SyntaxKind::RootNode => {
                     add_keyword_completions(&ROOT_SECTION_KEYWORDS, &mut items);
-                    add_struct_completions(document, &mut items);
-                    add_enum_type_completions(document, &mut items);
+                    add_struct_completions(document, None, &mut items);
+                    add_enum_type_completions(document, None, &mut items);
                     add_namespace_completions(document, &mut items);
                     break;
                 }
@@ -323,7 +327,7 @@ fn add_member_access_completions(
         .children_with_tokens()
         .find(|t| matches!(t.kind(), SyntaxKind::Dot | SyntaxKind::OpenBracket))
     else {
-        debug!("could not find accessor token ( or [");
+        debug!("could not find accessor token `.` or `[`");
         return Ok(());
     };
 
@@ -476,7 +480,9 @@ fn add_member_access_completions(
         bail!("could not find scope for access expression")
     };
 
-    let target_type = evaluate_expr_type(&target_expr, scope, document);
+    let mut ctx = TypeEvalContext { scope, document };
+    let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
+    let target_type = evaluator.evaluate_expr(&target_expr).unwrap_or(Type::Union);
 
     match (accessor_token.kind(), target_type) {
         (SyntaxKind::Dot, Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _)) => {
@@ -514,8 +520,8 @@ fn add_member_access_completions(
                 ..Default::default()
             });
         }
-        (SyntaxKind::Dot, Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _)) => {
-            let enum_type = e.value_type();
+        (SyntaxKind::Dot, Type::TypeNameRef(CustomType::Enum(e))) => {
+            let enum_type = e.inner_value_type();
             for (variant_name, _) in e.variants() {
                 items.push(CompletionItem {
                     label: variant_name.to_string(),
@@ -815,9 +821,22 @@ fn add_stdlib_completions(items: &mut Vec<CompletionItem>) {
 }
 
 /// Adds completions for user-defined structs in the document.
-fn add_struct_completions(document: &Document, items: &mut Vec<CompletionItem>) {
+///
+/// If a scope is provided, filters out struct names that are shadowed by
+/// variables in that scope.
+fn add_struct_completions(
+    document: &Document,
+    scope: Option<ScopeRef<'_>>,
+    items: &mut Vec<CompletionItem>,
+) {
     let root = document.root();
     for (name, s) in document.structs() {
+        // Skip if this struct name is shadowed by a variable in scope
+        if let Some(scope) = scope
+            && scope.lookup(name).is_some() {
+                continue;
+            }
+
         items.push(CompletionItem {
             label: name.to_string(),
             kind: Some(CompletionItemKind::STRUCT),
@@ -848,9 +867,22 @@ fn add_struct_completions(document: &Document, items: &mut Vec<CompletionItem>) 
 }
 
 /// Adds completions for enum types.
-fn add_enum_type_completions(document: &Document, items: &mut Vec<CompletionItem>) {
+///
+/// If a scope is provided, filters out enum names that are shadowed by
+/// variables in that scope.
+fn add_enum_type_completions(
+    document: &Document,
+    scope: Option<ScopeRef<'_>>,
+    items: &mut Vec<CompletionItem>,
+) {
     let root = document.root();
     for (name, r#enum) in document.enums() {
+        // Skip if this enum name is shadowed by a variable in scope
+        if let Some(scope) = scope
+            && scope.lookup(name).is_some() {
+                continue;
+            }
+
         items.push(CompletionItem {
             label: name.to_string(),
             kind: Some(CompletionItemKind::ENUM),

@@ -224,8 +224,8 @@ pub trait AstNode<N: TreeNode>: Sized {
         let open = self.token::<O>()?.span();
         let close = self.last_token::<C>()?.span();
 
-        // The span starts after the opening brace and before the closing brace
-        Some(Span::new(open.end(), close.start() - open.end()))
+        // The span starts after the opening brace and after the closing brace
+        Some(Span::new(open.end(), close.end() - open.end()))
     }
 
     /// Gets the interior span of child opening and closing brace tokens for the

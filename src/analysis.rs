@@ -12,6 +12,7 @@ use wdl::analysis::Analyzer;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
+use wdl::analysis::config::FeatureFlags;
 use wdl::lint::Linter;
 
 mod results;
@@ -47,6 +48,9 @@ pub struct Analysis {
 
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
+
+    /// Feature flags for experimental features.
+    feature_flags: FeatureFlags,
 
     /// The initialization callback.
     init: InitCb,
@@ -133,7 +137,8 @@ impl Analysis {
         }
         let config = wdl::analysis::Config::default()
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
-            .with_ignore_filename(self.ignore_filename);
+            .with_ignore_filename(self.ignore_filename)
+            .with_feature_flags(self.feature_flags);
 
         (self.init)();
 
@@ -181,6 +186,7 @@ impl Default for Analysis {
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
             ignore_filename: None,
+            feature_flags: FeatureFlags::default(),
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

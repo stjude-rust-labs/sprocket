@@ -569,3 +569,38 @@ async fn should_complete_top_level_keyword_as_snippet() {
     assert_eq!(snippet_item.kind, Some(CompletionItemKind::SNIPPET));
     assert!(snippet_item.insert_text.is_some());
 }
+
+#[tokio::test]
+async fn should_not_complete_shadowed_type_names() {
+    let mut ctx = setup().await;
+
+    let response =
+        completion_request(&mut ctx, "type_name_shadowing.wdl", Position::new(25, 0)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    
+    // `Salutation` should be in completions as an enum.
+    assert!(
+        items.iter().any(|item| item.label == "Salutation" && item.kind == Some(CompletionItemKind::ENUM)),
+        "completions should have contained an enum item for 'Salutation'"
+    );
+
+    // `Status` should be in completions as a variable.
+    assert!(
+        items.iter().any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::VARIABLE)),
+        "completions should have contained a variable item for 'Status'"
+    );
+
+    // `x` should be in completions as a variable.
+    assert!(
+        items.iter().any(|item| item.label == "x" && item.kind == Some(CompletionItemKind::VARIABLE)),
+        "completions should have contained a variable item for 'x'"
+    );
+
+    // `Status` should NOT be in completions as an enum.
+    assert!(
+        !items.iter().any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::ENUM)),
+        "completions should NOT have contained an enum item for 'Status'"
+    );
+}

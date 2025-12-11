@@ -716,36 +716,32 @@ impl Coercible for Value {
                 // String -> Enum coercion for deserializing from JSON
                 let enum_ty = target.as_enum().unwrap();
 
-                if let Some(enums) = context.and_then(|context| context.enums())
-                    && let Some(data) = enums.get(enum_ty.name().as_str())
-                    && let Some(enum_value) = data.variants.get(s.as_str())
-                {
-                    return Ok(enum_value.clone());
-                }
+                if let Some(context) = context {
+                    if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
+                        return Ok(value);
+                    }
 
-                let variants = context
-                    .and_then(|context| context.enums())
-                    .and_then(|enums| enums.get(enum_ty.name().as_str()))
-                    .and_then(|enum_data| {
-                        if enum_data.variants.is_empty() {
-                            None
-                        } else {
-                            let mut variant_names: Vec<_> =
-                                enum_data.variants.keys().cloned().collect();
-                            variant_names.sort();
-                            Some(format!(
-                                " (valid variants: `{}`)",
-                                variant_names.join("`, `")
-                            ))
-                        }
-                    })
+                    let variants = if enum_ty.variants().is_empty() {
+                        None
+                    } else {
+                        let mut variant_names =
+                            enum_ty.variants().keys().cloned().collect::<Vec<_>>();
+                        variant_names.sort();
+                        Some(format!(
+                            " (valid variants: `{}`)",
+                            variant_names.join("`, `")
+                        ))
+                    }
                     .unwrap_or_default();
 
-                bail!(
-                    "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
-                     enum `{}`{variants}",
-                    enum_ty.name()
-                )
+                    bail!(
+                        "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
+                         enum `{}`{variants}",
+                        enum_ty.name()
+                    )
+                }
+
+                unreachable!();
             }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
@@ -2101,97 +2097,59 @@ impl fmt::Display for Struct {
     }
 }
 
-/// Represents an enumeration variant value.
+/// An enum variant value.
 ///
-/// An enum variant value consists of a variant name and its associated value.
+/// A variant enum is the name of the enum variant and the type of the enum from
+/// which that variant can be looked up.
+///
+/// This type is cheaply clonable.
 #[derive(Debug, Clone)]
 pub struct EnumVariant {
-    /// The type of the enum value.
-    ty: Type,
-    /// The name of the enum.
-    enum_name: Arc<String>,
+    /// The type of the enum containing this variant.
+    enum_ty: EnumType,
     /// The name of the variant.
-    variant_name: Arc<String>,
-    /// The value associated with this variant.
+    name: Arc<String>,
+    /// The value of the variant.
     value: Arc<Value>,
 }
 
 impl PartialEq for EnumVariant {
     fn eq(&self, other: &Self) -> bool {
-        self.ty == other.ty && self.variant_name == other.variant_name
+        self.enum_ty == other.enum_ty && self.name == other.name
     }
 }
 
 impl EnumVariant {
-    /// Creates a new enum value.
+    /// Attempts to create a new enum variant from a enum type and variant name.
     ///
-    /// # Panics
-    ///
-    /// Panics if the given type is not an enum type or if the variant name is
-    /// not valid for the enum.
+    /// This method returns [`None`] if the variant is not in the enum.
     pub fn new(
-        context: Option<&dyn EvaluationContext>,
-        ty: impl Into<Type>,
-        variant_name: impl Into<String>,
+        enum_ty: impl Into<EnumType>,
+        name: impl Into<String>,
         value: impl Into<Value>,
-    ) -> Result<Self> {
-        let ty = ty.into();
-        let variant_name = variant_name.into();
-        let value = value.into();
+    ) -> Self {
+        let enum_ty = enum_ty.into();
+        let name = Arc::new(name.into());
+        let value = Arc::new(value.into());
 
-        if let Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), optional) = ty {
-            // Check that the variant exists
-            if !enum_ty.variants().contains_key(&variant_name) {
-                bail!(
-                    "enum `{}` does not have a variant named `{}`",
-                    enum_ty.name(),
-                    variant_name
-                );
-            }
-
-            // Coerce the value to the enum's value type
-            let coerced_value = value
-                .coerce(context, enum_ty.value_type())
-                .with_context(|| {
-                    format!(
-                        "failed to coerce enum variant `{}` value to type `{}`",
-                        variant_name,
-                        enum_ty.value_type()
-                    )
-                })?;
-
-            return Ok(Self {
-                ty: Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty.clone())), optional),
-                enum_name: Arc::new(enum_ty.name().to_string()),
-                variant_name: Arc::new(variant_name),
-                value: Arc::new(coerced_value),
-            });
+        Self {
+            enum_ty,
+            name,
+            value,
         }
-
-        panic!("type `{ty}` is not an enum type");
     }
 
-    /// Gets the type of the enum value.
-    pub fn ty(&self) -> Type {
-        self.ty.clone()
-    }
-
-    /// Gets the enum type.
-    pub fn enum_type(&self) -> &EnumType {
-        self.ty.as_enum().expect("enum value should have enum type")
-    }
-
-    /// Gets the name of the enum.
-    pub fn enum_name(&self) -> &str {
-        &self.enum_name
+    /// Gets the type of the enum.
+    pub fn enum_ty(&self) -> EnumType {
+        self.enum_ty.clone()
     }
 
     /// Gets the name of the variant.
-    pub fn variant_name(&self) -> &str {
-        &self.variant_name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
-    /// Gets the value associated with this variant.
+    /// Gets the name of the variant.
     pub fn value(&self) -> &Value {
         &self.value
     }
@@ -2223,7 +2181,7 @@ impl EnumVariant {
 /// ```
 impl fmt::Display for EnumVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.variant_name)
+        write!(f, "{}", self.name)
     }
 }
 
@@ -2255,7 +2213,7 @@ impl CompoundValue {
             CompoundValue::Map(v) => v.ty(),
             CompoundValue::Object(v) => v.ty(),
             CompoundValue::Struct(v) => v.ty(),
-            CompoundValue::EnumVariant(v) => v.ty(),
+            CompoundValue::EnumVariant(v) => v.enum_ty().into(),
         }
     }
 
@@ -2446,10 +2404,9 @@ impl CompoundValue {
                         None => false,
                     }),
             ),
-            (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => Some(
-                left.enum_name() == right.enum_name()
-                    && left.variant_name() == right.variant_name(),
-            ),
+            (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => {
+                Some(left.enum_ty() == right.enum_ty() && left.name() == right.name())
+            }
             _ => None,
         }
     }
@@ -2626,14 +2583,9 @@ impl CompoundValue {
                     }
                 }
                 Self::EnumVariant(e) => {
-                    let ty = e.ty.as_enum().expect("should be an enum type");
+                    let optional = e.enum_ty().inner_value_type().is_optional();
                     Arc::make_mut(&mut e.value)
-                        .ensure_paths_exist(
-                            ty.value_type().is_optional(),
-                            base_dir,
-                            transferer,
-                            translate,
-                        )
+                        .ensure_paths_exist(optional, base_dir, transferer, translate)
                         .await?;
                 }
             }
@@ -3686,7 +3638,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 s.end()
             }
-            CompoundValue::EnumVariant(e) => serializer.serialize_str(e.variant_name()),
+            CompoundValue::EnumVariant(e) => serializer.serialize_str(e.name()),
         }
     }
 }
@@ -3849,6 +3801,10 @@ mod test {
                 unimplemented!()
             }
 
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+                unimplemented!()
+            }
+
             fn base_dir(&self) -> &EvaluationPath {
                 unimplemented!()
             }
@@ -3961,6 +3917,10 @@ mod test {
                 unimplemented!()
             }
 
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+                unimplemented!()
+            }
+
             fn base_dir(&self) -> &EvaluationPath {
                 unimplemented!()
             }
@@ -4048,6 +4008,10 @@ mod test {
             }
 
             fn resolve_type_name(&self, _: &str, _: Span) -> Result<Type, Diagnostic> {
+                unimplemented!()
+            }
+
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4452,8 +4416,10 @@ Caused by:
             CompoundType::Custom(CustomType::Enum(Arc::new(
                 EnumType::new(
                     "MyEnum",
+                    Span::new(0, 0),
                     Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(&str, Type)>::new(),
+                    Vec::<(String, Type)>::new(),
+                    &[],
                 )
                 .expect("should create enum type"),
             ))),
@@ -4491,8 +4457,10 @@ Caused by:
             CompoundType::Custom(CustomType::Enum(Arc::new(
                 EnumType::new(
                     "Color",
+                    Span::new(0, 0),
                     Type::Primitive(PrimitiveType::Integer, false),
-                    Vec::<(&str, Type)>::new(),
+                    Vec::<(String, Type)>::new(),
+                    &[],
                 )
                 .expect("should create enum type"),
             ))),

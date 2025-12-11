@@ -6,6 +6,7 @@ use std::path::Path;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use anyhow::anyhow;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use tokio::fs;
@@ -18,6 +19,7 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
+use crate::EvaluationContext;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
@@ -95,10 +97,16 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
             _ => context.arguments[0].value.clone(),
         };
 
-        calculate_disk_size(context.transferer(), &value, unit, context.base_dir())
-            .await
-            .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
-            .map(Into::into)
+        calculate_disk_size(
+            context.transferer(),
+            context.inner(),
+            &value,
+            unit,
+            context.base_dir(),
+        )
+        .await
+        .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
+        .map(Into::into)
     }
     .boxed()
 }
@@ -163,6 +171,7 @@ async fn file_path_size(
 /// directory.
 fn calculate_disk_size<'a>(
     transferer: &'a dyn Transferer,
+    context: &'a dyn EvaluationContext,
     value: &'a Value,
     unit: StorageUnit,
     base_dir: &'a EvaluationPath,
@@ -171,7 +180,7 @@ fn calculate_disk_size<'a>(
         match value {
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
-            Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
+            Value::Compound(v) => compound_disk_size(transferer, context, v, unit, base_dir).await,
             Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
             Value::Input(_) => bail!("the size of an input value cannot be calculated"),
             Value::Output(_) => bail!("the size of an output value cannot be calculated"),
@@ -213,6 +222,7 @@ async fn primitive_disk_size(
 /// Calculates the disk size for a compound value in the given unit.
 async fn compound_disk_size(
     transferer: &dyn Transferer,
+    context: &dyn EvaluationContext,
     value: &CompoundValue,
     unit: StorageUnit,
     base_dir: &EvaluationPath,
@@ -220,14 +230,15 @@ async fn compound_disk_size(
     match value {
         CompoundValue::Pair(pair) => {
             Ok(
-                calculate_disk_size(transferer, pair.left(), unit, base_dir).await?
-                    + calculate_disk_size(transferer, pair.right(), unit, base_dir).await?,
+                calculate_disk_size(transferer, context, pair.left(), unit, base_dir).await?
+                    + calculate_disk_size(transferer, context, pair.right(), unit, base_dir)
+                        .await?,
             )
         }
         CompoundValue::Array(array) => {
             let mut size = 0.0;
             for e in array.as_slice() {
-                size += calculate_disk_size(transferer, e, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, context, e, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -238,7 +249,7 @@ async fn compound_disk_size(
                 size += match k {
                     Some(k) => primitive_disk_size(transferer, k, unit, base_dir).await?,
                     None => 0.0,
-                } + calculate_disk_size(transferer, v, unit, base_dir).await?;
+                } + calculate_disk_size(transferer, context, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -246,7 +257,7 @@ async fn compound_disk_size(
         CompoundValue::Object(object) => {
             let mut size = 0.0;
             for (_, v) in object.iter() {
-                size += calculate_disk_size(transferer, v, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, context, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -254,13 +265,22 @@ async fn compound_disk_size(
         CompoundValue::Struct(s) => {
             let mut size = 0.0;
             for (_, v) in s.iter() {
-                size += calculate_disk_size(transferer, v, unit, base_dir).await?;
+                size += calculate_disk_size(transferer, context, v, unit, base_dir).await?;
             }
 
             Ok(size)
         }
         CompoundValue::EnumVariant(e) => {
-            calculate_disk_size(transferer, e.value(), unit, base_dir).await
+            let value = context
+                .enum_variant_value(e.enum_ty().name(), e.name())
+                .map_err(|_| {
+                    anyhow!(
+                        "failed to calculate size of enum `{enum_name}`",
+                        enum_name = e.enum_ty().name()
+                    )
+                })?;
+
+            calculate_disk_size(transferer, context, &value, unit, base_dir).await
         }
     }
 }

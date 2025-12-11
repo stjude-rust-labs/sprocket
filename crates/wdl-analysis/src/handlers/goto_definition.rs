@@ -36,12 +36,13 @@ use crate::SourcePositionEncoding;
 use crate::document::Document;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
-use crate::handlers::common::evaluate_expr_type;
+use crate::handlers::TypeEvalContext;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::get_imported_doc_context;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
 use crate::types::Type;
+use crate::types::v1::ExprTypeEvaluator;
 
 /// Finds the definition location for an identifier at the given position.
 ///
@@ -482,6 +483,7 @@ fn resolve_access_expression(
             let member_name = member_ident.text();
             if analysis_doc
                 .enums()
+                .iter()
                 .any(|(_, e)| e.namespace() == Some(name.as_str()) && e.name() == member_name)
             {
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
@@ -499,7 +501,14 @@ fn resolve_access_expression(
         }
     }
 
-    let target_type = evaluate_expr_type(&target_expr, scope, analysis_doc);
+    let mut ctx = TypeEvalContext {
+        scope,
+        document: analysis_doc,
+    };
+    
+    let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
+    let target_type = evaluator.evaluate_expr(&target_expr)
+            .unwrap_or(crate::types::Type::Union);
 
     if let Some(struct_ty) = target_type.as_struct() {
         let original_struct_name = struct_ty.name().as_str();
@@ -549,15 +558,7 @@ fn resolve_access_expression(
         // Check for struct definition in local document.
         let struct_def = analysis_doc
             .structs()
-            .find(|(_, s)| {
-                if let Some(s_ty) = s.ty()
-                    && let Some(s_struct_ty) = s_ty.as_struct()
-                {
-                    return s_struct_ty.name() == struct_ty.name();
-                }
-                s.name() == struct_ty.name().as_str()
-            })
-            .map(|(_, s)| s)
+            .get(struct_ty.name().as_str())
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for struct `{name}`",
@@ -636,15 +637,7 @@ fn resolve_access_expression(
         // Check for enum definition in local document.
         let enum_def = analysis_doc
             .enums()
-            .find(|(_, e)| {
-                if let Some(e_ty) = e.ty()
-                    && let Some(e_enum_ty) = e_ty.as_enum()
-                {
-                    return e_enum_ty.name() == enum_ty.name();
-                }
-                e.name() == enum_ty.name().as_str()
-            })
-            .map(|(_, e)| e)
+            .get(enum_ty.name().as_str())
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for enum `{name}`",

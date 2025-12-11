@@ -908,9 +908,54 @@ pub fn invalid_regex_pattern(
 
 /// Creates a "not a custom type" diagnostic.
 pub fn not_a_custom_type<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
-    Diagnostic::error(format!("`{}` is not a custom type", name.text()))
+    Diagnostic::error(format!("`{}` is not a custom type", name.text())).with_label(
+        "only struct and enum types can be referenced as values",
+        name.span(),
+    )
+}
+
+/// Creates a "no common inferred type for enum" diagnostic.
+///
+/// This diagnostic occurs during enum type calculation when no common type can
+/// be inferred from the variant types.
+pub fn no_common_inferred_type_for_enum(
+    enum_name: &str,
+    last_common_variant_type: &Type,
+    last_common_variant_span: Span,
+    first_discordant_variant_type: &Type,
+    first_discordant_variant_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(format!("cannot infer a common type for enum `{enum_name}`"))
         .with_label(
-            "only struct and enum types can be referenced as values",
-            name.span(),
+            format!(
+                "this is the first variant with type \
+                `{first_discordant_variant_type}` that has no common type with \
+                `{last_common_variant_type}`"
+            ),
+            first_discordant_variant_span,
         )
+        .with_label(
+            format!(
+                "this is the last variant with a common type \
+                `{last_common_variant_type}`"
+            ),
+            last_common_variant_span,
+        )
+}
+
+/// Creates an "enum variant does not coerce to type" diagnostic.
+pub fn enum_variant_does_not_coerce_to_type(
+    enum_name: &str,
+    enum_span: Span,
+    variant_name: &str,
+    variant_span: Span,
+    expected: &Type,
+    actual: &Type,
+) -> Diagnostic {
+    Diagnostic::error(format!(
+        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from type `{actual}` to type `{expected}`"
+    ))
+    .with_label(format!("this is the `{enum_name}` enum"), enum_span)
+    .with_label(format!("this is the `{variant_name}` variant"), variant_span)
+    .with_fix(format!("change the value to something that coerces to type `{expected}` or explicitly set the enum's inner type"))
 }

@@ -98,6 +98,7 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
+use crate::diagnostics::unknown_enum;
 use crate::eval::EvaluatedTask;
 use crate::eval::trie::InputTrie;
 use crate::http::HttpTransferer;
@@ -601,14 +602,42 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        ScopeRef::new(&self.state.scopes, self.scope)
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = ScopeRef::new(&self.state.scopes, self.scope)
             .lookup(name)
             .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        {
+            return Ok(var);
+        }
+
+        // If the name is a reference to a struct, return it as a [`Value::TypeNameRef`].
+        if let Some(s) = self.state.document.struct_by_name(name) {
+            return Ok(Value::TypeNameRef(
+                s.ty().expect("struct should have type").clone(),
+            ));
+        }
+
+        // If the name is a reference to an enum, return it as a [`Value::TypeNameRef`].
+        if let Some(e) = self.state.document.enum_by_name(name) {
+            return Ok(Value::TypeNameRef(
+                e.ty().expect("enum should have type").clone(),
+            ));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(self.state.document, name, span)
+    }
+
+    fn enum_variant_value(
+        &self,
+        enum_name: &str,
+        variant_name: &str,
+    ) -> Result<Value, Diagnostic> {
+        let r#enum = self.state.document.enum_by_name(enum_name).ok_or(unknown_enum(enum_name))?;
+        crate::resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {

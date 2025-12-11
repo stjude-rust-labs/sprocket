@@ -27,7 +27,6 @@ use wdl_analysis::diagnostics::map_key_not_primitive;
 use wdl_analysis::diagnostics::missing_struct_members;
 use wdl_analysis::diagnostics::multiple_type_mismatch;
 use wdl_analysis::diagnostics::no_common_type;
-use wdl_analysis::diagnostics::not_a_custom_type;
 use wdl_analysis::diagnostics::not_a_pair_accessor;
 use wdl_analysis::diagnostics::not_a_previous_task_data_member;
 use wdl_analysis::diagnostics::not_a_struct;
@@ -39,7 +38,6 @@ use wdl_analysis::diagnostics::too_many_arguments;
 use wdl_analysis::diagnostics::type_mismatch;
 use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
-use wdl_analysis::diagnostics::unknown_name;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
 use wdl_analysis::document::Task;
@@ -66,7 +64,6 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::Expr;
@@ -96,6 +93,7 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::EnumVariant;
 use crate::EvaluationContext;
 use crate::Map;
 use crate::Object;
@@ -104,7 +102,6 @@ use crate::PrimitiveValue;
 use crate::Struct;
 use crate::Value;
 use crate::diagnostics::array_index_out_of_range;
-use crate::diagnostics::cannot_access_type_name_ref;
 use crate::diagnostics::division_by_zero;
 use crate::diagnostics::exponent_not_in_range;
 use crate::diagnostics::exponentiation_requirement;
@@ -116,7 +113,6 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum_variant;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -166,7 +162,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Expr::Literal(expr) => self.evaluate_literal_expr(expr).await,
                 Expr::NameRef(r) => {
                     let name = r.name();
-                    self.resolve_name(&name)
+                    self.context.resolve_name(name.text(), name.span())
                 }
                 Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()).await,
                 Expr::If(expr) => self.evaluate_if_expr(expr).await,
@@ -1466,24 +1462,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
         // Evaluate the target expression.
         let target_value = self.evaluate_expr(&target).await?;
-
-        if let Value::TypeNameRef(ref ty) = target_value {
-            if let Some(enum_ty) = ty.as_enum() {
-                if let Some(value) = self
-                    .context
-                    .enums()
-                    .and_then(|data| data.get(enum_ty.name().as_str()))
-                    .and_then(|enum_data| enum_data.variants.get(name.text()).cloned())
-                {
-                    return Ok(value);
-                } else {
-                    return Err(unknown_enum_variant(ty, &name));
-                }
-            } else {
-                return Err(cannot_access_type_name_ref(ty, target.span()));
-            }
-        }
-
         match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
@@ -1519,33 +1497,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
+            Value::TypeNameRef(ty) => {
+                if let Some(ty) = ty.as_enum() {
+                    let value = self.context().enum_variant_value(ty.name(), name.text())?;
+                    let variant = EnumVariant::new(ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                } else {
+                    todo!("support type name references for `{ty:?}`");
+                }
+            }
             value => Err(cannot_access(&value.ty(), target.span())),
         }
-    }
-
-    /// Resolve a name using the following priority order:
-    ///
-    /// - Names in scope (variables)
-    /// - Type name references
-    fn resolve_name<T: TreeToken>(&self, name: &Ident<T>) -> Result<Value, Diagnostic> {
-        self.context
-            .resolve_name(name.text(), name.span())
-            .or_else(|_| {
-                // No name in scope.
-                self.context
-                    .resolve_type_name(name.text(), name.span())
-                    .and_then(|ty| match ty {
-                        ty if matches!(
-                            ty,
-                            Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _)
-                                | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _)
-                        ) =>
-                        {
-                            Ok(Value::TypeNameRef(ty))
-                        }
-                        _ => Err(not_a_custom_type(name)),
-                    }).map_err(|_| unknown_name(name.text(), name.span()))
-            })
     }
 }
 
@@ -1569,7 +1531,6 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
-    use crate::Enum;
     use crate::ScopeRef;
     use crate::eval::Scope;
     use crate::http::Location;
@@ -1582,8 +1543,8 @@ pub(crate) mod test {
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
-        /// The enum for the test.
-        enums: HashMap<String, Enum>,
+        /// The enums for the test.
+        enums: HashMap<&'static str, Type>,
         /// The test directory.
         test_dir: TempDir,
         /// The evaluation base directory.
@@ -1603,6 +1564,10 @@ pub(crate) mod test {
 
         pub fn insert_struct(&mut self, name: &'static str, ty: impl Into<Type>) {
             self.structs.insert(name, ty.into());
+        }
+
+        pub fn insert_enum(&mut self, name: &'static str, ty: impl Into<Type>) {
+            self.enums.insert(name, ty.into());
         }
 
         pub fn base_dir(&self) -> &EvaluationPath {
@@ -1712,24 +1677,39 @@ pub(crate) mod test {
         }
 
         fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-            self.env
-                .scope()
-                .lookup(name)
-                .cloned()
-                .ok_or_else(|| unknown_name(name, span))
+            // Check if there are any variables with this name and return if so.
+            if let Some(var) = self.env.scope().lookup(name).cloned() {
+                return Ok(var);
+            }
+
+            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.structs.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.enums.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            Err(unknown_name(name, span))
         }
 
         fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             self.env
                 .structs
                 .get(name)
-                .or_else(|| self.env.enums.get(name).map(|data| &data.ty))
+                .or_else(|| self.env.enums.get(name))
                 .cloned()
                 .ok_or_else(|| unknown_type(name, span))
         }
 
-        fn enums(&self) -> Option<&std::collections::HashMap<String, Enum>> {
-            Some(&self.env.enums)
+        fn enum_variant_value(
+            &self,
+            _enum_name: &str,
+            _variant_name: &str,
+        ) -> Result<Value, Diagnostic> {
+            unimplemented!();
         }
 
         fn base_dir(&self) -> &EvaluationPath {

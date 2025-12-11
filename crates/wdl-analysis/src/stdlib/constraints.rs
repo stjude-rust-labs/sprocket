@@ -128,7 +128,7 @@ impl Constraint for JsonSerializableConstraint {
                         && type_is_serializable(ty.value_type())
                 }
                 CompoundType::Custom(CustomType::Struct(s)) => s.members().values().all(type_is_serializable),
-                CompoundType::Custom(CustomType::Enum(e)) => type_is_serializable(e.value_type()),
+                CompoundType::Custom(CustomType::Enum(e)) => type_is_serializable(e.inner_value_type()),
             }
         }
 

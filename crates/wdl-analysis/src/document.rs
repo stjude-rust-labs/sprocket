@@ -161,7 +161,7 @@ pub struct Enum {
     namespace: Option<String>,
     /// The type of the enum.
     ///
-    /// Initially this is `None` until a type check occurs.
+    /// Initially this is `None` until a type check/coercion occurs.
     ty: Option<Type>,
 }
 
@@ -862,8 +862,8 @@ impl Document {
     }
 
     /// Gets the structs in the document.
-    pub fn structs(&self) -> impl Iterator<Item = (&str, &Struct)> {
-        self.data.structs.iter().map(|(n, s)| (n.as_str(), s))
+    pub fn structs(&self) -> &IndexMap<String, Struct> {
+        &self.data.structs
     }
 
     /// Gets a struct in the document by name.
@@ -872,8 +872,8 @@ impl Document {
     }
 
     /// Gets the enums in the document.
-    pub fn enums(&self) -> impl Iterator<Item = (&str, &Enum)> {
-        self.data.enums.iter().map(|(n, e)| (n.as_str(), e))
+    pub fn enums(&self) -> &IndexMap<String, Enum> {
+        &self.data.enums
     }
 
     /// Gets an enum in the document by name.

@@ -111,7 +111,6 @@ use crate::diagnostics::missing_struct_members;
 use crate::diagnostics::multiple_type_mismatch;
 use crate::diagnostics::negation_mismatch;
 use crate::diagnostics::no_common_type;
-use crate::diagnostics::not_a_custom_type;
 use crate::diagnostics::not_a_pair_accessor;
 use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
@@ -553,9 +552,18 @@ pub trait EvaluationContext {
     fn version(&self) -> SupportedVersion;
 
     /// Gets the type of the given name in scope.
+    ///
+    /// - If the name is a variable, returns the type of that variable. For
+    ///   example, returns the type of `foo` in the expression `foo.bar`.
+    /// - If the name refers to a custom type, returns a type name reference to
+    ///   that custom type. For example, returns a type name reference to
+    ///   `Status` in the expression `Status.Active` (where `Status`) is an
+    ///   enum.
     fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
+    ///
+    /// For example, returns the type of `MyStruct` in the expression `MyStruct a = MyStruct { ... }`.
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the task associated with the evaluation context.
@@ -602,7 +610,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
             Expr::NameRef(r) => {
                 let name = r.name();
-                self.resolve_name(&name)
+                self.context.resolve_name(name.text(), name.span())
             }
             Expr::Parenthesized(expr) => self.evaluate_expr(&expr.expr()),
             Expr::If(expr) => self.evaluate_if_expr(expr),
@@ -984,7 +992,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         .add_diagnostic(missing_struct_members(&name, count, &members));
                 }
 
-                Some(Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false))
+                Some(Type::Compound(
+                    CompoundType::Custom(CustomType::Struct(ty)),
+                    false,
+                ))
             }
             Err(diagnostic) => {
                 self.context.add_diagnostic(diagnostic);
@@ -1745,7 +1756,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             }
             Type::Compound(CompoundType::Custom(CustomType::Enum(ty)), _) => {
                 if ty.variants().contains_key(name.text()) {
-                    return Some(Type::Compound(CompoundType::Custom(CustomType::Enum(ty.clone())), false));
+                    return Some(Type::Compound(
+                        CompoundType::Custom(CustomType::Enum(ty.clone())),
+                        false,
+                    ));
                 }
 
                 self.context
@@ -1771,18 +1785,17 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 self.context
                     .add_diagnostic(unknown_call_io(ty, &name, Io::Output));
                 return None;
-            },
-            Type::TypeNameRef(ty) => {
-                match ty {
-                    CustomType::Struct(_) => {
-                        // Let struct type name references fall through so that
-                        // they will return a `cannot_access` error.
-                    }
-                    CustomType::Enum(_) => {
-                        return Some(Type::from(CompoundType::Custom(ty.clone())));
-                    }
-                }
             }
+            Type::TypeNameRef(custom_ty) => match custom_ty {
+                CustomType::Struct(_) => {
+                    self.context
+                        .add_diagnostic(cannot_access(&ty, target.span()));
+                    return None;
+                }
+                CustomType::Enum(_) => {
+                    return Some(Type::from(CompoundType::Custom(custom_ty.clone())));
+                }
+            },
             _ => {}
         }
 
@@ -1853,28 +1866,5 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 .with_severity(severity)
                 .with_fix(fix),
         )
-    }
-
-    /// Attempts to resolve a name to a type using the following priority order:
-    ///
-    /// - Names in scope (variables)
-    /// - Type name references
-    fn resolve_name<T: TreeToken>(&mut self, name: &Ident<T>) -> Option<Type> {
-        self.context
-            .resolve_name(name.text(), name.span())
-            .or_else(|| {
-                // No name in scope
-                self.context
-                    .resolve_type_name(name.text(), name.span())
-                    .ok()
-                    .and_then(|ty| {
-                        if let Type::Compound(CompoundType::Custom(ty), _) = ty {
-                            Some(Type::TypeNameRef(ty))
-                        } else {
-                            self.context.add_diagnostic(not_a_custom_type(name));
-                            None
-                        }
-                    })
-            })
     }
 }

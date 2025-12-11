@@ -279,7 +279,7 @@ impl Server {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(options.feature_flags.clone());
+            .with_feature_flags(options.feature_flags);
 
         Self {
             client,
