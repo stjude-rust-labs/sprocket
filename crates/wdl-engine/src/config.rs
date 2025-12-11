@@ -1380,6 +1380,10 @@ pub struct LsfApptainerBackendConfig {
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
+    /// Prefix to add to every LSF job name before the task identifier. This is
+    /// truncated as needed to satisfy the byte-oriented LSF job name limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_name_prefix: Option<String>,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where LSF dispatches tasks.
     ///

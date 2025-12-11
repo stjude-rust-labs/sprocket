@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added a configurable prefix for LSF job names and ensured the byte-length
+  limit matches LSF's behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
+
 #### Fixed
 
 * Fixed an issue where task requirements and hints sources from an inputs file
