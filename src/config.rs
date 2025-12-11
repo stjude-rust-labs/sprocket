@@ -135,7 +135,7 @@ pub struct RunConfig {
     /// Increasing the capacity will increase the size of the memory allocation
     /// made by the events channel.
     ///
-    /// The default is 5000.
+    /// The default is `5000`.
     pub events_capacity: Option<usize>,
 }
 
