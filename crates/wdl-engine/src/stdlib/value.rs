@@ -21,7 +21,7 @@ fn value(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_compound()
         .and_then(|c| c.as_enum_variant())
         .ok_or_else(|| {
-            function_call_failed(FUNCTION_NAME, "expected an enum value", context.call_site)
+            function_call_failed(FUNCTION_NAME, "expected an enum variant value", context.call_site)
         })?;
 
     Ok(variant.value().clone())

@@ -41,6 +41,8 @@ use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::get_imported_doc_context;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
 
@@ -96,6 +98,8 @@ pub fn goto_definition(
         return Ok(Some(location));
     }
 
+    dbg!("after context-based resolution");
+
     // Scope based resolution
     if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start())
         && let Some(name_def) = scope_ref.lookup(ident_text)
@@ -133,6 +137,8 @@ pub fn goto_definition(
             &lines,
         )?));
     }
+
+    dbg!("after scope-based resolution");
 
     // Global resolution
     resolve_global_identifier(analysis_doc, ident_text, &document_uri, &lines, graph)
@@ -451,6 +457,7 @@ fn resolve_global_identifier(
 ///
 /// # Supports:
 /// - Struct member access (`person.name`)
+/// - enum member access (`Person.name`)
 /// - Call output access (`call_result.output`)
 /// - Arrays (persons[0].name)
 /// - Chained Access Expressions (documents.persons[0].address.street)
@@ -466,9 +473,9 @@ fn resolve_access_expression(
     // `SyntaxKind::AccessExprNode` in the `resolve_by_context` before
     // calling this function.
     let access_expr = wdl_ast::v1::AccessExpr::cast(parent_node.clone()).unwrap();
-    let (target_expr, member_ident) = access_expr.operands();
+    let (target_expr, variant_ident) = access_expr.operands();
 
-    if member_ident.span() != token.span() {
+    if variant_ident.span() != token.span() {
         return Ok(None);
     }
 
@@ -480,7 +487,7 @@ fn resolve_access_expression(
     if let v1::Expr::NameRef(name_ref) = &target_expr {
         let name = name_ref.name().text().to_string();
         if let Some(ns) = analysis_doc.namespace(name.as_str()) {
-            let member_name = member_ident.text();
+            let member_name = variant_ident.text();
             if analysis_doc
                 .enums()
                 .iter()
@@ -505,7 +512,7 @@ fn resolve_access_expression(
         scope,
         document: analysis_doc,
     };
-    
+
     let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
     let target_type = evaluator.evaluate_expr(&target_expr)
             .unwrap_or(crate::types::Type::Union);
@@ -544,7 +551,7 @@ fn resolve_access_expression(
 
             if let Some(member) = struct_node
                 .members()
-                .find(|m| m.name().text() == member_ident.text())
+                .find(|m| m.name().text() == variant_ident.text())
             {
                 let member_span = member.name().span();
                 let span = Span::new(
@@ -590,7 +597,7 @@ fn resolve_access_expression(
 
         let Some(member) = struct_node
             .members()
-            .find(|m| m.name().text() == member_ident.text())
+            .find(|m| m.name().text() == variant_ident.text())
         else {
             return Ok(None);
         };
@@ -601,8 +608,103 @@ fn resolve_access_expression(
         return Ok(Some(location_from_span(uri, span, def_lines)?));
     }
 
+    if let Type::TypeNameRef(CustomType::Enum(enum_ty)) = target_type {
+        let original_enum_name = enum_ty.name().as_str();
+
+        // Check for enum definition in imported namespaces.
+        for (_, ns) in analysis_doc.namespaces() {
+            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which only
+            // contains namespaces for documents that guaranteed to be present in
+            // the graph.
+            let node = graph.get(graph.get_index(ns.source()).unwrap());
+
+            let Some(imported_doc) = node.document() else {
+                continue;
+            };
+
+            let Some(original_enum) = imported_doc.enum_by_name(original_enum_name) else {
+                continue;
+            };
+
+            // Only process original enums without namespaces.
+            if original_enum.namespace().is_some() {
+                continue;
+            };
+
+            // SAFETY: we know `lines` will return Some as we only reach here when
+            // `node.document` is fully parsed and in `ParsedState::Parse`
+            // state.
+            let imported_lines = node.parse_state().lines().unwrap();
+
+            let enum_node =
+                v1::EnumDefinition::cast(SyntaxNode::new_root(original_enum.node().clone()))
+                    .expect("should cast to enum definition");
+
+            if let Some(variant) = enum_node
+                .variants()
+                .find(|v| v.name().text() == variant_ident.text())
+            {
+                let variant_span = variant.name().span();
+                let span = Span::new(
+                    variant_span.start() + original_enum.offset(),
+                    variant_span.len(),
+                );
+                return Ok(Some(location_from_span(ns.source(), span, imported_lines)?));
+            }
+        }
+
+        // Check for enum definition in local document.
+        let enum_def = analysis_doc
+            .enums()
+            .get(enum_ty.name().as_str())
+            .ok_or_else(|| {
+                anyhow!(
+                    "definition not found for enum `{name}`",
+                    name = enum_ty.name()
+                )
+            })?;
+
+        let (uri, def_lines) = match enum_def.namespace() {
+            Some(ns_name) => {
+                // SAFETY: `namespace` returns `Some` only when enum was imported from a
+                // namespace that exists in the document.
+                let ns = analysis_doc.namespace(ns_name).unwrap();
+
+                // SAFETY: `ns.source` comes from a valid namespace entry which guarantees the
+                // document exists in the graph.
+                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+
+                // SAFETY: we successfully got the document above, it's in
+                // `ParseState::Parsed` which always has a valid lines field.
+                let lines = imported_node.parse_state().lines().unwrap();
+                (ns.source().as_ref(), lines)
+            }
+            None => (document_uri, lines),
+        };
+
+        let enum_node =
+            v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
+                .expect("should cast to enum definition");
+
+        let Some(variant) = enum_node
+            .variants()
+            .find(|v| v.name().text() == variant_ident.text())
+        else {
+            return Ok(None);
+        };
+
+        let variant_span = variant.name().span();
+        let span = Span::new(variant_span.start() + enum_def.offset(), variant_span.len());
+        // Returns found enum variant definition location.
+        return Ok(Some(location_from_span(uri, span, def_lines)?));
+    }
+
+    if let Type::TypeNameRef(CustomType::Struct(_)) = target_type {
+        todo!("handle struct member access via `TypeNameRef`")
+    }
+
     if let Some(call_ty) = target_type.as_call() {
-        let Some(output) = call_ty.outputs().get(member_ident.text()) else {
+        let Some(output) = call_ty.outputs().get(variant_ident.text()) else {
             // Call output not found for the requested member.
             return Ok(None);
         };
@@ -667,7 +769,7 @@ fn resolve_access_expression(
 
         let Some(variant) = enum_node
             .variants()
-            .find(|v| v.name().text() == member_ident.text())
+            .find(|v| v.name().text() == variant_ident.text())
         else {
             return Ok(None);
         };

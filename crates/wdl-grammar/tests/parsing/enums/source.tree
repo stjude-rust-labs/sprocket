@@ -1,4 +1,4 @@
-RootNode@0..840
+RootNode@0..872
   Comment@0..34 "## This is a test of  ..."
   Whitespace@34..36 "\n\n"
   VersionStatementNode@36..47
@@ -253,14 +253,14 @@ RootNode@0..840
     Whitespace@768..769 "\n"
     CloseBrace@769..770 "}"
   Whitespace@770..772 "\n\n"
-  WorkflowDefinitionNode@772..839
+  WorkflowDefinitionNode@772..871
     WorkflowKeyword@772..780 "workflow"
     Whitespace@780..781 " "
     Ident@781..785 "test"
     Whitespace@785..786 " "
     OpenBrace@786..787 "{"
     Whitespace@787..792 "\n    "
-    OutputSectionNode@792..837
+    OutputSectionNode@792..869
       OutputKeyword@792..798 "output"
       Whitespace@798..799 " "
       OpenBrace@799..800 "{"
@@ -277,8 +277,22 @@ RootNode@0..840
           DoubleQuote@825..826 "\""
           LiteralStringText@826..830 "done"
           DoubleQuote@830..831 "\""
-      Whitespace@831..836 "\n    "
-      CloseBrace@836..837 "}"
-    Whitespace@837..838 "\n"
-    CloseBrace@838..839 "}"
-  Whitespace@839..840 "\n"
+      Whitespace@831..840 "\n        "
+      BoundDeclNode@840..863
+        TypeRefNode@840..845
+          Ident@840..845 "Mixed"
+        Whitespace@845..846 " "
+        Ident@846..849 "foo"
+        Whitespace@849..850 " "
+        Assignment@850..851 "="
+        Whitespace@851..852 " "
+        AccessExprNode@852..863
+          NameRefExprNode@852..857
+            Ident@852..857 "Mixed"
+          Dot@857..858 "."
+          Ident@858..863 "First"
+      Whitespace@863..868 "\n    "
+      CloseBrace@868..869 "}"
+    Whitespace@869..870 "\n"
+    CloseBrace@870..871 "}"
+  Whitespace@871..872 "\n"

@@ -56,5 +56,6 @@ enum Complex[String] {
 workflow test {
     output {
         String result = "done"
+        Mixed foo = Mixed.First
     }
 }

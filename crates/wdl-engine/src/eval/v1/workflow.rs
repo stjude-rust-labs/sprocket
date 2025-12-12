@@ -1105,10 +1105,15 @@ impl WorkflowEvaluator {
             }
         };
 
+        let scopes = state.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(state, scopes.reference(Scopes::ROOT_INDEX));
+
         // Coerce the value to the expected type
         let mut value = value
-            .coerce(None, &expected_ty)
+            .coerce(Some(&context), &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if state

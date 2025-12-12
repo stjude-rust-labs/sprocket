@@ -267,6 +267,21 @@ fn resolve_hover_by_context(
             let target_type = evaluator.evaluate_expr(&expr).unwrap_or(crate::types::Type::Union);
 
             let (member_ty, documentation) = match target_type {
+                Type::TypeNameRef(CustomType::Enum(e)) => {
+                    if e.variants().contains_key(member.text()) {
+                        let content = format!(
+                            "```wdl\n{}.{}[{}]\n```",
+                            e.name(),
+                            member.text(),
+                            e.inner_value_type()
+                        );
+                        return Ok(Some(content));
+                    }
+                    (None, None)
+                }
+                Type::TypeNameRef(CustomType::Struct(_)) => {
+                    todo!("handle struct member access via `TypeNameRef`")
+                }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(ns_name) = s.namespace() {

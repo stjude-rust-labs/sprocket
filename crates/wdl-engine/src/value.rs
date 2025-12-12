@@ -713,35 +713,47 @@ impl Coercible for Value {
                 }
             }
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
-                // String -> Enum coercion for deserializing from JSON
+                // String -> Enum
+                // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
 
-                if let Some(context) = context {
-                    if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
-                        return Ok(value);
-                    }
-
-                    let variants = if enum_ty.variants().is_empty() {
-                        None
+                if enum_ty.variants().get(s.as_str()).is_some() {
+                    if let Some(context) = context {
+                        if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
+                            return Ok(Value::Compound(CompoundValue::EnumVariant(
+                                EnumVariant::new(enum_ty.clone(), s.as_str(), value),
+                            )));
+                        } else {
+                            bail!(
+                                "enum variant value lookup failed for variant `{s}` in enum `{}`",
+                                enum_ty.name()
+                            );
+                        }
                     } else {
-                        let mut variant_names =
-                            enum_ty.variants().keys().cloned().collect::<Vec<_>>();
-                        variant_names.sort();
-                        Some(format!(
-                            " (valid variants: `{}`)",
-                            variant_names.join("`, `")
-                        ))
+                        bail!(
+                            "context does not exist when creating enum variant value `{s}` in enum `{}`",
+                            enum_ty.name()
+                        );
                     }
-                    .unwrap_or_default();
-
-                    bail!(
-                        "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
-                         enum `{}`{variants}",
-                        enum_ty.name()
-                    )
                 }
 
-                unreachable!();
+                let variants = if enum_ty.variants().is_empty() {
+                    None
+                } else {
+                    let mut variant_names = enum_ty.variants().keys().cloned().collect::<Vec<_>>();
+                    variant_names.sort();
+                    Some(format!(
+                        " (valid variants: `{}`)",
+                        variant_names.join("`, `")
+                    ))
+                }
+                .unwrap_or_default();
+
+                bail!(
+                    "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
+                     enum `{}`{variants}",
+                    enum_ty.name()
+                );
             }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),

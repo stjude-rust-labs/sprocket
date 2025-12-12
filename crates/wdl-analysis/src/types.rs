@@ -509,6 +509,12 @@ impl Coercible for Type {
             // None is coercible to an optional type
             (Self::None, ty) if ty.is_optional() => true,
 
+            // String -> Enum
+            (
+                Self::Primitive(PrimitiveType::String, _),
+                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
+            ) => true,
+
             // Not coercible
             _ => false,
         }
@@ -1149,7 +1155,7 @@ impl EnumType {
                             &common_inner_type,
                             variant_spans[last_variant_idx],
                             &variant.1,
-                            variant_spans[last_variant_idx + 1]
+                            variant_spans[last_variant_idx + 1],
                         ));
                     }
                 }
@@ -1190,7 +1196,7 @@ impl fmt::Display for EnumType {
 }
 
 impl Coercible for EnumType {
-    fn is_coercible_to(&self, _: &Self) -> bool {
+    fn is_coercible_to(&self, other: &Self) -> bool {
         false
     }
 }
