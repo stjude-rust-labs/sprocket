@@ -1,0 +1,19 @@
+bar:
+  - name: repeated key
+    inputs:
+      $group:
+          one:
+            - foo
+            - bar
+          two:
+            - baz
+            - baq
+      one:
+        - repeated!
+  - name: scalar instead of sequence
+    inputs:
+      one: this is wrong
+      two:
+        - correct
+      three:
+       - also correct

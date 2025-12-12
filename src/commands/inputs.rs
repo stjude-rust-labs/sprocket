@@ -2,9 +2,9 @@
 
 use std::collections::HashSet;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
 use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
@@ -22,6 +22,8 @@ use wdl::ast::v1::TaskDefinition;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
@@ -440,22 +442,15 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args) -> Result<()> {
+pub async fn inputs(args: Args) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `inputs` command");
+        return Err(anyhow!("directory sources are not supported for the `inputs` command").into());
     }
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
         .run()
         .await
-    {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     let document = results
         .filter(&[&args.source])
@@ -491,14 +486,15 @@ pub async fn inputs(args: Args) -> Result<()> {
             }
             (None, Some(analysis_wf)) => {
                 if analysis_wf.name() != name {
-                    bail!(
+                    return Err(anyhow!(
                         "no task or workflow with name `{name}` was found in document `{path}`",
                         path = document.path()
-                    );
+                    )
+                    .into());
                 }
 
                 if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
-                    bail!("workflow `{name}` does not allow nested inputs");
+                    return Err(anyhow!("workflow `{name}` does not allow nested inputs").into());
                 }
 
                 let ast_wf = ast
@@ -510,16 +506,19 @@ pub async fn inputs(args: Args) -> Result<()> {
 
                 processor.workflow(namespace, document, analysis_wf, &ast_wf)?;
             }
-            (None, None) => bail!(
-                "no task or workflow with name `{name}` was found in document `{path}`",
-                path = document.path()
-            ),
+            (None, None) => {
+                return Err(anyhow!(
+                    "no task or workflow with name `{name}` was found in document `{path}`",
+                    path = document.path()
+                )
+                .into());
+            }
         }
     } else if let Some(analysis_wf) = document.workflow() {
         let name = analysis_wf.name().to_owned();
 
         if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
-            bail!("workflow `{name}` does not allow nested inputs");
+            return Err(anyhow!("workflow `{name}` does not allow nested inputs").into());
         }
 
         let namespace = Key::new(name.clone());
@@ -536,11 +535,12 @@ pub async fn inputs(args: Args) -> Result<()> {
         let mut tasks = document.tasks();
         let first = tasks.next();
         if tasks.next().is_some() {
-            bail!(
+            return Err(anyhow!(
                 "document `{path}` contains more than one task: use the `--name` option to refer \
                  to a specific task by name",
                 path = document.path()
             )
+            .into());
         } else if let Some(task) = first {
             let namespace = Key::new(task.name().to_string());
 
@@ -552,20 +552,21 @@ pub async fn inputs(args: Args) -> Result<()> {
 
             processor.task(namespace, &task, &Default::default());
         } else {
-            bail!(
+            return Err(anyhow!(
                 "document `{path}` contains no workflow or task",
                 path = document.path()
-            );
+            )
+            .into());
         }
     }
 
     let inputs = processor.into_inner();
 
     if args.yaml {
-        let yaml = serde_yaml_ng::to_string(&inputs)?;
+        let yaml = serde_yaml_ng::to_string(&inputs).context("failed to serialize inputs")?;
         println!("{yaml}");
     } else {
-        let json = serde_json::to_string_pretty(&inputs)?;
+        let json = serde_json::to_string_pretty(&inputs).context("failed to serialize inputs")?;
         println!("{json}");
     }
 

@@ -30,6 +30,7 @@ runs_dir = "runs"
 [run.task]
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache = "off"
 
 [run.backends.first]
 type = "tes"
@@ -48,9 +49,9 @@ insecure = false
 type = "bearer"
 token = "secret!"
 
-[run.storage.azure.auth.account]
-baz = "secret!"
-foo = "secret!"
+[run.storage.azure.auth]
+account_name = "foo"
+access_key = "secret!"
 
 [run.storage.s3.auth]
 access_key_id = "foo"

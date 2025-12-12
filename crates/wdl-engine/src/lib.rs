@@ -23,10 +23,11 @@ use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
 
 mod backend;
+mod cache;
 pub mod config;
 pub mod diagnostics;
+mod digest;
 mod eval;
-pub(crate) mod hash;
 pub(crate) mod http;
 mod inputs;
 mod outputs;

@@ -13,6 +13,8 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::FutureExt;
+use futures::StreamExt as _;
+use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use itertools::Either;
@@ -58,7 +60,7 @@ use crate::EvaluationContext;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Outputs;
-use crate::TaskExecutionConstraints;
+use crate::backend::TaskExecutionConstraints;
 use crate::http::Transferer;
 use crate::path;
 
@@ -87,33 +89,11 @@ pub enum Value {
     Primitive(PrimitiveValue),
     /// The value is a compound value.
     Compound(CompoundValue),
-    /// The value is a hints value.
+    /// The value is a hidden value.
     ///
-    /// Hints values only appear in a task hints section in WDL 1.2.
-    Hints(HintsValue),
-    /// The value is an input value.
-    ///
-    /// Input values only appear in a task hints section in WDL 1.2.
-    Input(InputValue),
-    /// The value is an output value.
-    ///
-    /// Output values only appear in a task hints section in WDL 1.2.
-    Output(OutputValue),
-    /// The value is a task variable before evaluation.
-    ///
-    /// This value occurs during requirements, hints, and runtime section
-    /// evaluation in WDL 1.3+ tasks.
-    TaskPreEvaluation(TaskPreEvaluationValue),
-    /// The value is a task variable after evaluation.
-    ///
-    /// This value occurs during command and output section evaluation in
-    /// WDL 1.2+ tasks.
-    TaskPostEvaluation(TaskPostEvaluationValue),
-    /// The value is a previous requirements value.
-    ///
-    /// This value contains the previous attempt's requirements and is available
-    /// in WDL 1.3+ via `task.previous`.
-    PreviousTaskData(PreviousTaskDataValue),
+    /// A hidden value is one that has a hidden (i.e. not expressible in WDL
+    /// source) type.
+    Hidden(HiddenValue),
     /// The value is the outputs of a call.
     Call(CallValue),
     /// The value is a reference to a user-defined type.
@@ -163,12 +143,7 @@ impl Value {
             Self::None(ty) => ty.clone(),
             Self::Primitive(v) => v.ty(),
             Self::Compound(v) => v.ty(),
-            Self::Hints(_) => Type::Hidden(HiddenType::Hints),
-            Self::Input(_) => Type::Hidden(HiddenType::Input),
-            Self::Output(_) => Type::Hidden(HiddenType::Output),
-            Self::TaskPreEvaluation(_) => Type::Hidden(HiddenType::TaskPreEvaluation),
-            Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
-            Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
+            Self::Hidden(v) => v.ty(),
             Self::Call(v) => Type::Call(v.ty.clone()),
             Self::TypeNameRef(ty) => ty.clone(),
         }
@@ -446,7 +421,7 @@ impl Value {
     /// Returns `None` if the value is not a pre-evaluation task.
     pub fn as_task_pre_evaluation(&self) -> Option<&TaskPreEvaluationValue> {
         match self {
-            Self::TaskPreEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPreEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -458,7 +433,7 @@ impl Value {
     /// Panics if the value is not a pre-evaluation task.
     pub fn unwrap_task_pre_evaluation(self) -> TaskPreEvaluationValue {
         match self {
-            Self::TaskPreEvaluation(v) => v,
+            Self::Hidden(HiddenValue::TaskPreEvaluation(v)) => v,
             _ => panic!("value is not a pre-evaluation task"),
         }
     }
@@ -468,7 +443,7 @@ impl Value {
     /// Returns `None` if the value is not a post-evaluation task.
     pub fn as_task_post_evaluation(&self) -> Option<&TaskPostEvaluationValue> {
         match self {
-            Self::TaskPostEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -478,7 +453,7 @@ impl Value {
     /// Returns `None` if the value is not a post-evaluation task.
     pub(crate) fn as_task_post_evaluation_mut(&mut self) -> Option<&mut TaskPostEvaluationValue> {
         match self {
-            Self::TaskPostEvaluation(v) => Some(v),
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => Some(v),
             _ => None,
         }
     }
@@ -490,7 +465,7 @@ impl Value {
     /// Panics if the value is not a post-evaluation task.
     pub fn unwrap_task_post_evaluation(self) -> TaskPostEvaluationValue {
         match self {
-            Self::TaskPostEvaluation(v) => v,
+            Self::Hidden(HiddenValue::TaskPostEvaluation(v)) => v,
             _ => panic!("value is not a post-evaluation task"),
         }
     }
@@ -500,7 +475,7 @@ impl Value {
     /// Returns `None` if the value is not a hints value.
     pub fn as_hints(&self) -> Option<&HintsValue> {
         match self {
-            Self::Hints(v) => Some(v),
+            Self::Hidden(HiddenValue::Hints(v)) => Some(v),
             _ => None,
         }
     }
@@ -512,7 +487,7 @@ impl Value {
     /// Panics if the value is not a hints value.
     pub fn unwrap_hints(self) -> HintsValue {
         match self {
-            Self::Hints(v) => v,
+            Self::Hidden(HiddenValue::Hints(v)) => v,
             _ => panic!("value is not a hints value"),
         }
     }
@@ -555,60 +530,60 @@ impl Value {
         }
     }
 
-    /// Ensures that paths referenced by any `File` or `Directory` values
-    /// referenced by this value exist.
+    /// Check that any paths referenced by a `File` or `Directory` value within
+    /// this value exist, and return a new value with any relevant host
+    /// paths transformed by the given `translate()` function.
     ///
-    /// If the `File` or `Directory` value is optional and the path does not
+    /// If a `File` or `Directory` value is optional and the path does not
     /// exist, it is replaced with a WDL `None` value.
     ///
-    /// If the `File` or `Directory` value is required and the path does not
+    /// If a `File` or `Directory` value is required and the path does not
     /// exist, an error is returned.
     ///
-    /// If a local base directory is provided, it will be joined with any local
-    /// paths prior to checking for existence.
+    /// If a local base directory is provided, it will be joined with any
+    /// relative local paths prior to checking for existence.
     ///
     /// The provided transferer is used for checking remote URL existence.
     ///
-    /// The provided path translation callback is called prior to checking for
-    /// existence.
-    pub(crate) async fn ensure_paths_exist<F>(
-        &mut self,
+    /// TODO ACF 2025-11-10: this function is an intermediate step on the way to
+    /// more thoroughly refactoring the code between `sprocket` and
+    /// `wdl_engine`. Expect this interface to change soon!
+    pub(crate) async fn resolve_paths<F>(
+        &self,
         optional: bool,
         base_dir: Option<&Path>,
         transferer: Option<&dyn Transferer>,
         translate: &F,
-    ) -> Result<()>
+    ) -> Result<Self>
     where
-        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+        F: Fn(&HostPath) -> Result<HostPath> + Send + Sync,
     {
         match self {
-            Self::Primitive(v @ PrimitiveValue::File(_))
-            | Self::Primitive(v @ PrimitiveValue::Directory(_)) => {
-                let (path, is_file) = match v {
-                    PrimitiveValue::File(path) => (path, true),
-                    PrimitiveValue::Directory(path) => (path, false),
-                    _ => unreachable!("not a `File` or `Directory` value"),
-                };
+            Self::Primitive(v @ PrimitiveValue::File(path))
+            | Self::Primitive(v @ PrimitiveValue::Directory(path)) => {
+                // We treat file and directory paths almost entirely the same, other than when
+                // reporting errors and choosing which variant to return in the result
+                let is_file = v.as_file().is_some();
+                let path = translate(path)?;
 
-                translate(path)?;
-
-                // If it's a file URL, check that the file exists
                 if path::is_file_url(path.as_str()) {
-                    let exists = path::parse_url(path.as_str())
+                    // File URLs must be absolute paths, so we just check whether it exists without
+                    // performing any joining
+                    let exists = path::parse_supported_url(path.as_str())
                         .and_then(|url| url.to_file_path().ok())
                         .map(|p| p.exists())
                         .unwrap_or(false);
                     if exists {
-                        return Ok(());
+                        let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                        return Ok(Self::Primitive(v));
                     }
 
                     if optional && !exists {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
                     }
 
                     bail!("path `{path}` does not exist");
-                } else if path::is_url(path.as_str()) {
+                } else if path::is_supported_url(path.as_str()) {
                     match transferer {
                         Some(transferer) => {
                             let exists = transferer
@@ -620,47 +595,51 @@ impl Value {
                                 )
                                 .await?;
                             if exists {
-                                return Ok(());
+                                let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                                return Ok(Self::Primitive(v));
                             }
 
                             if optional && !exists {
-                                *self = Value::new_none(self.ty().optional());
-                                return Ok(());
+                                return Ok(Value::new_none(self.ty().optional()));
                             }
 
                             bail!("URL `{path}` does not exist");
                         }
                         None => {
                             // Assume the URL exists
-                            return Ok(());
+                            let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                            return Ok(Self::Primitive(v));
                         }
                     }
                 }
 
                 // Check for existence
-                let path: Cow<'_, Path> = base_dir
+                let exists_path: Cow<'_, Path> = base_dir
                     .map(|d| d.join(path.as_str()).into())
                     .unwrap_or_else(|| Path::new(path.as_str()).into());
-                if is_file && !path.is_file() {
+                if is_file && !exists_path.is_file() {
                     if optional {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
+                    } else {
+                        bail!("file `{}` does not exist", exists_path.display());
                     }
-
-                    bail!("file `{path}` does not exist", path = path.display());
-                } else if !is_file && !path.is_dir() {
+                } else if !is_file && !exists_path.is_dir() {
                     if optional {
-                        *self = Value::new_none(self.ty().optional());
-                        return Ok(());
+                        return Ok(Value::new_none(self.ty().optional()));
+                    } else {
+                        bail!("directory `{}` does not exist", exists_path.display())
                     }
-
-                    bail!("directory `{path}` does not exist", path = path.display())
                 }
 
-                Ok(())
+                let v = PrimitiveValue::new_file_or_directory(is_file, path);
+                Ok(Self::Primitive(v))
             }
-            Self::Compound(v) => v.ensure_paths_exist(base_dir, transferer, translate).await,
-            _ => Ok(()),
+            Self::Compound(v) => Ok(Self::Compound(
+                v.resolve_paths(base_dir, transferer, translate)
+                    .boxed()
+                    .await?,
+            )),
+            v => Ok(v.clone()),
         }
     }
 
@@ -687,11 +666,7 @@ impl fmt::Display for Value {
             Self::None(_) => write!(f, "None"),
             Self::Primitive(v) => v.fmt(f),
             Self::Compound(v) => v.fmt(f),
-            Self::Hints(v) => v.fmt(f),
-            Self::Input(v) => v.fmt(f),
-            Self::Output(v) => v.fmt(f),
-            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
-            Self::PreviousTaskData(_) => write!(f, "task.previous"),
+            Self::Hidden(v) => v.fmt(f),
             Self::Call(c) => c.fmt(f),
             Self::TypeNameRef(ty) => ty.fmt(f),
         }
@@ -757,45 +732,7 @@ impl Coercible for Value {
             }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
-            Self::Hints(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Hints)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("hints values cannot be coerced to any other type");
-            }
-            Self::Input(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Input)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("input values cannot be coerced to any other type");
-            }
-            Self::Output(_) => {
-                if matches!(target, Type::Hidden(HiddenType::Output)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("output values cannot be coerced to any other type");
-            }
-            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
-                if matches!(
-                    target,
-                    Type::Hidden(HiddenType::TaskPreEvaluation)
-                        | Type::Hidden(HiddenType::TaskPostEvaluation)
-                ) {
-                    return Ok(self.clone());
-                }
-
-                bail!("task variables cannot be coerced to any other type");
-            }
-            Self::PreviousTaskData(_) => {
-                if matches!(target, Type::Hidden(HiddenType::PreviousTaskData)) {
-                    return Ok(self.clone());
-                }
-
-                bail!("previous task data values cannot be coerced to any other type");
-            }
+            Self::Hidden(v) => v.coerce(context, target).map(Self::Hidden),
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
             }
@@ -860,6 +797,12 @@ impl From<CompoundValue> for Value {
     }
 }
 
+impl From<HiddenValue> for Value {
+    fn from(value: HiddenValue) -> Self {
+        Self::Hidden(value)
+    }
+}
+
 impl From<Pair> for Value {
     fn from(value: Pair) -> Self {
         Self::Compound(value.into())
@@ -890,12 +833,6 @@ impl From<Struct> for Value {
     }
 }
 
-impl From<HintsValue> for Value {
-    fn from(value: HintsValue) -> Self {
-        Self::Hints(value)
-    }
-}
-
 impl From<CallValue> for Value {
     fn from(value: CallValue) -> Self {
         Self::Call(value)
@@ -908,20 +845,6 @@ impl<'de> serde::Deserialize<'de> for Value {
         D: serde::Deserializer<'de>,
     {
         use serde::Deserialize as _;
-
-        /// Helper for deserializing the elements of sequences and maps
-        struct Deserialize;
-
-        impl<'de> serde::de::DeserializeSeed<'de> for Deserialize {
-            type Value = Value;
-
-            fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                deserializer.deserialize_any(Visitor)
-            }
-        }
 
         /// Visitor for deserialization.
         struct Visitor;
@@ -1000,30 +923,34 @@ impl<'de> serde::Deserialize<'de> for Value {
             where
                 A: serde::de::SeqAccess<'de>,
             {
-                use serde::de::Error;
+                use serde::de::Error as _;
 
-                let mut elements = Vec::new();
-                while let Some(v) = seq.next_element_seed(Deserialize)? {
-                    elements.push(v);
+                let mut elements = vec![];
+                while let Some(element) = seq.next_element::<Value>()? {
+                    elements.push(element);
                 }
 
-                let element_ty = elements
-                    .iter()
-                    .try_fold(None, |mut ty, element| {
-                        let element_ty = element.ty();
-                        let ty = ty.get_or_insert(element_ty.clone());
-                        ty.common_type(&element_ty).map(Some).ok_or_else(|| {
-                            A::Error::custom(format!(
-                                "a common element type does not exist between `{ty}` and \
-                                 `{element_ty}`"
-                            ))
-                        })
+                // Try to find a mutually-agreeable common type for the elements of the array.
+                let mut candidate_ty = None;
+                for element in elements.iter() {
+                    let new_candidate_ty = element.ty();
+                    let old_candidate_ty =
+                        candidate_ty.get_or_insert_with(|| new_candidate_ty.clone());
+                    let Some(new_common_ty) = old_candidate_ty.common_type(&new_candidate_ty)
+                    else {
+                        return Err(A::Error::custom(format!(
+                            "a common element type does not exist between `{old_candidate_ty}` \
+                             and `{new_candidate_ty}`"
+                        )));
+                    };
+                    candidate_ty = Some(new_common_ty);
+                }
+                // An empty array's elements have the `Union` type.
+                let array_ty: Type = ArrayType::new(candidate_ty.unwrap_or(Type::Union)).into();
+                Ok(Array::new(None, array_ty.clone(), elements)
+                    .map_err(|e| {
+                        A::Error::custom(format!("cannot coerce value to `{array_ty}`: {e:#}"))
                     })?
-                    .unwrap_or(Type::Union);
-
-                let ty: Type = ArrayType::new(element_ty).into();
-                Ok(Array::new(None, ty.clone(), elements)
-                    .map_err(|e| A::Error::custom(format!("cannot coerce value to `{ty}`: {e:#}")))?
                     .into())
             }
 
@@ -1033,7 +960,7 @@ impl<'de> serde::Deserialize<'de> for Value {
             {
                 let mut members = IndexMap::new();
                 while let Some(key) = map.next_key::<String>()? {
-                    members.insert(key, map.next_value_seed(Deserialize)?);
+                    members.insert(key, map.next_value()?);
                 }
 
                 Ok(Value::Compound(CompoundValue::Object(Object::new(members))))
@@ -1074,13 +1001,27 @@ impl PrimitiveValue {
     }
 
     /// Creates a new `File` value.
-    pub fn new_file(path: impl Into<String>) -> Self {
-        Self::File(Arc::new(path.into()).into())
+    pub fn new_file(path: impl Into<HostPath>) -> Self {
+        Self::File(path.into())
     }
 
     /// Creates a new `Directory` value.
-    pub fn new_directory(path: impl Into<String>) -> Self {
-        Self::Directory(Arc::new(path.into()).into())
+    pub fn new_directory(path: impl Into<HostPath>) -> Self {
+        Self::Directory(path.into())
+    }
+
+    /// Create either a new `File` or `Directory` value, depending on whether
+    /// the `is_file` argument is `true`.
+    ///
+    /// This is a bit awkward, but can save a lot of repetition in code that
+    /// treats files and directories largely the same until having to
+    /// remember which enum variant the path needs to be stuffed back into.
+    fn new_file_or_directory(is_file: bool, path: impl Into<HostPath>) -> Self {
+        if is_file {
+            Self::File(path.into())
+        } else {
+            Self::Directory(path.into())
+        }
     }
 
     /// Gets the type of the value.
@@ -1786,7 +1727,7 @@ impl Map {
     }
 
     /// Iterates the elements of the map.
-    pub fn iter(&self) -> impl Iterator<Item = (&Option<PrimitiveValue>, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&Option<PrimitiveValue>, &Value)> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.iter()))
@@ -1794,7 +1735,7 @@ impl Map {
     }
 
     /// Iterates the keys of the map.
-    pub fn keys(&self) -> impl Iterator<Item = &Option<PrimitiveValue>> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &Option<PrimitiveValue>> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.keys()))
@@ -1802,7 +1743,7 @@ impl Map {
     }
 
     /// Iterates the values of the map.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.values()))
@@ -1904,7 +1845,7 @@ impl Object {
     }
 
     /// Iterates the members of the object.
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.iter().map(|(k, v)| (k.as_str(), v))))
@@ -1912,7 +1853,7 @@ impl Object {
     }
 
     /// Iterates the keys of the object.
-    pub fn keys(&self) -> impl Iterator<Item = &str> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.keys().map(|k| k.as_str())))
@@ -1920,7 +1861,7 @@ impl Object {
     }
 
     /// Iterates the values of the object.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.members
             .as_ref()
             .map(|m| Either::Left(m.values()))
@@ -2068,17 +2009,17 @@ impl Struct {
     }
 
     /// Iterates the members of the struct.
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
         self.members.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Iterates the keys of the struct.
-    pub fn keys(&self) -> impl Iterator<Item = &str> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
         self.members.keys().map(|k| k.as_str())
     }
 
     /// Iterates the values of the struct.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
         self.members.values()
     }
 
@@ -2470,20 +2411,16 @@ impl CompoundValue {
         Ok(())
     }
 
-    /// Mutably visits each `File` or `Directory` value contained in this value.
-    ///
-    /// If the provided callback returns `Ok(false)`, the `File` or `Directory`
-    /// value will be replaced with `None`.
-    ///
-    /// Note that paths may be specified as URLs.
-    fn ensure_paths_exist<'a, F>(
-        &'a mut self,
+    /// Like [`Value::resolve_paths()`], but for recurring into
+    /// [`CompoundValue`]s.
+    fn resolve_paths<'a, F>(
+        &'a self,
         base_dir: Option<&'a Path>,
         transferer: Option<&'a dyn Transferer>,
         translate: &'a F,
-    ) -> BoxFuture<'a, Result<()>>
+    ) -> BoxFuture<'a, Result<Self>>
     where
-        F: Fn(&mut HostPath) -> Result<()> + Send + Sync,
+        F: Fn(&HostPath) -> Result<HostPath> + Send + Sync,
     {
         async move {
             match self {
@@ -2491,108 +2428,102 @@ impl CompoundValue {
                     let ty = pair.ty.as_pair().expect("should be a pair type");
                     let (left_optional, right_optional) =
                         (ty.left_type().is_optional(), ty.right_type().is_optional());
-                    let values = Arc::make_mut(&mut pair.values);
-                    values
-                        .0
-                        .ensure_paths_exist(left_optional, base_dir, transferer, translate)
+                    let (fst, snd) = pair.values.as_ref();
+                    let fst = fst
+                        .resolve_paths(left_optional, base_dir, transferer, translate)
                         .await?;
-                    values
-                        .1
-                        .ensure_paths_exist(right_optional, base_dir, transferer, translate)
+                    let snd = snd
+                        .resolve_paths(right_optional, base_dir, transferer, translate)
                         .await?;
+                    Ok(Self::Pair(Pair::new_unchecked(ty.clone().into(), fst, snd)))
                 }
                 Self::Array(array) => {
                     let ty = array.ty.as_array().expect("should be an array type");
                     let optional = ty.element_type().is_optional();
-                    if let Some(elements) = &mut array.elements {
-                        for v in Arc::make_mut(elements) {
-                            v.ensure_paths_exist(optional, base_dir, transferer, translate)
-                                .await?;
-                        }
+                    if let Some(elements) = &array.elements {
+                        let resolved_elements = futures::stream::iter(elements.iter())
+                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Array(Array::new_unchecked(
+                            ty.clone().into(),
+                            resolved_elements,
+                        )))
+                    } else {
+                        Ok(self.clone())
                     }
                 }
                 Self::Map(map) => {
-                    let ty = map.ty.as_map().expect("should be a map type");
+                    let ty = map.ty.as_map().expect("should be a map type").clone();
                     let (key_optional, value_optional) =
                         (ty.key_type().is_optional(), ty.value_type().is_optional());
-                    if let Some(elements) = &mut map.elements {
-                        if elements
-                            .iter()
-                            .find_map(|(k, _)| {
-                                k.as_ref().map(|v| {
-                                    matches!(
-                                        v,
-                                        PrimitiveValue::File(_) | PrimitiveValue::Directory(_)
-                                    )
-                                })
-                            })
-                            .unwrap_or(false)
-                        {
-                            // The key type contains a path, we need to rebuild the map to alter the
-                            // keys
-                            let elements = Arc::make_mut(elements);
-                            let mut new = Vec::with_capacity(elements.len());
-                            for (mut k, mut v) in elements.drain(..) {
-                                if let Some(v) = k {
-                                    let mut v: Value = v.into();
-                                    v.ensure_paths_exist(
-                                        key_optional,
-                                        base_dir,
-                                        transferer,
-                                        translate,
-                                    )
+                    if let Some(elements) = &map.elements {
+                        let resolved_elements = futures::stream::iter(elements.iter())
+                            .then(async |(k, v)| {
+                                let resolved_key = if let Some(k) = k {
+                                    Value::from(k.clone())
+                                        .resolve_paths(
+                                            key_optional,
+                                            base_dir,
+                                            transferer,
+                                            translate,
+                                        )
+                                        .await?
+                                        .as_primitive()
+                                        .cloned()
+                                } else {
+                                    None
+                                };
+                                let resolved_value = v
+                                    .resolve_paths(value_optional, base_dir, transferer, translate)
                                     .await?;
-                                    k = match v {
-                                        Value::None(_) => None,
-                                        Value::Primitive(v) => Some(v),
-                                        _ => unreachable!("unexpected value"),
-                                    };
-                                }
-
-                                v.ensure_paths_exist(
-                                    value_optional,
-                                    base_dir,
-                                    transferer,
-                                    translate,
-                                )
-                                .await?;
-                                new.push((k, v));
-                            }
-
-                            elements.extend(new);
-                        } else {
-                            // Otherwise, we can just mutate the values in place
-                            for v in Arc::make_mut(elements).values_mut() {
-                                v.ensure_paths_exist(
-                                    value_optional,
-                                    base_dir,
-                                    transferer,
-                                    translate,
-                                )
-                                .await?;
-                            }
-                        }
+                                Ok::<_, anyhow::Error>((resolved_key, resolved_value))
+                            })
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Map(Map::new_unchecked(ty.into(), resolved_elements)))
+                    } else {
+                        Ok(Self::Map(Map::new_unchecked(ty.into(), IndexMap::new())))
                     }
                 }
                 Self::Object(object) => {
-                    if let Some(members) = &mut object.members {
-                        for v in Arc::make_mut(members).values_mut() {
-                            v.ensure_paths_exist(false, base_dir, transferer, translate)
-                                .await?;
-                        }
+                    if let Some(members) = &object.members {
+                        let resolved_members = futures::stream::iter(members.iter())
+                            .then(async |(n, v)| {
+                                let resolved = v
+                                    .resolve_paths(false, base_dir, transferer, translate)
+                                    .await?;
+                                Ok::<_, anyhow::Error>((n.to_string(), resolved))
+                            })
+                            .try_collect()
+                            .await?;
+                        Ok(Self::Object(Object::new(resolved_members)))
+                    } else {
+                        Ok(self.clone())
                     }
                 }
                 Self::Struct(s) => {
                     let ty = s.ty.as_struct().expect("should be a struct type");
-                    for (n, v) in Arc::make_mut(&mut s.members).iter_mut() {
-                        v.ensure_paths_exist(
-                            ty.members()[n].is_optional(),
-                            base_dir,
-                            transferer,
-                            translate,
-                        )
+                    let name = s.name();
+                    let resolved_members = futures::stream::iter(s.iter())
+                        .then(async |(n, v)| {
+                            let resolved = v
+                                .resolve_paths(
+                                    ty.members()[n].is_optional(),
+                                    base_dir,
+                                    transferer,
+                                    translate,
+                                )
+                                .await?;
+                            Ok::<_, anyhow::Error>((n.to_string(), resolved))
+                        })
+                        .try_collect()
                         .await?;
-                    }
+                    Ok(Self::Struct(Struct::new_unchecked(
+                        ty.clone().into(),
+                        name.clone(),
+                        Arc::new(resolved_members),
+                    )))
                 }
                 Self::EnumVariant(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
@@ -2601,8 +2532,6 @@ impl CompoundValue {
                         .await?;
                 }
             }
-
-            Ok(())
         }
         .boxed()
     }
@@ -2899,6 +2828,112 @@ impl From<Struct> for CompoundValue {
     }
 }
 
+/// Represents a hidden value.
+///
+/// Hidden values are cheap to clone.
+#[derive(Debug, Clone)]
+pub enum HiddenValue {
+    /// The value is a hints value.
+    ///
+    /// Hints values only appear in a task hints section in WDL 1.2.
+    Hints(HintsValue),
+    /// The value is an input value.
+    ///
+    /// Input values only appear in a task hints section in WDL 1.2.
+    Input(InputValue),
+    /// The value is an output value.
+    ///
+    /// Output values only appear in a task hints section in WDL 1.2.
+    Output(OutputValue),
+    /// The value is a task variable before evaluation.
+    ///
+    /// This value occurs during requirements, hints, and runtime section
+    /// evaluation in WDL 1.3+ tasks.
+    TaskPreEvaluation(TaskPreEvaluationValue),
+    /// The value is a task variable after evaluation.
+    ///
+    /// This value occurs during command and output section evaluation in
+    /// WDL 1.2+ tasks.
+    TaskPostEvaluation(TaskPostEvaluationValue),
+    /// The value is a previous requirements value.
+    ///
+    /// This value contains the previous attempt's requirements and is available
+    /// in WDL 1.3+ via `task.previous`.
+    PreviousTaskData(PreviousTaskDataValue),
+}
+
+impl HiddenValue {
+    /// Gets the type of the value.
+    pub fn ty(&self) -> Type {
+        match self {
+            Self::Hints(_) => Type::Hidden(HiddenType::Hints),
+            Self::Input(_) => Type::Hidden(HiddenType::Input),
+            Self::Output(_) => Type::Hidden(HiddenType::Output),
+            Self::TaskPreEvaluation(_) => Type::Hidden(HiddenType::TaskPreEvaluation),
+            Self::TaskPostEvaluation(_) => Type::Hidden(HiddenType::TaskPostEvaluation),
+            Self::PreviousTaskData(_) => Type::Hidden(HiddenType::PreviousTaskData),
+        }
+    }
+}
+
+impl fmt::Display for HiddenValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Hints(v) => v.fmt(f),
+            Self::Input(v) => v.fmt(f),
+            Self::Output(v) => v.fmt(f),
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => write!(f, "task"),
+            Self::PreviousTaskData(_) => write!(f, "task.previous"),
+        }
+    }
+}
+
+impl Coercible for HiddenValue {
+    fn coerce(&self, _: Option<&dyn EvaluationContext>, target: &Type) -> Result<Self> {
+        match self {
+            Self::Hints(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Hints)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("hints values cannot be coerced to any other type");
+            }
+            Self::Input(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Input)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("input values cannot be coerced to any other type");
+            }
+            Self::Output(_) => {
+                if matches!(target, Type::Hidden(HiddenType::Output)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("output values cannot be coerced to any other type");
+            }
+            Self::TaskPreEvaluation(_) | Self::TaskPostEvaluation(_) => {
+                if matches!(
+                    target,
+                    Type::Hidden(HiddenType::TaskPreEvaluation)
+                        | Type::Hidden(HiddenType::TaskPostEvaluation)
+                ) {
+                    return Ok(self.clone());
+                }
+
+                bail!("task variables cannot be coerced to any other type");
+            }
+            Self::PreviousTaskData(_) => {
+                if matches!(target, Type::Hidden(HiddenType::PreviousTaskData)) {
+                    return Ok(self.clone());
+                }
+
+                bail!("previous task data values cannot be coerced to any other type");
+            }
+        }
+    }
+}
+
 /// Immutable data for task values after requirements evaluation (WDL 1.2+).
 ///
 /// Contains all evaluated requirement fields.
@@ -2955,7 +2990,7 @@ impl PreviousTaskDataValue {
     /// data (first attempt).
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_MEMORY => Some(
+            TASK_FIELD_MEMORY => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.memory))
@@ -2963,7 +2998,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Integer).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(
+            TASK_FIELD_CPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.cpu))
@@ -2971,7 +3006,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::Float).optional())
                     }),
             ),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_CONTAINER => Some(
                 self.0
                     .as_ref()
                     .and_then(|data| {
@@ -2983,7 +3018,7 @@ impl PreviousTaskDataValue {
                         Value::new_none(Type::from(PrimitiveType::String).optional())
                     }),
             ),
-            n if n == TASK_FIELD_GPU => Some(
+            TASK_FIELD_GPU => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.gpu.clone()))
@@ -2994,7 +3029,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_FPGA => Some(
+            TASK_FIELD_FPGA => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.fpga.clone()))
@@ -3005,7 +3040,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_DISKS => Some(
+            TASK_FIELD_DISKS => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.disks.clone()))
@@ -3019,7 +3054,7 @@ impl PreviousTaskDataValue {
                         ))
                     }),
             ),
-            n if n == TASK_FIELD_MAX_RETRIES => Some(
+            TASK_FIELD_MAX_RETRIES => Some(
                 self.0
                     .as_ref()
                     .map(|data| Value::from(data.max_retries))
@@ -3110,13 +3145,15 @@ impl TaskPreEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if n == TASK_FIELD_PREVIOUS => Some(Value::PreviousTaskData(self.previous.clone())),
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_PREVIOUS => {
+                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
+            }
             _ => None,
         }
     }
@@ -3332,10 +3369,10 @@ impl TaskPostEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
-            n if n == TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            n if n == TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            n if n == TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            n if n == TASK_FIELD_CONTAINER => Some(
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_CONTAINER => Some(
                 self.data
                     .container
                     .clone()
@@ -3347,35 +3384,31 @@ impl TaskPostEvaluationValue {
                         )
                     }),
             ),
-            n if n == TASK_FIELD_CPU => Some(self.data.cpu.into()),
-            n if n == TASK_FIELD_MEMORY => Some(self.data.memory.into()),
-            n if n == TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
-            n if n == TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
-            n if n == TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
-            n if n == TASK_FIELD_END_TIME => {
-                Some(self.end_time.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_RETURN_CODE => {
-                Some(self.return_code.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
-            n if n == TASK_FIELD_META => Some(self.meta.clone().into()),
-            n if n == TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            n if n == TASK_FIELD_EXT => Some(self.ext.clone().into()),
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+            TASK_FIELD_CPU => Some(self.data.cpu.into()),
+            TASK_FIELD_MEMORY => Some(self.data.memory.into()),
+            TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
+            TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
+            TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
+            TASK_FIELD_END_TIME => Some(self.end_time.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_RETURN_CODE => Some(self.return_code.map(Into::into).unwrap_or_else(|| {
+                Value::new_none(
+                    task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
+                        .expect("failed to get task field type"),
+                )
+            })),
+            TASK_FIELD_META => Some(self.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
                 Some(self.data.max_retries.into())
             }
-            n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
-                Some(Value::PreviousTaskData(self.previous.clone()))
+            TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
+                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
             }
             _ => None,
         }
@@ -3568,6 +3601,7 @@ impl serde::Serialize for ValueSerializer<'_> {
             | Value::TaskPostEvaluation(_)
             | Value::PreviousTaskData(_)
             | Value::Call(_)
+            | Value::Hidden(_)
             | Value::TypeNameRef(_) => Err(S::Error::custom("value cannot be serialized")),
         }
     }

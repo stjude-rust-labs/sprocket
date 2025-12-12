@@ -53,6 +53,7 @@ use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
+use wdl_ast::v1::TASK_HINT_CACHEABLE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_FPGA;
 use wdl_ast::v1::TASK_HINT_GPU;
@@ -142,12 +143,10 @@ use crate::types::CustomType;
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
         _ => None,
     }
 }
@@ -160,26 +159,20 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT => {
-            Some(PrimitiveType::Integer.into())
-        }
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone())
-        }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone()),
-        n if n == TASK_FIELD_END_TIME || n == TASK_FIELD_RETURN_CODE => {
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone()),
+        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone()),
+        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
             Some(Type::from(PrimitiveType::Integer).optional())
         }
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
         }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+        TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
         _ => None,
@@ -191,14 +184,12 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
 /// Returns [`None`] if the given member name is unknown.
 pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
-        n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone().optional())
-        }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
-        n if n == TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().optional()),
+        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
+        TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }
 }
@@ -248,24 +239,20 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     });
 
     match name {
-        n if n == TASK_REQUIREMENT_CONTAINER || n == TASK_REQUIREMENT_CONTAINER_ALIAS => {
-            Some(&CONTAINER_TYPES)
-        }
-        n if n == TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
-        n if n == TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
-        n if n == TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_FPGA => {
-            Some(FPGA_TYPES)
-        }
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_MAX_RETRIES => {
+        TASK_REQUIREMENT_CONTAINER | TASK_REQUIREMENT_CONTAINER_ALIAS => Some(&CONTAINER_TYPES),
+        TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
+        TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
+        TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
+        TASK_REQUIREMENT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_REQUIREMENT_MAX_RETRIES if version >= SupportedVersion::V1(V1::Two) => {
             Some(MAX_RETRIES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
-        n if n == TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_RETURN_CODES => {
+        TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
+        TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
         _ => None,
     }
 }
@@ -317,41 +304,32 @@ pub fn task_hint_types(
     const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Output)];
     /// The types for the `short_task` hint.
     const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
+    /// The types for the `cacheable` hint
+    const CACHEABLE_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
 
     match name {
-        n if n == TASK_HINT_DISKS => Some(&DISKS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_FPGA => Some(FPGA_TYPES),
-        n if n == TASK_HINT_GPU => Some(GPU_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_INPUTS =>
-        {
+        TASK_HINT_DISKS => Some(&DISKS_TYPES),
+        TASK_HINT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_HINT_GPU => Some(GPU_TYPES),
+        TASK_HINT_INPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(INPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_INPUTS => Some(INPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_LOCALIZATION_OPTIONAL => {
+        TASK_HINT_INPUTS => Some(INPUTS_TYPES),
+        TASK_HINT_LOCALIZATION_OPTIONAL if version >= SupportedVersion::V1(V1::Two) => {
             Some(LOCALIZATION_OPTIONAL_TYPES)
         }
-        n if n == TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_CPU => {
-            Some(MAX_CPU_TYPES)
-        }
-        n if n == TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_MEMORY => {
-            Some(MAX_MEMORY_TYPES)
-        }
-        n if n == TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_OUTPUTS =>
-        {
+        TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
+        TASK_HINT_MAX_CPU if version >= SupportedVersion::V1(V1::Two) => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_MEMORY if version >= SupportedVersion::V1(V1::Two) => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_OUTPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(OUTPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_SHORT_TASK => {
-            Some(SHORT_TASK_TYPES)
-        }
-        n if n == TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
+        TASK_HINT_SHORT_TASK if version >= SupportedVersion::V1(V1::Two) => Some(SHORT_TASK_TYPES),
+        TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_CACHEABLE => Some(CACHEABLE_TYPES),
         _ => None,
     }
 }

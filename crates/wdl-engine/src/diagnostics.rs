@@ -64,15 +64,6 @@ pub fn exponent_not_in_range(span: Span) -> Diagnostic {
     .with_label("this value exceeds the range for an exponent", span)
 }
 
-/// Creates a "cannot call" diagnostic.
-pub fn cannot_call<T: TreeToken>(target: &Ident<T>) -> Diagnostic {
-    Diagnostic::error(format!(
-        "function `{target}` can only be called from task outputs",
-        target = target.text()
-    ))
-    .with_highlight(target.span())
-}
-
 /// Creates a "runtime type mismatch" diagnostic.
 pub fn runtime_type_mismatch(
     e: anyhow::Error,

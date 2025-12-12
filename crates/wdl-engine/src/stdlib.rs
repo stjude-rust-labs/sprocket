@@ -86,7 +86,7 @@ mod zip;
 /// Ensures that the given path is a local path.
 fn ensure_local_path<'a>(base_dir: &EvaluationPath, path: &'a str) -> Result<Cow<'a, Path>> {
     // If the path is a URL that isn't `file` schemed, bail out
-    if !path::is_file_url(path) && path::is_url(path) {
+    if !path::is_file_url(path) && path::is_supported_url(path) {
         bail!("operation not supported for URL `{path}`");
     }
 
@@ -110,7 +110,7 @@ pub(crate) async fn download_file(
     path: &HostPath,
 ) -> Result<Location> {
     // If the path is a URL, download it
-    if let Some(url) = path::parse_url(path.as_str()) {
+    if let Some(url) = path::parse_supported_url(path.as_str()) {
         return transferer
             .download(&url)
             .await

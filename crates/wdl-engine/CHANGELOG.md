@@ -9,10 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added runtime support for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
-* Added `value()` standard library function to extract underlying values from enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
-* Added a new `fail` configuration option for controlling the default failure mode
-  of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Added runtime support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from
+  enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
+#### Changed
+
+* Added shared validation for task runtime and hint numeric settings (memory,
+  max_memory, max_retries, preemptible), rejecting invalid or negative values
+  earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+
+#### Fixed
+
+* Fixed authentication issue for cloud storage URLs by moving implementations
+  into the `cloud-copy` crate ([#490](https://github.com/stjude-rust-labs/sprocket/pull/490)).
+* Cache file digests that are calculated during local directory digest
+  calculation. Note: this change will bust existing local cache entries ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
+
+## 0.10.0 - 11-21-2025
+
+#### Added
+
+* Added call caching configuration to `TaskConfig` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Implemented support for [call caching](https://github.com/stjude-rust-labs/rfcs/pull/2)
+  in `TaskEvaluator` ([#461](https://github.com/stjude-rust-labs/sprocket/pull/461)).
+* Added a new `fail` configuration option for controlling the default failure mode of the engine ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added the `split` standard library function in preparation for WDL v1.3 ([#424](https://github.com/stjude-rust-labs/sprocket/pull/424)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added shell expansion to the `apptainer_images_dir` config option, though this is an interim workaround for HPC path awkwardness pending the removal of this option entirely in the future ([#435](https://github.com/stjude-rust-labs/sprocket/pull/435)).
@@ -22,14 +44,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-* Changed how cancellation is supported by the engine; the engine can now wait
-  for executing tasks to complete before canceling them (slow failure mode) or
-  immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
+* Azure Storage authentication configuration has been changed to use shared key authentication rather than explicit SAS token authentication; SAS token authentication can still be used by directly adding the query parameters to any input URLs ([#454](https://github.com/stjude-rust-labs/sprocket/pull/454)).
+* Changed how cancellation is supported by the engine; the engine can now wait for executing tasks to complete before canceling them (slow failure mode) or immediately cancel the executing tasks (fast failure mode) ([#444](https://github.com/stjude-rust-labs/sprocket/pull/444)).
 * Added optional CPU and memory limits to the queue definitions in the LSF + Apptainer backend configuration. This is a breaking change for previous LSF configurations, as the queues are now a struct with a required `name` string field, rather than just a bare string ([#429](https://github.com/stjude-rust-labs/sprocket/pull/429)).
+* Changed a number of types in the public interface in preparation for a larger refactoring ([#460](https://github.com/stjude-rust-labs/sprocket/pull/460)).
+* Introduced a unified `TopLevelEvaluator` type as a common context for task and workflow evaluations ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
+* Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
 
 #### Fixed
 
 * Improved the portability of generated Apptainer scripts ([#442](https://github.com/stjude-rust-labs/sprocket/pull/442)).
+* Fixed the handling of unusual filenames in generated Apptainer scripts ([#459](https://github.com/stjude-rust-labs/sprocket/pull/459)).
+
+#### Removed
+
+* Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
+
 
 ## 0.9.0 - 10-14-2025
 
@@ -85,7 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added an experimental config flag to support golden testing that reduces environment-specific output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).
+* Added an experimental config flag to support golden testing that reduces
+  environment-specific output ([#553](https://github.com/stjude-rust-labs/wdl/pull/553)).
 
 #### Fixed
 
@@ -95,12 +126,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added `cpu_limit_behavior` and `memory_limit_behavior` options to task execution configuration ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
+* Added `cpu_limit_behavior` and `memory_limit_behavior` options to task
+  execution configuration ([#543](https://github.com/stjude-rust-labs/wdl/pull/543))
 * Serialize `Pair` as `Object` for execution-level `inputs.json` and `outputs.json` ([#538](https://github.com/stjude-rust-labs/wdl/pull/538)).
 
 #### Changed
 
-* `wdl-engine::Inputs` supplied via dotted path notation (i.e. user inputs from input files and command line arguments) can be implicitly converted to WDL strings if that is what the task or workflow input expects ([#544](https://github.com/stjude-rust-labs/wdl/pull/544)).
+* `wdl-engine::Inputs` supplied via dotted path notation (i.e. user inputs from
+  input files and command line arguments) can be implicitly converted to WDL
+  strings if that is what the task or workflow input expects ([#544](https://github.com/stjude-rust-labs/wdl/pull/544)).
 
 #### Fixed
 
@@ -137,7 +171,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 * JSON and YAML files are now correctly parsed ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
-* The `From<IndexMap<String, Value>>` method was moved to the private constructor `wdl_engine::Object::new()`, as there are some guarantees the caller has to uphold that weren't obvious in the `From` implementation ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
+* The `From<IndexMap<String, Value>>` method was moved to the private
+  constructor `wdl_engine::Object::new()`, as there are some guarantees the
+  caller has to uphold that weren't obvious in the `From` implementation ([#440](https://github.com/stjude-rust-labs/wdl/pull/440)).
 
 #### Dependencies
 
@@ -163,16 +199,20 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Fix path translation in more expressions ([#422](https://github.com/stjude-rust-labs/wdl/pull/422)).
 * The `sep` placeholder option was not performing guest path translation ([#417](https://github.com/stjude-rust-labs/wdl/pull/417)).
 * Placeholder options are now type checked at runtime ([#345](https://github.com/stjude-rust-labs/wdl/pull/345)).
-* Whether or not a task manager state represents unlimited resources is now correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
-* Fixed environment variable values are not using guest paths for Docker backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
-* Ensure output files created by Docker tasks running as root have correct host user permissions ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
+* Whether or not a task manager state represents unlimited resources is now
+  correctly calculated ([#397](https://github.com/stjude-rust-labs/wdl/pull/397)).
+* Fixed environment variable values are not using guest paths for Docker
+  backend ([#398](https://github.com/stjude-rust-labs/wdl/pull/398)).
+* Ensure output files created by Docker tasks running as root have correct host
+  user permissions ([#379](https://github.com/stjude-rust-labs/wdl/pull/379)).
 * Fixes `chown` functionality by making the path absolute ([#428](https://github.com/stjude-rust-labs/wdl/pull/379)).
 
 #### Changed
 
 * Refactored `crankshaft` backend to the `docker` backend ([#436](https://github.com/stjude-rust-labs/wdl/pull/436)).
 * Evaluation errors now contain a "backtrace" containing call locations ([#432](https://github.com/stjude-rust-labs/wdl/pull/432)).
-* Changed origin path resolution in inputs to accommodate incremental command line parsing ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
+* Changed origin path resolution in inputs to accommodate incremental command
+  line parsing ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
 
 ## 0.2.0 - 04-01-2025
 

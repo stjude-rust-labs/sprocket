@@ -6,7 +6,6 @@ use std::io::IsTerminal;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
 use clap::Parser;
 use clap::Subcommand;
 use tracing::info;
@@ -20,9 +19,10 @@ use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
-use crate::IGNORE_FILENAME;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 
@@ -135,7 +135,7 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub async fn format(args: Args) -> Result<()> {
+pub async fn format(args: Args) -> CommandResult<()> {
     let indent = Indent::try_new(args.with_tabs, args.indentation_size)
         .context("failed to create indentation configuration")?;
 
@@ -159,19 +159,11 @@ pub async fn format(args: Args) -> Result<()> {
                 sources.push(Source::default());
             }
 
-            let results = match Analysis::default()
+            let results = Analysis::default()
                 .extend_sources(sources.clone())
-                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
                 .run()
                 .await
-            {
-                Ok(results) => results,
-                Err(errors) => {
-                    // SAFETY: this is a non-empty, so it must always have a first
-                    // element.
-                    bail!(errors.into_iter().next().unwrap())
-                }
-            };
+                .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
             let results = results.filter(sources.as_slice()).collect::<Vec<_>>();
             for result in results {
@@ -221,28 +213,27 @@ pub async fn format(args: Args) -> Result<()> {
             match &source {
                 Source::File(_) | Source::Remote(_) => {}
                 Source::Directory(p) => {
-                    bail!(
+                    return Err(anyhow!(
                         "the `format view` command does not support formatting directory `{path}`",
                         path = p.display()
-                    );
+                    )
+                    .into());
                 }
             };
 
-            let results = match Analysis::default().add_source(source.clone()).run().await {
-                Ok(results) => results,
-                Err(errors) => {
-                    // SAFETY: this is a non-empty, so it must always have a first
-                    // element.
-                    bail!(errors.into_iter().next().unwrap())
-                }
-            };
+            let results = Analysis::default()
+                .add_source(source.clone())
+                .run()
+                .await
+                .map_err(CommandError::from)?;
             let result = results.filter(&[&source]).next().unwrap();
 
             if let Some(err) = result.error() {
-                bail!(
+                return Err(anyhow!(
                     "error analyzing `{path}`: {err:#}",
                     path = result.document().path()
-                );
+                )
+                .into());
             }
 
             let (_source, formatted) = format_document(
@@ -265,19 +256,11 @@ pub async fn format(args: Args) -> Result<()> {
                 sources.push(Source::default());
             }
 
-            let results = match Analysis::default()
+            let results = Analysis::default()
                 .extend_sources(sources.clone())
-                .ignore_filename(Some(IGNORE_FILENAME.to_string()))
                 .run()
                 .await
-            {
-                Ok(results) => results,
-                Err(errors) => {
-                    // SAFETY: this is a non-empty, so it must always have a first
-                    // element.
-                    bail!(errors.into_iter().next().unwrap())
-                }
-            };
+                .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
             let results = results.filter(sources.as_slice()).collect::<Vec<_>>();
             for result in results {
@@ -318,10 +301,11 @@ pub async fn format(args: Args) -> Result<()> {
     }
 
     if errors > 0 {
-        bail!(
+        return Err(anyhow!(
             "failing due to previous {errors} error{s}",
             s = if errors == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     }
 
     Ok(())

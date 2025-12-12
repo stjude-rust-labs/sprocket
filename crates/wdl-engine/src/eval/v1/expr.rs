@@ -95,6 +95,7 @@ use crate::Coercible;
 use crate::CompoundValue;
 use crate::EnumVariant;
 use crate::EvaluationContext;
+use crate::HiddenValue;
 use crate::Map;
 use crate::Object;
 use crate::Pair;
@@ -1479,17 +1480,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_an_object_member(&name)),
             },
-            Value::TaskPreEvaluation(task) => match task.field(name.text()) {
+            Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
             },
-            Value::TaskPostEvaluation(task) => {
+            Value::Hidden(HiddenValue::TaskPostEvaluation(task)) => {
                 match task.field(self.context.version(), name.text()) {
                     Some(value) => Ok(value.clone()),
                     None => Err(not_a_task_member(&name)),
                 }
             }
-            Value::PreviousTaskData(prev) => match prev.field(name.text()) {
+            Value::Hidden(HiddenValue::PreviousTaskData(prev)) => match prev.field(name.text()) {
                 Some(value) => Ok(value),
                 None => Err(not_a_previous_task_data_member(&name)),
             },
@@ -1513,7 +1514,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use std::borrow::Cow;
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
@@ -1624,15 +1624,18 @@ pub(crate) mod test {
             std::future::ready(Ok(Some(1234))).boxed()
         }
 
-        fn apply_auth<'a>(&self, url: &'a Url) -> anyhow::Result<Cow<'a, Url>> {
-            Ok(Cow::Borrowed(url))
-        }
-
         fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
         }
 
         fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+            unimplemented!()
+        }
+
+        fn digest<'a>(
+            &'a self,
+            _: &'a Url,
+        ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
             unimplemented!()
         }
     }
@@ -2182,6 +2185,9 @@ pub(crate) mod test {
         env.insert_struct("Foo", foo_ty);
         env.insert_struct("Bar", bar_ty);
 
+        let mut base_dir = env.base_dir().to_string();
+        base_dir.push(std::path::MAIN_SEPARATOR);
+
         let value = eval_v1_expr(
             &env,
             V1::Two,
@@ -2190,7 +2196,7 @@ pub(crate) mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_struct().to_string(),
+            value.unwrap_struct().to_string().replace(&base_dir, ""),
             r#"Foo {foo: 1.000000, bar: Bar {foo: "baz", bar: 2}}"#
         );
 
@@ -2239,6 +2245,9 @@ pub(crate) mod test {
         env.insert_name("bar", false);
         env.insert_name("baz", PrimitiveValue::new_file("file"));
 
+        let mut base_dir = env.base_dir().to_string();
+        base_dir.push(std::path::MAIN_SEPARATOR);
+
         let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then "foo" else "bar""#)
             .await
             .unwrap();
@@ -2267,7 +2276,7 @@ pub(crate) mod test {
         let value = eval_v1_expr(&env, V1::Zero, r#"if (bar) then baz else "path""#)
             .await
             .unwrap();
-        assert_eq!(value.unwrap_file().as_str(), "path");
+        assert_eq!(value.unwrap_file().as_str().replace(&base_dir, ""), "path");
     }
 
     #[tokio::test]

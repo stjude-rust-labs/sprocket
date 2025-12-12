@@ -6,7 +6,6 @@ use std::fmt;
 use std::fs;
 use std::io::BufRead;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
@@ -18,6 +17,7 @@ use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use num_enum::IntoPrimitive;
 use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
@@ -34,8 +34,9 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use crate::CompoundValue;
 use crate::Outputs;
 use crate::PrimitiveValue;
-use crate::TaskExecutionResult;
 use crate::Value;
+use crate::backend::TaskExecutionResult;
+use crate::cache::Hashable;
 use crate::config::FailureMode;
 use crate::http::Location;
 use crate::http::Transferer;
@@ -265,9 +266,23 @@ impl Default for CancellationContext {
     }
 }
 
-/// Represents events that may be sent during evaluation.
+/// Represents an event from the WDL evaluation engine.
+#[derive(Debug, Clone)]
+pub enum EngineEvent {
+    /// A cached task execution result was reused due to a call cache hit.
+    ReusedCachedExecutionResult {
+        /// The id of the task that reused a cached execution result.
+        id: String,
+    },
+}
+
+/// Represents events that may be sent during WDL evaluation.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
+    /// The WDL engine events channel.
+    ///
+    /// This is `None` when engine events are not enabled.
+    engine: Option<broadcast::Sender<EngineEvent>>,
     /// The Crankshaft events channel.
     ///
     /// This is `None` when Crankshaft events are not enabled.
@@ -280,34 +295,24 @@ pub struct Events {
 
 impl Events {
     /// Constructs a new `Events` and enables subscribing to all event channels.
-    pub fn all(capacity: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         Self {
+            engine: Some(broadcast::Sender::new(capacity)),
             crankshaft: Some(broadcast::Sender::new(capacity)),
             transfer: Some(broadcast::Sender::new(capacity)),
         }
     }
 
     /// Constructs a new `Events` and disable subscribing to any event channel.
-    pub fn none() -> Self {
+    pub fn disabled() -> Self {
         Self::default()
     }
 
-    /// Constructs a new `Events` and enable subscribing to only the Crankshaft
-    /// events channel.
-    pub fn crankshaft_only(capacity: usize) -> Self {
-        Self {
-            crankshaft: Some(broadcast::Sender::new(capacity)),
-            transfer: None,
-        }
-    }
-
-    /// Constructs a new `Events` and enable subscribing to only the transfer
-    /// events channel.
-    pub fn transfer_only(capacity: usize) -> Self {
-        Self {
-            crankshaft: None,
-            transfer: Some(broadcast::Sender::new(capacity)),
-        }
+    /// Subscribes to the WDL engine events channel.
+    ///
+    /// Returns `None` if WDL engine events are not enabled.
+    pub fn subscribe_engine(&self) -> Option<broadcast::Receiver<EngineEvent>> {
+        self.engine.as_ref().map(|s| s.subscribe())
     }
 
     /// Subscribes to the Crankshaft events channel.
@@ -322,6 +327,11 @@ impl Events {
     /// Returns `None` if transfer events are not enabled.
     pub fn subscribe_transfer(&self) -> Option<broadcast::Receiver<TransferEvent>> {
         self.transfer.as_ref().map(|s| s.subscribe())
+    }
+
+    /// Gets the sender for the Crankshaft events.
+    pub(crate) fn engine(&self) -> &Option<broadcast::Sender<EngineEvent>> {
+        &self.engine
     }
 
     /// Gets the sender for the Crankshaft events.
@@ -382,9 +392,10 @@ impl EvaluationError {
     }
 
     /// Helper for tests for converting an evaluation error to a string.
-    #[cfg(feature = "codespan-reporting")]
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
+        use std::collections::HashMap;
+
         use codespan_reporting::diagnostic::Label;
         use codespan_reporting::diagnostic::LabelStyle;
         use codespan_reporting::files::SimpleFiles;
@@ -456,28 +467,29 @@ impl HostPath {
         &self.0
     }
 
-    /// Shell expands the path.
+    /// Shell-expands the path.
     ///
     /// The path is also joined with the provided base directory.
-    pub fn expand(&mut self, base_dir: &EvaluationPath) -> Result<()> {
-        // Perform the expansion
-        if let Cow::Owned(s) = shellexpand::full(self.as_str()).with_context(|| {
-            format!("failed to shell expand path `{path}`", path = self.as_str())
-        })? {
-            *Arc::make_mut(&mut self.0) = s;
-        }
+    pub fn expand(&self, base_dir: &EvaluationPath) -> Result<Self> {
+        // Shell-expand both paths and URLs
+        let shell_expanded = shellexpand::full(self.as_str()).with_context(|| {
+            format!("failed to shell-expand path `{path}`", path = self.as_str())
+        })?;
 
-        // Don't join URLs
-        if path::is_url(self.as_str()) {
-            return Ok(());
+        // But don't join URLs
+        if path::is_supported_url(&shell_expanded) {
+            Ok(Self::new(shell_expanded))
+        } else {
+            // `join()` handles both relative and absolute paths
+            Ok(Self::new(
+                base_dir.join(&shell_expanded)?.display().to_string(),
+            ))
         }
+    }
 
-        // Perform the join
-        if let Some(s) = base_dir.join(self.as_str())?.to_str() {
-            *Arc::make_mut(&mut self.0) = s.to_string();
-        }
-
-        Ok(())
+    /// Determines if the host path is relative.
+    pub fn is_relative(&self) -> bool {
+        !path::is_supported_url(&self.0) && Path::new(self.0.as_str()).is_relative()
     }
 }
 
@@ -496,6 +508,24 @@ impl From<Arc<String>> for HostPath {
 impl From<HostPath> for Arc<String> {
     fn from(path: HostPath) -> Self {
         path.0
+    }
+}
+
+impl From<String> for HostPath {
+    fn from(s: String) -> Self {
+        Arc::new(s).into()
+    }
+}
+
+impl<'a> From<&'a str> for HostPath {
+    fn from(s: &'a str) -> Self {
+        s.to_string().into()
+    }
+}
+
+impl From<url::Url> for HostPath {
+    fn from(url: url::Url) -> Self {
+        url.as_str().into()
     }
 }
 
@@ -780,8 +810,8 @@ impl<'a> ScopeRef<'a> {
 /// Represents an evaluated task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
-    /// The task attempt directory.
-    attempt_dir: PathBuf,
+    /// Whether or not the execution result was from the call cache.
+    cached: bool,
     /// The task execution result.
     result: TaskExecutionResult,
     /// The evaluated outputs of the task.
@@ -796,24 +826,23 @@ pub struct EvaluatedTask {
 
 impl EvaluatedTask {
     /// Constructs a new evaluated task.
-    ///
-    /// Returns an error if the stdout or stderr paths are not UTF-8.
-    fn new(attempt_dir: PathBuf, result: TaskExecutionResult) -> anyhow::Result<Self> {
-        Ok(Self {
+    fn new(cached: bool, result: TaskExecutionResult) -> Self {
+        Self {
+            cached,
             result,
-            attempt_dir,
             outputs: Ok(Default::default()),
-        })
+        }
+    }
+
+    /// Determines whether or not the task execution result was used from the
+    /// call cache.
+    pub fn cached(&self) -> bool {
+        self.cached
     }
 
     /// Gets the exit code of the evaluated task.
     pub fn exit_code(&self) -> i32 {
         self.result.exit_code
-    }
-
-    /// Gets the attempt directory of the task.
-    pub fn attempt_dir(&self) -> &Path {
-        &self.attempt_dir
     }
 
     /// Gets the working directory of the evaluated task.
@@ -829,17 +858,6 @@ impl EvaluatedTask {
     /// Gets the stderr value of the evaluated task.
     pub fn stderr(&self) -> &Value {
         &self.result.stderr
-    }
-
-    /// Gets the outputs of the evaluated task.
-    ///
-    /// This is `Ok` when the task executes successfully and all of the task's
-    /// outputs evaluated without error.
-    ///
-    /// Otherwise, this contains the error that occurred while attempting to
-    /// evaluate the task's outputs.
-    pub fn outputs(&self) -> &EvaluationResult<Outputs> {
-        &self.outputs
     }
 
     /// Converts the evaluated task into an evaluation result.
@@ -942,20 +960,27 @@ impl EvaluatedTask {
     }
 }
 
-/// Gets the kind of an input.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InputKind {
-    /// The input is a single file.
+/// Gets the kind of content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
+#[repr(u8)]
+pub enum ContentKind {
+    /// The content is a single file.
     File,
-    /// The input is a directory.
+    /// The content is a directory.
     Directory,
 }
 
-impl From<InputKind> for crankshaft::engine::task::input::Type {
-    fn from(value: InputKind) -> Self {
+impl Hashable for ContentKind {
+    fn hash(&self, hasher: &mut blake3::Hasher) {
+        hasher.update(&[(*self).into()]);
+    }
+}
+
+impl From<ContentKind> for crankshaft::engine::task::input::Type {
+    fn from(value: ContentKind) -> Self {
         match value {
-            InputKind::File => Self::File,
-            InputKind::Directory => Self::Directory,
+            ContentKind::File => Self::File,
+            ContentKind::Directory => Self::Directory,
         }
     }
 }
@@ -963,8 +988,8 @@ impl From<InputKind> for crankshaft::engine::task::input::Type {
 /// Represents a `File` or `Directory` input to a task.
 #[derive(Debug, Clone)]
 pub struct Input {
-    /// The input kind.
-    kind: InputKind,
+    /// The content kind of the input.
+    kind: ContentKind,
     /// The path for the input.
     path: EvaluationPath,
     /// The guest path for the input.
@@ -978,8 +1003,12 @@ pub struct Input {
 }
 
 impl Input {
-    /// Creates a new input with the given path and access.
-    fn new(kind: InputKind, path: EvaluationPath, guest_path: Option<GuestPath>) -> Self {
+    /// Creates a new input with the given path and guest path.
+    pub(crate) fn new(
+        kind: ContentKind,
+        path: EvaluationPath,
+        guest_path: Option<GuestPath>,
+    ) -> Self {
         Self {
             kind,
             path,
@@ -988,8 +1017,8 @@ impl Input {
         }
     }
 
-    /// Gets the kind of the input.
-    pub fn kind(&self) -> InputKind {
+    /// Gets the content kind of the input.
+    pub fn kind(&self) -> ContentKind {
         self.kind
     }
 

@@ -3,6 +3,7 @@
 use clap::Parser;
 use clap::Subcommand;
 
+use crate::commands::CommandResult;
 use crate::config::Config;
 
 /// Arguments for the `config` subcommand.
@@ -11,6 +12,13 @@ pub struct Args {
     /// Subcommand for the `config` command.
     #[command(subcommand)]
     command: ConfigSubcommand,
+}
+
+impl Args {
+    /// Returns `true` if the subcommand is 'Init'.
+    pub fn is_init(&self) -> bool {
+        matches!(self.command, ConfigSubcommand::Init)
+    }
 }
 
 /// Subcommands for the `config` command.
@@ -32,7 +40,7 @@ pub struct ResolveArgs {
 }
 
 /// Runs the `config` command.
-pub fn config(args: Args, mut config: Config) -> anyhow::Result<()> {
+pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
     let config = match args.command {
         ConfigSubcommand::Init => Config::default(),
         ConfigSubcommand::Resolve(args) => {

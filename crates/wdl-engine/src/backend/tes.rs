@@ -1,6 +1,5 @@
 //! Implementation of the TES backend.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
@@ -42,20 +41,20 @@ use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::COMMAND_FILE_NAME;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::Value;
-use crate::WORK_DIR_NAME;
+use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
+use crate::backend::STDERR_FILE_NAME;
+use crate::backend::STDOUT_FILE_NAME;
+use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
-use crate::hash::UrlDigestExt;
-use crate::hash::calculate_path_digest;
+use crate::digest::UrlDigestExt;
+use crate::digest::calculate_local_digest;
 use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -203,12 +202,13 @@ impl TaskManagerRequest for TesTaskRequest {
             match input.path() {
                 EvaluationPath::Local(path) => {
                     // Input is local, spawn an upload of it
+                    let kind = input.kind();
                     let path = path.to_path_buf();
                     let transferer = self.inner.transferer().clone();
                     let inputs_url = inputs_url.clone();
                     uploads.spawn(async move {
                         let url = inputs_url.join_digest(
-                            calculate_path_digest(&path).await.with_context(|| {
+                            calculate_local_digest(&path, kind).await.with_context(|| {
                                 format!(
                                     "failed to calculate digest of `{path}`",
                                     path = path.display()
@@ -230,10 +230,6 @@ impl TaskManagerRequest for TesTaskRequest {
                 }
                 EvaluationPath::Remote(url) => {
                     // Input is already remote, add it to the Crankshaft inputs list
-                    let url = match self.inner.transferer().apply_auth(url)? {
-                        Cow::Borrowed(_) => url.clone(),
-                        Cow::Owned(url) => url,
-                    };
                     inputs.push(
                         Input::builder()
                             .path(
@@ -242,7 +238,7 @@ impl TaskManagerRequest for TesTaskRequest {
                                     .expect("input should have guest path")
                                     .as_str(),
                             )
-                            .contents(Contents::Url(url))
+                            .contents(Contents::Url(url.clone()))
                             .ty(input.kind())
                             .read_only(true)
                             .build(),
@@ -255,11 +251,6 @@ impl TaskManagerRequest for TesTaskRequest {
         while let Some(result) = uploads.join_next().await {
             let (i, url) = result.context("upload task")??;
             let input = &self.inner.inputs()[i];
-            let url = match self.inner.transferer().apply_auth(&url)? {
-                Cow::Borrowed(_) => url,
-                Cow::Owned(url) => url,
-            };
-
             inputs.push(
                 Input::builder()
                     .path(
@@ -291,24 +282,9 @@ impl TaskManagerRequest for TesTaskRequest {
             .join(&output_dir)
             .expect("should join");
 
-        let work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
+        let mut work_dir_url = outputs_url.join(WORK_DIR_NAME).expect("should join");
         let stdout_url = outputs_url.join(STDOUT_FILE_NAME).expect("should join");
         let stderr_url = outputs_url.join(STDERR_FILE_NAME).expect("should join");
-
-        let mut work_dir_url = match self.inner.transferer().apply_auth(&work_dir_url)? {
-            Cow::Borrowed(_) => work_dir_url,
-            Cow::Owned(url) => url,
-        };
-
-        let stdout_url = match self.inner.transferer().apply_auth(&stdout_url)? {
-            Cow::Borrowed(_) => stdout_url,
-            Cow::Owned(url) => url,
-        };
-
-        let stderr_url = match self.inner.transferer().apply_auth(&stderr_url)? {
-            Cow::Borrowed(_) => stderr_url,
-            Cow::Owned(url) => url,
-        };
 
         // The TES backend will output three things: the working directory contents,
         // stdout, and stderr.
@@ -552,7 +528,7 @@ impl TaskExecutionBackend for TesBackend {
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);
         let max_memory = max_memory(hints)?.map(|i| i as u64);
-        let preemptible = preemptible(hints);
+        let preemptible = preemptible(hints)?;
 
         let name = format!(
             "{id}-{generated}",

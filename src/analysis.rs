@@ -23,6 +23,8 @@ pub use source::Source;
 use wdl::lint::Rule;
 use wdl::lint::TagSet;
 
+use crate::IGNORE_FILENAME;
+
 /// The type of the initialization callback.
 type InitCb = Box<dyn Fn() + 'static>;
 
@@ -31,6 +33,9 @@ type ProgressCb =
     Box<dyn Fn(ProgressKind, usize, usize) -> BoxFuture<'static, ()> + Send + Sync + 'static>;
 
 /// An analysis.
+// For some reason, `missing_debug_implementations` fires for this even though a Debug impl is not
+// derivable for this type.
+#[expect(missing_debug_implementations)]
 pub struct Analysis {
     /// The set of root nodes to analyze.
     ///
@@ -75,12 +80,6 @@ impl Analysis {
     /// Adds multiple rules to the excepted rules list.
     pub fn extend_exceptions(mut self, rules: impl IntoIterator<Item = String>) -> Self {
         self.exceptions.extend(rules);
-        self
-    }
-
-    /// Sets the ignorefile basename.
-    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
-        self.ignore_filename = filename;
         self
     }
 
@@ -185,7 +184,7 @@ impl Default for Analysis {
             exceptions: Default::default(),
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
-            ignore_filename: None,
+            ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),

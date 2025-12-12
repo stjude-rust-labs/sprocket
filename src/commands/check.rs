@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 use anyhow::Context;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use codespan_reporting::diagnostic::Diagnostic;
@@ -19,9 +19,10 @@ use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use super::explain::ALL_TAG_NAMES;
-use crate::IGNORE_FILENAME;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::diagnostics::get_diagnostics_display_config;
@@ -220,7 +221,7 @@ impl LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
+pub async fn check(args: CheckArgs) -> CommandResult<()> {
     let mut sources = args.common.sources;
     if sources.is_empty() {
         sources.push(Source::default());
@@ -230,11 +231,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     if args.common.suppress_imports {
         for source in sources.iter() {
             if let Source::Directory(dir) = source {
-                bail!(
+                return Err(anyhow!(
                     "`--suppress-imports` was specified but the provided inputs contain a \
                      directory: `{dir}`",
                     dir = dir.display()
-                );
+                )
+                .into());
             }
         }
     }
@@ -297,22 +299,14 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     };
 
     // Run analysis
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(args.common.except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .run()
         .await
-    {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     #[derive(Default)]
     struct Counts {
@@ -387,30 +381,33 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     }
 
     if counts.errors > 0 {
-        bail!(
+        return Err(anyhow!(
             "failing due to {errors} error{s}",
             errors = counts.errors,
             s = if counts.errors == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     } else if args.common.deny_warnings && counts.warnings > 0 {
-        bail!(
+        return Err(anyhow!(
             "failing due to {warnings} warning{s} (`--deny-warnings` was specified)",
             warnings = counts.warnings,
             s = if counts.warnings == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     } else if args.common.deny_notes && counts.notes > 0 {
-        bail!(
+        return Err(anyhow!(
             "failing due to {notes} note{s} (`--deny-notes` was specified)",
             notes = counts.notes,
             s = if counts.notes == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     }
 
     Ok(())
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
+pub async fn lint(args: LintArgs) -> CommandResult<()> {
     check(CheckArgs {
         common: args.common,
         lint: true,

@@ -189,7 +189,7 @@ pub(crate) fn full_page<P: AsRef<Path>>(
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: '' }" }) x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : ''" x-cloak {
+        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: 'dark' }" }) x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : 'dark'" x-cloak {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {

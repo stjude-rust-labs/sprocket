@@ -20,7 +20,6 @@ use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
-use colored::Colorize as _;
 use commands::Commands;
 pub use config::Config;
 use git_testament::git_testament;
@@ -29,12 +28,20 @@ use tracing::trace;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 
-mod analysis;
-mod commands;
+use crate::commands::CommandResult;
+
+// Access to these modules is useful for integration testing and benchmarking,
+// but since this is not intended to be used as a public interface, we hide them
+// from generated rustdoc.
+#[doc(hidden)]
+pub mod analysis;
+#[doc(hidden)]
+pub mod commands;
 mod config;
 mod diagnostics;
 mod eval;
 mod inputs;
+mod test;
 
 /// ignorefile basename to respect.
 const IGNORE_FILENAME: &str = ".sprocketignore";
@@ -64,7 +71,7 @@ struct Cli {
     skip_config_search: bool,
 }
 
-async fn inner() -> anyhow::Result<()> {
+async fn inner() -> CommandResult<()> {
     let cli = Cli::parse();
 
     match std::env::var("RUST_LOG") {
@@ -78,7 +85,8 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
         Err(_) => {
             let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
@@ -90,18 +98,28 @@ async fn inner() -> anyhow::Result<()> {
                 .finish()
                 .with(indicatif_layer);
 
-            tracing::subscriber::set_global_default(subscriber)?;
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
         }
     };
 
-    let config = Config::new(
-        cli.config.iter().map(PathBuf::as_path),
-        cli.skip_config_search,
-    )?;
-    config
-        .validate()
-        .with_context(|| "validating provided configuration")?;
-
+    let config = match &cli.command {
+        Commands::Config(config_args) if config_args.is_init() => {
+            // For `config init`, skip loading and use default
+            Config::default()
+        }
+        _ => {
+            // For all other commands, load config normally
+            let config = Config::new(
+                cli.config.iter().map(PathBuf::as_path),
+                cli.skip_config_search,
+            )?;
+            config
+                .validate()
+                .with_context(|| "validating provided configuration")?;
+            config
+        }
+    };
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
@@ -124,20 +142,15 @@ async fn inner() -> anyhow::Result<()> {
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
+        Commands::Dev(commands::DevCommands::Test(args)) => commands::test::test(args).await,
     }
 }
 
 /// The Sprocket command line entrypoint.
-pub async fn sprocket_main() {
+pub async fn sprocket_main<Guard>(guard: Guard) {
     if let Err(e) = inner().await {
-        eprintln!(
-            "{error}: {e:?}",
-            error = if std::io::stderr().is_terminal() {
-                "error".red().bold()
-            } else {
-                "error".normal()
-            }
-        );
+        drop(guard);
+        eprintln!("{e}");
         std::process::exit(1);
     }
 }

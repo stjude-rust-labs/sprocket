@@ -1,16 +1,17 @@
 //! Implementation of the `validate` subcommand.
 
 use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::path::EvaluationPath;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
-use crate::inputs::Inputs;
+use crate::inputs::Invocation;
 use crate::inputs::OriginPaths;
 
 /// Arguments for the `validate` subcommand.
@@ -64,29 +65,24 @@ impl Args {
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args) -> Result<()> {
+pub async fn validate(args: Args) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `validate` command");
+        return Err(
+            anyhow!("directory sources are not supported for the `validate` command").into(),
+        );
     }
 
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
         .run()
         .await
-    {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     // SAFETY: this must exist, as we added it as the only source to be analyzed
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
         .await
         .with_context(|| {
             format!(
@@ -94,7 +90,7 @@ pub async fn validate(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
+        .into_engine_invocation(document)?;
 
     let (name, inputs, _) = if let Some(inputs) = inputs {
         inputs
@@ -111,19 +107,25 @@ pub async fn validate(args: Args) -> Result<()> {
                     if workflow.name() == name {
                         (name, EngineInputs::Workflow(Default::default()), origins)
                     } else {
-                        bail!(
+                        return Err(anyhow!(
                             "no task or workflow with name `{name}` was found in document `{path}`",
                             path = document.path()
-                        );
+                        )
+                        .into());
                     }
                 }
-                (None, None) => bail!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
-                    path = document.path()
-                ),
+                (None, None) => {
+                    return Err(anyhow!(
+                        "no task or workflow with name `{name}` was found in document `{path}`",
+                        path = document.path()
+                    )
+                    .into());
+                }
             }
         } else {
-            bail!("the `--entrypoint` option is required if no inputs are provided")
+            return Err(
+                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
+            );
         }
     };
 
