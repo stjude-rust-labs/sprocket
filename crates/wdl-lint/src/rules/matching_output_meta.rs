@@ -48,8 +48,8 @@ fn missing_outputs_in_meta(span: Span, item_name: &str, ty: &str) -> Diagnostic 
 /// Creates a diagnostic for extra `meta.outputs` entries.
 fn extra_output_in_meta(span: Span, name: &str, item_name: &str, ty: &str) -> Diagnostic {
     Diagnostic::warning(format!(
-        "`{name}` appears in `outputs` section of the {ty} `{item_name}` but is not a declared \
-         `output`"
+        "`{name}` appears in `meta.outputs` section of the {ty} `{item_name}` but is not a \
+         declared output"
     ))
     .with_rule(ID)
     .with_highlight(span)
@@ -159,6 +159,7 @@ fn check_matching(
     element: SyntaxElement,
 ) {
     let mut exact_match = true;
+    
     // Check for expected entries missing from `meta.outputs`.
     for (name, span) in &rule.output_keys {
         if !rule.meta_outputs_keys.contains_key(name) {
@@ -182,23 +183,25 @@ fn check_matching(
     for (name, span) in &rule.meta_outputs_keys {
         if !rule.output_keys.contains_key(name) {
             exact_match = false;
-            if rule.current_output_span.is_some() {
-                diagnostics.exceptable_add(
-                    extra_output_in_meta(
-                        *span,
-                        name,
-                        rule.name.as_deref().expect("should have a name"),
-                        rule.ty.expect("should have a type"),
-                    ),
-                    element.clone(),
-                    &rule.exceptable_nodes(),
-                );
-            }
+
+            diagnostics.exceptable_add(
+                extra_output_in_meta(
+                    *span,
+                    name,
+                    rule.name.as_deref().expect("should have a name"),
+                    rule.ty.expect("should have a type"),
+                ),
+                element.clone(),
+                &rule.exceptable_nodes(),
+            );
         }
     }
 
-    // Check for out-of-order entries.
-    if exact_match && !rule.meta_outputs_keys.keys().eq(rule.output_keys.keys()) {
+    // Check for out-of-order entries (only if both sections exist and match exactly).
+    if exact_match
+        && rule.current_output_span.is_some()
+        && !rule.meta_outputs_keys.keys().eq(rule.output_keys.keys())
+    {
         diagnostics.exceptable_add(
             out_of_order(
                 rule.current_meta_outputs_span
