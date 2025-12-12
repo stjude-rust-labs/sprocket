@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use crankshaft::engine::service::name::GeneratorIterator;
 use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event;
@@ -37,6 +37,7 @@ use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
 use crate::SYSTEM;
+use crate::TaskExecutionError;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::WORK_DIR_NAME;
@@ -85,7 +86,7 @@ impl TaskManagerRequest for LocalTaskRequest {
         self.memory
     }
 
-    async fn run(self) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult, TaskExecutionError> {
         let id = next_task_id();
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         let stdout_path = self.inner.attempt_dir().join(STDOUT_FILE_NAME);
@@ -174,11 +175,12 @@ impl TaskManagerRequest for LocalTaskRequest {
                 if let Some(signal) = status.signal() {
                     tracing::warn!("task process {id} has terminated with signal {signal}");
 
-                    bail!(
+                    return Err(anyhow!(
                         "task child process {id} has terminated with signal {signal}; see stderr \
                          file `{path}` for more details",
                         path = stderr_path.display()
-                    );
+                    )
+                    .into());
                 }
             }
 
@@ -202,7 +204,7 @@ impl TaskManagerRequest for LocalTaskRequest {
 
             _ = self.token.cancelled() => {
                 send_event!(self.events, Event::TaskCanceled { id });
-                bail!("task was cancelled");
+                return Err(anyhow!("task was cancelled").into());
             }
             result = run => {
                 match result {
@@ -317,10 +319,11 @@ impl TaskExecutionBackend for LocalBackend {
                     cpu = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    return Err(anyhow!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                    );
+                    )
+                    .into());
                 }
             }
         }
@@ -346,11 +349,12 @@ impl TaskExecutionBackend for LocalBackend {
                     memory = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    return Err(anyhow!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                    );
+                    )
+                    .into());
                 }
             }
         }
@@ -378,7 +382,7 @@ impl TaskExecutionBackend for LocalBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
+    ) -> Result<Receiver<Result<TaskExecutionResult, TaskExecutionError>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();

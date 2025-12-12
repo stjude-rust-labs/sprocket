@@ -1024,13 +1024,13 @@ impl TopLevelEvaluator {
                     state
                         .evaluate_input(id, decl, inputs)
                         .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                        .map_err(|d| EvaluationError::from_diagnostic(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Decl(decl) => {
                     state
                         .evaluate_decl(id, decl)
                         .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                        .map_err(|d| EvaluationError::from_diagnostic(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Output(_) => {
                     // Stop at the first output
@@ -1237,9 +1237,9 @@ impl TopLevelEvaluator {
                         .await
                         .expect("failed to receive response from spawned task")
                         .map_err(|e| {
-                            EvaluationError::new(
+                            EvaluationError::from_diagnostic(
                                 state.document.clone(),
-                                task_execution_failed(e, task.name(), id, task.name_span()),
+                                task_execution_failed(e.into(), task.name(), id, task.name_span()),
                             )
                         })?
                 }
@@ -1268,10 +1268,20 @@ impl TopLevelEvaluator {
                 .await
             {
                 if attempt >= max_retries {
-                    return Err(EvaluationError::new(
-                        state.document.clone(),
-                        task_execution_failed(e, task.name(), id, task.name_span()),
-                    ));
+                    match e {
+                        crate::TaskEvaluationError::Other(other_err) => {
+                            return Err(EvaluationError::from_diagnostic(
+                                state.document.clone(),
+                                task_execution_failed(other_err, task.name(), id, task.name_span()),
+                            ));
+                        }
+                        crate::TaskEvaluationError::TaskFailed(task) => {
+                            return Err(EvaluationError::from_failed_task(
+                                state.document.clone(),
+                                task,
+                            ));
+                        }
+                    }
                 }
 
                 attempt += 1;
@@ -1335,13 +1345,13 @@ impl TopLevelEvaluator {
                     state
                         .evaluate_decl(id, decl)
                         .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                        .map_err(|d| EvaluationError::from_diagnostic(state.document.clone(), d))?;
                 }
                 TaskGraphNode::Output(decl) => {
                     state
                         .evaluate_output(id, decl, &evaluated)
                         .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                        .map_err(|d| EvaluationError::from_diagnostic(state.document.clone(), d))?;
                 }
                 _ => {
                     unreachable!(
@@ -1746,7 +1756,9 @@ impl<'a> State<'a> {
                             evaluator
                                 .evaluate_placeholder(&placeholder, &mut command)
                                 .await
-                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
+                                .map_err(|d| {
+                                    EvaluationError::from_diagnostic(document.clone(), d)
+                                })?;
                         }
                     }
                 }
@@ -1772,7 +1784,9 @@ impl<'a> State<'a> {
                             evaluator
                                 .evaluate_placeholder(&placeholder, &mut command)
                                 .await
-                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
+                                .map_err(|d| {
+                                    EvaluationError::from_diagnostic(document.clone(), d)
+                                })?;
                         }
                     }
                 }
@@ -1841,20 +1855,20 @@ impl<'a> State<'a> {
             Some(section) => self
                 .evaluate_runtime_section(id, &section, inputs)
                 .await
-                .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
             _ => (
                 match definition.requirements() {
                     Some(section) => self
                         .evaluate_requirements_section(id, &section, inputs)
                         .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                        .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
                     None => Default::default(),
                 },
                 match definition.hints() {
                     Some(section) => self
                         .evaluate_hints_section(id, &section, inputs)
                         .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                        .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
                     None => Default::default(),
                 },
             ),
@@ -2060,7 +2074,7 @@ impl<'a> State<'a> {
                         self.backend_inputs.as_slice_mut()[idx].set_location(location);
                     }
                     Err(e) => {
-                        return Err(EvaluationError::new(
+                        return Err(EvaluationError::from_diagnostic(
                             self.document.clone(),
                             task_localization_failed(e, self.task.name(), self.task.name_span()),
                         ));

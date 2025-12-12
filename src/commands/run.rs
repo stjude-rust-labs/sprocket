@@ -664,7 +664,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
         document,
         &entrypoint,
         inputs,
-        origins,
+        &origins,
         args.engine,
         &output_dir,
     );
@@ -703,6 +703,9 @@ pub async fn run(args: Args) -> CommandResult<()> {
                         Ok(())
                     }
                     Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
+                    Err(EvaluationError::FailedTask(e)) => {
+                        Err(anyhow!("aborting because task failed: {e:?}").into())
+                    }
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),

@@ -28,7 +28,7 @@ pub struct Evaluator<'a> {
     inputs: Inputs,
 
     /// The origin paths for the input keys.
-    origins: OriginPaths,
+    origins: &'a OriginPaths,
 
     /// The configuration for the WDL engine.
     config: Config,
@@ -43,7 +43,7 @@ impl<'a> Evaluator<'a> {
         document: &'a Document,
         name: &'a str,
         inputs: Inputs,
-        origins: OriginPaths,
+        origins: &'a OriginPaths,
         config: Config,
         output_dir: &'a Path,
     ) -> Self {

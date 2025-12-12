@@ -16,6 +16,7 @@ use nonempty::NonEmpty;
 use path_clean::PathClean;
 use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
+use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -133,7 +134,7 @@ fn evaluate_test_result(
 ) -> Result<bool> {
     match result {
         Ok(outputs) => {
-            if assertions.exit_code == 0 {
+            if assertions.exit_code == 0 && !assertions.should_fail {
                 Ok(true)
             } else {
                 Ok(false)
@@ -141,7 +142,17 @@ fn evaluate_test_result(
         }
         Err(eval_err) => match eval_err {
             EvaluationError::Canceled => Err(anyhow!("test was cancelled")),
-            EvaluationError::Source(source_err) => Err(anyhow!("source error!")),
+            EvaluationError::FailedTask(task_err) => {
+                let task = task_err.failed_task;
+                if task.exit_code == assertions.exit_code {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            EvaluationError::Source(source_err) => {
+                Err(anyhow!("source error!: {:#?}", source_err.diagnostic))
+            }
             EvaluationError::Other(other_err) => Err(anyhow!("other error?")),
         },
     }
@@ -173,7 +184,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
         })?
         .clean();
 
-    let results = Analysis::default()
+    let analysis_results = Analysis::default()
         .add_source(source.clone())
         .run()
         .await
@@ -184,8 +195,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
     // testing. Smaller issues with test definitions will later be collected and
     // reported on after all tests execute.
     let mut documents = Vec::new();
-    for result in results.filter(&[&source]) {
-        let document = result.document();
+    for analysis in analysis_results.filter(&[&source]) {
+        let document = analysis.document();
         let wdl_path = PathBuf::from(document.path().as_ref());
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,
@@ -202,7 +213,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 .with_context(|| format!("reading file: `{}`", yaml_path.display()))?,
         )
         .with_context(|| format!("parsing YAML: `{}`", yaml_path.display()))?;
-        documents.push((result, document_tests));
+        documents.push((analysis, document_tests));
         info!(
             "found tests for WDL `{}` in `{}`",
             wdl_path.display(),
@@ -216,12 +227,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
     ));
     let events = Events::new(EVENTS_CHANNEL_CAPACITY);
 
-    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
-    let mut errors = Vec::new();
     let mut success_counter = 0;
     let mut fail_counter = 0;
     let mut err_counter = 0;
+    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
+    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let mut errors = Vec::new();
+    let mut futures = JoinSet::new();
     for (analysis, test_definitions) in documents {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
@@ -263,7 +275,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     }
                 };
                 info!("running `{}`", test.name);
-                for run_inputs in matrix.cartesian_product() {
+                let run_root = test_dir.join(RUNS_DIR).join(entrypoint).join(&test.name);
+                if run_root.exists() {
+                    remove_dir_all(&run_root)
+                        .await
+                        .with_context(|| "removing prior run dir")?;
+                }
+                for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
                     let inputs = match run_inputs
                         .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
                             Ok(json_val) => Ok((format!("{entrypoint}.{key}"), json_val)),
@@ -289,39 +307,44 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let Some((_derived_ep, wdl_inputs)) = engine_inputs else {
                         todo!("handle empty inputs");
                     };
-                    let run_dir = test_dir.join(RUNS_DIR).join(entrypoint).join(&test.name);
-                    if run_dir.exists() {
-                        remove_dir_all(&run_dir)
-                            .await
-                            .with_context(|| "removing prior run dir")?;
-                    }
-                    let evaluator = Evaluator::new(
-                        wdl_document,
-                        entrypoint,
-                        wdl_inputs,
-                        fixture_origins.clone(),
-                        args.engine.clone(),
-                        &run_dir,
-                    );
-                    let cancellation = CancellationContext::new(args.engine.failure_mode);
-                    let result = evaluator.run(cancellation, &events).await;
-                    match evaluate_test_result(&test.assertions, result)
-                        .with_context(|| format!("evaluating `{}` results", test.name))
-                    {
-                        Ok(true) => {
-                            dbg!("success!");
-                            success_counter += 1;
-                        }
-                        Ok(false) => {
-                            dbg!("fail :(");
-                            fail_counter += 1;
-                        }
-                        Err(e) => {
-                            errors.push(Arc::new(e));
-                            err_counter += 1;
-                        }
-                    }
+                    let run_dir = run_root.join(test_num.to_string());
+                    let fixtures = fixture_origins.clone();
+                    let engine = args.engine.clone();
+                    let events = events.clone();
+                    let entrypoint = entrypoint.to_string();
+                    let assertions = test.assertions.clone();
+                    let document = wdl_document.clone();
+                    futures.spawn(async move {
+                        let evaluator = Evaluator::new(
+                            &document,
+                            &entrypoint,
+                            wdl_inputs,
+                            &fixtures,
+                            engine,
+                            &run_dir,
+                        );
+                        let cancellation = CancellationContext::new(args.engine.failure_mode);
+                        let result = evaluator.run(cancellation, &events).await;
+                        evaluate_test_result(&assertions, result)
+                            .with_context(|| format!("evaluating results"))
+                    });
                 }
+            }
+        }
+    }
+
+    while let Some(result) = futures.join_next().await {
+        let result = result.with_context(|| "join error")?;
+        match result {
+            Ok(true) => {
+                success_counter += 1;
+            }
+            Ok(false) => {
+                fail_counter += 1;
+            }
+            Err(e) => {
+                errors.push(Arc::new(e));
+                err_counter += 1;
             }
         }
     }

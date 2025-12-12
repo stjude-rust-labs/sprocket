@@ -125,10 +125,10 @@ pub(crate) struct TestDefinition {
 }
 
 /// Possible assertions for a test.
-#[derive(Default, serde::Deserialize, Debug)]
+#[derive(Clone, Default, serde::Deserialize, Debug)]
 pub(crate) struct Assertions {
     #[serde(default)]
-    pub exit_code: isize,
+    pub exit_code: i32,
     #[serde(default)]
     pub should_fail: bool,
     #[serde(default)]

@@ -12,7 +12,7 @@ use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
@@ -235,6 +235,7 @@ impl CancellationContext {
         if let Some(state) = CancellationContextState::update(self.mode, true, &self.state) {
             let message: Cow<'_, str> = match error {
                 EvaluationError::Canceled => "evaluation was canceled".into(),
+                EvaluationError::FailedTask(e) => format!("{e:?}").into(),
                 EvaluationError::Source(e) => e.diagnostic.message().into(),
                 EvaluationError::Other(e) => format!("{e:#}").into(),
             };
@@ -370,11 +371,20 @@ pub struct SourceError {
     pub backtrace: Vec<CallLocation>,
 }
 
+#[derive(Debug)]
+pub struct FailedTaskError {
+    pub document: Document,
+    pub failed_task: FailedTask,
+    pub backtrace: Vec<CallLocation>,
+}
+
 /// Represents an error that may occur when evaluating a workflow or task.
 #[derive(Debug)]
 pub enum EvaluationError {
     /// Evaluation was canceled.
     Canceled,
+    /// The called task failed.
+    FailedTask(Box<FailedTaskError>),
     /// The error came from WDL source evaluation.
     Source(Box<SourceError>),
     /// The error came from another source.
@@ -383,10 +393,19 @@ pub enum EvaluationError {
 
 impl EvaluationError {
     /// Creates a new evaluation error from the given document and diagnostic.
-    pub fn new(document: Document, diagnostic: Diagnostic) -> Self {
+    pub fn from_diagnostic(document: Document, diagnostic: Diagnostic) -> Self {
         Self::Source(Box::new(SourceError {
             document,
             diagnostic,
+            backtrace: Default::default(),
+        }))
+    }
+
+    /// Creates a new evaluation error from the given document and diagnostic.
+    pub fn from_failed_task(document: Document, task: FailedTask) -> Self {
+        Self::FailedTask(Box::new(FailedTaskError {
+            document,
+            failed_task: task,
             backtrace: Default::default(),
         }))
     }
@@ -406,6 +425,9 @@ impl EvaluationError {
 
         match self {
             Self::Canceled => "evaluation was canceled".to_string(),
+            Self::FailedTask(e) => {
+                format!("task failed: {e:?}")
+            }
             Self::Source(e) => {
                 let mut files = SimpleFiles::new();
                 let mut map = HashMap::new();
@@ -800,6 +822,30 @@ impl<'a> ScopeRef<'a> {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum TaskEvaluationError {
+    #[error(
+        "process terminated with exit code {exit_code}: see {stdout_path} and {stderr_path} for output{header}{stderr_tail}{trailer}",
+        exit_code = .0.exit_code,
+        stdout_path = .0.stdout_path,
+        stderr_path = .0.stderr_path,
+        header = if .0.stderr_tail.is_empty() { "".to_string() } else { format!("\n\ntask stderr output (last {MAX_STDERR_LINES} line):\n\n") },
+        stderr_tail = .0.stderr_tail,
+        trailer = if .0.stderr_tail.is_empty() { "" } else { "\n" }
+    )]
+    TaskFailed(FailedTask),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+#[derive(Debug)]
+pub struct FailedTask {
+    pub exit_code: i32,
+    pub stdout_path: HostPath,
+    pub stderr_path: HostPath,
+    stderr_tail: String,
+}
+
 /// Represents an evaluated task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
@@ -869,7 +915,7 @@ impl EvaluatedTask {
         &self,
         requirements: &HashMap<String, Value>,
         transferer: &dyn Transferer,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<(), TaskEvaluationError> {
         let mut error = true;
         if let Some(return_codes) = requirements
             .get(TASK_REQUIREMENT_RETURN_CODES)
@@ -880,10 +926,11 @@ impl EvaluatedTask {
                     error = false;
                 }
                 Value::Primitive(PrimitiveValue::String(s)) => {
-                    bail!(
+                    return Err(anyhow!(
                         "invalid return code value `{s}`: only `*` is accepted when the return \
                          code is specified as a string"
-                    );
+                    )
+                    .into());
                 }
                 Value::Primitive(PrimitiveValue::Integer(ok)) => {
                     if self.result.exit_code == i32::try_from(*ok).unwrap_or_default() {
@@ -933,20 +980,12 @@ impl EvaluatedTask {
             })
             .unwrap_or_default();
 
-            // If the work directory is remote,
-            bail!(
-                "process terminated with exit code {code}: see `{stdout_path}` and \
-                 `{stderr_path}` for task output{header}{stderr}{trailer}",
-                code = self.result.exit_code,
-                stdout_path = self.stdout().as_file().expect("must be file"),
-                stderr_path = self.stderr().as_file().expect("must be file"),
-                header = if stderr.is_empty() {
-                    Cow::Borrowed("")
-                } else {
-                    format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
-                },
-                trailer = if stderr.is_empty() { "" } else { "\n" }
-            );
+            return Err(TaskEvaluationError::TaskFailed(FailedTask {
+                exit_code: self.exit_code(),
+                stdout_path: self.stdout().as_file().expect("must be file").clone(),
+                stderr_path: self.stderr().as_file().expect("must be file").clone(),
+                stderr_tail: stderr,
+            }));
         }
 
         Ok(())

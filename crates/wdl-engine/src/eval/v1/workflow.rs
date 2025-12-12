@@ -870,15 +870,15 @@ impl State {
                     WorkflowGraphNode::Input(decl) => self
                         .evaluate_input(&id, decl)
                         .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                        .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
                     WorkflowGraphNode::Decl(decl) => self
                         .evaluate_decl(&id, scope, decl)
                         .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                        .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
                     WorkflowGraphNode::Output(decl) => self
                         .evaluate_output(&id, decl)
                         .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                        .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?,
                     WorkflowGraphNode::Conditional(stmt, _) => {
                         let id = id.clone();
                         let state = self.clone();
@@ -1225,13 +1225,13 @@ impl State {
                 let value = self
                     .evaluate_expr(parent, &expr)
                     .await
-                    .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
+                    .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?;
 
                 // Coerce to boolean and check if the branch should be taken
                 if !value
                     .coerce(None, &PrimitiveType::Boolean.into())
                     .map_err(|e| {
-                        EvaluationError::new(
+                        EvaluationError::from_diagnostic(
                             self.document.clone(),
                             if_conditional_mismatch(e, &value.ty(), expr.span()),
                         )
@@ -1422,12 +1422,12 @@ impl State {
         let value = self
             .evaluate_expr(parent, &expr)
             .await
-            .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
+            .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?;
 
         let array = value
             .as_array()
             .ok_or_else(|| {
-                EvaluationError::new(
+                EvaluationError::from_diagnostic(
                     self.document.clone(),
                     type_is_not_array(&value.ty(), expr.span()),
                 )
@@ -1561,14 +1561,14 @@ impl State {
             }
 
             if namespace.is_some() {
-                return Err(EvaluationError::new(
+                return Err(EvaluationError::from_diagnostic(
                     self.document.clone(),
                     only_one_namespace(name.span()),
                 ));
             }
 
             let ns = self.document.namespace(name.text()).ok_or_else(|| {
-                EvaluationError::new(self.document.clone(), unknown_namespace(&name))
+                EvaluationError::from_diagnostic(self.document.clone(), unknown_namespace(&name))
             })?;
 
             namespace = Some((name, ns));
@@ -1598,7 +1598,7 @@ impl State {
                     .expect("should have workflow")
                     .name()
         {
-            return Err(EvaluationError::new(
+            return Err(EvaluationError::from_diagnostic(
                 self.document.clone(),
                 recursive_workflow_call(target.text(), target.span()),
             ));
@@ -1621,7 +1621,7 @@ impl State {
                     Target::Workflow,
                 ),
                 _ => {
-                    return Err(EvaluationError::new(
+                    return Err(EvaluationError::from_diagnostic(
                         self.document.clone(),
                         unknown_task_or_workflow(
                             namespace.as_ref().map(|(_, ns)| ns.span()),
@@ -1637,7 +1637,7 @@ impl State {
         let scatter_index = self
             .evaluate_call_inputs(stmt, scope, &mut inputs)
             .await
-            .map_err(|d| EvaluationError::new(self.document.clone(), d))?;
+            .map_err(|d| EvaluationError::from_diagnostic(self.document.clone(), d))?;
 
         let dir = format!(
             "{alias}{sep}{scatter_index}",

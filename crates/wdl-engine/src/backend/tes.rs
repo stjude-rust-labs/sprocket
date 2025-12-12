@@ -43,6 +43,7 @@ use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskExecutionError;
 use crate::Value;
 use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
@@ -156,7 +157,7 @@ impl TaskManagerRequest for TesTaskRequest {
         self.memory
     }
 
-    async fn run(self) -> Result<TaskExecutionResult> {
+    async fn run(self) -> Result<TaskExecutionResult, TaskExecutionError> {
         // Create the attempt directory
         let attempt_dir = self.inner.attempt_dir();
         fs::create_dir_all(attempt_dir).with_context(|| {
@@ -517,7 +518,7 @@ impl TaskExecutionBackend for TesBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
+    ) -> Result<Receiver<Result<TaskExecutionResult, TaskExecutionError>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
