@@ -706,7 +706,8 @@ impl Coercible for Value {
                         }
                     } else {
                         bail!(
-                            "context does not exist when creating enum variant value `{s}` in enum `{}`",
+                            "context does not exist when creating enum variant value `{s}` in \
+                             enum `{}`",
                             enum_ty.name()
                         );
                     }
@@ -2527,10 +2528,15 @@ impl CompoundValue {
                 }
                 Self::EnumVariant(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
-                    let value = e.value
+                    let value = e
+                        .value
                         .resolve_paths(optional, base_dir, transferer, translate)
                         .await?;
-                    Ok(Self::EnumVariant(EnumVariant::new(e.enum_ty.clone(), e.name(), value)))
+                    Ok(Self::EnumVariant(EnumVariant::new(
+                        e.enum_ty.clone(),
+                        e.name(),
+                        value,
+                    )))
                 }
             }
         }
@@ -3595,9 +3601,9 @@ impl serde::Serialize for ValueSerializer<'_> {
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
             }
-            Value::Call(_)
-            | Value::Hidden(_)
-            | Value::TypeNameRef(_) => Err(S::Error::custom("value cannot be serialized")),
+            Value::Call(_) | Value::Hidden(_) | Value::TypeNameRef(_) => {
+                Err(S::Error::custom("value cannot be serialized"))
+            }
         }
     }
 }
@@ -4451,6 +4457,7 @@ Caused by:
     #[test]
     fn type_name_ref_equality() {
         use std::sync::Arc;
+
         use wdl_analysis::types::EnumType;
 
         let enum_type = Type::Compound(
@@ -4492,6 +4499,7 @@ Caused by:
     #[test]
     fn type_name_ref_display() {
         use std::sync::Arc;
+
         use wdl_analysis::types::EnumType;
 
         let enum_type = Type::Compound(

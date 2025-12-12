@@ -99,7 +99,9 @@ pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) ->
                 let mut s = String::new();
                 let computed_type = enum_info.ty().and_then(|ty| {
                     if let Type::Compound(CompoundType::Custom(custom_ty), _) = ty {
-                        custom_ty.as_enum().map(|enum_ty| enum_ty.inner_value_type().to_string())
+                        custom_ty
+                            .as_enum()
+                            .map(|enum_ty| enum_ty.inner_value_type().to_string())
                     } else {
                         None
                     }

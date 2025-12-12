@@ -355,12 +355,18 @@ impl EvaluationContext for CommandContext<'_> {
 
         // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
         if let Some(s) = self.document.struct_by_name(name).and_then(|s| s.ty()) {
-            return Some(s.type_name_ref().expect("type name ref to be created from struct"));
+            return Some(
+                s.type_name_ref()
+                    .expect("type name ref to be created from struct"),
+            );
         }
 
         // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
         if let Some(e) = self.document.enum_by_name(name).and_then(|e| e.ty()) {
-            return Some(e.type_name_ref().expect("type name ref to be created from enum"));
+            return Some(
+                e.type_name_ref()
+                    .expect("type name ref to be created from enum"),
+            );
         }
 
         None

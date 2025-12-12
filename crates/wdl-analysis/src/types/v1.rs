@@ -541,7 +541,8 @@ pub trait EvaluationContext {
 
     /// Resolves a type name to a type.
     ///
-    /// For example, returns the type of `MyStruct` in the expression `MyStruct a = MyStruct { ... }`.
+    /// For example, returns the type of `MyStruct` in the expression `MyStruct
+    /// a = MyStruct { ... }`.
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the task associated with the evaluation context.

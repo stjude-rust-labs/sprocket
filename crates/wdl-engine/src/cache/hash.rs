@@ -249,7 +249,8 @@ impl Hashable for Value {
             Self::Hidden(HiddenValue::TaskPreEvaluation(_))
             | Self::Hidden(HiddenValue::TaskPostEvaluation(_))
             | Self::Hidden(HiddenValue::PreviousTaskData(_))
-            | Self::Call(_) | Self::TypeNameRef(_) => unreachable!("value cannot be hashed"),
+            | Self::Call(_)
+            | Self::TypeNameRef(_) => unreachable!("value cannot be hashed"),
         }
     }
 }
@@ -293,7 +294,7 @@ impl Hashable for CompoundValue {
             Self::Map(v) => v.hash(hasher),
             Self::Object(v) => v.hash(hasher),
             Self::Struct(v) => v.hash(hasher),
-            Self::EnumVariant(v) => v.hash(hasher)
+            Self::EnumVariant(v) => v.hash(hasher),
         }
     }
 }

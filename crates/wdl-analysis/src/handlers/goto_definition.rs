@@ -513,8 +513,9 @@ fn resolve_access_expression(
     };
 
     let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
-    let target_type = evaluator.evaluate_expr(&target_expr)
-            .unwrap_or(crate::types::Type::Union);
+    let target_type = evaluator
+        .evaluate_expr(&target_expr)
+        .unwrap_or(crate::types::Type::Union);
 
     if let Some(struct_ty) = target_type.as_struct() {
         let original_struct_name = struct_ty.name().as_str();
@@ -681,9 +682,8 @@ fn resolve_access_expression(
             None => (document_uri, lines),
         };
 
-        let enum_node =
-            v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
-                .expect("should cast to enum definition");
+        let enum_node = v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
+            .expect("should cast to enum definition");
 
         let Some(variant) = enum_node
             .variants()

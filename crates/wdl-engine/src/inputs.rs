@@ -551,7 +551,7 @@ impl WorkflowInputs {
         document: &Document,
         workflow: &Workflow,
         path: &str,
-        value: Value
+        value: Value,
     ) -> Result<()> {
         match path.split_once('.') {
             Some((name, remainder)) => {

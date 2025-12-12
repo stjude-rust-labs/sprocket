@@ -195,10 +195,7 @@ pub(crate) fn unknown_enum(name: &str) -> Diagnostic {
 /// This is distinguished from an "unknown enum variant access" diagnostic
 /// because we don't have a span to point to that contains the supposed enum
 /// variant name.
-pub(crate) fn unknown_enum_variant(
-    enum_name: &str,
-    variant_name: &str,
-) -> Diagnostic {
+pub(crate) fn unknown_enum_variant(enum_name: &str, variant_name: &str) -> Diagnostic {
     Diagnostic::error(format!(
         "unknown variant named `{variant_name}` for enum `{enum_name}`",
     ))

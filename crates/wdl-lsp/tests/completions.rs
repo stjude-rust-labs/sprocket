@@ -579,28 +579,36 @@ async fn should_not_complete_shadowed_type_names() {
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
-    
+
     // `Salutation` should be in completions as an enum.
     assert!(
-        items.iter().any(|item| item.label == "Salutation" && item.kind == Some(CompletionItemKind::ENUM)),
+        items
+            .iter()
+            .any(|item| item.label == "Salutation" && item.kind == Some(CompletionItemKind::ENUM)),
         "completions should have contained an enum item for 'Salutation'"
     );
 
     // `Status` should be in completions as a variable.
     assert!(
-        items.iter().any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::VARIABLE)),
+        items
+            .iter()
+            .any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::VARIABLE)),
         "completions should have contained a variable item for 'Status'"
     );
 
     // `x` should be in completions as a variable.
     assert!(
-        items.iter().any(|item| item.label == "x" && item.kind == Some(CompletionItemKind::VARIABLE)),
+        items
+            .iter()
+            .any(|item| item.label == "x" && item.kind == Some(CompletionItemKind::VARIABLE)),
         "completions should have contained a variable item for 'x'"
     );
 
     // `Status` should NOT be in completions as an enum.
     assert!(
-        !items.iter().any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::ENUM)),
+        !items
+            .iter()
+            .any(|item| item.label == "Status" && item.kind == Some(CompletionItemKind::ENUM)),
         "completions should NOT have contained an enum item for 'Status'"
     );
 }

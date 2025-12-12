@@ -261,10 +261,11 @@ fn resolve_hover_by_context(
                 return Ok(None);
             };
 
-
             let mut ctx = TypeEvalContext { scope, document };
             let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
-            let target_type = evaluator.evaluate_expr(&expr).unwrap_or(crate::types::Type::Union);
+            let target_type = evaluator
+                .evaluate_expr(&expr)
+                .unwrap_or(crate::types::Type::Union);
 
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {

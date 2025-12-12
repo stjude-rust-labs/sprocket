@@ -96,15 +96,10 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
             _ => context.arguments[0].value.clone(),
         };
 
-        calculate_disk_size(
-            context.transferer(),
-            &value,
-            unit,
-            context.base_dir(),
-        )
-        .await
-        .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
-        .map(Into::into)
+        calculate_disk_size(context.transferer(), &value, unit, context.base_dir())
+            .await
+            .map_err(|e| function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site))
+            .map(Into::into)
     }
     .boxed()
 }
@@ -234,8 +229,7 @@ async fn compound_disk_size(
         CompoundValue::Pair(pair) => {
             Ok(
                 calculate_disk_size(transferer, pair.left(), unit, base_dir).await?
-                    + calculate_disk_size(transferer, pair.right(), unit, base_dir)
-                        .await?,
+                    + calculate_disk_size(transferer, pair.right(), unit, base_dir).await?,
             )
         }
         CompoundValue::Array(array) => {

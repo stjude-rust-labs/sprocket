@@ -48,7 +48,9 @@ impl Constraint for SizeableConstraint {
                 CompoundType::Map(ty) => {
                     type_is_sizable(ty.key_type()) | type_is_sizable(ty.value_type())
                 }
-                CompoundType::Custom(CustomType::Struct(s)) => s.members().values().any(type_is_sizable),
+                CompoundType::Custom(CustomType::Struct(s)) => {
+                    s.members().values().any(type_is_sizable)
+                }
                 CompoundType::Custom(CustomType::Enum(_)) => false,
             }
         }
@@ -82,7 +84,10 @@ impl Constraint for StructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _))
+        matches!(
+            ty,
+            Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _)
+        )
     }
 }
 
@@ -127,8 +132,12 @@ impl Constraint for JsonSerializableConstraint {
                     ty.key_type().is_coercible_to(&PrimitiveType::String.into())
                         && type_is_serializable(ty.value_type())
                 }
-                CompoundType::Custom(CustomType::Struct(s)) => s.members().values().all(type_is_serializable),
-                CompoundType::Custom(CustomType::Enum(e)) => type_is_serializable(e.inner_value_type()),
+                CompoundType::Custom(CustomType::Struct(s)) => {
+                    s.members().values().all(type_is_serializable)
+                }
+                CompoundType::Custom(CustomType::Enum(e)) => {
+                    type_is_serializable(e.inner_value_type())
+                }
             }
         }
 
@@ -184,7 +193,10 @@ impl Constraint for EnumVariantConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _))
+        matches!(
+            ty,
+            Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _)
+        )
     }
 }
 

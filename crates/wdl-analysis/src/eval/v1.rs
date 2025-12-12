@@ -211,7 +211,13 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        self.add_reference_edges(version, Some(count), &mut graph, diagnostics, &custom_type_present);
+        self.add_reference_edges(
+            version,
+            Some(count),
+            &mut graph,
+            diagnostics,
+            &custom_type_present,
+        );
 
         // Finally, add implicit edges to and from the command
         if let Some(command) = self.command {
@@ -302,7 +308,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                     graph.update_edge(*to, from, false);
                 }
                 _ => {
-                    if (name.text() != TASK_VAR_NAME || !allow_task_var) 
+                    if (name.text() != TASK_VAR_NAME || !allow_task_var)
                         && !custom_type_present(name.text())
                     {
                         diagnostics.push(unknown_name(name.text(), name.span()));
@@ -326,7 +332,14 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
             match graph[from].clone() {
                 TaskGraphNode::Input(decl) | TaskGraphNode::Decl(decl) => {
                     if let Some(expr) = decl.expr() {
-                        self.add_expr_edges(from, expr, false, graph, diagnostics, &custom_type_present);
+                        self.add_expr_edges(
+                            from,
+                            expr,
+                            false,
+                            graph,
+                            diagnostics,
+                            &custom_type_present,
+                        );
                     }
                 }
                 TaskGraphNode::Output(decl) => {
@@ -367,7 +380,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
-                            &custom_type_present
+                            &custom_type_present,
                         );
                     }
                 }
@@ -381,7 +394,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
-                            &custom_type_present
+                            &custom_type_present,
                         );
                     }
                 }
@@ -395,7 +408,7 @@ impl<N: TreeNode> TaskGraphBuilder<N> {
                             version >= SupportedVersion::V1(V1::Three),
                             graph,
                             diagnostics,
-                            &custom_type_present
+                            &custom_type_present,
                         );
                     }
                 }
@@ -684,7 +697,13 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add name reference edges before adding the outputs
-        self.add_reference_edges(None, &mut graph, diagnostics, &input_present, &custom_type_present);
+        self.add_reference_edges(
+            None,
+            &mut graph,
+            diagnostics,
+            &input_present,
+            &custom_type_present,
+        );
 
         let count = graph.node_count();
         if let Some(section) = outputs {
@@ -699,7 +718,13 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         }
 
         // Add reference edges again, but only for the output declaration nodes
-        self.add_reference_edges(Some(count), &mut graph, diagnostics, &input_present, &custom_type_present);
+        self.add_reference_edges(
+            Some(count),
+            &mut graph,
+            diagnostics,
+            &input_present,
+            &custom_type_present,
+        );
         graph
     }
 
@@ -953,7 +978,13 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                     // in the [`WorkflowGraphNode::Conditional`] case.
                 }
                 WorkflowGraphNode::Scatter(statement, _) => {
-                    self.add_expr_edges(from, statement.expr(), graph, diagnostics, &custom_type_present);
+                    self.add_expr_edges(
+                        from,
+                        statement.expr(),
+                        graph,
+                        diagnostics,
+                        &custom_type_present,
+                    );
                 }
                 WorkflowGraphNode::Call(statement) => {
                     // Add edges for the input expressions
@@ -962,7 +993,13 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                         let name = input.name();
                         match input.expr() {
                             Some(expr) => {
-                                self.add_expr_edges(from, expr, graph, diagnostics, &custom_type_present);
+                                self.add_expr_edges(
+                                    from,
+                                    expr,
+                                    graph,
+                                    diagnostics,
+                                    &custom_type_present,
+                                );
                             }
                             _ => {
                                 if let Some(nodes) =
@@ -1077,8 +1114,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                 }
                 _ => {
                     // Check if name points to a custom type(a struct or an enum).
-                    if !custom_type_present(name.text())
-                    {
+                    if !custom_type_present(name.text()) {
                         diagnostics.push(unknown_name(name.text(), name.span()));
                     }
                 }
@@ -1293,7 +1329,12 @@ mod test {
         let mut diagnostics = Vec::new();
 
         // Testing without providing inputs i.e. static analysis
-        let graph = WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |_| false, |_| false);
+        let graph = WorkflowGraphBuilder::default().build(
+            &workflow,
+            &mut diagnostics,
+            |_| false,
+            |_| false,
+        );
 
         let t1_out = graph
             .node_indices()
@@ -1348,8 +1389,12 @@ mod test {
 
         // Testing with providing input y i.e. runtime analysis - case for wdl_engine
         let mut diagnostics = Vec::new();
-        let graph =
-            WorkflowGraphBuilder::default().build(&workflow, &mut diagnostics, |name| name == "y", |_| false);
+        let graph = WorkflowGraphBuilder::default().build(
+            &workflow,
+            &mut diagnostics,
+            |name| name == "y",
+            |_| false,
+        );
 
         assert!(
             !graph.contains_edge(t1_out, y),

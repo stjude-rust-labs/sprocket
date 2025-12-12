@@ -580,11 +580,7 @@ pub trait EvaluationContext: Send + Sync {
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Returns the literal value of an enum variant.
-    fn enum_variant_value(
-        &self,
-        enum_name: &str,
-        variant_name: &str,
-    ) -> Result<Value, Diagnostic>;
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic>;
 
     /// Gets the base directory for the evaluation.
     ///

@@ -928,17 +928,13 @@ pub fn no_common_inferred_type_for_enum(
     Diagnostic::error(format!("cannot infer a common type for enum `{enum_name}`"))
         .with_label(
             format!(
-                "this is the first variant with type \
-                `{first_discordant_variant_type}` that has no common type with \
-                `{last_common_variant_type}`"
+                "this is the first variant with type `{first_discordant_variant_type}` that has \
+                 no common type with `{last_common_variant_type}`"
             ),
             first_discordant_variant_span,
         )
         .with_label(
-            format!(
-                "this is the last variant with a common type \
-                `{last_common_variant_type}`"
-            ),
+            format!("this is the last variant with a common type `{last_common_variant_type}`"),
             last_common_variant_span,
         )
 }
@@ -953,9 +949,16 @@ pub fn enum_variant_does_not_coerce_to_type(
     actual: &Type,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from type `{actual}` to type `{expected}`"
+        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from type `{actual}` to \
+         type `{expected}`"
     ))
     .with_label(format!("this is the `{enum_name}` enum"), enum_span)
-    .with_label(format!("this is the `{variant_name}` variant"), variant_span)
-    .with_fix(format!("change the value to something that coerces to type `{expected}` or explicitly set the enum's inner type"))
+    .with_label(
+        format!("this is the `{variant_name}` variant"),
+        variant_span,
+    )
+    .with_fix(format!(
+        "change the value to something that coerces to type `{expected}` or explicitly set the \
+         enum's inner type"
+    ))
 }

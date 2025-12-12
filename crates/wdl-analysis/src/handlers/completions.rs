@@ -833,9 +833,10 @@ fn add_struct_completions(
     for (name, s) in document.structs() {
         // Skip if this struct name is shadowed by a variable in scope
         if let Some(scope) = scope
-            && scope.lookup(name).is_some() {
-                continue;
-            }
+            && scope.lookup(name).is_some()
+        {
+            continue;
+        }
 
         items.push(CompletionItem {
             label: name.to_string(),
@@ -879,9 +880,10 @@ fn add_enum_type_completions(
     for (name, r#enum) in document.enums() {
         // Skip if this enum name is shadowed by a variable in scope
         if let Some(scope) = scope
-            && scope.lookup(name).is_some() {
-                continue;
-            }
+            && scope.lookup(name).is_some()
+        {
+            continue;
+        }
 
         items.push(CompletionItem {
             label: name.to_string(),

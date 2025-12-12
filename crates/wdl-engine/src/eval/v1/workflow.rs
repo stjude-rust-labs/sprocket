@@ -121,7 +121,6 @@ fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: 
     }
 }
 
-
 /// A "hidden" scope variable for representing the scope's scatter index.
 ///
 /// This is only present in the scope created for a scatter statement.
@@ -161,8 +160,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
         // If the name is a reference to a struct, return it as a
         // [`Value::TypeNameRef`].
-        if let Some(s) = self.state.document.struct_by_name(name)
-        {
+        if let Some(s) = self.state.document.struct_by_name(name) {
             // SAFETY: structs should always have a type at the point we're
             // evaluating.
             return Ok(Value::TypeNameRef(s.ty().unwrap().clone()));
@@ -170,8 +168,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
         // If the name is a reference to an enum , return it as a
         // [`Value::TypeNameRef`].
-        if let Some(e) = self.state.document.enum_by_name(name)
-        {
+        if let Some(e) = self.state.document.enum_by_name(name) {
             // SAFETY: enums should always have a type at the point we're
             // evaluating.
             return Ok(Value::TypeNameRef(e.ty().unwrap().clone()));
@@ -184,12 +181,12 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         crate::resolve_type_name(&self.state.document, name, span)
     }
 
-    fn enum_variant_value(
-        &self,
-        enum_name: &str,
-        variant_name: &str,
-    ) -> Result<Value, Diagnostic> {
-        let r#enum = self.state.document.enum_by_name(enum_name).ok_or(unknown_enum(enum_name))?;
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
         crate::resolve_enum_variant_value(r#enum, variant_name)
     }
 
@@ -204,7 +201,6 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     fn transferer(&self) -> &dyn Transferer {
         self.state.transferer()
     }
-
 }
 
 /// The scopes collection used for workflow evaluation.

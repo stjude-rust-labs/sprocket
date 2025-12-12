@@ -642,7 +642,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             return Ok(var);
         }
 
-        // If the name is a reference to a struct, return it as a [`Value::TypeNameRef`].
+        // If the name is a reference to a struct, return it as a
+        // [`Value::TypeNameRef`].
         if let Some(s) = self.state.document.struct_by_name(name) {
             return Ok(Value::TypeNameRef(
                 s.ty().expect("struct should have type").clone(),
@@ -663,12 +664,12 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         crate::resolve_type_name(self.state.document, name, span)
     }
 
-    fn enum_variant_value(
-        &self,
-        enum_name: &str,
-        variant_name: &str,
-    ) -> Result<Value, Diagnostic> {
-        let r#enum = self.state.document.enum_by_name(enum_name).ok_or(unknown_enum(enum_name))?;
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
         crate::resolve_enum_variant_value(r#enum, variant_name)
     }
 
