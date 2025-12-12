@@ -41,7 +41,6 @@ use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::get_imported_doc_context;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
-use crate::types::CompoundType;
 use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;

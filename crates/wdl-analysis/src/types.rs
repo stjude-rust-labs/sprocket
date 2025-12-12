@@ -1196,7 +1196,7 @@ impl fmt::Display for EnumType {
 }
 
 impl Coercible for EnumType {
-    fn is_coercible_to(&self, other: &Self) -> bool {
+    fn is_coercible_to(&self, _: &Self) -> bool {
         false
     }
 }

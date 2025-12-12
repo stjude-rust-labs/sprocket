@@ -11,6 +11,7 @@ use wdl_analysis::types::Type;
 use crate::Array;
 use crate::CompoundValue;
 use crate::ContentKind;
+use crate::EnumVariant;
 use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
@@ -64,6 +65,8 @@ enum ValueKind {
     Input,
     /// The value is an `Output` (hidden type).
     Output,
+    /// The value is an `EnumVariant`.
+    EnumVariant,
 }
 
 impl Hashable for ValueKind {
@@ -246,7 +249,7 @@ impl Hashable for Value {
             Self::Hidden(HiddenValue::TaskPreEvaluation(_))
             | Self::Hidden(HiddenValue::TaskPostEvaluation(_))
             | Self::Hidden(HiddenValue::PreviousTaskData(_))
-            | Self::Call(_) => unreachable!("value cannot be hashed"),
+            | Self::Call(_) | Self::TypeNameRef(_) => unreachable!("value cannot be hashed"),
         }
     }
 }
@@ -290,6 +293,7 @@ impl Hashable for CompoundValue {
             Self::Map(v) => v.hash(hasher),
             Self::Object(v) => v.hash(hasher),
             Self::Struct(v) => v.hash(hasher),
+            Self::EnumVariant(v) => v.hash(hasher)
         }
     }
 }
@@ -327,6 +331,13 @@ impl Hashable for Struct {
     fn hash(&self, hasher: &mut Hasher) {
         ValueKind::Struct.hash(hasher);
         hash_sequence(hasher, self.iter());
+    }
+}
+
+impl Hashable for EnumVariant {
+    fn hash(&self, hasher: &mut Hasher) {
+        ValueKind::EnumVariant.hash(hasher);
+        self.value().hash(hasher);
     }
 }
 
@@ -512,7 +523,7 @@ mod test {
 
         let mut hasher = Hasher::new();
         hasher.update(&[0]); // File tag
-        hasher.update(&32u32.to_le_bytes()); // Slice length 
+        hasher.update(&32u32.to_le_bytes()); // Slice length
         hasher.update(expected.as_bytes()); // Literal bytes
         assert_eq!(hash, hasher.finalize());
 

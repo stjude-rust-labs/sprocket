@@ -76,7 +76,6 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::unknown_enum;
-use crate::http::HttpTransferer;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
@@ -1050,8 +1049,8 @@ impl State {
             }
         };
 
-        let scopes = state.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(state, scopes.reference(Scopes::ROOT_INDEX));
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::ROOT_INDEX));
 
         // Coerce the value to the expected type
         let mut value = value
@@ -1122,8 +1121,8 @@ impl State {
         let value = self.evaluate_expr(scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let scopes = state.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(state, scopes.reference(scope));
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(scope));
         let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
@@ -1185,8 +1184,8 @@ impl State {
         let value = self.evaluate_expr(Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let scopes = state.scopes.read().await;
-        let context = WorkflowEvaluationContext::new(state, scopes.reference(Scopes::OUTPUT_INDEX));
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::OUTPUT_INDEX));
         let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;

@@ -1500,7 +1500,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             },
             Value::TypeNameRef(ty) => {
                 if let Some(ty) = ty.as_enum() {
-                    let value = self.context().enum_variant_value(ty.name(), name.text())?;
+                    let value = self
+                        .context()
+                        .enum_variant_value(ty.name(), name.text())
+                        .map_err(|_| crate::diagnostics::unknown_enum_variant_access(ty.name(), &name))?;
                     let variant = EnumVariant::new(ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
                 } else {

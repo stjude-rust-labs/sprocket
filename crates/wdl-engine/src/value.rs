@@ -2527,9 +2527,10 @@ impl CompoundValue {
                 }
                 Self::EnumVariant(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
-                    Arc::make_mut(&mut e.value)
-                        .ensure_paths_exist(optional, base_dir, transferer, translate)
+                    let value = e.value
+                        .resolve_paths(optional, base_dir, transferer, translate)
                         .await?;
+                    Ok(Self::EnumVariant(EnumVariant::new(e.enum_ty.clone(), e.name(), value)))
                 }
             }
         }
@@ -3594,13 +3595,7 @@ impl serde::Serialize for ValueSerializer<'_> {
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
             }
-            Value::Hints(_)
-            | Value::Input(_)
-            | Value::Output(_)
-            | Value::TaskPreEvaluation(_)
-            | Value::TaskPostEvaluation(_)
-            | Value::PreviousTaskData(_)
-            | Value::Call(_)
+            Value::Call(_)
             | Value::Hidden(_)
             | Value::TypeNameRef(_) => Err(S::Error::custom("value cannot be serialized")),
         }
