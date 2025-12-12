@@ -1,10 +1,9 @@
-#@ except: MetaDescription, DocMetaStrings
-
 version 1.1
 
 # Test workflow for ParameterDescription lint rule
 workflow test_parameter_description{
     meta {
+        description: "Test workflow for ParameterDescription rule"
         outputs: {
             # Valid: simple string description
             result: "The final result" ,

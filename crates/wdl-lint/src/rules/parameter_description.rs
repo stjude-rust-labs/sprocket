@@ -41,11 +41,7 @@ fn missing_description_diagnostic(name: &str, is_output: bool, span: Span) -> Di
         ),
         span,
     )
-    .with_fix(format!(
-        "add a description for `{}` (e.g., `{}: \"description\"` or `{}: {{ description: \
-         \"description\" }}`)",
-        name, name, name
-    ))
+    .with_fix(format!("add a description for `{}`", name,))
 }
 
 /// Checks if a metadata value is a valid description
