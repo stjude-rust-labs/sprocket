@@ -12,6 +12,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
+use indexmap::IndexMap;
 use nonempty::NonEmpty;
 use path_clean::PathClean;
 use serde_json::Value as JsonValue;
@@ -23,6 +24,7 @@ use tracing::warn;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
+use wdl::engine::FailedTask;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
 
@@ -131,13 +133,13 @@ fn filter_test(
 fn evaluate_test_result(
     assertions: &Assertions,
     result: std::result::Result<Outputs, EvaluationError>,
-) -> Result<bool> {
+) -> Result<(bool, Option<FailedTask>)> {
     match result {
-        Ok(outputs) => {
+        Ok(_outputs) => {
             if assertions.exit_code == 0 && !assertions.should_fail {
-                Ok(true)
+                Ok((true, None))
             } else {
-                Ok(false)
+                Ok((false, None))
             }
         }
         Err(eval_err) => match eval_err {
@@ -145,15 +147,13 @@ fn evaluate_test_result(
             EvaluationError::FailedTask(task_err) => {
                 let task = task_err.failed_task;
                 if task.exit_code == assertions.exit_code {
-                    Ok(true)
+                    Ok((true, None))
                 } else {
-                    Ok(false)
+                    Ok((false, Some(task)))
                 }
             }
-            EvaluationError::Source(source_err) => {
-                Err(anyhow!("source error!: {:#?}", source_err.diagnostic))
-            }
-            EvaluationError::Other(other_err) => Err(anyhow!("other error?")),
+            EvaluationError::Source(source_err) => Err(anyhow!("source error!: {:#?}", source_err)),
+            EvaluationError::Other(other_err) => Err(anyhow!("other error: {:#?}", other_err)),
         },
     }
 }
@@ -227,17 +227,16 @@ pub async fn test(args: Args) -> CommandResult<()> {
     ));
     let events = Events::new(EVENTS_CHANNEL_CAPACITY);
 
-    let mut success_counter = 0;
-    let mut fail_counter = 0;
-    let mut err_counter = 0;
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
     let mut errors = Vec::new();
-    let mut futures = JoinSet::new();
+    let mut all_results = IndexMap::new();
     for (analysis, test_definitions) in documents {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
+        let mut document_results = IndexMap::new();
         for (entrypoint, tests) in test_definitions.entrypoints.iter() {
+            let mut entrypoint_results = IndexMap::new();
             let found_entrypoint = match (
                 wdl_document.task_by_name(entrypoint),
                 wdl_document.workflow(),
@@ -281,6 +280,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         .await
                         .with_context(|| "removing prior run dir")?;
                 }
+                let mut futures = JoinSet::new();
                 for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
                     let inputs = match run_inputs
                         .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
@@ -324,34 +324,76 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             &run_dir,
                         );
                         let cancellation = CancellationContext::new(args.engine.failure_mode);
-                        let result = evaluator.run(cancellation, &events).await;
-                        evaluate_test_result(&assertions, result)
-                            .with_context(|| format!("evaluating results"))
+                        (
+                            test_num,
+                            evaluator.run(cancellation, &events).await,
+                            assertions,
+                        )
                     });
+                }
+                entrypoint_results.insert(test.name.clone(), futures);
+            }
+            document_results.insert(entrypoint.clone(), entrypoint_results);
+        }
+        all_results.insert(wdl_document.uri().path().to_string(), document_results);
+    }
+
+    for (doc, ep_results) in all_results {
+        println!("evaluating document: `{doc}`");
+        for (ep, results) in ep_results {
+            println!("evaluating entrypoint: `{ep}`");
+            for (test, mut test_results) in results {
+                println!("evaluating test: `{test}`");
+                let mut success_counter = 0;
+                let mut fail_counter = 0;
+                let mut err_counter = 0;
+
+                while let Some(res) = test_results.join_next().await {
+                    let (test_num, result, assertions) = res.expect("error joining");
+                    let result = evaluate_test_result(&assertions, result);
+                    match result {
+                        Ok((true, _)) => {
+                            success_counter += 1;
+                        }
+                        Ok((false, task)) => {
+                            fail_counter += 1;
+                            if let Some(task) = task {
+                                errors.push(Arc::new(anyhow!(
+                                    "test iteration #{test_num} of `{test}` failed with exit code \
+                                     `{}` but expected exit code `{}`",
+                                    task.exit_code,
+                                    assertions.exit_code
+                                )));
+                            } else {
+                                errors.push(Arc::new(anyhow!(
+                                    "test iteration #{test_num} of `{test}` was expected to fail \
+                                     but it succeeded"
+                                )));
+                            }
+                        }
+                        Err(e) => {
+                            errors.push(Arc::new(e));
+                            err_counter += 1;
+                        }
+                    }
+                }
+                if err_counter > 0 {
+                    println!(
+                        "☠️ `{test}` had errors: {err_counter} errors out of {total} executions",
+                        total = err_counter + fail_counter + success_counter
+                    );
+                } else if fail_counter > 0 {
+                    println!(
+                        "❌ `{test}` failed: {fail_counter} executions failed assertions (out of \
+                         {total} executions)",
+                        total = fail_counter + success_counter
+                    )
+                } else {
+                    println!("✅ `{test}` success! ({success_counter} successful executions)");
                 }
             }
         }
     }
-
-    while let Some(result) = futures.join_next().await {
-        let result = result.with_context(|| "join error")?;
-        match result {
-            Ok(true) => {
-                success_counter += 1;
-            }
-            Ok(false) => {
-                fail_counter += 1;
-            }
-            Err(e) => {
-                errors.push(Arc::new(e));
-                err_counter += 1;
-            }
-        }
-    }
-
-    println!("successful tests: {success_counter}");
-    println!("failed tests: {fail_counter}");
-    println!("errored tests: {err_counter}");
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
         return Err(CommandError::from(errors));
