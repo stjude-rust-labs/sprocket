@@ -60,6 +60,42 @@ const GUEST_INPUTS_DIR: &str = "/mnt/task/inputs/";
 /// See <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-j>.
 const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
+/// Construct an LSF job name by combining an optional prefix with the task
+/// identifier while ensuring the total length fits within the byte-oriented
+/// LSF limit.
+fn build_lsf_job_name(prefix: Option<&str>, identifier: &str) -> String {
+    fn push_segment(segment: &str, name: &mut String, bytes_used: &mut usize) -> bool {
+        for ch in segment.chars() {
+            let ch_bytes = ch.len_utf8();
+            if *bytes_used + ch_bytes > LSF_JOB_NAME_MAX_LENGTH {
+                return false;
+            }
+            name.push(ch);
+            *bytes_used += ch_bytes;
+        }
+
+        true
+    }
+
+    let mut name = String::new();
+    let mut bytes_used = 0usize;
+
+    if let Some(prefix) = prefix
+        && !push_segment(prefix, &mut name, &mut bytes_used)
+    {
+        warn!(
+            prefix_bytes = prefix.len(),
+            stored_prefix_bytes = bytes_used,
+            max_bytes = LSF_JOB_NAME_MAX_LENGTH,
+            "truncating job name prefix to fit LSF byte limit; using remaining bytes for \
+             identifier"
+        );
+    }
+
+    push_segment(identifier, &mut name, &mut bytes_used);
+    name
+}
+
 /// A request to execute a task on an LSF + Apptainer backend.
 #[derive(Debug)]
 struct LsfApptainerTaskRequest {
@@ -571,16 +607,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // TODO ACF 2025-09-11: set a hard memory limit with `bsub -M !`?
         let _max_memory = v1::max_memory(hints)?.map(|i| i as u64);
 
-        // Truncate the request ID to fit in the LSF job name length limit.
-        let request_id = request.id();
-        let name = if request_id.len() > LSF_JOB_NAME_MAX_LENGTH {
-            request_id
-                .chars()
-                .take(LSF_JOB_NAME_MAX_LENGTH)
-                .collect::<String>()
-        } else {
-            request_id.to_string()
-        };
+        // Build the LSF job name by combining the optional prefix with the
+        // request ID without exceeding the byte-oriented limit imposed by LSF.
+        let name = build_lsf_job_name(self.backend_config.job_name_prefix.as_deref(), request.id());
 
         self.manager.send(
             LsfApptainerTaskRequest {
@@ -736,6 +765,10 @@ pub struct LsfApptainerBackendConfig {
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
+    /// Prefix to add to every LSF job name before the task identifier. This is
+    /// truncated as needed to satisfy the byte-oriented LSF job name limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_name_prefix: Option<String>,
     /// The maximum number of scatter subtasks that can be evaluated
     /// concurrently.
     ///
@@ -768,6 +801,7 @@ impl Default for LsfApptainerBackendConfig {
             gpu_lsf_queue: None,
             fpga_lsf_queue: None,
             extra_bsub_args: None,
+            job_name_prefix: None,
             max_scatter_concurrency: default_max_scatter_concurrency(),
             apptainer_config: ApptainerConfig::default(),
         }
@@ -849,5 +883,42 @@ impl LsfApptainerBackendConfig {
         // Finally the default queue. If this is `None`, `bsub` gets run without a queue
         // argument and the cluster's default is used.
         self.default_lsf_queue.as_ref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lsf_job_name_without_prefix() {
+        let request_id = "task-123";
+        let name = build_lsf_job_name(None, request_id);
+        assert_eq!(name, request_id);
+    }
+
+    #[test]
+    fn lsf_job_name_applies_prefix_when_configured() {
+        let name = build_lsf_job_name(Some("sprocket_"), "task-123");
+        assert_eq!(name, "sprocket_task-123");
+    }
+
+    #[test]
+    fn lsf_job_name_truncates_request_id_by_bytes() {
+        let identifier = "é".repeat((LSF_JOB_NAME_MAX_LENGTH / 2) + 10);
+        let name = build_lsf_job_name(None, &identifier);
+        assert!(name.as_bytes().len() <= LSF_JOB_NAME_MAX_LENGTH);
+        assert!(identifier.starts_with(&name));
+    }
+
+    #[test]
+    fn lsf_job_name_truncates_prefix_but_keeps_identifier_bytes() {
+        let prefix = "☃".repeat((LSF_JOB_NAME_MAX_LENGTH / 3) + 10);
+        let identifier = "xy";
+        let name = build_lsf_job_name(Some(&prefix), identifier);
+        assert!(name.as_bytes().len() <= LSF_JOB_NAME_MAX_LENGTH);
+        assert!(name.ends_with(identifier));
+        let prefix_portion = &name[..name.len() - identifier.len()];
+        assert!(prefix_portion.chars().all(|ch| ch == '☃'));
     }
 }
