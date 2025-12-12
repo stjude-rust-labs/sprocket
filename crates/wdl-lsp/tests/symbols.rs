@@ -154,3 +154,21 @@ async fn should_filter_workspace_symbols() {
     );
     assert!(symbols.iter().all(|s| s.name.contains("greet")));
 }
+
+#[tokio::test]
+async fn should_provide_enum_symbols() {
+    let mut ctx = setup().await;
+    let response = document_symbol_request(&mut ctx, "enum.wdl").await;
+    let Some(DocumentSymbolResponse::Nested(symbols)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_symbol(&symbols, "Status", SymbolKind::ENUM);
+
+    let status_enum = symbols.iter().find(|s| s.name == "Status").unwrap();
+    let enum_children = status_enum.children.as_ref().unwrap();
+    assert_eq!(enum_children.len(), 3);
+    assert_symbol(enum_children, "Active", SymbolKind::ENUM_MEMBER);
+    assert_symbol(enum_children, "Inactive", SymbolKind::ENUM_MEMBER);
+    assert_symbol(enum_children, "Pending", SymbolKind::ENUM_MEMBER);
+}

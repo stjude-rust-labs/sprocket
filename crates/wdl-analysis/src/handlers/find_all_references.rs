@@ -149,10 +149,16 @@ fn collect_references_from_document(
         //
         // This means name matching combined with definition resolution is safe and
         // won't produce false positives from shadowed variables.
+        if token.kind() == SyntaxKind::Ident {
+            dbg!(token.text());
+        }
+
         if token.kind() == SyntaxKind::Ident && token.text() == target.name {
+            dbg!("found!");
             let token_pos = position(lines, token.text_range().start())
                 .context("failed to convert token position")?;
             let source_pos = SourcePosition::new(token_pos.line, token_pos.character);
+            dbg!(&source_pos);
 
             let resolved_location = handlers::goto_definition(
                 graph,
@@ -161,6 +167,7 @@ fn collect_references_from_document(
                 encoding,
             )
             .context("failed to resolve token definition")?;
+            dbg!(&resolved_location);
 
             if let Some(location) = resolved_location
                 && location == target.location

@@ -58,7 +58,33 @@ impl EvaluationContext for TypeEvalContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _span: Span) -> Option<crate::types::Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        // If the name is a reference to a struct , return it as a
+        // [`Type::TypeNameRef`].
+        if let Some(s) = self.document.struct_by_name(name)
+            && let Some(ty) = s.ty().map(|ty| {
+                ty.type_name_ref()
+                    .expect("type name ref to be created from struct")
+            })
+        {
+            return Some(ty);
+        }
+
+        // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+        if let Some(e) = self.document.enum_by_name(name)
+            && let Some(ty) = e.ty().map(|ty| {
+                ty.type_name_ref()
+                    .expect("type name ref to be created from enum")
+            })
+        {
+            return Some(ty);
+        }
+
+        None
     }
 
     fn resolve_type_name(
@@ -71,6 +97,13 @@ impl EvaluationContext for TypeEvalContext<'_> {
         {
             return Ok(ty.clone());
         }
+
+        if let Some(e) = self.document.enum_by_name(name)
+            && let Some(ty) = e.ty()
+        {
+            return Ok(ty.clone());
+        }
+
         Err(diagnostics::unknown_type(name, span))
     }
 

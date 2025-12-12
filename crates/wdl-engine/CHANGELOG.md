@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added runtime support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from
+  enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
 #### Changed
 
 * Added shared validation for task runtime and hint numeric settings (memory,

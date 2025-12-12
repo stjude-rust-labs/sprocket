@@ -46,6 +46,7 @@ use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -92,6 +93,7 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::EnumVariant;
 use crate::EvaluationContext;
 use crate::HiddenValue;
 use crate::Map;
@@ -902,7 +904,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             };
 
             match ty {
-                Type::Compound(CompoundType::Struct(ty), _) => {
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
                     struct_ty = Some(ty);
                 }
                 _ if segments.peek().is_some() => {
@@ -1459,7 +1461,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
-        match self.evaluate_expr(&target).await? {
+        // Evaluate the target expression.
+        let target_value = self.evaluate_expr(&target).await?;
+        match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
                 "right" => Ok(pair.right().clone()),
@@ -1494,6 +1498,20 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
+            Value::TypeNameRef(ty) => {
+                if let Some(ty) = ty.as_enum() {
+                    let value = self
+                        .context()
+                        .enum_variant_value(ty.name(), name.text())
+                        .map_err(|_| {
+                            crate::diagnostics::unknown_enum_variant_access(ty.name(), &name)
+                        })?;
+                    let variant = EnumVariant::new(ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                } else {
+                    todo!("support type name references for `{ty:?}`");
+                }
+            }
             value => Err(cannot_access(&value.ty(), target.span())),
         }
     }
@@ -1530,6 +1548,8 @@ pub(crate) mod test {
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
+        /// The enums for the test.
+        enums: HashMap<&'static str, Type>,
         /// The test directory.
         test_dir: TempDir,
         /// The evaluation base directory.
@@ -1549,6 +1569,10 @@ pub(crate) mod test {
 
         pub fn insert_struct(&mut self, name: &'static str, ty: impl Into<Type>) {
             self.structs.insert(name, ty.into());
+        }
+
+        pub fn insert_enum(&mut self, name: &'static str, ty: impl Into<Type>) {
+            self.enums.insert(name, ty.into());
         }
 
         pub fn base_dir(&self) -> &EvaluationPath {
@@ -1572,6 +1596,7 @@ pub(crate) mod test {
             Self {
                 scopes: vec![Scope::default()],
                 structs: Default::default(),
+                enums: Default::default(),
                 test_dir,
                 base_dir,
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
@@ -1660,19 +1685,39 @@ pub(crate) mod test {
         }
 
         fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-            self.env
-                .scope()
-                .lookup(name)
-                .cloned()
-                .ok_or_else(|| unknown_name(name, span))
+            // Check if there are any variables with this name and return if so.
+            if let Some(var) = self.env.scope().lookup(name).cloned() {
+                return Ok(var);
+            }
+
+            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.structs.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.enums.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            Err(unknown_name(name, span))
         }
 
         fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             self.env
                 .structs
                 .get(name)
+                .or_else(|| self.env.enums.get(name))
                 .cloned()
                 .ok_or_else(|| unknown_type(name, span))
+        }
+
+        fn enum_variant_value(
+            &self,
+            _enum_name: &str,
+            _variant_name: &str,
+        ) -> Result<Value, Diagnostic> {
+            unimplemented!();
         }
 
         fn base_dir(&self) -> &EvaluationPath {
