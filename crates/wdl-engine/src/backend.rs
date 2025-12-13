@@ -13,11 +13,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use crankshaft::engine::service::runner::backend::TaskRunError;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use ordered_float::OrderedFloat;
-use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -279,16 +277,6 @@ pub struct TaskExecutionResult {
     pub stderr: Value,
 }
 
-#[derive(Debug, Error)]
-pub enum TaskExecutionError {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    Crankshaft(#[from] TaskRunError),
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
-}
-
 /// Represents a task execution backend.
 pub trait TaskExecutionBackend: Send + Sync {
     /// Gets the maximum concurrent tasks supported by the backend.
@@ -324,7 +312,7 @@ pub trait TaskExecutionBackend: Send + Sync {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<Receiver<Result<TaskExecutionResult, TaskExecutionError>>>;
+    ) -> Result<Receiver<Result<TaskExecutionResult>>>;
 
     /// Performs cleanup operations after task execution completes.
     ///
@@ -349,7 +337,7 @@ trait TaskManagerRequest: Send + Sync + 'static {
     fn memory(&self) -> u64;
 
     /// Runs the request.
-    fn run(self) -> impl Future<Output = Result<TaskExecutionResult, TaskExecutionError>> + Send;
+    fn run(self) -> impl Future<Output = Result<TaskExecutionResult>> + Send;
 }
 
 /// Represents a response internal to the task manager.
@@ -359,9 +347,9 @@ struct TaskManagerResponse {
     /// The previous memory allocation from the request.
     memory: u64,
     /// The result of the task's execution.
-    result: Result<TaskExecutionResult, TaskExecutionError>,
+    result: Result<TaskExecutionResult>,
     /// The channel to send the task's execution result back on.
-    tx: oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
+    tx: oneshot::Sender<Result<TaskExecutionResult>>,
 }
 
 /// Represents state used by the task manager.
@@ -373,10 +361,7 @@ struct TaskManagerState<Req> {
     /// The set of spawned tasks.
     spawned: JoinSet<TaskManagerResponse>,
     /// The queue of parked spawn requests.
-    parked: VecDeque<(
-        Req,
-        oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
-    )>,
+    parked: VecDeque<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManagerState<Req> {
@@ -400,10 +385,7 @@ impl<Req> TaskManagerState<Req> {
 #[derive(Debug)]
 struct TaskManager<Req> {
     /// The sender for new spawn requests.
-    tx: mpsc::UnboundedSender<(
-        Req,
-        oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
-    )>,
+    tx: mpsc::UnboundedSender<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
 }
 
 impl<Req> TaskManager<Req>
@@ -429,20 +411,13 @@ where
     }
 
     /// Sends a request to the task manager's queue.
-    fn send(
-        &self,
-        request: Req,
-        completed: oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
-    ) {
+    fn send(&self, request: Req, completed: oneshot::Sender<Result<TaskExecutionResult>>) {
         self.tx.send((request, completed)).ok();
     }
 
     /// Runs the request queue.
     async fn run_request_queue(
-        mut rx: mpsc::UnboundedReceiver<(
-            Req,
-            oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
-        )>,
+        mut rx: mpsc::UnboundedReceiver<(Req, oneshot::Sender<Result<TaskExecutionResult>>)>,
         cpu: u64,
         max_cpu: u64,
         memory: u64,
@@ -496,7 +471,7 @@ where
         max_cpu: u64,
         max_memory: u64,
         request: Req,
-        completed: oneshot::Sender<Result<TaskExecutionResult, TaskExecutionError>>,
+        completed: oneshot::Sender<Result<TaskExecutionResult>>,
     ) {
         // Ensure the request does not exceed the maximum CPU
         let cpu = request.cpu();
@@ -504,8 +479,7 @@ where
             completed
                 .send(Err(anyhow!(
                     "requested task CPU count of {cpu} exceeds the maximum CPU count of {max_cpu}",
-                )
-                .into()))
+                )))
                 .ok();
             return;
         }
@@ -518,8 +492,7 @@ where
                     "requested task memory of {memory} byte{s} exceeds the maximum memory of \
                      {max_memory}",
                     s = if memory == 1 { "" } else { "s" }
-                )
-                .into()))
+                )))
                 .ok();
             return;
         }

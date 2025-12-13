@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
+use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
 use crankshaft::engine::service::name::GeneratorIterator;
@@ -42,7 +42,6 @@ use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::STDERR_FILE_NAME;
 use crate::STDOUT_FILE_NAME;
-use crate::TaskExecutionError;
 use crate::Value;
 use crate::WORK_DIR_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
@@ -110,7 +109,7 @@ impl TaskManagerRequest for DockerTaskRequest {
         self.memory
     }
 
-    async fn run(self) -> Result<TaskExecutionResult, TaskExecutionError> {
+    async fn run(self) -> Result<TaskExecutionResult> {
         // Create the working directory
         let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -155,11 +154,10 @@ impl TaskManagerRequest for DockerTaskRequest {
 
             // The local path must exist for Docker to mount
             if !local_path.exists() {
-                return Err(anyhow!(
+                bail!(
                     "cannot mount input `{path}` as it does not exist",
                     path = local_path.display()
-                )
-                .into());
+                );
             }
 
             inputs.push(
@@ -370,11 +368,10 @@ impl TaskExecutionBackend for DockerBackend {
                     cpu = self.max_cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    return Err(anyhow!(
+                    bail!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
                         s = if cpu == 1.0 { "" } else { "s" },
-                    )
-                    .into());
+                    );
                 }
             }
         }
@@ -400,12 +397,11 @@ impl TaskExecutionBackend for DockerBackend {
                     memory = self.max_memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    return Err(anyhow!(
+                    bail!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
                         memory = memory as f64 / ONE_GIBIBYTE,
-                    )
-                    .into());
+                    );
                 }
             }
         }
@@ -441,7 +437,7 @@ impl TaskExecutionBackend for DockerBackend {
         &self,
         request: TaskSpawnRequest,
         token: CancellationToken,
-    ) -> Result<Receiver<Result<TaskExecutionResult, TaskExecutionError>>> {
+    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
@@ -571,10 +567,10 @@ impl TaskExecutionBackend for DockerBackend {
                     if status.success() {
                         Ok(())
                     } else {
-                        return Err(anyhow!(
+                        bail!(
                             "failed to chown task work directory `{path}`",
                             path = work_dir.display()
-                        ));
+                        );
                     }
                 }
                 .await;

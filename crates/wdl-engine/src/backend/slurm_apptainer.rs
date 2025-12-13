@@ -42,7 +42,6 @@ use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::TaskExecutionError;
 use crate::TaskExecutionResult;
 use crate::Value;
 use crate::config::Config;
@@ -101,7 +100,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         self.required_memory.as_u64()
     }
 
-    async fn run(self) -> anyhow::Result<TaskExecutionResult, TaskExecutionError> {
+    async fn run(self) -> anyhow::Result<TaskExecutionResult> {
         let crankshaft_task_id = crankshaft::events::next_task_id();
 
         let attempt_dir = self.spawn_request.attempt_dir();
@@ -506,9 +505,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         &self,
         request: TaskSpawnRequest,
         cancellation_token: CancellationToken,
-    ) -> anyhow::Result<
-        tokio::sync::oneshot::Receiver<anyhow::Result<TaskExecutionResult, TaskExecutionError>>,
-    > {
+    ) -> anyhow::Result<tokio::sync::oneshot::Receiver<anyhow::Result<TaskExecutionResult>>> {
         let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
 
         let requirements = request.requirements();
