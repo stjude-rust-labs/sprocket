@@ -1853,7 +1853,7 @@ workflow test {
             root_dir.path(),
             config,
             Default::default(),
-            &Events::disabled(),
+            Events::disabled(),
         )
         .await
         .unwrap();
@@ -2014,7 +2014,7 @@ workflow foo {
             root_dir.path(),
             config,
             Default::default(),
-            &Events::disabled(),
+            Events::disabled(),
         )
         .await
         .unwrap();
@@ -2259,7 +2259,7 @@ workflow w {
         });
 
         let evaluator =
-            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), &events)
+            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
                 .await
                 .unwrap();
 
@@ -2340,7 +2340,7 @@ workflow w {
             root_dir.path(),
             config,
             cancellation.clone(),
-            &Events::disabled(),
+            Events::disabled(),
         )
         .await
         .unwrap();

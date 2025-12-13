@@ -61,7 +61,7 @@ impl<'a> Evaluator<'a> {
     pub async fn run(
         mut self,
         cancellation: CancellationContext,
-        events: &Events,
+        events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
             Inputs::Task(ref mut inputs) => {

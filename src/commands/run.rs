@@ -669,7 +669,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
         &output_dir,
     );
 
-    let mut evaluate = evaluator.run(cancellation.clone(), &events).boxed();
+    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
 
     loop {
         select! {

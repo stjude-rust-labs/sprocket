@@ -84,7 +84,7 @@ impl TopLevelEvaluator {
         root_dir: &Path,
         config: Config,
         cancellation: CancellationContext,
-        events: &Events,
+        events: Events,
     ) -> Result<Self> {
         config.validate().await?;
 

@@ -2241,7 +2241,7 @@ mod test {
             &root_dir.join("runs"),
             config,
             CancellationContext::default(),
-            &Events::disabled(),
+            Events::disabled(),
         )
         .await
         .unwrap();
