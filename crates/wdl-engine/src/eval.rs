@@ -235,7 +235,7 @@ impl CancellationContext {
         if let Some(state) = CancellationContextState::update(self.mode, true, &self.state) {
             let message: Cow<'_, str> = match error {
                 EvaluationError::Canceled => "evaluation was canceled".into(),
-                EvaluationError::FailedTask(e) => format!("{e:?}").into(),
+                EvaluationError::FailedTask(_e) => "task failed".into(),
                 EvaluationError::Source(e) => e.diagnostic.message().into(),
                 EvaluationError::Other(e) => format!("{e:#}").into(),
             };
@@ -371,10 +371,19 @@ pub struct SourceError {
     pub backtrace: Vec<CallLocation>,
 }
 
+/// Represents an error that originates from a task failure.
 #[derive(Debug)]
 pub struct FailedTaskError {
+    /// The document originating the task which failed.
     pub document: Document,
+    /// The task which failed.
     pub failed_task: FailedTask,
+    /// The call backtrace for the error.
+    ///
+    /// An empty backtrace denotes that the error was encountered outside of
+    /// a call.
+    ///
+    /// The call locations are stored as most recent to least recent.
     pub backtrace: Vec<CallLocation>,
 }
 
@@ -425,8 +434,8 @@ impl EvaluationError {
 
         match self {
             Self::Canceled => "evaluation was canceled".to_string(),
-            Self::FailedTask(e) => {
-                format!("task failed: {e:?}")
+            Self::FailedTask(_e) => {
+                "task failed for some reason?".to_string()
             }
             Self::Source(e) => {
                 let mut files = SimpleFiles::new();
