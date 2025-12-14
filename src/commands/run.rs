@@ -68,12 +68,12 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// When this happens, the oldest events in the buffer are dropped and receivers
 /// are notified via an error on the next read that they are lagging behind.
 ///
-/// For `sprocket`, we'll notify the user that the progress indicators might not
-/// be correct should this occur.
+/// If the capacity is reached, Sprocket will stop displaying progress
+/// statistics.
 ///
-/// The value of `100` was chosen simply as a reasonable default that will make
-/// lagging unlikely.
-const EVENTS_CHANNEL_CAPACITY: usize = 100;
+/// The value of `5000` was chosen as a reasonable amount to make reaching
+/// capacity unlikely without allocating too much space unnecessarily.
+const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
@@ -193,6 +193,14 @@ pub struct Args {
     #[clap(long)]
     pub no_call_cache: bool,
 
+    /// The events channel capacity.
+    ///
+    /// This is not exposed via [`clap`] and thus not a CLI option.
+    ///
+    /// It is an advanced setting exposed via the configuration file.
+    #[clap(skip)]
+    pub events_capacity: usize,
+
     /// The engine configuration to use.
     ///
     /// This is not exposed via [`clap`] and is not settable by users.
@@ -206,7 +214,12 @@ pub struct Args {
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.events_capacity = config
+            .run
+            .events_capacity
+            .unwrap_or(DEFAULT_EVENTS_CHANNEL_CAPACITY);
         self.engine = config.run.engine;
+
         if self.runs_dir.is_none() {
             self.runs_dir = Some(config.run.runs_dir);
         }
@@ -643,7 +656,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
     );
 
     let cancellation = CancellationContext::new(args.engine.failure_mode);
-    let events = Events::new(EVENTS_CHANNEL_CAPACITY);
+    let events = Events::new(args.events_capacity);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
