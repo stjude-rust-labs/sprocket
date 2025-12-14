@@ -361,7 +361,8 @@ pub struct SourceError {
     pub document: Document,
     /// The evaluation diagnostic.
     pub diagnostic: Diagnostic,
-    /// Only `Some(_)` in the case that task evaluation was successful in all regards except for the expected error code returned by the task.
+    /// Only `Some(_)` in the case that task evaluation was successful in all
+    /// regards except for the expected error code returned by the task.
     pub failed_task: Option<FailedTask>,
     /// The call backtrace for the error.
     ///
@@ -394,7 +395,8 @@ impl EvaluationError {
         }))
     }
 
-    /// Creates a new evaluation error from the given document and diagnostic.
+    /// Creates a new evaluation error from the given document, diagnostic, and
+    /// [`FailedTask`].
     pub fn from_failed_task(document: Document, diagnostic: Diagnostic, task: FailedTask) -> Self {
         Self::Source(Box::new(SourceError {
             document,

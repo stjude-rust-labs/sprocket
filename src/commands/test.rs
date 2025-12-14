@@ -12,7 +12,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
-use indexmap::IndexMap;
 use nonempty::NonEmpty;
 use path_clean::PathClean;
 use serde_json::Value as JsonValue;
@@ -32,7 +31,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::run::EVENTS_CHANNEL_CAPACITY;
+use crate::commands::run::DEFAULT_RUNS_DIR;
 use crate::eval::Evaluator;
 use crate::inputs::OriginPaths;
 use crate::test::Assertions;
@@ -40,7 +39,6 @@ use crate::test::TestDefinition;
 
 const TEST_DIR: &str = "test";
 const FIXTURES_DIR: &str = "fixtures";
-const RUNS_DIR: &str = "runs";
 
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
@@ -132,7 +130,7 @@ fn filter_test(
 
 fn evaluate_test_result(
     assertions: &Assertions,
-    result: std::result::Result<Outputs, EvaluationError>,
+    result: Result<Outputs, EvaluationError>,
 ) -> Result<(bool, Option<FailedTask>)> {
     match result {
         Ok(_outputs) => {
@@ -144,18 +142,41 @@ fn evaluate_test_result(
         }
         Err(eval_err) => match eval_err {
             EvaluationError::Canceled => Err(anyhow!("test was cancelled")),
-            EvaluationError::FailedTask(task_err) => {
-                let task = task_err.failed_task;
-                if task.exit_code == assertions.exit_code {
-                    Ok((true, None))
+            EvaluationError::Source(source_err) => {
+                if let Some(task) = source_err.failed_task {
+                    if task.exit_code == assertions.exit_code {
+                        Ok((true, None))
+                    } else {
+                        Ok((false, Some(task)))
+                    }
                 } else {
-                    Ok((false, Some(task)))
+                    Err(anyhow!(
+                        "source error without a failed task!: {:#?}",
+                        source_err
+                    ))
                 }
             }
-            EvaluationError::Source(source_err) => Err(anyhow!("source error!: {:#?}", source_err)),
             EvaluationError::Other(other_err) => Err(anyhow!("other error: {:#?}", other_err)),
         },
     }
+}
+
+#[derive(Debug)]
+struct TestIteration {
+    iteration_num: usize,
+    inputs: EngineInputs,
+    result: Result<Outputs, EvaluationError>,
+    assertions: Assertions,
+}
+
+impl TestIteration {
+    pub fn evaluate(self) -> Result<IterationResult> {
+        todo!()
+    }
+}
+
+struct IterationResult {
+    passed: bool,
 }
 
 /// Performs the `test` command.
@@ -213,30 +234,30 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 .with_context(|| format!("reading file: `{}`", yaml_path.display()))?,
         )
         .with_context(|| format!("parsing YAML: `{}`", yaml_path.display()))?;
-        documents.push((analysis, document_tests));
         info!(
             "found tests for WDL `{}` in `{}`",
             wdl_path.display(),
             yaml_path.display()
-        )
+        );
+        documents.push((analysis, document_tests));
     }
 
     let test_dir = workspace.join(TEST_DIR);
     let fixture_origins = OriginPaths::Single(wdl::engine::path::EvaluationPath::Local(
         test_dir.join(FIXTURES_DIR),
     ));
-    let events = Events::new(EVENTS_CHANNEL_CAPACITY);
+    let events = Events::disabled();
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
     let mut errors = Vec::new();
-    let mut all_results = IndexMap::new();
+    let mut all_results = Vec::new();
     for (analysis, test_definitions) in documents {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
-        let mut document_results = IndexMap::new();
-        for (entrypoint, tests) in test_definitions.entrypoints.iter() {
-            let mut entrypoint_results = IndexMap::new();
+        let mut document_results = Vec::new();
+        for (entrypoint, definitions) in test_definitions.entrypoints.iter() {
+            let mut entrypoint_results = Vec::new();
             let found_entrypoint = match (
                 wdl_document.task_by_name(entrypoint),
                 wdl_document.workflow(),
@@ -254,7 +275,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 continue;
             }
             info!("testing entrypoint `{}`", entrypoint);
-            for test in tests {
+            for test in definitions {
                 if filter_test(test, &include_tags, &filter_tags) {
                     info!("skipping `{}`", test.name);
                     continue;
@@ -274,11 +295,14 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     }
                 };
                 info!("running `{}`", test.name);
-                let run_root = test_dir.join(RUNS_DIR).join(entrypoint).join(&test.name);
+                let run_root = test_dir
+                    .join(DEFAULT_RUNS_DIR)
+                    .join(entrypoint)
+                    .join(&test.name);
                 if run_root.exists() {
                     remove_dir_all(&run_root)
                         .await
-                        .with_context(|| "removing prior run dir")?;
+                        .with_context(|| "removing prior test dir")?;
                 }
                 let mut futures = JoinSet::new();
                 for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
@@ -318,28 +342,29 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         let evaluator = Evaluator::new(
                             &document,
                             &entrypoint,
-                            wdl_inputs,
+                            wdl_inputs.clone(),
                             &fixtures,
                             engine,
                             &run_dir,
                         );
                         let cancellation = CancellationContext::new(args.engine.failure_mode);
-                        (
-                            test_num,
-                            evaluator.run(cancellation, &events).await,
+                        TestIteration {
+                            iteration_num: test_num,
+                            inputs: wdl_inputs,
+                            result: evaluator.run(cancellation, events).await,
                             assertions,
-                        )
+                        }
                     });
                 }
-                entrypoint_results.insert(test.name.clone(), futures);
+                entrypoint_results.push((test.name.clone(), futures));
             }
-            document_results.insert(entrypoint.clone(), entrypoint_results);
+            document_results.push((entrypoint.clone(), entrypoint_results));
         }
-        all_results.insert(wdl_document.uri().path().to_string(), document_results);
+        all_results.push((wdl_document.uri().path().to_string(), document_results));
     }
 
-    for (doc, ep_results) in all_results {
-        println!("evaluating document: `{doc}`");
+    for (document_name, ep_results) in all_results {
+        println!("evaluating document: `{document_name}`");
         for (ep, results) in ep_results {
             println!("evaluating entrypoint: `{ep}`");
             for (test, mut test_results) in results {
@@ -348,34 +373,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 let mut fail_counter = 0;
                 let mut err_counter = 0;
 
-                while let Some(res) = test_results.join_next().await {
-                    let (test_num, result, assertions) = res.expect("error joining");
-                    let result = evaluate_test_result(&assertions, result);
-                    match result {
-                        Ok((true, _)) => {
-                            success_counter += 1;
-                        }
-                        Ok((false, task)) => {
-                            fail_counter += 1;
-                            if let Some(task) = task {
-                                errors.push(Arc::new(anyhow!(
-                                    "test iteration #{test_num} of `{test}` failed with exit code \
-                                     `{}` but expected exit code `{}`",
-                                    task.exit_code,
-                                    assertions.exit_code
-                                )));
-                            } else {
-                                errors.push(Arc::new(anyhow!(
-                                    "test iteration #{test_num} of `{test}` was expected to fail \
-                                     but it succeeded"
-                                )));
-                            }
-                        }
-                        Err(e) => {
-                            errors.push(Arc::new(e));
-                            err_counter += 1;
-                        }
-                    }
+                while let Some(result) = test_results.join_next().await {
+                    let test_iteration = result.with_context(|| "joining futures")?;
                 }
                 if err_counter > 0 {
                     println!(

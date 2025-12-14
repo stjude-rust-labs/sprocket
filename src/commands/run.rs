@@ -73,7 +73,7 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 ///
 /// The value of `100` was chosen simply as a reasonable default that will make
 /// lagging unlikely.
-pub(crate) const EVENTS_CHANNEL_CAPACITY: usize = 100;
+const EVENTS_CHANNEL_CAPACITY: usize = 100;
 
 /// The name of the default "runs" directory.
 pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
@@ -703,9 +703,6 @@ pub async fn run(args: Args) -> CommandResult<()> {
                         Ok(())
                     }
                     Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
-                    Err(EvaluationError::FailedTask(e)) => {
-                        Err(anyhow!("aborting because task failed: {e:?}").into())
-                    }
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
