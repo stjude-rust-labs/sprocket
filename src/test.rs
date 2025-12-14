@@ -126,14 +126,23 @@ pub(crate) struct TestDefinition {
 
 /// Possible assertions for a test.
 #[derive(Clone, Default, serde::Deserialize, Debug)]
-#[allow(unused)]
 pub(crate) struct Assertions {
+    /// The expected exit code of the task (ignored when testing workflows).
     #[serde(default)]
     pub exit_code: i32,
+    /// Whether a workflow should fail or not (ignored when testing tasks).
     #[serde(default)]
     pub should_fail: bool,
     #[serde(default)]
+    /// Assertions about WDL outputs.
+    ///
+    /// TODO(Ari): implement these assertions.
+    #[allow(unused)]
     pub outputs: HashMap<String, Value>,
+    /// A custom command to execute.
+    ///
+    /// TODO(Ari): implement this assertion.
+    #[allow(unused)]
     pub custom: Option<String>,
 }
 

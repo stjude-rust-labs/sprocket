@@ -18,7 +18,6 @@ use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::task::JoinSet;
 use tracing::debug;
-use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl::engine::CancellationContext;
@@ -83,8 +82,6 @@ impl Args {
     }
 }
 
-const NESTED_TEST_DIR_NAME: &str = "test";
-
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
     let mut result: Option<PathBuf> = None;
     let mut inner = |path: &Path| {
@@ -109,7 +106,7 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
     let parent = wdl_path.parent().expect("should have parent");
     let nested = parent
-        .join(NESTED_TEST_DIR_NAME)
+        .join(TEST_DIR)
         .join(wdl_path.file_name().expect("should have filename"));
     inner(&nested)?;
     Ok(result)
@@ -131,20 +128,24 @@ fn filter_test(
 
 #[derive(Debug)]
 struct TestIteration {
-    name: String,
+    name: Arc<String>,
     iteration_num: usize,
     inputs: EngineInputs,
     result: Result<Outputs, EvaluationError>,
-    assertions: Assertions,
+    assertions: Arc<Assertions>,
 }
 
 impl TestIteration {
-    pub fn evaluate(self) -> Result<IterationResult> {
-        match self.result {
+    fn is_workflow(&self) -> bool {
+        self.inputs.as_workflow_inputs().is_some()
+    }
+
+    pub fn evaluate(&self) -> Result<IterationResult> {
+        match &self.result {
             Err(eval_error) => match eval_error {
                 EvaluationError::Source(source_error) => {
-                    if let Some(ref task) = source_error.failed_task
-                        && self.inputs.as_task_inputs().is_some()
+                    if let Some(task) = &source_error.failed_task
+                        && !self.is_workflow()
                     {
                         // the task we're testing failed
                         if task.exit_code == self.assertions.exit_code {
@@ -154,14 +155,17 @@ impl TestIteration {
                             // task has wrong exit code
                             Ok(IterationResult::Fail(anyhow!(
                                 "test iteration #{num} of `{name}` failed with exit code \
-                                 `{actual}` but test expected exit code `{expected}`",
+                                 `{actual}` but test expected exit code `{expected}`: see \
+                                 `{stdout}` and `{stderr}`",
                                 num = self.iteration_num,
                                 name = self.name,
                                 actual = task.exit_code,
-                                expected = self.assertions.exit_code
+                                expected = self.assertions.exit_code,
+                                stdout = task.stdout_path,
+                                stderr = task.stderr_path,
                             )))
                         }
-                    } else if self.inputs.as_workflow_inputs().is_some() {
+                    } else if self.is_workflow() {
                         if self.assertions.should_fail {
                             Ok(IterationResult::Success)
                         } else {
@@ -182,7 +186,9 @@ impl TestIteration {
                 _ => Err(anyhow!("unknown evaluation error: {:#?}", eval_error)),
             },
             Ok(_outputs) => {
-                if self.assertions.should_fail {
+                if (self.is_workflow() && self.assertions.should_fail)
+                    || (!self.is_workflow() && self.assertions.exit_code != 0)
+                {
                     Ok(IterationResult::Fail(anyhow!(
                         "test iteration #{num} of `{name}` succeeded but was expected to fail",
                         num = self.iteration_num,
@@ -299,7 +305,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
             }
             info!("testing entrypoint `{}`", entrypoint);
             for test in definitions {
-                let test_name = test.name.clone();
+                let test_name = Arc::new(test.name.clone());
+                let assertions = Arc::new(test.assertions.clone());
                 if filter_test(&test, &include_tags, &filter_tags) {
                     info!("skipping `{}` due to tag selection", test.name);
                     continue;
@@ -322,7 +329,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 let run_root = test_dir
                     .join(DEFAULT_RUNS_DIR)
                     .join(&entrypoint)
-                    .join(&test.name);
+                    .join(test_name.as_ref());
                 if run_root.exists() {
                     remove_dir_all(&run_root)
                         .await
@@ -357,12 +364,12 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     };
                     debug_assert_eq!(entrypoint, derived_ep);
                     let run_dir = run_root.join(test_num.to_string());
-                    let name = test.name.clone();
+                    let name = Arc::clone(&test_name);
                     let fixtures = fixture_origins.clone();
                     let engine = args.engine.clone();
                     let events = events.clone();
                     let entrypoint = entrypoint.clone();
-                    let assertions = test.assertions.clone();
+                    let assertions = Arc::clone(&assertions);
                     let document = wdl_document.clone();
                     futures.spawn(async move {
                         let evaluator = Evaluator::new(
@@ -417,13 +424,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     }
                 }
                 if err_counter > 0 {
-                    error!(
+                    eprintln!(
                         "☠️ `{test_name}` had errors: {err_counter} errors out of {total} \
                          executions",
                         total = err_counter + fail_counter + success_counter
                     );
                 } else if fail_counter > 0 {
-                    error!(
+                    eprintln!(
                         "❌ `{test_name}` failed: {fail_counter} executions failed assertions \
                          (out of {total} executions)",
                         total = fail_counter + success_counter
