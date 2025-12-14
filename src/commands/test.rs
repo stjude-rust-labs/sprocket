@@ -18,14 +18,15 @@ use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::task::JoinSet;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
-use wdl::engine::FailedTask;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
+use wdl::engine::config::FailureMode;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -128,41 +129,9 @@ fn filter_test(
     false
 }
 
-fn evaluate_test_result(
-    assertions: &Assertions,
-    result: Result<Outputs, EvaluationError>,
-) -> Result<(bool, Option<FailedTask>)> {
-    match result {
-        Ok(_outputs) => {
-            if assertions.exit_code == 0 && !assertions.should_fail {
-                Ok((true, None))
-            } else {
-                Ok((false, None))
-            }
-        }
-        Err(eval_err) => match eval_err {
-            EvaluationError::Canceled => Err(anyhow!("test was cancelled")),
-            EvaluationError::Source(source_err) => {
-                if let Some(task) = source_err.failed_task {
-                    if task.exit_code == assertions.exit_code {
-                        Ok((true, None))
-                    } else {
-                        Ok((false, Some(task)))
-                    }
-                } else {
-                    Err(anyhow!(
-                        "source error without a failed task!: {:#?}",
-                        source_err
-                    ))
-                }
-            }
-            EvaluationError::Other(other_err) => Err(anyhow!("other error: {:#?}", other_err)),
-        },
-    }
-}
-
 #[derive(Debug)]
 struct TestIteration {
+    name: String,
     iteration_num: usize,
     inputs: EngineInputs,
     result: Result<Outputs, EvaluationError>,
@@ -171,12 +140,65 @@ struct TestIteration {
 
 impl TestIteration {
     pub fn evaluate(self) -> Result<IterationResult> {
-        todo!()
+        match self.result {
+            Err(eval_error) => match eval_error {
+                EvaluationError::Source(source_error) => {
+                    if let Some(ref task) = source_error.failed_task
+                        && self.inputs.as_task_inputs().is_some()
+                    {
+                        // the task we're testing failed
+                        if task.exit_code == self.assertions.exit_code {
+                            // task expected to fail with this exit code
+                            Ok(IterationResult::Success)
+                        } else {
+                            // task has wrong exit code
+                            Ok(IterationResult::Fail(anyhow!(
+                                "test iteration #{num} of `{name}` failed with exit code \
+                                 `{actual}` but test expected exit code `{expected}`",
+                                num = self.iteration_num,
+                                name = self.name,
+                                actual = task.exit_code,
+                                expected = self.assertions.exit_code
+                            )))
+                        }
+                    } else if self.inputs.as_workflow_inputs().is_some() {
+                        if self.assertions.should_fail {
+                            Ok(IterationResult::Success)
+                        } else {
+                            Ok(IterationResult::Fail(anyhow!(
+                                "test iteration #{num} of `{name}` failed but workflow was \
+                                 expected to succeed",
+                                num = self.iteration_num,
+                                name = self.name,
+                            )))
+                        }
+                    } else {
+                        Err(anyhow!(
+                            "could not evaluate failed task: {:#?}",
+                            source_error
+                        ))
+                    }
+                }
+                _ => Err(anyhow!("unknown evaluation error: {:#?}", eval_error)),
+            },
+            Ok(_outputs) => {
+                if self.assertions.should_fail {
+                    Ok(IterationResult::Fail(anyhow!(
+                        "test iteration #{num} of `{name}` succeeded but was expected to fail",
+                        num = self.iteration_num,
+                        name = self.name
+                    )))
+                } else {
+                    Ok(IterationResult::Success)
+                }
+            }
+        }
     }
 }
 
-struct IterationResult {
-    passed: bool,
+enum IterationResult {
+    Success,
+    Fail(anyhow::Error),
 }
 
 /// Performs the `test` command.
@@ -256,10 +278,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
         let wdl_document = analysis.document();
         info!("testing WDL document `{}`", wdl_document.path());
         let mut document_results = Vec::new();
-        for (entrypoint, definitions) in test_definitions.entrypoints.iter() {
+        for (entrypoint, definitions) in test_definitions.entrypoints {
+            let ep_name = entrypoint.clone();
             let mut entrypoint_results = Vec::new();
             let found_entrypoint = match (
-                wdl_document.task_by_name(entrypoint),
+                wdl_document.task_by_name(&entrypoint),
                 wdl_document.workflow(),
             ) {
                 (Some(_), _) => true,
@@ -276,8 +299,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
             }
             info!("testing entrypoint `{}`", entrypoint);
             for test in definitions {
-                if filter_test(test, &include_tags, &filter_tags) {
-                    info!("skipping `{}`", test.name);
+                let test_name = test.name.clone();
+                if filter_test(&test, &include_tags, &filter_tags) {
+                    info!("skipping `{}` due to tag selection", test.name);
                     continue;
                 }
                 let matrix = match test
@@ -297,7 +321,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("running `{}`", test.name);
                 let run_root = test_dir
                     .join(DEFAULT_RUNS_DIR)
-                    .join(entrypoint)
+                    .join(&entrypoint)
                     .join(&test.name);
                 if run_root.exists() {
                     remove_dir_all(&run_root)
@@ -328,14 +352,16 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let engine_inputs = EngineInputs::parse_object(wdl_document, inputs)
                         .with_context(|| "converting to WDL inputs")?;
 
-                    let Some((_derived_ep, wdl_inputs)) = engine_inputs else {
+                    let Some((derived_ep, wdl_inputs)) = engine_inputs else {
                         todo!("handle empty inputs");
                     };
+                    debug_assert_eq!(entrypoint, derived_ep);
                     let run_dir = run_root.join(test_num.to_string());
+                    let name = test.name.clone();
                     let fixtures = fixture_origins.clone();
                     let engine = args.engine.clone();
                     let events = events.clone();
-                    let entrypoint = entrypoint.to_string();
+                    let entrypoint = entrypoint.clone();
                     let assertions = test.assertions.clone();
                     let document = wdl_document.clone();
                     futures.spawn(async move {
@@ -347,8 +373,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             engine,
                             &run_dir,
                         );
-                        let cancellation = CancellationContext::new(args.engine.failure_mode);
+                        let cancellation = CancellationContext::new(FailureMode::Fast);
                         TestIteration {
+                            name,
                             iteration_num: test_num,
                             inputs: wdl_inputs,
                             result: evaluator.run(cancellation, events).await,
@@ -356,39 +383,55 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         }
                     });
                 }
-                entrypoint_results.push((test.name.clone(), futures));
+                entrypoint_results.push((test_name, futures));
             }
-            document_results.push((entrypoint.clone(), entrypoint_results));
+            document_results.push((ep_name, entrypoint_results));
         }
         all_results.push((wdl_document.uri().path().to_string(), document_results));
     }
 
-    for (document_name, ep_results) in all_results {
-        println!("evaluating document: `{document_name}`");
-        for (ep, results) in ep_results {
-            println!("evaluating entrypoint: `{ep}`");
-            for (test, mut test_results) in results {
-                println!("evaluating test: `{test}`");
+    for (document_name, entrypoint_results) in all_results {
+        info!("evaluating document: `{document_name}`");
+        for (entrypoint_name, results) in entrypoint_results {
+            info!("evaluating entrypoint: `{entrypoint_name}`");
+            for (test_name, mut test_results) in results {
+                info!("evaluating test: `{test_name}`");
                 let mut success_counter = 0;
                 let mut fail_counter = 0;
                 let mut err_counter = 0;
 
                 while let Some(result) = test_results.join_next().await {
                     let test_iteration = result.with_context(|| "joining futures")?;
+                    match test_iteration.evaluate() {
+                        Ok(IterationResult::Success) => {
+                            success_counter += 1;
+                        }
+                        Ok(IterationResult::Fail(e)) => {
+                            fail_counter += 1;
+                            errors.push(Arc::new(e));
+                        }
+                        Err(e) => {
+                            err_counter += 1;
+                            errors.push(Arc::new(e));
+                        }
+                    }
                 }
                 if err_counter > 0 {
-                    println!(
-                        "☠️ `{test}` had errors: {err_counter} errors out of {total} executions",
+                    error!(
+                        "☠️ `{test_name}` had errors: {err_counter} errors out of {total} \
+                         executions",
                         total = err_counter + fail_counter + success_counter
                     );
                 } else if fail_counter > 0 {
-                    println!(
-                        "❌ `{test}` failed: {fail_counter} executions failed assertions (out of \
-                         {total} executions)",
+                    error!(
+                        "❌ `{test_name}` failed: {fail_counter} executions failed assertions \
+                         (out of {total} executions)",
                         total = fail_counter + success_counter
                     )
                 } else {
-                    println!("✅ `{test}` success! ({success_counter} successful executions)");
+                    eprintln!(
+                        "✅ `{test_name}` success! ({success_counter} successful executions)"
+                    );
                 }
             }
         }

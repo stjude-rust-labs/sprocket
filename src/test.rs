@@ -126,6 +126,7 @@ pub(crate) struct TestDefinition {
 
 /// Possible assertions for a test.
 #[derive(Clone, Default, serde::Deserialize, Debug)]
+#[allow(unused)]
 pub(crate) struct Assertions {
     #[serde(default)]
     pub exit_code: i32,
