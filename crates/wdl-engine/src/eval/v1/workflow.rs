@@ -2258,10 +2258,9 @@ workflow w {
             }
         });
 
-        let evaluator =
-            TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
-                .await
-                .unwrap();
+        let evaluator = TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
+            .await
+            .unwrap();
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend

@@ -235,7 +235,6 @@ impl CancellationContext {
         if let Some(state) = CancellationContextState::update(self.mode, true, &self.state) {
             let message: Cow<'_, str> = match error {
                 EvaluationError::Canceled => "evaluation was canceled".into(),
-                EvaluationError::FailedTask(_e) => "task failed".into(),
                 EvaluationError::Source(e) => e.diagnostic.message().into(),
                 EvaluationError::Other(e) => format!("{e:#}").into(),
             };
@@ -362,22 +361,8 @@ pub struct SourceError {
     pub document: Document,
     /// The evaluation diagnostic.
     pub diagnostic: Diagnostic,
-    /// The call backtrace for the error.
-    ///
-    /// An empty backtrace denotes that the error was encountered outside of
-    /// a call.
-    ///
-    /// The call locations are stored as most recent to least recent.
-    pub backtrace: Vec<CallLocation>,
-}
-
-/// Represents an error that originates from a task failure.
-#[derive(Debug)]
-pub struct FailedTaskError {
-    /// The document originating the task which failed.
-    pub document: Document,
-    /// The task which failed.
-    pub failed_task: FailedTask,
+    /// Only `Some(_)` in the case that task evaluation was successful in all regards except for the expected error code returned by the task.
+    pub failed_task: Option<FailedTask>,
     /// The call backtrace for the error.
     ///
     /// An empty backtrace denotes that the error was encountered outside of
@@ -392,8 +377,6 @@ pub struct FailedTaskError {
 pub enum EvaluationError {
     /// Evaluation was canceled.
     Canceled,
-    /// The called task failed.
-    FailedTask(Box<FailedTaskError>),
     /// The error came from WDL source evaluation.
     Source(Box<SourceError>),
     /// The error came from another source.
@@ -406,15 +389,17 @@ impl EvaluationError {
         Self::Source(Box::new(SourceError {
             document,
             diagnostic,
+            failed_task: None,
             backtrace: Default::default(),
         }))
     }
 
     /// Creates a new evaluation error from the given document and diagnostic.
-    pub fn from_failed_task(document: Document, task: FailedTask) -> Self {
-        Self::FailedTask(Box::new(FailedTaskError {
+    pub fn from_failed_task(document: Document, diagnostic: Diagnostic, task: FailedTask) -> Self {
+        Self::Source(Box::new(SourceError {
             document,
-            failed_task: task,
+            diagnostic,
+            failed_task: Some(task),
             backtrace: Default::default(),
         }))
     }
@@ -434,9 +419,6 @@ impl EvaluationError {
 
         match self {
             Self::Canceled => "evaluation was canceled".to_string(),
-            Self::FailedTask(_e) => {
-                "task failed for some reason?".to_string()
-            }
             Self::Source(e) => {
                 let mut files = SimpleFiles::new();
                 let mut map = HashMap::new();
@@ -831,28 +813,52 @@ impl<'a> ScopeRef<'a> {
     }
 }
 
+/// An error during task evaluation.
 #[derive(Debug, thiserror::Error)]
 pub enum TaskEvaluationError {
-    #[error(
-        "process terminated with exit code {exit_code}: see {stdout_path} and {stderr_path} for output{header}{stderr_tail}{trailer}",
-        exit_code = .0.exit_code,
-        stdout_path = .0.stdout_path,
-        stderr_path = .0.stderr_path,
-        header = if .0.stderr_tail.is_empty() { "".to_string() } else { format!("\n\ntask stderr output (last {MAX_STDERR_LINES} line):\n\n") },
-        stderr_tail = .0.stderr_tail,
-        trailer = if .0.stderr_tail.is_empty() { "" } else { "\n" }
-    )]
+    /// The task exited with an unexpected exit code.
+    #[error("{}", .0.error())]
     TaskFailed(FailedTask),
+    /// Something else caused the failure.
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
 
+/// Represents the exit conditions of a task which failed evaluation.
 #[derive(Debug)]
 pub struct FailedTask {
+    /// The exit code returned by the task.
     pub exit_code: i32,
+    /// Path to the task's stdout file.
     pub stdout_path: HostPath,
+    /// Path to the task's stderr file.
     pub stderr_path: HostPath,
+    /// The last [`MAX_STDERR_LINES`] of the stderr stream.
     stderr_tail: String,
+}
+
+impl FailedTask {
+    /// Get an [`anyhow::Error`] for the task failure.
+    pub fn error(&self) -> anyhow::Error {
+        anyhow!(
+            "process terminated with exit code {exit_code}: see `{stdout_path}` and \
+             `{stderr_path}` for task output{header}{stderr_tail}{trailer}",
+            exit_code = self.exit_code,
+            stdout_path = self.stdout_path,
+            stderr_path = self.stderr_path,
+            header = if self.stderr_tail.is_empty() {
+                "".to_string()
+            } else {
+                format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n")
+            },
+            stderr_tail = self.stderr_tail,
+            trailer = if self.stderr_tail.is_empty() {
+                ""
+            } else {
+                "\n"
+            }
+        )
+    }
 }
 
 /// Represents an evaluated task.

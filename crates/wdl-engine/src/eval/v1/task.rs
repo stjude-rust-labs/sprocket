@@ -1239,7 +1239,7 @@ impl TopLevelEvaluator {
                         .map_err(|e| {
                             EvaluationError::from_diagnostic(
                                 state.document.clone(),
-                                task_execution_failed(e.into(), task.name(), id, task.name_span()),
+                                task_execution_failed(e, task.name(), id, task.name_span()),
                             )
                         })?
                 }
@@ -1275,10 +1275,16 @@ impl TopLevelEvaluator {
                                 task_execution_failed(other_err, task.name(), id, task.name_span()),
                             ));
                         }
-                        crate::TaskEvaluationError::TaskFailed(task) => {
+                        crate::TaskEvaluationError::TaskFailed(failed_task) => {
                             return Err(EvaluationError::from_failed_task(
                                 state.document.clone(),
-                                task,
+                                task_execution_failed(
+                                    failed_task.error(),
+                                    task.name(),
+                                    id,
+                                    task.name_span(),
+                                ),
+                                failed_task,
                             ));
                         }
                     }
