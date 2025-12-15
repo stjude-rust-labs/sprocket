@@ -1,24 +1,8 @@
-found tests in `example.yaml` for WDL document `example.wdl`
-found tests for task: `so_many_options`
-test name: `kitchen_sink`
-computed 96 executions
-test name: `simpler`
-computed 4 executions
-found tests for task: `has_a_reference`
-test name: `complex_groups`
-computed 8 executions
-found tests in `test/flag_filter.yml` for WDL document `flag_filter.wdl`
-found tests for task: `validate_string_is_12bit_int`
-test name: `decimal_passes`
-computed 1 executions
-test name: `hexadecimal_passes`
-computed 1 executions
-test name: `too_big_hexadecimal_fails`
-computed 1 executions
-test name: `too_big_decimal_fails`
-computed 1 executions
-found tests for workflow: `validate_flag_filter`
-test name: `valid_FlagFilter_passes`
-computed 1 executions
-test name: `invalid_FlagFilter_fails`
-computed 1 executions
+✅ `simpler` success! (8 successful executions)
+✅ `complex_groups` success! (8 successful executions)
+✅ `decimal_passes` success! (1 successful executions)
+✅ `hexadecimal_passes` success! (1 successful executions)
+✅ `too_big_hexadecimal_fails` success! (1 successful executions)
+✅ `too_big_decimal_fails` success! (1 successful executions)
+✅ `valid_FlagFilter_passes` success! (1 successful executions)
+✅ `invalid_FlagFilter_fails` success! (1 successful executions)

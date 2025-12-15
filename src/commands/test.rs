@@ -130,22 +130,18 @@ fn filter_test(
 struct TestIteration {
     name: Arc<String>,
     iteration_num: usize,
-    inputs: EngineInputs,
+    is_workflow: bool,
     result: Result<Outputs, EvaluationError>,
     assertions: Arc<Assertions>,
 }
 
 impl TestIteration {
-    fn is_workflow(&self) -> bool {
-        self.inputs.as_workflow_inputs().is_some()
-    }
-
     pub fn evaluate(&self) -> Result<IterationResult> {
         match &self.result {
             Err(eval_error) => match eval_error {
                 EvaluationError::Source(source_error) => {
                     if let Some(task) = &source_error.failed_task
-                        && !self.is_workflow()
+                        && !self.is_workflow
                     {
                         // the task we're testing failed
                         if task.exit_code == self.assertions.exit_code {
@@ -165,7 +161,7 @@ impl TestIteration {
                                 stderr = task.stderr_path,
                             )))
                         }
-                    } else if self.is_workflow() {
+                    } else if self.is_workflow {
                         if self.assertions.should_fail {
                             Ok(IterationResult::Success)
                         } else {
@@ -178,16 +174,19 @@ impl TestIteration {
                         }
                     } else {
                         Err(anyhow!(
-                            "could not evaluate failed task: {:#?}",
-                            source_error
+                            "unexpected evaluation error: {}",
+                            eval_error.to_string()
                         ))
                     }
                 }
-                _ => Err(anyhow!("unknown evaluation error: {:#?}", eval_error)),
+                _ => Err(anyhow!(
+                    "unexpected evaluation error: {}",
+                    eval_error.to_string()
+                )),
             },
             Ok(_outputs) => {
-                if (self.is_workflow() && self.assertions.should_fail)
-                    || (!self.is_workflow() && self.assertions.exit_code != 0)
+                if (self.is_workflow && self.assertions.should_fail)
+                    || (!self.is_workflow && self.assertions.exit_code != 0)
                 {
                     Ok(IterationResult::Fail(anyhow!(
                         "test iteration #{num} of `{name}` succeeded but was expected to fail",
@@ -214,11 +213,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
         (Source::Remote(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
-        (Source::Directory(_), Some(_)) => {
-            return Err(anyhow!("arg conflict").into());
-        }
+        (Source::Directory(_), Some(workspace)) => (source, workspace),
         (Source::Directory(source_dir), None) => (source.clone(), source_dir.to_path_buf()),
-        (Source::File(_), Some(supplied_dir)) => (source, supplied_dir),
+        (Source::File(_), Some(workspace)) => (source, workspace),
         (Source::File(_), None) => (
             source,
             std::env::current_dir().context("failed to get current directory")?,
@@ -285,14 +282,14 @@ pub async fn test(args: Args) -> CommandResult<()> {
         info!("testing WDL document `{}`", wdl_document.path());
         let mut document_results = Vec::new();
         for (entrypoint, definitions) in test_definitions.entrypoints {
-            let ep_name = entrypoint.clone();
+            let entrypoint = Arc::new(entrypoint);
             let mut entrypoint_results = Vec::new();
             let found_entrypoint = match (
                 wdl_document.task_by_name(&entrypoint),
                 wdl_document.workflow(),
             ) {
                 (Some(_), _) => true,
-                (None, Some(wf)) if wf.name() == entrypoint => true,
+                (None, Some(wf)) if wf.name() == *entrypoint => true,
                 (..) => false,
             };
             if !found_entrypoint {
@@ -311,10 +308,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     info!("skipping `{}` due to tag selection", test.name);
                     continue;
                 }
-                let matrix = match test
-                    .parse_inputs()
-                    .with_context(|| format!("parsing input matrix of `{}`", test.name))
-                {
+                let matrix = match test.parse_inputs().with_context(|| {
+                    format!(
+                        "parsing input matrix of test `{}` in tests for WDL document `{}`",
+                        test.name,
+                        wdl_document.path()
+                    )
+                }) {
                     Ok(res) => res,
                     Err(e) => {
                         errors.push(Arc::new(e));
@@ -328,12 +328,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 info!("running `{}`", test.name);
                 let run_root = test_dir
                     .join(DEFAULT_RUNS_DIR)
-                    .join(&entrypoint)
+                    .join(entrypoint.as_ref())
                     .join(test_name.as_ref());
+                // TODO(Ari): should the `run_root` have a timestamped element?
+                // That would allow caching, but may also clutter the disk as test results
+                // don't need to persist. For now, we just clear the `run_root` on each re-run.
                 if run_root.exists() {
-                    remove_dir_all(&run_root)
-                        .await
-                        .with_context(|| "removing prior test dir")?;
+                    remove_dir_all(&run_root).await.with_context(|| {
+                        format!("removing prior test dir: `{}`", run_root.display())
+                    })?;
                 }
                 let mut futures = JoinSet::new();
                 for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
@@ -343,8 +346,14 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             Err(e) => Err(anyhow!(e)),
                         })
                         .collect::<Result<serde_json::Map<String, JsonValue>>>()
-                        .with_context(|| "converting YAML inputs to a JSON map")
-                    {
+                        .with_context(|| {
+                            format!(
+                                "converting YAML inputs to a JSON map for test `{}` for WDL \
+                                 document `{}`",
+                                test_name,
+                                wdl_document.path()
+                            )
+                        }) {
                         Ok(res) => res,
                         Err(e) => {
                             errors.push(Arc::new(e));
@@ -357,12 +366,18 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     };
 
                     let engine_inputs = EngineInputs::parse_object(wdl_document, inputs)
-                        .with_context(|| "converting to WDL inputs")?;
+                        .with_context(|| {
+                            format!(
+                                "converting to WDL inputs for test `{}` for WDL document `{}`",
+                                test_name,
+                                wdl_document.path()
+                            )
+                        })?;
 
                     let Some((derived_ep, wdl_inputs)) = engine_inputs else {
                         todo!("handle empty inputs");
                     };
-                    debug_assert_eq!(entrypoint, derived_ep);
+                    debug_assert_eq!(*entrypoint, derived_ep);
                     let run_dir = run_root.join(test_num.to_string());
                     let name = Arc::clone(&test_name);
                     let fixtures = fixture_origins.clone();
@@ -371,11 +386,12 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let entrypoint = entrypoint.clone();
                     let assertions = Arc::clone(&assertions);
                     let document = wdl_document.clone();
+                    let is_workflow = wdl_inputs.as_workflow_inputs().is_some();
                     futures.spawn(async move {
                         let evaluator = Evaluator::new(
                             &document,
                             &entrypoint,
-                            wdl_inputs.clone(),
+                            wdl_inputs,
                             &fixtures,
                             engine,
                             &run_dir,
@@ -384,7 +400,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         TestIteration {
                             name,
                             iteration_num: test_num,
-                            inputs: wdl_inputs,
+                            is_workflow,
                             result: evaluator.run(cancellation, events).await,
                             assertions,
                         }
@@ -392,7 +408,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 }
                 entrypoint_results.push((test_name, futures));
             }
-            document_results.push((ep_name, entrypoint_results));
+            document_results.push((entrypoint, entrypoint_results));
         }
         all_results.push((wdl_document.uri().path().to_string(), document_results));
     }
@@ -424,21 +440,19 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     }
                 }
                 if err_counter > 0 {
-                    eprintln!(
+                    println!(
                         "☠️ `{test_name}` had errors: {err_counter} errors out of {total} \
                          executions",
                         total = err_counter + fail_counter + success_counter
                     );
                 } else if fail_counter > 0 {
-                    eprintln!(
+                    println!(
                         "❌ `{test_name}` failed: {fail_counter} executions failed assertions \
                          (out of {total} executions)",
                         total = fail_counter + success_counter
                     )
                 } else {
-                    eprintln!(
-                        "✅ `{test_name}` success! ({success_counter} successful executions)"
-                    );
+                    println!("✅ `{test_name}` success! ({success_counter} successful executions)");
                 }
             }
         }
