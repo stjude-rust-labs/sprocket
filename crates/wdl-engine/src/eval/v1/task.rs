@@ -2245,7 +2245,7 @@ mod test {
 
         let evaluator = TopLevelEvaluator::new(
             &root_dir.join("runs"),
-            config,
+            config.into(),
             CancellationContext::default(),
             Events::disabled(),
         )

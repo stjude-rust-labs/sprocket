@@ -1851,7 +1851,7 @@ workflow test {
         };
         let evaluator = TopLevelEvaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -2012,7 +2012,7 @@ workflow foo {
         };
         let evaluator = TopLevelEvaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -2258,9 +2258,10 @@ workflow w {
             }
         });
 
-        let evaluator = TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
-            .await
-            .unwrap();
+        let evaluator =
+            TopLevelEvaluator::new(root_dir.path(), config.into(), Default::default(), events)
+                .await
+                .unwrap();
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2337,7 +2338,7 @@ workflow w {
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let evaluator = TopLevelEvaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             cancellation.clone(),
             Events::disabled(),
         )

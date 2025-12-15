@@ -1,6 +1,7 @@
 //! Facilities for performing a typical WDL evaluation using the `wdl-*` crates.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
@@ -31,7 +32,7 @@ pub struct Evaluator<'a> {
     origins: &'a OriginPaths,
 
     /// The configuration for the WDL engine.
-    config: Config,
+    config: Arc<Config>,
 
     /// The output directory.
     output_dir: &'a Path,
@@ -44,7 +45,7 @@ impl<'a> Evaluator<'a> {
         name: &'a str,
         inputs: Inputs,
         origins: &'a OriginPaths,
-        config: Config,
+        config: Arc<Config>,
         output_dir: &'a Path,
     ) -> Self {
         Self {

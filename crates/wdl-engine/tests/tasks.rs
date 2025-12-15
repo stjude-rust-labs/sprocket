@@ -145,7 +145,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
 
         let evaluator = TopLevelEvaluator::new(
             dir.path(),
-            config.engine,
+            config.engine.into(),
             Default::default(),
             Events::disabled(),
         )

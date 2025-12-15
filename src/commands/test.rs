@@ -37,7 +37,12 @@ use crate::inputs::OriginPaths;
 use crate::test::Assertions;
 use crate::test::TestDefinition;
 
-const TEST_DIR: &str = "test";
+/// Test definitions may appear either sibling to their source WDL, or nested
+/// under this directory.
+const DEFINITIONS_TEST_DIR: &str = "test";
+/// There may be a directory named "test" at the root of each WDL workspace.
+const WORKSPACE_TEST_DIR: &str = "test";
+/// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
 
 /// Arguments for the `test` subcommand.
@@ -45,7 +50,7 @@ const FIXTURES_DIR: &str = "fixtures";
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
     pub source: Option<Source>,
-    /// Root workspace where test fixtures are relative to.
+    /// Root of the workspace where test fixtures are relative to.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
     /// Specific test tag that should be run.
@@ -106,7 +111,7 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
     let parent = wdl_path.parent().expect("should have parent");
     let nested = parent
-        .join(TEST_DIR)
+        .join(DEFINITIONS_TEST_DIR)
         .join(wdl_path.file_name().expect("should have filename"));
     inner(&nested)?;
     Ok(result)
@@ -267,11 +272,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
         documents.push((analysis, document_tests));
     }
 
-    let test_dir = workspace.join(TEST_DIR);
-    let fixture_origins = OriginPaths::Single(wdl::engine::path::EvaluationPath::Local(
-        test_dir.join(FIXTURES_DIR),
+    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
+    let fixture_origins = Arc::new(OriginPaths::Single(
+        wdl::engine::path::EvaluationPath::Local(test_dir.join(FIXTURES_DIR)),
     ));
-    let events = Events::disabled();
+    let engine = Arc::new(args.engine);
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
@@ -284,22 +289,21 @@ pub async fn test(args: Args) -> CommandResult<()> {
         for (entrypoint, definitions) in test_definitions.entrypoints {
             let entrypoint = Arc::new(entrypoint);
             let mut entrypoint_results = Vec::new();
-            let found_entrypoint = match (
+            let is_workflow = match (
                 wdl_document.task_by_name(&entrypoint),
                 wdl_document.workflow(),
             ) {
-                (Some(_), _) => true,
+                (Some(_), _) => false,
                 (None, Some(wf)) if wf.name() == *entrypoint => true,
-                (..) => false,
+                (..) => {
+                    errors.push(Arc::new(anyhow!(
+                        "no entrypoint named `{}` in `{}`",
+                        entrypoint,
+                        wdl_document.path()
+                    )));
+                    continue;
+                }
             };
-            if !found_entrypoint {
-                errors.push(Arc::new(anyhow!(
-                    "no entrypoint named `{}` in `{}`",
-                    entrypoint,
-                    wdl_document.path()
-                )));
-                continue;
-            }
             info!("testing entrypoint `{}`", entrypoint);
             for test in definitions {
                 let test_name = Arc::new(test.name.clone());
@@ -381,12 +385,11 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     let run_dir = run_root.join(test_num.to_string());
                     let name = Arc::clone(&test_name);
                     let fixtures = fixture_origins.clone();
-                    let engine = args.engine.clone();
-                    let events = events.clone();
+                    let engine = engine.clone();
+                    let events = Events::disabled();
                     let entrypoint = entrypoint.clone();
                     let assertions = Arc::clone(&assertions);
                     let document = wdl_document.clone();
-                    let is_workflow = wdl_inputs.as_workflow_inputs().is_some();
                     futures.spawn(async move {
                         let evaluator = Evaluator::new(
                             &document,
