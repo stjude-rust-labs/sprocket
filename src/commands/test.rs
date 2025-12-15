@@ -138,6 +138,7 @@ struct TestIteration {
     is_workflow: bool,
     result: Result<Outputs, EvaluationError>,
     assertions: Arc<Assertions>,
+    run_dir: PathBuf,
 }
 
 impl TestIteration {
@@ -172,9 +173,10 @@ impl TestIteration {
                         } else {
                             Ok(IterationResult::Fail(anyhow!(
                                 "test iteration #{num} of `{name}` failed but workflow was \
-                                 expected to succeed",
+                                 expected to succeed: see `{dir}`",
                                 num = self.iteration_num,
                                 name = self.name,
+                                dir = self.run_dir.display(),
                             )))
                         }
                     } else {
@@ -194,9 +196,11 @@ impl TestIteration {
                     || (!self.is_workflow && self.assertions.exit_code != 0)
                 {
                     Ok(IterationResult::Fail(anyhow!(
-                        "test iteration #{num} of `{name}` succeeded but was expected to fail",
+                        "test iteration #{num} of `{name}` succeeded but was expected to fail: \
+                         see `{dir}`",
                         num = self.iteration_num,
-                        name = self.name
+                        name = self.name,
+                        dir = self.run_dir.display(),
                     )))
                 } else {
                     Ok(IterationResult::Success)
@@ -406,6 +410,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             is_workflow,
                             result: evaluator.run(cancellation, events).await,
                             assertions,
+                            run_dir,
                         }
                     });
                 }
