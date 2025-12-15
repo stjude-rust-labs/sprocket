@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Changed how task evaluation errors are reported across this crate's boundaries ([#489](https://github.com/stjude-rust-labs/sprocket/pull/489))
 * Added shared validation for task runtime and hint numeric settings (memory,
   max_memory, max_retries, preemptible), rejecting invalid or negative values
   earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
