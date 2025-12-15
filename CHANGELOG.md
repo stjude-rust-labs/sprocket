@@ -12,8 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added setting `run.events_capacity` to `sprocket.toml` for controlling the
   size of the events channel buffer that Sprocket uses for displaying progress
   statistics ([#491](https://github.com/stjude-rust-labs/sprocket/pull/491)).
-* Added an experimental and still under construction `sprocket dev test` command ([#468](https://github.com/stjude-rust-labs/sprocket/pull/468)).
-    * This version merely parses, validates, and logs information about found test definitions. **It does not actually execute any WDL code.**
+* Added an experimental `sprocket dev test` command ([#468](https://github.com/stjude-rust-labs/sprocket/pull/468), [#489](https://github.com/stjude-rust-labs/sprocket/pull/489)).
 * Added peak memory usage reporting at the DEBUG verbosity level ([#482](https://github.com/stjude-rust-labs/sprocket/pull/482)).
 
 ### Fixed
