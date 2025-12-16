@@ -262,6 +262,11 @@ impl TaskSpawnRequest {
     pub fn wdl_stderr_host_path(&self) -> PathBuf {
         self.attempt_dir.join(STDERR_FILE_NAME)
     }
+
+    /// The host-side attempt directory root.
+    pub fn attempt_dir_host(&self) -> &Path {
+        &self.attempt_dir
+    }
 }
 
 /// Represents the result of a task's execution.
@@ -275,6 +280,8 @@ pub struct TaskExecutionResult {
     pub stdout: Value,
     /// The value of the task's stderr file.
     pub stderr: Value,
+    /// The host-side attempt directory for this execution, if one exists.
+    pub attempt_dir: Option<PathBuf>,
 }
 
 /// Represents a task execution backend.

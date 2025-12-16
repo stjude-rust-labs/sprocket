@@ -216,6 +216,7 @@ impl TaskManagerRequest for LocalTaskRequest {
                             work_dir: EvaluationPath::Local(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                            attempt_dir: Some(self.inner.attempt_dir_host().to_path_buf()),
                         })
                     }
                     Err(e) => {

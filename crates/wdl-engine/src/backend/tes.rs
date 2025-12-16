@@ -365,6 +365,7 @@ impl TaskManagerRequest for TesTaskRequest {
                 work_dir: EvaluationPath::Remote(work_dir_url),
                 stdout: PrimitiveValue::new_file(stdout_url).into(),
                 stderr: PrimitiveValue::new_file(stderr_url).into(),
+                attempt_dir: Some(self.inner.attempt_dir_host().to_path_buf()),
             });
         }
     }

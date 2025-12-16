@@ -434,6 +434,7 @@ impl CallCache {
             work_dir: work,
             stdout: PrimitiveValue::new_file(String::try_from(stdout)?).into(),
             stderr: PrimitiveValue::new_file(String::try_from(stderr)?).into(),
+            attempt_dir: None,
         }))
     }
 
@@ -633,6 +634,7 @@ mod test {
             work_dir: EvaluationPath::Local(task.paths.work_dir.clone()),
             stdout: PrimitiveValue::new_file(task.paths.stdout.to_str().unwrap()).into(),
             stderr: PrimitiveValue::new_file(task.paths.stderr.to_str().unwrap()).into(),
+            attempt_dir: None,
         };
         cache.put(key, &result).await.unwrap();
 

@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Write as _;
 use std::fs;
 use std::io::BufRead;
 use std::path::Path;
@@ -16,7 +17,6 @@ use anyhow::bail;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use num_enum::IntoPrimitive;
 use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
@@ -904,53 +904,178 @@ impl EvaluatedTask {
         }
 
         if error {
-            // Read the last `MAX_STDERR_LINES` number of lines from stderr
-            // If there's a problem reading stderr, don't output it
-            let stderr = download_file(
-                transferer,
-                self.work_dir(),
-                self.stderr().as_file().unwrap(),
-            )
-            .await
-            .ok()
-            .and_then(|l| {
-                fs::File::open(l).ok().map(|f| {
-                    // Buffer the last N number of lines
-                    let reader = RevBufReader::new(f);
-                    let lines: Vec<_> = reader
-                        .lines()
-                        .take(MAX_STDERR_LINES)
-                        .map_while(|l| l.ok())
-                        .collect();
+            let stdout_path = self.stdout().as_file().expect("must be file");
+            let stderr_path = self.stderr().as_file().expect("must be file");
 
-                    // Iterate the lines in reverse order as we read them in reverse
-                    lines
-                        .iter()
-                        .rev()
-                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                        .to_string()
-                })
-            })
-            .unwrap_or_default();
+            let stdout_uploaded = artifact_uploaded(transferer, stdout_path).await;
+            let stderr_capture =
+                capture_stderr_tail(transferer, self.work_dir(), stderr_path).await;
+            let stderr_uploaded = stderr_capture.available;
 
-            // If the work directory is remote,
-            bail!(
-                "process terminated with exit code {code}: see `{stdout_path}` and \
-                 `{stderr_path}` for task output{header}{stderr}{trailer}",
-                code = self.result.exit_code,
-                stdout_path = self.stdout().as_file().expect("must be file"),
-                stderr_path = self.stderr().as_file().expect("must be file"),
-                header = if stderr.is_empty() {
-                    Cow::Borrowed("")
-                } else {
-                    format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
-                },
-                trailer = if stderr.is_empty() { "" } else { "\n" }
+            let failure_kind = if contains_out_of_disk(stderr_capture.lines.as_slice()) {
+                FailureKind::OutOfDisk
+            } else if !stdout_uploaded && !stderr_uploaded {
+                FailureKind::UploadFailed
+            } else {
+                FailureKind::Generic
+            };
+
+            let message = build_failure_message(
+                self.result.exit_code,
+                self.result.attempt_dir.as_deref(),
+                stdout_path.as_str(),
+                stdout_uploaded,
+                stderr_path.as_str(),
+                stderr_uploaded,
+                stderr_capture.lines.as_slice(),
+                failure_kind,
             );
+
+            bail!(message);
         }
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FailureKind {
+    Generic,
+    UploadFailed,
+    OutOfDisk,
+}
+
+struct LogTailCapture {
+    available: bool,
+    lines: Vec<String>,
+}
+
+async fn capture_stderr_tail(
+    transferer: &dyn Transferer,
+    work_dir: &EvaluationPath,
+    stderr_path: &HostPath,
+) -> LogTailCapture {
+    match download_file(transferer, work_dir, stderr_path).await {
+        Ok(location) => {
+            let lines = fs::File::open(&*location)
+                .ok()
+                .map(|file| {
+                    let reader = RevBufReader::new(file);
+                    let mut lines: Vec<_> = reader
+                        .lines()
+                        .take(MAX_STDERR_LINES)
+                        .map_while(|l| l.ok())
+                        .collect();
+                    lines.reverse();
+                    lines
+                })
+                .unwrap_or_default();
+
+            LogTailCapture {
+                available: true,
+                lines,
+            }
+        }
+        Err(_) => LogTailCapture {
+            available: false,
+            lines: Vec::new(),
+        },
+    }
+}
+
+async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool {
+    if let Some(url) = path::parse_supported_url(path.as_str()) {
+        transferer.exists(&url).await.unwrap_or(false)
+    } else {
+        fs::metadata(path.as_str()).is_ok()
+    }
+}
+
+fn contains_out_of_disk(lines: &[String]) -> bool {
+    const HINTS: &[&str] = &[
+        "no space left on device",
+        "disk quota exceeded",
+        "out of disk",
+        "filesystem full",
+        "enospc",
+    ];
+
+    lines.iter().any(|line| {
+        let lower = line.to_ascii_lowercase();
+        HINTS.iter().any(|needle| lower.contains(needle))
+    })
+}
+
+fn format_stderr_tail(lines: &[String]) -> Option<String> {
+    if lines.is_empty() {
+        None
+    } else {
+        Some(
+            lines
+                .iter()
+                .map(|line| format!("  {line}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
+}
+
+fn build_failure_message(
+    exit_code: i32,
+    attempt_dir: Option<&Path>,
+    stdout_path: &str,
+    stdout_uploaded: bool,
+    stderr_path: &str,
+    stderr_uploaded: bool,
+    stderr_lines: &[String],
+    failure_kind: FailureKind,
+) -> String {
+    let mut message = match failure_kind {
+        FailureKind::OutOfDisk => format!(
+            "process terminated with exit code {exit_code}: the execution environment ran out of disk space"
+        ),
+        FailureKind::UploadFailed => format!(
+            "process terminated with exit code {exit_code}: stdout and stderr were not uploaded"
+        ),
+        FailureKind::Generic => format!("process terminated with exit code {exit_code}"),
+    };
+
+    if let Some(dir) = attempt_dir {
+        write!(message, "\nAttempt directory: {}", dir.display()).unwrap();
+    }
+
+    if stdout_uploaded || stderr_uploaded {
+        message.push_str("\nUploaded logs:");
+        if stdout_uploaded {
+            write!(message, "\n  stdout: {stdout_path}").unwrap();
+        }
+        if stderr_uploaded {
+            write!(message, "\n  stderr: {stderr_path}").unwrap();
+        }
+    }
+
+    if !stdout_uploaded || !stderr_uploaded {
+        message.push_str("\nMissing logs:");
+        if !stdout_uploaded {
+            message.push_str("\n  stdout was not uploaded");
+        }
+        if !stderr_uploaded {
+            message.push_str("\n  stderr was not uploaded");
+        }
+        if attempt_dir.is_some() {
+            message.push_str("\nUse the attempt directory to inspect any partial logs.");
+        }
+    }
+
+    if let Some(tail) = format_stderr_tail(stderr_lines) {
+        write!(
+            message,
+            "\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n{tail}\n"
+        )
+        .unwrap();
+    }
+
+    message
 }
 
 /// Gets the kind of content.
@@ -1047,6 +1172,7 @@ impl Input {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn cancellation_slow() {
@@ -1136,5 +1262,79 @@ mod test {
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
         assert!(context.token.is_cancelled());
+    }
+
+    #[test]
+    fn failure_message_omits_missing_paths() {
+        let message = build_failure_message(
+            2,
+            Some(Path::new("/runs/workflow/attempts/0")),
+            "/runs/workflow/stdout",
+            false,
+            "/runs/workflow/stderr",
+            false,
+            &[],
+            FailureKind::UploadFailed,
+        );
+
+        assert!(message.contains("Attempt directory: /runs/workflow/attempts/0"));
+        assert!(message.contains("stdout was not uploaded"));
+        assert!(
+            message.contains("Use the attempt directory"),
+            "missing logs should direct users to the attempt dir"
+        );
+        assert!(
+            !message.contains("/runs/workflow/stdout"),
+            "missing log path leaked"
+        );
+    }
+
+    #[test]
+    fn failure_message_lists_uploaded_logs() {
+        let message = build_failure_message(
+            1,
+            Some(Path::new("/runs/workflow/attempts/5")),
+            "/runs/workflow/stdout",
+            true,
+            "/runs/workflow/stderr",
+            true,
+            &[],
+            FailureKind::Generic,
+        );
+
+        assert!(message.contains("Attempt directory: /runs/workflow/attempts/5"));
+        assert!(message.contains("Uploaded logs:"));
+        assert!(message.contains("stdout: /runs/workflow/stdout"));
+        assert!(message.contains("stderr: /runs/workflow/stderr"));
+        assert!(
+            !message.contains("Missing logs:"),
+            "should not mention missing logs when uploads succeeded"
+        );
+    }
+
+    #[test]
+    fn failure_message_out_of_disk_context() {
+        let lines = vec!["No space left on device".to_string()];
+        let message = build_failure_message(
+            137,
+            Some(Path::new("/runs/workflow/attempts/9")),
+            "/runs/workflow/stdout",
+            true,
+            "/runs/workflow/stderr",
+            true,
+            &lines,
+            FailureKind::OutOfDisk,
+        );
+
+        assert!(message.contains("ran out of disk space"));
+        assert!(message.contains("Attempt directory: /runs/workflow/attempts/9"));
+        assert!(message.contains("task stderr output"));
+        assert!(message.contains("No space left on device"));
+    }
+
+    #[test]
+    fn detects_out_of_disk_phrase() {
+        let lines = vec!["No space left on device".to_string()];
+        assert!(contains_out_of_disk(&lines));
     }
 }
