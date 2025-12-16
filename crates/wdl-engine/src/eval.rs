@@ -1,10 +1,7 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
-use std::fs;
-use std::io::BufRead;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
@@ -12,13 +9,10 @@ use std::sync::atomic::Ordering;
 
 use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use num_enum::IntoPrimitive;
-use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -28,12 +22,8 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
-use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 
-use crate::CompoundValue;
 use crate::Outputs;
-use crate::PrimitiveValue;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
 use crate::cache::Hashable;
@@ -42,13 +32,9 @@ use crate::http::Location;
 use crate::http::Transferer;
 use crate::path;
 use crate::path::EvaluationPath;
-use crate::stdlib::download_file;
 
 pub mod trie;
 pub mod v1;
-
-/// The maximum number of stderr lines to display in error messages.
-const MAX_STDERR_LINES: usize = 10;
 
 /// A name used whenever a file system "root" is mapped.
 ///
@@ -359,6 +345,10 @@ pub struct CallLocation {
 pub struct SourceError {
     /// The document originating the diagnostic.
     pub document: Document,
+    /// The task execution result that caused the error.
+    ///
+    /// This is `Some` only when a task fails due to an unacceptable exit code.
+    pub execution_result: Option<TaskExecutionResult>,
     /// The evaluation diagnostic.
     pub diagnostic: Diagnostic,
     /// The call backtrace for the error.
@@ -386,9 +376,21 @@ impl EvaluationError {
     pub fn new(document: Document, diagnostic: Diagnostic) -> Self {
         Self::Source(Box::new(SourceError {
             document,
+            execution_result: None,
             diagnostic,
             backtrace: Default::default(),
         }))
+    }
+
+    /// Sets the associated task execution result for the error.
+    ///
+    /// If the error is not a source error, the result is ignored.
+    pub(crate) fn with_execution_result(mut self, result: TaskExecutionResult) -> Self {
+        if let Self::Source(e) = &mut self {
+            e.execution_result = Some(result);
+        }
+
+        self
     }
 
     /// Helper for tests for converting an evaluation error to a string.
@@ -801,30 +803,41 @@ impl<'a> ScopeRef<'a> {
 }
 
 /// Represents an evaluated task.
+///
+/// An evaluated task is one that was executed by a task execution backend.
+///
+/// The evaluated task may have failed as a result of an unacceptable exit code.
+///
+/// Use [`EvaluatedTask::into_outputs`] to get the outputs of the task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
-    /// Whether or not the execution result was from the call cache.
-    cached: bool,
-    /// The task execution result.
+    /// The underlying task execution result.
     result: TaskExecutionResult,
     /// The evaluated outputs of the task.
+    outputs: Outputs,
+    /// Stores the execution error for the evaluated task.
     ///
-    /// This is `Ok` when the task executes successfully and all of the task's
-    /// outputs evaluated without error.
-    ///
-    /// Otherwise, this contains the error that occurred while attempting to
-    /// evaluate the task's outputs.
-    outputs: EvaluationResult<Outputs>,
+    /// This is `None` when the evaluated task successfully executed.
+    error: Option<EvaluationError>,
+    /// Whether or not the execution result was from the call cache.
+    cached: bool,
 }
 
 impl EvaluatedTask {
     /// Constructs a new evaluated task.
-    fn new(cached: bool, result: TaskExecutionResult) -> Self {
+    fn new(cached: bool, result: TaskExecutionResult, error: Option<EvaluationError>) -> Self {
         Self {
-            cached,
             result,
-            outputs: Ok(Default::default()),
+            outputs: Default::default(),
+            error,
+            cached,
         }
+    }
+
+    /// Gets whether or not the evaluated task failed as a result of an
+    /// unacceptable exit code.
+    pub fn failed(&self) -> bool {
+        self.error.is_some()
     }
 
     /// Determines whether or not the task execution result was used from the
@@ -853,103 +866,15 @@ impl EvaluatedTask {
         &self.result.stderr
     }
 
-    /// Converts the evaluated task into an evaluation result.
+    /// Converts the evaluated task into its [`Outputs`].
     ///
-    /// Returns `Ok(_)` if the task outputs were evaluated.
-    ///
-    /// Returns `Err(_)` if the task outputs could not be evaluated.
-    pub fn into_result(self) -> EvaluationResult<Outputs> {
-        self.outputs
-    }
-
-    /// Handles the exit of a task execution.
-    ///
-    /// Returns an error if the task failed.
-    async fn handle_exit(
-        &self,
-        requirements: &HashMap<String, Value>,
-        transferer: &dyn Transferer,
-    ) -> anyhow::Result<()> {
-        let mut error = true;
-        if let Some(return_codes) = requirements
-            .get(TASK_REQUIREMENT_RETURN_CODES)
-            .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
-        {
-            match return_codes {
-                Value::Primitive(PrimitiveValue::String(s)) if s.as_ref() == "*" => {
-                    error = false;
-                }
-                Value::Primitive(PrimitiveValue::String(s)) => {
-                    bail!(
-                        "invalid return code value `{s}`: only `*` is accepted when the return \
-                         code is specified as a string"
-                    );
-                }
-                Value::Primitive(PrimitiveValue::Integer(ok)) => {
-                    if self.result.exit_code == i32::try_from(*ok).unwrap_or_default() {
-                        error = false;
-                    }
-                }
-                Value::Compound(CompoundValue::Array(codes)) => {
-                    error = !codes.as_slice().iter().any(|v| {
-                        v.as_integer()
-                            .map(|i| i32::try_from(i).unwrap_or_default() == self.result.exit_code)
-                            .unwrap_or(false)
-                    });
-                }
-                _ => unreachable!("unexpected return codes value"),
-            }
-        } else {
-            error = self.result.exit_code != 0;
+    /// An error is returned if the task failed as a result of an unacceptable
+    /// exit code.
+    pub fn into_outputs(self) -> EvaluationResult<Outputs> {
+        match self.error {
+            Some(e) => Err(e.with_execution_result(self.result)),
+            None => Ok(self.outputs),
         }
-
-        if error {
-            // Read the last `MAX_STDERR_LINES` number of lines from stderr
-            // If there's a problem reading stderr, don't output it
-            let stderr = download_file(
-                transferer,
-                self.work_dir(),
-                self.stderr().as_file().unwrap(),
-            )
-            .await
-            .ok()
-            .and_then(|l| {
-                fs::File::open(l).ok().map(|f| {
-                    // Buffer the last N number of lines
-                    let reader = RevBufReader::new(f);
-                    let lines: Vec<_> = reader
-                        .lines()
-                        .take(MAX_STDERR_LINES)
-                        .map_while(|l| l.ok())
-                        .collect();
-
-                    // Iterate the lines in reverse order as we read them in reverse
-                    lines
-                        .iter()
-                        .rev()
-                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                        .to_string()
-                })
-            })
-            .unwrap_or_default();
-
-            // If the work directory is remote,
-            bail!(
-                "process terminated with exit code {code}: see `{stdout_path}` and \
-                 `{stderr_path}` for task output{header}{stderr}{trailer}",
-                code = self.result.exit_code,
-                stdout_path = self.stdout().as_file().expect("must be file"),
-                stderr_path = self.stderr().as_file().expect("must be file"),
-                header = if stderr.is_empty() {
-                    Cow::Borrowed("")
-                } else {
-                    format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
-                },
-                trailer = if stderr.is_empty() { "" } else { "\n" }
-            );
-        }
-
-        Ok(())
     }
 }
 

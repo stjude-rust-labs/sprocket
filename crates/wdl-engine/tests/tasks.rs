@@ -154,7 +154,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             Ok(evaluated) => {
                 compare_evaluation_results(&test_dir, dir.path(), &evaluated)?;
 
-                match evaluated.into_result() {
+                match evaluated.into_outputs() {
                     Ok(outputs) => {
                         let outputs = outputs.with_name(name.clone());
                         let outputs =
