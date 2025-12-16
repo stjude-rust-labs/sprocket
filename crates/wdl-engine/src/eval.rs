@@ -920,14 +920,18 @@ impl EvaluatedTask {
                 FailureKind::Generic
             };
 
+            let logs = LogAvailability {
+                stdout_path: stdout_path.as_str(),
+                stdout_uploaded,
+                stderr_path: stderr_path.as_str(),
+                stderr_uploaded,
+                stderr_lines: stderr_capture.lines.as_slice(),
+            };
+
             let message = build_failure_message(
                 self.result.exit_code,
                 self.result.attempt_dir.as_deref(),
-                stdout_path.as_str(),
-                stdout_uploaded,
-                stderr_path.as_str(),
-                stderr_uploaded,
-                stderr_capture.lines.as_slice(),
+                logs,
                 failure_kind,
             );
 
@@ -938,18 +942,44 @@ impl EvaluatedTask {
     }
 }
 
+/// Describes the category of failure so the error message can highlight the
+/// most useful guidance for the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FailureKind {
+    /// A generic failure where at least one log was uploaded.
     Generic,
+    /// Both stdout and stderr failed to upload, so we cannot show paths.
     UploadFailed,
+    /// The stderr output indicates the execution environment ran out of disk.
     OutOfDisk,
 }
 
+/// Captures whether the stderr artifact was retrieved as well as its tail
+/// lines.
 struct LogTailCapture {
+    /// True when the stderr artifact was downloaded successfully.
     available: bool,
+    /// The final stderr lines, already ordered for presentation.
     lines: Vec<String>,
 }
 
+/// Summarizes which log artifacts are reachable along with the stderr tail
+/// snippet so that `build_failure_message` can render consistent messaging.
+struct LogAvailability<'a> {
+    /// Path to the stdout artifact for inclusion in the error text.
+    stdout_path: &'a str,
+    /// True when stdout is accessible to the user.
+    stdout_uploaded: bool,
+    /// Path to the stderr artifact for inclusion in the error text.
+    stderr_path: &'a str,
+    /// True when stderr is accessible to the user.
+    stderr_uploaded: bool,
+    /// Tail of stderr that should be echoed in the error message.
+    stderr_lines: &'a [String],
+}
+
+/// Attempts to download the stderr artifact and capture its tail for later
+/// inclusion in the user-facing error message.
 async fn capture_stderr_tail(
     transferer: &dyn Transferer,
     work_dir: &EvaluationPath,
@@ -983,6 +1013,7 @@ async fn capture_stderr_tail(
     }
 }
 
+/// Returns `true` when the referenced log artifact can still be accessed.
 async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool {
     if let Some(url) = path::parse_supported_url(path.as_str()) {
         transferer.exists(&url).await.unwrap_or(false)
@@ -991,6 +1022,7 @@ async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool
     }
 }
 
+/// Heuristically detects whether stderr mentions running out of disk space.
 fn contains_out_of_disk(lines: &[String]) -> bool {
     const HINTS: &[&str] = &[
         "no space left on device",
@@ -1006,6 +1038,7 @@ fn contains_out_of_disk(lines: &[String]) -> bool {
     })
 }
 
+/// Formats the stderr tail with indentation so it stands out in the message.
 fn format_stderr_tail(lines: &[String]) -> Option<String> {
     if lines.is_empty() {
         None
@@ -1020,19 +1053,18 @@ fn format_stderr_tail(lines: &[String]) -> Option<String> {
     }
 }
 
+/// Builds the final failure message, combining attempt directory, log
+/// availability, and heuristics about the failure kind.
 fn build_failure_message(
     exit_code: i32,
     attempt_dir: Option<&Path>,
-    stdout_path: &str,
-    stdout_uploaded: bool,
-    stderr_path: &str,
-    stderr_uploaded: bool,
-    stderr_lines: &[String],
+    logs: LogAvailability<'_>,
     failure_kind: FailureKind,
 ) -> String {
     let mut message = match failure_kind {
         FailureKind::OutOfDisk => format!(
-            "process terminated with exit code {exit_code}: the execution environment ran out of disk space"
+            "process terminated with exit code {exit_code}: the execution environment ran out of \
+             disk space"
         ),
         FailureKind::UploadFailed => format!(
             "process terminated with exit code {exit_code}: stdout and stderr were not uploaded"
@@ -1044,22 +1076,22 @@ fn build_failure_message(
         write!(message, "\nAttempt directory: {}", dir.display()).unwrap();
     }
 
-    if stdout_uploaded || stderr_uploaded {
+    if logs.stdout_uploaded || logs.stderr_uploaded {
         message.push_str("\nUploaded logs:");
-        if stdout_uploaded {
-            write!(message, "\n  stdout: {stdout_path}").unwrap();
+        if logs.stdout_uploaded {
+            write!(message, "\n  stdout: {}", logs.stdout_path).unwrap();
         }
-        if stderr_uploaded {
-            write!(message, "\n  stderr: {stderr_path}").unwrap();
+        if logs.stderr_uploaded {
+            write!(message, "\n  stderr: {}", logs.stderr_path).unwrap();
         }
     }
 
-    if !stdout_uploaded || !stderr_uploaded {
+    if !logs.stdout_uploaded || !logs.stderr_uploaded {
         message.push_str("\nMissing logs:");
-        if !stdout_uploaded {
+        if !logs.stdout_uploaded {
             message.push_str("\n  stdout was not uploaded");
         }
-        if !stderr_uploaded {
+        if !logs.stderr_uploaded {
             message.push_str("\n  stderr was not uploaded");
         }
         if attempt_dir.is_some() {
@@ -1067,7 +1099,7 @@ fn build_failure_message(
         }
     }
 
-    if let Some(tail) = format_stderr_tail(stderr_lines) {
+    if let Some(tail) = format_stderr_tail(logs.stderr_lines) {
         write!(
             message,
             "\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n{tail}\n"
@@ -1171,8 +1203,9 @@ impl Input {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::path::Path;
+
+    use super::*;
 
     #[test]
     fn cancellation_slow() {
@@ -1266,14 +1299,18 @@ mod test {
 
     #[test]
     fn failure_message_omits_missing_paths() {
+        let empty: &[String] = &[];
+        let logs = LogAvailability {
+            stdout_path: "/runs/workflow/stdout",
+            stdout_uploaded: false,
+            stderr_path: "/runs/workflow/stderr",
+            stderr_uploaded: false,
+            stderr_lines: empty,
+        };
         let message = build_failure_message(
             2,
             Some(Path::new("/runs/workflow/attempts/0")),
-            "/runs/workflow/stdout",
-            false,
-            "/runs/workflow/stderr",
-            false,
-            &[],
+            logs,
             FailureKind::UploadFailed,
         );
 
@@ -1291,14 +1328,18 @@ mod test {
 
     #[test]
     fn failure_message_lists_uploaded_logs() {
+        let empty: &[String] = &[];
+        let logs = LogAvailability {
+            stdout_path: "/runs/workflow/stdout",
+            stdout_uploaded: true,
+            stderr_path: "/runs/workflow/stderr",
+            stderr_uploaded: true,
+            stderr_lines: empty,
+        };
         let message = build_failure_message(
             1,
             Some(Path::new("/runs/workflow/attempts/5")),
-            "/runs/workflow/stdout",
-            true,
-            "/runs/workflow/stderr",
-            true,
-            &[],
+            logs,
             FailureKind::Generic,
         );
 
@@ -1315,14 +1356,17 @@ mod test {
     #[test]
     fn failure_message_out_of_disk_context() {
         let lines = vec!["No space left on device".to_string()];
+        let logs = LogAvailability {
+            stdout_path: "/runs/workflow/stdout",
+            stdout_uploaded: true,
+            stderr_path: "/runs/workflow/stderr",
+            stderr_uploaded: true,
+            stderr_lines: lines.as_slice(),
+        };
         let message = build_failure_message(
             137,
             Some(Path::new("/runs/workflow/attempts/9")),
-            "/runs/workflow/stdout",
-            true,
-            "/runs/workflow/stderr",
-            true,
-            &lines,
+            logs,
             FailureKind::OutOfDisk,
         );
 
