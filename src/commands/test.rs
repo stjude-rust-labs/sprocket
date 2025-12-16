@@ -25,7 +25,9 @@ use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
+use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
+use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -83,6 +85,10 @@ pub struct Args {
 impl Args {
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.engine = config.run.engine;
+        // TODO(Ari): revisit this decision
+        self.engine.task.cache = CallCachingMode::Off;
+        self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        self.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
         self
     }
 }
