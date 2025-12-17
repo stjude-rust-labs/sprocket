@@ -31,6 +31,7 @@ runs_dir = "runs"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
+digests = "weak"
 
 [run.backends.first]
 type = "tes"

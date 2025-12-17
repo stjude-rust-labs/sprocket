@@ -713,6 +713,31 @@ pub enum CallCachingMode {
     Explicit,
 }
 
+/// Represents the supported modes for calculating content digests.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContentDigestMode {
+    /// Use a strong digest for file content.
+    ///
+    /// Strong digests require hashing all of the contents of a file; this may
+    /// noticeably impact performance for very large files.
+    ///
+    /// This setting guarantees that a modified file will be detected.
+    Strong,
+    /// Use a weak digest for file content.
+    ///
+    /// A weak digest is based solely off of file metadata, such as size and
+    /// last modified time.
+    ///
+    /// This setting cannot guarantee the detection of modified files and may
+    /// result in a modified file not causing a call cache entry to be
+    /// invalidated.
+    ///
+    /// However, it is substantially faster than using a strong digest.
+    #[default]
+    Weak,
+}
+
 /// Represents task evaluation configuration.
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -753,6 +778,11 @@ pub struct TaskConfig {
     /// The call caching mode to use for tasks.
     #[serde(default)]
     pub cache: CallCachingMode,
+    /// The content digest mode to use.
+    ///
+    /// Used as part of call caching.
+    #[serde(default)]
+    pub digests: ContentDigestMode,
 }
 
 impl TaskConfig {
