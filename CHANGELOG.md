@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added setting `run.tasks.digests` to `sprocket.toml` for controlling content
+  digests; supported values are `strong` for full cryptographic hashing of file
+  content and `weak` to digest based solely off file metadata. The default is
+  now `weak` ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
 * Added setting `run.events_capacity` to `sprocket.toml` for controlling the
   size of the events channel buffer that Sprocket uses for displaying progress
   statistics ([#491](https://github.com/stjude-rust-labs/sprocket/pull/491)).
