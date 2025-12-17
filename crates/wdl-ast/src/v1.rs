@@ -204,6 +204,30 @@ impl<N: TreeNode> DocumentItem<N> {
         }
     }
 
+    /// Attempts to get a reference to the inner [`EnumDefinition`].
+    ///
+    /// * If `self` is a [`DocumentItem::Enum`], then a reference to the inner
+    ///   [`EnumDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn as_enum_definition(&self) -> Option<&EnumDefinition<N>> {
+        match self {
+            Self::Enum(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and attempts to return the inner [`EnumDefinition`].
+    ///
+    /// * If `self` is a [`DocumentItem::Enum`], then the inner
+    ///   [`EnumDefinition`] is returned wrapped in [`Some`].
+    /// * Else, [`None`] is returned.
+    pub fn into_enum_definition(self) -> Option<EnumDefinition<N>> {
+        match self {
+            Self::Enum(i) => Some(i),
+            _ => None,
+        }
+    }
+
     /// Attempts to get a reference to the inner [`TaskDefinition`].
     ///
     /// * If `self` is a [`DocumentItem::Task`], then a reference to the inner

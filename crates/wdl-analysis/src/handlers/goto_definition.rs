@@ -97,8 +97,6 @@ pub fn goto_definition(
         return Ok(Some(location));
     }
 
-    dbg!("after context-based resolution");
-
     // Scope based resolution
     if let Some(scope_ref) = analysis_doc.find_scope_by_position(token.span().start())
         && let Some(name_def) = scope_ref.lookup(ident_text)
@@ -136,8 +134,6 @@ pub fn goto_definition(
             &lines,
         )?));
     }
-
-    dbg!("after scope-based resolution");
 
     // Global resolution
     resolve_global_identifier(analysis_doc, ident_text, &document_uri, &lines, graph)
