@@ -1530,7 +1530,7 @@ impl State {
                                 callee_id,
                             )
                             .await?
-                            .outputs
+                            .into_outputs()
                     }
                     Target::Workflow => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");

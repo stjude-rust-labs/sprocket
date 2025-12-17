@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::io::BufRead;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
@@ -16,7 +17,9 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bimap::BiHashMap;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::algo::toposort;
+use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
@@ -64,13 +67,19 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::TopLevelEvaluator;
+use super::validators::SettingSource;
+use super::validators::ensure_non_negative_i64;
+use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::CompoundValue;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -83,10 +92,12 @@ use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
+use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
 use crate::StorageUnit;
+use crate::TaskExecutionResult;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
@@ -110,11 +121,15 @@ use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
+use crate::stdlib::download_file;
 use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
 use crate::v1::write_json_file;
+
+/// The maximum number of stderr lines to display in error messages.
+const MAX_STDERR_LINES: usize = 10;
 
 /// The default container requirement.
 pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
@@ -137,6 +152,35 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// The index of the evaluation scope where the WDL 1.2 `task` variable is
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
+
+/// Returns the first entry in `map` that matches the provided keys.
+fn lookup_entry<'a>(
+    map: &'a HashMap<String, Value>,
+    keys: &[&'static str],
+) -> Option<(&'static str, &'a Value)> {
+    keys.iter()
+        .find_map(|key| map.get(*key).map(|value| (*key, value)))
+}
+
+/// Parses an integer or byte-unit string into a byte count using the supplied
+/// `error_message` formatter when conversion fails.
+///
+/// # Panics
+///
+/// Panics if the given value is not an integer or string.
+fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) -> Result<i64> {
+    if let Some(v) = value.as_integer() {
+        return Ok(v);
+    }
+
+    if let Some(s) = value.as_string() {
+        return convert_unit_string(s)
+            .and_then(|v| v.try_into().ok())
+            .with_context(|| error_message(s));
+    }
+
+    unreachable!("value should be an integer or string");
+}
 
 /// Gets the `container` requirement from a requirements map.
 pub(crate) fn container<'a>(
@@ -205,48 +249,28 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
 
 /// Gets the `memory` requirement from a requirements map.
 pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    Ok(requirements
-        .get(TASK_REQUIREMENT_MEMORY)
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
+    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
+        let bytes = parse_storage_value(value, |raw| {
+            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
+        })?;
 
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
+        return ensure_non_negative_i64(SettingSource::Requirement, key, bytes);
+    }
 
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()?
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MEMORY))
+    Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
 }
 
 /// Gets the `max_memory` hint from a hints map.
 pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    hints
-        .get(TASK_HINT_MAX_MEMORY)
-        .or_else(|| hints.get(TASK_HINT_MAX_MEMORY_ALIAS))
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
-
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
-
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()
+    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
+        Some((key, value)) => {
+            let bytes = parse_storage_value(value, |raw| {
+                invalid_numeric_value_message(SettingSource::Hint, key, raw)
+            })?;
+            ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
+        }
+        None => Ok(None),
+    }
 }
 
 /// Gets the number of required GPUs from requirements and hints.
@@ -498,32 +522,43 @@ pub(crate) fn disks<'a>(
 /// This hint is not part of the WDL standard but is used for compatibility with
 /// Cromwell where backends can support preemptible retries before using
 /// dedicated instances.
-pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
+pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
     const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
-    hints
+    Ok(hints
         .get(TASK_HINT_PREEMPTIBLE)
         .and_then(|v| {
-            Some(
-                v.coerce(None, &PrimitiveType::Integer.into())
-                    .ok()?
-                    .unwrap_integer(),
-            )
+            v.coerce(None, &PrimitiveType::Integer.into())
+                .ok()
+                .map(|value| value.unwrap_integer())
         })
-        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+        .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
+        .transpose()?
+        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
 }
 
 /// Gets the `max_retries` requirement from a requirements map with config
 /// fallback.
-pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> u64 {
-    requirements
-        .get(TASK_REQUIREMENT_MAX_RETRIES)
-        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-        .and_then(|v| v.as_integer())
-        .map(|v| v as u64)
-        .or(config.task.retries)
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
+pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
+    if let Some((key, value)) = lookup_entry(
+        requirements,
+        &[
+            TASK_REQUIREMENT_MAX_RETRIES,
+            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
+        ],
+    ) {
+        let retries = value
+            .as_integer()
+            .expect("`max_retries` requirement should be an integer");
+        return ensure_non_negative_i64(SettingSource::Requirement, key, retries)
+            .map(|value| value as u64);
+    }
+
+    Ok(config
+        .task
+        .retries
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
 /// Gets the `cacheable` hint from a hints map with config fallback.
@@ -898,7 +933,12 @@ struct EvaluatedSections {
 impl TopLevelEvaluator {
     /// Evaluates the given task.
     ///
-    /// Upon success, returns the evaluated task.
+    /// If the task fails to execute as a result of an unacceptable exit code,
+    /// this method returns `Ok` with the evaluated result; the evaluated task
+    /// will return an error when `[EvaluatedTask::into_outputs]` is called.
+    ///
+    /// Otherwise, this returns `Ok` only upon a successful task execution and
+    /// evaluation of all of its outputs.
     pub async fn evaluate_task(
         &self,
         document: &Document,
@@ -1045,7 +1085,7 @@ impl TopLevelEvaluator {
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = max_retries(&requirements, &self.config);
+            let max_retries = max_retries(&requirements, &self.config)?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1216,14 +1256,13 @@ impl TopLevelEvaluator {
                         .map_err(|e| {
                             EvaluationError::new(
                                 state.document.clone(),
-                                task_execution_failed(e, task.name(), id, task.name_span()),
+                                task_execution_failed(&e, task.name(), id, task.name_span()),
                             )
                         })?
                 }
             };
 
-            // Update the task variable
-            let evaluated = EvaluatedTask::new(cached, result);
+            // Update the task variable for the execution result
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -1237,18 +1276,17 @@ impl TopLevelEvaluator {
                         task = state.task.name()
                     )
                 })?);
-                task.set_return_code(evaluated.result.exit_code);
+                task.set_return_code(result.exit_code);
             }
 
-            if let Err(e) = evaluated
-                .handle_exit(&requirements, state.transferer().as_ref())
-                .await
-            {
+            // If the task failed its execution, handle retrying
+            if Self::did_task_fail(&requirements, result.exit_code) {
+                // Too many retries, break out with the errored evaluated task
                 if attempt >= max_retries {
-                    return Err(EvaluationError::new(
-                        state.document.clone(),
-                        task_execution_failed(e, task.name(), id, task.name_span()),
-                    ));
+                    let error =
+                        Self::task_failure_error(&state, id, &result, state.transferer().as_ref())
+                            .await;
+                    break EvaluatedTask::new(cached, result, Some(error));
                 }
 
                 attempt += 1;
@@ -1272,7 +1310,7 @@ impl TopLevelEvaluator {
                     .cache
                     .as_ref()
                     .expect("should have cache")
-                    .put(key, &evaluated.result)
+                    .put(key, &result)
                     .await
                 {
                     Ok(key) => {
@@ -1293,7 +1331,8 @@ impl TopLevelEvaluator {
                 }
             }
 
-            break evaluated;
+            // Task execution succeeded, break out of the retry loop
+            break EvaluatedTask::new(cached, result, None);
         };
 
         // Perform backend cleanup before output evaluation
@@ -1305,45 +1344,129 @@ impl TopLevelEvaluator {
             cleanup.await;
         }
 
-        // Evaluate the remaining inputs (unused), and decls, and outputs
-        for index in &nodes[current..] {
-            match &graph[*index] {
-                TaskGraphNode::Decl(decl) => {
-                    state
-                        .evaluate_decl(id, decl)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                TaskGraphNode::Output(decl) => {
-                    state
-                        .evaluate_output(id, decl, &evaluated)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                _ => {
-                    unreachable!(
-                        "only declarations and outputs should be evaluated after the command"
-                    )
+        // Evaluate the remaining inputs (unused), private decls, and outputs if the
+        // task executed successfully
+        if !evaluated.failed() {
+            for index in &nodes[current..] {
+                match &graph[*index] {
+                    TaskGraphNode::Decl(decl) => {
+                        state
+                            .evaluate_decl(id, decl)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    TaskGraphNode::Output(decl) => {
+                        state
+                            .evaluate_output(id, decl, &evaluated)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    _ => {
+                        unreachable!(
+                            "only declarations and outputs should be evaluated after the command"
+                        )
+                    }
                 }
             }
+
+            // Take the output scope and return it in declaration sort order
+            let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
+            if let Some(section) = definition.output() {
+                let indexes: HashMap<_, _> = section
+                    .declarations()
+                    .enumerate()
+                    .map(|(i, d)| (d.name().hashable(), i))
+                    .collect();
+                outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+            }
+
+            // Write the outputs to the task's root directory
+            write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
+
+            // Finally, associate the outputs with the evaluated task
+            evaluated.outputs = outputs;
         }
 
-        // Take the output scope and return it in declaration sort order
-        let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
-        if let Some(section) = definition.output() {
-            let indexes: HashMap<_, _> = section
-                .declarations()
-                .enumerate()
-                .map(|(i, d)| (d.name().hashable(), i))
-                .collect();
-            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
-        }
-
-        // Write the outputs to the task's root directory
-        write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
-
-        evaluated.outputs = Ok(outputs);
         Ok(evaluated)
+    }
+
+    /// Determines if the task failed based on its requirements and exit code.
+    fn did_task_fail(requirements: &HashMap<String, Value>, exit_code: i32) -> bool {
+        if let Some(return_codes) = requirements
+            .get(TASK_REQUIREMENT_RETURN_CODES)
+            .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
+        {
+            match return_codes {
+                Value::Primitive(PrimitiveValue::String(s)) => s.as_ref() != "*",
+                Value::Primitive(PrimitiveValue::Integer(ok)) => {
+                    exit_code != i32::try_from(*ok).unwrap_or_default()
+                }
+                Value::Compound(CompoundValue::Array(codes)) => !codes.as_slice().iter().any(|v| {
+                    v.as_integer()
+                        .map(|i| i32::try_from(i).unwrap_or_default() == exit_code)
+                        .unwrap_or(false)
+                }),
+                _ => unreachable!("unexpected return codes value"),
+            }
+        } else {
+            exit_code != 0
+        }
+    }
+
+    /// Creates a task failure error for the given execution result.
+    async fn task_failure_error(
+        state: &State<'_>,
+        id: &str,
+        result: &TaskExecutionResult,
+        transferer: &dyn Transferer,
+    ) -> EvaluationError {
+        // Read the last `MAX_STDERR_LINES` number of lines from stderr
+        // If there's a problem reading stderr, don't output it
+        let stderr = download_file(
+            transferer,
+            &result.work_dir,
+            result.stderr.as_file().unwrap(),
+        )
+        .await
+        .ok()
+        .and_then(|l| {
+            fs::File::open(l).ok().map(|f| {
+                // Buffer the last N number of lines
+                let reader = RevBufReader::new(f);
+                let lines: Vec<_> = reader
+                    .lines()
+                    .take(MAX_STDERR_LINES)
+                    .map_while(|l| l.ok())
+                    .collect();
+
+                // Iterate the lines in reverse order as we read them in reverse
+                lines
+                    .iter()
+                    .rev()
+                    .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                    .to_string()
+            })
+        })
+        .unwrap_or_default();
+
+        let error = anyhow!(
+            "process terminated with exit code {code}: see `{stdout_path}` and `{stderr_path}` \
+             for task output{header}{stderr}{trailer}",
+            code = result.exit_code,
+            stdout_path = result.stdout.as_file().expect("must be file"),
+            stderr_path = result.stderr.as_file().expect("must be file"),
+            header = if stderr.is_empty() {
+                Cow::Borrowed("")
+            } else {
+                format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
+            },
+            trailer = if stderr.is_empty() { "" } else { "\n" }
+        );
+
+        EvaluationError::new(
+            state.document.clone(),
+            task_execution_failed(&error, state.task.name(), id, state.task.name_span()),
+        )
     }
 }
 
@@ -1853,7 +1976,7 @@ impl<'a> State<'a> {
                     )
                 })?;
 
-            let max_retries = max_retries(&requirements, &self.top_level.config);
+            let max_retries = max_retries(&requirements, &self.top_level.config)?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -2103,6 +2226,51 @@ impl<'a> State<'a> {
         }
 
         Ok(self.backend_inputs.as_slice().into())
+    }
+}
+
+#[cfg(test)]
+mod resource_validation_tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+        map.insert(key.to_string(), value);
+        map
+    }
+
+    #[test]
+    fn memory_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
+        let err = memory(&requirements).expect_err("`memory` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `memory` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn max_retries_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
+        let err = max_retries(&requirements, &Config::default())
+            .expect_err("`max_retries` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `max_retries` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn preemptible_disallows_negative_values() {
+        let mut hints = HashMap::new();
+        hints.insert("preemptible".to_string(), Value::from(-3));
+        let err = preemptible(&hints).expect_err("`preemptible` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task hint `preemptible` cannot be less than zero")
+        );
     }
 }
 
