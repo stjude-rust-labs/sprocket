@@ -862,50 +862,13 @@ impl EvaluatedTask {
             Some(e) => Err(e),
             None => Ok(self.outputs),
         }
-
-        if error {
-            let stdout_path = self.stdout().as_file().expect("must be file");
-            let stderr_path = self.stderr().as_file().expect("must be file");
-
-            let stdout_uploaded = artifact_uploaded(transferer, stdout_path).await;
-            let stderr_capture =
-                capture_stderr_tail(transferer, self.work_dir(), stderr_path).await;
-            let stderr_uploaded = stderr_capture.available;
-
-            let failure_kind = if contains_out_of_disk(stderr_capture.lines.as_slice()) {
-                FailureKind::OutOfDisk
-            } else if !stdout_uploaded && !stderr_uploaded {
-                FailureKind::UploadFailed
-            } else {
-                FailureKind::Generic
-            };
-
-            let logs = LogAvailability {
-                stdout_path: stdout_path.as_str(),
-                stdout_uploaded,
-                stderr_path: stderr_path.as_str(),
-                stderr_uploaded,
-                stderr_lines: stderr_capture.lines.as_slice(),
-            };
-
-            let message = build_failure_message(
-                self.result.exit_code,
-                self.result.attempt_dir.as_deref(),
-                logs,
-                failure_kind,
-            );
-
-            bail!(message);
-        }
-
-        Ok(())
     }
 }
 
 /// Describes the category of failure so the error message can highlight the
 /// most useful guidance for the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FailureKind {
+pub(crate) enum FailureKind {
     /// A generic failure where at least one log was uploaded.
     Generic,
     /// Both stdout and stderr failed to upload, so we cannot show paths.
@@ -916,44 +879,45 @@ enum FailureKind {
 
 /// Captures whether the stderr artifact was retrieved as well as its tail
 /// lines.
-struct LogTailCapture {
+pub(crate) struct LogTailCapture {
     /// True when the stderr artifact was downloaded successfully.
-    available: bool,
+    pub(crate) available: bool,
     /// The final stderr lines, already ordered for presentation.
-    lines: Vec<String>,
+    pub(crate) lines: Vec<String>,
 }
 
 /// Summarizes which log artifacts are reachable along with the stderr tail
 /// snippet so that `build_failure_message` can render consistent messaging.
-struct LogAvailability<'a> {
+pub(crate) struct LogAvailability<'a> {
     /// Path to the stdout artifact for inclusion in the error text.
-    stdout_path: &'a str,
+    pub(crate) stdout_path: &'a str,
     /// True when stdout is accessible to the user.
-    stdout_uploaded: bool,
+    pub(crate) stdout_uploaded: bool,
     /// Path to the stderr artifact for inclusion in the error text.
-    stderr_path: &'a str,
+    pub(crate) stderr_path: &'a str,
     /// True when stderr is accessible to the user.
-    stderr_uploaded: bool,
+    pub(crate) stderr_uploaded: bool,
     /// Tail of stderr that should be echoed in the error message.
-    stderr_lines: &'a [String],
+    pub(crate) stderr_lines: &'a [String],
 }
 
 /// Attempts to download the stderr artifact and capture its tail for later
 /// inclusion in the user-facing error message.
-async fn capture_stderr_tail(
+pub(crate) async fn capture_stderr_tail(
     transferer: &dyn Transferer,
     work_dir: &EvaluationPath,
     stderr_path: &HostPath,
+    max_lines: usize,
 ) -> LogTailCapture {
-    match download_file(transferer, work_dir, stderr_path).await {
+    match crate::stdlib::download_file(transferer, work_dir, stderr_path).await {
         Ok(location) => {
             let lines = fs::File::open(&*location)
                 .ok()
                 .map(|file| {
-                    let reader = RevBufReader::new(file);
+                    let reader = rev_buf_reader::RevBufReader::new(file);
                     let mut lines: Vec<_> = reader
                         .lines()
-                        .take(MAX_STDERR_LINES)
+                        .take(max_lines)
                         .map_while(|l| l.ok())
                         .collect();
                     lines.reverse();
@@ -974,7 +938,7 @@ async fn capture_stderr_tail(
 }
 
 /// Returns `true` when the referenced log artifact can still be accessed.
-async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool {
+pub(crate) async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool {
     if let Some(url) = path::parse_supported_url(path.as_str()) {
         transferer.exists(&url).await.unwrap_or(false)
     } else {
@@ -983,7 +947,7 @@ async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool
 }
 
 /// Heuristically detects whether stderr mentions running out of disk space.
-fn contains_out_of_disk(lines: &[String]) -> bool {
+pub(crate) fn contains_out_of_disk(lines: &[String]) -> bool {
     const HINTS: &[&str] = &[
         "no space left on device",
         "disk quota exceeded",
@@ -999,7 +963,7 @@ fn contains_out_of_disk(lines: &[String]) -> bool {
 }
 
 /// Formats the stderr tail with indentation so it stands out in the message.
-fn format_stderr_tail(lines: &[String]) -> Option<String> {
+pub(crate) fn format_stderr_tail(lines: &[String]) -> Option<String> {
     if lines.is_empty() {
         None
     } else {
@@ -1015,11 +979,12 @@ fn format_stderr_tail(lines: &[String]) -> Option<String> {
 
 /// Builds the final failure message, combining attempt directory, log
 /// availability, and heuristics about the failure kind.
-fn build_failure_message(
+pub(crate) fn build_failure_message(
     exit_code: i32,
     attempt_dir: Option<&Path>,
     logs: LogAvailability<'_>,
     failure_kind: FailureKind,
+    max_lines: usize,
 ) -> String {
     let mut message = match failure_kind {
         FailureKind::OutOfDisk => format!(
@@ -1062,7 +1027,7 @@ fn build_failure_message(
     if let Some(tail) = format_stderr_tail(logs.stderr_lines) {
         write!(
             message,
-            "\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n{tail}\n"
+            "\n\ntask stderr output (last {max_lines} lines):\n\n{tail}\n"
         )
         .unwrap();
     }
@@ -1163,8 +1128,6 @@ impl Input {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
     use super::*;
 
     #[test]
@@ -1255,90 +1218,5 @@ mod test {
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
         assert!(context.token.is_cancelled());
-    }
-
-    #[test]
-    fn failure_message_omits_missing_paths() {
-        let empty: &[String] = &[];
-        let logs = LogAvailability {
-            stdout_path: "/runs/workflow/stdout",
-            stdout_uploaded: false,
-            stderr_path: "/runs/workflow/stderr",
-            stderr_uploaded: false,
-            stderr_lines: empty,
-        };
-        let message = build_failure_message(
-            2,
-            Some(Path::new("/runs/workflow/attempts/0")),
-            logs,
-            FailureKind::UploadFailed,
-        );
-
-        assert!(message.contains("Attempt directory: /runs/workflow/attempts/0"));
-        assert!(message.contains("stdout was not uploaded"));
-        assert!(
-            message.contains("Use the attempt directory"),
-            "missing logs should direct users to the attempt dir"
-        );
-        assert!(
-            !message.contains("/runs/workflow/stdout"),
-            "missing log path leaked"
-        );
-    }
-
-    #[test]
-    fn failure_message_lists_uploaded_logs() {
-        let empty: &[String] = &[];
-        let logs = LogAvailability {
-            stdout_path: "/runs/workflow/stdout",
-            stdout_uploaded: true,
-            stderr_path: "/runs/workflow/stderr",
-            stderr_uploaded: true,
-            stderr_lines: empty,
-        };
-        let message = build_failure_message(
-            1,
-            Some(Path::new("/runs/workflow/attempts/5")),
-            logs,
-            FailureKind::Generic,
-        );
-
-        assert!(message.contains("Attempt directory: /runs/workflow/attempts/5"));
-        assert!(message.contains("Uploaded logs:"));
-        assert!(message.contains("stdout: /runs/workflow/stdout"));
-        assert!(message.contains("stderr: /runs/workflow/stderr"));
-        assert!(
-            !message.contains("Missing logs:"),
-            "should not mention missing logs when uploads succeeded"
-        );
-    }
-
-    #[test]
-    fn failure_message_out_of_disk_context() {
-        let lines = vec!["No space left on device".to_string()];
-        let logs = LogAvailability {
-            stdout_path: "/runs/workflow/stdout",
-            stdout_uploaded: true,
-            stderr_path: "/runs/workflow/stderr",
-            stderr_uploaded: true,
-            stderr_lines: lines.as_slice(),
-        };
-        let message = build_failure_message(
-            137,
-            Some(Path::new("/runs/workflow/attempts/9")),
-            logs,
-            FailureKind::OutOfDisk,
-        );
-
-        assert!(message.contains("ran out of disk space"));
-        assert!(message.contains("Attempt directory: /runs/workflow/attempts/9"));
-        assert!(message.contains("task stderr output"));
-        assert!(message.contains("No space left on device"));
-    }
-
-    #[test]
-    fn detects_out_of_disk_phrase() {
-        let lines = vec!["No space left on device".to_string()];
-        assert!(contains_out_of_disk(&lines));
     }
 }

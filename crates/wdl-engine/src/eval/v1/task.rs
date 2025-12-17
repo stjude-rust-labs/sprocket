@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
-use std::io::BufRead;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
@@ -17,9 +16,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bimap::BiHashMap;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use petgraph::algo::toposort;
-use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
@@ -121,7 +118,6 @@ use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
-use crate::stdlib::download_file;
 use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
@@ -1420,48 +1416,46 @@ impl TopLevelEvaluator {
         result: &TaskExecutionResult,
         transferer: &dyn Transferer,
     ) -> EvaluationError {
-        // Read the last `MAX_STDERR_LINES` number of lines from stderr
-        // If there's a problem reading stderr, don't output it
-        let stderr = download_file(
-            transferer,
-            &result.work_dir,
-            result.stderr.as_file().unwrap(),
-        )
-        .await
-        .ok()
-        .and_then(|l| {
-            fs::File::open(l).ok().map(|f| {
-                // Buffer the last N number of lines
-                let reader = RevBufReader::new(f);
-                let lines: Vec<_> = reader
-                    .lines()
-                    .take(MAX_STDERR_LINES)
-                    .map_while(|l| l.ok())
-                    .collect();
+        use crate::FailureKind;
+        use crate::LogAvailability;
+        use crate::artifact_uploaded;
+        use crate::build_failure_message;
+        use crate::capture_stderr_tail;
+        use crate::contains_out_of_disk;
 
-                // Iterate the lines in reverse order as we read them in reverse
-                lines
-                    .iter()
-                    .rev()
-                    .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                    .to_string()
-            })
-        })
-        .unwrap_or_default();
+        let stdout_path = result.stdout.as_file().expect("must be file");
+        let stderr_path = result.stderr.as_file().expect("must be file");
 
-        let error = anyhow!(
-            "process terminated with exit code {code}: see `{stdout_path}` and `{stderr_path}` \
-             for task output{header}{stderr}{trailer}",
-            code = result.exit_code,
-            stdout_path = result.stdout.as_file().expect("must be file"),
-            stderr_path = result.stderr.as_file().expect("must be file"),
-            header = if stderr.is_empty() {
-                Cow::Borrowed("")
-            } else {
-                format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
-            },
-            trailer = if stderr.is_empty() { "" } else { "\n" }
+        let stdout_uploaded = artifact_uploaded(transferer, stdout_path).await;
+        let stderr_capture =
+            capture_stderr_tail(transferer, &result.work_dir, stderr_path, MAX_STDERR_LINES).await;
+        let stderr_uploaded = stderr_capture.available;
+
+        let failure_kind = if contains_out_of_disk(stderr_capture.lines.as_slice()) {
+            FailureKind::OutOfDisk
+        } else if !stdout_uploaded && !stderr_uploaded {
+            FailureKind::UploadFailed
+        } else {
+            FailureKind::Generic
+        };
+
+        let logs = LogAvailability {
+            stdout_path: stdout_path.as_str(),
+            stdout_uploaded,
+            stderr_path: stderr_path.as_str(),
+            stderr_uploaded,
+            stderr_lines: stderr_capture.lines.as_slice(),
+        };
+
+        let message = build_failure_message(
+            result.exit_code,
+            result.attempt_dir.as_deref(),
+            logs,
+            failure_kind,
+            MAX_STDERR_LINES,
         );
+
+        let error = anyhow!(message);
 
         EvaluationError::new(
             state.document.clone(),
