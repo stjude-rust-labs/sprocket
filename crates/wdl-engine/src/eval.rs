@@ -345,10 +345,6 @@ pub struct CallLocation {
 pub struct SourceError {
     /// The document originating the diagnostic.
     pub document: Document,
-    /// The task execution result that caused the error.
-    ///
-    /// This is `Some` only when a task fails due to an unacceptable exit code.
-    pub execution_result: Option<TaskExecutionResult>,
     /// The evaluation diagnostic.
     pub diagnostic: Diagnostic,
     /// The call backtrace for the error.
@@ -376,21 +372,9 @@ impl EvaluationError {
     pub fn new(document: Document, diagnostic: Diagnostic) -> Self {
         Self::Source(Box::new(SourceError {
             document,
-            execution_result: None,
             diagnostic,
             backtrace: Default::default(),
         }))
-    }
-
-    /// Sets the associated task execution result for the error.
-    ///
-    /// If the error is not a source error, the result is ignored.
-    pub(crate) fn with_execution_result(mut self, result: TaskExecutionResult) -> Self {
-        if let Self::Source(e) = &mut self {
-            e.execution_result = Some(result);
-        }
-
-        self
     }
 
     /// Helper for tests for converting an evaluation error to a string.
@@ -872,7 +856,7 @@ impl EvaluatedTask {
     /// exit code.
     pub fn into_outputs(self) -> EvaluationResult<Outputs> {
         match self.error {
-            Some(e) => Err(e.with_execution_result(self.result)),
+            Some(e) => Err(e),
             None => Ok(self.outputs),
         }
     }
