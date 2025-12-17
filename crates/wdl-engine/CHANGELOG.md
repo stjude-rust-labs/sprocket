@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+
 * Added a configurable prefix for LSF job names and ensured the byte-length limit matches LSF's behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
+
+* Added setting for controlling content digests; supported values are `strong`
+  for full cryptographic hashing of file content and `weak` to digest based
+  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+
 
 #### Changed
 

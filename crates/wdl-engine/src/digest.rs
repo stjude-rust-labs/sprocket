@@ -7,6 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
+use std::time::UNIX_EPOCH;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -24,6 +25,7 @@ use url::Url;
 
 use crate::ContentKind;
 use crate::cache::Hashable;
+use crate::config::ContentDigestMode;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 
@@ -46,6 +48,9 @@ impl Digest {
     }
 }
 
+/// Represents a map of digest mode and evaluation path to digest.
+type DigestMap = HashMap<(ContentDigestMode, EvaluationPath), Arc<OnceCell<Digest>>>;
+
 /// Keeps track of previously calculated digests.
 ///
 /// As WDL evaluation cannot write to existing files, it is assumed that files
@@ -53,8 +58,7 @@ impl Digest {
 ///
 /// We check for changes to files and directories when we get a cache hit and
 /// error if the source has been modified.
-static DIGESTS: LazyLock<Mutex<HashMap<EvaluationPath, Arc<OnceCell<Digest>>>>> =
-    LazyLock::new(Mutex::default);
+static DIGESTS: LazyLock<Mutex<DigestMap>> = LazyLock::new(Mutex::default);
 
 /// An extension trait for joining a digest to a URL.
 pub trait UrlDigestExt: Sized {
@@ -116,21 +120,55 @@ async fn get_content_digest(transferer: &dyn Transferer, url: &Url) -> Result<Ar
 }
 
 /// Calculates the digest of a local file.
-async fn calculate_file_digest(path: &Path) -> Result<Digest> {
-    let path = path.to_path_buf();
-    spawn_blocking(move || {
-        let mut hasher = Hasher::new();
-        hasher.update_mmap_rayon(&path).with_context(|| {
-            format!(
-                "failed to calculate digest of `{path}`",
-                path = path.display()
-            )
-        })?;
+async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<Digest> {
+    match mode {
+        ContentDigestMode::Strong => {
+            // Calculate a Blake3 digest for the file's contents
+            let path = path.to_path_buf();
+            spawn_blocking(move || {
+                let mut hasher = Hasher::new();
+                hasher.update_mmap_rayon(&path).with_context(|| {
+                    format!(
+                        "failed to calculate digest of `{path}`",
+                        path = path.display()
+                    )
+                })?;
 
-        anyhow::Ok(Digest::File(hasher.finalize()))
-    })
-    .await
-    .context("file digest task panicked")?
+                anyhow::Ok(Digest::File(hasher.finalize()))
+            })
+            .await
+            .context("file digest task panicked")?
+        }
+        ContentDigestMode::Weak => {
+            // Calculate a digest solely off of file metadata
+            let metadata = path.metadata().with_context(|| {
+                format!("failed to read metadata of `{path}`", path = path.display())
+            })?;
+            let mtime = metadata
+                .modified()
+                .with_context(|| {
+                    format!(
+                        "failed to determine last modified time of `{path}`",
+                        path = path.display()
+                    )
+                })?
+                .duration_since(UNIX_EPOCH)
+                .with_context(|| {
+                    format!(
+                        "last modified time of `{path}` occurs is before UNIX epoch",
+                        path = path.display()
+                    )
+                })?;
+
+            let mut hasher = Hasher::new();
+            hasher.update(&metadata.len().to_le_bytes());
+            hasher.update(&mtime.as_secs().to_le_bytes());
+            hasher.update(&mtime.as_millis().to_le_bytes());
+            hasher.update(&mtime.as_micros().to_le_bytes());
+            hasher.update(&mtime.as_nanos().to_le_bytes());
+            Ok(Digest::File(hasher.finalize()))
+        }
+    }
 }
 
 /// Calculates the digest of a local directory.
@@ -139,7 +177,10 @@ async fn calculate_file_digest(path: &Path) -> Result<Digest> {
 /// contained in the directory will have their content digests calculated.
 ///
 /// Returns a boxed future to break the type recursion.
-fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest>> + Send {
+fn calculate_directory_digest(
+    path: &Path,
+    mode: ContentDigestMode,
+) -> impl Future<Output = Result<Digest>> + Send {
     async move {
         let mut dir = tokio::fs::read_dir(&path)
             .await
@@ -185,7 +226,7 @@ fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest
             };
 
             // Recursively calculate the entry's digest
-            let digest = calculate_local_digest(&entry_path, kind).await?;
+            let digest = calculate_local_digest(&entry_path, kind, mode).await?;
             digest.hash(&mut hasher);
         }
 
@@ -210,11 +251,15 @@ fn calculate_directory_digest(path: &Path) -> impl Future<Output = Result<Digest
 /// * If the entry is a file, the hash of the file's contents as noted above.
 ///
 /// [blake3]: https://github.com/BLAKE3-team/BLAKE3
-pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Digest> {
+pub async fn calculate_local_digest(
+    path: &Path,
+    kind: ContentKind,
+    mode: ContentDigestMode,
+) -> Result<Digest> {
     let digest = {
         let mut digests = DIGESTS.lock().expect("failed to lock digests");
         digests
-            .entry(EvaluationPath::Local(path.to_path_buf()))
+            .entry((mode, EvaluationPath::Local(path.to_path_buf())))
             .or_default()
             .clone()
     };
@@ -236,7 +281,7 @@ pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Di
                     bail!("expected path `{path}` to be a file", path = path.display());
                 }
 
-                calculate_file_digest(path).await
+                calculate_file_digest(path, mode).await
             } else {
                 if metadata.is_file() {
                     bail!(
@@ -245,7 +290,7 @@ pub async fn calculate_local_digest(path: &Path, kind: ContentKind) -> Result<Di
                     );
                 }
 
-                calculate_directory_digest(path).await
+                calculate_directory_digest(path, mode).await
             }
         })
         .await?)
@@ -272,7 +317,10 @@ pub async fn calculate_remote_digest(
     let digest = {
         let mut digests = DIGESTS.lock().expect("failed to lock digests");
         digests
-            .entry(EvaluationPath::Remote(url.clone()))
+            .entry((
+                ContentDigestMode::Strong,
+                EvaluationPath::Remote(url.clone()),
+            ))
             .or_default()
             .clone()
     };
@@ -322,6 +370,8 @@ pub async fn calculate_remote_digest(
 pub(crate) mod test {
     use std::fs;
     use std::io::Write;
+    use std::time::Duration;
+    use std::time::SystemTime;
 
     use anyhow::anyhow;
     use futures::FutureExt;
@@ -401,18 +451,71 @@ pub(crate) mod test {
     }
 
     #[tokio::test]
-    async fn local_file_digest() {
+    async fn local_file_digest_strong() {
         let mut file = NamedTempFile::new().unwrap();
         file.write_all(b"hello world!").unwrap();
 
-        let digest = calculate_local_digest(file.path(), ContentKind::File)
-            .await
-            .unwrap();
+        let digest =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strong)
+                .await
+                .unwrap();
         // Digest of `hello world!` from https://emn178.github.io/online-tools/blake3/
         assert_eq!(
             *digest.to_hex(),
             *"3aa61c409fd7717c9d9c639202af2fae470c0ef669be7ba2caea5779cb534e9d"
         );
+    }
+
+    #[tokio::test]
+    async fn local_file_digest_weak() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"hello world!").unwrap();
+
+        let digest =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+                .await
+                .unwrap();
+
+        // It should match the digest returned by `calculate_file_digest`
+        assert_eq!(
+            digest,
+            calculate_file_digest(file.path(), ContentDigestMode::Weak)
+                .await
+                .unwrap()
+        );
+
+        // The digest should change if we modify its size
+        file.write_all(b"!").unwrap();
+        file.flush().unwrap();
+
+        clear_digest_cache();
+
+        let changed =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+                .await
+                .unwrap();
+
+        assert!(digest != changed, "expected digest to change");
+
+        let digest = changed;
+
+        // The digest should change if we modify the mtime
+        file.as_file()
+            .set_modified(
+                SystemTime::now()
+                    .checked_sub(Duration::from_hours(1))
+                    .unwrap(),
+            )
+            .unwrap();
+
+        clear_digest_cache();
+
+        let changed =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Weak)
+                .await
+                .unwrap();
+
+        assert!(digest != changed, "expected digest to change");
     }
 
     #[tokio::test]
@@ -428,9 +531,13 @@ pub(crate) mod test {
         fs::write(subdir.join("y"), b"y").unwrap();
         fs::write(subdir.join("x"), b"x").unwrap();
 
-        let digest = calculate_local_digest(dir.path(), ContentKind::Directory)
-            .await
-            .unwrap();
+        let digest = calculate_local_digest(
+            dir.path(),
+            ContentKind::Directory,
+            ContentDigestMode::Strong,
+        )
+        .await
+        .unwrap();
 
         // Calculate the digest of the `subdir`
         let mut hasher = Hasher::new();
