@@ -126,6 +126,10 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
     "struct member declaration",
 ];
 
+const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &[
+    "enum variant declaration",
+];
+
 /// The expected set of tokens in a task definition.
 pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
     Token::InputKeyword as u8,
@@ -547,7 +551,7 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
     // Optional type parameter, i.e., `[<type>]`.
     if parser.peek().map(|(t, _)| t) == Some(Token::OpenBracket) {
-        let m = parser.start();
+        let optional_type_marker = parser.start();
         match parser.matching(
             Token::OpenBracket,
             Token::CloseBracket,
@@ -561,10 +565,10 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
             },
         ) {
             Ok(_) => {
-                m.complete(parser, SyntaxKind::EnumTypeParameterNode);
+                optional_type_marker.complete(parser, SyntaxKind::EnumTypeParameterNode);
             }
             Err(e) => {
-                m.abandon(parser);
+                optional_type_marker.abandon(parser);
                 return Err((marker, e));
             }
         }
@@ -577,6 +581,7 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
         ENUM_SECTION_RECOVERY_SET,
         enum_variant
     );
+
     marker.complete(parser, SyntaxKind::EnumDefinitionNode);
     Ok(())
 }
@@ -603,7 +608,7 @@ fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
             let (found, span) = found
                 .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
-            return Err((marker, expected_found("variant name or `}`", found, span)));
+            return Err((marker, expected_one_of(ENUM_ITEM_EXPECTED_NAMES, found, span)));
         }
     }
     Ok(())
