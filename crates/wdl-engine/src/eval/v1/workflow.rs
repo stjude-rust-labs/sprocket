@@ -1434,6 +1434,11 @@ impl State {
             })?
             .as_slice();
 
+        // If the array is empty, evaluate it specially to promote empty arrays/calls
+        if array.is_empty() {
+            return self.evaluate_empty_scatter(stmt, parent).await;
+        }
+
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
             if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
@@ -1487,6 +1492,60 @@ impl State {
         let scope = scopes.get_mut(parent);
         for (name, gather) in gathers {
             scope.insert(name, gather.into_value());
+        }
+
+        Ok(())
+    }
+
+    /// Evaluates a scatter statement when the array being scattered over is
+    /// empty.
+    ///
+    /// This promotes the names in the scatter's scope to the parent scope as
+    /// empty arrays.
+    async fn evaluate_empty_scatter(
+        &self,
+        stmt: &ScatterStatement<SyntaxNode>,
+        parent: ScopeIndex,
+    ) -> EvaluationResult<()> {
+        let stmt_scope = self
+            .document
+            .find_scope_by_position(
+                stmt.braced_scope_span()
+                    .expect("should have braces")
+                    .start(),
+            )
+            .expect("should have scope for scatter statement");
+
+        let mut scopes = self.scopes.write().await;
+        let scope = scopes.get_mut(parent);
+
+        // Iterate through the names, skipping the first which is always the scatter
+        // variable
+        for (name, n) in stmt_scope.names().skip(1) {
+            if let Type::Call(call_ty) = n.ty() {
+                scope.insert(
+                    name,
+                    CallValue::new_unchecked(
+                        call_ty.clone(),
+                        Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
+                            (
+                                n.clone(),
+                                Array::new_unchecked(
+                                    ArrayType::new(o.ty().clone()).into(),
+                                    Vec::new(),
+                                )
+                                .into(),
+                            )
+                        }))
+                        .into(),
+                    ),
+                );
+            } else {
+                scope.insert(
+                    name,
+                    Array::new_unchecked(ArrayType::new(n.ty().clone()).into(), Vec::new()),
+                );
+            }
         }
 
         Ok(())
