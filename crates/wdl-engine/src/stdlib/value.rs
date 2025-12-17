@@ -36,7 +36,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(variant: V) -> T where `V`: any enumeration variant",
+                "(variant: V) -> T where `V`: any enum variant",
                 Callback::Sync(value),
             )]
         },
@@ -139,7 +139,7 @@ mod test {
         assert_eq!(
             diagnostic.message(),
             "type mismatch: argument to function `value` expects type `V` where `V`: any \
-             enumeration variant, but found type `String`"
+             enum variant, but found type `String`"
         );
     }
 }

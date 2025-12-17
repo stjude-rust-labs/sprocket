@@ -30,7 +30,6 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
 use crate::Coercible;
-use crate::PrimitiveValue;
 use crate::Value;
 use crate::path::EvaluationPath;
 
@@ -290,21 +289,6 @@ impl TaskInputs {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(());
-                }
-
-                // For enums, convert string variant name to enum value
-                if let Some(enum_ty) = expected.as_enum()
-                    && let Value::Primitive(PrimitiveValue::String(variant_name)) = &value
-                {
-                    if enum_ty.variants().get(variant_name.as_str()).is_some() {
-                        self.inputs.insert(path.to_string(), value);
-                        return Ok(());
-                    } else {
-                        bail!(
-                            "variant `{variant_name}` does not exist in enum `{}`",
-                            enum_ty.name()
-                        );
-                    }
                 }
 
                 check_input_type(document, path, input, &value)?;
@@ -647,21 +631,6 @@ impl WorkflowInputs {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(());
-                }
-
-                // For enums, convert string variant name to enum value
-                if let Some(enum_ty) = expected.as_enum()
-                    && let Value::Primitive(PrimitiveValue::String(variant_name)) = &value
-                {
-                    if enum_ty.variants().get(variant_name.as_str()).is_some() {
-                        self.inputs.insert(path.to_string(), value);
-                        return Ok(());
-                    } else {
-                        bail!(
-                            "variant `{variant_name}` does not exist in enum `{}`",
-                            enum_ty.name()
-                        );
-                    }
                 }
 
                 check_input_type(document, path, input, &value)?;

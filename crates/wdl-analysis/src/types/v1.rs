@@ -117,7 +117,6 @@ use crate::diagnostics::not_a_previous_task_data_member;
 use crate::diagnostics::not_a_struct;
 use crate::diagnostics::not_a_struct_member;
 use crate::diagnostics::not_a_task_member;
-use crate::diagnostics::not_an_enum_variant;
 use crate::diagnostics::numeric_mismatch;
 use crate::diagnostics::string_concat_mismatch;
 use crate::diagnostics::too_few_arguments;
@@ -1731,18 +1730,6 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
                 self.context
                     .add_diagnostic(not_a_struct_member(ty.name(), &name));
-                return None;
-            }
-            Type::Compound(CompoundType::Custom(CustomType::Enum(ty)), _) => {
-                if ty.variants().contains_key(name.text()) {
-                    return Some(Type::Compound(
-                        CompoundType::Custom(CustomType::Enum(ty.clone())),
-                        false,
-                    ));
-                }
-
-                self.context
-                    .add_diagnostic(not_an_enum_variant(ty.name(), &name));
                 return None;
             }
             Type::Compound(CompoundType::Pair(ty), _) => {

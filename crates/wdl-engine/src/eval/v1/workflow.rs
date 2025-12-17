@@ -84,6 +84,7 @@ use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::TopLevelEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -166,7 +167,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             return Ok(Value::TypeNameRef(s.ty().unwrap().clone()));
         }
 
-        // If the name is a reference to an enum , return it as a
+        // If the name is a reference to an enum, return it as a
         // [`Value::TypeNameRef`].
         if let Some(e) = self.state.document.enum_by_name(name) {
             // SAFETY: enums should always have a type at the point we're
@@ -187,7 +188,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        crate::resolve_enum_variant_value(r#enum, variant_name)
+        resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {

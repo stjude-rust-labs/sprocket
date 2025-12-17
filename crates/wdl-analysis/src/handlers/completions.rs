@@ -55,6 +55,7 @@ use wdl_ast::v1::TASK_FIELDS;
 use wdl_ast::v1::TASK_HINT_KEYS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WORKFLOW_HINT_KEYS;
+use wdl_ast::version::V1;
 use wdl_grammar::grammar::v1::NESTED_WORKFLOW_STATEMENT_KEYWORDS;
 use wdl_grammar::grammar::v1::ROOT_SECTION_KEYWORDS;
 use wdl_grammar::grammar::v1::STRUCT_SECTION_KEYWORDS;
@@ -521,14 +522,18 @@ fn add_member_access_completions(
             });
         }
         (SyntaxKind::Dot, Type::TypeNameRef(CustomType::Enum(e))) => {
-            let enum_type = e.inner_value_type();
-            for (variant_name, _) in e.variants() {
-                items.push(CompletionItem {
-                    label: variant_name.to_string(),
-                    kind: Some(CompletionItemKind::ENUM_MEMBER),
-                    detail: Some(format!("{}[{}]", e.name(), enum_type)),
-                    ..Default::default()
-                });
+            if let Some(version) = document.version()
+                && version >= SupportedVersion::V1(V1::Three)
+            {
+                let enum_type = e.inner_value_type();
+                for variant_name in e.variants() {
+                    items.push(CompletionItem {
+                        label: variant_name.to_string(),
+                        kind: Some(CompletionItemKind::ENUM_MEMBER),
+                        detail: Some(format!("{}[{}]", e.name(), enum_type)),
+                        ..Default::default()
+                    });
+                }
             }
         }
         (SyntaxKind::OpenBracket, Type::Compound(CompoundType::Map(_), _)) => {

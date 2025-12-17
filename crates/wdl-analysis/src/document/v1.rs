@@ -582,7 +582,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
     if version < SupportedVersion::V1(V1::Three) {
         document
             .analysis_diagnostics
-            .push(enum_not_supported(version, definition.span()));
+            .push(enum_not_supported(version, definition.name().span()));
         return;
     }
 

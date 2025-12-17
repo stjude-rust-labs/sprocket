@@ -687,12 +687,16 @@ impl Coercible for Value {
                     bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
             }
+            // String -> Enum Variant
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
-                // String -> Enum
                 // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
 
-                if enum_ty.variants().get(s.as_str()).is_some() {
+                if enum_ty
+                    .variants()
+                    .iter()
+                    .any(|variant_name| variant_name == s.as_str())
+                {
                     if let Some(context) = context {
                         if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
                             return Ok(Value::Compound(CompoundValue::EnumVariant(
@@ -716,12 +720,9 @@ impl Coercible for Value {
                 let variants = if enum_ty.variants().is_empty() {
                     None
                 } else {
-                    let mut variant_names = enum_ty.variants().keys().cloned().collect::<Vec<_>>();
+                    let mut variant_names = enum_ty.variants().to_vec();
                     variant_names.sort();
-                    Some(format!(
-                        " (valid variants: `{}`)",
-                        variant_names.join("`, `")
-                    ))
+                    Some(format!(" (variants: `{}`)", variant_names.join("`, `")))
                 }
                 .unwrap_or_default();
 
@@ -731,6 +732,14 @@ impl Coercible for Value {
                     enum_ty.name()
                 );
             }
+            // Enum Variant -> String
+            Self::Compound(CompoundValue::EnumVariant(e))
+                if target
+                    .as_primitive()
+                    .map(|t| matches!(t, PrimitiveType::String))
+                    .unwrap_or(false) => {
+                        Ok(Value::Primitive(PrimitiveValue::new_string(e.name())))
+                    }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
             Self::Hidden(v) => v.coerce(context, target).map(Self::Hidden),

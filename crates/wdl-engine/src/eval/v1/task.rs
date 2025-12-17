@@ -118,6 +118,7 @@ use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
 /// The default container requirement.
@@ -670,7 +671,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        crate::resolve_enum_variant_value(r#enum, variant_name)
+        resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {

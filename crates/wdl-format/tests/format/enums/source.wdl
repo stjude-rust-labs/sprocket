@@ -2,7 +2,7 @@ version 1.3
 
 enum Color {
     Red,
-    Green
+    Green,
     Blue
 }
 
@@ -13,7 +13,7 @@ enum Status[String]
 
 enum Priority[Int] {
     Low = 1,
-    Medium = 2
+    Medium = 2,
     High = 3,
 }
 

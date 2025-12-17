@@ -267,9 +267,8 @@ async fn compound_disk_size(
 
             Ok(size)
         }
-        CompoundValue::EnumVariant(e) => {
-            let value = e.value();
-            calculate_disk_size(transferer, value, unit, base_dir).await
+        CompoundValue::EnumVariant(_) => {
+            bail!("the size of an enum variant cannot be calculated")
         }
     }
 }

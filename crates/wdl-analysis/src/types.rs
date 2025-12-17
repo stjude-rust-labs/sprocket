@@ -1077,8 +1077,8 @@ pub struct EnumType {
     name: Arc<String>,
     /// The common coerced type computed from all variant values.
     inner_value_type: Type,
-    /// The variants with their actual types (before coercion).
-    variants: Arc<IndexMap<String, Type>>,
+    /// The variants.
+    variants: Arc<Vec<String>>,
 }
 
 impl EnumType {
@@ -1111,7 +1111,7 @@ impl EnumType {
             }
         }
 
-        let variants = variants.into_iter().collect::<IndexMap<_, _>>();
+        let variants = variants.into_iter().map(|(name, _)| name).collect();
 
         Ok(Self {
             name: Arc::new(enum_name),
@@ -1164,7 +1164,7 @@ impl EnumType {
             common_inner_type
         };
 
-        let variants = variants.into_iter().collect::<IndexMap<_, _>>();
+        let variants = variants.into_iter().map(|(name, _)| name).collect();
 
         Ok(Self {
             name: Arc::new(enum_name),
@@ -1184,7 +1184,7 @@ impl EnumType {
     }
 
     /// Gets the variants with their types.
-    pub fn variants(&self) -> &IndexMap<String, Type> {
+    pub fn variants(&self) -> &Vec<String> {
         &self.variants
     }
 }

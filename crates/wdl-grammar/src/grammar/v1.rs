@@ -87,6 +87,10 @@ pub const STRUCT_SECTION_KEYWORDS: TokenSet = TYPE_EXPECTED_SET
     ]))
     .without(TokenSet::new(&[Token::Ident as u8]));
 
+/// The recovery set for enum sections.
+const ENUM_SECTION_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
 /// The recovery set for input items.
 const INPUT_ITEM_RECOVERY_SET: TokenSet =
     TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -566,45 +570,42 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
         }
     }
 
-    expected!(parser, marker, Token::OpenBrace);
-    loop {
-        match parser.peek() {
-            Some((Token::CloseBrace, _)) => {
-                parser.require(Token::CloseBrace);
-                break;
-            }
-            Some((Token::Ident, _)) => {
-                let m = parser.start();
-                parser.require(Token::Ident);
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        ENUM_SECTION_RECOVERY_SET,
+        enum_variant
+    );
+    marker.complete(parser, SyntaxKind::EnumDefinitionNode);
+    Ok(())
+}
 
-                // Optional value, i.e., `= <expr>`.
-                if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
-                    parser.require(Token::Assignment);
-                    let expr_marker = parser.start();
-                    if let Err((expr_marker, diagnostic)) = expr(parser, expr_marker) {
-                        expr_marker.abandon(parser);
-                        m.abandon(parser);
-                        return Err((marker, diagnostic));
-                    }
-                }
+/// Parses a variant in an enum definition.
+fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    match parser.peek() {
+        Some((Token::Ident, _)) => {
+            parser.require(Token::Ident);
 
-                m.complete(parser, SyntaxKind::EnumVariantNode);
-
-                // Optional comma.
-                if parser.peek().map(|(t, _)| t) == Some(Token::Comma) {
-                    parser.require(Token::Comma);
+            // Optional value, i.e., `= <expr>`.
+            if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
+                parser.require(Token::Assignment);
+                let expr_marker = parser.start();
+                if let Err((expr_marker, diagnostic)) = expr(parser, expr_marker) {
+                    expr_marker.abandon(parser);
+                    return Err((marker, diagnostic));
                 }
             }
-            found => {
-                let (found, span) = found
-                    .map(|(t, s)| (Some(t.describe()), s))
-                    .unwrap_or_else(|| (None, parser.span()));
-                return Err((marker, expected_found("variant name or `}`", found, span)));
-            }
+
+            marker.complete(parser, SyntaxKind::EnumVariantNode);
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err((marker, expected_found("variant name or `}`", found, span)));
         }
     }
-
-    marker.complete(parser, SyntaxKind::EnumDefinitionNode);
     Ok(())
 }
 

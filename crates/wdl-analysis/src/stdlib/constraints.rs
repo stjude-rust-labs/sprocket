@@ -135,8 +135,10 @@ impl Constraint for JsonSerializableConstraint {
                 CompoundType::Custom(CustomType::Struct(s)) => {
                     s.members().values().all(type_is_serializable)
                 }
-                CompoundType::Custom(CustomType::Enum(e)) => {
-                    type_is_serializable(e.inner_value_type())
+                CompoundType::Custom(CustomType::Enum(_)) => {
+                    // Enums always serialize as a string representing the
+                    // variant name.
+                    true
                 }
             }
         }
@@ -189,7 +191,7 @@ pub struct EnumVariantConstraint;
 
 impl Constraint for EnumVariantConstraint {
     fn description(&self) -> &'static str {
-        "any enumeration variant"
+        "any enum variant"
     }
 
     fn satisfied(&self, ty: &Type) -> bool {

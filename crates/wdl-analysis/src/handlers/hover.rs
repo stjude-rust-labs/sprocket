@@ -269,7 +269,7 @@ fn resolve_hover_by_context(
 
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {
-                    if e.variants().contains_key(member.text()) {
+                    if e.variants().iter().any(|text| text == member.text()) {
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
                             e.name(),
@@ -317,7 +317,7 @@ fn resolve_hover_by_context(
                     _ => (None, None),
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
-                    if e.variants().contains_key(member.text()) {
+                    if e.variants().iter().any(|text| text == member.text()) {
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
                             e.name(),

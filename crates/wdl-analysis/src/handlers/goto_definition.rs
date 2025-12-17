@@ -484,13 +484,14 @@ fn resolve_access_expression(
 
     // Check if target is a namespace reference
     if let v1::Expr::NameRef(name_ref) = &target_expr {
-        let name = name_ref.name().text().to_string();
-        if let Some(ns) = analysis_doc.namespace(name.as_str()) {
+        let name = name_ref.name();
+        let name = name.text();
+        if let Some(ns) = analysis_doc.namespace(name) {
             let member_name = variant_ident.text();
             if analysis_doc
                 .enums()
                 .iter()
-                .any(|(_, e)| e.namespace() == Some(name.as_str()) && e.name() == member_name)
+                .any(|(_, e)| e.namespace() == Some(name) && e.name() == member_name)
             {
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
                 let imported_lines = imported_node.parse_state().lines().unwrap();

@@ -592,9 +592,9 @@ pub fn else_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
 
 /// Creates an "enum not supported" diagnostic.
 pub fn enum_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("enumerations are not supported in WDL v{version}"))
-        .with_label("this enumeration is not supported", span)
-        .with_fix("use WDL v1.3 or higher to use enumerations")
+    Diagnostic::error(format!("enums are not supported in WDL v{version}"))
+        .with_label("this enum is not supported", span)
+        .with_fix("use WDL v1.3 or higher to use enums")
 }
 
 /// Creates a "logical not mismatch" diagnostic.
