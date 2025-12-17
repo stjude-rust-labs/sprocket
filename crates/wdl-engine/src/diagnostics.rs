@@ -176,7 +176,7 @@ pub fn task_localization_failed(e: anyhow::Error, name: &str, span: Span) -> Dia
 }
 
 /// Creates a "task execution failed" diagnostic.
-pub fn task_execution_failed(e: anyhow::Error, name: &str, id: &str, span: Span) -> Diagnostic {
+pub fn task_execution_failed(e: &anyhow::Error, name: &str, id: &str, span: Span) -> Diagnostic {
     Diagnostic::error(if name != id {
         format!("task execution failed for task `{name}` (id `{id}`): {e:#}")
     } else {
