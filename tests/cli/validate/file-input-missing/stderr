@@ -1,0 +1,1 @@
+error: input `sample_file` references file `data/missing.txt` that does not exist

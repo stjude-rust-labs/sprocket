@@ -9,6 +9,7 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use indexmap::IndexMap;
 use serde::Serialize;
@@ -30,8 +31,10 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
 use crate::Coercible;
-use crate::EvaluationPath;
+use crate::HostPath;
 use crate::Value;
+use crate::path::EvaluationPath;
+use crate::path::{self};
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
@@ -58,6 +61,49 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
     }
 
     Ok(())
+}
+
+/// Ensures any `File` or `Directory` values referenced by `value` exist on
+/// disk.
+fn ensure_paths_exist(name: &str, value: &Value) -> Result<()> {
+    value.visit_paths(&mut |is_file, path| ensure_host_path_exists(name, is_file, path))
+}
+
+/// Verifies that a single `HostPath` references an accessible location on disk
+/// or a convertible `file://` URL.
+fn ensure_host_path_exists(name: &str, is_file: bool, host_path: &HostPath) -> Result<()> {
+    let raw_path = host_path.as_str();
+    if path::is_supported_url(raw_path) {
+        if !path::is_file_url(raw_path) {
+            // Remote URLs are assumed to be unavailable for local existence checks.
+            return Ok(());
+        }
+
+        let local_path = path::parse_supported_url(raw_path)
+            .and_then(|url| url.to_file_path().ok())
+            .ok_or_else(|| {
+                anyhow!(
+                    "input `{name}` references file URL `{raw_path}` which could not be converted \
+                     to a local path"
+                )
+            })?;
+
+        return check_local_path_exists(name, is_file, raw_path, local_path.as_path());
+    }
+
+    check_local_path_exists(name, is_file, raw_path, Path::new(raw_path))
+}
+
+/// Checks that the provided local path exists and reports detailed errors when
+/// it does not.
+fn check_local_path_exists(name: &str, is_file: bool, raw_path: &str, path: &Path) -> Result<()> {
+    let kind = if is_file { "file" } else { "directory" };
+    match path.try_exists().with_context(|| {
+        format!("failed to check existence of {kind} `{raw_path}` for input `{name}`")
+    })? {
+        true => Ok(()),
+        false => bail!("input `{name}` references {kind} `{raw_path}` that does not exist"),
+    }
 }
 
 /// Represents inputs to a task.
@@ -155,6 +201,11 @@ impl TaskInputs {
                 .with_context(|| format!("unknown input `{name}`"))?;
 
             check_input_type(document, name, input, value)?;
+
+            // Coerce the value to the expected type so that File/Directory paths are
+            // represented using `HostPath` before checking for existence.
+            let coerced_value = value.coerce(None, input.ty())?;
+            ensure_paths_exist(name, &coerced_value)?;
         }
 
         // Next check for missing required inputs
@@ -432,6 +483,9 @@ impl WorkflowInputs {
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
             check_input_type(document, name, input, value)?;
+
+            let coerced_value = value.coerce(None, input.ty())?;
+            ensure_paths_exist(name, &coerced_value)?;
         }
 
         // Next check for missing required inputs
