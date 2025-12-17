@@ -123,14 +123,23 @@ impl Visitor for LineWidthRule {
     }
 
     fn whitespace(&mut self, diagnostics: &mut Diagnostics, whitespace: &Whitespace) {
+        let element = whitespace
+            .inner()
+            .prev_sibling_or_token()
+            .unwrap_or(SyntaxElement::from(whitespace.inner().clone()));
+
+        if element
+            .ancestors()
+            .any(|n| n.kind() == wdl_ast::SyntaxKind::ImportStatementNode)
+        {
+            return;
+        }
+
         self.detect_line_too_long(
             diagnostics,
             whitespace.text(),
             whitespace.span().start(),
-            whitespace
-                .inner()
-                .prev_sibling_or_token()
-                .unwrap_or(SyntaxElement::from(whitespace.inner().clone())),
+            element,
             &self.exceptable_nodes(),
         );
     }
