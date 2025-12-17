@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added setting for controlling content digests; supported values are `strong`
+  for full cryptographic hashing of file content and `weak` to digest based
+  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+
 #### Changed
 
 * Added shared validation for task runtime and hint numeric settings (memory,

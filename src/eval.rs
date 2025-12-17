@@ -88,7 +88,7 @@ impl<'a> Evaluator<'a> {
                 evaluator
                     .evaluate_task(self.document, task, inputs, self.output_dir)
                     .await
-                    .and_then(EvaluatedTask::into_result)
+                    .and_then(EvaluatedTask::into_outputs)
             }
             Inputs::Workflow(mut inputs) => {
                 let workflow = self

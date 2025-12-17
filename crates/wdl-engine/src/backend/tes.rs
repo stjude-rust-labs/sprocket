@@ -53,6 +53,7 @@ use crate::backend::STDERR_FILE_NAME;
 use crate::backend::STDOUT_FILE_NAME;
 use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
+use crate::config::ContentDigestMode;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
@@ -213,12 +214,14 @@ impl TaskManagerRequest for TesTaskRequest {
                     let inputs_url = inputs_url.clone();
                     uploads.spawn(async move {
                         let url = inputs_url.join_digest(
-                            calculate_local_digest(&path, kind).await.with_context(|| {
-                                format!(
-                                    "failed to calculate digest of `{path}`",
-                                    path = path.display()
-                                )
-                            })?,
+                            calculate_local_digest(&path, kind, ContentDigestMode::Strong)
+                                .await
+                                .with_context(|| {
+                                    format!(
+                                        "failed to calculate digest of `{path}`",
+                                        path = path.display()
+                                    )
+                                })?,
                         );
                         transferer
                             .upload(&path, &url)
