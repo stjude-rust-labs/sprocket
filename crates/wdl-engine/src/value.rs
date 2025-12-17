@@ -737,9 +737,10 @@ impl Coercible for Value {
                 if target
                     .as_primitive()
                     .map(|t| matches!(t, PrimitiveType::String))
-                    .unwrap_or(false) => {
-                        Ok(Value::Primitive(PrimitiveValue::new_string(e.name())))
-                    }
+                    .unwrap_or(false) =>
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(e.name())))
+            }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
             Self::Hidden(v) => v.coerce(context, target).map(Self::Hidden),

@@ -138,8 +138,8 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::Three, "value(s)").await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "type mismatch: argument to function `value` expects type `V` where `V`: any \
-             enum variant, but found type `String`"
+            "type mismatch: argument to function `value` expects type `V` where `V`: any enum \
+             variant, but found type `String`"
         );
     }
 }

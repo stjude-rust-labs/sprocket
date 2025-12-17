@@ -1660,7 +1660,6 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
         _ => None,
     }?;
 
-
     // SAFETY: see the panic notice for this function.
     Some(value.coerce(None, target_ty).unwrap())
 }
@@ -1694,10 +1693,11 @@ pub(crate) fn resolve_enum_variant_value(
     } else {
         // NOTE: when no expression is provided, the default is the
         // variant name as a string.
-        Ok(Value::Primitive(crate::PrimitiveValue::new_string(variant_name)))
+        Ok(Value::Primitive(crate::PrimitiveValue::new_string(
+            variant_name,
+        )))
     }
 }
-
 
 #[cfg(test)]
 pub(crate) mod test {
