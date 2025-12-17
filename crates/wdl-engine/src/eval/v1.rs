@@ -103,7 +103,14 @@ impl TopLevelEvaluator {
                 info!("call caching is disabled");
                 None
             }
-            _ => Some(CallCache::new(config.task.cache_dir.as_deref(), transferer.clone()).await?),
+            _ => Some(
+                CallCache::new(
+                    config.task.cache_dir.as_deref(),
+                    config.task.digests,
+                    transferer.clone(),
+                )
+                .await?,
+            ),
         };
 
         Ok(Self {

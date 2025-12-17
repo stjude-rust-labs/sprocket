@@ -13,6 +13,7 @@ use path_clean::PathClean;
 use url::Url;
 
 use crate::ContentKind;
+use crate::config::ContentDigestMode;
 use crate::digest::Digest;
 use crate::digest::calculate_local_digest;
 use crate::digest::calculate_remote_digest;
@@ -190,9 +191,10 @@ impl EvaluationPath {
         &self,
         transferer: &dyn Transferer,
         kind: ContentKind,
+        mode: ContentDigestMode,
     ) -> Result<Digest> {
         match self {
-            Self::Local(path) => calculate_local_digest(path, kind).await,
+            Self::Local(path) => calculate_local_digest(path, kind, mode).await,
             Self::Remote(url) => calculate_remote_digest(transferer, url, kind).await,
         }
     }

@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::io::BufRead;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
@@ -16,7 +17,9 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bimap::BiHashMap;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::algo::toposort;
+use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
@@ -64,6 +67,8 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
@@ -74,6 +79,7 @@ use super::validators::ensure_non_negative_i64;
 use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::CompoundValue;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
@@ -86,10 +92,12 @@ use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
+use crate::PrimitiveValue;
 use crate::Scope;
 use crate::ScopeIndex;
 use crate::ScopeRef;
 use crate::StorageUnit;
+use crate::TaskExecutionResult;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
@@ -114,12 +122,16 @@ use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
+use crate::stdlib::download_file;
 use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
+
+/// The maximum number of stderr lines to display in error messages.
+const MAX_STDERR_LINES: usize = 10;
 
 /// The default container requirement.
 pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
@@ -952,7 +964,12 @@ struct EvaluatedSections {
 impl TopLevelEvaluator {
     /// Evaluates the given task.
     ///
-    /// Upon success, returns the evaluated task.
+    /// If the task fails to execute as a result of an unacceptable exit code,
+    /// this method returns `Ok` with the evaluated result; the evaluated task
+    /// will return an error when `[EvaluatedTask::into_outputs]` is called.
+    ///
+    /// Otherwise, this returns `Ok` only upon a successful task execution and
+    /// evaluation of all of its outputs.
     pub async fn evaluate_task(
         &self,
         document: &Document,
@@ -1273,14 +1290,13 @@ impl TopLevelEvaluator {
                         .map_err(|e| {
                             EvaluationError::new(
                                 state.document.clone(),
-                                task_execution_failed(e, task.name(), id, task.name_span()),
+                                task_execution_failed(&e, task.name(), id, task.name_span()),
                             )
                         })?
                 }
             };
 
-            // Update the task variable
-            let evaluated = EvaluatedTask::new(cached, result);
+            // Update the task variable for the execution result
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -1294,18 +1310,17 @@ impl TopLevelEvaluator {
                         task = state.task.name()
                     )
                 })?);
-                task.set_return_code(evaluated.result.exit_code);
+                task.set_return_code(result.exit_code);
             }
 
-            if let Err(e) = evaluated
-                .handle_exit(&requirements, state.transferer().as_ref())
-                .await
-            {
+            // If the task failed its execution, handle retrying
+            if Self::did_task_fail(&requirements, result.exit_code) {
+                // Too many retries, break out with the errored evaluated task
                 if attempt >= max_retries {
-                    return Err(EvaluationError::new(
-                        state.document.clone(),
-                        task_execution_failed(e, task.name(), id, task.name_span()),
-                    ));
+                    let error =
+                        Self::task_failure_error(&state, id, &result, state.transferer().as_ref())
+                            .await;
+                    break EvaluatedTask::new(cached, result, Some(error));
                 }
 
                 attempt += 1;
@@ -1329,7 +1344,7 @@ impl TopLevelEvaluator {
                     .cache
                     .as_ref()
                     .expect("should have cache")
-                    .put(key, &evaluated.result)
+                    .put(key, &result)
                     .await
                 {
                     Ok(key) => {
@@ -1350,7 +1365,8 @@ impl TopLevelEvaluator {
                 }
             }
 
-            break evaluated;
+            // Task execution succeeded, break out of the retry loop
+            break EvaluatedTask::new(cached, result, None);
         };
 
         // Perform backend cleanup before output evaluation
@@ -1362,45 +1378,129 @@ impl TopLevelEvaluator {
             cleanup.await;
         }
 
-        // Evaluate the remaining inputs (unused), and decls, and outputs
-        for index in &nodes[current..] {
-            match &graph[*index] {
-                TaskGraphNode::Decl(decl) => {
-                    state
-                        .evaluate_decl(id, decl)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                TaskGraphNode::Output(decl) => {
-                    state
-                        .evaluate_output(id, decl, &evaluated)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                _ => {
-                    unreachable!(
-                        "only declarations and outputs should be evaluated after the command"
-                    )
+        // Evaluate the remaining inputs (unused), private decls, and outputs if the
+        // task executed successfully
+        if !evaluated.failed() {
+            for index in &nodes[current..] {
+                match &graph[*index] {
+                    TaskGraphNode::Decl(decl) => {
+                        state
+                            .evaluate_decl(id, decl)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    TaskGraphNode::Output(decl) => {
+                        state
+                            .evaluate_output(id, decl, &evaluated)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    _ => {
+                        unreachable!(
+                            "only declarations and outputs should be evaluated after the command"
+                        )
+                    }
                 }
             }
+
+            // Take the output scope and return it in declaration sort order
+            let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
+            if let Some(section) = definition.output() {
+                let indexes: HashMap<_, _> = section
+                    .declarations()
+                    .enumerate()
+                    .map(|(i, d)| (d.name().hashable(), i))
+                    .collect();
+                outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+            }
+
+            // Write the outputs to the task's root directory
+            write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
+
+            // Finally, associate the outputs with the evaluated task
+            evaluated.outputs = outputs;
         }
 
-        // Take the output scope and return it in declaration sort order
-        let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
-        if let Some(section) = definition.output() {
-            let indexes: HashMap<_, _> = section
-                .declarations()
-                .enumerate()
-                .map(|(i, d)| (d.name().hashable(), i))
-                .collect();
-            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
-        }
-
-        // Write the outputs to the task's root directory
-        write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
-
-        evaluated.outputs = Ok(outputs);
         Ok(evaluated)
+    }
+
+    /// Determines if the task failed based on its requirements and exit code.
+    fn did_task_fail(requirements: &HashMap<String, Value>, exit_code: i32) -> bool {
+        if let Some(return_codes) = requirements
+            .get(TASK_REQUIREMENT_RETURN_CODES)
+            .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
+        {
+            match return_codes {
+                Value::Primitive(PrimitiveValue::String(s)) => s.as_ref() != "*",
+                Value::Primitive(PrimitiveValue::Integer(ok)) => {
+                    exit_code != i32::try_from(*ok).unwrap_or_default()
+                }
+                Value::Compound(CompoundValue::Array(codes)) => !codes.as_slice().iter().any(|v| {
+                    v.as_integer()
+                        .map(|i| i32::try_from(i).unwrap_or_default() == exit_code)
+                        .unwrap_or(false)
+                }),
+                _ => unreachable!("unexpected return codes value"),
+            }
+        } else {
+            exit_code != 0
+        }
+    }
+
+    /// Creates a task failure error for the given execution result.
+    async fn task_failure_error(
+        state: &State<'_>,
+        id: &str,
+        result: &TaskExecutionResult,
+        transferer: &dyn Transferer,
+    ) -> EvaluationError {
+        // Read the last `MAX_STDERR_LINES` number of lines from stderr
+        // If there's a problem reading stderr, don't output it
+        let stderr = download_file(
+            transferer,
+            &result.work_dir,
+            result.stderr.as_file().unwrap(),
+        )
+        .await
+        .ok()
+        .and_then(|l| {
+            fs::File::open(l).ok().map(|f| {
+                // Buffer the last N number of lines
+                let reader = RevBufReader::new(f);
+                let lines: Vec<_> = reader
+                    .lines()
+                    .take(MAX_STDERR_LINES)
+                    .map_while(|l| l.ok())
+                    .collect();
+
+                // Iterate the lines in reverse order as we read them in reverse
+                lines
+                    .iter()
+                    .rev()
+                    .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                    .to_string()
+            })
+        })
+        .unwrap_or_default();
+
+        let error = anyhow!(
+            "process terminated with exit code {code}: see `{stdout_path}` and `{stderr_path}` \
+             for task output{header}{stderr}{trailer}",
+            code = result.exit_code,
+            stdout_path = result.stdout.as_file().expect("must be file"),
+            stderr_path = result.stderr.as_file().expect("must be file"),
+            header = if stderr.is_empty() {
+                Cow::Borrowed("")
+            } else {
+                format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
+            },
+            trailer = if stderr.is_empty() { "" } else { "\n" }
+        );
+
+        EvaluationError::new(
+            state.document.clone(),
+            task_execution_failed(&error, state.task.name(), id, state.task.name_span()),
+        )
     }
 }
 
