@@ -126,9 +126,8 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
     "struct member declaration",
 ];
 
-const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &[
-    "enum variant declaration",
-];
+/// The expected names of items in an enum definition.
+const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &["enum variant declaration"];
 
 /// The expected set of tokens in a task definition.
 pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -608,7 +607,10 @@ fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
             let (found, span) = found
                 .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
-            return Err((marker, expected_one_of(ENUM_ITEM_EXPECTED_NAMES, found, span)));
+            return Err((
+                marker,
+                expected_one_of(ENUM_ITEM_EXPECTED_NAMES, found, span),
+            ));
         }
     }
     Ok(())
