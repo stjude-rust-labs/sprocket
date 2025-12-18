@@ -474,7 +474,7 @@ fn add_member_access_completions(
     }
 
     // NOTE: we do type evaluation only for non namespaces or complex types
-    
+
     let Some(scope) = document.find_scope_by_position(target_node.span().start()) else {
         bail!("could not find scope for access expression")
     };

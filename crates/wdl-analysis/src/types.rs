@@ -2270,7 +2270,8 @@ mod test {
                 ("Complete".into(), PrimitiveType::String.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0), Span::new(0, 0)][..],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(status.name().as_ref(), "Status");
         assert_eq!(
@@ -2302,7 +2303,7 @@ mod test {
     #[test]
     fn enum_type_infer_finds_common_type() {
         // All `Int` variants should infer `Int` type.
-        let priority  = EnumType::infer(
+        let priority = EnumType::infer(
             "Priority",
             vec![
                 ("Low".into(), PrimitiveType::Integer.into()),
@@ -2310,7 +2311,8 @@ mod test {
                 ("High".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0), Span::new(0, 0)],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(priority.name().as_str(), "Priority");
         assert_eq!(
@@ -2330,7 +2332,8 @@ mod test {
                 ("FloatValue".into(), PrimitiveType::Float.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(mixed.name().as_str(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
