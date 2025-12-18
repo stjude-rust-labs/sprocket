@@ -210,6 +210,7 @@ fn resolve_type_reference(
 
     if let Some(enum_info) = analysis_doc.enum_by_name(ident_text) {
         if enum_info.namespace().is_none() {
+            // Handle enum defined in local document.
             return Ok(Some(location_from_span(
                 document_uri,
                 enum_info.name_span(),
@@ -217,17 +218,32 @@ fn resolve_type_reference(
             )?));
         }
 
-        // Return the location in the imported file.
-        let ns_name = enum_info.namespace().unwrap();
+        let is_aliased_import = enum_info
+            .ty()
+            .and_then(|t| t.as_enum())
+            .map(|st| st.name().as_str() != ident_text)
+            .unwrap_or(false);
 
-        if let Some(ctx) = get_imported_doc_context(ns_name, analysis_doc, graph)
-            && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
-        {
+        if is_aliased_import {
+            // Returns the location where alias import was defined.
             return Ok(Some(location_from_span(
-                ctx.uri,
-                original_enum.name_span(),
-                ctx.lines,
+                document_uri,
+                enum_info.name_span(),
+                lines,
             )?));
+        } else {
+            // Return the location in the imported file.
+            let ns_name = enum_info.namespace().unwrap();
+
+            if let Some(ctx) = get_imported_doc_context(ns_name, analysis_doc, graph)
+                && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
+            {
+                return Ok(Some(location_from_span(
+                    ctx.uri,
+                    original_enum.name_span(),
+                    ctx.lines,
+                )?));
+            }
         }
     }
 
@@ -452,7 +468,7 @@ fn resolve_global_identifier(
 ///
 /// # Supports:
 /// - Struct member access (`person.name`)
-/// - enum member access (`Person.name`)
+/// - Enum member access (`Person.name`)
 /// - Call output access (`call_result.output`)
 /// - Arrays (persons[0].name)
 /// - Chained Access Expressions (documents.persons[0].address.street)
@@ -626,8 +642,8 @@ fn resolve_access_expression(
                 continue;
             };
 
-            // SAFETY: we know `lines` will return Some as we only reach here when
-            // `node.document` is fully parsed and in `ParsedState::Parse`
+            // SAFETY: we know `lines` will return `Some` as we only reach here
+            // when `node.document` is fully parsed and in `ParsedState::Parse`
             // state.
             let imported_lines = node.parse_state().lines().unwrap();
 
@@ -797,21 +813,12 @@ where
 
 /// Resolve enum variant declarations to themselves.
 fn resolve_enum_variant_definition(
-    parent_node: &SyntaxNode,
+    _: &SyntaxNode,
     token: &SyntaxToken,
     document_uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    let Some(variant_node) = v1::EnumVariant::cast(parent_node.clone()) else {
-        return Ok(None);
-    };
-
-    let ident = variant_node.name();
-    if ident.span() == token.span() {
-        return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
-    }
-
-    Ok(None)
+    Ok(Some(location_from_span(document_uri, token.span(), lines)?))
 }
 
 /// Resolve struct literal item references to struct member definitions.

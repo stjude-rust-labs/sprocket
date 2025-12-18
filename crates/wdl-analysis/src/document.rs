@@ -620,7 +620,7 @@ impl Workflow {
 
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
-struct DocumentData {
+pub(crate) struct DocumentData {
     /// The configuration under which this document was analyzed.
     config: Config,
     /// The root CST node of the document.

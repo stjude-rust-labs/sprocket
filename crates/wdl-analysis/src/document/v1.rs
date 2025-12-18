@@ -208,7 +208,7 @@ fn sort_scopes(scopes: &mut Vec<Scope>) {
 }
 
 /// Creates a new document for a V1 AST.
-pub(super) fn populate_document(
+pub(crate) fn populate_document(
     document: &mut DocumentData,
     config: &Config,
     graph: &DocumentGraph,
@@ -811,7 +811,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         document.version.unwrap(),
         definition,
         &mut document.analysis_diagnostics,
-        |name| document.structs.get(name).is_some() || document.enums.get(name).is_some(),
+        |name| document.structs.contains_key(name) || document.enums.contains_key(name),
     );
 
     let mut task = Task {
