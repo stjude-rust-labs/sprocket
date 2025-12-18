@@ -510,9 +510,14 @@ impl Coercible for Type {
             (Self::None, ty) if ty.is_optional() => true,
 
             // String -> Enum
+            // Enum -> String
             (
                 Self::Primitive(PrimitiveType::String, _),
                 Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
+            )
+            | (
+                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
+                Self::Primitive(PrimitiveType::String, _),
             ) => true,
 
             // Not coercible
@@ -638,7 +643,7 @@ pub enum CompoundType {
     Pair(Arc<PairType>),
     /// The type is a `Map`.
     Map(Arc<MapType>),
-    /// The type is a custom type (struct or enum).
+    /// The type is a custom type (a struct or enum).
     Custom(CustomType),
 }
 
@@ -762,11 +767,6 @@ impl Coercible for CompoundType {
             // Struct -> Struct, Struct -> Struct?, Struct? -> Struct? where: all member names match
             // and all member types coerce
             (Self::Custom(CustomType::Struct(src)), Self::Custom(CustomType::Struct(target))) => {
-                src.is_coercible_to(target)
-            }
-
-            // Enum -> Enum where: same enum type
-            (Self::Custom(CustomType::Enum(src)), Self::Custom(CustomType::Enum(target))) => {
                 src.is_coercible_to(target)
             }
 
@@ -2260,7 +2260,7 @@ mod test {
     #[test]
     fn enum_type_new_with_explicit_type() {
         // Create enum with explicit `String` type, all variants coerce to `String`.
-        let result = EnumType::new(
+        let status = EnumType::new(
             "Status",
             Span::new(0, 0),
             PrimitiveType::String.into(),
@@ -2270,9 +2270,8 @@ mod test {
                 ("Complete".into(), PrimitiveType::String.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0), Span::new(0, 0)][..],
-        );
+        ).unwrap();
 
-        let status = result.unwrap();
         assert_eq!(status.name().as_ref(), "Status");
         assert_eq!(
             status.inner_value_type(),
@@ -2303,7 +2302,7 @@ mod test {
     #[test]
     fn enum_type_infer_finds_common_type() {
         // All `Int` variants should infer `Int` type.
-        let result = EnumType::infer(
+        let priority  = EnumType::infer(
             "Priority",
             vec![
                 ("Low".into(), PrimitiveType::Integer.into()),
@@ -2311,9 +2310,8 @@ mod test {
                 ("High".into(), PrimitiveType::Integer.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0), Span::new(0, 0)],
-        );
+        ).unwrap();
 
-        let priority = result.unwrap();
         assert_eq!(priority.name().as_str(), "Priority");
         assert_eq!(
             priority.inner_value_type(),
@@ -2325,16 +2323,15 @@ mod test {
     #[test]
     fn enum_type_infer_coerces_int_to_float() {
         // Mix of `Int` and `Float` should coerce to `Float`.
-        let result = EnumType::infer(
+        let mixed = EnumType::infer(
             "Mixed",
             vec![
                 ("IntValue".into(), PrimitiveType::Integer.into()),
                 ("FloatValue".into(), PrimitiveType::Float.into()),
             ],
             &[Span::new(0, 0), Span::new(0, 0)],
-        );
+        ).unwrap();
 
-        let mixed = result.unwrap();
         assert_eq!(mixed.name().as_str(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
         assert_eq!(mixed.variants().len(), 2);

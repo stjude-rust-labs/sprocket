@@ -109,10 +109,12 @@ fn resolve_hover_content(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
+    // Finds hover information based on the CST.
     if let Some(content) = resolve_hover_by_context(parent_node, token, document, graph)? {
         return Ok(Some(content));
     }
 
+    // Finds hover information based on the scope.
     if let Some(scope) = document.find_scope_by_position(token.span().start())
         && let Some(name) = scope.lookup(token.text())
     {
@@ -132,6 +134,7 @@ fn resolve_hover_content(
         return Ok(Some(content));
     }
 
+    // Finds hover information across global definitions.
     if let Some(content) = find_global_hover_in_doc(document, token)? {
         return Ok(Some(content));
     }
