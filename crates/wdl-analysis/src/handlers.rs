@@ -63,7 +63,7 @@ impl EvaluationContext for TypeEvalContext<'_> {
             return Some(var);
         }
 
-        // If the name is a reference to a struct , return it as a
+        // If the name is a reference to a struct, return it as a
         // [`Type::TypeNameRef`].
         if let Some(s) = self.document.struct_by_name(name)
             && let Some(ty) = s.ty().map(|ty| {
@@ -74,7 +74,8 @@ impl EvaluationContext for TypeEvalContext<'_> {
             return Some(ty);
         }
 
-        // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+        // If the name is a reference to an enum, return it as a
+        // [`Type::TypeNameRef`].
         if let Some(e) = self.document.enum_by_name(name)
             && let Some(ty) = e.ty().map(|ty| {
                 ty.type_name_ref()
