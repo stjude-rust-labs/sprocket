@@ -1521,31 +1521,27 @@ impl State {
 
         // Iterate through the names, skipping the first which is always the scatter
         // variable
-        for (name, n) in stmt_scope.names().skip(1) {
-            if let Type::Call(call_ty) = n.ty() {
-                scope.insert(
-                    name,
-                    CallValue::new_unchecked(
-                        call_ty.clone(),
-                        Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
-                            (
-                                n.clone(),
-                                Array::new_unchecked(
-                                    ArrayType::new(o.ty().clone()).into(),
-                                    Vec::new(),
-                                )
+        for (name, local) in stmt_scope.names().skip(1) {
+            let value: Value = if let Type::Call(call_ty) = local.ty() {
+                // Value is a call; promote all of the call's output as empty arrays
+                CallValue::new_unchecked(
+                    call_ty.clone(),
+                    Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
+                        (
+                            n.clone(),
+                            Array::new_unchecked(ArrayType::new(o.ty().clone()).into(), Vec::new())
                                 .into(),
-                            )
-                        }))
-                        .into(),
-                    ),
-                );
+                        )
+                    }))
+                    .into(),
+                )
+                .into()
             } else {
-                scope.insert(
-                    name,
-                    Array::new_unchecked(ArrayType::new(n.ty().clone()).into(), Vec::new()),
-                );
-            }
+                // Promote the value as an empty array
+                Array::new_unchecked(ArrayType::new(local.ty().clone()).into(), Vec::new()).into()
+            };
+
+            scope.insert(name.to_string(), value);
         }
 
         Ok(())
