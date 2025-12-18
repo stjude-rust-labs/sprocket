@@ -13,27 +13,13 @@ use crate::TriviaBlankLineSpacingPolicy;
 
 /// Normalize single-line `#@ except:` directives
 fn normalize_except_directive(text: &str) -> String {
-    // Check if comment starts with #@
-    let text = text.trim();
-    if !text.starts_with("#@") {
+    let Some(remainder) = text.trim_start().strip_prefix("#@") else {
         return text.to_owned();
-    }
+    };
 
-    // Strip #@ prefix and get remainder
-    let remainder = text[2..].trim_start();
-
-    // Check if this is an except: directive
-    if !remainder.starts_with("except:") {
+    let Some(rules_text) = remainder.trim_start().strip_prefix("except:") else {
         return text.to_owned();
-    }
-
-    // Check if single-line (no newlines in content)
-    if text.contains('\n') {
-        return text.to_owned();
-    }
-
-    // Extract the rule list after "except:"
-    let rules_text = &remainder[7..]; // Skip "except:"
+    };
 
     // Split by comma, trim each rule, and collect
     let mut rules: Vec<String> = rules_text
@@ -231,9 +217,9 @@ impl TokenStream<PreToken> {
     fn push_inline_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         if let Some(token) = token.inner().inline_comment() {
-            let normalized = normalize_except_directive(token.text().trim_end());
-            let inline_comment =
-                PreToken::Trivia(Trivia::Comment(Comment::Inline(Rc::new(normalized))));
+            let inline_comment = PreToken::Trivia(Trivia::Comment(Comment::Inline(Rc::new(
+                token.text().trim_end().to_owned(),
+            ))));
             self.0.push(inline_comment);
         }
     }
