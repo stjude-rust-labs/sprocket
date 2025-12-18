@@ -649,14 +649,12 @@ fn resolve_access_expression(
         }
 
         // Check for enum definition in local document.
-        let enum_def = analysis_doc
-            .enum_by_name(enum_ty.name())
-            .ok_or_else(|| {
-                anyhow!(
-                    "definition not found for enum `{name}`",
-                    name = enum_ty.name()
-                )
-            })?;
+        let enum_def = analysis_doc.enum_by_name(enum_ty.name()).ok_or_else(|| {
+            anyhow!(
+                "definition not found for enum `{name}`",
+                name = enum_ty.name()
+            )
+        })?;
 
         let (uri, def_lines) = match enum_def.namespace() {
             Some(ns_name) => {
@@ -730,14 +728,12 @@ fn resolve_access_expression(
 
     if let Some(enum_ty) = target_type.as_enum() {
         // Check for enum definition in local document.
-        let enum_def = analysis_doc
-            .enum_by_name(enum_ty.name())
-            .ok_or_else(|| {
-                anyhow!(
-                    "definition not found for enum `{name}`",
-                    name = enum_ty.name()
-                )
-            })?;
+        let enum_def = analysis_doc.enum_by_name(enum_ty.name()).ok_or_else(|| {
+            anyhow!(
+                "definition not found for enum `{name}`",
+                name = enum_ty.name()
+            )
+        })?;
 
         let (uri, def_lines) = match enum_def.namespace() {
             Some(ns_name) => {

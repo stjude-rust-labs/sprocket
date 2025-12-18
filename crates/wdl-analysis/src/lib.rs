@@ -39,7 +39,7 @@ use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
 
 mod analyzer;
-mod config;
+pub mod config;
 pub mod diagnostics;
 pub mod document;
 pub mod eval;
