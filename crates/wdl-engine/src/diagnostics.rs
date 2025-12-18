@@ -213,5 +213,5 @@ pub(crate) fn unknown_enum_variant_access<T: TreeToken>(
         "unknown variant named `{variant_name}` for enum `{enum_name}`",
         variant_name = variant_name.text()
     ))
-    .with_label("the variant name is referenced here", variant_name.span())
+    .with_label("the variant is referenced here", variant_name.span())
 }

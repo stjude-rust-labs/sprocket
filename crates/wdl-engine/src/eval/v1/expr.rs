@@ -1464,7 +1464,6 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
-        // Evaluate the target expression.
         let target_value = self.evaluate_expr(&target).await?;
         match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {

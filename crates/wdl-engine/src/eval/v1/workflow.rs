@@ -1046,14 +1046,12 @@ impl State {
             }
         };
 
+        // Coerce the value to the expected type
         let scopes = self.scopes.read().await;
         let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::ROOT_INDEX));
-
-        // Coerce the value to the expected type
         let mut value = value
             .coerce(Some(&context), &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
-
         drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
