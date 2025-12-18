@@ -164,7 +164,12 @@ impl Repository {
                         format!("https://github.com/{}.git", self.identifier).as_str(),
                         &repo_root,
                     )
-                    .expect("failed to clone repository")
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "failed to clone repository `{identifier}`: {e}",
+                            identifier = self.identifier
+                        )
+                    })
             }
         };
 
@@ -226,7 +231,12 @@ impl Repository {
                 format!("https://github.com/{}.git", self.identifier).as_str(),
                 &repo_root,
             )
-            .expect("failed to clone repository");
+            .unwrap_or_else(|e| {
+                panic!(
+                    "failed to clone repository `{identifier}`: {e}",
+                    identifier = self.identifier
+                )
+            });
 
         // Update the commit hash.
         let head = git_repo.head().expect("failed to get head");

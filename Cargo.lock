@@ -846,6 +846,7 @@ dependencies = [
  "tar",
  "thiserror 2.0.17",
  "tokio",
+ "tokio-retry2 0.7.0",
  "tokio-stream",
  "tracing",
 ]
@@ -4445,6 +4446,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e05e40fd65880de11383bbc693d3c636045ed1b5010ef1265a1d2b41d73334a1"
 dependencies = [
  "pin-project",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-retry2"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae5ed96d30859f64c721d9155b66c53c39867e2ced2f0614ba61da5665440b0a"
+dependencies = [
+ "pin-project",
+ "rand 0.9.2",
  "tokio",
 ]
 
