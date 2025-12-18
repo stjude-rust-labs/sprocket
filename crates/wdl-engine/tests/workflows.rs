@@ -74,10 +74,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         };
 
         if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
-            bail!(
-                EvaluationError::from_diagnostic(result.document().clone(), diagnostic.clone())
-                    .to_string()
-            );
+            bail!(EvaluationError::new(result.document().clone(), diagnostic.clone()).to_string());
         }
 
         let mut inputs = match Inputs::parse(result.document(), test.join("inputs.json"))? {
