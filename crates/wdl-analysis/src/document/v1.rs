@@ -208,7 +208,7 @@ fn sort_scopes(scopes: &mut Vec<Scope>) {
 }
 
 /// Creates a new document for a V1 AST.
-pub(crate) fn populate_document(
+pub(super) fn populate_document(
     document: &mut DocumentData,
     config: &Config,
     graph: &DocumentGraph,

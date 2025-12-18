@@ -486,7 +486,6 @@ fn resolve_access_expression(
             let member_name = variant_ident.text();
             if analysis_doc
                 .enums()
-                .iter()
                 .any(|(_, e)| e.namespace() == Some(name) && e.name() == member_name)
             {
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
@@ -561,8 +560,7 @@ fn resolve_access_expression(
 
         // Check for struct definition in local document.
         let struct_def = analysis_doc
-            .structs()
-            .get(struct_ty.name().as_str())
+            .struct_by_name(struct_ty.name())
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for struct `{name}`",
@@ -652,8 +650,7 @@ fn resolve_access_expression(
 
         // Check for enum definition in local document.
         let enum_def = analysis_doc
-            .enums()
-            .get(enum_ty.name().as_str())
+            .enum_by_name(enum_ty.name())
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for enum `{name}`",
@@ -734,8 +731,7 @@ fn resolve_access_expression(
     if let Some(enum_ty) = target_type.as_enum() {
         // Check for enum definition in local document.
         let enum_def = analysis_doc
-            .enums()
-            .get(enum_ty.name().as_str())
+            .enum_by_name(enum_ty.name())
             .ok_or_else(|| {
                 anyhow!(
                     "definition not found for enum `{name}`",
