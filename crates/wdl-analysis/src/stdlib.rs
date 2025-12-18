@@ -125,8 +125,8 @@ pub enum GenericType {
     Pair(GenericPairType),
     /// The type is a generic `Map`.
     Map(GenericMapType),
-    /// The type is the value type extracted from an enum variant.
-    EnumValue(GenericEnumValueType),
+    /// The type is a generic value contained within an enum.
+    EnumInnerValue(GenericEnumInnerValueType),
 }
 
 impl GenericType {
@@ -159,7 +159,7 @@ impl GenericType {
                     GenericType::Array(ty) => ty.display(self.params).fmt(f),
                     GenericType::Pair(ty) => ty.display(self.params).fmt(f),
                     GenericType::Map(ty) => ty.display(self.params).fmt(f),
-                    GenericType::EnumValue(ty) => ty.display(self.params).fmt(f),
+                    GenericType::EnumInnerValue(ty) => ty.display(self.params).fmt(f),
                 }
             }
         }
@@ -191,7 +191,7 @@ impl GenericType {
             Self::Array(array) => array.infer_type_parameters(ty, params, ignore_constraints),
             Self::Pair(pair) => pair.infer_type_parameters(ty, params, ignore_constraints),
             Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
-            Self::EnumValue(_) => {
+            Self::EnumInnerValue(_) => {
                 // NOTE: this is an intentional no-op—the value type is derived
                 // from the variant parameter, not inferred from arguments.
             }
@@ -215,7 +215,7 @@ impl GenericType {
             Self::Array(ty) => ty.realize(params),
             Self::Pair(ty) => ty.realize(params),
             Self::Map(ty) => ty.realize(params),
-            Self::EnumValue(ty) => ty.realize(params),
+            Self::EnumInnerValue(ty) => ty.realize(params),
         }
     }
 
@@ -233,7 +233,7 @@ impl GenericType {
             Self::Array(a) => a.assert_type_parameters(parameters),
             Self::Pair(p) => p.assert_type_parameters(parameters),
             Self::Map(m) => m.assert_type_parameters(parameters),
-            Self::EnumValue(e) => e.assert_type_parameters(parameters),
+            Self::EnumInnerValue(e) => e.assert_type_parameters(parameters),
         }
     }
 }
@@ -256,9 +256,9 @@ impl From<GenericMapType> for GenericType {
     }
 }
 
-impl From<GenericEnumValueType> for GenericType {
-    fn from(value: GenericEnumValueType) -> Self {
-        Self::EnumValue(value)
+impl From<GenericEnumInnerValueType> for GenericType {
+    fn from(value: GenericEnumInnerValueType) -> Self {
+        Self::EnumInnerValue(value)
     }
 }
 
@@ -551,22 +551,22 @@ impl GenericMapType {
     }
 }
 
-/// Represents the value type of an enum variant.
+/// Represents a generic inner value of an enum.
 #[derive(Debug, Clone)]
-pub struct GenericEnumValueType {
-    /// The enum variant type parameter name.
-    variant_param: &'static str,
+pub struct GenericEnumInnerValueType {
+    /// The inner value parameter.
+    param: &'static str,
 }
 
-impl GenericEnumValueType {
-    /// Constructs a new generic enum variant type.
-    pub fn new(variant_param: &'static str) -> Self {
-        Self { variant_param }
+impl GenericEnumInnerValueType {
+    /// Constructs a new generic enum inner value type.
+    pub fn new(param: &'static str) -> Self {
+        Self { param }
     }
 
-    /// Gets the variant parameter name.
-    pub fn variant_param(&self) -> &'static str {
-        self.variant_param
+    /// Gets the inner value parameter name.
+    pub fn param(&self) -> &'static str {
+        self.param
     }
 
     /// Returns an object that implements `Display` for formatting the type.
@@ -574,14 +574,14 @@ impl GenericEnumValueType {
         #[allow(clippy::missing_docs_in_private_items)]
         struct Display<'a> {
             params: &'a TypeParameters<'a>,
-            ty: &'a GenericEnumValueType,
+            ty: &'a GenericEnumInnerValueType,
         }
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let (_, variant_ty) = self
                     .params
-                    .get(self.ty.variant_param)
+                    .get(self.ty.param)
                     .expect("variant parameter should be present");
 
                 match variant_ty {
@@ -589,7 +589,7 @@ impl GenericEnumValueType {
                         enum_ty.inner_value_type().fmt(f)
                     }
                     // NOTE: non-enums should gracefully fail.
-                    _ => write!(f, "{}", self.ty.variant_param),
+                    _ => write!(f, "{}", self.ty.param),
                 }
             }
         }
@@ -597,10 +597,10 @@ impl GenericEnumValueType {
         Display { params, ty: self }
     }
 
-    /// Realizes the generic type to the enum's value type.
+    /// Realizes the generic type to the enum's inner value type.
     fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
         let (_, variant_ty) = params
-            .get(self.variant_param)
+            .get(self.param)
             .expect("variant parameter should be present");
 
         match variant_ty {
@@ -615,9 +615,9 @@ impl GenericEnumValueType {
     /// Asserts that the type parameters referenced by the type are valid.
     fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
         assert!(
-            parameters.iter().any(|p| p.name == self.variant_param),
+            parameters.iter().any(|p| p.name == self.param),
             "generic enum variant type references unknown type parameter `{}`",
-            self.variant_param
+            self.param
         );
     }
 }
@@ -823,9 +823,9 @@ impl From<GenericMapType> for FunctionalType {
     }
 }
 
-impl From<GenericEnumValueType> for FunctionalType {
-    fn from(value: GenericEnumValueType) -> Self {
-        Self::Generic(GenericType::EnumValue(value))
+impl From<GenericEnumInnerValueType> for FunctionalType {
+    fn from(value: GenericEnumInnerValueType) -> Self {
+        Self::Generic(GenericType::EnumInnerValue(value))
     }
 }
 
@@ -4978,7 +4978,7 @@ task collect_by_key {
                             GenericType::Parameter("V"),
                             "An enum variant of any enum type.",
                         )
-                        .ret(GenericEnumValueType::new("T"))
+                        .ret(GenericEnumInnerValueType::new("T"))
                         .definition(
                             r##"
 Returns the underlying value associated with an enum variant.
