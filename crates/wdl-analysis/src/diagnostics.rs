@@ -920,22 +920,22 @@ pub fn not_a_custom_type<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
 /// be inferred from the variant types.
 pub fn no_common_inferred_type_for_enum(
     enum_name: &str,
-    last_common_variant_type: &Type,
-    last_common_variant_span: Span,
-    first_discordant_variant_type: &Type,
-    first_discordant_variant_span: Span,
+    common_type: &Type,
+    common_span: Span,
+    discordant_type: &Type,
+    discordant_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!("cannot infer a common type for enum `{enum_name}`"))
         .with_label(
             format!(
-                "this is the first variant with type `{first_discordant_variant_type}` that has \
-                 no common type with `{last_common_variant_type}`"
+                "this is the first variant with type `{discordant_type}` that has no common type \
+                 with `{common_type}`"
             ),
-            first_discordant_variant_span,
+            discordant_span,
         )
         .with_label(
-            format!("this is the last variant with a common type `{last_common_variant_type}`"),
-            last_common_variant_span,
+            format!("this is the last variant with a common type `{common_type}`"),
+            common_span,
         )
 }
 

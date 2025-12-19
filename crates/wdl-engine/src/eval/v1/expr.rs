@@ -1511,7 +1511,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let variant = EnumVariant::new(ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
                 } else {
-                    todo!("support type name references for `{ty:?}`");
+                    Err(cannot_access(&ty, target.span()))
                 }
             }
             value => Err(cannot_access(&value.ty(), target.span())),

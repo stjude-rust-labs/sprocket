@@ -1,7 +1,7 @@
 //! Handlers for inlay hint requests.
 //!
-//! This module implements the LSP `textDocument/inlayHint` functionality for WDL
-//! files.
+//! This module implements the LSP `textDocument/inlayHint` functionality for
+//! WDL files.
 //!
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_inlayHint)
 
@@ -96,25 +96,25 @@ pub fn inlay_hints(
             // Create an inlay hint showing the inferred type
             if !matches!(inner_type, Type::Union) {
                 hints.push(InlayHint {
-                position: Position {
-                    line: enum_name_end_pos.line,
-                    character: enum_name_end_pos.character,
-                },
-                label: InlayHintLabel::String(format!("[{}]", inner_type)),
-                kind: Some(InlayHintKind::TYPE),
-                text_edits: Some(vec![TextEdit {
-                    range: Range {
-                        start: enum_name_end_pos,
-                        end: enum_name_end_pos,
+                    position: Position {
+                        line: enum_name_end_pos.line,
+                        character: enum_name_end_pos.character,
                     },
-                    new_text: format!("[{}]", inner_type),
-                }]),
-                tooltip: Some(lsp_types::InlayHintTooltip::String(
-                    "Click to insert type parameter".to_string(),
-                )),
-                padding_left: None,
-                padding_right: None,
-                data: None,
+                    label: InlayHintLabel::String(format!("[{}]", inner_type)),
+                    kind: Some(InlayHintKind::TYPE),
+                    text_edits: Some(vec![TextEdit {
+                        range: Range {
+                            start: enum_name_end_pos,
+                            end: enum_name_end_pos,
+                        },
+                        new_text: format!("[{}]", inner_type),
+                    }]),
+                    tooltip: Some(lsp_types::InlayHintTooltip::String(
+                        "Click to insert type parameter".to_string(),
+                    )),
+                    padding_left: None,
+                    padding_right: None,
+                    data: None,
                 });
             }
         }

@@ -881,6 +881,19 @@ impl Document {
         self.data.enums.get(name)
     }
 
+    /// Gets the custom type by name.
+    pub fn get_custom_type(&self, name: &str) -> Option<Type> {
+        if let Some(s) = self.struct_by_name(name) {
+            return s.ty().cloned();
+        }
+
+        if let Some(s) = self.enum_by_name(name) {
+            return s.ty().cloned();
+        }
+
+        None
+    }
+
     /// Gets the parse diagnostics for the document.
     pub fn parse_diagnostics(&self) -> &[Diagnostic] {
         &self.data.parse_diagnostics

@@ -886,15 +886,15 @@ where
             }))
             .map_err(|_| {
                 anyhow!(
-                    "failed to send inlay hints request to analysis queue because the channel \
-                     has closed"
+                    "failed to send inlay hints request to analysis queue because the channel has \
+                     closed"
                 )
             })?;
 
         rx.await.map_err(|_| {
             anyhow!(
-                "failed to receive inlay hints response from analysis queue because the \
-                 channel has closed"
+                "failed to receive inlay hints response from analysis queue because the channel \
+                 has closed"
             )
         })
     }

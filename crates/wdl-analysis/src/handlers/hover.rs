@@ -210,11 +210,7 @@ fn resolve_hover_by_context(
                 return Ok(Some(content));
             } else {
                 // Inferred value (defaults to string of variant name)
-                let content = format!(
-                    "```wdl\n{} = \"{}\"\n```",
-                    variant_name,
-                    variant_name
-                );
+                let content = format!("```wdl\n{} = \"{}\"\n```", variant_name, variant_name);
                 return Ok(Some(content));
             }
         }
@@ -302,7 +298,8 @@ fn resolve_hover_by_context(
                             let definition = enum_entry.definition();
 
                             // Find the specific variant
-                            if let Some(variant) = definition.variants()
+                            if let Some(variant) = definition
+                                .variants()
                                 .find(|v| v.name().text() == member.text())
                             {
                                 let value_str = if let Some(value_expr) = variant.value() {
@@ -334,7 +331,8 @@ fn resolve_hover_by_context(
                     (None, None)
                 }
                 Type::TypeNameRef(CustomType::Struct(_)) => {
-                    todo!("handle struct member access via `TypeNameRef`")
+                    // `Struct.member` is not valid in WDL.
+                    return Ok(None);
                 }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
@@ -376,7 +374,8 @@ fn resolve_hover_by_context(
                             let definition = enum_entry.definition();
 
                             // Find the specific variant
-                            if let Some(variant) = definition.variants()
+                            if let Some(variant) = definition
+                                .variants()
                                 .find(|v| v.name().text() == member.text())
                             {
                                 let value_str = if let Some(value_expr) = variant.value() {

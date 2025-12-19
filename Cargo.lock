@@ -5152,6 +5152,7 @@ dependencies = [
  "futures",
  "ignore",
  "indexmap 2.12.1",
+ "itertools 0.14.0",
  "libtest-mimic",
  "line-index",
  "lsp-types",

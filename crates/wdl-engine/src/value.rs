@@ -2071,15 +2071,15 @@ impl fmt::Display for Struct {
 pub struct EnumVariant {
     /// The type of the enum containing this variant.
     enum_ty: EnumType,
-    /// The name of the variant.
-    name: Arc<String>,
+    /// The index of the variant in the enum type.
+    variant_index: usize,
     /// The value of the variant.
     value: Arc<Value>,
 }
 
 impl PartialEq for EnumVariant {
     fn eq(&self, other: &Self) -> bool {
-        self.enum_ty == other.enum_ty && self.name == other.name
+        self.enum_ty == other.enum_ty && self.variant_index == other.variant_index
     }
 }
 
@@ -2093,12 +2093,18 @@ impl EnumVariant {
         value: impl Into<Value>,
     ) -> Self {
         let enum_ty = enum_ty.into();
-        let name = Arc::new(name.into());
+        let name = name.into();
         let value = Arc::new(value.into());
+
+        let variant_index = enum_ty
+            .variants()
+            .iter()
+            .position(|v| v == &name)
+            .expect("variant name must exist in enum type");
 
         Self {
             enum_ty,
-            name,
+            variant_index,
             value,
         }
     }
@@ -2110,7 +2116,7 @@ impl EnumVariant {
 
     /// Gets the name of the variant.
     pub fn name(&self) -> &str {
-        &self.name
+        &self.enum_ty.variants()[self.variant_index]
     }
 
     /// Gets the name of the variant.
@@ -2145,7 +2151,7 @@ impl EnumVariant {
 /// ```
 impl fmt::Display for EnumVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
+        write!(f, "{}", self.name())
     }
 }
 

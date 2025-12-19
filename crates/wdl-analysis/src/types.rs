@@ -1078,7 +1078,7 @@ pub struct EnumType {
     /// The common coerced type computed from all variant values.
     inner_value_type: Type,
     /// The variants.
-    variants: Arc<Vec<String>>,
+    variants: Arc<[String]>,
 }
 
 impl EnumType {
@@ -1096,6 +1096,7 @@ impl EnumType {
     ) -> Result<Self, Diagnostic> {
         assert_eq!(variants.len(), variant_spans.len());
         let enum_name = enum_name.into();
+        let mut results = Vec::with_capacity(variants.len());
 
         // Validate that all variant types are coercible to the value type
         for (variant_idx, (variant_name, variant_type)) in variants.iter().enumerate() {
@@ -1109,14 +1110,14 @@ impl EnumType {
                     variant_type,
                 ));
             }
-        }
 
-        let variants = variants.into_iter().map(|(name, _)| name).collect();
+            results.push(variant_name.to_owned());
+        }
 
         Ok(Self {
             name: Arc::new(enum_name),
             inner_value_type: explicit_inner_type,
-            variants: Arc::new(variants),
+            variants: results.into(),
         })
     }
 
@@ -1135,41 +1136,34 @@ impl EnumType {
         assert_eq!(variants.len(), variant_spans.len());
         let enum_name = enum_name.into();
 
-        let common_inner_type = if variants.is_empty() {
-            Type::Union
-        } else {
-            let mut variants = variants.iter().cloned();
-            let mut last_variant_idx = 0;
-            // SAFETY: we just checked above that `variants` isn't empty.
-            let mut common_inner_type = variants.next().unwrap().1;
-
-            for variant in variants {
-                match common_inner_type.common_type(&variant.1) {
-                    Some(common) => {
-                        last_variant_idx += 1;
-                        common_inner_type = common
+        let mut common_ty: Option<Type> = None;
+        let mut names = Vec::with_capacity(variants.len());
+        for (i, (name, variant_ty)) in variants.into_iter().enumerate() {
+            match common_ty {
+                Some(current_common_ty) => match current_common_ty.common_type(&variant_ty) {
+                    Some(new_common_ty) => {
+                        common_ty = Some(new_common_ty);
                     }
                     None => {
                         return Err(crate::diagnostics::no_common_inferred_type_for_enum(
                             &enum_name,
-                            &common_inner_type,
-                            variant_spans[last_variant_idx],
-                            &variant.1,
-                            variant_spans[last_variant_idx + 1],
+                            &current_common_ty,
+                            variant_spans[i - 1],
+                            &variant_ty,
+                            variant_spans[i],
                         ));
                     }
-                }
+                },
+                None => common_ty = Some(variant_ty),
             }
 
-            common_inner_type
-        };
-
-        let variants = variants.into_iter().map(|(name, _)| name).collect();
+            names.push(name);
+        }
 
         Ok(Self {
             name: Arc::new(enum_name),
-            inner_value_type: common_inner_type,
-            variants: Arc::new(variants),
+            inner_value_type: common_ty.unwrap_or(Type::Union),
+            variants: names.into(),
         })
     }
 
@@ -1184,7 +1178,7 @@ impl EnumType {
     }
 
     /// Gets the variants with their types.
-    pub fn variants(&self) -> &Vec<String> {
+    pub fn variants(&self) -> &[String] {
         &self.variants
     }
 }
@@ -2337,6 +2331,7 @@ mod test {
 
         assert_eq!(mixed.name().as_str(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
+        dbg!(mixed.variants());
         assert_eq!(mixed.variants().len(), 2);
     }
 

@@ -338,6 +338,7 @@ impl Hashable for Struct {
 impl Hashable for EnumVariant {
     fn hash(&self, hasher: &mut Hasher) {
         ValueKind::EnumVariant.hash(hasher);
+        self.name().hash(hasher);
         self.value().hash(hasher);
     }
 }

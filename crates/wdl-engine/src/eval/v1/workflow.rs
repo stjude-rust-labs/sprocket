@@ -159,20 +159,8 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             return Ok(var);
         }
 
-        // If the name is a reference to a struct, return it as a
-        // [`Value::TypeNameRef`].
-        if let Some(s) = self.state.document.struct_by_name(name) {
-            // SAFETY: structs should always have a type at the point we're
-            // evaluating.
-            return Ok(Value::TypeNameRef(s.ty().unwrap().clone()));
-        }
-
-        // If the name is a reference to an enum, return it as a
-        // [`Value::TypeNameRef`].
-        if let Some(e) = self.state.document.enum_by_name(name) {
-            // SAFETY: enums should always have a type at the point we're
-            // evaluating.
-            return Ok(Value::TypeNameRef(e.ty().unwrap().clone()));
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
         }
 
         Err(unknown_name(name, span))

@@ -484,9 +484,9 @@ fn resolve_access_expression(
     // `SyntaxKind::AccessExprNode` in the `resolve_by_context` before
     // calling this function.
     let access_expr = wdl_ast::v1::AccessExpr::cast(parent_node.clone()).unwrap();
-    let (target_expr, variant_ident) = access_expr.operands();
+    let (target_expr, access_ident) = access_expr.operands();
 
-    if variant_ident.span() != token.span() {
+    if access_ident.span() != token.span() {
         return Ok(None);
     }
 
@@ -499,7 +499,7 @@ fn resolve_access_expression(
         let name = name_ref.name();
         let name = name.text();
         if let Some(ns) = analysis_doc.namespace(name) {
-            let member_name = variant_ident.text();
+            let member_name = access_ident.text();
             if analysis_doc
                 .enums()
                 .any(|(_, e)| e.namespace() == Some(name) && e.name() == member_name)
@@ -534,9 +534,9 @@ fn resolve_access_expression(
 
         // Check for struct definition in imported namespaces.
         for (_, ns) in analysis_doc.namespaces() {
-            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which only
-            // contains namespaces for documents that guaranteed to be present in
-            // the graph.
+            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
+            // only contains namespaces for documents that are guaranteed to be
+            // present in the graph.
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -563,7 +563,7 @@ fn resolve_access_expression(
 
             if let Some(member) = struct_node
                 .members()
-                .find(|m| m.name().text() == variant_ident.text())
+                .find(|m| m.name().text() == access_ident.text())
             {
                 let member_span = member.name().span();
                 let span = Span::new(
@@ -608,7 +608,7 @@ fn resolve_access_expression(
 
         let Some(member) = struct_node
             .members()
-            .find(|m| m.name().text() == variant_ident.text())
+            .find(|m| m.name().text() == access_ident.text())
         else {
             return Ok(None);
         };
@@ -624,9 +624,9 @@ fn resolve_access_expression(
 
         // Check for enum definition in imported namespaces.
         for (_, ns) in analysis_doc.namespaces() {
-            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which only
-            // contains namespaces for documents that guaranteed to be present in
-            // the graph.
+            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
+            // only contains namespaces for documents that are guaranteed to be
+            // present in the graph.
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -653,7 +653,7 @@ fn resolve_access_expression(
 
             if let Some(variant) = enum_node
                 .variants()
-                .find(|v| v.name().text() == variant_ident.text())
+                .find(|v| v.name().text() == access_ident.text())
             {
                 let variant_span = variant.name().span();
                 let span = Span::new(
@@ -695,7 +695,7 @@ fn resolve_access_expression(
 
         let Some(variant) = enum_node
             .variants()
-            .find(|v| v.name().text() == variant_ident.text())
+            .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);
         };
@@ -707,11 +707,12 @@ fn resolve_access_expression(
     }
 
     if let Type::TypeNameRef(CustomType::Struct(_)) = target_type {
-        todo!("handle struct member access via `TypeNameRef`")
+        // `Struct.member` is not currently valid in WDL.
+        return Ok(None);
     }
 
     if let Some(call_ty) = target_type.as_call() {
-        let Some(output) = call_ty.outputs().get(variant_ident.text()) else {
+        let Some(output) = call_ty.outputs().get(access_ident.text()) else {
             // Call output not found for the requested member.
             return Ok(None);
         };
@@ -773,7 +774,7 @@ fn resolve_access_expression(
 
         let Some(variant) = enum_node
             .variants()
-            .find(|v| v.name().text() == variant_ident.text())
+            .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);
         };

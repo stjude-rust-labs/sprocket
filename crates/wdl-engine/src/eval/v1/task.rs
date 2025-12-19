@@ -655,19 +655,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             return Ok(var);
         }
 
-        // If the name is a reference to a struct, return it as a
-        // [`Value::TypeNameRef`].
-        if let Some(s) = self.state.document.struct_by_name(name) {
-            return Ok(Value::TypeNameRef(
-                s.ty().expect("struct should have type").clone(),
-            ));
-        }
-
-        // If the name is a reference to an enum, return it as a [`Value::TypeNameRef`].
-        if let Some(e) = self.state.document.enum_by_name(name) {
-            return Ok(Value::TypeNameRef(
-                e.ty().expect("enum should have type").clone(),
-            ));
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
         }
 
         Err(unknown_name(name, span))

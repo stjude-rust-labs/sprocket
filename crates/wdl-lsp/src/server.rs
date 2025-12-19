@@ -1005,10 +1005,7 @@ impl LanguageServer for Server {
         Ok(result)
     }
 
-    async fn inlay_hint(
-        &self,
-        mut params: InlayHintParams,
-    ) -> RpcResult<Option<Vec<InlayHint>>> {
+    async fn inlay_hint(&self, mut params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");

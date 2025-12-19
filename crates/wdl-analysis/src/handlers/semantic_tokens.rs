@@ -114,9 +114,7 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
                     .iter()
                     .position(|tt| tt == &token_ty)
                     .unwrap_or_else(|| {
-                        panic!(
-                            "token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`"
-                        )
+                        panic!("token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`")
                     }) as u32,
                 token_modifiers_bitset,
             };

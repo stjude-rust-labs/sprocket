@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use indexmap::map::Entry as IndexMapEntry;
+use itertools::EitherOrBoth;
+use itertools::Itertools as _;
 use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
@@ -453,12 +455,17 @@ fn add_namespace(
 
 /// Compares two structs for structural equality.
 fn are_structs_equal(a: &StructDefinition, b: &StructDefinition) -> bool {
-    for (a, b) in a.members().zip(b.members()) {
-        if a.name().text() != b.name().text() {
+    for result in a.members().zip_longest(b.members()) {
+        // If the length of `a` and `b` is not equal, the structs are not equal.
+        let EitherOrBoth::Both(a_member, b_member) = result else {
+            return false;
+        };
+
+        if a_member.name().text() != b_member.name().text() {
             return false;
         }
 
-        if a.ty() != b.ty() {
+        if a_member.ty() != b_member.ty() {
             return false;
         }
     }
@@ -479,14 +486,12 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
         _ => return false,
     }
 
-    let vars_a = a.variants().collect::<Vec<_>>();
-    let vars_b = b.variants().collect::<Vec<_>>();
+    for result in a.variants().zip_longest(b.variants()) {
+        // If the length of `a` and `b` is not equal, the enums are not equal.
+        let EitherOrBoth::Both(var_a, var_b) = result else {
+            return false;
+        };
 
-    if vars_a.len() != vars_b.len() {
-        return false;
-    }
-
-    for (var_a, var_b) in vars_a.iter().zip(vars_b.iter()) {
         if var_a.name().text() != var_b.name().text() {
             return false;
         }
@@ -1926,105 +1931,65 @@ fn set_enum_types(document: &mut DocumentData) {
         return;
     }
 
-    struct EnumInfo {
-        /// The index of the enum in the document.
-        pub index: usize,
-        /// The name of the enum.
-        pub name: String,
-        /// The inner type of the enum.
-        pub inner_type_param: Option<wdl_ast::v1::Type>,
-        /// The span pointing to the enum's name.
-        pub span: Span,
-        /// The variants of the enum and their related types.
-        pub variants: Vec<(String, Type)>,
-        /// The span of each variant—one matching per `variants`.
-        ///
-        /// Note that spans are stored separately because they are just used for
-        /// diagnostic purposes. Later down the line, `variants` is taken
-        /// ownership by an `EnumType` while the spans are dropped.
-        pub variant_spans: Vec<Span>,
-    }
+    // Calculate the underlying type for every enum in the document
+    for index in 0..document.enums.len() {
+        let e = &document.enums[index];
 
-    // Collect all variants and type parameters from locally defined enums
-    let enum_info = document
-        .enums
-        .iter()
-        .enumerate()
-        .filter_map(|(index, (name, e))| {
-            // Only look at locally defined enums
-            if e.namespace.is_some() {
-                return None;
-            }
+        // Only look at locally defined enums
+        if e.namespace.is_some() {
+            continue;
+        }
 
-            let definition = e.definition();
-            let mut variants = Vec::new();
+        let definition = e.definition();
+        let mut variants = Vec::new();
+        let mut variant_spans = Vec::new();
 
-            // Collect all variants with their types
-            for variant in definition.variants() {
-                let variant_name = variant.name().text().to_string();
-                let variant_type = if let Some(value_expr) = variant.value() {
-                    // Validate that the value is a literal expression
-                    match parse_literal_value(&document.structs, &value_expr) {
-                        Some(ty) => ty,
-                        None => {
-                            let span = value_expr.span();
-                            let adjusted_span = Span::new(span.start() + e.offset, span.len());
-                            document
-                                .analysis_diagnostics
-                                .push(non_literal_enum_value(adjusted_span));
-                            Type::Union
-                        }
+        // Populate the variants and their spans
+        for variant in definition.variants() {
+            let variant_name = variant.name().text().to_string();
+            let variant_type = if let Some(value_expr) = variant.value() {
+                // Validate that the value is a literal expression
+                match parse_literal_value(&document.structs, &value_expr) {
+                    Some(ty) => ty,
+                    None => {
+                        let span = value_expr.span();
+                        let adjusted_span = Span::new(span.start() + e.offset, span.len());
+                        document
+                            .analysis_diagnostics
+                            .push(non_literal_enum_value(adjusted_span));
+                        Type::Union
                     }
-                } else {
-                    // Default to `String` type if no value is specified
-                    PrimitiveType::String.into()
-                };
-                variants.push((
-                    variant_name,
-                    variant_type,
-                    Span::new(variant.span().start() + e.offset(), variant.span().len()),
-                ));
-            }
+                }
+            } else {
+                // Default to `String` type if no value is specified
+                PrimitiveType::String.into()
+            };
 
-            let type_param = definition.type_parameter().map(|t| t.ty());
+            variants.push((variant_name, variant_type));
+            variant_spans.push(Span::new(
+                variant.span().start() + e.offset(),
+                variant.span().len(),
+            ));
+        }
 
-            // Note that `variant_spans` is separated out from `variants`
-            // because, down the line, `EnumType` takes ownership of just the
-            // name and types, but the spans are passed in by reference for
-            // diagnostic creation only.
-            let (variants, variant_spans) = variants
-                .into_iter()
-                .map(|(name, ty, span)| ((name, ty), span))
-                .unzip();
-
-            Some(EnumInfo {
-                index,
-                name: name.to_owned(),
-                span: e.name_span,
-                inner_type_param: type_param,
-                variants,
-                variant_spans,
-            })
-        })
-        .collect::<Vec<_>>();
-
-    for info in enum_info {
-        let result = if let Some(explicit_inner_type) = info.inner_type_param {
-            let explicit_inner_type = convert_ast_type(document, &explicit_inner_type);
+        // Check for explicit type parameter or infer if one was not specified
+        let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
+            let type_param = convert_ast_type(document, &type_param);
+            let e = &document.enums[index];
             EnumType::new(
-                info.name,
-                info.span,
-                explicit_inner_type,
-                info.variants,
-                &info.variant_spans,
+                e.name.clone(),
+                e.name_span,
+                type_param,
+                variants,
+                &variant_spans,
             )
         } else {
-            EnumType::infer(info.name, info.variants, &info.variant_spans)
+            EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
         };
 
         match result {
             Ok(enum_ty) => {
-                document.enums[info.index].ty = Some(enum_ty.into());
+                document.enums[index].ty = Some(enum_ty.into());
             }
             Err(diagnostic) => {
                 document.analysis_diagnostics.push(diagnostic);
@@ -2117,8 +2082,7 @@ fn parse_literal_value(structs: &indexmap::IndexMap<String, Struct>, expr: &Expr
             parse_literal_value(structs, &val_expr)?;
         }
 
-        let struct_name = s.name().text().to_string();
-        return structs.get(&struct_name).and_then(|st| st.ty.clone());
+        return structs.get(s.name().text()).and_then(|st| st.ty.clone());
     }
 
     infer_type_from_literal(expr)

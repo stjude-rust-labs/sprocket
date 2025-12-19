@@ -59,32 +59,17 @@ impl EvaluationContext for TypeEvalContext<'_> {
             .expect("document should have a version")
     }
 
-    fn resolve_name(&self, name: &str, _span: Span) -> Option<crate::types::Type> {
+    fn resolve_name(&self, name: &str, _: Span) -> Option<crate::types::Type> {
         // Check if there are any variables with this name and return if so.
         if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
             return Some(var);
         }
 
-        // If the name is a reference to a struct, return it as a
-        // [`Type::TypeNameRef`].
-        if let Some(s) = self.document.struct_by_name(name)
-            && let Some(ty) = s.ty().map(|ty| {
+        if let Some(ty) = self.document.get_custom_type(name) {
+            return Some(
                 ty.type_name_ref()
-                    .expect("type name ref to be created from struct")
-            })
-        {
-            return Some(ty);
-        }
-
-        // If the name is a reference to an enum, return it as a
-        // [`Type::TypeNameRef`].
-        if let Some(e) = self.document.enum_by_name(name)
-            && let Some(ty) = e.ty().map(|ty| {
-                ty.type_name_ref()
-                    .expect("type name ref to be created from enum")
-            })
-        {
-            return Some(ty);
+                    .expect("type name ref to be created from custom type"),
+            );
         }
 
         None
