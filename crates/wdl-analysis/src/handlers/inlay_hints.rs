@@ -11,6 +11,8 @@ use lsp_types::InlayHint;
 use lsp_types::InlayHintKind;
 use lsp_types::InlayHintLabel;
 use lsp_types::Position;
+use lsp_types::Range;
+use lsp_types::TextEdit;
 use rowan::TextSize;
 use url::Url;
 use wdl_ast::AstToken;
@@ -20,6 +22,14 @@ use crate::graph::ParseState;
 use crate::handlers::common::position;
 use crate::types::CustomType;
 
+/// Checks if a position is within a given range.
+fn position_in_range(pos: &Position, range: &Range) -> bool {
+    (pos.line > range.start.line
+        || (pos.line == range.start.line && pos.character >= range.start.character))
+        && (pos.line < range.end.line
+            || (pos.line == range.end.line && pos.character <= range.end.character))
+}
+
 /// Handles an inlay hint request for a document.
 ///
 /// Returns inlay hints for the following:
@@ -27,7 +37,13 @@ use crate::types::CustomType;
 /// - Enum definitions where the inner type was inferred rather than explicitly
 ///   specified.
 /// - Enum variants without explicit values, showing the inferred string value.
-pub fn inlay_hints(graph: &DocumentGraph, uri: &Url) -> Result<Option<Vec<InlayHint>>> {
+///
+/// Only returns hints that fall within the specified range.
+pub fn inlay_hints(
+    graph: &DocumentGraph,
+    uri: &Url,
+    range: Range,
+) -> Result<Option<Vec<InlayHint>>> {
     let Some(index) = graph.get_index(uri) else {
         bail!("document `{uri}` not found in graph.");
     };
@@ -53,43 +69,52 @@ pub fn inlay_hints(graph: &DocumentGraph, uri: &Url) -> Result<Option<Vec<InlayH
 
         let definition = enum_entry.definition();
 
-        // Check if the enum has an explicit type parameter
-        if definition.type_parameter().is_some() {
-            // Type is explicit, no hint needed
+        // Calculate the enum name end position (where the type hint would appear)
+        let name_span = definition.name().span();
+        let absolute_end = enum_entry.offset() + name_span.end();
+        let enum_name_end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;
+
+        // Skip if the enum name end is not within the requested range
+        if !position_in_range(&enum_name_end_pos, &range) {
             continue;
         }
 
-        // Get the inferred type from the enum
-        let Some(enum_type) = enum_entry.ty() else {
-            continue;
-        };
+        // Check if the enum has an explicit type parameter
+        if definition.type_parameter().is_none() {
+            // Get the inferred type from the enum
+            let Some(enum_type) = enum_entry.ty() else {
+                continue;
+            };
 
-        let CustomType::Enum(enum_type) = enum_type.as_custom().unwrap() else {
-            continue;
-        };
+            let CustomType::Enum(enum_type) = enum_type.as_custom().unwrap() else {
+                continue;
+            };
 
-        let inner_type = enum_type.inner_value_type();
+            let inner_type = enum_type.inner_value_type();
 
-        // Create an inlay hint showing the inferred type
-        // The span from the AST is relative to the enum's CST node,
-        // so we need to add the offset to get the absolute position
-        let name_span = definition.name().span();
-        let absolute_end = enum_entry.offset() + name_span.end();
-        let end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;
-
-        hints.push(InlayHint {
-            position: Position {
-                line: end_pos.line,
-                character: end_pos.character,
-            },
-            label: InlayHintLabel::String(format!("[{}]", inner_type)),
-            kind: Some(InlayHintKind::TYPE),
-            text_edits: None,
-            tooltip: None,
-            padding_left: None,
-            padding_right: None,
-            data: None,
-        });
+            // Create an inlay hint showing the inferred type
+            hints.push(InlayHint {
+                position: Position {
+                    line: enum_name_end_pos.line,
+                    character: enum_name_end_pos.character,
+                },
+                label: InlayHintLabel::String(format!("[{}]", inner_type)),
+                kind: Some(InlayHintKind::TYPE),
+                text_edits: Some(vec![TextEdit {
+                    range: Range {
+                        start: enum_name_end_pos,
+                        end: enum_name_end_pos,
+                    },
+                    new_text: format!("[{}]", inner_type),
+                }]),
+                tooltip: Some(lsp_types::InlayHintTooltip::String(
+                    "Click to insert type parameter".to_string(),
+                )),
+                padding_left: None,
+                padding_right: None,
+                data: None,
+            });
+        }
 
         // Add hints for variants without explicit values
         for variant in definition.variants() {
@@ -103,6 +128,11 @@ pub fn inlay_hints(graph: &DocumentGraph, uri: &Url) -> Result<Option<Vec<InlayH
             let absolute_end = enum_entry.offset() + variant_span.end();
             let variant_end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;
 
+            // Skip if the variant position is not within the requested range
+            if !position_in_range(&variant_end_pos, &range) {
+                continue;
+            }
+
             hints.push(InlayHint {
                 position: Position {
                     line: variant_end_pos.line,
@@ -110,8 +140,16 @@ pub fn inlay_hints(graph: &DocumentGraph, uri: &Url) -> Result<Option<Vec<InlayH
                 },
                 label: InlayHintLabel::String(format!(" = \"{}\"", variant_name)),
                 kind: Some(InlayHintKind::PARAMETER),
-                text_edits: None,
-                tooltip: None,
+                text_edits: Some(vec![TextEdit {
+                    range: Range {
+                        start: variant_end_pos,
+                        end: variant_end_pos,
+                    },
+                    new_text: format!(" = \"{}\"", variant_name),
+                }]),
+                tooltip: Some(lsp_types::InlayHintTooltip::String(
+                    "Click to insert variant value".to_string(),
+                )),
                 padding_left: None,
                 padding_right: None,
                 data: None,

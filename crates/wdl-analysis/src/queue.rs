@@ -258,6 +258,8 @@ pub struct SignatureHelpRequest {
 pub struct InlayHintsRequest {
     /// The document where the request was initiated.
     pub document: Url,
+    /// The visible range for which inlay hints should be computed.
+    pub range: lsp_types::Range,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
 }
@@ -727,13 +729,14 @@ where
                 }
                 Request::InlayHints(InlayHintsRequest {
                     document,
+                    range,
                     completed,
                 }) => {
                     let start = Instant::now();
                     debug!("received request for inlay hints at {document}");
 
                     let graph = self.graph.read();
-                    match handlers::inlay_hints(&graph, &document) {
+                    match handlers::inlay_hints(&graph, &document, range) {
                         Ok(result) => {
                             debug!(
                                 "inlay hints request completed in {elapsed:?}",

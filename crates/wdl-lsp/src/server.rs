@@ -1013,9 +1013,19 @@ impl LanguageServer for Server {
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");
 
+        // Analyze the document first to ensure we have up-to-date information
+        self.analyzer
+            .analyze(ProgressToken(None))
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
         let result = self
             .analyzer
-            .inlay_hints(params.text_document.uri)
+            .inlay_hints(params.text_document.uri, params.range)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

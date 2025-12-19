@@ -872,11 +872,16 @@ where
     }
 
     /// Requests inlay hints for a document.
-    pub async fn inlay_hints(&self, document: Url) -> Result<Option<Vec<InlayHint>>> {
+    pub async fn inlay_hints(
+        &self,
+        document: Url,
+        range: lsp_types::Range,
+    ) -> Result<Option<Vec<InlayHint>>> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::InlayHints(InlayHintsRequest {
                 document,
+                range,
                 completed: tx,
             }))
             .map_err(|_| {
