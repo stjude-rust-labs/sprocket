@@ -21,6 +21,7 @@ use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::position;
 use crate::types::CustomType;
+use crate::types::Type;
 
 /// Checks if a position is within a given range.
 fn position_in_range(pos: &Position, range: &Range) -> bool {
@@ -93,7 +94,8 @@ pub fn inlay_hints(
             let inner_type = enum_type.inner_value_type();
 
             // Create an inlay hint showing the inferred type
-            hints.push(InlayHint {
+            if !matches!(inner_type, Type::Union) {
+                hints.push(InlayHint {
                 position: Position {
                     line: enum_name_end_pos.line,
                     character: enum_name_end_pos.character,
@@ -113,7 +115,8 @@ pub fn inlay_hints(
                 padding_left: None,
                 padding_right: None,
                 data: None,
-            });
+                });
+            }
         }
 
         // Add hints for variants without explicit values
