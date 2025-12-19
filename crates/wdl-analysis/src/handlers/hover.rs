@@ -23,6 +23,7 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
+use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::ParameterMetadataSection;
@@ -194,6 +195,29 @@ fn resolve_hover_by_context(
                 return Ok(provide_enum_documentation(e, &root));
             }
         }
+        SyntaxKind::EnumVariantNode => {
+            let variant = EnumVariant::cast(parent_node.clone()).unwrap();
+            let variant_name = variant.name().text().to_string();
+
+            // Show the variant value (explicit or inferred)
+            if let Some(value_expr) = variant.value() {
+                // Has explicit value
+                let content = format!(
+                    "```wdl\n{} = {}\n```",
+                    variant_name,
+                    value_expr.inner().text()
+                );
+                return Ok(Some(content));
+            } else {
+                // Inferred value (defaults to string of variant name)
+                let content = format!(
+                    "```wdl\n{} = \"{}\"\n```",
+                    variant_name,
+                    variant_name
+                );
+                return Ok(Some(content));
+            }
+        }
         SyntaxKind::CallTargetNode => {
             let target = CallTarget::cast(parent_node.clone()).unwrap();
             let mut target_names = target.names();
@@ -273,6 +297,32 @@ fn resolve_hover_by_context(
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {
                     if e.variants().iter().any(|text| text == member.text()) {
+                        // Try to find the enum definition to get the actual value
+                        if let Some(enum_entry) = document.enum_by_name(e.name()) {
+                            let definition = enum_entry.definition();
+
+                            // Find the specific variant
+                            if let Some(variant) = definition.variants()
+                                .find(|v| v.name().text() == member.text())
+                            {
+                                let value_str = if let Some(value_expr) = variant.value() {
+                                    value_expr.inner().text().to_string()
+                                } else {
+                                    format!("\"{}\"", member.text())
+                                };
+
+                                let content = format!(
+                                    "```wdl\n{}.{}[{}] = {}\n```",
+                                    e.name(),
+                                    member.text(),
+                                    e.inner_value_type(),
+                                    value_str
+                                );
+                                return Ok(Some(content));
+                            }
+                        }
+
+                        // Fallback to showing just the type
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
                             e.name(),
@@ -321,6 +371,32 @@ fn resolve_hover_by_context(
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
                     if e.variants().iter().any(|text| text == member.text()) {
+                        // Try to find the enum definition to get the actual value
+                        if let Some(enum_entry) = document.enum_by_name(e.name()) {
+                            let definition = enum_entry.definition();
+
+                            // Find the specific variant
+                            if let Some(variant) = definition.variants()
+                                .find(|v| v.name().text() == member.text())
+                            {
+                                let value_str = if let Some(value_expr) = variant.value() {
+                                    value_expr.inner().text().to_string()
+                                } else {
+                                    format!("\"{}\"", member.text())
+                                };
+
+                                let content = format!(
+                                    "```wdl\n{}.{}[{}] = {}\n```",
+                                    e.name(),
+                                    member.text(),
+                                    e.inner_value_type(),
+                                    value_str
+                                );
+                                return Ok(Some(content));
+                            }
+                        }
+
+                        // Fallback to showing just the type
                         let content = format!(
                             "```wdl\n{}.{}[{}]\n```",
                             e.name(),

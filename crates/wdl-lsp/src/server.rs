@@ -466,6 +466,7 @@ impl LanguageServer for Server {
                         work_done_progress: Some(false),
                     },
                 }),
+                inlay_hint_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -994,6 +995,27 @@ impl LanguageServer for Server {
                 position,
                 SourcePositionEncoding::UTF16,
             )
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn inlay_hint(
+        &self,
+        mut params: InlayHintParams,
+    ) -> RpcResult<Option<Vec<InlayHint>>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/inlayHint` request: {params:#?}");
+
+        let result = self
+            .analyzer
+            .inlay_hints(params.text_document.uri)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,

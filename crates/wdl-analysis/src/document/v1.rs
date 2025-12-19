@@ -663,12 +663,17 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                 return Ok(s.ty().expect("struct should have type").clone());
             }
 
-            if let Some(e) = self.0.enums.get(name) {
+            if let Some(e) = self.0.enums.get(name)
+                // Ensure the inner type has been successfully calculated
+                && e.ty().is_some()
+            {
                 if let Some(ns) = &e.namespace {
                     self.0.namespaces[ns].used = true;
                 }
 
-                return Ok(e.ty().expect("enum should have type").clone());
+                // SAFETY: we just checked to make sure the type was
+                // successfully calculated above.
+                return Ok(e.ty().unwrap().clone());
             }
 
             Err(unknown_type(name, span))

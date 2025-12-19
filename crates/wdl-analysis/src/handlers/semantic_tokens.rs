@@ -26,6 +26,7 @@ use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
@@ -37,8 +38,6 @@ use crate::Document;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::position;
-use crate::types::CompoundType;
-use crate::types::CustomType;
 use crate::types::Type;
 
 /// The supported semantic token types for WDL.
@@ -49,6 +48,7 @@ pub const WDL_SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::FUNCTION,
     SemanticTokenType::PROPERTY, // expression members
     SemanticTokenType::STRUCT,
+    SemanticTokenType::ENUM,
     SemanticTokenType::TYPE,
     SemanticTokenType::STRING,
     SemanticTokenType::NUMBER,
@@ -113,7 +113,11 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
                 token_type: WDL_SEMANTIC_TOKEN_TYPES
                     .iter()
                     .position(|tt| tt == &token_ty)
-                    .unwrap() as u32,
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`"
+                        )
+                    }) as u32,
                 token_modifiers_bitset,
             };
 
@@ -227,6 +231,13 @@ fn resolve_identifier_ty(
         return Some(SemanticTokenType::STRUCT);
     }
 
+    if let Some(e) = EnumDefinition::cast(parent.clone())
+        && e.name().inner() == token
+    {
+        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+        return Some(SemanticTokenType::ENUM);
+    }
+
     if let Some(d) = Decl::cast(parent.clone())
         && d.name().inner() == token
     {
@@ -247,6 +258,9 @@ fn resolve_identifier_ty(
     {
         if document.struct_by_name(token.text()).is_some() {
             return Some(SemanticTokenType::STRUCT);
+        }
+        if document.enum_by_name(token.text()).is_some() {
+            return Some(SemanticTokenType::ENUM);
         }
         return Some(SemanticTokenType::TYPE);
     }
@@ -286,9 +300,6 @@ fn resolve_identifier_ty(
     {
         return match name_info.ty() {
             Type::Call(_) => Some(SemanticTokenType::VARIABLE),
-            Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _) => {
-                Some(SemanticTokenType::STRUCT)
-            }
             _ => {
                 let offset = name_info.span().start().try_into().ok()?;
                 let root = document.root();
