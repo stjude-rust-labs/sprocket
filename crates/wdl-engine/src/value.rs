@@ -2091,11 +2091,7 @@ impl EnumVariant {
     /// # Panics
     ///
     /// Panics if the given variant name is not present in the enum type.
-    pub fn new(
-        enum_ty: impl Into<EnumType>,
-        name: &str,
-        value: impl Into<Value>,
-    ) -> Self {
+    pub fn new(enum_ty: impl Into<EnumType>, name: &str, value: impl Into<Value>) -> Self {
         let enum_ty = enum_ty.into();
         let value = Arc::new(value.into());
 
