@@ -2087,19 +2087,22 @@ impl EnumVariant {
     /// Attempts to create a new enum variant from a enum type and variant name.
     ///
     /// This method returns [`None`] if the variant is not in the enum.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given variant name is not present in the enum type.
     pub fn new(
         enum_ty: impl Into<EnumType>,
-        name: impl Into<String>,
+        name: &str,
         value: impl Into<Value>,
     ) -> Self {
         let enum_ty = enum_ty.into();
-        let name = name.into();
         let value = Arc::new(value.into());
 
         let variant_index = enum_ty
             .variants()
             .iter()
-            .position(|v| v == &name)
+            .position(|v| v == name)
             .expect("variant name must exist in enum type");
 
         Self {

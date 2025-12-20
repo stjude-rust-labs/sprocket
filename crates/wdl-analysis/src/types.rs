@@ -2331,7 +2331,6 @@ mod test {
 
         assert_eq!(mixed.name().as_str(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
-        dbg!(mixed.variants());
         assert_eq!(mixed.variants().len(), 2);
     }
 
