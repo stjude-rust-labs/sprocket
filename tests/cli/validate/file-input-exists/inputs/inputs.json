@@ -1,0 +1,4 @@
+{
+    "file_checks.sample_file": "data/sample.txt",
+    "file_checks.sample_dir": "data/assets"
+}

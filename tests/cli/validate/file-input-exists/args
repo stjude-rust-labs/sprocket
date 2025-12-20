@@ -1,0 +1,1 @@
+validate source.wdl -e file_checks inputs.json
