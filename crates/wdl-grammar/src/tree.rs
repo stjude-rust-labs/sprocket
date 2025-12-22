@@ -114,6 +114,8 @@ pub enum SyntaxKind {
     ScatterKeyword,
     /// The `struct` keyword token.
     StructKeyword,
+    /// The `enum` keyword token.
+    EnumKeyword,
     /// The `task` keyword token.
     TaskKeyword,
     /// The `then` keyword token.
@@ -208,6 +210,12 @@ pub enum SyntaxKind {
     ImportAliasNode,
     /// Represents a struct definition node.
     StructDefinitionNode,
+    /// Represents an enum definition node.
+    EnumDefinitionNode,
+    /// Represents an enum type parameter node.
+    EnumTypeParameterNode,
+    /// Represents an enum variant node.
+    EnumVariantNode,
     /// Represents a task definition node.
     TaskDefinitionNode,
     /// Represents a workflow definition node.
@@ -438,6 +446,7 @@ impl SyntaxKind {
             Self::RuntimeKeyword => "`runtime` keyword",
             Self::ScatterKeyword => "`scatter` keyword",
             Self::StructKeyword => "`struct` keyword",
+            Self::EnumKeyword => "`enum` keyword",
             Self::TaskKeyword => "`task` keyword",
             Self::ThenKeyword => "`then` keyword",
             Self::TrueKeyword => "`true` keyword",
@@ -481,6 +490,9 @@ impl SyntaxKind {
             Self::ImportStatementNode => "import statement",
             Self::ImportAliasNode => "import alias",
             Self::StructDefinitionNode => "struct definition",
+            Self::EnumDefinitionNode => "enum definition",
+            Self::EnumTypeParameterNode => "enum type parameter",
+            Self::EnumVariantNode => "enum variant",
             Self::TaskDefinitionNode => "task definition",
             Self::WorkflowDefinitionNode => "workflow definition",
             Self::UnboundDeclNode => "declaration without assignment",
@@ -608,6 +620,7 @@ impl SyntaxKind {
                 | SyntaxKind::ScatterKeyword
                 | SyntaxKind::StringTypeKeyword
                 | SyntaxKind::StructKeyword
+                | SyntaxKind::EnumKeyword
                 | SyntaxKind::TaskKeyword
                 | SyntaxKind::ThenKeyword
                 | SyntaxKind::TrueKeyword

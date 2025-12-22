@@ -25,6 +25,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
+use lsp_types::InlayHint;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
@@ -49,6 +50,7 @@ use crate::queue::FindAllReferencesRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
 use crate::queue::HoverRequest;
+use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::RemoveRequest;
@@ -865,6 +867,34 @@ where
             anyhow!(
                 "failed to receive signature help response from analysis queue because the \
                  channel has closed"
+            )
+        })
+    }
+
+    /// Requests inlay hints for a document.
+    pub async fn inlay_hints(
+        &self,
+        document: Url,
+        range: lsp_types::Range,
+    ) -> Result<Option<Vec<InlayHint>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::InlayHints(InlayHintsRequest {
+                document,
+                range,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send inlay hints request to analysis queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive inlay hints response from analysis queue because the channel \
+                 has closed"
             )
         })
     }

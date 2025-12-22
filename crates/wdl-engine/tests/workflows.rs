@@ -64,7 +64,20 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             bail!("parsing failed: {e:#}");
         }
         if result.document().has_errors() {
-            bail!("test WDL contains errors; run a `check` on `source.wdl`");
+            let errors: Vec<_> = result
+                .document()
+                .diagnostics()
+                .filter(|d| d.severity() == Severity::Error)
+                .collect();
+            bail!(
+                "test WDL contains {} error(s):\n{}",
+                errors.len(),
+                errors
+                    .iter()
+                    .map(|d| format!("  - {:?}", d))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
 
         let path = result.document().path();

@@ -31,6 +31,7 @@ use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::version::V1;
 
 use crate::Diagnostics;
 use crate::VisitReason;
@@ -73,9 +74,38 @@ impl fmt::Display for Section {
     }
 }
 
+/// This struct presents a list of [`Display`](std::fmt::Display)-ables as a
+/// list of elements with "or" and the Oxford comma.
+struct OxfordCommaOr<T>(Vec<T>);
+
+impl<T: std::fmt::Display> std::fmt::Display for OxfordCommaOr<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0.as_slice() {
+            [] => Ok(()),
+            [only] => write!(f, "{only}"),
+            [first, second] => write!(f, "{first} or {second}"),
+            [init @ .., last] => {
+                for item in init {
+                    write!(f, "{item}, ")?;
+                }
+                write!(f, "or {last}")
+            }
+        }
+    }
+}
+
 /// Creates a "at least one definition" diagnostic
-fn at_least_one_definition() -> Diagnostic {
-    Diagnostic::error("there must be at least one task, workflow, or struct definition in the file")
+fn at_least_one_definition(version: SupportedVersion) -> Diagnostic {
+    let mut definitions = vec!["task", "workflow", "struct"];
+
+    if version <= SupportedVersion::V1(V1::Three) {
+        definitions.push("enum");
+    }
+
+    Diagnostic::error(format!(
+        "there must be at least one {element} definition in the file",
+        element = OxfordCommaOr(definitions)
+    ))
 }
 
 /// Creates a "missing command section" diagnostic
@@ -212,6 +242,8 @@ pub struct CountingVisitor {
     has_workflow: bool,
     /// Whether or not the document has at least one struct.
     has_struct: bool,
+    /// Whether or not the document has at least one enum.
+    has_enum: bool,
     /// The span of the first command section in the task.
     command: Option<Span>,
     /// The span of the first input section in the task or workflow.
@@ -229,6 +261,8 @@ pub struct CountingVisitor {
     /// The span of the first parameter metadata section in the task, workflow,
     /// or struct.
     param_metadata: Option<Span>,
+    /// The version of this document.
+    version: Option<SupportedVersion>,
 }
 
 impl CountingVisitor {
@@ -253,6 +287,7 @@ impl Visitor for CountingVisitor {
         self.soft_reset();
         self.has_workflow = false;
         self.has_struct = false;
+        self.has_enum = false;
     }
 
     fn document(
@@ -260,14 +295,15 @@ impl Visitor for CountingVisitor {
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
         _: &Document,
-        _: SupportedVersion,
+        version: SupportedVersion,
     ) {
+        self.version = Some(version);
         if reason == VisitReason::Enter {
             return;
         }
 
-        if !self.has_workflow && self.tasks_seen.is_empty() && !self.has_struct {
-            diagnostics.add(at_least_one_definition());
+        if !self.has_workflow && self.tasks_seen.is_empty() && !self.has_struct && !self.has_enum {
+            diagnostics.add(at_least_one_definition(version));
         }
     }
 
@@ -320,6 +356,23 @@ impl Visitor for CountingVisitor {
         }
 
         self.has_struct = true;
+    }
+
+    fn enum_definition(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &wdl_ast::v1::EnumDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version
+            && version <= SupportedVersion::V1(V1::Three)
+        {
+            self.has_enum = true;
+        }
     }
 
     fn command_section(

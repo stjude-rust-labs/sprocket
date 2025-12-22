@@ -75,6 +75,7 @@ use crate::WorkflowInputs;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::unknown_enum;
 use crate::http::Transferer;
 use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
@@ -83,6 +84,7 @@ use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::TopLevelEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -152,14 +154,29 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        self.scope
-            .lookup(name)
-            .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).cloned() {
+            return Ok(var);
+        }
+
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
+    }
+
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
+        resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -649,8 +666,12 @@ impl TopLevelEvaluator {
 
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided
-        let graph = WorkflowGraphBuilder::default()
-            .build(&definition, &mut diagnostics, |name| inputs.contains(name));
+        let graph = WorkflowGraphBuilder::default().build(
+            &definition,
+            &mut diagnostics,
+            |name| inputs.contains(name),
+            |name| document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some(),
+        );
         assert!(
             diagnostics.is_empty(),
             "workflow evaluation graph should have no diagnostics"
@@ -1014,9 +1035,12 @@ impl State {
         };
 
         // Coerce the value to the expected type
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::ROOT_INDEX));
         let mut value = value
-            .coerce(None, &expected_ty)
+            .coerce(Some(&context), &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if self
@@ -1080,9 +1104,12 @@ impl State {
         let value = self.evaluate_expr(scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(scope));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if self
@@ -1140,9 +1167,12 @@ impl State {
         let value = self.evaluate_expr(Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::OUTPUT_INDEX));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Finally ensure output files exist
         value = value
