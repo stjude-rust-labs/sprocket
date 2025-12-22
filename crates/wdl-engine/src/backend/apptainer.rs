@@ -9,13 +9,13 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 use anyhow::Context as _;
+use anyhow::Result;
 use anyhow::anyhow;
 use images::ApptainerImages;
 use tokio_util::sync::CancellationToken;
 
 use super::TaskSpawnRequest;
 use crate::Value;
-use crate::config::ApptainerConfig;
 use crate::v1::ContainerSource;
 
 mod images;
@@ -39,8 +39,6 @@ const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 /// per top-level task/workflow execution.
 #[derive(Debug)]
 pub struct ApptainerState {
-    /// The config.
-    config: ApptainerConfig,
     /// The images.
     images: ApptainerImages,
 }
@@ -55,11 +53,9 @@ impl ApptainerState {
     // with hiding certain fields from `serde`, but really we should rearrange these
     // types so that we have more direct control over what's in the user interface
     // vs not.
-    pub fn new(config: &ApptainerConfig, run_root_dir: &Path) -> Self {
-        let images = ApptainerImages::new(run_root_dir);
+    pub fn new(run_root_dir: &Path) -> Self {
         Self {
-            config: config.clone(),
-            images,
+            images: ApptainerImages::new(run_root_dir),
         }
     }
 
@@ -79,12 +75,13 @@ impl ApptainerState {
         container: &ContainerSource,
         cancellation_token: CancellationToken,
         spawn_request: &TaskSpawnRequest,
-    ) -> Result<String, anyhow::Error> {
+        extra_args: impl Iterator<Item = &str>,
+    ) -> Result<String> {
         let container_sif = self
             .images
             .sif_for_container(container, cancellation_token)
             .await?;
-        self.generate_apptainer_script(&container_sif, spawn_request)
+        self.generate_apptainer_script(&container_sif, spawn_request, extra_args)
             .await
     }
 
@@ -97,7 +94,8 @@ impl ApptainerState {
         &self,
         container_sif: &Path,
         spawn_request: &TaskSpawnRequest,
-    ) -> Result<String, anyhow::Error> {
+        extra_args: impl Iterator<Item = &str>,
+    ) -> Result<String> {
         // Create a temp dir for the container's execution within the attempt dir
         // hierarchy. On many HPC systems, `/tmp` is mapped to a relatively
         // small, local scratch disk that can fill up easily. Mapping the
@@ -152,12 +150,12 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_COMMAND_PATH}\",ro \\",
-            spawn_request.wdl_command_host_path().display()
+            spawn_request.command_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_WORK_DIR}\" \\",
-            spawn_request.wdl_work_dir_host_path().display()
+            spawn_request.work_dir().display()
         )?;
         writeln!(
             &mut apptainer_command,
@@ -172,13 +170,14 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDOUT_PATH}\" \\",
-            spawn_request.wdl_stdout_host_path().display()
+            spawn_request.stdout_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDERR_PATH}\" \\",
-            spawn_request.wdl_stderr_host_path().display()
+            spawn_request.stderr_path().display()
         )?;
+
         if let Some(true) = spawn_request
             .requirements()
             .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
@@ -186,11 +185,11 @@ impl ApptainerState {
         {
             writeln!(&mut apptainer_command, "--nv \\")?;
         }
-        if let Some(args) = &self.config.extra_apptainer_exec_args {
-            for arg in args {
-                writeln!(&mut apptainer_command, "{arg} \\")?;
-            }
+
+        for arg in extra_args {
+            writeln!(&mut apptainer_command, "{arg} \\")?;
         }
+
         writeln!(&mut apptainer_command, "\"{}\" \\", container_sif.display())?;
         writeln!(
             &mut apptainer_command,
@@ -213,20 +212,20 @@ impl ApptainerState {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use std::sync::Arc;
+    use std::iter::empty;
 
     use indexmap::IndexMap;
     use tempfile::TempDir;
     use tokio::process::Command;
 
     use super::*;
+    use crate::ONE_GIBIBYTE;
+    use crate::backend::TaskExecutionConstraints;
     use crate::backend::TaskSpawnInfo;
-    use crate::http::Transferer;
-    use crate::v1::test::TestEnv;
 
     fn mk_example_task() -> (TempDir, ApptainerState, TaskSpawnRequest) {
         let tmp = tempfile::tempdir().unwrap();
-        let state = ApptainerState::new(&ApptainerConfig::default(), tmp.path());
+        let state = ApptainerState::new(tmp.path());
         let mut env = IndexMap::new();
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
@@ -236,13 +235,20 @@ mod tests {
             HashMap::new().into(),
             HashMap::new().into(),
             env.into(),
-            Arc::new(TestEnv::default()) as Arc<dyn Transferer>,
         );
         let spawn_request = TaskSpawnRequest {
             id: "example_task".to_string(),
             info,
             attempt_dir: tmp.path().join("0"),
             temp_dir: tmp.path().join("tmp"),
+            constraints: TaskExecutionConstraints {
+                container: None,
+                cpu: 1.0,
+                memory: ONE_GIBIBYTE as u64,
+                gpu: Default::default(),
+                fpga: Default::default(),
+                disks: Default::default(),
+            },
         };
         (tmp, state, spawn_request)
     }
@@ -251,7 +257,11 @@ mod tests {
     async fn example_task_generates() {
         let (tmp, state, spawn_request) = mk_example_task();
         let _ = state
-            .generate_apptainer_script(&tmp.path().join("non-existent.sif"), &spawn_request)
+            .generate_apptainer_script(
+                &tmp.path().join("non-existent.sif"),
+                &spawn_request,
+                empty(),
+            )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
             .expect("example task script should generate");
@@ -264,7 +274,11 @@ mod tests {
     async fn example_task_shellchecks() {
         let (tmp, state, spawn_request) = mk_example_task();
         let script = state
-            .generate_apptainer_script(&tmp.path().join("non-existent.sif"), &spawn_request)
+            .generate_apptainer_script(
+                &tmp.path().join("non-existent.sif"),
+                &spawn_request,
+                empty(),
+            )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
             .expect("example task script should generate");
