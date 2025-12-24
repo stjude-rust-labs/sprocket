@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use indexmap::IndexMap;
 use indexmap::map::Entry as IndexMapEntry;
+use itertools::EitherOrBoth;
+use itertools::Itertools as _;
 use petgraph::Direction;
 use petgraph::algo::has_path_connecting;
 use petgraph::algo::toposort;
@@ -27,9 +29,12 @@ use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::ConditionalStatementClauseKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
+use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::ScatterStatement;
+use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TypeRef;
@@ -38,6 +43,7 @@ use wdl_ast::version::V1;
 
 use super::Document;
 use super::DocumentData;
+use super::Enum;
 use super::Input;
 use super::Namespace;
 use super::Output;
@@ -64,10 +70,13 @@ use crate::diagnostics::call_input_type_mismatch;
 use crate::diagnostics::duplicate_workflow;
 use crate::diagnostics::else_if_not_supported;
 use crate::diagnostics::else_not_supported;
+use crate::diagnostics::enum_conflicts_with_import;
+use crate::diagnostics::enum_not_supported;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::import_cycle;
 use crate::diagnostics::import_failure;
 use crate::diagnostics::import_missing_version;
+use crate::diagnostics::imported_enum_conflict;
 use crate::diagnostics::imported_struct_conflict;
 use crate::diagnostics::incompatible_import;
 use crate::diagnostics::invalid_relative_import;
@@ -75,6 +84,7 @@ use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
 use crate::diagnostics::non_empty_array_assignment;
+use crate::diagnostics::non_literal_enum_value;
 use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
@@ -97,12 +107,16 @@ use crate::eval::v1::WorkflowGraphBuilder;
 use crate::eval::v1::WorkflowGraphNode;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
+use crate::types::ArrayType;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::EnumType;
 use crate::types::HiddenType;
+use crate::types::MapType;
 use crate::types::Optional;
+use crate::types::PairType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
 use crate::types::TypeNameResolver;
@@ -211,9 +225,9 @@ pub(crate) fn populate_document(
         "expected a supported V1 version"
     );
 
-    // First start by processing imports and struct definitions
+    // First start by processing imports, struct definitions, and enum definitions
     // This needs to be performed before processing tasks and workflows as
-    // declarations might reference an imported or locally-defined struct
+    // declarations might reference an imported or locally-defined struct or enum
     for item in ast.items() {
         match item {
             DocumentItem::Import(import) => {
@@ -221,6 +235,9 @@ pub(crate) fn populate_document(
             }
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
+            }
+            DocumentItem::Enum(e) => {
+                add_enum(document, &e);
             }
             DocumentItem::Task(_) | DocumentItem::Workflow(_) => {
                 continue;
@@ -230,6 +247,9 @@ pub(crate) fn populate_document(
 
     // Populate the struct types now that all structs have been processed
     set_struct_types(document);
+
+    // Populate the enum types now that all enums have been processed
+    set_enum_types(document);
 
     // Now process the tasks and workflows
     let mut workflow = None;
@@ -245,7 +265,7 @@ pub(crate) fn populate_document(
                     workflow = Some(w.clone());
                 }
             }
-            DocumentItem::Import(_) | DocumentItem::Struct(_) => {
+            DocumentItem::Import(_) | DocumentItem::Struct(_) | DocumentItem::Enum(_) => {
                 continue;
             }
         }
@@ -307,7 +327,7 @@ fn add_namespace(
         }
     };
 
-    // Get the alias map for the namespace.
+    // Get the alias map for the namespace (for structs)
     let aliases = import
         .aliases()
         .filter_map(|a| {
@@ -371,17 +391,119 @@ fn add_namespace(
             }
         }
     }
+
+    // Get the alias map for the namespace (for enums)
+    let aliases = import
+        .aliases()
+        .filter_map(|a| {
+            let (from, to) = a.names();
+            if !imported.data.enums.contains_key(from.text()) {
+                return None;
+            }
+
+            Some((from.text().to_string(), to))
+        })
+        .collect::<HashMap<_, _>>();
+
+    // Insert the imported document's enum definitions
+    for (name, e) in &imported.data.enums {
+        let (span, aliased_name, aliased) = aliases
+            .get(name)
+            .map(|n| (n.span(), n.text(), true))
+            .unwrap_or_else(|| (span, name, false));
+        match document.enums.get(aliased_name) {
+            Some(prev) => {
+                let a = prev.definition();
+                let b = e.definition();
+                if !are_enums_equal(&a, &b) {
+                    // Import conflicts with an enum defined in this document
+                    if prev.namespace.is_none() {
+                        document
+                            .analysis_diagnostics
+                            .push(enum_conflicts_with_import(
+                                aliased_name,
+                                prev.name_span,
+                                span,
+                            ));
+                    } else {
+                        document.analysis_diagnostics.push(imported_enum_conflict(
+                            aliased_name,
+                            span,
+                            prev.name_span,
+                            !aliased,
+                        ));
+                    }
+                    continue;
+                }
+            }
+            None => {
+                document.enums.insert(
+                    aliased_name.to_string(),
+                    Enum {
+                        name_span: span,
+                        name: aliased_name.to_string(),
+                        offset: e.offset,
+                        node: e.node.clone(),
+                        namespace: Some(ns.clone()),
+                        ty: e.ty.clone(),
+                    },
+                );
+            }
+        }
+    }
 }
 
 /// Compares two structs for structural equality.
 fn are_structs_equal(a: &StructDefinition, b: &StructDefinition) -> bool {
-    for (a, b) in a.members().zip(b.members()) {
-        if a.name().text() != b.name().text() {
+    for result in a.members().zip_longest(b.members()) {
+        // If the length of `a` and `b` is not equal, the structs are not equal.
+        let EitherOrBoth::Both(a_member, b_member) = result else {
+            return false;
+        };
+
+        if a_member.name().text() != b_member.name().text() {
             return false;
         }
 
-        if a.ty() != b.ty() {
+        if a_member.ty() != b_member.ty() {
             return false;
+        }
+    }
+
+    true
+}
+
+/// Compares two enums for equality.
+fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
+    // Compare type parameters
+    match (a.type_parameter(), b.type_parameter()) {
+        (Some(a_ty), Some(b_ty)) => {
+            if a_ty.ty() != b_ty.ty() {
+                return false;
+            }
+        }
+        (None, None) => {}
+        _ => return false,
+    }
+
+    for result in a.variants().zip_longest(b.variants()) {
+        // If the length of `a` and `b` is not equal, the enums are not equal.
+        let EitherOrBoth::Both(var_a, var_b) = result else {
+            return false;
+        };
+
+        if var_a.name().text() != var_b.name().text() {
+            return false;
+        }
+
+        match (var_a.value(), var_b.value()) {
+            (Some(val_a), Some(val_b)) => {
+                if val_a.inner().text() != val_b.inner().text() {
+                    return false;
+                }
+            }
+            (None, None) => {}
+            _ => return false,
         }
     }
 
@@ -391,6 +513,17 @@ fn are_structs_equal(a: &StructDefinition, b: &StructDefinition) -> bool {
 /// Adds a struct to the document.
 fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     let name = definition.name();
+
+    // Check for conflicts with existing enums
+    if let Some(prev_enum) = document.enums.get(name.text()) {
+        document.analysis_diagnostics.push(name_conflict(
+            name.text(),
+            Context::Struct(name.span()),
+            Context::Enum(prev_enum.name_span),
+        ));
+        return;
+    }
+
     if let Some(prev) = document.structs.get(name.text()) {
         if prev.namespace.is_some() {
             let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
@@ -445,6 +578,82 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     );
 }
 
+/// Adds an enum definition to the document.
+fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
+    let name = definition.name();
+
+    // Check if enums are supported in this version
+    let version = document.version.expect("should have version");
+    if version < SupportedVersion::V1(V1::Three) {
+        document
+            .analysis_diagnostics
+            .push(enum_not_supported(version, definition.name().span()));
+        return;
+    }
+
+    // Check for conflicts with existing structs
+    if let Some(prev_struct) = document.structs.get(name.text()) {
+        document.analysis_diagnostics.push(name_conflict(
+            name.text(),
+            Context::Enum(name.span()),
+            Context::Struct(prev_struct.name_span),
+        ));
+        return;
+    }
+
+    if let Some(prev) = document.enums.get(name.text()) {
+        if prev.namespace.is_some() {
+            let prev_def = prev.definition();
+            if !are_enums_equal(definition, &prev_def) {
+                document
+                    .analysis_diagnostics
+                    .push(enum_conflicts_with_import(
+                        name.text(),
+                        name.span(),
+                        prev.name_span,
+                    ))
+            }
+        } else {
+            document.analysis_diagnostics.push(name_conflict(
+                name.text(),
+                Context::Enum(name.span()),
+                Context::Enum(prev.name_span),
+            ));
+        }
+        return;
+    }
+
+    // Ensure there are no duplicate variants
+    let mut variants = IndexMap::new();
+    for variant in definition.variants() {
+        let name = variant.name();
+        match variants.get(name.text()) {
+            Some(prev_span) => {
+                document.analysis_diagnostics.push(name_conflict(
+                    name.text(),
+                    Context::EnumVariant(name.span()),
+                    Context::EnumVariant(*prev_span),
+                ));
+            }
+            _ => {
+                variants.insert(name.text().to_string(), name.span());
+            }
+        }
+    }
+
+    document.enums.insert(
+        name.text().to_string(),
+        Enum {
+            name_span: name.span(),
+            name: name.text().to_string(),
+            namespace: None,
+            offset: definition.span().start(),
+            node: definition.inner().green().into(),
+            ty: None,
+        },
+    );
+}
+
 /// Converts an AST type to an analysis type.
 fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type {
     /// Used to resolve a type name from a document.
@@ -452,18 +661,27 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            self.0
-                .structs
-                .get(name)
-                .map(|s| {
-                    // Mark the struct's namespace as used
-                    if let Some(ns) = &s.namespace {
-                        self.0.namespaces[ns].used = true;
-                    }
+            if let Some(s) = self.0.structs.get(name) {
+                if let Some(ns) = &s.namespace {
+                    self.0.namespaces[ns].used = true;
+                }
+                return Ok(s.ty().expect("struct should have type").clone());
+            }
 
-                    s.ty().expect("struct should have type").clone()
-                })
-                .ok_or_else(|| unknown_type(name, span))
+            if let Some(e) = self.0.enums.get(name)
+                // Ensure the inner type has been successfully calculated
+                && e.ty().is_some()
+            {
+                if let Some(ns) = &e.namespace {
+                    self.0.namespaces[ns].used = true;
+                }
+
+                // SAFETY: we just checked to make sure the type was
+                // successfully calculated above.
+                return Ok(e.ty().unwrap().clone());
+            }
+
+            Err(unknown_type(name, span))
         }
     }
 
@@ -603,6 +821,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         document.version.unwrap(),
         definition,
         &mut document.analysis_diagnostics,
+        |name| document.structs.contains_key(name) || document.enums.contains_key(name),
     );
 
     let mut task = Task {
@@ -923,9 +1142,12 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
 
     // For static analysis, we don't need to provide inputs to the workflow graph
     // builder
-    let graph =
-        WorkflowGraphBuilder::default()
-            .build(workflow, &mut document.analysis_diagnostics, |_| false);
+    let graph = WorkflowGraphBuilder::default().build(
+        workflow,
+        &mut document.analysis_diagnostics,
+        |_| false,
+        |name| document.structs.contains_key(name) || document.enums.contains_key(name),
+    );
 
     for index in toposort(&graph, None).expect("graph should be acyclic") {
         match graph[index].clone() {
@@ -1703,6 +1925,169 @@ fn set_struct_types(document: &mut DocumentData) {
     }
 }
 
+/// Populates enum types for all locally defined enums in the document.
+fn set_enum_types(document: &mut DocumentData) {
+    if document.enums.is_empty() {
+        return;
+    }
+
+    // Calculate the underlying type for every enum in the document
+    for index in 0..document.enums.len() {
+        let e = &document.enums[index];
+
+        // Only look at locally defined enums
+        if e.namespace.is_some() {
+            continue;
+        }
+
+        let definition = e.definition();
+        let mut variants = Vec::new();
+        let mut variant_spans = Vec::new();
+
+        // Populate the variants and their spans
+        for variant in definition.variants() {
+            let variant_name = variant.name().text().to_string();
+            let variant_type = if let Some(value_expr) = variant.value() {
+                // Validate that the value is a literal expression
+                match parse_literal_value(&document.structs, &value_expr) {
+                    Some(ty) => ty,
+                    None => {
+                        let span = value_expr.span();
+                        let adjusted_span = Span::new(span.start() + e.offset, span.len());
+                        document
+                            .analysis_diagnostics
+                            .push(non_literal_enum_value(adjusted_span));
+                        Type::Union
+                    }
+                }
+            } else {
+                // Default to `String` type if no value is specified
+                PrimitiveType::String.into()
+            };
+
+            variants.push((variant_name, variant_type));
+            variant_spans.push(Span::new(
+                variant.span().start() + e.offset(),
+                variant.span().len(),
+            ));
+        }
+
+        // Check for explicit type parameter or infer if one was not specified
+        let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
+            let type_param = convert_ast_type(document, &type_param);
+            let e = &document.enums[index];
+            EnumType::new(
+                e.name.clone(),
+                e.name_span,
+                type_param,
+                variants,
+                &variant_spans,
+            )
+        } else {
+            EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
+        };
+
+        match result {
+            Ok(enum_ty) => {
+                document.enums[index].ty = Some(enum_ty.into());
+            }
+            Err(diagnostic) => {
+                document.analysis_diagnostics.push(diagnostic);
+            }
+        }
+    }
+}
+
+/// Infers the type of a literal expression.
+///
+/// Returns `None` if the expression is not a literal or contains interpolation.
+/// For struct literals, returns `None` since struct type information is not
+/// available.
+pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
+    match expr {
+        Expr::Literal(lit) => match lit {
+            LiteralExpr::Boolean(_) => Some(PrimitiveType::Boolean.into()),
+            LiteralExpr::Integer(_) => Some(PrimitiveType::Integer.into()),
+            LiteralExpr::Float(_) => Some(PrimitiveType::Float.into()),
+            LiteralExpr::String(s) => {
+                for part in s.parts() {
+                    if matches!(part, StringPart::Placeholder(_)) {
+                        return None;
+                    }
+                }
+                Some(PrimitiveType::String.into())
+            }
+            LiteralExpr::Array(arr) => {
+                let element_type = arr
+                    .elements()
+                    .filter_map(|e| infer_type_from_literal(&e))
+                    .next()
+                    .unwrap_or(Type::Union);
+                Some(Type::Compound(
+                    CompoundType::Array(ArrayType::new(element_type)),
+                    false,
+                ))
+            }
+            LiteralExpr::Pair(pair) => {
+                let (left, right) = pair.exprs();
+                Some(Type::Compound(
+                    CompoundType::Pair(Arc::new(PairType::new(
+                        infer_type_from_literal(&left)?,
+                        infer_type_from_literal(&right)?,
+                    ))),
+                    false,
+                ))
+            }
+            LiteralExpr::Map(map) => {
+                let mut items = map.items();
+                let first = items.next();
+                let (key_type, value_type) = match first {
+                    Some(item) => {
+                        let (k, v) = item.key_value();
+                        (infer_type_from_literal(&k)?, infer_type_from_literal(&v)?)
+                    }
+                    None => (Type::Union, Type::Union),
+                };
+                Some(Type::Compound(
+                    CompoundType::Map(Arc::new(MapType::new(key_type, value_type))),
+                    false,
+                ))
+            }
+            LiteralExpr::Object(obj) => {
+                for item in obj.items() {
+                    let (_, val_expr) = item.name_value();
+                    infer_type_from_literal(&val_expr)?;
+                }
+                Some(Type::Object)
+            }
+            LiteralExpr::None(_) => Some(Type::None),
+            LiteralExpr::Struct(_)
+            | LiteralExpr::Hints(_)
+            | LiteralExpr::Input(_)
+            | LiteralExpr::Output(_) => None,
+        },
+        _ => None,
+    }
+}
+
+/// Validates that an expression is a literal and converts it to a type.
+///
+/// Returns `None` if the expression is not a valid literal for enum variant
+/// values.
+fn parse_literal_value(structs: &indexmap::IndexMap<String, Struct>, expr: &Expr) -> Option<Type> {
+    // Handle struct literals specially since they need struct definitions
+    if let Expr::Literal(LiteralExpr::Struct(s)) = expr {
+        for item in s.items() {
+            let (_, val_expr) = item.name_value();
+            parse_literal_value(structs, &val_expr)?;
+        }
+
+        return structs.get(s.name().text()).and_then(|st| st.ty.clone());
+    }
+
+    infer_type_from_literal(expr)
+}
+
 /// Represents context to an expression type evaluator.
 #[derive(Debug)]
 struct EvaluationContext<'a> {
@@ -1756,22 +2141,48 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _: Span) -> Option<Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+        if let Some(s) = self.document.structs.get(name).and_then(|s| s.ty()) {
+            return Some(
+                s.type_name_ref()
+                    .expect("type name ref to be created from struct"),
+            );
+        }
+
+        // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+        if let Some(e) = self.document.enums.get(name).and_then(|e| e.ty()) {
+            return Some(
+                e.type_name_ref()
+                    .expect("type name ref to be created from enum"),
+            );
+        }
+
+        None
     }
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-        self.document
-            .structs
-            .get(name)
-            .map(|s| {
-                // Mark the struct's namespace as used
-                if let Some(ns) = &s.namespace {
-                    self.document.namespaces[ns].used = true;
-                }
+        if let Some(s) = self.document.structs.get(name) {
+            if let Some(ns) = &s.namespace {
+                self.document.namespaces[ns].used = true;
+            }
 
-                s.ty().expect("struct should have type").clone()
-            })
-            .ok_or_else(|| unknown_type(name, span))
+            return Ok(s.ty().expect("struct should have type").clone());
+        }
+
+        if let Some(e) = self.document.enums.get(name) {
+            if let Some(ns) = &e.namespace {
+                self.document.namespaces[ns].used = true;
+            }
+
+            return Ok(e.ty().expect("enum should have type").clone());
+        }
+
+        Err(unknown_type(name, span))
     }
 
     fn task(&self) -> Option<&Task> {

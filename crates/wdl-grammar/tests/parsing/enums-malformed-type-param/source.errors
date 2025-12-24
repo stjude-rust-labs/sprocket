@@ -1,0 +1,14 @@
+error: expected `]`, but found `{`
+  ┌─ tests/parsing/enums-malformed-type-param/source.wdl:6:20
+  │
+6 │ enum Status[String {
+  │            -       ^ unexpected `{`
+  │            │        
+  │            this `[` is not matched
+
+error: expected type, but found `]`
+   ┌─ tests/parsing/enums-malformed-type-param/source.wdl:12:15
+   │
+12 │ enum Priority[] {
+   │               ^ unexpected `]`
+

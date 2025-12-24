@@ -2,6 +2,7 @@
 
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
+use wdl::analysis::FeatureFlags;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
@@ -59,6 +60,7 @@ pub async fn analyzer(args: Args) -> CommandResult<()> {
         lint: args.lint,
         exceptions: args.except,
         ignore_filename: Some(IGNORE_FILENAME.to_string()),
+        feature_flags: FeatureFlags::default(),
     })
     .await
     .map_err(CommandError::from)

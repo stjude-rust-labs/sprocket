@@ -1,4 +1,4 @@
-error: expected import statement, struct definition, task definition, or workflow definition, but found `Int` keyword
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `Int` keyword
   ┌─ tests/parsing/top-recovery/source.wdl:9:1
   │
 9 │ Int i = 0

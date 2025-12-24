@@ -19,6 +19,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
+use lsp_types::InlayHint;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
@@ -89,6 +90,8 @@ pub enum Request<Context> {
     WorkspaceSymbol(WorkspaceSymbolRequest),
     /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
+    /// A request to get inlay hints for a document.
+    InlayHints(InlayHintsRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -249,6 +252,16 @@ pub struct SignatureHelpRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<SignatureHelp>>,
+}
+
+/// Represents a request for inlay hints.
+pub struct InlayHintsRequest {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The visible range for which inlay hints should be computed.
+    pub range: lsp_types::Range,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
 }
 
 /// A simple enumeration to signal a cancellation to the caller.
@@ -710,6 +723,29 @@ where
                             debug!(
                                 "error occurred while completing signature help request: {err:?}"
                             );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::InlayHints(InlayHintsRequest {
+                    document,
+                    range,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request for inlay hints at {document}");
+
+                    let graph = self.graph.read();
+                    match handlers::inlay_hints(&graph, &document, range) {
+                        Ok(result) => {
+                            debug!(
+                                "inlay hints request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            debug!("error occurred while completing inlay hints request: {err:?}");
                             completed.send(None).ok();
                         }
                     }
