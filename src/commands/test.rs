@@ -175,8 +175,8 @@ impl TestIteration {
                         Ok(IterationResult::Success)
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
-                            "test iteration #{num} of `{name}` failed but workflow was expected \
-                             to succeed: see `{dir}`",
+                            "test iteration #{num} of `{name}` failed but was expected to \
+                             succeed: see `{dir}`",
                             num = self.iteration_num,
                             name = self.name,
                             dir = self.run_dir.display(),
@@ -378,16 +378,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             )
                         })?;
 
-                    let (_, wdl_inputs) = match engine_inputs {
-                        Some(inputs) => inputs,
-                        None => (
-                            String::new(),
+                    let wdl_inputs = match engine_inputs {
+                        Some((_, inputs)) => inputs,
+                        None => {
                             if is_workflow {
                                 EngineInputs::Workflow(Default::default())
                             } else {
                                 EngineInputs::Task(Default::default())
-                            },
-                        ),
+                            }
+                        }
                     };
                     let run_dir = run_root.join(test_num.to_string());
                     let events = Events::disabled();
