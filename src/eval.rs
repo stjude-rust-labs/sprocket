@@ -100,7 +100,7 @@ impl<'a> Evaluator<'a> {
         let evaluator =
             WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
         evaluator
-            .evaluate_task(self.document, task, &inputs, self.output_dir)
+            .evaluate_task(self.document, task, inputs, self.output_dir)
             .await
     }
 

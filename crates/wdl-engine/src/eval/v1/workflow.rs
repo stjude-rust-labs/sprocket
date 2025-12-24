@@ -2336,7 +2336,7 @@ workflow w {
             }
         });
 
-        let evaluator = Evaluator::new(root_dir.path(), config, Default::default(), events)
+        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
             .await
             .unwrap();
 

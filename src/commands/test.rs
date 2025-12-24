@@ -218,7 +218,7 @@ enum IterationResult {
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
-        Source::File(url) if url.scheme() != "file" => {
+        (Source::File(url), _) if url.scheme() != "file" => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
         (Source::Directory(_), Some(workspace)) => (source, workspace),
@@ -276,9 +276,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
     }
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
-    let fixture_origins = Arc::new(OriginPaths::Single(
-        wdl::engine::path::EvaluationPath::Local(test_dir.join(FIXTURES_DIR)),
-    ));
+    let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
+        test_dir.join(FIXTURES_DIR).as_path(),
+    )));
     let engine = Arc::new(args.engine);
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
@@ -369,7 +369,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         }
                     };
 
-                    let engine_inputs = EngineInputs::parse_object(wdl_document, inputs)
+                    let engine_inputs = EngineInputs::parse_json_object(wdl_document, inputs)
                         .with_context(|| {
                             format!(
                                 "converting to WDL inputs for test `{}` for WDL document `{}`",
