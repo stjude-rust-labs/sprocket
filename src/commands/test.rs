@@ -21,6 +21,7 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use wdl::engine::CancellationContext;
+use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
@@ -123,6 +124,7 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
     Ok(result)
 }
 
+/// Returns `true` if the test should be filtered.
 fn filter_test(
     test: &TestDefinition,
     include_tags: &HashSet<String>,
@@ -138,11 +140,16 @@ fn filter_test(
 }
 
 #[derive(Debug)]
+enum RunResult {
+    Workflow(Result<Outputs, EvaluationError>),
+    Task(Box<Result<EvaluatedTask, EvaluationError>>),
+}
+
+#[derive(Debug)]
 struct TestIteration {
     name: Arc<String>,
     iteration_num: usize,
-    is_workflow: bool,
-    result: Result<Outputs, EvaluationError>,
+    result: RunResult,
     assertions: Arc<Assertions>,
     run_dir: PathBuf,
 }
@@ -150,68 +157,55 @@ struct TestIteration {
 impl TestIteration {
     pub fn evaluate(&self) -> Result<IterationResult> {
         match &self.result {
-            Err(eval_error) => match eval_error {
-                EvaluationError::Source(source_error) => {
-                    if let Some(task) = &source_error.failed_task
-                        && !self.is_workflow
-                    {
-                        // the task we're testing failed
-                        if task.exit_code == self.assertions.exit_code {
-                            // task expected to fail with this exit code
-                            Ok(IterationResult::Success)
-                        } else {
-                            // task has wrong exit code
-                            Ok(IterationResult::Fail(anyhow!(
-                                "test iteration #{num} of `{name}` failed with exit code \
-                                 `{actual}` but test expected exit code `{expected}`: see \
-                                 `{stdout}` and `{stderr}`",
-                                num = self.iteration_num,
-                                name = self.name,
-                                actual = task.exit_code,
-                                expected = self.assertions.exit_code,
-                                stdout = task.stdout_path,
-                                stderr = task.stderr_path,
-                            )))
-                        }
-                    } else if self.is_workflow {
-                        if self.assertions.should_fail {
-                            Ok(IterationResult::Success)
-                        } else {
-                            Ok(IterationResult::Fail(anyhow!(
-                                "test iteration #{num} of `{name}` failed but workflow was \
-                                 expected to succeed: see `{dir}`",
-                                num = self.iteration_num,
-                                name = self.name,
-                                dir = self.run_dir.display(),
-                            )))
-                        }
+            RunResult::Workflow(result) => match result {
+                Ok(_outputs) => {
+                    if self.assertions.should_fail {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` succeeded but was expected to \
+                             fail: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            dir = self.run_dir.display(),
+                        )))
                     } else {
-                        Err(anyhow!(
-                            "unexpected evaluation error: {}",
-                            eval_error.to_string()
-                        ))
+                        Ok(IterationResult::Success)
                     }
                 }
-                _ => Err(anyhow!(
+                Err(_eval_err) => {
+                    if self.assertions.should_fail {
+                        Ok(IterationResult::Success)
+                    } else {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` failed but workflow was expected \
+                             to succeed: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            dir = self.run_dir.display(),
+                        )))
+                    }
+                }
+            },
+            RunResult::Task(result) => match &**result {
+                Ok(evaled_task) => {
+                    if evaled_task.exit_code() == self.assertions.exit_code {
+                        Ok(IterationResult::Success)
+                    } else {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` exited with code `{actual}` but \
+                             test expected exit code `{expected}`: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            actual = evaled_task.exit_code(),
+                            expected = self.assertions.exit_code,
+                            dir = evaled_task.work_dir(),
+                        )))
+                    }
+                }
+                Err(eval_err) => Err(anyhow!(
                     "unexpected evaluation error: {}",
-                    eval_error.to_string()
+                    eval_err.to_string()
                 )),
             },
-            Ok(_outputs) => {
-                if (self.is_workflow && self.assertions.should_fail)
-                    || (!self.is_workflow && self.assertions.exit_code != 0)
-                {
-                    Ok(IterationResult::Fail(anyhow!(
-                        "test iteration #{num} of `{name}` succeeded but was expected to fail: \
-                         see `{dir}`",
-                        num = self.iteration_num,
-                        name = self.name,
-                        dir = self.run_dir.display(),
-                    )))
-                } else {
-                    Ok(IterationResult::Success)
-                }
-            }
         }
     }
 }
@@ -393,12 +387,12 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     };
                     debug_assert_eq!(*entrypoint, derived_ep);
                     let run_dir = run_root.join(test_num.to_string());
-                    let name = Arc::clone(&test_name);
+                    let events = Events::disabled();
+                    let name = test_name.clone();
                     let fixtures = fixture_origins.clone();
                     let engine = engine.clone();
-                    let events = Events::disabled();
                     let entrypoint = entrypoint.clone();
-                    let assertions = Arc::clone(&assertions);
+                    let assertions = assertions.clone();
                     let document = wdl_document.clone();
                     futures.spawn(async move {
                         let evaluator = Evaluator::new(
@@ -413,8 +407,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         TestIteration {
                             name,
                             iteration_num: test_num,
-                            is_workflow,
-                            result: evaluator.run(cancellation, events).await,
+                            result: if is_workflow {
+                                RunResult::Workflow(evaluator.run(cancellation, events).await)
+                            } else {
+                                RunResult::Task(Box::new(
+                                    evaluator.evaluate_task(cancellation, events).await,
+                                ))
+                            },
                             assertions,
                             run_dir,
                         }
