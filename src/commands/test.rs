@@ -218,7 +218,7 @@ enum IterationResult {
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
-        (Source::Remote(_), _) => {
+        Source::File(url) if url.scheme() != "file" => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
         (Source::Directory(_), Some(workspace)) => (source, workspace),

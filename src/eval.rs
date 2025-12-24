@@ -13,7 +13,7 @@ use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::Config;
-use wdl::engine::v1::TopLevelEvaluator;
+use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 use crate::inputs::OriginPaths;
 
@@ -98,7 +98,7 @@ impl<'a> Evaluator<'a> {
             .await?;
 
         let evaluator =
-            TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
+            WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
         evaluator
             .evaluate_task(self.document, task, &inputs, self.output_dir)
             .await
@@ -115,6 +115,31 @@ impl<'a> Evaluator<'a> {
                 .evaluate_task(cancellation, events)
                 .await
                 .and_then(EvaluatedTask::into_outputs),
+            // Inputs::Task(mut inputs) => {
+            //     let task = self.document.task_by_name(self.name).ok_or_else(|| {
+            //         anyhow!(
+            //             "document does not contain a task named `{name}`",
+            //             name = self.name
+            //         )
+            //     })?;
+
+            //     // Ensure all the paths specified in the inputs are relative to
+            //     // their respective origin paths.
+            //     inputs
+            //         .join_paths(task, |key| {
+            //             self.origins
+            //                 .get(key)
+            //                 .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+            //         })
+            //         .await?;
+
+            //     let evaluator =
+            //         WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
+            //     evaluator
+            //         .evaluate_task(self.document, task, inputs, self.output_dir)
+            //         .await
+            //         .and_then(EvaluatedTask::into_outputs)
+            // }
             Inputs::Workflow(mut inputs) => {
                 let workflow = self
                     .document
@@ -139,8 +164,7 @@ impl<'a> Evaluator<'a> {
                     .await?;
 
                 let evaluator =
-                    TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
-                        .await?;
+                    WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
                 evaluator
                     .evaluate_workflow(self.document, inputs, self.output_dir)
                     .await

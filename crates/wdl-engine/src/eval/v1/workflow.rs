@@ -64,26 +64,26 @@ use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationPath;
 use crate::EvaluationResult;
 use crate::Inputs;
 use crate::Outputs;
-use crate::Scope;
-use crate::ScopeIndex;
-use crate::ScopeRef;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::unknown_enum;
+use crate::eval::Scope;
+use crate::eval::ScopeIndex;
+use crate::eval::ScopeRef;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
+use crate::v1::Evaluator;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::TopLevelEvaluator;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
@@ -329,7 +329,7 @@ impl GatherArray {
 
     /// Converts the gather array into a WDL array value.
     fn into_array(self) -> Array {
-        Array::new_unchecked(ArrayType::new(self.element_ty).into(), self.elements)
+        Array::new_unchecked(ArrayType::new(self.element_ty), self.elements)
     }
 }
 
@@ -553,8 +553,8 @@ impl Subgraph {
 
 /// Represents workflow evaluation state.
 struct State {
-    /// The top-level evaluation context.
-    top_level: TopLevelEvaluator,
+    /// The top-level evaluator.
+    evaluator: Evaluator,
     /// The document containing the workflow being evaluated.
     document: Document,
     /// The workflow's inputs.
@@ -578,11 +578,11 @@ struct State {
 impl State {
     /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &dyn Transferer {
-        self.top_level.transferer.as_ref()
+        self.evaluator.transferer.as_ref()
     }
 }
 
-impl TopLevelEvaluator {
+impl Evaluator {
     /// Evaluates the workflow of the given document.
     ///
     /// Upon success, returns the outputs of the workflow.
@@ -590,7 +590,7 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         inputs: WorkflowInputs,
-        workflow_eval_root_dir: impl AsRef<Path>,
+        eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<Outputs> {
         let workflow = document
             .workflow()
@@ -602,12 +602,7 @@ impl TopLevelEvaluator {
         }
 
         let result = self
-            .perform_workflow_evaluation(
-                document,
-                inputs,
-                workflow_eval_root_dir.as_ref(),
-                workflow.name(),
-            )
+            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
         if self.cancellation.user_canceled() {
@@ -625,7 +620,7 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         inputs: WorkflowInputs,
-        workflow_eval_root_dir: &Path,
+        eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<Outputs> {
         // Validate the inputs for the workflow
@@ -689,7 +684,7 @@ impl TopLevelEvaluator {
             .unwrap_or_else(|| self.backend.max_concurrency());
 
         // Create the temp directory now as it may be needed for workflow evaluation
-        let temp_dir = workflow_eval_root_dir.join("tmp");
+        let temp_dir = eval_root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -698,9 +693,9 @@ impl TopLevelEvaluator {
         })?;
 
         // Write the inputs to the workflow's root directory
-        write_json_file(workflow_eval_root_dir.join(INPUTS_FILE), &inputs)?;
+        write_json_file(eval_root_dir.join(INPUTS_FILE), &inputs)?;
 
-        let calls_dir = workflow_eval_root_dir.join("calls");
+        let calls_dir = eval_root_dir.join("calls");
         fs::create_dir_all(&calls_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -717,7 +712,7 @@ impl TopLevelEvaluator {
         })?;
 
         let state = Arc::new(State {
-            top_level: self.clone(),
+            evaluator: self.clone(),
             document: document.clone(),
             inputs,
             scopes: Default::default(),
@@ -750,7 +745,7 @@ impl TopLevelEvaluator {
         }
 
         // Write the outputs to the workflow's root directory
-        write_json_file(workflow_eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
+        write_json_file(eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
         Ok(outputs)
     }
 }
@@ -771,7 +766,7 @@ impl State {
         id: Arc<String>,
     ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
-            let cancellation = self.top_level.cancellation.clone();
+            let cancellation = self.evaluator.cancellation.clone();
             let mut futures = JoinSet::new();
             match self
                 .perform_subgraph_evaluation(scope, subgraph, max_concurrency, id, &mut futures)
@@ -917,7 +912,7 @@ impl State {
                         let state = self.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            let cancellation = state.top_level.cancellation.clone();
+                            let cancellation = state.evaluator.cancellation.clone();
                             let mut futures = JoinSet::new();
                             match state
                                 .evaluate_scatter(
@@ -1471,7 +1466,7 @@ impl State {
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
-            if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+            if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
                 break;
             }
 
@@ -1514,7 +1509,7 @@ impl State {
         }
 
         // Return an error if all the tasks completed but there was a cancellation
-        if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+        if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
             return Err(EvaluationError::Canceled);
         }
 
@@ -1559,8 +1554,7 @@ impl State {
                     Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
                         (
                             n.clone(),
-                            Array::new_unchecked(ArrayType::new(o.ty().clone()).into(), Vec::new())
-                                .into(),
+                            Array::new_unchecked(ArrayType::new(o.ty().clone()), Vec::new()).into(),
                         )
                     }))
                     .into(),
@@ -1568,7 +1562,7 @@ impl State {
                 .into()
             } else {
                 // Promote the value as an empty array
-                Array::new_unchecked(ArrayType::new(local.ty().clone()).into(), Vec::new()).into()
+                Array::new_unchecked(ArrayType::new(local.ty().clone()), Vec::new()).into()
             };
 
             scope.insert(name.to_string(), value);
@@ -1596,7 +1590,7 @@ impl State {
             /// Returns the passed in context and the result of the evaluation.
             async fn evaluate(
                 self,
-                top_level: &TopLevelEvaluator,
+                evaluator: &Evaluator,
                 caller_id: &str,
                 document: &Document,
                 inputs: Inputs,
@@ -1606,11 +1600,11 @@ impl State {
                 match self {
                     Target::Task(task) => {
                         debug!(caller_id, callee_id, "evaluating call to task");
-                        top_level
+                        evaluator
                             .perform_task_evaluation(
                                 document,
                                 task,
-                                &inputs.unwrap_task_inputs(),
+                                inputs.unwrap_task_inputs(),
                                 root_dir,
                                 callee_id,
                             )
@@ -1619,7 +1613,7 @@ impl State {
                     }
                     Target::Workflow => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
-                        top_level
+                        evaluator
                             .perform_workflow_evaluation(
                                 document,
                                 inputs.unwrap_workflow_inputs(),
@@ -1740,7 +1734,7 @@ impl State {
         // Finally, evaluate the task or workflow and return the outputs
         let outputs = call_target
             .evaluate(
-                &self.top_level,
+                &self.evaluator,
                 id,
                 document,
                 inputs,
@@ -1934,7 +1928,7 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
             config.into(),
             Default::default(),
@@ -1950,7 +1944,6 @@ workflow test {
         inputs.set(
             "c",
             Array::new(
-                None,
                 ArrayType::new(PrimitiveType::String),
                 ["jam".to_string(), "cakes".to_string()],
             )
@@ -2095,7 +2088,7 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
             config.into(),
             Default::default(),
@@ -2343,10 +2336,9 @@ workflow w {
             }
         });
 
-        let evaluator =
-            TopLevelEvaluator::new(root_dir.path(), config.into(), Default::default(), events)
-                .await
-                .unwrap();
+        let evaluator = Evaluator::new(root_dir.path(), config, Default::default(), events)
+            .await
+            .unwrap();
 
         // Evaluate the `w` workflow in `source.wdl` using the default local
         // backend
@@ -2421,7 +2413,7 @@ workflow w {
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
             config.into(),
             cancellation.clone(),
