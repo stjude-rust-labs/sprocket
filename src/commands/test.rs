@@ -86,7 +86,6 @@ pub struct Args {
 impl Args {
     pub fn apply(mut self, config: crate::config::Config) -> Self {
         self.engine = config.run.engine;
-        // TODO(Ari): revisit this decision
         self.engine.task.cache = CallCachingMode::Off;
         self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
         self.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
@@ -338,9 +337,6 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     .join(DEFAULT_RUNS_DIR)
                     .join(entrypoint.as_ref())
                     .join(test_name.as_ref());
-                // TODO(Ari): should the `run_root` have a timestamped element?
-                // That would allow caching, but may also clutter the disk as test results
-                // don't need to persist. For now, we just clear the `run_root` on each re-run.
                 if run_root.exists() {
                     remove_dir_all(&run_root).await.with_context(|| {
                         format!("removing prior test dir: `{}`", run_root.display())
@@ -382,10 +378,17 @@ pub async fn test(args: Args) -> CommandResult<()> {
                             )
                         })?;
 
-                    let Some((derived_ep, wdl_inputs)) = engine_inputs else {
-                        todo!("handle empty inputs");
+                    let (_, wdl_inputs) = match engine_inputs {
+                        Some(inputs) => inputs,
+                        None => (
+                            String::new(),
+                            if is_workflow {
+                                EngineInputs::Workflow(Default::default())
+                            } else {
+                                EngineInputs::Task(Default::default())
+                            },
+                        ),
                     };
-                    debug_assert_eq!(*entrypoint, derived_ep);
                     let run_dir = run_root.join(test_num.to_string());
                     let events = Events::disabled();
                     let name = test_name.clone();
