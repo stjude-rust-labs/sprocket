@@ -1217,27 +1217,11 @@ pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     pub extra_apptainer_exec_args: Option<Vec<String>>,
-    /// Deprecated field.
-    ///
-    /// This was kept for compatibility with previous versions of the Apptainer
-    /// configuration fields, and may be removed in a future version. The
-    /// Apptainer images are now stored at the top level root directory of an
-    /// evaluation.
-    #[serde(default)]
-    #[deprecated]
-    pub apptainer_images_dir: Option<String>,
 }
 
 impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
-        #[expect(deprecated)]
-        if self.apptainer_images_dir.is_some() {
-            warn!(
-                "`apptainer_images_dir` is deprecated and no longer has an effect. Converted \
-                 images are stored in the output directory for each run."
-            );
-        }
         Ok(())
     }
 }
@@ -1334,8 +1318,6 @@ impl LsfQueueConfig {
 }
 
 /// Configuration for the LSF + Apptainer backend.
-// TODO ACF 2025-09-12: add queue option for short tasks
-//
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
