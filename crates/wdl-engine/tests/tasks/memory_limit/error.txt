@@ -1,4 +1,6 @@
-failed to get constraints for task `hello_task`
+error: task requires at least 20000 GiB of memory
+   ┌─ tests/tasks/memory_limit/source.wdl:17:5
+   │
+17 │     memory: "20000 GiB"
+   │     ^^^^^^^^^^^^^^^^^^^ this requirement exceeds the available memory
 
-Caused by:
-    task requires at least 20000 GiB of memory
