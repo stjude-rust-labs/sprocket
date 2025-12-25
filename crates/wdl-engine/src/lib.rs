@@ -1,5 +1,19 @@
 //! Execution engine for Workflow Description Language (WDL) documents.
 
+use std::sync::LazyLock;
+
+use sysinfo::CpuRefreshKind;
+use sysinfo::MemoryRefreshKind;
+use sysinfo::System;
+use wdl_analysis::Document;
+use wdl_analysis::diagnostics::unknown_type;
+use wdl_analysis::types::Type;
+use wdl_analysis::types::TypeNameResolver;
+use wdl_analysis::types::v1::AstTypeConverter;
+use wdl_ast::Diagnostic;
+use wdl_ast::Span;
+use wdl_ast::TreeNode;
+
 mod backend;
 mod cache;
 pub mod config;
@@ -15,25 +29,12 @@ pub(crate) mod tree;
 mod units;
 mod value;
 
-use std::sync::LazyLock;
-
 pub use backend::*;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;
-use sysinfo::CpuRefreshKind;
-use sysinfo::MemoryRefreshKind;
-use sysinfo::System;
 pub use units::*;
 pub use value::*;
-use wdl_analysis::Document;
-use wdl_analysis::diagnostics::unknown_type;
-use wdl_analysis::types::Type;
-use wdl_analysis::types::TypeNameResolver;
-use wdl_analysis::types::v1::AstTypeConverter;
-use wdl_ast::Diagnostic;
-use wdl_ast::Span;
-use wdl_ast::TreeNode;
 
 /// One gibibyte (GiB) as a float.
 ///
@@ -48,6 +49,11 @@ fn resolve_type_name(document: &Document, name: &str, span: Span) -> Result<Type
     document
         .struct_by_name(name)
         .map(|s| s.ty().expect("struct should have type").clone())
+        .or_else(|| {
+            document
+                .enum_by_name(name)
+                .map(|e| e.ty().expect("enum should have type").clone())
+        })
         .ok_or_else(|| unknown_type(name, span))
 }
 

@@ -116,6 +116,7 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
+use crate::diagnostics::unknown_enum;
 use crate::eval::EvaluatedTask;
 use crate::eval::trie::InputTrie;
 use crate::http::Transferer;
@@ -127,6 +128,7 @@ use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
 /// The maximum number of stderr lines to display in error messages.
@@ -757,14 +759,32 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        ScopeRef::new(&self.state.scopes, self.scope)
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = ScopeRef::new(&self.state.scopes, self.scope)
             .lookup(name)
             .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        {
+            return Ok(var);
+        }
+
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(self.state.document, name, span)
+    }
+
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
+        resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -1112,7 +1132,10 @@ impl TopLevelEvaluator {
 
         // Build an evaluation graph for the task
         let mut diagnostics = Vec::new();
-        let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
+        let graph =
+            TaskGraphBuilder::default().build(version, &definition, &mut diagnostics, |name| {
+                document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some()
+            });
         assert!(
             diagnostics.is_empty(),
             "task evaluation graph should have no diagnostics"

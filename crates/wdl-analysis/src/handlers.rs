@@ -14,6 +14,7 @@ mod document_symbol;
 mod find_all_references;
 mod goto_definition;
 mod hover;
+mod inlay_hints;
 mod rename;
 mod semantic_tokens;
 mod signature_help;
@@ -25,6 +26,7 @@ pub use document_symbol::*;
 pub use find_all_references::*;
 pub use goto_definition::*;
 pub use hover::*;
+pub use inlay_hints::*;
 pub use rename::*;
 pub use semantic_tokens::*;
 pub use signature_help::*;
@@ -57,8 +59,20 @@ impl EvaluationContext for TypeEvalContext<'_> {
             .expect("document should have a version")
     }
 
-    fn resolve_name(&self, name: &str, _span: Span) -> Option<crate::types::Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+    fn resolve_name(&self, name: &str, _: Span) -> Option<crate::types::Type> {
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        if let Some(ty) = self.document.get_custom_type(name) {
+            return Some(
+                ty.type_name_ref()
+                    .expect("type name ref to be created from custom type"),
+            );
+        }
+
+        None
     }
 
     fn resolve_type_name(
@@ -71,6 +85,13 @@ impl EvaluationContext for TypeEvalContext<'_> {
         {
             return Ok(ty.clone());
         }
+
+        if let Some(e) = self.document.enum_by_name(name)
+            && let Some(ty) = e.ty()
+        {
+            return Ok(ty.clone());
+        }
+
         Err(diagnostics::unknown_type(name, span))
     }
 
