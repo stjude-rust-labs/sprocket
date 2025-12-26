@@ -4,7 +4,7 @@ error: an unknown token was encountered
 3 │ version 1-DEVEL.~bad~
   │                 ^ this is not a supported WDL token
 
-error: expected import statement, struct definition, task definition, or workflow definition, but found identifier
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found identifier
   ┌─ tests/parsing/version-invalid/source.wdl:3:18
   │
 3 │ version 1-DEVEL.~bad~

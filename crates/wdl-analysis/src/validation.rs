@@ -220,6 +220,17 @@ impl Visitor for Validator {
         }
     }
 
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &v1::EnumDefinition,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.enum_definition(diagnostics, reason, def);
+        }
+    }
+
     fn task_definition(
         &mut self,
         diagnostics: &mut Diagnostics,

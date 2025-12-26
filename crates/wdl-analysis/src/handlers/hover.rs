@@ -23,6 +23,7 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
+use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::ParameterMetadataSection;
@@ -37,6 +38,7 @@ use crate::handlers::TypeEvalContext;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
+use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
 use crate::handlers::common::provide_task_documentation;
 use crate::handlers::common::provide_workflow_documentation;
@@ -44,6 +46,7 @@ use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
 
@@ -178,6 +181,38 @@ fn resolve_hover_by_context(
                 };
                 return Ok(provide_struct_documentation(s, &root));
             }
+            if let Some(e) = document.enum_by_name(token.text()) {
+                let root = if let Some(ns_name) = e.namespace() {
+                    // SAFETY: we just found an enum with this namespace name and the document
+                    // guarantees that `document.namespaces` contains a corresponding entry for
+                    // `ns_name`.
+                    let ns = document.namespace(ns_name).unwrap();
+                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                    node.document().unwrap().root()
+                } else {
+                    document.root()
+                };
+                return Ok(provide_enum_documentation(e, &root));
+            }
+        }
+        SyntaxKind::EnumVariantNode => {
+            let variant = EnumVariant::cast(parent_node.clone()).unwrap();
+            let variant_name = variant.name().text().to_string();
+
+            // Show the variant value (explicit or inferred)
+            if let Some(value_expr) = variant.value() {
+                // Has explicit value
+                let content = format!(
+                    "```wdl\n{} = {}\n```",
+                    variant_name,
+                    value_expr.inner().text()
+                );
+                return Ok(Some(content));
+            } else {
+                // Inferred value (defaults to string of variant name)
+                let content = format!("```wdl\n{} = \"{}\"\n```", variant_name, variant_name);
+                return Ok(Some(content));
+            }
         }
         SyntaxKind::CallTargetNode => {
             let target = CallTarget::cast(parent_node.clone()).unwrap();
@@ -248,6 +283,7 @@ fn resolve_hover_by_context(
             let Some(scope) = document.find_scope_by_position(parent_node.span().start()) else {
                 return Ok(None);
             };
+
             let mut ctx = TypeEvalContext { scope, document };
             let mut evaluator = ExprTypeEvaluator::new(&mut ctx);
             let target_type = evaluator
@@ -255,7 +291,50 @@ fn resolve_hover_by_context(
                 .unwrap_or(crate::types::Type::Union);
 
             let (member_ty, documentation) = match target_type {
-                Type::Compound(CompoundType::Struct(s), _) => {
+                Type::TypeNameRef(CustomType::Enum(e)) => {
+                    if e.variants().iter().any(|text| text == member.text()) {
+                        // Try to find the enum definition to get the actual value
+                        if let Some(enum_entry) = document.enum_by_name(e.name()) {
+                            let definition = enum_entry.definition();
+
+                            // Find the specific variant
+                            if let Some(variant) = definition
+                                .variants()
+                                .find(|v| v.name().text() == member.text())
+                            {
+                                let value_str = if let Some(value_expr) = variant.value() {
+                                    value_expr.inner().text().to_string()
+                                } else {
+                                    format!("\"{}\"", member.text())
+                                };
+
+                                let content = format!(
+                                    "```wdl\n{}.{}[{}] = {}\n```",
+                                    e.name(),
+                                    member.text(),
+                                    e.inner_value_type(),
+                                    value_str
+                                );
+                                return Ok(Some(content));
+                            }
+                        }
+
+                        // Fallback to showing just the type
+                        let content = format!(
+                            "```wdl\n{}.{}[{}]\n```",
+                            e.name(),
+                            member.text(),
+                            e.inner_value_type()
+                        );
+                        return Ok(Some(content));
+                    }
+                    (None, None)
+                }
+                Type::TypeNameRef(CustomType::Struct(_)) => {
+                    // `Struct.member` is not valid in WDL.
+                    return Ok(None);
+                }
+                Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(ns_name) = s.namespace() {
                             // SAFETY: we just found a struct with this namespace name and the
@@ -288,6 +367,45 @@ fn resolve_hover_by_context(
                     "right" => (Some(p.right_type().clone()), None),
                     _ => (None, None),
                 },
+                Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
+                    if e.variants().iter().any(|text| text == member.text()) {
+                        // Try to find the enum definition to get the actual value
+                        if let Some(enum_entry) = document.enum_by_name(e.name()) {
+                            let definition = enum_entry.definition();
+
+                            // Find the specific variant
+                            if let Some(variant) = definition
+                                .variants()
+                                .find(|v| v.name().text() == member.text())
+                            {
+                                let value_str = if let Some(value_expr) = variant.value() {
+                                    value_expr.inner().text().to_string()
+                                } else {
+                                    format!("\"{}\"", member.text())
+                                };
+
+                                let content = format!(
+                                    "```wdl\n{}.{}[{}] = {}\n```",
+                                    e.name(),
+                                    member.text(),
+                                    e.inner_value_type(),
+                                    value_str
+                                );
+                                return Ok(Some(content));
+                            }
+                        }
+
+                        // Fallback to showing just the type
+                        let content = format!(
+                            "```wdl\n{}.{}[{}]\n```",
+                            e.name(),
+                            member.text(),
+                            e.inner_value_type()
+                        );
+                        return Ok(Some(content));
+                    }
+                    (None, None)
+                }
                 _ => (None, None),
             };
             if let Some(ty) = member_ty {
@@ -354,6 +472,9 @@ fn resolve_hover_by_context(
 fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<Option<String>> {
     if let Some(s) = document.struct_by_name(token.text()) {
         return Ok(provide_struct_documentation(s, &document.root()));
+    }
+    if let Some(e) = document.enum_by_name(token.text()) {
+        return Ok(provide_enum_documentation(e, &document.root()));
     }
     if let Some(t) = document.task_by_name(token.text()) {
         return Ok(provide_task_documentation(t, &document.root()));

@@ -155,6 +155,12 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     DivisionExpr(DivisionExpr<N>),
     /// An equality expression.
     EqualityExpr(EqualityExpr<N>),
+    /// An enum definition.
+    EnumDefinition(EnumDefinition<N>),
+    /// An enum type parameter.
+    EnumTypeParameter(EnumTypeParameter<N>),
+    /// An enum variant.
+    EnumVariant(EnumVariant<N>),
     /// An exponentiation expression.
     ExponentiationExpr(ExponentiationExpr<N>),
     /// A greater than or equal to expression.
@@ -321,6 +327,9 @@ ast_element_impl!(
         default_option(): PlaceholderDefaultOptionNode => DefaultOption => DefaultOption,
         division_expr(): DivisionExprNode => DivisionExpr => DivisionExpr,
         equality_expr(): EqualityExprNode => EqualityExpr => EqualityExpr,
+        enum_definition(): EnumDefinitionNode => EnumDefinition => EnumDefinition,
+        enum_type_parameter(): EnumTypeParameterNode => EnumTypeParameter => EnumTypeParameter,
+        enum_variant(): EnumVariantNode => EnumVariant => EnumVariant,
         exponentiation_expr(): ExponentiationExprNode => ExponentiationExpr => ExponentiationExpr,
         greater_equal_expr(): GreaterEqualExprNode => GreaterEqualExpr => GreaterEqualExpr,
         greater_expr(): GreaterExprNode => GreaterExpr => GreaterExpr,
@@ -442,6 +451,8 @@ pub enum Token<T: TreeToken = SyntaxToken> {
     DoubleQuote(DoubleQuote<T>),
     /// The `else` keyword.
     ElseKeyword(ElseKeyword<T>),
+    /// The `enum` keyword.
+    EnumKeyword(EnumKeyword<T>),
     /// The `env` keyword.
     EnvKeyword(EnvKeyword<T>),
     /// The `==` symbol.
@@ -582,6 +593,7 @@ ast_element_impl!(
         dot(): Dot => Dot => Dot,
         double_quote(): DoubleQuote => DoubleQuote => DoubleQuote,
         else_keyword(): ElseKeyword => ElseKeyword => ElseKeyword,
+        enum_keyword(): EnumKeyword => EnumKeyword => EnumKeyword,
         env_keyword(): EnvKeyword => EnvKeyword => EnvKeyword,
         equal(): Equal => Equal => Equal,
         exclamation(): Exclamation => Exclamation => Exclamation,

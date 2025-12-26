@@ -29,7 +29,7 @@ use crate::types::CallType;
 use crate::types::Optional;
 use crate::types::Type;
 
-mod v1;
+pub mod v1;
 
 /// The `task` variable name available in task command sections and outputs in
 /// WDL 1.2.
@@ -130,6 +130,76 @@ impl Struct {
     ///
     /// A value of `None` indicates that the type could not be determined for
     /// the struct; this may happen if the struct definition is recursive.
+    pub fn ty(&self) -> Option<&Type> {
+        self.ty.as_ref()
+    }
+}
+
+/// Represents an enum in a document.
+#[derive(Debug, Clone)]
+pub struct Enum {
+    /// The name of the enum.
+    name: String,
+    /// The span that introduced the enum.
+    ///
+    /// This is either the name of an enum definition (local) or an import's
+    /// URI or alias (imported).
+    name_span: Span,
+    /// The offset of the CST node from the start of the document.
+    ///
+    /// This is used to adjust diagnostics resulting from traversing the enum
+    /// node as if it were the root of the CST.
+    offset: usize,
+    /// Stores the CST node of the enum.
+    ///
+    /// This is used to calculate type equivalence for imports and can be
+    /// reconstructed into an AST node to access variant expressions.
+    node: rowan::GreenNode,
+    /// The namespace that defines the enum.
+    ///
+    /// This is `Some` only for imported enums.
+    namespace: Option<String>,
+    /// The type of the enum.
+    ///
+    /// Initially this is `None` until a type check/coercion occurs.
+    ty: Option<Type>,
+}
+
+impl Enum {
+    /// Gets the name of the enum.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the span of the name.
+    pub fn name_span(&self) -> Span {
+        self.name_span
+    }
+
+    /// Gets the offset of the enum.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Gets the green node of the enum.
+    pub fn node(&self) -> &rowan::GreenNode {
+        &self.node
+    }
+
+    /// Reconstructs the AST definition from the stored green node.
+    ///
+    /// This provides access to variant expressions and other AST details.
+    pub fn definition(&self) -> wdl_ast::v1::EnumDefinition {
+        wdl_ast::v1::EnumDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
+            .expect("stored node should be a valid enum definition")
+    }
+
+    /// Gets the namespace that defines this enum.
+    pub fn namespace(&self) -> Option<&str> {
+        self.namespace.as_deref()
+    }
+
+    /// Gets the type of the enum.
     pub fn ty(&self) -> Option<&Type> {
         self.ty.as_ref()
     }
@@ -550,7 +620,7 @@ impl Workflow {
 
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
-struct DocumentData {
+pub(crate) struct DocumentData {
     /// The configuration under which this document was analyzed.
     config: Config,
     /// The root CST node of the document.
@@ -573,6 +643,8 @@ struct DocumentData {
     workflow: Option<Workflow>,
     /// The structs in the document.
     structs: IndexMap<String, Struct>,
+    /// The enums in the document.
+    enums: IndexMap<String, Enum>,
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
@@ -598,6 +670,7 @@ impl DocumentData {
             tasks: Default::default(),
             workflow: Default::default(),
             structs: Default::default(),
+            enums: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
         }
@@ -796,6 +869,29 @@ impl Document {
     /// Gets a struct in the document by name.
     pub fn struct_by_name(&self, name: &str) -> Option<&Struct> {
         self.data.structs.get(name)
+    }
+
+    /// Gets the enums in the document.
+    pub fn enums(&self) -> impl Iterator<Item = (&str, &Enum)> {
+        self.data.enums.iter().map(|(n, e)| (n.as_str(), e))
+    }
+
+    /// Gets an enum in the document by name.
+    pub fn enum_by_name(&self, name: &str) -> Option<&Enum> {
+        self.data.enums.get(name)
+    }
+
+    /// Gets the custom type by name.
+    pub fn get_custom_type(&self, name: &str) -> Option<Type> {
+        if let Some(s) = self.struct_by_name(name) {
+            return s.ty().cloned();
+        }
+
+        if let Some(s) = self.enum_by_name(name) {
+            return s.ty().cloned();
+        }
+
+        None
     }
 
     /// Gets the parse diagnostics for the document.

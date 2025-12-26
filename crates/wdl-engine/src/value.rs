@@ -26,6 +26,8 @@ use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
+use wdl_analysis::types::EnumType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -94,6 +96,8 @@ pub enum Value {
     Hidden(HiddenValue),
     /// The value is the outputs of a call.
     Call(CallValue),
+    /// The value is a reference to a user-defined type.
+    TypeNameRef(Type),
 }
 
 impl Value {
@@ -141,6 +145,7 @@ impl Value {
             Self::Compound(v) => v.ty(),
             Self::Hidden(v) => v.ty(),
             Self::Call(v) => Type::Call(v.ty.clone()),
+            Self::TypeNameRef(ty) => ty.clone(),
         }
     }
 
@@ -663,6 +668,7 @@ impl fmt::Display for Value {
             Self::Compound(v) => v.fmt(f),
             Self::Hidden(v) => v.fmt(f),
             Self::Call(c) => c.fmt(f),
+            Self::TypeNameRef(ty) => ty.fmt(f),
         }
     }
 }
@@ -681,11 +687,68 @@ impl Coercible for Value {
                     bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
             }
+            // String -> Enum Variant
+            Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
+                // SAFETY: we just checked above that this is an enum type.
+                let enum_ty = target.as_enum().unwrap();
+
+                if enum_ty
+                    .variants()
+                    .iter()
+                    .any(|variant_name| variant_name == s.as_str())
+                {
+                    if let Some(context) = context {
+                        if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
+                            return Ok(Value::Compound(CompoundValue::EnumVariant(
+                                EnumVariant::new(enum_ty.clone(), s.as_str(), value),
+                            )));
+                        } else {
+                            bail!(
+                                "enum variant value lookup failed for variant `{s}` in enum `{}`",
+                                enum_ty.name()
+                            );
+                        }
+                    } else {
+                        bail!(
+                            "context does not exist when creating enum variant value `{s}` in \
+                             enum `{}`",
+                            enum_ty.name()
+                        );
+                    }
+                }
+
+                let variants = if enum_ty.variants().is_empty() {
+                    None
+                } else {
+                    let mut variant_names = enum_ty.variants().to_vec();
+                    variant_names.sort();
+                    Some(format!(" (variants: `{}`)", variant_names.join("`, `")))
+                }
+                .unwrap_or_default();
+
+                bail!(
+                    "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
+                     enum `{}`{variants}",
+                    enum_ty.name()
+                );
+            }
+            // Enum Variant -> String
+            Self::Compound(CompoundValue::EnumVariant(e))
+                if target
+                    .as_primitive()
+                    .map(|t| matches!(t, PrimitiveType::String))
+                    .unwrap_or(false) =>
+            {
+                Ok(Value::Primitive(PrimitiveValue::new_string(e.name())))
+            }
             Self::Primitive(v) => v.coerce(context, target).map(Self::Primitive),
             Self::Compound(v) => v.coerce(context, target).map(Self::Compound),
             Self::Hidden(v) => v.coerce(context, target).map(Self::Hidden),
             Self::Call(_) => {
                 bail!("call values cannot be coerced to any other type");
+            }
+            Self::TypeNameRef(_) => {
+                bail!("type name references cannot be coerced to any other type");
             }
         }
     }
@@ -1888,7 +1951,7 @@ impl Struct {
         V: Into<Value>,
     {
         let ty = ty.into();
-        if let Type::Compound(CompoundType::Struct(ty), optional) = ty {
+        if let Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), optional) = ty {
             let mut members = members
                 .into_iter()
                 .map(|(n, v)| {
@@ -1922,7 +1985,7 @@ impl Struct {
 
             let name = ty.name().to_string();
             return Ok(Self {
-                ty: Type::Compound(CompoundType::Struct(ty), optional),
+                ty: Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), optional),
                 name: Arc::new(name),
                 members: Arc::new(members),
             });
@@ -1998,6 +2061,99 @@ impl fmt::Display for Struct {
     }
 }
 
+/// An enum variant value.
+///
+/// A variant enum is the name of the enum variant and the type of the enum from
+/// which that variant can be looked up.
+///
+/// This type is cheaply clonable.
+#[derive(Debug, Clone)]
+pub struct EnumVariant {
+    /// The type of the enum containing this variant.
+    enum_ty: EnumType,
+    /// The index of the variant in the enum type.
+    variant_index: usize,
+    /// The value of the variant.
+    value: Arc<Value>,
+}
+
+impl PartialEq for EnumVariant {
+    fn eq(&self, other: &Self) -> bool {
+        self.enum_ty == other.enum_ty && self.variant_index == other.variant_index
+    }
+}
+
+impl EnumVariant {
+    /// Attempts to create a new enum variant from a enum type and variant name.
+    ///
+    /// This method returns [`None`] if the variant is not in the enum.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given variant name is not present in the enum type.
+    pub fn new(enum_ty: impl Into<EnumType>, name: &str, value: impl Into<Value>) -> Self {
+        let enum_ty = enum_ty.into();
+        let value = Arc::new(value.into());
+
+        let variant_index = enum_ty
+            .variants()
+            .iter()
+            .position(|v| v == name)
+            .expect("variant name must exist in enum type");
+
+        Self {
+            enum_ty,
+            variant_index,
+            value,
+        }
+    }
+
+    /// Gets the type of the enum.
+    pub fn enum_ty(&self) -> EnumType {
+        self.enum_ty.clone()
+    }
+
+    /// Gets the name of the variant.
+    pub fn name(&self) -> &str {
+        &self.enum_ty.variants()[self.variant_index]
+    }
+
+    /// Gets the name of the variant.
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+}
+
+/// Displays the variant name when an enum is used in string interpolation.
+///
+/// # Design Decision
+///
+/// When an enum variant is interpolated in a WDL string (e.g., `"~{Color.Red}"`
+/// where `Red = "#FF0000"`), this implementation displays the **variant name**
+/// (`"Red"`) rather than the underlying **value** (`"#FF0000"`).
+///
+/// This design choice treats enum variants as named identifiers, providing
+/// stable, human-readable output that doesn't depend on the underlying value
+/// representation. To access the underlying value explicitly, use the `value()`
+/// standard library function.
+///
+/// # Example
+///
+/// ```wdl
+/// enum Color {
+///     Red = "#FF0000",
+///     Green = "#00FF00"
+/// }
+///
+/// String name = "~{Color.Red}"       # Produces "Red"
+/// String hex_value = value(Color.Red)  # Produces "#FF0000"
+/// ```
+impl fmt::Display for EnumVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
 /// Represents a compound value.
 ///
 /// Compound values are cheap to clone.
@@ -2013,6 +2169,8 @@ pub enum CompoundValue {
     Object(Object),
     /// The value is a struct.
     Struct(Struct),
+    /// The value is an enum variant.
+    EnumVariant(EnumVariant),
 }
 
 impl CompoundValue {
@@ -2024,6 +2182,7 @@ impl CompoundValue {
             CompoundValue::Map(v) => v.ty(),
             CompoundValue::Object(v) => v.ty(),
             CompoundValue::Struct(v) => v.ty(),
+            CompoundValue::EnumVariant(v) => v.enum_ty().into(),
         }
     }
 
@@ -2137,6 +2296,28 @@ impl CompoundValue {
         }
     }
 
+    /// Gets the value as an `EnumVariant`.
+    ///
+    /// Returns `None` if the value is not an `EnumVariant`.
+    pub fn as_enum_variant(&self) -> Option<&EnumVariant> {
+        match self {
+            Self::EnumVariant(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    /// Unwraps the value into an `EnumVariant`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is not an `EnumVariant`.
+    pub fn unwrap_enum_variant(self) -> EnumVariant {
+        match self {
+            Self::EnumVariant(v) => v,
+            _ => panic!("value is not an enum"),
+        }
+    }
+
     /// Compares two compound values for equality based on the WDL
     /// specification.
     ///
@@ -2192,6 +2373,9 @@ impl CompoundValue {
                         None => false,
                     }),
             ),
+            (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => {
+                Some(left.enum_ty() == right.enum_ty() && left.name() == right.name())
+            }
             _ => None,
         }
     }
@@ -2234,6 +2418,9 @@ impl CompoundValue {
                 for v in s.values() {
                     v.visit_paths(cb)?;
                 }
+            }
+            Self::EnumVariant(e) => {
+                e.value().visit_paths(cb)?;
             }
         }
 
@@ -2354,6 +2541,18 @@ impl CompoundValue {
                         Arc::new(resolved_members),
                     )))
                 }
+                Self::EnumVariant(e) => {
+                    let optional = e.enum_ty().inner_value_type().is_optional();
+                    let value = e
+                        .value
+                        .resolve_paths(optional, base_dir, transferer, translate)
+                        .await?;
+                    Ok(Self::EnumVariant(EnumVariant::new(
+                        e.enum_ty.clone(),
+                        e.name(),
+                        value,
+                    )))
+                }
             }
         }
         .boxed()
@@ -2368,6 +2567,7 @@ impl fmt::Display for CompoundValue {
             Self::Map(v) => v.fmt(f),
             Self::Object(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
+            Self::EnumVariant(v) => v.fmt(f),
         }
     }
 }
@@ -2419,7 +2619,7 @@ impl Coercible for CompoundValue {
                     )?));
                 }
                 // Map[X, Y] -> Struct where: X -> String
-                (Self::Map(v), CompoundType::Struct(target_ty)) => {
+                (Self::Map(v), CompoundType::Custom(CustomType::Struct(target_ty))) => {
                     let len = v.len();
                     let expected_len = target_ty.members().len();
 
@@ -2530,7 +2730,7 @@ impl Coercible for CompoundValue {
                     )));
                 }
                 // Object -> Struct
-                (Self::Object(v), CompoundType::Struct(_)) => {
+                (Self::Object(v), CompoundType::Custom(CustomType::Struct(_))) => {
                     return Ok(Self::Struct(Struct::new(
                         context,
                         target.clone(),
@@ -2538,7 +2738,7 @@ impl Coercible for CompoundValue {
                     )?));
                 }
                 // Struct -> Struct
-                (Self::Struct(v), CompoundType::Struct(struct_ty)) => {
+                (Self::Struct(v), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
                     let len = v.members.len();
                     let expected_len = struct_ty.members().len();
 
@@ -3416,7 +3616,7 @@ impl serde::Serialize for ValueSerializer<'_> {
             Value::Compound(v) => {
                 CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
             }
-            Value::Hidden(_) | Value::Call(_) => {
+            Value::Call(_) | Value::Hidden(_) | Value::TypeNameRef(_) => {
                 Err(S::Error::custom("value cannot be serialized"))
             }
         }
@@ -3500,6 +3700,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 s.end()
             }
+            CompoundValue::EnumVariant(e) => serializer.serialize_str(e.name()),
         }
     }
 }
@@ -3662,6 +3863,10 @@ mod test {
                 unimplemented!()
             }
 
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+                unimplemented!()
+            }
+
             fn base_dir(&self) -> &EvaluationPath {
                 unimplemented!()
             }
@@ -3774,6 +3979,10 @@ mod test {
                 unimplemented!()
             }
 
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+                unimplemented!()
+            }
+
             fn base_dir(&self) -> &EvaluationPath {
                 unimplemented!()
             }
@@ -3861,6 +4070,10 @@ mod test {
             }
 
             fn resolve_type_name(&self, _: &str, _: Span) -> Result<Type, Diagnostic> {
+                unimplemented!()
+            }
+
+            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4254,5 +4467,71 @@ Caused by:
         let value_serializer = ValueSerializer::new(&array, true);
         let serialized = serde_json::to_string(&value_serializer).expect("should serialize");
         assert_eq!(serialized, r#"[{"left":"foo","right":"bar"}]"#);
+    }
+
+    #[test]
+    fn type_name_ref_equality() {
+        use std::sync::Arc;
+
+        use wdl_analysis::types::EnumType;
+
+        let enum_type = Type::Compound(
+            CompoundType::Custom(CustomType::Enum(Arc::new(
+                EnumType::new(
+                    "MyEnum",
+                    Span::new(0, 0),
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Vec::<(String, Type)>::new(),
+                    &[],
+                )
+                .expect("should create enum type"),
+            ))),
+            false,
+        );
+
+        let value1 = Value::TypeNameRef(enum_type.clone());
+        let value2 = Value::TypeNameRef(enum_type.clone());
+
+        assert_eq!(value1.ty(), value2.ty());
+    }
+
+    #[test]
+    fn type_name_ref_ty() {
+        use std::sync::Arc;
+
+        let struct_type = Type::Compound(
+            CompoundType::Custom(CustomType::Struct(Arc::new(StructType::new(
+                "MyStruct",
+                Vec::<(&str, Type)>::new(),
+            )))),
+            false,
+        );
+
+        let value = Value::TypeNameRef(struct_type.clone());
+        assert_eq!(value.ty(), struct_type);
+    }
+
+    #[test]
+    fn type_name_ref_display() {
+        use std::sync::Arc;
+
+        use wdl_analysis::types::EnumType;
+
+        let enum_type = Type::Compound(
+            CompoundType::Custom(CustomType::Enum(Arc::new(
+                EnumType::new(
+                    "Color",
+                    Span::new(0, 0),
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Vec::<(String, Type)>::new(),
+                    &[],
+                )
+                .expect("should create enum type"),
+            ))),
+            false,
+        );
+
+        let value = Value::TypeNameRef(enum_type);
+        assert_eq!(value.to_string(), "Color");
     }
 }

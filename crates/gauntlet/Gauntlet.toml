@@ -37,7 +37,6 @@ commit_hash = "0aa8316110137c700125f78d0e47aaa1cfd4c611"
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
 commit_hash = "60c4e506136dbebc687c3db7b1e8d3a745f488c8"
-filters = ["/template/task-templates.wdl"]
 
 [repositories."theiagen/public_health_bioinformatics"]
 identifier = "theiagen/public_health_bioinformatics"
@@ -6215,7 +6214,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:224:9: error: expected import statement, struct definition, task definition, or workflow definition, but found `}`"
+message = "task-examples.wdl:224:9: error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `}`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/template/task-examples.wdl/#L224"
 
 [[diagnostics]]
