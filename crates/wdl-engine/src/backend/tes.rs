@@ -41,6 +41,7 @@ use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
+use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -56,7 +57,6 @@ use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
-use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -200,53 +200,52 @@ impl TaskManagerRequest for TesTaskRequest {
         // the URLs for remote inputs.
         let mut uploads = JoinSet::new();
         for (i, input) in self.inner.inputs().iter().enumerate() {
-            match input.path() {
-                EvaluationPath::Local(path) => {
-                    // Input is local, spawn an upload of it
-                    let kind = input.kind();
-                    let path = path.to_path_buf();
-                    let transferer = self.inner.transferer().clone();
-                    let inputs_url = inputs_url.clone();
-                    uploads.spawn(async move {
-                        let url = inputs_url.join_digest(
-                            calculate_local_digest(&path, kind, ContentDigestMode::Strong)
-                                .await
-                                .with_context(|| {
-                                    format!(
-                                        "failed to calculate digest of `{path}`",
-                                        path = path.display()
-                                    )
-                                })?,
-                        );
-                        transferer
-                            .upload(&path, &url)
+            if let Some(path) = input.path().as_local() {
+                // Input is local, spawn an upload of it
+                let kind = input.kind();
+                let path = path.to_path_buf();
+                let transferer = self.inner.transferer().clone();
+                let inputs_url = inputs_url.clone();
+                uploads.spawn(async move {
+                    let url = inputs_url.join_digest(
+                        calculate_local_digest(&path, kind, ContentDigestMode::Strong)
                             .await
                             .with_context(|| {
                                 format!(
-                                    "failed to upload `{path}` to `{url}`",
-                                    path = path.display(),
-                                    url = url.display()
+                                    "failed to calculate digest of `{path}`",
+                                    path = path.display()
                                 )
-                            })
-                            .map(|_| (i, url))
-                    });
-                }
-                EvaluationPath::Remote(url) => {
-                    // Input is already remote, add it to the Crankshaft inputs list
-                    inputs.push(
-                        Input::builder()
-                            .path(
-                                input
-                                    .guest_path()
-                                    .expect("input should have guest path")
-                                    .as_str(),
-                            )
-                            .contents(Contents::Url(url.clone()))
-                            .ty(input.kind())
-                            .read_only(true)
-                            .build(),
+                            })?,
                     );
-                }
+                    transferer
+                        .upload(&path, &url)
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "failed to upload `{path}` to `{url}`",
+                                path = path.display(),
+                                url = url.display()
+                            )
+                        })
+                        .map(|_| (i, url))
+                });
+            } else if let Some(url) = input.path().as_remote() {
+                // Input is already remote, add it to the Crankshaft inputs list
+                inputs.push(
+                    Input::builder()
+                        .path(
+                            input
+                                .guest_path()
+                                .expect("input should have guest path")
+                                .as_str(),
+                        )
+                        .contents(Contents::Url(url.clone()))
+                        .ty(input.kind())
+                        .read_only(true)
+                        .build(),
+                );
+            } else {
+                unreachable!("evaluation path should be either local or remote");
             }
         }
 
@@ -365,7 +364,7 @@ impl TaskManagerRequest for TesTaskRequest {
 
             return Ok(TaskExecutionResult {
                 exit_code: status.code().expect("should have exit code"),
-                work_dir: EvaluationPath::Remote(work_dir_url),
+                work_dir: EvaluationPath::try_from(work_dir_url)?,
                 stdout: PrimitiveValue::new_file(stdout_url).into(),
                 stderr: PrimitiveValue::new_file(stderr_url).into(),
             });

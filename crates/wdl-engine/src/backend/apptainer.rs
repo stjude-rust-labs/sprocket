@@ -12,10 +12,10 @@ use anyhow::Context as _;
 use anyhow::anyhow;
 use images::ApptainerImages;
 use tokio_util::sync::CancellationToken;
-use tracing::warn;
 
 use super::TaskSpawnRequest;
 use crate::Value;
+use crate::config::ApptainerConfig;
 
 mod images;
 
@@ -30,37 +30,6 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
-
-/// Configuration for the Apptainer container runtime.
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
-pub struct ApptainerConfig {
-    /// Additional command-line arguments to pass to `apptainer exec` when
-    /// executing tasks.
-    pub extra_apptainer_exec_args: Option<Vec<String>>,
-    /// Deprecated field.
-    ///
-    /// This was kept for compatibility with previous versions of the Apptainer
-    /// configuration fields, and may be removed in a future version. The
-    /// Apptainer images are now stored at the top level root directory of an
-    /// evaluation.
-    #[serde(default)]
-    #[deprecated]
-    pub apptainer_images_dir: Option<String>,
-}
-
-impl ApptainerConfig {
-    /// Validate that Apptainer is appropriately configured.
-    pub async fn validate(&self) -> Result<(), anyhow::Error> {
-        #[expect(deprecated)]
-        if self.apptainer_images_dir.is_some() {
-            warn!(
-                "`apptainer_images_dir` is deprecated and no longer has an effect. Converted \
-                 images are stored in the output directory for each run."
-            );
-        }
-        Ok(())
-    }
-}
 
 /// The state of an Apptainer backend for a given top-level execution.
 ///
@@ -250,7 +219,7 @@ mod tests {
     use tokio::process::Command;
 
     use super::*;
-    use crate::TaskSpawnInfo;
+    use crate::backend::TaskSpawnInfo;
     use crate::http::Transferer;
     use crate::v1::test::TestEnv;
 
@@ -271,9 +240,7 @@ mod tests {
         let spawn_request = TaskSpawnRequest {
             id: "example_task".to_string(),
             info,
-            attempt: 0,
             attempt_dir: tmp.path().join("0"),
-            task_eval_root: tmp.path().to_path_buf(),
             temp_dir: tmp.path().join("tmp"),
         };
         (tmp, state, spawn_request)

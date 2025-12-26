@@ -23,10 +23,12 @@ use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 
-use crate::Input;
+use crate::ContentKind;
+use crate::EvaluationPath;
+use crate::GuestPath;
 use crate::Value;
+use crate::http::Location;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 
 mod apptainer;
 mod docker;
@@ -59,6 +61,68 @@ pub(crate) const STDERR_FILE_NAME: &str = "stderr";
 /// This controls the initial size of the bloom filter and how many names are
 /// prepopulated into a name generator.
 const INITIAL_EXPECTED_NAMES: usize = 1000;
+
+/// Represents a `File` or `Directory` input to a backend.
+#[derive(Debug, Clone)]
+pub(crate) struct Input {
+    /// The content kind of the input.
+    kind: ContentKind,
+    /// The path for the input.
+    path: EvaluationPath,
+    /// The guest path for the input.
+    ///
+    /// This is `None` when the backend isn't mapping input paths.
+    guest_path: Option<GuestPath>,
+    /// The download location for the input.
+    ///
+    /// This is `Some` if the input has been downloaded to a known location.
+    location: Option<Location>,
+}
+
+impl Input {
+    /// Creates a new input with the given path and guest path.
+    pub fn new(kind: ContentKind, path: EvaluationPath, guest_path: Option<GuestPath>) -> Self {
+        Self {
+            kind,
+            path,
+            guest_path,
+            location: None,
+        }
+    }
+
+    /// Gets the content kind of the input.
+    pub fn kind(&self) -> ContentKind {
+        self.kind
+    }
+
+    /// Gets the path to the input.
+    ///
+    /// The path of the input may be local or remote.
+    pub fn path(&self) -> &EvaluationPath {
+        &self.path
+    }
+
+    /// Gets the guest path for the input.
+    ///
+    /// This is `None` for inputs to backends that don't use containers.
+    pub fn guest_path(&self) -> Option<&GuestPath> {
+        self.guest_path.as_ref()
+    }
+
+    /// Gets the local path of the input.
+    ///
+    /// Returns `None` if the input is remote and has not been localized.
+    pub fn local_path(&self) -> Option<&Path> {
+        self.location.as_deref().or_else(|| self.path.as_local())
+    }
+
+    /// Sets the location of the input.
+    ///
+    /// This is used during localization to set a local path for remote inputs.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = Some(location);
+    }
+}
 
 /// Represents constraints applied to a task's execution.
 pub struct TaskExecutionConstraints {
@@ -97,7 +161,7 @@ pub struct TaskExecutionConstraints {
 }
 
 /// Represents information for spawning a task.
-pub struct TaskSpawnInfo {
+pub(crate) struct TaskSpawnInfo {
     /// The command of the task.
     command: String,
     /// The inputs for task.
@@ -148,37 +212,24 @@ impl fmt::Debug for TaskSpawnInfo {
 
 /// Represents a request to spawn a task.
 #[derive(Debug)]
-pub struct TaskSpawnRequest {
+pub(crate) struct TaskSpawnRequest {
     /// The id of the task being spawned.
     id: String,
     /// The information for the task to spawn.
     info: TaskSpawnInfo,
-    /// The attempt number for the spawn request.
-    attempt: u64,
     /// The attempt directory for the task's execution.
     attempt_dir: PathBuf,
-    /// The root directory for the evaluation.
-    task_eval_root: PathBuf,
     /// The temp directory for the evaluation.
     temp_dir: PathBuf,
 }
 
 impl TaskSpawnRequest {
     /// Creates a new task spawn request.
-    pub fn new(
-        id: String,
-        info: TaskSpawnInfo,
-        attempt: u64,
-        attempt_dir: PathBuf,
-        task_eval_root: PathBuf,
-        temp_dir: PathBuf,
-    ) -> Self {
+    pub fn new(id: String, info: TaskSpawnInfo, attempt_dir: PathBuf, temp_dir: PathBuf) -> Self {
         Self {
             id,
             info,
-            attempt,
             attempt_dir,
-            task_eval_root,
             temp_dir,
         }
     }
@@ -218,21 +269,9 @@ impl TaskSpawnRequest {
         &self.info.transferer
     }
 
-    /// Gets the attempt number for the task's execution.
-    ///
-    /// The attempt number starts at 0.
-    pub fn attempt(&self) -> u64 {
-        self.attempt
-    }
-
     /// Gets the attempt directory for the task's execution.
     pub fn attempt_dir(&self) -> &Path {
         &self.attempt_dir
-    }
-
-    /// The root directory for the task's evaluation.
-    pub fn task_eval_root_dir(&self) -> &Path {
-        &self.task_eval_root
     }
 
     /// The temp directory for the evaluation.
@@ -278,7 +317,7 @@ pub struct TaskExecutionResult {
 }
 
 /// Represents a task execution backend.
-pub trait TaskExecutionBackend: Send + Sync {
+pub(crate) trait TaskExecutionBackend: Send + Sync {
     /// Gets the maximum concurrent tasks supported by the backend.
     fn max_concurrency(&self) -> u64;
 

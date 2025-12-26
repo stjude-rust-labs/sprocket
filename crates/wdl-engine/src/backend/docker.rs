@@ -37,19 +37,19 @@ use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::COMMAND_FILE_NAME;
+use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::Value;
-use crate::WORK_DIR_NAME;
+use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
+use crate::backend::STDERR_FILE_NAME;
+use crate::backend::STDOUT_FILE_NAME;
+use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::path::EvaluationPath;
 use crate::v1::container;
 use crate::v1::cpu;
 use crate::v1::gpu;
@@ -245,7 +245,7 @@ impl TaskManagerRequest for DockerTaskRequest {
 
         Ok(TaskExecutionResult {
             exit_code: status.code().expect("should have exit code"),
-            work_dir: EvaluationPath::Local(work_dir),
+            work_dir: EvaluationPath::from_local_path(work_dir),
             stdout: PrimitiveValue::new_file(
                 stdout_path
                     .into_os_string()

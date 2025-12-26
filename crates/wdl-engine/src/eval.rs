@@ -1,18 +1,15 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
-use std::fmt;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
-use anyhow::Context;
 use anyhow::Result;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
-use num_enum::IntoPrimitive;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -23,17 +20,16 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 
+use crate::EvaluationPath;
+use crate::GuestPath;
+use crate::HostPath;
 use crate::Outputs;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
-use crate::cache::Hashable;
 use crate::config::FailureMode;
-use crate::http::Location;
 use crate::http::Transferer;
-use crate::path;
-use crate::path::EvaluationPath;
 
-pub mod trie;
+mod trie;
 pub mod v1;
 
 /// A name used whenever a file system "root" is mapped.
@@ -435,127 +431,8 @@ impl From<anyhow::Error> for EvaluationError {
 /// Represents a result from evaluating a workflow or task.
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
 
-/// Represents a path to a file or directory on the host file system or a URL to
-/// a remote file.
-///
-/// The host in this context is where the WDL evaluation is taking place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct HostPath(pub(crate) Arc<String>);
-
-impl HostPath {
-    /// Constructs a new host path from a string.
-    pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
-    }
-
-    /// Gets the string representation of the host path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Shell-expands the path.
-    ///
-    /// The path is also joined with the provided base directory.
-    pub fn expand(&self, base_dir: &EvaluationPath) -> Result<Self> {
-        // Shell-expand both paths and URLs
-        let shell_expanded = shellexpand::full(self.as_str()).with_context(|| {
-            format!("failed to shell-expand path `{path}`", path = self.as_str())
-        })?;
-
-        // But don't join URLs
-        if path::is_supported_url(&shell_expanded) {
-            Ok(Self::new(shell_expanded))
-        } else {
-            // `join()` handles both relative and absolute paths
-            Ok(Self::new(
-                base_dir.join(&shell_expanded)?.display().to_string(),
-            ))
-        }
-    }
-
-    /// Determines if the host path is relative.
-    pub fn is_relative(&self) -> bool {
-        !path::is_supported_url(&self.0) && Path::new(self.0.as_str()).is_relative()
-    }
-}
-
-impl fmt::Display for HostPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<Arc<String>> for HostPath {
-    fn from(path: Arc<String>) -> Self {
-        Self(path)
-    }
-}
-
-impl From<HostPath> for Arc<String> {
-    fn from(path: HostPath) -> Self {
-        path.0
-    }
-}
-
-impl From<String> for HostPath {
-    fn from(s: String) -> Self {
-        Arc::new(s).into()
-    }
-}
-
-impl<'a> From<&'a str> for HostPath {
-    fn from(s: &'a str) -> Self {
-        s.to_string().into()
-    }
-}
-
-impl From<url::Url> for HostPath {
-    fn from(url: url::Url) -> Self {
-        url.as_str().into()
-    }
-}
-
-/// Represents a path to a file or directory on the guest.
-///
-/// The guest in this context is the container where tasks are run.
-///
-/// For backends that do not use containers, a guest path is the same as a host
-/// path.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct GuestPath(pub(crate) Arc<String>);
-
-impl GuestPath {
-    /// Constructs a new guest path from a string.
-    pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
-    }
-
-    /// Gets the string representation of the guest path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for GuestPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<Arc<String>> for GuestPath {
-    fn from(path: Arc<String>) -> Self {
-        Self(path)
-    }
-}
-
-impl From<GuestPath> for Arc<String> {
-    fn from(path: GuestPath) -> Self {
-        path.0
-    }
-}
-
 /// Represents context to an expression evaluator.
-pub trait EvaluationContext: Send + Sync {
+pub(crate) trait EvaluationContext: Send + Sync {
     /// Gets the supported version of the document being evaluated.
     fn version(&self) -> SupportedVersion;
 
@@ -635,7 +512,7 @@ pub trait EvaluationContext: Send + Sync {
 
 /// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ScopeIndex(usize);
+struct ScopeIndex(usize);
 
 impl ScopeIndex {
     /// Constructs a new scope index from a raw index.
@@ -658,7 +535,7 @@ impl From<ScopeIndex> for usize {
 
 /// Represents an evaluation scope in a WDL document.
 #[derive(Default, Debug)]
-pub struct Scope {
+struct Scope {
     /// The index of the parent scope.
     ///
     /// This is `None` for the root scopes.
@@ -710,9 +587,15 @@ impl From<Scope> for IndexMap<String, Value> {
     }
 }
 
+impl From<Scope> for Outputs {
+    fn from(scope: Scope) -> Self {
+        scope.names.into()
+    }
+}
+
 /// Represents a reference to a scope.
 #[derive(Debug, Clone, Copy)]
-pub struct ScopeRef<'a> {
+struct ScopeRef<'a> {
     /// The reference to the scopes collection.
     scopes: &'a [Scope],
     /// The index of the scope in the collection.
@@ -736,32 +619,6 @@ impl<'a> ScopeRef<'a> {
             scopes: self.scopes,
             index: p,
         })
-    }
-
-    /// Gets all of the name and values available at this scope.
-    pub fn names(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
-        self.scopes[self.index.0]
-            .names
-            .iter()
-            .map(|(n, name)| (n.as_str(), name))
-    }
-
-    /// Iterates over each name and value visible to the scope and calls the
-    /// provided callback.
-    ///
-    /// Stops iterating and returns an error if the callback returns an error.
-    pub fn for_each(&self, mut cb: impl FnMut(&str, &Value) -> Result<()>) -> Result<()> {
-        let mut current = Some(self.index);
-
-        while let Some(index) = current {
-            for (n, v) in self.scopes[index.0].local() {
-                cb(n, v)?;
-            }
-
-            current = self.scopes[index.0].parent;
-        }
-
-        Ok(())
     }
 
     /// Gets the value of a name local to this scope.
@@ -862,97 +719,6 @@ impl EvaluatedTask {
             Some(e) => Err(e),
             None => Ok(self.outputs),
         }
-    }
-}
-
-/// Gets the kind of content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
-#[repr(u8)]
-pub enum ContentKind {
-    /// The content is a single file.
-    File,
-    /// The content is a directory.
-    Directory,
-}
-
-impl Hashable for ContentKind {
-    fn hash(&self, hasher: &mut blake3::Hasher) {
-        hasher.update(&[(*self).into()]);
-    }
-}
-
-impl From<ContentKind> for crankshaft::engine::task::input::Type {
-    fn from(value: ContentKind) -> Self {
-        match value {
-            ContentKind::File => Self::File,
-            ContentKind::Directory => Self::Directory,
-        }
-    }
-}
-
-/// Represents a `File` or `Directory` input to a task.
-#[derive(Debug, Clone)]
-pub struct Input {
-    /// The content kind of the input.
-    kind: ContentKind,
-    /// The path for the input.
-    path: EvaluationPath,
-    /// The guest path for the input.
-    ///
-    /// This is `None` when the backend isn't mapping input paths.
-    guest_path: Option<GuestPath>,
-    /// The download location for the input.
-    ///
-    /// This is `Some` if the input has been downloaded to a known location.
-    location: Option<Location>,
-}
-
-impl Input {
-    /// Creates a new input with the given path and guest path.
-    pub(crate) fn new(
-        kind: ContentKind,
-        path: EvaluationPath,
-        guest_path: Option<GuestPath>,
-    ) -> Self {
-        Self {
-            kind,
-            path,
-            guest_path,
-            location: None,
-        }
-    }
-
-    /// Gets the content kind of the input.
-    pub fn kind(&self) -> ContentKind {
-        self.kind
-    }
-
-    /// Gets the path to the input.
-    ///
-    /// The path of the input may be local or remote.
-    pub fn path(&self) -> &EvaluationPath {
-        &self.path
-    }
-
-    /// Gets the guest path for the input.
-    ///
-    /// This is `None` for inputs to backends that don't use containers.
-    pub fn guest_path(&self) -> Option<&GuestPath> {
-        self.guest_path.as_ref()
-    }
-
-    /// Gets the local path of the input.
-    ///
-    /// Returns `None` if the input is remote and has not been localized.
-    pub fn local_path(&self) -> Option<&Path> {
-        self.location.as_deref().or_else(|| self.path.as_local())
-    }
-
-    /// Sets the location of the input.
-    ///
-    /// This is used during localization to set a local path for remote inputs.
-    pub fn set_location(&mut self, location: Location) {
-        self.location = Some(location);
     }
 }
 
