@@ -444,9 +444,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
             info!("evaluating entrypoint: `{entrypoint_name}`");
             for (test_name, mut test_results, test_root) in results {
                 info!("evaluating test: `{test_name}`");
-                let mut success_counter = 0;
-                let mut fail_counter = 0;
-                let mut err_counter = 0;
+                let mut success_counter = 0usize;
+                let mut fail_counter = 0usize;
+                let mut err_counter = 0usize;
 
                 while let Some(result) = test_results.join_next().await {
                     let test_iteration = result.with_context(|| "joining futures")?;
@@ -475,19 +475,27 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     }
                 }
                 if err_counter > 0 {
+                    let total = err_counter + fail_counter + success_counter;
                     println!(
-                        "☠️ `{test_name}` had errors: {err_counter} errors out of {total} \
-                         executions",
-                        total = err_counter + fail_counter + success_counter
+                        "☠️ `{test_name}` had errors: {err_counter} error{err_plural} out of \
+                         {total} execution{total_plural}",
+                        err_plural = if err_counter > 1 { "s" } else { "" },
+                        total_plural = if total > 1 { "s" } else { "" },
                     );
                 } else if fail_counter > 0 {
+                    let total = fail_counter + success_counter;
                     println!(
-                        "❌ `{test_name}` failed: {fail_counter} executions failed assertions \
-                         (out of {total} executions)",
-                        total = fail_counter + success_counter
+                        "❌ `{test_name}` failed: {fail_counter} execution{fail_plural} failed \
+                         assertions (out of {total} execution{total_plural})",
+                        fail_plural = if fail_counter > 1 { "s" } else { "" },
+                        total_plural = if total > 1 { "s" } else { "" },
                     )
                 } else {
-                    println!("✅ `{test_name}` success! ({success_counter} successful executions)");
+                    println!(
+                        "✅ `{test_name}` success! ({success_counter} successful \
+                         execution{plural})",
+                        plural = if success_counter > 1 { "s" } else { "" }
+                    );
                     if !args.do_not_clean {
                         remove_dir_all(&test_root).await.with_context(|| {
                             format!(
