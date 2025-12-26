@@ -123,14 +123,25 @@ impl Visitor for LineWidthRule {
     }
 
     fn whitespace(&mut self, diagnostics: &mut Diagnostics, whitespace: &Whitespace) {
+        let element = whitespace
+            .inner()
+            .prev_sibling_or_token()
+            .unwrap_or(SyntaxElement::from(whitespace.inner().clone()));
+
+        // If the whitespace is within an import statement, ignore the line width rule
+        // Import statements may often be too long due to import paths or URLs
+        if element
+            .ancestors()
+            .any(|n| n.kind() == wdl_ast::SyntaxKind::ImportStatementNode)
+        {
+            return;
+        }
+
         self.detect_line_too_long(
             diagnostics,
             whitespace.text(),
             whitespace.span().start(),
-            whitespace
-                .inner()
-                .prev_sibling_or_token()
-                .unwrap_or(SyntaxElement::from(whitespace.inner().clone())),
+            element,
             &self.exceptable_nodes(),
         );
     }
