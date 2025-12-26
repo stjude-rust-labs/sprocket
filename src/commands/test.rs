@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::fs::read;
+use std::fs::remove_dir;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -73,6 +74,15 @@ pub struct Args {
         num_args = 1,
     )]
     pub filter_tag: Vec<String>,
+    /// Do not clean the file system of successful tests.
+    ///
+    /// The default behavior is to remove directories of successful tests,
+    /// leaving only failed and errored run directories on the file system.
+    #[clap(long)]
+    pub do_not_clean: bool,
+    /// Clean all exectuion directories, even for tests that failed or errored.
+    #[clap(long)]
+    pub clean_all: bool,
     /// The engine configuration to use.
     ///
     /// This is not exposed via [`clap`] and is not settable by users.
@@ -421,7 +431,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                         }
                     });
                 }
-                entrypoint_results.push((test_name, futures));
+                entrypoint_results.push((test_name, futures, run_root));
             }
             document_results.push((entrypoint, entrypoint_results));
         }
@@ -432,7 +442,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
         info!("evaluating document: `{document_name}`");
         for (entrypoint_name, results) in entrypoint_results {
             info!("evaluating entrypoint: `{entrypoint_name}`");
-            for (test_name, mut test_results) in results {
+            for (test_name, mut test_results, test_root) in results {
                 info!("evaluating test: `{test_name}`");
                 let mut success_counter = 0;
                 let mut fail_counter = 0;
@@ -443,6 +453,16 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     match test_iteration.evaluate() {
                         Ok(IterationResult::Success) => {
                             success_counter += 1;
+                            if !args.do_not_clean {
+                                remove_dir_all(&test_iteration.run_dir).await.with_context(
+                                    || {
+                                        format!(
+                                            "removing successful execution run directory: `{}`",
+                                            test_iteration.run_dir.display()
+                                        )
+                                    },
+                                )?;
+                            }
                         }
                         Ok(IterationResult::Fail(e)) => {
                             fail_counter += 1;
@@ -468,9 +488,25 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     )
                 } else {
                     println!("✅ `{test_name}` success! ({success_counter} successful executions)");
+                    if !args.do_not_clean {
+                        remove_dir_all(&test_root).await.with_context(|| {
+                            format!(
+                                "removing successful test directory: `{}`",
+                                test_root.display()
+                            )
+                        })?;
+                    }
                 }
             }
+            // If the entrypoint directory is empty, remove it; otherwise leave it.
+            let _ = remove_dir(test_dir.join(DEFAULT_RUNS_DIR).join(&*entrypoint_name));
         }
+    }
+
+    if args.clean_all {
+        remove_dir_all(test_dir.join(DEFAULT_RUNS_DIR))
+            .await
+            .with_context(|| "cleaning the file system of all test exections")?;
     }
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
