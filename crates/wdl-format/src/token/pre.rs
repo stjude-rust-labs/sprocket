@@ -11,6 +11,30 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
 
+/// Normalize single-line `#@ except:` directives
+fn normalize_except_directive(text: &str) -> String {
+    let Some(remainder) = text.trim_start().strip_prefix("#@") else {
+        return text.to_owned();
+    };
+
+    let Some(rules_text) = remainder.trim_start().strip_prefix("except:") else {
+        return text.to_owned();
+    };
+
+    // Split by comma, trim each rule, and collect
+    let mut rules: Vec<String> = rules_text
+        .split(',')
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    // Sort rules alphabetically, case-insensitive
+    rules.sort_by_key(|a| a.to_ascii_lowercase());
+
+    // Rebuild the comment
+    format!("#@ except: {}", rules.join(", "))
+}
+
 /// A token that can be written by elements.
 ///
 /// These are tokens that are intended to be written directly by elements to a
@@ -174,9 +198,9 @@ impl TokenStream<PreToken> {
                     }
                 }
                 SyntaxKind::Comment => {
-                    let comment = PreToken::Trivia(Trivia::Comment(Comment::Preceding(Rc::new(
-                        token.text().trim_end().to_owned(),
-                    ))));
+                    let normalized = normalize_except_directive(token.text().trim_end());
+                    let comment =
+                        PreToken::Trivia(Trivia::Comment(Comment::Preceding(Rc::new(normalized))));
                     self.0.push(comment);
                 }
                 _ => unreachable!("unexpected trivia: {:?}", token),
