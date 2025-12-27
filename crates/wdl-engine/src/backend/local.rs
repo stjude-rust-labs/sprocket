@@ -25,6 +25,8 @@ use tokio::sync::oneshot::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
+use wdl_ast::Diagnostic;
+use wdl_ast::v1::TaskDefinition;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -47,8 +49,11 @@ use crate::config::LocalBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
 use crate::path::EvaluationPath;
+use crate::tree::SyntaxNode;
 use crate::v1::cpu;
+use crate::v1::cpu_from_values;
 use crate::v1::memory;
+use crate::v1::memory_from_values;
 
 /// Represents a local task request.
 ///
@@ -294,11 +299,13 @@ impl TaskExecutionBackend for LocalBackend {
 
     fn constraints(
         &self,
+        task: &TaskDefinition<SyntaxNode>,
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
-    ) -> Result<TaskExecutionConstraints> {
-        let mut cpu = cpu(requirements);
-        if (self.cpu as f64) < cpu {
+    ) -> Result<TaskExecutionConstraints, Diagnostic> {
+        let mut required_cpu = cpu(task, requirements);
+        if (self.cpu as f64) < required_cpu.value {
+            let span = required_cpu.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -311,22 +318,27 @@ impl TaskExecutionBackend for LocalBackend {
                 TaskResourceLimitBehavior::TryWithMax => {
                     warn!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        s = if cpu == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
                     // clamp the reported constraint to what's available
-                    cpu = self.cpu as f64;
+                    required_cpu.value = self.cpu as f64;
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {cpu} CPU{s}{env_specific}",
-                        s = if cpu == 1.0 { "" } else { "s" },
+                        cpu = required_cpu.value,
+                        s = if required_cpu.value == 1.0 { "" } else { "s" },
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available CPUs", span));
                 }
             }
         }
 
-        let mut memory = memory(requirements)?;
-        if self.memory < memory as u64 {
+        let mut required_memory = memory(task, requirements)?;
+        if self.memory < required_memory.value as u64 {
+            let span = required_memory.span;
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -340,25 +352,27 @@ impl TaskExecutionBackend for LocalBackend {
                     warn!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
-                    memory = self.memory.try_into().unwrap_or(i64::MAX);
+                    required_memory.value = self.memory.try_into().unwrap_or(i64::MAX);
                 }
                 TaskResourceLimitBehavior::Deny => {
-                    bail!(
+                    let msg = format!(
                         "task requires at least {memory} GiB of memory{env_specific}",
                         // Display the error in GiB, as it is the most common unit for memory
-                        memory = memory as f64 / ONE_GIBIBYTE,
+                        memory = required_memory.value as f64 / ONE_GIBIBYTE,
                     );
+                    return Err(Diagnostic::error(msg)
+                        .with_label("this requirement exceeds the available memory", span));
                 }
             }
         }
 
         Ok(TaskExecutionConstraints {
             container: None,
-            cpu,
-            memory,
+            cpu: required_cpu.value,
+            memory: required_memory.value,
             gpu: Default::default(),
             fpga: Default::default(),
             disks: Default::default(),
@@ -382,11 +396,11 @@ impl TaskExecutionBackend for LocalBackend {
         let (completed_tx, completed_rx) = oneshot::channel();
 
         let requirements = request.requirements();
-        let mut cpu = cpu(requirements);
+        let mut cpu = cpu_from_values(requirements);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             cpu = std::cmp::min(cpu.ceil() as u64, self.cpu) as f64;
         }
-        let mut memory = memory(requirements)? as u64;
+        let mut memory = memory_from_values(requirements)? as u64;
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.memory);
         }
