@@ -12,7 +12,7 @@ use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::config::Config;
-use wdl::engine::v1::TopLevelEvaluator;
+use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 use crate::inputs::OriginPaths;
 
@@ -59,12 +59,12 @@ impl<'a> Evaluator<'a> {
 
     /// Runs a WDL task or workflow evaluation.
     pub async fn run(
-        mut self,
+        self,
         cancellation: CancellationContext,
         events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
-            Inputs::Task(ref mut inputs) => {
+            Inputs::Task(mut inputs) => {
                 let task = self.document.task_by_name(self.name).ok_or_else(|| {
                     anyhow!(
                         "document does not contain a task named `{name}`",
@@ -83,8 +83,7 @@ impl<'a> Evaluator<'a> {
                     .await?;
 
                 let evaluator =
-                    TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
-                        .await?;
+                    WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
                 evaluator
                     .evaluate_task(self.document, task, inputs, self.output_dir)
                     .await
@@ -114,8 +113,7 @@ impl<'a> Evaluator<'a> {
                     .await?;
 
                 let evaluator =
-                    TopLevelEvaluator::new(self.output_dir, self.config, cancellation, events)
-                        .await?;
+                    WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
                 evaluator
                     .evaluate_workflow(self.document, inputs, self.output_dir)
                     .await

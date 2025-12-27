@@ -19,7 +19,7 @@ mod results;
 mod source;
 
 pub use results::AnalysisResults;
-pub use source::Source;
+pub use source::*;
 use wdl::lint::Rule;
 use wdl::lint::TagSet;
 

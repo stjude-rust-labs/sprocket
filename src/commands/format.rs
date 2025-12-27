@@ -211,7 +211,7 @@ pub async fn format(args: Args) -> CommandResult<()> {
         FormatSubcommand::View(s) => {
             let source = s.source;
             match &source {
-                Source::File(_) | Source::Remote(_) => {}
+                Source::File(_) => {}
                 Source::Directory(p) => {
                     return Err(anyhow!(
                         "the `format view` command does not support formatting directory `{path}`",

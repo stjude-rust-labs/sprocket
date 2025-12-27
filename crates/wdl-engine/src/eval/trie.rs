@@ -13,10 +13,11 @@ use anyhow::bail;
 use url::Url;
 
 use crate::ContentKind;
+use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::GuestPath;
-use crate::Input;
+use crate::backend::Input;
 use crate::eval::ROOT_NAME;
-use crate::path::EvaluationPath;
 
 /// Represents a node in an input trie.
 #[derive(Debug)]
@@ -120,9 +121,8 @@ impl InputTrie {
         path: &str,
         base_dir: &EvaluationPath,
     ) -> Result<Option<usize>> {
-        let path = base_dir.join(path)?;
-        match path {
-            EvaluationPath::Local(path) => {
+        match base_dir.join(path)?.into_kind() {
+            EvaluationPathKind::Local(path) => {
                 // Check to see if the path being inserted is already a guest path
                 if let Some(dir) = self.guest_inputs_dir
                     && path.starts_with(dir)
@@ -132,7 +132,7 @@ impl InputTrie {
 
                 self.insert_path(kind, path).map(Some)
             }
-            EvaluationPath::Remote(url) => Ok(Some(self.insert_url(kind, url))),
+            EvaluationPathKind::Remote(url) => self.insert_url(kind, url).map(Some),
         }
     }
 
@@ -213,14 +213,17 @@ impl InputTrie {
         });
 
         let index = self.inputs.len();
-        self.inputs
-            .push(Input::new(kind, EvaluationPath::Local(path), guest_path));
+        self.inputs.push(Input::new(
+            kind,
+            EvaluationPath::from_local_path(path),
+            guest_path,
+        ));
         node.index = Some(index);
         Ok(index)
     }
 
     /// Inserts an input with a URL into the trie.
-    fn insert_url(&mut self, kind: ContentKind, url: Url) -> usize {
+    fn insert_url(&mut self, kind: ContentKind, url: Url) -> Result<usize> {
         // Insert for scheme
         let mut node = self
             .urls
@@ -261,7 +264,7 @@ impl InputTrie {
 
         // Check to see if the input already exists in the trie
         if let Some(index) = node.index {
-            return index;
+            return Ok(index);
         }
 
         let guest_path = self.guest_inputs_dir.as_ref().map(|d| {
@@ -273,9 +276,9 @@ impl InputTrie {
 
         let index = self.inputs.len();
         self.inputs
-            .push(Input::new(kind, EvaluationPath::Remote(url), guest_path));
+            .push(Input::new(kind, EvaluationPath::try_from(url)?, guest_path));
         node.index = Some(index);
-        index
+        Ok(index)
     }
 }
 

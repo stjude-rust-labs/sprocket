@@ -2,6 +2,7 @@
 
 use std::sync::LazyLock;
 
+use num_enum::IntoPrimitive;
 use sysinfo::CpuRefreshKind;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::System;
@@ -17,24 +18,26 @@ use wdl_ast::TreeNode;
 mod backend;
 mod cache;
 pub mod config;
-pub mod diagnostics;
+mod diagnostics;
 mod digest;
 mod eval;
-pub(crate) mod http;
+mod http;
 mod inputs;
 mod outputs;
-pub mod path;
+mod path;
 mod stdlib;
-pub(crate) mod tree;
+mod tree;
 mod units;
 mod value;
 
-pub use backend::*;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;
-pub use units::*;
+pub use path::*;
+use units::*;
 pub use value::*;
+
+use crate::cache::Hashable;
 
 /// One gibibyte (GiB) as a float.
 ///
@@ -81,3 +84,28 @@ static SYSTEM: LazyLock<System> = LazyLock::new(|| {
     system.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
     system
 });
+
+/// Represents either file or directory content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
+#[repr(u8)]
+enum ContentKind {
+    /// The content is a single file.
+    File,
+    /// The content is a directory.
+    Directory,
+}
+
+impl Hashable for ContentKind {
+    fn hash(&self, hasher: &mut blake3::Hasher) {
+        hasher.update(&[(*self).into()]);
+    }
+}
+
+impl From<ContentKind> for crankshaft::engine::task::input::Type {
+    fn from(value: ContentKind) -> Self {
+        match value {
+            ContentKind::File => Self::File,
+            ContentKind::Directory => Self::Directory,
+        }
+    }
+}

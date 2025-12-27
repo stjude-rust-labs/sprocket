@@ -1,87 +1,43 @@
 //! Input files parsed in from the command line.
 
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::fmt;
 use std::path::absolute;
 
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use serde_json::Value as JsonValue;
 use serde_yaml_ng::Value as YamlValue;
-use thiserror::Error;
+use wdl::engine::EvaluationPath;
 use wdl::engine::JsonMap;
-use wdl::engine::path::EvaluationPath;
 
 use super::JsonInputMap;
 use crate::inputs::LocatedJsonValue;
 
-/// An error related to a input file.
-#[derive(Error, Debug)]
-pub enum Error {
-    /// An input file specified by local path was not found.
-    #[error("input file `{0}` was not found")]
-    NotFound(PathBuf),
-
-    /// An error occurred parsing an input file path.
-    #[error("input file path `{path}` is invalid: {error:#}")]
-    Path {
-        /// The path to the inputs file.
-        path: String,
-        /// The error parsing the path.
-        error: anyhow::Error,
-    },
-
-    /// An error occurring in [`serde_json`].
-    #[error(transparent)]
-    Json(#[from] serde_json::Error),
-
-    /// An input file cannot be read from a directory.
-    #[error("an input file cannot be read from directory `{0}`")]
-    InvalidDir(PathBuf),
-
-    /// The input file did not contain a map at the root.
-    #[error("input file `{path}` did not contain a map from strings to values at the root", path = .0.display())]
-    NonMapRoot(EvaluationPath),
-
-    /// Failed to read the contents of an input file due to I/O error.
-    #[error("failed to read input file `{path}`: {error:#}", path = .path.display())]
-    Io {
-        /// The path to the inputs file.
-        path: EvaluationPath,
-        /// The I/O error that occurred.
-        error: std::io::Error,
-    },
-
-    /// Failed to read the contents of an input file due to reqwest error.
-    #[error("failed to read input file `{path}`: {error:#}", path = .path.display())]
-    Reqwest {
-        /// The path to the inputs file.
-        path: EvaluationPath,
-        /// The reqwest error that occurred.
-        error: reqwest::Error,
-    },
-
-    /// Neither JSON nor YAML could be parsed from the provided path.
-    #[error(
-        "unsupported input file `{path}`: the supported formats are JSON (`.json`) or YAML (`.yaml` and `.yml`)", path = .0.display()
-    )]
-    UnsupportedFileExt(EvaluationPath),
-
-    /// An error occurring in [`serde_yaml_ng`].
-    #[error(transparent)]
-    Yaml(#[from] serde_yaml_ng::Error),
+/// Helper for formatting an unsupported file format error.
+fn unsupported_file_extension(path: impl fmt::Display) -> anyhow::Error {
+    anyhow!(
+        "unsupported input file `{path}`: the supported formats are JSON (`.json`) or YAML \
+         (`.yaml` and `.yml`)"
+    )
 }
 
-/// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
-pub type Result<T> = std::result::Result<T, Error>;
+/// Supported inputs file formats
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Format {
+    /// The inputs file is a JSON file
+    Json,
+    /// The inputs file is a YAML file
+    Yaml,
+}
 
 /// Read an input file into an input map.
 ///
 /// The file is attempted to be parsed based on its extension.
 ///
-/// - If the input file is successfully parsed, it's returned wrapped in [`Ok`].
-/// - If a deserialization error is encountered while parsing the JSON/YAML
-///   file, an [`Error::Json`]/[`Error::Yaml`] is returned respectively.
-/// - If no recognized extension is found, an [`Error::UnsupportedFileExt`] is
-///   returned.
+/// The supported file formats are JSON and YAML.
 pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
     fn json_map_to_inputs(map: JsonMap, origin: &EvaluationPath) -> JsonInputMap {
         let mut inputs = JsonInputMap::new();
@@ -99,118 +55,105 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
         inputs
     }
 
-    if let Some(path) = path.as_local()
-        && path.is_dir()
-    {
-        return Err(Error::InvalidDir(path.to_path_buf()));
-    }
-
-    /// Supported inputs file formats
-    enum Format {
-        /// The inputs file is a JSON file
-        Json,
-        /// The inputs file is a YAML file
-        Yaml,
-    }
-
-    let (content, origin, format) = match path {
-        EvaluationPath::Local(local) => {
-            let format = match local.extension().and_then(OsStr::to_str) {
-                Some("json") => Format::Json,
-                Some("yml") | Some("yaml") => Format::Yaml,
-                _ => return Err(Error::UnsupportedFileExt(path.clone())),
-            };
-
-            let absolute = absolute(local).map_err(|e| Error::Io {
-                path: path.clone(),
-                error: e,
-            })?;
-            let origin = if let Some(parent) = absolute.parent() {
-                parent.to_path_buf()
-            } else {
-                absolute
-            };
-
-            // Read the contents from the local file
-            let contents = tokio::fs::read_to_string(local)
-                .await
-                .map_err(|e| Error::Io {
-                    path: path.clone(),
-                    error: e,
-                })?;
-
-            (contents, EvaluationPath::Local(origin), format)
-        }
-        EvaluationPath::Remote(url) => {
-            let map_err = |e| Error::Reqwest {
-                path: path.clone(),
-                error: e,
-            };
-
-            let format = if url.path().ends_with(".json") {
-                Format::Json
-            } else if url.path().ends_with(".yml") || url.path().ends_with(".yaml") {
-                Format::Yaml
-            } else {
-                return Err(Error::UnsupportedFileExt(path.clone()));
-            };
-
-            let mut origin = url.clone();
-            origin
-                // a parsed evaluation path always has a base, so `path_segments_mut`
-                // will never return an error
-                .path_segments_mut()
-                .unwrap()
-                // pop off a trailing `/`, if it exists
-                .pop_if_empty()
-                // pop the "file name" to get to the parent
-                .pop()
-                // push an empty segment on the end so any subsequent `join()` will treat the
-                // URL as a "directory"
-                .push("");
-
-            // Read the contents from the URL
-            let contents = reqwest::get(url.clone())
-                .await
-                .map_err(map_err)?
-                .error_for_status()
-                .map_err(map_err)?
-                .text()
-                .await
-                .map_err(map_err)?;
-
-            (contents, EvaluationPath::Remote(origin), format)
-        }
-    };
-
-    match format {
-        Format::Json => serde_json::from_str::<JsonValue>(&content)
-            .map_err(Error::from)
-            .and_then(|value| match value {
+    fn parse(
+        format: Format,
+        contents: &str,
+        path: impl fmt::Display,
+        origin: EvaluationPath,
+    ) -> Result<JsonInputMap> {
+        match format {
+            Format::Json => match serde_json::from_str::<JsonValue>(contents)
+                .with_context(|| "failed to deserialize JSON inputs file `{path}`")?
+            {
                 JsonValue::Object(object) => Ok(json_map_to_inputs(object, &origin)),
-                _ => Err(Error::NonMapRoot(path.clone())),
-            }),
-        Format::Yaml => serde_yaml_ng::from_str::<YamlValue>(&content)
-            .map_err(Error::from)
-            .and_then(|value| match &value {
-                YamlValue::Mapping(_) => {
-                    // SAFETY: a YAML mapping should always be able to be
-                    // transformed to a JSON value.
-                    let value = serde_json::to_value(value).unwrap();
+                _ => bail!(
+                    "input file `{path}` did not contain a map from strings to values at the root"
+                ),
+            },
+            Format::Yaml => {
+                if let YamlValue::Mapping(mapping) = serde_yaml_ng::from_str::<YamlValue>(contents)
+                    .with_context(|| "failed to deserialize YAML inputs file `{path}`")?
+                {
+                    let value = serde_json::to_value(mapping)
+                        .with_context(|| "invalid YAML input file `{path}`")?;
+
                     if let JsonValue::Object(map) = value {
                         return Ok(json_map_to_inputs(map, &origin));
                     }
-
-                    // SAFETY: a serde map will always be translated to a
-                    // [`YamlValue::Mapping`] and a [`JsonValue::Object`],
-                    // so the above `if` statement should always evaluate to
-                    // `true`.
-                    unreachable!(
-                        "a YAML mapping must always coerce to a JSON object, found `{value}`"
-                    )
                 }
-                _ => Err(Error::NonMapRoot(path.clone())),
-            }),
+
+                bail!(
+                    "input file `{path}` did not contain a map from strings to values at the root"
+                );
+            }
+        }
+    }
+
+    if path.is_local() {
+        let path = path.as_local().expect("path should be local");
+        if path.is_dir() {
+            bail!(
+                "an inputs file cannot be read from directory `{path}`",
+                path = path.display()
+            );
+        }
+
+        let format = match path.extension().and_then(OsStr::to_str) {
+            Some("json") => Format::Json,
+            Some("yml") | Some("yaml") => Format::Yaml,
+            _ => return Err(unsupported_file_extension(path.display())),
+        };
+
+        // Get the absolute path for the origin
+        let absolute_path = absolute(path).with_context(|| {
+            format!(
+                "cannot make origin path `{path}` absolute",
+                path = path.display()
+            )
+        })?;
+
+        let origin = absolute_path.parent().unwrap_or(&absolute_path);
+
+        // Read the contents from the local file
+        let contents = tokio::fs::read_to_string(&path).await.with_context(|| {
+            format!("failed to read inputs file `{path}`", path = path.display())
+        })?;
+
+        parse(format, &contents, path.display(), origin.into())
+    } else {
+        let url = path.as_remote().expect("path should be remote");
+        let format = if url.path().ends_with(".json") {
+            Format::Json
+        } else if url.path().ends_with(".yml") || url.path().ends_with(".yaml") {
+            Format::Yaml
+        } else {
+            return Err(unsupported_file_extension(url));
+        };
+
+        let mut origin = url.clone();
+        origin
+            .path_segments_mut()
+            // the URL always has a base, so we can unwrap `path_segments_mut`
+            .unwrap()
+            // pop off a trailing `/`, if it exists
+            .pop_if_empty()
+            // pop the "file name" to get to the parent
+            .pop()
+            // push an empty segment on the end so any subsequent `join()` will treat the
+            // URL as a "directory"
+            .push("");
+
+        // Read the contents from the URL
+        let contents = reqwest::get(url.clone())
+            .await
+            .context("failed to read inputs file")?
+            .error_for_status()
+            .context("failed to read inputs file")?
+            .text()
+            .await
+            .with_context(|| format!("failed to read inputs file `{url}`"))?;
+
+        parse(format, &contents, url, origin.try_into()?)
     }
 }
 
@@ -317,12 +260,12 @@ mod tests {
 
     #[tokio::test]
     async fn read_remote_missing() {
-        let err = read_input_file(&"https://example.com/not-a-file.json".parse().unwrap())
+        let err = read_input_file(&"https://google.com/404.json".parse().unwrap())
             .await
             .unwrap_err();
         assert_eq!(
-            err.to_string().replace("\\", "/"),
-            "failed to read input file `https://example.com/not-a-file.json`: HTTP status client error (404 Not Found) for url (https://example.com/not-a-file.json)"
+            format!("{err:#}"),
+            "failed to read inputs file: HTTP status client error (404 Not Found) for url (https://google.com/404.json)"
         );
     }
 }

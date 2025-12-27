@@ -41,6 +41,8 @@ use super::TaskExecutionResult;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
+use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -56,7 +58,6 @@ use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
-use crate::path::EvaluationPath;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -200,8 +201,8 @@ impl TaskManagerRequest for TesTaskRequest {
         // the URLs for remote inputs.
         let mut uploads = JoinSet::new();
         for (i, input) in self.inner.inputs().iter().enumerate() {
-            match input.path() {
-                EvaluationPath::Local(path) => {
+            match input.path().kind() {
+                EvaluationPathKind::Local(path) => {
                     // Input is local, spawn an upload of it
                     let kind = input.kind();
                     let path = path.to_path_buf();
@@ -231,7 +232,7 @@ impl TaskManagerRequest for TesTaskRequest {
                             .map(|_| (i, url))
                     });
                 }
-                EvaluationPath::Remote(url) => {
+                EvaluationPathKind::Remote(url) => {
                     // Input is already remote, add it to the Crankshaft inputs list
                     inputs.push(
                         Input::builder()
@@ -365,7 +366,7 @@ impl TaskManagerRequest for TesTaskRequest {
 
             return Ok(TaskExecutionResult {
                 exit_code: status.code().expect("should have exit code"),
-                work_dir: EvaluationPath::Remote(work_dir_url),
+                work_dir: EvaluationPath::try_from(work_dir_url)?,
                 stdout: PrimitiveValue::new_file(stdout_url).into(),
                 stderr: PrimitiveValue::new_file(stderr_url).into(),
             });

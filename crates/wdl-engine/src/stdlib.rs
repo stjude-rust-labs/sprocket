@@ -1,15 +1,14 @@
 //! Module for the WDL standard library implementation.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::future::BoxFuture;
-use path_clean::PathClean;
 use tempfile::TempPath;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
@@ -18,14 +17,13 @@ use wdl_ast::Span;
 
 use crate::Coercible;
 use crate::EvaluationContext;
+use crate::EvaluationPath;
 use crate::HostPath;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::http::Location;
 use crate::http::Transferer;
-use crate::path;
-use crate::path::EvaluationPath;
 
 mod as_map;
 mod as_pairs;
@@ -83,51 +81,40 @@ mod write_objects;
 mod write_tsv;
 mod zip;
 
-/// Ensures that the given path is a local path.
-fn ensure_local_path<'a>(base_dir: &EvaluationPath, path: &'a str) -> Result<Cow<'a, Path>> {
-    // If the path is a URL that isn't `file` schemed, bail out
-    if !path::is_file_url(path) && path::is_supported_url(path) {
-        bail!("operation not supported for URL `{path}`");
-    }
-
-    // If the path is absolute, return it
-    if Path::new(path).is_absolute() {
-        return Ok(Path::new(path).into());
-    }
-
-    match base_dir.join(path)? {
-        EvaluationPath::Local(path) => Ok(path.into()),
-        EvaluationPath::Remote(url) => {
-            bail!("operation not supported for URL `{url}`")
+/// Ensures that the given path, when joined with the given base directory, is a
+/// local path.
+fn ensure_local_path(base_dir: &EvaluationPath, path: &str) -> Result<PathBuf> {
+    let joined = base_dir.join(path)?;
+    if joined.is_local() {
+        Ok(joined.unwrap_local())
+    } else {
+        let url = joined.unwrap_remote();
+        if url.scheme() != "file" {
+            bail!("operation not supported for URL `{path}`");
         }
+
+        url.to_file_path()
+            .map_err(|_| anyhow!("URL `{path}` cannot be represented as a local file path"))
     }
 }
 
-/// Helper for downloading files in stdlib functions.
+/// Downloads the given path joined with the given base directory.
+///
+/// If the path is already local, its location is returned.
 pub(crate) async fn download_file(
     transferer: &dyn Transferer,
     base_dir: &EvaluationPath,
     path: &HostPath,
 ) -> Result<Location> {
-    // If the path is a URL, download it
-    if let Some(url) = path::parse_supported_url(path.as_str()) {
-        return transferer
+    let joined = base_dir.join(path.as_str())?;
+    if joined.is_local() {
+        Ok(Location::Path(joined.unwrap_local()))
+    } else {
+        let url = joined.unwrap_remote();
+        transferer
             .download(&url)
             .await
-            .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"));
-    }
-
-    let p = Path::new(path.as_str());
-    if p.is_absolute() {
-        return Ok(Location::Path(p.clean()));
-    }
-
-    match base_dir.join(path.as_str())? {
-        EvaluationPath::Local(path) => Ok(Location::Path(path)),
-        EvaluationPath::Remote(url) => transferer
-            .download(&url)
-            .await
-            .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}")),
+            .map_err(|e| anyhow!("failed to download file `{path}`: {e:?}"))
     }
 }
 

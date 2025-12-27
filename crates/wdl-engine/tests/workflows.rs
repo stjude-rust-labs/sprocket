@@ -37,8 +37,7 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::path::EvaluationPath;
-use wdl_engine::v1::TopLevelEvaluator;
+use wdl_engine::v1::Evaluator;
 
 mod common;
 
@@ -99,7 +98,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         };
 
         let test_dir = absolute(test).expect("failed to get absolute directory");
-        let test_dir_path = EvaluationPath::Local(test_dir.clone());
+        let test_dir_path = test_dir.as_path().into();
 
         // Make any paths specified in the inputs file relative to the test directory
         let workflow = result
@@ -116,7 +115,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         } else {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             dir.path(),
             config.engine,
             Default::default(),

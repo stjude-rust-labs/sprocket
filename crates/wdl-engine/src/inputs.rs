@@ -30,8 +30,8 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
 use crate::Coercible;
+use crate::EvaluationPath;
 use crate::Value;
-use crate::path::EvaluationPath;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
@@ -673,17 +673,6 @@ impl Serialize for WorkflowInputs {
     }
 }
 
-/// An input value that has not yet had its paths normalized and been converted
-/// to an engine value.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocatedJsonValue {
-    /// The location where this input was initially read, used for normalizing
-    /// any paths the value may contain.
-    pub origin: EvaluationPath,
-    /// The raw JSON representation of the input value.
-    pub value: JsonValue,
-}
-
 /// Represents inputs to a WDL workflow or task.
 #[derive(Debug, Clone)]
 pub enum Inputs {
@@ -754,7 +743,7 @@ impl Inputs {
                 })?,
         );
 
-        Self::parse_object(document, map)
+        Self::parse_json_object(document, map)
     }
 
     /// Parses a YAML inputs file from the given file path.
@@ -794,7 +783,7 @@ impl Inputs {
             )
         })?);
 
-        Self::parse_object(document, object)
+        Self::parse_json_object(document, object)
     }
 
     /// Gets an input value.
@@ -884,7 +873,10 @@ impl Inputs {
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
     /// Returns `Ok(None)` if the inputs are empty.
-    pub fn parse_object(document: &Document, object: JsonMap) -> Result<Option<(String, Self)>> {
+    pub fn parse_json_object(
+        document: &Document,
+        object: JsonMap,
+    ) -> Result<Option<(String, Self)>> {
         // If the object is empty, treat it as an invocation without any inputs.
         if object.is_empty() {
             return Ok(None);
@@ -948,7 +940,7 @@ impl Inputs {
                 }
                 _ => {
                     // This should be caught by the initial check of the prefixes in
-                    // `parse_object()`, but we retain a friendly error message in case this
+                    // `parse_json_object()`, but we retain a friendly error message in case this
                     // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{task}`",
@@ -981,7 +973,7 @@ impl Inputs {
                 }
                 _ => {
                     // This should be caught by the initial check of the prefixes in
-                    // `parse_object()`, but we retain a friendly error message in case this
+                    // `parse_json_object()`, but we retain a friendly error message in case this
                     // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{workflow}`",

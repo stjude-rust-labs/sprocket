@@ -2031,10 +2031,10 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
             LiteralExpr::Pair(pair) => {
                 let (left, right) = pair.exprs();
                 Some(Type::Compound(
-                    CompoundType::Pair(Arc::new(PairType::new(
+                    CompoundType::Pair(PairType::new(
                         infer_type_from_literal(&left)?,
                         infer_type_from_literal(&right)?,
-                    ))),
+                    )),
                     false,
                 ))
             }
@@ -2049,7 +2049,7 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                     None => (Type::Union, Type::Union),
                 };
                 Some(Type::Compound(
-                    CompoundType::Map(Arc::new(MapType::new(key_type, value_type))),
+                    CompoundType::Map(MapType::new(key_type, value_type)),
                     false,
                 ))
             }

@@ -36,7 +36,6 @@ use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
-use wdl::engine::path::EvaluationPath;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -584,9 +583,12 @@ pub async fn run(args: Args) -> CommandResult<()> {
         inputs
     } else {
         // No inputs were provided
-        let origins = OriginPaths::Single(EvaluationPath::Local(
-            std::env::current_dir().context("failed to get current directory")?,
-        ));
+        let origins = OriginPaths::Single(
+            std::env::current_dir()
+                .context("failed to get current directory")?
+                .as_path()
+                .into(),
+        );
 
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {

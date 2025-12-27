@@ -799,6 +799,18 @@ impl From<PrimitiveType> for FunctionalType {
     }
 }
 
+impl From<ArrayType> for FunctionalType {
+    fn from(value: ArrayType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
+impl From<MapType> for FunctionalType {
+    fn from(value: MapType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
 impl From<GenericType> for FunctionalType {
     fn from(value: GenericType) -> Self {
         Self::Generic(value)
@@ -1664,21 +1676,21 @@ pub struct StandardLibrary {
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
     /// The type for `Array[Int]`.
-    array_int: Type,
+    array_int: ArrayType,
     /// The type for `Array[String]`.
-    array_string: Type,
+    array_string: ArrayType,
     /// The type for `Array[File]`.
-    array_file: Type,
+    array_file: ArrayType,
     /// The type for `Array[Object]`.
-    array_object: Type,
+    array_object: ArrayType,
     /// The type for `Array[String]+`.
-    array_string_non_empty: Type,
+    array_string_non_empty: ArrayType,
     /// The type for `Array[Array[String]]`.
-    array_array_string: Type,
+    array_array_string: ArrayType,
     /// The type for `Map[String, String]`.
-    map_string_string: Type,
+    map_string_string: MapType,
     /// The type for `Map[String, Int]`.
-    map_string_int: Type,
+    map_string_int: MapType,
 }
 
 impl StandardLibrary {
@@ -1693,56 +1705,56 @@ impl StandardLibrary {
     }
 
     /// Gets the type for `Array[Int]`.
-    pub fn array_int_type(&self) -> &Type {
+    pub fn array_int_type(&self) -> &ArrayType {
         &self.array_int
     }
 
     /// Gets the type for `Array[String]`.
-    pub fn array_string_type(&self) -> &Type {
+    pub fn array_string_type(&self) -> &ArrayType {
         &self.array_string
     }
 
     /// Gets the type for `Array[File]`.
-    pub fn array_file_type(&self) -> &Type {
+    pub fn array_file_type(&self) -> &ArrayType {
         &self.array_file
     }
 
     /// Gets the type for `Array[Object]`.
-    pub fn array_object_type(&self) -> &Type {
+    pub fn array_object_type(&self) -> &ArrayType {
         &self.array_object
     }
 
     /// Gets the type for `Array[String]+`.
-    pub fn array_string_non_empty_type(&self) -> &Type {
+    pub fn array_string_non_empty_type(&self) -> &ArrayType {
         &self.array_string_non_empty
     }
 
     /// Gets the type for `Array[Array[String]]`.
-    pub fn array_array_string_type(&self) -> &Type {
+    pub fn array_array_string_type(&self) -> &ArrayType {
         &self.array_array_string
     }
 
     /// Gets the type for `Map[String, String]`.
-    pub fn map_string_string_type(&self) -> &Type {
+    pub fn map_string_string_type(&self) -> &MapType {
         &self.map_string_string
     }
 
     /// Gets the type for `Map[String, Int]`.
-    pub fn map_string_int_type(&self) -> &Type {
+    pub fn map_string_int_type(&self) -> &MapType {
         &self.map_string_int
     }
 }
 
 /// Represents the WDL standard library.
 pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
-    let array_int: Type = ArrayType::new(PrimitiveType::Integer).into();
-    let array_string: Type = ArrayType::new(PrimitiveType::String).into();
-    let array_file: Type = ArrayType::new(PrimitiveType::File).into();
-    let array_object: Type = ArrayType::new(Type::Object).into();
-    let array_string_non_empty: Type = ArrayType::non_empty(PrimitiveType::String).into();
-    let array_array_string: Type = ArrayType::new(array_string.clone()).into();
-    let map_string_string: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
-    let map_string_int: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
+    let array_int = ArrayType::new(PrimitiveType::Integer);
+    let array_string = ArrayType::new(PrimitiveType::String);
+    let array_file = ArrayType::new(PrimitiveType::File);
+    let array_object = ArrayType::new(Type::Object);
+    let array_string_non_empty = ArrayType::non_empty(PrimitiveType::String);
+    let array_array_string = ArrayType::new(array_string.clone());
+    let map_string_string = MapType::new(PrimitiveType::String, PrimitiveType::String);
+    let map_string_int = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
     let mut functions = IndexMap::new();
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor
