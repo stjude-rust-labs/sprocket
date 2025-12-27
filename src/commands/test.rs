@@ -47,7 +47,9 @@ use crate::test::TestDefinition;
 /// Test definitions may appear either sibling to their source WDL, or nested
 /// under this directory.
 const DEFINITIONS_TEST_DIR: &str = "test";
-/// There may be a directory named "test" at the root of each WDL workspace.
+/// Directory which is located at the root of a WDL workspace.
+///
+/// At a minimum, this directory will contain a `runs/` directory where tests are executed.
 const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
@@ -57,7 +59,7 @@ const FIXTURES_DIR: &str = "fixtures";
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
     pub source: Option<Source>,
-    /// Root of the workspace where test fixtures are relative to.
+    /// Root of the workspace where the `test/` directory will be located.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
     /// Specific test tag that should be run.
@@ -386,7 +388,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 }
                 let matrix = match test.parse_inputs().with_context(|| {
                     format!(
-                        "parsing input matrix of test `{}` in tests for WDL document `{}`",
+                        "parsing input matrix of test `{}` for WDL document `{}`",
                         test.name,
                         wdl_document.path()
                     )
