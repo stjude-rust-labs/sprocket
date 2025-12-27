@@ -3,24 +3,40 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use path_clean::PathClean;
 use url::Url;
 use wdl::analysis::Analyzer;
-use wdl::engine::path::parse_supported_url;
+
+/// The supported source schemes for both WDL source files and JSON input files.
+const SUPPORTED_SOURCE_SCHEMES: &[&str] = &["https://", "http://", "file://"];
+
+/// Helper to check if a given string starts with the given prefix, ignoring
+/// ASCII case.
+fn starts_with_ignore_ascii_case(s: &str, prefix: &str) -> bool {
+    s.get(0..prefix.len())
+        .map(|s| s.eq_ignore_ascii_case(prefix))
+        .unwrap_or(false)
+}
+
+/// Determines if the given string is prefixed with a supported URL scheme for
+/// source files.
+pub(crate) fn is_supported_source_url(s: &str) -> bool {
+    SUPPORTED_SOURCE_SCHEMES
+        .iter()
+        .any(|scheme| starts_with_ignore_ascii_case(s, scheme))
+}
 
 /// A source for an analysis.
 #[derive(Clone, Debug)]
 pub enum Source {
-    /// A remote URL.
-    Remote(Url),
-
-    /// A local file.
+    /// The source is a local or remote file.
     File(Url),
 
-    /// A local directory.
+    /// The source is a local directory.
     Directory(PathBuf),
 }
 
@@ -28,7 +44,7 @@ impl Source {
     /// Attempts to reference the source as a URL.
     pub fn as_url(&self) -> Option<&Url> {
         match self {
-            Source::Remote(url) | Source::File(url) => Some(url),
+            Source::File(url) => Some(url),
             Source::Directory(_) => None,
         }
     }
@@ -39,7 +55,7 @@ impl Source {
         analyzer: &mut Analyzer<T>,
     ) -> Result<()> {
         match self {
-            Source::Remote(url) | Source::File(url) => analyzer.add_document(url).await,
+            Source::File(url) => analyzer.add_document(url).await,
             Source::Directory(path) => analyzer.add_directory(path).await,
         }
     }
@@ -48,7 +64,6 @@ impl Source {
 impl std::fmt::Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Source::Remote(url) => write!(f, "{url}"),
             Source::File(url) => write!(f, "{url}"),
             Source::Directory(path) => write!(f, "{path}", path = path.display()),
         }
@@ -59,8 +74,11 @@ impl std::str::FromStr for Source {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Some(url) = parse_supported_url(s) {
-            return Ok(Self::Remote(url));
+        // Only HTTP(S) and local files are supported for analysis.
+        if is_supported_source_url(s) {
+            return Ok(Self::File(
+                s.parse().with_context(|| format!("invalid URL `{s}`"))?,
+            ));
         }
 
         let path = Path::new(s);
@@ -125,7 +143,7 @@ mod tests {
     fn url() {
         const EXAMPLE: &str = "https://example.com/";
         assert!(matches!(EXAMPLE.parse().unwrap(),
-            Source::Remote(url)
+            Source::File(url)
             if url.as_str()
                 == EXAMPLE
         ));

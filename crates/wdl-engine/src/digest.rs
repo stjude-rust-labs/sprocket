@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -27,7 +28,6 @@ use crate::ContentKind;
 use crate::cache::Hashable;
 use crate::config::ContentDigestMode;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 
 /// Represents a calculated [Blake3](https://github.com/BLAKE3-team/BLAKE3) digest of a file or directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,17 +48,23 @@ impl Digest {
     }
 }
 
-/// Represents a map of digest mode and evaluation path to digest.
-type DigestMap = HashMap<(ContentDigestMode, EvaluationPath), Arc<OnceCell<Digest>>>;
+/// Represents a map of (digest mode, local path) to digest.
+type LocalDigestMap = HashMap<(ContentDigestMode, PathBuf), Arc<OnceCell<Digest>>>;
 
-/// Keeps track of previously calculated digests.
+/// Represents a map of remote URL to digest.
+type RemoteDigestMap = HashMap<Url, Arc<OnceCell<Digest>>>;
+
+/// Keeps track of previously calculated local digests.
 ///
 /// As WDL evaluation cannot write to existing files, it is assumed that files
 /// and directories are not modified during evaluation.
 ///
 /// We check for changes to files and directories when we get a cache hit and
 /// error if the source has been modified.
-static DIGESTS: LazyLock<Mutex<DigestMap>> = LazyLock::new(Mutex::default);
+static LOCAL_DIGESTS: LazyLock<Mutex<LocalDigestMap>> = LazyLock::new(Mutex::default);
+
+/// Keeps track of previously calculated remote digests.
+static REMOTE_DIGESTS: LazyLock<Mutex<RemoteDigestMap>> = LazyLock::new(Mutex::default);
 
 /// An extension trait for joining a digest to a URL.
 pub trait UrlDigestExt: Sized {
@@ -257,9 +263,9 @@ pub async fn calculate_local_digest(
     mode: ContentDigestMode,
 ) -> Result<Digest> {
     let digest = {
-        let mut digests = DIGESTS.lock().expect("failed to lock digests");
+        let mut digests = LOCAL_DIGESTS.lock().expect("failed to lock digests");
         digests
-            .entry((mode, EvaluationPath::Local(path.to_path_buf())))
+            .entry((mode, path.to_path_buf()))
             .or_default()
             .clone()
     };
@@ -315,14 +321,8 @@ pub async fn calculate_remote_digest(
     kind: ContentKind,
 ) -> Result<Digest> {
     let digest = {
-        let mut digests = DIGESTS.lock().expect("failed to lock digests");
-        digests
-            .entry((
-                ContentDigestMode::Strong,
-                EvaluationPath::Remote(url.clone()),
-            ))
-            .or_default()
-            .clone()
+        let mut digests = REMOTE_DIGESTS.lock().expect("failed to lock digests");
+        digests.entry(url.clone()).or_default().clone()
     };
 
     // Get an existing result or initialize a new one exactly once
@@ -381,11 +381,19 @@ pub(crate) mod test {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::ContentKind;
     use crate::http::Location;
 
     /// Helper for clearing the cached digests for tests
     pub fn clear_digest_cache() {
-        DIGESTS.lock().expect("failed to lock digests").clear();
+        LOCAL_DIGESTS
+            .lock()
+            .expect("failed to lock digests")
+            .clear();
+        REMOTE_DIGESTS
+            .lock()
+            .expect("failed to lock digests")
+            .clear();
     }
 
     pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);

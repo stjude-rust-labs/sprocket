@@ -111,7 +111,7 @@ fn log_test(
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let source = match &source {
-        Source::Remote(_) => {
+        Source::File(url) if url.scheme() != "file" => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
         Source::Directory(_) | Source::File(_) => source,
