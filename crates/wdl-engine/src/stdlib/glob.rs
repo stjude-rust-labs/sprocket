@@ -18,6 +18,7 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
+use crate::EvaluationPathKind;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -46,12 +47,9 @@ fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
 
         let matcher = glob.compile_matcher();
 
-        let matches = if let Some(path) = context.base_dir().as_local() {
-            glob_local_path(&context, &matcher, path)?
-        } else if let Some(url) = context.base_dir().as_remote() {
-            glob_remote_path(&context, &matcher, url).await?
-        } else {
-            unreachable!("evaluation path should be either local or remote");
+        let matches = match context.base_dir().kind() {
+            EvaluationPathKind::Local(path) => glob_local_path(&context, &matcher, path)?,
+            EvaluationPathKind::Remote(url) => glob_remote_path(&context, &matcher, url).await?,
         };
 
         Ok(Array::new_unchecked(context.return_type, matches).into())

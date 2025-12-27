@@ -13,6 +13,7 @@ use crate::CompoundValue;
 use crate::ContentKind;
 use crate::EnumVariant;
 use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
@@ -188,19 +189,16 @@ impl Hashable for Digest {
 
 impl Hashable for EvaluationPath {
     fn hash(&self, hasher: &mut Hasher) {
-        if let Some(path) = self.as_local() {
-            PathKind::Local.hash(hasher);
-            path.hash(hasher);
-            return;
+        match self.kind() {
+            EvaluationPathKind::Local(path) => {
+                PathKind::Local.hash(hasher);
+                path.hash(hasher);
+            }
+            EvaluationPathKind::Remote(url) => {
+                PathKind::Remote.hash(hasher);
+                url.hash(hasher);
+            }
         }
-
-        if let Some(url) = self.as_remote() {
-            PathKind::Remote.hash(hasher);
-            url.hash(hasher);
-            return;
-        }
-
-        unreachable!("evaluation path should be either local or remote");
     }
 }
 

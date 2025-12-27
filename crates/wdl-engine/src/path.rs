@@ -44,7 +44,7 @@ pub(crate) fn is_supported_url(s: &str) -> bool {
 
 /// Represents the kind of an evaluation path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum EvaluationPathKind {
+pub(crate) enum EvaluationPathKind {
     /// The path is local (i.e. on the host).
     Local(PathBuf),
     /// The path is remote.
@@ -95,6 +95,16 @@ impl EvaluationPath {
                     .with_context(|| format!("failed to join `{path}` to URL `{dir}`"))?,
             )),
         }
+    }
+
+    /// Gets the underlying evaluation path kind.
+    pub(crate) fn kind(&self) -> &EvaluationPathKind {
+        &self.0
+    }
+
+    /// Converts to the underlying evaluation path kind.
+    pub(crate) fn into_kind(self) -> EvaluationPathKind {
+        self.0
     }
 
     /// Returns `true` if the path is local.
