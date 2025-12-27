@@ -133,10 +133,18 @@ pub(crate) struct Assertions {
     /// Whether a workflow should fail or not (ignored when testing tasks).
     #[serde(default)]
     pub should_fail: bool,
+    /// Regular expressions that should match within STDOUT of the task (ignored
+    /// when testing workflows).
     #[serde(default)]
+    pub stdout: Vec<String>,
+    /// Regular expressions that should match within STDERR of the task (ignored
+    /// when testing workflows).
+    #[serde(default)]
+    pub stderr: Vec<String>,
     /// Assertions about WDL outputs.
     ///
     /// TODO(Ari): implement these assertions.
+    #[serde(default)]
     #[allow(unused)]
     pub outputs: HashMap<String, Value>,
     /// A custom command to execute.

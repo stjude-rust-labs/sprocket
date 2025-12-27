@@ -1,8 +1,10 @@
 //! Implementation of the `test` subcommand.
 
 use std::collections::HashSet;
+use std::fs::File;
 use std::fs::read;
 use std::fs::remove_dir;
+use std::io::read_to_string;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -15,6 +17,7 @@ use anyhow::bail;
 use clap::Parser;
 use nonempty::NonEmpty;
 use path_clean::PathClean;
+use regex::Regex;
 use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::task::JoinSet;
@@ -148,6 +151,18 @@ fn filter_test(
     false
 }
 
+fn file_contains_regexs<'a>(path: &'a str, regexs: &'a [String]) -> Result<Result<(), &'a str>> {
+    let contents = read_to_string(File::open(path).with_context(|| "opening file")?)
+        .with_context(|| "reading file")?;
+    for re in regexs {
+        let regex = Regex::new(re).with_context(|| format!("compiling user regex: `{re}`"))?;
+        if !regex.is_match(&contents) {
+            return Ok(Err(re));
+        }
+    }
+    Ok(Ok(()))
+}
+
 #[derive(Debug)]
 enum RunResult {
     Workflow(Result<Outputs, EvaluationError>),
@@ -197,6 +212,50 @@ impl TestIteration {
             RunResult::Task(result) => match &**result {
                 Ok(evaled_task) => {
                     if evaled_task.exit_code() == self.assertions.exit_code {
+                        if !self.assertions.stdout.is_empty() {
+                            let stdout_path = evaled_task
+                                .stdout()
+                                .as_file()
+                                .expect("stdout should be `File`");
+                            match file_contains_regexs(
+                                stdout_path.as_str(),
+                                self.assertions.stdout.as_slice(),
+                            ) {
+                                Ok(Ok(_)) => {}
+                                Ok(Err(re)) => {
+                                    return Ok(IterationResult::Fail(anyhow!(
+                                        "test iteration #{num} of `{name}`'s stdout did not \
+                                         contain `{re}`: see `{dir}`",
+                                        num = self.iteration_num,
+                                        name = self.name,
+                                        dir = self.run_dir.display(),
+                                    )));
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
+                        if !self.assertions.stderr.is_empty() {
+                            let stderr_path = evaled_task
+                                .stderr()
+                                .as_file()
+                                .expect("stderr should be `File`");
+                            match file_contains_regexs(
+                                stderr_path.as_str(),
+                                self.assertions.stderr.as_slice(),
+                            ) {
+                                Ok(Ok(_)) => {}
+                                Ok(Err(re)) => {
+                                    return Ok(IterationResult::Fail(anyhow!(
+                                        "test iteration #{num} of `{name}`'s stderr did not \
+                                         contain `{re}`: see `{dir}`",
+                                        num = self.iteration_num,
+                                        name = self.name,
+                                        dir = self.run_dir.display(),
+                                    )));
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
                         Ok(IterationResult::Success)
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
@@ -206,7 +265,7 @@ impl TestIteration {
                             name = self.name,
                             actual = evaled_task.exit_code(),
                             expected = self.assertions.exit_code,
-                            dir = evaled_task.work_dir(),
+                            dir = self.run_dir.display(),
                         )))
                     }
                 }
@@ -477,8 +536,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 if err_counter > 0 {
                     let total = err_counter + fail_counter + success_counter;
                     println!(
-                        "☠️ `{test_name}` had errors: {err_counter} error{err_plural} out of \
-                         {total} execution{total_plural}",
+                        "☠️ `{test_name}` had errors: {err_counter} execution{err_plural} errored \
+                         (out of {total} test execution{total_plural})",
                         err_plural = if err_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
                     );
@@ -492,7 +551,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
                     )
                 } else {
                     println!(
-                        "✅ `{test_name}` success! ({success_counter} successful \
+                        "✅ `{test_name}` success! ({success_counter} successful test \
                          execution{plural})",
                         plural = if success_counter > 1 { "s" } else { "" }
                     );
