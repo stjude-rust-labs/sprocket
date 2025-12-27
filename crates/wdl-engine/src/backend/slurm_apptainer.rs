@@ -352,6 +352,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
                     .expect("path should be UTF-8"),
             )
             .into(),
+            attempt_dir: Some(self.spawn_request.attempt_dir_host().to_path_buf()),
         })
     }
 }

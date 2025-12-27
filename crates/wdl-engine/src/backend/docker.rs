@@ -260,6 +260,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                     .expect("path should be UTF-8"),
             )
             .into(),
+            attempt_dir: Some(self.inner.attempt_dir_host().to_path_buf()),
         })
     }
 }
