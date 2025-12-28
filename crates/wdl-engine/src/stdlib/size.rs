@@ -19,6 +19,7 @@ use super::Function;
 use super::Signature;
 use crate::CompoundValue;
 use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::HiddenValue;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
@@ -152,13 +153,9 @@ async fn file_path_size(
         return file_size(path).await;
     }
 
-    let path = base_dir.join(path)?;
-    if let Some(path) = path.as_local() {
-        file_size(path).await
-    } else if let Some(url) = path.as_remote() {
-        resource_size(transferer, url).await
-    } else {
-        unreachable!("evaluation path should be either local or remote");
+    match base_dir.join(path)?.kind() {
+        EvaluationPathKind::Local(path) => file_size(path).await,
+        EvaluationPathKind::Remote(url) => resource_size(transferer, url).await,
     }
 }
 

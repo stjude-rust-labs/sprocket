@@ -14,6 +14,7 @@ use url::Url;
 
 use crate::ContentKind;
 use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::GuestPath;
 use crate::backend::Input;
 use crate::eval::ROOT_NAME;
@@ -120,18 +121,18 @@ impl InputTrie {
         path: &str,
         base_dir: &EvaluationPath,
     ) -> Result<Option<usize>> {
-        let path = base_dir.join(path)?;
-        if let Some(p) = path.as_local() {
-            // Check to see if the path being inserted is already a guest path
-            if let Some(dir) = self.guest_inputs_dir
-                && p.starts_with(dir)
-            {
-                return Ok(None);
-            }
+        match base_dir.join(path)?.into_kind() {
+            EvaluationPathKind::Local(path) => {
+                // Check to see if the path being inserted is already a guest path
+                if let Some(dir) = self.guest_inputs_dir
+                    && path.starts_with(dir)
+                {
+                    return Ok(None);
+                }
 
-            self.insert_path(kind, path.unwrap_local()).map(Some)
-        } else {
-            self.insert_url(kind, path.unwrap_remote()).map(Some)
+                self.insert_path(kind, path).map(Some)
+            }
+            EvaluationPathKind::Remote(url) => self.insert_url(kind, url).map(Some),
         }
     }
 

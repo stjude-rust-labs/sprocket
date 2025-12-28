@@ -1930,7 +1930,7 @@ workflow test {
         };
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config.into(),
+            config,
             Default::default(),
             Events::disabled(),
         )
@@ -2090,7 +2090,7 @@ workflow foo {
         };
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config.into(),
+            config,
             Default::default(),
             Events::disabled(),
         )
@@ -2336,7 +2336,7 @@ workflow w {
             }
         });
 
-        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
+        let evaluator = Evaluator::new(root_dir.path(), config, Default::default(), events)
             .await
             .unwrap();
 
@@ -2415,7 +2415,7 @@ workflow w {
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config.into(),
+            config,
             cancellation.clone(),
             Events::disabled(),
         )

@@ -1032,7 +1032,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                         }
                     }
 
-                    // Add edges to other the requested calls
+                    // Add edges to the "after" calls
                     for after in statement.after() {
                         let name = after.name();
                         if let Some(nodes) =
@@ -1184,13 +1184,10 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
         name: &str,
         expr: N,
     ) -> Option<SmallVec<[NodeIndex; SMALLVEC_DECLS_LEN]>> {
-        // If the name came from a declaration or call, return the node
-        if let Some(result) = self.names.get(name) {
-            return Some(result.to_owned());
-        }
-
-        // Otherwise, we need to walk up the parent chain looking for a scatter variable
-        // with the name
+        // We need to walk up the parent chain looking for a scatter variable with a
+        // matching name before looking at names in scope; a scatter variable may shadow
+        // names declared outside of it, but an inner declaration cannot shadow an outer
+        // scatter variable
         let mut current = expr;
         while let Some(parent) = current.parent() {
             if let SyntaxKind::ScatterStatementNode = parent.kind() {
@@ -1203,6 +1200,11 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
             }
 
             current = parent;
+        }
+
+        // If the name came from a declaration or call, return the node
+        if let Some(result) = self.names.get(name) {
+            return Some(result.to_owned());
         }
 
         None

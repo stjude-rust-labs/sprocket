@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Reduced public surface of the wdl-engine crate and cleaned up some code
+  internals ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
 * Added shared validation for task runtime and hint numeric settings (memory,
   max_memory, max_retries, preemptible), rejecting invalid or negative values
   earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).

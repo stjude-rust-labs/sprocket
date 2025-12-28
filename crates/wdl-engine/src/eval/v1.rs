@@ -74,13 +74,14 @@ impl Evaluator {
     /// Returns an error if the configuration isn't valid.
     pub async fn new(
         root_dir: impl AsRef<Path>,
-        config: Arc<Config>,
+        config: Config,
         cancellation: CancellationContext,
         events: Events,
     ) -> Result<Self> {
         config.validate().await?;
 
         let root_dir = root_dir.as_ref();
+        let config = Arc::new(config);
         let backend = config
             .create_backend(root_dir, events.crankshaft().clone())
             .await?;
