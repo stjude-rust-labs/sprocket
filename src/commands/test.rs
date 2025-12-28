@@ -49,7 +49,8 @@ use crate::test::TestDefinition;
 const DEFINITIONS_TEST_DIR: &str = "test";
 /// Directory which is located at the root of a WDL workspace.
 ///
-/// At a minimum, this directory will contain a `runs/` directory where tests are executed.
+/// At a minimum, this directory will contain a `runs/` directory where tests
+/// are executed.
 const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
@@ -496,7 +497,18 @@ pub async fn test(args: Args) -> CommandResult<()> {
             }
             document_results.push((entrypoint, entrypoint_results));
         }
-        all_results.push((wdl_document.uri().path().to_string(), document_results));
+        all_results.push((
+            wdl_document
+                .uri()
+                .to_file_path()
+                .expect("URL should be file")
+                .iter()
+                .next_back()
+                .expect("should be non-empty")
+                .to_string_lossy()
+                .to_string(),
+            document_results,
+        ));
     }
 
     for (document_name, entrypoint_results) in all_results {
@@ -538,23 +550,25 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 if err_counter > 0 {
                     let total = err_counter + fail_counter + success_counter;
                     println!(
-                        "☠️ `{test_name}` had errors: {err_counter} execution{err_plural} errored \
-                         (out of {total} test execution{total_plural})",
+                        "☠️ `{document_name}::{entrypoint_name}::{test_name}` had errors: \
+                         {err_counter} execution{err_plural} errored (out of {total} test \
+                         execution{total_plural})",
                         err_plural = if err_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
                     );
                 } else if fail_counter > 0 {
                     let total = fail_counter + success_counter;
                     println!(
-                        "❌ `{test_name}` failed: {fail_counter} execution{fail_plural} failed \
-                         assertions (out of {total} execution{total_plural})",
+                        "❌ `{document_name}::{entrypoint_name}::{test_name}` failed: \
+                         {fail_counter} execution{fail_plural} failed assertions (out of {total} \
+                         execution{total_plural})",
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
                     )
                 } else {
                     println!(
-                        "✅ `{test_name}` success! ({success_counter} successful test \
-                         execution{plural})",
+                        "✅ `{document_name}::{entrypoint_name}::{test_name}` success! \
+                         ({success_counter} successful test execution{plural})",
                         plural = if success_counter > 1 { "s" } else { "" }
                     );
                     if !args.do_not_clean {
