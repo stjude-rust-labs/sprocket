@@ -669,12 +669,32 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let cache_key = (enum_name.to_string(), variant_name.to_string());
+
+        // Check cache first (fast path with read lock)
+        {
+            let cache = self.state.evaluator.variant_cache.read();
+            if let Some(cached_value) = cache.get(&cache_key) {
+                return Ok(cached_value.clone());
+            }
+        }
+
+        // Cache miss - compute the value
         let r#enum = self
             .state
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        resolve_enum_variant_value(r#enum, variant_name)
+        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+
+        // Store in cache
+        self.state
+            .evaluator
+            .variant_cache
+            .write()
+            .insert(cache_key, value.clone());
+
+        Ok(value)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
