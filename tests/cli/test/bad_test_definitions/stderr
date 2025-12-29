@@ -1,12 +1,12 @@
-error: parsing input matrix of test `repeated key` in tests for WDL document `bar.wdl`
+error: parsing input matrix of test `repeated key` for WDL document `bar.wdl`
 
 Caused by:
     input `one` provided more than once
-error: parsing input matrix of test `scalar instead of sequence` in tests for WDL document `bar.wdl`
+error: parsing input matrix of test `scalar instead of sequence` for WDL document `bar.wdl`
 
 Caused by:
     expected a YAML `Sequence`: `String("this is wrong")`
-error: parsing input matrix of test `unequal lengths` in tests for WDL document `foo.wdl`
+error: parsing input matrix of test `unequal lengths` for WDL document `foo.wdl`
 
 Caused by:
     sequences within `$group` are of unequal length
