@@ -63,7 +63,7 @@ pub struct Args {
     /// If not specified, this defaults to the current working directory.
     pub source: Option<Source>,
     /// Root of the workspace where the `test/` directory will be located. Test
-    /// fixtures will be loaded from `<workspace>/test/fixtures/`.
+    /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is present.
     ///
     /// If a `<workspace>/test/` directory does not exist, one will be created
     /// and it will contain a `runs/` directory for test executions.
