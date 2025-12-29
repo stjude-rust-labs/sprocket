@@ -59,8 +59,22 @@ const FIXTURES_DIR: &str = "fixtures";
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
+    ///
+    /// If not specified, this defaults to the current working directory.
     pub source: Option<Source>,
-    /// Root of the workspace where the `test/` directory will be located.
+    /// Root of the workspace where the `test/` directory will be located. Test
+    /// fixtures will be loaded from `<workspace>/test/fixtures/`.
+    ///
+    /// If a `<workspace>/test/` directory does not exist, one will be created
+    /// and it will contain a `runs/` directory for test executions.
+    ///
+    /// If not specified and the `source` argument is a directory, it's assumed
+    /// that directory is also the workspace. This can be specified in addition
+    /// to a source directory if they are different.
+    ///
+    /// If not specified and the `source` argument is a file, it's assumed that
+    /// the current working directory is the workspace. This can be specified in
+    /// addition to a source file if the CWD is not the right workspace.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
     /// Specific test tag that should be run.
