@@ -142,7 +142,9 @@ async fn inner() -> CommandResult<()> {
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
-        Commands::Dev(commands::DevCommands::Test(args)) => commands::test::test(args).await,
+        Commands::Dev(commands::DevCommands::Test(args)) => {
+            commands::test::test(args.apply(config)).await
+        }
     }
 }
 

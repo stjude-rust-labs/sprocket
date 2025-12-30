@@ -4,13 +4,13 @@ so_many_options:
     inputs:
       $files:
         bam:
-          - $FIXTURES/test1.bam
-          - $FIXTURES/test2.bam
-          - $FIXTURES/test3.bam
+          - test1.bam
+          - test2.bam
+          - test3.bam
         bam_index:
-          - $FIXTURES/test1.bam.bai
-          - $FIXTURES/test2.bam.bai
-          - $FIXTURES/test3.bam.bai
+          - test1.bam.bai
+          - test2.bam.bai
+          - test3.bam.bai
       bitwise_filter:
         - include_if_all: "0x0"
           exclude_if_any: "0x900"
@@ -39,13 +39,22 @@ so_many_options:
       output_singletons:
         - true
         - false
+      bitwise_filter:
+        - include_if_all: "0x0"
+          exclude_if_any: "0x900"
+          include_if_any: "0x0"
+          exclude_if_all: "0x0"
+        - include_if_all: "00"
+          exclude_if_any: "0x904"
+          include_if_any: "3"
+          exclude_if_all: "0"
       $files:
         bam:
-          - $FIXTURES/test1.bam
-          - $FIXTURES/test2.bam
+          - test1.bam
+          - test2.bam
         bam_index:
-          - $FIXTURES/test1.bam.bai
-          - $FIXTURES/test2.bam.bai
+          - test1.bam.bai
+          - test2.bam.bai
 
 has_a_reference:
   - name: complex_groups
@@ -55,17 +64,17 @@ has_a_reference:
         - false
       $files:
         bam:
-          - $FIXTURES/test1.bam
-          - $FIXTURES/test2.bam
+          - test1.bam
+          - test2.bam
         bam_index:
-          - $FIXTURES/test1.bam.bai
-          - $FIXTURES/test2.bam.bai
+          - test1.bam.bai
+          - test2.bam.bai
         ref_fasta:
-          - $FIXTURES/hg19.fasta
-          - $FIXTURES/GRCh38.fasta
+          - hg19.fasta
+          - GRCh38.fasta
         ref_fasta_index:
-          - $FIXTURES/hg19.fa.fai
-          - $FIXTURES/GRCh38.fa.fai
+          - hg19.fa.fai
+          - GRCh38.fa.fai
       $other_group:
         bitwise_filter:
           - include_if_all: "0x0"
