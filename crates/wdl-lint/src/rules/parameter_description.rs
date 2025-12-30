@@ -56,8 +56,8 @@ fn has_valid_description(value: &MetadataValue) -> bool {
                 let name = item.name();
                 let key = name.text();
                 if key == DESCRIPTION_KEY {
-                    // Found description key, check if it's a string
-                    return matches!(item.value(), MetadataValue::String(_));
+                    // Found description key, `DocMetaStrings` will handle if it's not a string
+                    return true
                 }
             }
             // No description key found
