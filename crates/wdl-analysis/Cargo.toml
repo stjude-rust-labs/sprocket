@@ -16,6 +16,7 @@ convert_case = { workspace = true }
 futures = { workspace = true }
 ignore = { workspace = true }
 indexmap = { workspace = true }
+itertools = { workspace = true }
 line-index = { workspace = true }
 lsp-types = { workspace = true }
 parking_lot = { workspace = true }

@@ -173,3 +173,27 @@ async fn should_hover_local_struct_literal_docs() {
     assert_hover_content(&response, "(property) name: String");
     assert_hover_content(&response, "Name of the person");
 }
+
+#[tokio::test]
+async fn should_hover_enum_definition() {
+    let mut ctx = setup().await;
+    // Position of `Status` in `enum Status`
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(2, 7)).await;
+    assert_hover_content(&response, "enum Status");
+}
+
+#[tokio::test]
+async fn should_hover_enum_type() {
+    let mut ctx = setup().await;
+    // Position of `Status` in `Status s`
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 4)).await;
+    assert_hover_content(&response, "enum Status");
+}
+
+#[tokio::test]
+async fn should_hover_enum_variant() {
+    let mut ctx = setup().await;
+    // Position of `Active` in `Status.Active`
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 22)).await;
+    assert_hover_content(&response, "Status.Active");
+}

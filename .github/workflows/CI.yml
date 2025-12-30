@@ -118,7 +118,7 @@ jobs:
         if: runner.os == 'Linux'
 
       - name: Run tests
-        run: cargo --locked test --workspace --all-features --no-fail-fast
+        run: cargo --locked test --workspace --benches --all-features --no-fail-fast
 
   docs:
     runs-on: ubuntu-latest

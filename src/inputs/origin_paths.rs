@@ -11,7 +11,7 @@
 
 use std::collections::BTreeMap;
 
-use wdl::engine::path::EvaluationPath;
+use wdl::engine::EvaluationPath;
 
 /// An associated set of path origins for a set of input keys.
 ///
@@ -30,8 +30,8 @@ impl OriginPaths {
     /// Attempts to retrieve the origin path for an input key.
     pub fn get(&self, key: &str) -> Option<&EvaluationPath> {
         match self {
-            OriginPaths::Single(path) => Some(path),
-            OriginPaths::Map(paths) => paths.get(key),
+            Self::Single(path) => Some(path),
+            Self::Map(paths) => paths.get(key),
         }
     }
 }

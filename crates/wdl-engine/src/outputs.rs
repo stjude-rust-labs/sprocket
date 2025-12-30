@@ -5,7 +5,6 @@ use std::cmp::Ordering;
 use indexmap::IndexMap;
 use serde::Serialize;
 
-use crate::Scope;
 use crate::Value;
 
 /// Represents outputs of a WDL workflow or task.
@@ -21,11 +20,6 @@ pub struct Outputs {
 }
 
 impl Outputs {
-    /// Constructs a new outputs collection.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Sets the name of the outputs collection.
     ///
     /// Typically this is the name of the call in a workflow.
@@ -78,20 +72,17 @@ impl Serialize for Outputs {
     }
 }
 
-impl From<Scope> for Outputs {
-    fn from(scope: Scope) -> Self {
-        Self {
-            name: None,
-            values: scope.into(),
-        }
-    }
-}
-
 impl FromIterator<(String, Value)> for Outputs {
     fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
         Self {
             name: None,
             values: iter.into_iter().collect(),
         }
+    }
+}
+
+impl From<IndexMap<String, Value>> for Outputs {
+    fn from(values: IndexMap<String, Value>) -> Self {
+        Self { name: None, values }
     }
 }

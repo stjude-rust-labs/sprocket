@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added setting for controlling content digests; supported values are `strong`
+  for full cryptographic hashing of file content and `weak` to digest based
+  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+* Added runtime support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from
+  enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
+#### Changed
+
+* Reduced public surface of the wdl-engine crate and cleaned up some code
+  internals ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Added shared validation for task runtime and hint numeric settings (memory,
+  max_memory, max_retries, preemptible), rejecting invalid or negative values
+  earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+
+#### Fixed
+
+* Fixed a missing check for empty arrays in the evaluation of scatter
+  statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
+* Fixed authentication issue for cloud storage URLs by moving implementations
+  into the `cloud-copy` crate ([#490](https://github.com/stjude-rust-labs/sprocket/pull/490)).
+* Cache file digests that are calculated during local directory digest
+  calculation. Note: this change will bust existing local cache entries ([#488](https://github.com/stjude-rust-labs/sprocket/pull/488)).
+
 ## 0.10.0 - 11-21-2025
 
 #### Added

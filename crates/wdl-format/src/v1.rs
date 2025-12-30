@@ -7,6 +7,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxToken;
 
 pub mod decl;
+pub mod r#enum;
 pub mod expr;
 pub mod import;
 pub mod meta;

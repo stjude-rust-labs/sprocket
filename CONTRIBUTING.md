@@ -248,6 +248,15 @@ these criteria:
       `Y` should _not_ link back to rule `X` in this case, as the user fixing
       `Y` isn't necessarily led back to the context of `X`.
 
+## Benchmarking and performance
+
+The start of a microbenchmarking suite exists in `/benches/bench.rs` and its
+modules; its behavior and suggested usage is described in more detail in its
+documentation.
+
+At `DEBUG` verbosity, the `sprocket` CLI will output the peak memory usage at
+the end of each execution.
+
 ## Further reading
 
 * `exceptable_add()` defined [here](https://github.com/stjude-rust-labs/sprocket/blob/129fe020c78ecdac7dc3ad1f1cec686eb3634117/crates/wdl-analysis/src/validation.rs#L44).

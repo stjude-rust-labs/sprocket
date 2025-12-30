@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::io::BufRead;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
@@ -16,7 +17,9 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bimap::BiHashMap;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use petgraph::algo::toposort;
+use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
@@ -64,34 +67,40 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
+use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
-use super::TopLevelEvaluator;
+use super::Evaluator;
+use super::validators::SettingSource;
+use super::validators::ensure_non_negative_i64;
+use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::CompoundValue;
 use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationPath;
 use crate::EvaluationResult;
 use crate::GuestPath;
 use crate::HiddenValue;
 use crate::HostPath;
-use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
-use crate::Scope;
-use crate::ScopeIndex;
-use crate::ScopeRef;
+use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::Value;
+use crate::backend::Input;
+use crate::backend::TaskExecutionResult;
 use crate::backend::TaskSpawnInfo;
 use crate::backend::TaskSpawnRequest;
 use crate::cache::KeyRequest;
@@ -104,31 +113,39 @@ use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
+use crate::diagnostics::unknown_enum;
 use crate::eval::EvaluatedTask;
+use crate::eval::Scope;
+use crate::eval::ScopeIndex;
+use crate::eval::ScopeRef;
 use crate::eval::trie::InputTrie;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
+use crate::stdlib::download_file;
 use crate::tree::SyntaxNode;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
+/// The maximum number of stderr lines to display in error messages.
+const MAX_STDERR_LINES: usize = 10;
+
 /// The default container requirement.
-pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
+const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
 /// The default value for the `cpu` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
+const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
+const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
-pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 /// The default GPU count when a GPU is required but no supported hint is
 /// provided.
-pub const DEFAULT_GPU_COUNT: u64 = 1;
+const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -137,6 +154,35 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// The index of the evaluation scope where the WDL 1.2 `task` variable is
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
+
+/// Returns the first entry in `map` that matches the provided keys.
+fn lookup_entry<'a>(
+    map: &'a HashMap<String, Value>,
+    keys: &[&'static str],
+) -> Option<(&'static str, &'a Value)> {
+    keys.iter()
+        .find_map(|key| map.get(*key).map(|value| (*key, value)))
+}
+
+/// Parses an integer or byte-unit string into a byte count using the supplied
+/// `error_message` formatter when conversion fails.
+///
+/// # Panics
+///
+/// Panics if the given value is not an integer or string.
+fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) -> Result<i64> {
+    if let Some(v) = value.as_integer() {
+        return Ok(v);
+    }
+
+    if let Some(s) = value.as_string() {
+        return convert_unit_string(s)
+            .and_then(|v| v.try_into().ok())
+            .with_context(|| error_message(s));
+    }
+
+    unreachable!("value should be an integer or string");
+}
 
 /// Gets the `container` requirement from a requirements map.
 pub(crate) fn container<'a>(
@@ -205,48 +251,28 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
 
 /// Gets the `memory` requirement from a requirements map.
 pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    Ok(requirements
-        .get(TASK_REQUIREMENT_MEMORY)
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
+    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
+        let bytes = parse_storage_value(value, |raw| {
+            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
+        })?;
 
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
+        return ensure_non_negative_i64(SettingSource::Requirement, key, bytes);
+    }
 
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()?
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MEMORY))
+    Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
 }
 
 /// Gets the `max_memory` hint from a hints map.
 pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    hints
-        .get(TASK_HINT_MAX_MEMORY)
-        .or_else(|| hints.get(TASK_HINT_MAX_MEMORY_ALIAS))
-        .map(|v| {
-            if let Some(v) = v.as_integer() {
-                return Ok(v);
-            }
-
-            if let Some(s) = v.as_string() {
-                return convert_unit_string(s)
-                    .and_then(|v| v.try_into().ok())
-                    .with_context(|| {
-                        format!("task specifies an invalid `memory` requirement `{s}`")
-                    });
-            }
-
-            unreachable!("value should be an integer or string");
-        })
-        .transpose()
+    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
+        Some((key, value)) => {
+            let bytes = parse_storage_value(value, |raw| {
+                invalid_numeric_value_message(SettingSource::Hint, key, raw)
+            })?;
+            ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
+        }
+        None => Ok(None),
+    }
 }
 
 /// Gets the number of required GPUs from requirements and hints.
@@ -305,7 +331,8 @@ pub(crate) fn gpu(
 ///
 /// Disk types are specified via hints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DiskType {
+#[allow(clippy::upper_case_acronyms)]
+pub(crate) enum DiskType {
     /// The disk type is a solid state drive.
     SSD,
     /// The disk type is a hard disk drive.
@@ -325,11 +352,12 @@ impl FromStr for DiskType {
 }
 
 /// Represents a task disk requirement.
-pub struct DiskRequirement {
+pub(crate) struct DiskRequirement {
     /// The size of the disk, in GiB.
     pub size: i64,
 
     /// The disk type as specified by a corresponding task hint.
+    #[expect(unused, reason = "may be needed by backends in the future")]
     pub ty: Option<DiskType>,
 }
 
@@ -498,32 +526,43 @@ pub(crate) fn disks<'a>(
 /// This hint is not part of the WDL standard but is used for compatibility with
 /// Cromwell where backends can support preemptible retries before using
 /// dedicated instances.
-pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> i64 {
+pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
     const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
-    hints
+    Ok(hints
         .get(TASK_HINT_PREEMPTIBLE)
         .and_then(|v| {
-            Some(
-                v.coerce(None, &PrimitiveType::Integer.into())
-                    .ok()?
-                    .unwrap_integer(),
-            )
+            v.coerce(None, &PrimitiveType::Integer.into())
+                .ok()
+                .map(|value| value.unwrap_integer())
         })
-        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE)
+        .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
+        .transpose()?
+        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
 }
 
 /// Gets the `max_retries` requirement from a requirements map with config
 /// fallback.
-pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> u64 {
-    requirements
-        .get(TASK_REQUIREMENT_MAX_RETRIES)
-        .or_else(|| requirements.get(TASK_REQUIREMENT_MAX_RETRIES_ALIAS))
-        .and_then(|v| v.as_integer())
-        .map(|v| v as u64)
-        .or(config.task.retries)
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
+pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
+    if let Some((key, value)) = lookup_entry(
+        requirements,
+        &[
+            TASK_REQUIREMENT_MAX_RETRIES,
+            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
+        ],
+    ) {
+        let retries = value
+            .as_integer()
+            .expect("`max_retries` requirement should be an integer");
+        return ensure_non_negative_i64(SettingSource::Requirement, key, retries)
+            .map(|value| value as u64);
+    }
+
+    Ok(config
+        .task
+        .retries
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
 /// Gets the `cacheable` hint from a hints map with config fallback.
@@ -610,14 +649,32 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        ScopeRef::new(&self.state.scopes, self.scope)
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = ScopeRef::new(&self.state.scopes, self.scope)
             .lookup(name)
             .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        {
+            return Ok(var);
+        }
+
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(self.state.document, name, span)
+    }
+
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
+        resolve_enum_variant_value(r#enum, variant_name)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -664,8 +721,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 
 /// Represents task evaluation state.
 struct State<'a> {
-    /// The top-level evaluation context.
-    top_level: &'a TopLevelEvaluator,
+    /// The top-level evaluator.
+    evaluator: &'a Evaluator,
     /// The temp directory.
     temp_dir: &'a Path,
     /// The base directory for evaluation.
@@ -702,12 +759,12 @@ struct State<'a> {
 impl<'a> State<'a> {
     /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &Arc<dyn Transferer> {
-        &self.top_level.transferer
+        &self.evaluator.transferer
     }
 
     /// Constructs a new task evaluation state.
     fn new(
-        top_level: &'a TopLevelEvaluator,
+        evaluator: &'a Evaluator,
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
@@ -726,7 +783,7 @@ impl<'a> State<'a> {
             Scope::new(OUTPUT_SCOPE_INDEX),
         ];
 
-        let backend_inputs = if let Some(guest_inputs_dir) = top_level.backend.guest_inputs_dir() {
+        let backend_inputs = if let Some(guest_inputs_dir) = evaluator.backend.guest_inputs_dir() {
             InputTrie::new_with_guest_dir(guest_inputs_dir)
         } else {
             InputTrie::new()
@@ -741,7 +798,7 @@ impl<'a> State<'a> {
         })?;
 
         Ok(Self {
-            top_level,
+            evaluator,
             temp_dir,
             base_dir,
             document,
@@ -805,7 +862,7 @@ impl<'a> State<'a> {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
                 if needs_local_inputs
-                    && self.backend_inputs.as_slice()[index].guest_path.is_none()
+                    && self.backend_inputs.as_slice()[index].guest_path().is_none()
                     && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
                 {
@@ -874,7 +931,7 @@ impl<'a> State<'a> {
         {
             // If the input has a guest path, map it
             let input = &self.backend_inputs.as_slice()[index];
-            if let Some(guest_path) = &input.guest_path {
+            if let Some(guest_path) = input.guest_path() {
                 self.path_map.insert(path.clone(), guest_path.clone());
             }
 
@@ -895,16 +952,21 @@ struct EvaluatedSections {
     hints: Arc<HashMap<String, Value>>,
 }
 
-impl TopLevelEvaluator {
+impl Evaluator {
     /// Evaluates the given task.
     ///
-    /// Upon success, returns the evaluated task.
+    /// If the task fails to execute as a result of an unacceptable exit code,
+    /// this method returns `Ok` with the evaluated result; the evaluated task
+    /// will return an error when `[EvaluatedTask::into_outputs]` is called.
+    ///
+    /// Otherwise, this returns `Ok` only upon a successful task execution and
+    /// evaluation of all of its outputs.
     pub async fn evaluate_task(
         &self,
         document: &Document,
         task: &Task,
-        inputs: &TaskInputs,
-        task_eval_root: impl AsRef<Path>,
+        inputs: TaskInputs,
+        eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<EvaluatedTask> {
         // We cannot evaluate a document with errors
         if document.has_errors() {
@@ -912,7 +974,7 @@ impl TopLevelEvaluator {
         }
 
         let result = self
-            .perform_task_evaluation(document, task, inputs, task_eval_root.as_ref(), task.name())
+            .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
         if self.cancellation.user_canceled() {
@@ -930,8 +992,8 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         task: &Task,
-        inputs: &TaskInputs,
-        task_eval_root: &Path,
+        inputs: TaskInputs,
+        eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<EvaluatedTask> {
         inputs.validate(document, task, None).with_context(|| {
@@ -960,7 +1022,10 @@ impl TopLevelEvaluator {
 
         // Build an evaluation graph for the task
         let mut diagnostics = Vec::new();
-        let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
+        let graph =
+            TaskGraphBuilder::default().build(version, &definition, &mut diagnostics, |name| {
+                document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some()
+            });
         assert!(
             diagnostics.is_empty(),
             "task evaluation graph should have no diagnostics"
@@ -973,10 +1038,10 @@ impl TopLevelEvaluator {
             "evaluating task"
         );
 
-        let task_eval_root = absolute(task_eval_root).with_context(|| {
+        let task_eval_root = absolute(eval_root_dir).with_context(|| {
             format!(
                 "failed to determine absolute path of `{path}`",
-                path = task_eval_root.display()
+                path = eval_root_dir.display()
             )
         })?;
 
@@ -990,7 +1055,7 @@ impl TopLevelEvaluator {
         })?;
 
         // Write the inputs to the task's root directory
-        write_json_file(task_eval_root.join(INPUTS_FILE), inputs)?;
+        write_json_file(task_eval_root.join(INPUTS_FILE), &inputs)?;
 
         let mut state = State::new(self, document, task, &temp_dir)?;
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
@@ -999,7 +1064,7 @@ impl TopLevelEvaluator {
             match &graph[nodes[current]] {
                 TaskGraphNode::Input(decl) => {
                     state
-                        .evaluate_input(id, decl, inputs)
+                        .evaluate_input(id, decl, &inputs)
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
@@ -1040,12 +1105,18 @@ impl TopLevelEvaluator {
                 requirements,
                 hints,
             } = state
-                .evaluate_sections(id, &definition, inputs, attempt, previous_task_data.clone())
+                .evaluate_sections(
+                    id,
+                    &definition,
+                    &inputs,
+                    attempt,
+                    previous_task_data.clone(),
+                )
                 .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = max_retries(&requirements, &self.config);
+            let max_retries = max_retries(&requirements, &self.config)?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1196,9 +1267,7 @@ impl TopLevelEvaluator {
                             env.clone(),
                             self.transferer.clone(),
                         ),
-                        attempt,
                         attempt_dir.clone(),
-                        task_eval_root.clone(),
                         temp_dir.clone(),
                     );
 
@@ -1216,14 +1285,13 @@ impl TopLevelEvaluator {
                         .map_err(|e| {
                             EvaluationError::new(
                                 state.document.clone(),
-                                task_execution_failed(e, task.name(), id, task.name_span()),
+                                task_execution_failed(&e, task.name(), id, task.name_span()),
                             )
                         })?
                 }
             };
 
-            // Update the task variable
-            let evaluated = EvaluatedTask::new(cached, result);
+            // Update the task variable for the execution result
             if version >= SupportedVersion::V1(V1::Two) {
                 let task = state.scopes[TASK_SCOPE_INDEX.0]
                     .get_mut(TASK_VAR_NAME)
@@ -1237,18 +1305,17 @@ impl TopLevelEvaluator {
                         task = state.task.name()
                     )
                 })?);
-                task.set_return_code(evaluated.result.exit_code);
+                task.set_return_code(result.exit_code);
             }
 
-            if let Err(e) = evaluated
-                .handle_exit(&requirements, state.transferer().as_ref())
-                .await
-            {
+            // If the task failed its execution, handle retrying
+            if Self::did_task_fail(&requirements, result.exit_code) {
+                // Too many retries, break out with the errored evaluated task
                 if attempt >= max_retries {
-                    return Err(EvaluationError::new(
-                        state.document.clone(),
-                        task_execution_failed(e, task.name(), id, task.name_span()),
-                    ));
+                    let error =
+                        Self::task_failure_error(&state, id, &result, state.transferer().as_ref())
+                            .await;
+                    break EvaluatedTask::new(cached, result, Some(error));
                 }
 
                 attempt += 1;
@@ -1272,7 +1339,7 @@ impl TopLevelEvaluator {
                     .cache
                     .as_ref()
                     .expect("should have cache")
-                    .put(key, &evaluated.result)
+                    .put(key, &result)
                     .await
                 {
                     Ok(key) => {
@@ -1293,7 +1360,8 @@ impl TopLevelEvaluator {
                 }
             }
 
-            break evaluated;
+            // Task execution succeeded, break out of the retry loop
+            break EvaluatedTask::new(cached, result, None);
         };
 
         // Perform backend cleanup before output evaluation
@@ -1305,45 +1373,129 @@ impl TopLevelEvaluator {
             cleanup.await;
         }
 
-        // Evaluate the remaining inputs (unused), and decls, and outputs
-        for index in &nodes[current..] {
-            match &graph[*index] {
-                TaskGraphNode::Decl(decl) => {
-                    state
-                        .evaluate_decl(id, decl)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                TaskGraphNode::Output(decl) => {
-                    state
-                        .evaluate_output(id, decl, &evaluated)
-                        .await
-                        .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
-                }
-                _ => {
-                    unreachable!(
-                        "only declarations and outputs should be evaluated after the command"
-                    )
+        // Evaluate the remaining inputs (unused), private decls, and outputs if the
+        // task executed successfully
+        if !evaluated.failed() {
+            for index in &nodes[current..] {
+                match &graph[*index] {
+                    TaskGraphNode::Decl(decl) => {
+                        state
+                            .evaluate_decl(id, decl)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    TaskGraphNode::Output(decl) => {
+                        state
+                            .evaluate_output(id, decl, &evaluated)
+                            .await
+                            .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
+                    }
+                    _ => {
+                        unreachable!(
+                            "only declarations and outputs should be evaluated after the command"
+                        )
+                    }
                 }
             }
+
+            // Take the output scope and return it in declaration sort order
+            let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
+            if let Some(section) = definition.output() {
+                let indexes: HashMap<_, _> = section
+                    .declarations()
+                    .enumerate()
+                    .map(|(i, d)| (d.name().hashable(), i))
+                    .collect();
+                outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
+            }
+
+            // Write the outputs to the task's root directory
+            write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
+
+            // Finally, associate the outputs with the evaluated task
+            evaluated.outputs = outputs;
         }
 
-        // Take the output scope and return it in declaration sort order
-        let mut outputs: Outputs = mem::take(&mut state.scopes[OUTPUT_SCOPE_INDEX.0]).into();
-        if let Some(section) = definition.output() {
-            let indexes: HashMap<_, _> = section
-                .declarations()
-                .enumerate()
-                .map(|(i, d)| (d.name().hashable(), i))
-                .collect();
-            outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
-        }
-
-        // Write the outputs to the task's root directory
-        write_json_file(task_eval_root.join(OUTPUTS_FILE), &outputs)?;
-
-        evaluated.outputs = Ok(outputs);
         Ok(evaluated)
+    }
+
+    /// Determines if the task failed based on its requirements and exit code.
+    fn did_task_fail(requirements: &HashMap<String, Value>, exit_code: i32) -> bool {
+        if let Some(return_codes) = requirements
+            .get(TASK_REQUIREMENT_RETURN_CODES)
+            .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
+        {
+            match return_codes {
+                Value::Primitive(PrimitiveValue::String(s)) => s.as_ref() != "*",
+                Value::Primitive(PrimitiveValue::Integer(ok)) => {
+                    exit_code != i32::try_from(*ok).unwrap_or_default()
+                }
+                Value::Compound(CompoundValue::Array(codes)) => !codes.as_slice().iter().any(|v| {
+                    v.as_integer()
+                        .map(|i| i32::try_from(i).unwrap_or_default() == exit_code)
+                        .unwrap_or(false)
+                }),
+                _ => unreachable!("unexpected return codes value"),
+            }
+        } else {
+            exit_code != 0
+        }
+    }
+
+    /// Creates a task failure error for the given execution result.
+    async fn task_failure_error(
+        state: &State<'_>,
+        id: &str,
+        result: &TaskExecutionResult,
+        transferer: &dyn Transferer,
+    ) -> EvaluationError {
+        // Read the last `MAX_STDERR_LINES` number of lines from stderr
+        // If there's a problem reading stderr, don't output it
+        let stderr = download_file(
+            transferer,
+            &result.work_dir,
+            result.stderr.as_file().unwrap(),
+        )
+        .await
+        .ok()
+        .and_then(|l| {
+            fs::File::open(l).ok().map(|f| {
+                // Buffer the last N number of lines
+                let reader = RevBufReader::new(f);
+                let lines: Vec<_> = reader
+                    .lines()
+                    .take(MAX_STDERR_LINES)
+                    .map_while(|l| l.ok())
+                    .collect();
+
+                // Iterate the lines in reverse order as we read them in reverse
+                lines
+                    .iter()
+                    .rev()
+                    .format_with("\n", |l, f| f(&format_args!("  {l}")))
+                    .to_string()
+            })
+        })
+        .unwrap_or_default();
+
+        let error = anyhow!(
+            "process terminated with exit code {code}: see `{stdout_path}` and `{stderr_path}` \
+             for task output{header}{stderr}{trailer}",
+            code = result.exit_code,
+            stdout_path = result.stdout.as_file().expect("must be file"),
+            stderr_path = result.stderr.as_file().expect("must be file"),
+            header = if stderr.is_empty() {
+                Cow::Borrowed("")
+            } else {
+                format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
+            },
+            trailer = if stderr.is_empty() { "" } else { "\n" }
+        );
+
+        EvaluationError::new(
+            state.document.clone(),
+            task_execution_failed(&error, state.task.name(), id, state.task.name_span()),
+        )
     }
 }
 
@@ -1422,7 +1574,7 @@ impl<'a> State<'a> {
             decl_ty.is_optional(),
             &mut value,
             self.transferer().clone(),
-            self.top_level.backend.needs_local_inputs(),
+            self.evaluator.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1483,7 +1635,7 @@ impl<'a> State<'a> {
             decl_ty.is_optional(),
             &mut value,
             self.transferer().clone(),
-            self.top_level.backend.needs_local_inputs(),
+            self.evaluator.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1843,7 +1995,7 @@ impl<'a> State<'a> {
         if version >= Some(SupportedVersion::V1(V1::Two)) {
             // Get the execution constraints
             let constraints = self
-                .top_level
+                .evaluator
                 .backend
                 .constraints(&requirements, &hints)
                 .with_context(|| {
@@ -1853,7 +2005,7 @@ impl<'a> State<'a> {
                     )
                 })?;
 
-            let max_retries = max_retries(&requirements, &self.top_level.config);
+            let max_retries = max_retries(&requirements, &self.evaluator.config)?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -1945,24 +2097,23 @@ impl<'a> State<'a> {
                 Some(self.transferer().as_ref()),
                 &|path| {
                     // Join the path with the work directory.
-                    let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
+                    let output_path = evaluated.result.work_dir.join(path.as_str())?;
 
-                    // Ensure the output's path is valid
-                    let output_path = match (&mut output_path, &evaluated.result.work_dir) {
-                        (EvaluationPath::Local(joined), EvaluationPath::Local(base))
-                            if joined.starts_with(base)
-                                || joined == evaluated.stdout().as_file().unwrap().as_str()
-                                || joined == evaluated.stderr().as_file().unwrap().as_str() =>
+                    let output_path = if let (Some(joined), Some(base)) =
+                        (output_path.as_local(), evaluated.result.work_dir.as_local())
+                    {
+                        if joined.starts_with(base)
+                            || joined == evaluated.stdout().as_file().unwrap().as_str()
+                            || joined == evaluated.stderr().as_file().unwrap().as_str()
                         {
                             // The joined path is contained within the work directory or is
                             // stdout/stderr
                             HostPath::new(String::try_from(output_path)?)
-                        }
-                        (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
-                            // The joined path is not within the work or attempt directory;
-                            // therefore, it is required to be an input
+                        } else {
+                            // The joined path is not within the work directory, it must be a known
+                            // guest path
                             self.path_map
-                                .get_by_left(path)
+                                .get_by_right(&GuestPath(path.0.clone()))
                                 .ok_or_else(|| {
                                     anyhow!(
                                         "guest path `{path}` is not an input or within the task's \
@@ -1973,15 +2124,14 @@ impl<'a> State<'a> {
                                 .clone()
                                 .into()
                         }
-                        (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
-                            // Path is local (and absolute) and the working directory is remote
-                            bail!(
-                                "cannot access guest path `{path}` from a remotely executing task"
-                            )
-                        }
-                        (EvaluationPath::Remote(_), _) => {
-                            HostPath::new(String::try_from(output_path)?)
-                        }
+                    } else if let (Some(_), Some(_)) = (
+                        output_path.as_local(),
+                        evaluated.result.work_dir.as_remote(),
+                    ) {
+                        // Path is local (and absolute) and the working directory is remote
+                        bail!("cannot access guest path `{path}` from a remotely executing task")
+                    } else {
+                        HostPath::new(String::try_from(output_path)?)
                     };
 
                     Ok(output_path)
@@ -2008,7 +2158,7 @@ impl<'a> State<'a> {
     /// Returns the inputs to pass to the backend.
     async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<Vec<Input>> {
         // If the backend needs local inputs, download them now
-        if self.top_level.backend.needs_local_inputs() {
+        if self.evaluator.backend.needs_local_inputs() {
             let mut downloads = JoinSet::new();
 
             // Download any necessary files
@@ -2017,8 +2167,8 @@ impl<'a> State<'a> {
                     continue;
                 }
 
-                if let EvaluationPath::Remote(url) = input.path() {
-                    let transferer = self.top_level.transferer.clone();
+                if let Some(url) = input.path().as_remote() {
+                    let transferer = self.evaluator.transferer.clone();
                     let url = url.clone();
                     downloads.spawn(async move {
                         transferer
@@ -2062,7 +2212,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                         );
                     }
                     // Input is remote and was downloaded to a local path
@@ -2072,7 +2222,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                             local_path = local_path.display()
                         );
                     }
@@ -2083,7 +2233,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                         );
                     }
                     // Input is remote and was both downloaded and mapped to a guest path
@@ -2094,7 +2244,7 @@ impl<'a> State<'a> {
                             document = self.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                             local_path = local_path.display(),
                         );
                     }
@@ -2103,6 +2253,51 @@ impl<'a> State<'a> {
         }
 
         Ok(self.backend_inputs.as_slice().into())
+    }
+}
+
+#[cfg(test)]
+mod resource_validation_tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+        map.insert(key.to_string(), value);
+        map
+    }
+
+    #[test]
+    fn memory_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
+        let err = memory(&requirements).expect_err("`memory` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `memory` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn max_retries_disallows_negative_values() {
+        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
+        let err = max_retries(&requirements, &Config::default())
+            .expect_err("`max_retries` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task requirement `max_retries` cannot be less than zero")
+        );
+    }
+
+    #[test]
+    fn preemptible_disallows_negative_values() {
+        let mut hints = HashMap::new();
+        hints.insert("preemptible".to_string(), Value::from(-3));
+        let err = preemptible(&hints).expect_err("`preemptible` should reject negatives");
+        assert!(
+            err.to_string()
+                .contains("task hint `preemptible` cannot be less than zero")
+        );
     }
 }
 
@@ -2119,13 +2314,13 @@ mod test {
     use wdl_analysis::DiagnosticsConfig;
 
     use crate::CancellationContext;
-    use crate::EvaluatedTask;
     use crate::Events;
     use crate::TaskInputs;
     use crate::config::BackendConfig;
     use crate::config::CallCachingMode;
     use crate::config::Config;
-    use crate::v1::TopLevelEvaluator;
+    use crate::eval::EvaluatedTask;
+    use crate::v1::Evaluator;
 
     /// Helper for evaluating a simple task with the given call cache mode.
     async fn evaluate_task(mode: CallCachingMode, root_dir: &Path, source: &str) -> EvaluatedTask {
@@ -2155,7 +2350,7 @@ mod test {
             .backends
             .insert("default".into(), BackendConfig::Local(Default::default()));
 
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             &root_dir.join("runs"),
             config,
             CancellationContext::default(),
@@ -2169,7 +2364,7 @@ mod test {
             .evaluate_task(
                 document,
                 document.task_by_name("test").expect("should have task"),
-                &TaskInputs::default(),
+                TaskInputs::default(),
                 &runs_dir,
             )
             .await

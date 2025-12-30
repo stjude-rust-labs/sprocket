@@ -4,19 +4,23 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use regex::Regex;
 use serde_json::Value as JsonValue;
-use thiserror::Error;
+use url::Url;
 use wdl::analysis::Document;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::LocatedJsonValue;
-use wdl::engine::path::EvaluationPath;
 
 pub mod file;
 pub mod origin_paths;
 
 pub use origin_paths::OriginPaths;
+
+use crate::analysis::is_supported_source_url;
 
 /// A regex that matches a valid identifier.
 ///
@@ -36,51 +40,26 @@ static ASSUME_STRING_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^[^\[\]{}]*$").unwrap()
 });
 
-/// An error related to inputs.
-#[derive(Error, Debug)]
-pub enum Error {
-    /// Failed to determine the current working directory.
-    #[error("failed to determine the current working directory")]
-    NoCurrentWorkingDirectory,
-
-    /// A file error.
-    #[error(transparent)]
-    File(#[from] file::Error),
-
-    /// Encountered an invalid key-value pair.
-    #[error("invalid key-value pair `{pair}`: {reason}")]
-    InvalidPair {
-        /// The string-value of the pair.
-        pair: String,
-
-        /// The reason the pair was not valid.
-        reason: String,
-    },
-
-    /// An invalid entrypoint was specified.
-    #[error("invalid entrypoint `{0}`")]
-    InvalidEntrypoint(String),
-
-    /// A deserialization error.
-    #[error("unable to deserialize `{0}` as a valid WDL value")]
-    Deserialize(String),
+/// An input value that has not yet had its paths normalized and been converted
+/// to an engine value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocatedJsonValue {
+    /// The location where this input was initially read, used for normalizing
+    /// any paths the value may contain.
+    pub origin: EvaluationPath,
+    /// The raw JSON representation of the input value.
+    pub value: JsonValue,
 }
-
-/// A [`Result`](std::result::Result) with an [`Error`](enum@self::Error).
-pub type Result<T> = std::result::Result<T, Error>;
 
 /// An input parsed from the command line.
 #[derive(Clone, Debug)]
 pub enum Input {
-    /// A file.
-    File(
-        /// The path to the file.
-        ///
-        /// If this input is successfully created, the input is guaranteed to
-        /// exist at the time the inputs were processed.
-        EvaluationPath,
-    ),
-    /// A key-value pair representing an input.
+    /// The input is a file.
+    ///
+    /// If this input is successfully created, the input is guaranteed to
+    /// exist at the time the inputs were processed.
+    File(EvaluationPath),
+    /// The input is a key-value pair.
     Pair {
         /// The key.
         key: String,
@@ -91,47 +70,57 @@ pub enum Input {
 }
 
 impl FromStr for Input {
-    type Err = Error;
+    type Err = anyhow::Error;
 
-    fn from_str(s: &str) -> std::result::Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self> {
         match s.split_once("=") {
             Some((key, value)) => {
                 if !IDENTIFIER_REGEX.is_match(key) {
-                    return Err(Error::InvalidPair {
-                        pair: s.to_string(),
-                        reason: format!(
-                            "key `{}` did not match the identifier regex (`{}`)",
-                            key,
-                            IDENTIFIER_REGEX.as_str()
-                        ),
-                    });
+                    bail!(
+                        "invalid key-value pair `{s}`: key `{key}` did not match the identifier \
+                         regex (`{regex}`)",
+                        regex = IDENTIFIER_REGEX.as_str()
+                    );
                 }
 
                 let value = serde_json::from_str(value).or_else(|_| {
                     if ASSUME_STRING_REGEX.is_match(value) {
                         Ok(JsonValue::String(value.to_owned()))
                     } else {
-                        Err(Error::Deserialize(value.to_owned()))
+                        bail!("unable to deserialize `{value}` as a valid WDL value");
                     }
                 })?;
 
-                Ok(Input::Pair {
+                Ok(Self::Pair {
                     key: key.to_owned(),
                     value,
                 })
             }
             None => {
-                let path: EvaluationPath = s.parse().map_err(|e| file::Error::Path {
-                    path: s.to_string(),
-                    error: e,
-                })?;
-                if let Some(path) = path.as_local()
-                    && !path.exists()
-                {
-                    return Err(file::Error::NotFound(path.to_path_buf()).into());
-                }
+                // For URLs, ensure it's a supported source URL
+                let path: EvaluationPath = if is_supported_source_url(s) {
+                    s.parse::<Url>()
+                        .map_err(|_| anyhow!("invalid inputs file URL `{s}`"))?
+                        .try_into()?
+                } else {
+                    let path: EvaluationPath = s.parse()?;
 
-                Ok(Input::File(path))
+                    // If it's a remote URL, it's unsupported
+                    if path.is_remote() {
+                        bail!("unsupported inputs file URL `{s}`");
+                    }
+
+                    // Ensure the path exists
+                    if let Some(path) = path.as_local()
+                        && !path.exists()
+                    {
+                        bail!("input file `{s}` was not found");
+                    }
+
+                    path
+                };
+
+                Ok(Self::File(path))
             }
         }
     }
@@ -157,22 +146,23 @@ impl Invocation {
     /// Adds an input read from the command line.
     async fn add_input(&mut self, input: &str) -> Result<()> {
         match input.parse::<Input>()? {
-            Input::File(path) => {
-                let inputs = file::read_input_file(&path).await.map_err(Error::File)?;
-                self.inputs_mut().extend(inputs);
+            Input::File(url) => {
+                let inputs = file::read_input_file(&url).await?;
+                self.inputs.extend(inputs);
             }
             Input::Pair { key, value } => {
-                let cwd = std::env::current_dir().map_err(|_| Error::NoCurrentWorkingDirectory)?;
+                let cwd = std::env::current_dir()
+                    .context("failed to determine the current working directory")?;
 
                 let key = if let Some(prefix) = &self.entrypoint {
                     format!("{prefix}.{key}")
                 } else {
                     key
                 };
-                self.inputs_mut().insert(
+                self.inputs.insert(
                     key,
                     LocatedJsonValue {
-                        origin: EvaluationPath::Local(cwd),
+                        origin: cwd.as_path().into(),
                         value,
                     },
                 );
@@ -197,7 +187,7 @@ impl Invocation {
         if let Some(ep) = &entrypoint
             && ep.contains('.')
         {
-            return Err(Error::InvalidEntrypoint(ep.into()));
+            bail!("invalid entrypoint `{ep}`");
         }
 
         let mut inputs = Invocation {
@@ -210,17 +200,6 @@ impl Invocation {
         }
 
         Ok(inputs)
-    }
-
-    /// Get a reference to the input map.
-    #[cfg_attr(not(test), expect(unused))]
-    pub fn inputs(&self) -> &JsonInputMap {
-        &self.inputs
-    }
-
-    /// Get a mutable reference to the input map.
-    pub fn inputs_mut(&mut self) -> &mut JsonInputMap {
-        &mut self.inputs
     }
 
     /// Converts an [`EngineInvocation`] for the given [`Invocation`]
@@ -248,7 +227,7 @@ impl Invocation {
             },
         );
 
-        let result = EngineInputs::parse_object(document, values)?;
+        let result = EngineInputs::parse_json_object(document, values)?;
 
         if let Some((derived, _)) = &result
             && let Some(ep) = &self.entrypoint
@@ -292,7 +271,7 @@ mod tests {
         /// If the input is not a [`Input::Pair`].
         pub fn unwrap_pair(self) -> (String, JsonValue) {
             match self {
-                Input::Pair { key, value } => (key, value),
+                Self::Pair { key, value } => (key, value),
                 v => panic!("{v:?} is not an `Input::Pair`"),
             }
         }
@@ -337,7 +316,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             err.to_string().replace("\\", "/"),
-            "input file `tests/fixtures/missing.json` was not found"
+            "input file `./tests/fixtures/missing.json` was not found"
         );
     }
 
@@ -373,22 +352,22 @@ mod tests {
     async fn coalesce() {
         // Helper functions.
         fn check_string_value(invocation: &Invocation, key: &str, value: &str) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
 
         fn check_float_value(invocation: &Invocation, key: &str, value: f64) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
             assert_eq!(input.as_f64().unwrap(), value);
         }
 
         fn check_boolean_value(invocation: &Invocation, key: &str, value: bool) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
             assert_eq!(input.as_bool().unwrap(), value);
         }
 
         fn check_integer_value(invocation: &Invocation, key: &str, value: i64) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs().get(key).unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
             assert_eq!(input.as_i64().unwrap(), value);
         }
 
@@ -404,7 +383,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(invocation.inputs().len(), 5);
+        assert_eq!(invocation.inputs.len(), 5);
         check_string_value(&invocation, "foo", "bar");
         check_float_value(&invocation, "baz", 128.0);
         check_string_value(&invocation, "quux", "qil");
@@ -423,7 +402,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(invocation.inputs().len(), 5);
+        assert_eq!(invocation.inputs.len(), 5);
         check_string_value(&invocation, "foo", "bar");
         check_float_value(&invocation, "baz", 42.0);
         check_string_value(&invocation, "quux", "qil");
@@ -445,7 +424,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(invocation.inputs().len(), 6);
+        assert_eq!(invocation.inputs.len(), 6);
         check_string_value(&invocation, "foo", "bar");
         check_boolean_value(&invocation, "baz", false);
         check_string_value(&invocation, "quux", "jacks");
@@ -476,7 +455,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(
             error.to_string().replace("\\", "/"),
-            "input file `tests/fixtures/missing.json` was not found"
+            "input file `./tests/fixtures/missing.json` was not found"
         );
     }
 
@@ -486,17 +465,17 @@ mod tests {
             let invocation = Invocation::coalesce([format!("input={}", value)], None)
                 .await
                 .unwrap();
-            let LocatedJsonValue { value: input, .. } = invocation.inputs().get("input").unwrap();
+            let LocatedJsonValue { value: input, .. } = invocation.inputs.get("input").unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
         async fn check_cannot_coalesce_string(value: &str) {
             let error = Invocation::coalesce([format!("input={}", value)], None)
                 .await
                 .unwrap_err();
-            assert!(matches!(
-                error,
-                Error::Deserialize(output) if output == value
-            ));
+            assert_eq!(
+                error.to_string(),
+                format!("unable to deserialize `{value}` as a valid WDL value")
+            );
         }
 
         check_can_coalesce_string("can-coalesce-dashes").await;

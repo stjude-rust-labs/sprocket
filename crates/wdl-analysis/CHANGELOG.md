@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+
+#### Fixed
+
+* Fixed a bug where a dependency cycle was incorrectly detected due to an
+  invalid edge being added between nodes in the dependency graph when a scatter
+  variable shadowed an outer declaration of the same name (#[509](https://github.com/stjude-rust-labs/sprocket/pull/509)).
+
 ## 0.15.0 - 11-21-2025
 
 #### Added
 
+* Added type analysis and validation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).

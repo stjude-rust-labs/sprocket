@@ -13,6 +13,7 @@ use wdl_ast::version::V1;
 use crate::types::ArrayType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -124,6 +125,8 @@ pub enum GenericType {
     Pair(GenericPairType),
     /// The type is a generic `Map`.
     Map(GenericMapType),
+    /// The type is a generic value contained within an enum.
+    EnumInnerValue(GenericEnumInnerValueType),
 }
 
 impl GenericType {
@@ -156,6 +159,7 @@ impl GenericType {
                     GenericType::Array(ty) => ty.display(self.params).fmt(f),
                     GenericType::Pair(ty) => ty.display(self.params).fmt(f),
                     GenericType::Map(ty) => ty.display(self.params).fmt(f),
+                    GenericType::EnumInnerValue(ty) => ty.display(self.params).fmt(f),
                 }
             }
         }
@@ -187,6 +191,10 @@ impl GenericType {
             Self::Array(array) => array.infer_type_parameters(ty, params, ignore_constraints),
             Self::Pair(pair) => pair.infer_type_parameters(ty, params, ignore_constraints),
             Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
+            Self::EnumInnerValue(_) => {
+                // NOTE: this is an intentional no-op—the value type is derived
+                // from the variant parameter, not inferred from arguments.
+            }
         }
     }
 
@@ -207,6 +215,7 @@ impl GenericType {
             Self::Array(ty) => ty.realize(params),
             Self::Pair(ty) => ty.realize(params),
             Self::Map(ty) => ty.realize(params),
+            Self::EnumInnerValue(ty) => ty.realize(params),
         }
     }
 
@@ -224,6 +233,7 @@ impl GenericType {
             Self::Array(a) => a.assert_type_parameters(parameters),
             Self::Pair(p) => p.assert_type_parameters(parameters),
             Self::Map(m) => m.assert_type_parameters(parameters),
+            Self::EnumInnerValue(e) => e.assert_type_parameters(parameters),
         }
     }
 }
@@ -243,6 +253,12 @@ impl From<GenericPairType> for GenericType {
 impl From<GenericMapType> for GenericType {
     fn from(value: GenericMapType) -> Self {
         Self::Map(value)
+    }
+}
+
+impl From<GenericEnumInnerValueType> for GenericType {
+    fn from(value: GenericEnumInnerValueType) -> Self {
+        Self::EnumInnerValue(value)
     }
 }
 
@@ -535,6 +551,77 @@ impl GenericMapType {
     }
 }
 
+/// Represents a generic inner value of an enum.
+#[derive(Debug, Clone)]
+pub struct GenericEnumInnerValueType {
+    /// The inner value parameter.
+    param: &'static str,
+}
+
+impl GenericEnumInnerValueType {
+    /// Constructs a new generic enum inner value type.
+    pub fn new(param: &'static str) -> Self {
+        Self { param }
+    }
+
+    /// Gets the inner value parameter name.
+    pub fn param(&self) -> &'static str {
+        self.param
+    }
+
+    /// Returns an object that implements `Display` for formatting the type.
+    pub fn display<'a>(&'a self, params: &'a TypeParameters<'a>) -> impl fmt::Display + 'a {
+        #[allow(clippy::missing_docs_in_private_items)]
+        struct Display<'a> {
+            params: &'a TypeParameters<'a>,
+            ty: &'a GenericEnumInnerValueType,
+        }
+
+        impl fmt::Display for Display<'_> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let (_, variant_ty) = self
+                    .params
+                    .get(self.ty.param)
+                    .expect("variant parameter should be present");
+
+                match variant_ty {
+                    Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
+                        enum_ty.inner_value_type().fmt(f)
+                    }
+                    // NOTE: non-enums should gracefully fail.
+                    _ => write!(f, "{}", self.ty.param),
+                }
+            }
+        }
+
+        Display { params, ty: self }
+    }
+
+    /// Realizes the generic type to the enum's inner value type.
+    fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
+        let (_, variant_ty) = params
+            .get(self.param)
+            .expect("variant parameter should be present");
+
+        match variant_ty {
+            Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
+                Some(enum_ty.inner_value_type().clone())
+            }
+            // NOTE: non-enums should gracefully fail.
+            _ => None,
+        }
+    }
+
+    /// Asserts that the type parameters referenced by the type are valid.
+    fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
+        assert!(
+            parameters.iter().any(|p| p.name == self.param),
+            "generic enum variant type references unknown type parameter `{}`",
+            self.param
+        );
+    }
+}
+
 /// Represents a collection of type parameters.
 #[derive(Debug, Clone)]
 pub struct TypeParameters<'a> {
@@ -712,6 +799,18 @@ impl From<PrimitiveType> for FunctionalType {
     }
 }
 
+impl From<ArrayType> for FunctionalType {
+    fn from(value: ArrayType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
+impl From<MapType> for FunctionalType {
+    fn from(value: MapType) -> Self {
+        Self::Concrete(value.into())
+    }
+}
+
 impl From<GenericType> for FunctionalType {
     fn from(value: GenericType) -> Self {
         Self::Generic(value)
@@ -733,6 +832,12 @@ impl From<GenericPairType> for FunctionalType {
 impl From<GenericMapType> for FunctionalType {
     fn from(value: GenericMapType) -> Self {
         Self::Generic(GenericType::Map(value))
+    }
+}
+
+impl From<GenericEnumInnerValueType> for FunctionalType {
+    fn from(value: GenericEnumInnerValueType) -> Self {
+        Self::Generic(GenericType::EnumInnerValue(value))
     }
 }
 
@@ -1571,21 +1676,21 @@ pub struct StandardLibrary {
     /// A map of function name to function definition.
     functions: IndexMap<&'static str, Function>,
     /// The type for `Array[Int]`.
-    array_int: Type,
+    array_int: ArrayType,
     /// The type for `Array[String]`.
-    array_string: Type,
+    array_string: ArrayType,
     /// The type for `Array[File]`.
-    array_file: Type,
+    array_file: ArrayType,
     /// The type for `Array[Object]`.
-    array_object: Type,
+    array_object: ArrayType,
     /// The type for `Array[String]+`.
-    array_string_non_empty: Type,
+    array_string_non_empty: ArrayType,
     /// The type for `Array[Array[String]]`.
-    array_array_string: Type,
+    array_array_string: ArrayType,
     /// The type for `Map[String, String]`.
-    map_string_string: Type,
+    map_string_string: MapType,
     /// The type for `Map[String, Int]`.
-    map_string_int: Type,
+    map_string_int: MapType,
 }
 
 impl StandardLibrary {
@@ -1600,56 +1705,56 @@ impl StandardLibrary {
     }
 
     /// Gets the type for `Array[Int]`.
-    pub fn array_int_type(&self) -> &Type {
+    pub fn array_int_type(&self) -> &ArrayType {
         &self.array_int
     }
 
     /// Gets the type for `Array[String]`.
-    pub fn array_string_type(&self) -> &Type {
+    pub fn array_string_type(&self) -> &ArrayType {
         &self.array_string
     }
 
     /// Gets the type for `Array[File]`.
-    pub fn array_file_type(&self) -> &Type {
+    pub fn array_file_type(&self) -> &ArrayType {
         &self.array_file
     }
 
     /// Gets the type for `Array[Object]`.
-    pub fn array_object_type(&self) -> &Type {
+    pub fn array_object_type(&self) -> &ArrayType {
         &self.array_object
     }
 
     /// Gets the type for `Array[String]+`.
-    pub fn array_string_non_empty_type(&self) -> &Type {
+    pub fn array_string_non_empty_type(&self) -> &ArrayType {
         &self.array_string_non_empty
     }
 
     /// Gets the type for `Array[Array[String]]`.
-    pub fn array_array_string_type(&self) -> &Type {
+    pub fn array_array_string_type(&self) -> &ArrayType {
         &self.array_array_string
     }
 
     /// Gets the type for `Map[String, String]`.
-    pub fn map_string_string_type(&self) -> &Type {
+    pub fn map_string_string_type(&self) -> &MapType {
         &self.map_string_string
     }
 
     /// Gets the type for `Map[String, Int]`.
-    pub fn map_string_int_type(&self) -> &Type {
+    pub fn map_string_int_type(&self) -> &MapType {
         &self.map_string_int
     }
 }
 
 /// Represents the WDL standard library.
 pub static STDLIB: LazyLock<StandardLibrary> = LazyLock::new(|| {
-    let array_int: Type = ArrayType::new(PrimitiveType::Integer).into();
-    let array_string: Type = ArrayType::new(PrimitiveType::String).into();
-    let array_file: Type = ArrayType::new(PrimitiveType::File).into();
-    let array_object: Type = ArrayType::new(Type::Object).into();
-    let array_string_non_empty: Type = ArrayType::non_empty(PrimitiveType::String).into();
-    let array_array_string: Type = ArrayType::new(array_string.clone()).into();
-    let map_string_string: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
-    let map_string_int: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
+    let array_int = ArrayType::new(PrimitiveType::Integer);
+    let array_string = ArrayType::new(PrimitiveType::String);
+    let array_file = ArrayType::new(PrimitiveType::File);
+    let array_object = ArrayType::new(Type::Object);
+    let array_string_non_empty = ArrayType::non_empty(PrimitiveType::String);
+    let array_array_string = ArrayType::new(array_string.clone());
+    let map_string_string = MapType::new(PrimitiveType::String, PrimitiveType::String);
+    let map_string_int = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
     let mut functions = IndexMap::new();
 
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#floor
@@ -1684,7 +1789,7 @@ workflow test_floor {
   Int i2 = i1 - 1
   Float f1 = i1
   Float f2 = i1 - 0.1
-  
+
   output {
     Array[Boolean] all_true = [floor(f1) == i1, floor(f2) == i2]
   }
@@ -1730,7 +1835,7 @@ workflow test_ceil {
   Int i2 = i1 + 1
   Float f1 = i1
   Float f2 = i1 + 0.1
-  
+
   output {
     Array[Boolean] all_true = [ceil(f1) == i1, ceil(f2) == i2]
   }
@@ -1776,7 +1881,7 @@ workflow test_round {
   Int i2 = i1 + 1
   Float f1 = i1 + 0.49
   Float f2 = i1 + 0.50
-  
+
   output {
     Array[Boolean] all_true = [round(f1) == i1, round(f2) == i2]
   }
@@ -1972,7 +2077,7 @@ workflow find_string {
   output {
     String? match1 = find(in, pattern1)  # "ello"
     String? match2 = find(in, pattern2)  # None
-  }  
+  }
 }
 ```
 "#
@@ -2144,7 +2249,7 @@ workflow test_split {
     );
 
     const BASENAME_DEFINITION: &str = r#"
-Returns the "basename" of a file or directory - the name after the last directory separator in the path. 
+Returns the "basename" of a file or directory - the name after the last directory separator in the path.
 
 The optional second parameter specifies a literal suffix to remove from the file name. If the file name does not end with the specified suffix then it is ignored.
 
@@ -2164,7 +2269,7 @@ workflow test_basename {
   output {
     Boolean is_true1 = basename("/path/to/file.txt") == "file.txt"
     Boolean is_true2 = basename("/path/to/file.txt", ".txt") == "file"
-    Boolean is_true3 = basename("/path/to/dir") == "dir" 
+    Boolean is_true3 = basename("/path/to/dir") == "dir"
   }
 }
 ```
@@ -2278,11 +2383,11 @@ task resolve_paths_task {
   File bin1 = join_paths(abs_file, [rel_dir_str, rel_file])
   File bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
   File bin3 = join_paths([abs_str, rel_dir_str, rel_file])
-  
-  # the default behavior is that this resolves to 
+
+  # the default behavior is that this resolves to
   # '<working dir>/mydir/mydata.txt'
   File data = join_paths(rel_dir_file, rel_str)
-  
+
   # this resolves to '<working dir>/bin/echo', which is non-existent
   File doesnt_exist = join_paths([rel_dir_str, rel_file])
   command <<<
@@ -2295,7 +2400,7 @@ task resolve_paths_task {
     String result = read_string(data)
     File? missing_file = doesnt_exist
   }
-  
+
   runtime {
     container: "ubuntu:latest"
   }
@@ -2372,7 +2477,7 @@ Returns the Bash expansion of the [glob string](https://en.wikipedia.org/wiki/Gl
 
 `glob` finds all of the files (but not the directories) in the same order as would be matched by running `echo <glob>` in Bash from the task's execution directory.
 
-At least in standard Bash, glob expressions are not evaluated recursively, i.e., files in nested directories are not included. 
+At least in standard Bash, glob expressions are not evaluated recursively, i.e., files in nested directories are not included.
 
 **Parameters**:
 
@@ -2451,7 +2556,7 @@ task file_sizes {
     }
     Float nested_bytes = size(nested)
   }
-  
+
   requirements {
     container: "ubuntu:latest"
   }
@@ -2670,11 +2775,11 @@ version 1.2
 task read_string {
   # this file will contain "this\nfile\nhas\nfive\nlines\n"
   File f = write_lines(["this", "file", "has", "five", "lines"])
-  
+
   command <<<
   cat ~{f}
   >>>
-  
+
   output {
     # s will contain "this\nfile\nhas\nfive\nlines"
     String s = read_string(stdout())
@@ -2864,7 +2969,7 @@ task grep {
   output {
     Array[String] matches = read_lines(stdout())
   }
-  
+
   requirements {
     container: "ubuntu:latest"
   }
@@ -2915,7 +3020,7 @@ task write_lines {
   output {
     String s = read_string(stdout())
   }
-  
+
   requirements {
     container: "ubuntu:latest"
   }
@@ -3038,7 +3143,7 @@ There are three variants of this function:
 
 3. `File write_tsv(Array[Struct], [Boolean, [Array[String]]])`: Each element is a struct whose field values are concatenated in the order the fields are defined. The optional second argument specifies whether to write a header row. If it is `true`, then the header is created from the struct field names. If the second argument is `true`, then the optional third argument may be used to specify column names to use instead of the struct field names.
 
-Each line is terminated by the newline (`\n`) character. 
+Each line is terminated by the newline (`\n`) character.
 
 The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
 
@@ -3094,7 +3199,7 @@ task write_tsv {
     Array[String] structs_user_header = read_lines("structs_user_header.txt")
 
   }
-  
+
   requirements {
     container: "ubuntu:latest"
   }
@@ -3211,7 +3316,7 @@ task read_map {
     printf "key1\tvalue1\n" >> map_file
     printf "key2\tvalue2\n" >> map_file
   >>>
-  
+
   output {
     Map[String, String] mapping = read_map(stdout())
   }
@@ -3264,7 +3369,7 @@ task write_map {
   command <<<
     cut -f 1 ~{write_map(map)}
   >>>
-  
+
   output {
     Array[String] keys = read_lines(stdout())
   }
@@ -3520,7 +3625,7 @@ task read_objects {
     const WRITE_OBJECT_DEFINITION: &str = r#"
 Writes a tab-separated value (TSV) file representing the names and values of the members of an `Object`. The file will contain exactly two rows. The first row specifies the object member names. The second row specifies the object member values corresponding to the names in the first row.
 
-Each line is terminated by the newline (`\n`) character. 
+Each line is terminated by the newline (`\n`) character.
 
 The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
 
@@ -3580,7 +3685,7 @@ task write_object {
     const WRITE_OBJECTS_DEFINITION: &str = r#"
 Writes a tab-separated value (TSV) file representing the names and values of the members of any number of `Object`s. The first line of the file will be a header row with the names of the object members. There will be one additional row for each element in the input array, where each additional row contains the values of an object corresponding to the member names.
 
-Each line is terminated by the newline (`\n`) character. 
+Each line is terminated by the newline (`\n`) character.
 
 The generated file should be given a random name and written in a temporary directory, so as not to conflict with any other task output files.
 
@@ -4870,6 +4975,73 @@ task collect_by_key {
             .is_none()
     );
 
+    // Enum functions (WDL 1.3)
+    assert!(
+        functions
+            .insert(
+                "value",
+                MonomorphicFunction::new(
+                    FunctionSignature::builder()
+                        .min_version(SupportedVersion::V1(V1::Three))
+                        .any_type_parameter("T")
+                        .type_parameter("V", EnumVariantConstraint)
+                        .parameter(
+                            "variant",
+                            GenericType::Parameter("V"),
+                            "An enum variant of any enum type.",
+                        )
+                        .ret(GenericEnumInnerValueType::new("T"))
+                        .definition(
+                            r##"
+Returns the underlying value associated with an enum variant.
+
+**Parameters**
+
+1. `Enum`: an enum variant of any enum type.
+
+**Returns**: The variant's associated value.
+
+Example: test_enum_value.wdl
+
+```wdl
+version 1.3
+
+enum Color {
+  Red = "#FF0000",
+  Green = "#00FF00",
+  Blue = "#0000FF"
+}
+
+enum Priority {
+  Low = 1,
+  Medium = 5,
+  High = 10
+}
+
+workflow test_enum_value {
+  input {
+    Color color = Color.Red
+    Priority priority = Priority.High
+  }
+
+  output {
+    String variant_name = "~{color}"   # "Red"
+    String hex_value = value(color)    # "#FF0000"
+    Int priority_num = value(priority) # 10
+    Boolean values_equal = value(Color.Red) == value(Color.Red) # true
+    Boolean variants_equal = Color.Red == Color.Red             # true
+  }
+}
+```
+"##
+                        )
+                        .build(),
+                )
+                .into(),
+            )
+            .is_none()
+    );
+
     // https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#defined
     assert!(
         functions
@@ -5126,6 +5298,7 @@ mod test {
                 "values(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
                  primitive type",
+                "value(variant: V) -> T where `V`: any enum variant",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",

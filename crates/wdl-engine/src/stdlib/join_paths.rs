@@ -14,7 +14,6 @@ use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::path::EvaluationPath;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "join_paths";
@@ -49,56 +48,55 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     })?;
 
-    match first {
-        EvaluationPath::Local(path) => {
-            let second = Path::new(second.as_str());
-            if !second.is_relative() {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{second}` is not a relative path",
-                        second = second.display()
-                    ),
-                    context.arguments[1].span,
-                ));
-            }
-
-            Ok(PrimitiveValue::new_file(
-                path.join(second)
-                    .clean()
-                    .into_os_string()
-                    .into_string()
-                    .expect("should be UTF-8"),
-            )
-            .into())
+    if first.is_local() {
+        let path = first.unwrap_local();
+        let second = Path::new(second.as_str());
+        if !second.is_relative() {
+            return Err(function_call_failed(
+                FUNCTION_NAME,
+                format!(
+                    "path `{second}` is not a relative path",
+                    second = second.display()
+                ),
+                context.arguments[1].span,
+            ));
         }
-        EvaluationPath::Remote(mut url) => {
-            if second.starts_with('/') || second.contains(":") {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    format!("path `{second}` is not a relative path"),
-                    context.arguments[1].span,
-                ));
-            }
 
-            // For consistency with `PathBuf::push`, push an empty segment so that we treat
-            // the last segment as a directory; otherwise, `Url::join` will treat it as a
-            // file.
-            if let Ok(mut segments) = url.path_segments_mut() {
-                segments.pop_if_empty();
-                segments.push("");
-            }
-
-            url.join(&second)
-                .map(|u| PrimitiveValue::new_file(u).into())
-                .map_err(|_| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{second}` cannot be joined with URL `{url}`"),
-                        context.arguments[1].span,
-                    )
-                })
+        Ok(PrimitiveValue::new_file(
+            path.join(second)
+                .clean()
+                .into_os_string()
+                .into_string()
+                .expect("should be UTF-8"),
+        )
+        .into())
+    } else {
+        let mut url = first.unwrap_remote();
+        if second.starts_with('/') || second.contains(":") {
+            return Err(function_call_failed(
+                FUNCTION_NAME,
+                format!("path `{second}` is not a relative path"),
+                context.arguments[1].span,
+            ));
         }
+
+        // For consistency with `PathBuf::push`, push an empty segment so that we treat
+        // the last segment as a directory; otherwise, `Url::join` will treat it as a
+        // file.
+        if let Ok(mut segments) = url.path_segments_mut() {
+            segments.pop_if_empty();
+            segments.push("");
+        }
+
+        url.join(&second)
+            .map(|u| PrimitiveValue::new_file(u).into())
+            .map_err(|_| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{second}` cannot be joined with URL `{url}`"),
+                    context.arguments[1].span,
+                )
+            })
     }
 }
 
@@ -156,72 +154,69 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     })?;
 
-    match first {
-        EvaluationPath::Local(mut path) => {
-            for (i, element) in array
-                .as_slice()
-                .iter()
-                .enumerate()
-                .skip(if skip { 1 } else { 0 })
-            {
-                let next = element.as_string().expect("element should be string");
-                let p = Path::new(next.as_str());
-                if !p.is_relative() {
-                    return Err(function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{next}` (array index {i}) is not a relative path"),
-                        array_span,
-                    ));
-                }
-
-                path.push(p);
+    if first.is_local() {
+        let mut path = first.unwrap_local();
+        for (i, element) in array
+            .as_slice()
+            .iter()
+            .enumerate()
+            .skip(if skip { 1 } else { 0 })
+        {
+            let next = element.as_string().expect("element should be string");
+            let p = Path::new(next.as_str());
+            if !p.is_relative() {
+                return Err(function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) is not a relative path"),
+                    array_span,
+                ));
             }
 
-            Ok(PrimitiveValue::new_file(
-                path.clean()
-                    .into_os_string()
-                    .into_string()
-                    .expect("should be UTF-8"),
-            )
-            .into())
+            path.push(p);
         }
-        EvaluationPath::Remote(mut url) => {
-            for (i, element) in array
-                .as_slice()
-                .iter()
-                .enumerate()
-                .skip(if skip { 1 } else { 0 })
-            {
-                let next = element.as_string().expect("element should be string");
-                if next.starts_with('/') || next.contains(":") {
-                    return Err(function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{next}` (array index {i}) is not a relative path"),
-                        array_span,
-                    ));
-                }
 
-                // For consistency with `PathBuf::push`, push an empty segment so that we treat
-                // the last segment as a directory; otherwise, `Url::join` will treat it as a
-                // file.
-                if let Ok(mut segments) = url.path_segments_mut() {
-                    segments.pop_if_empty();
-                    segments.push("");
-                }
-
-                url = url.join(next).map_err(|_| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!(
-                            "path `{next}` (array index {i}) cannot be joined with URL `{url}`"
-                        ),
-                        context.arguments[1].span,
-                    )
-                })?;
+        Ok(PrimitiveValue::new_file(
+            path.clean()
+                .into_os_string()
+                .into_string()
+                .expect("should be UTF-8"),
+        )
+        .into())
+    } else {
+        let mut url = first.unwrap_remote();
+        for (i, element) in array
+            .as_slice()
+            .iter()
+            .enumerate()
+            .skip(if skip { 1 } else { 0 })
+        {
+            let next = element.as_string().expect("element should be string");
+            if next.starts_with('/') || next.contains(":") {
+                return Err(function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) is not a relative path"),
+                    array_span,
+                ));
             }
 
-            Ok(PrimitiveValue::new_file(url).into())
+            // For consistency with `PathBuf::push`, push an empty segment so that we treat
+            // the last segment as a directory; otherwise, `Url::join` will treat it as a
+            // file.
+            if let Ok(mut segments) = url.path_segments_mut() {
+                segments.pop_if_empty();
+                segments.push("");
+            }
+
+            url = url.join(next).map_err(|_| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) cannot be joined with URL `{url}`"),
+                    context.arguments[1].span,
+                )
+            })?;
         }
+
+        Ok(PrimitiveValue::new_file(url).into())
     }
 }
 

@@ -20,14 +20,15 @@ use tracing::info;
 use url::Url;
 
 use crate::ContentKind;
-use crate::Input;
+use crate::EvaluationPath;
 use crate::PrimitiveValue;
 use crate::Value;
+use crate::backend::Input;
 use crate::backend::TaskExecutionResult;
 use crate::cache::hash::hash_sequence;
 use crate::cache::lock::LockedFile;
+use crate::config::ContentDigestMode;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 
 /// The current cache entry version.
 ///
@@ -64,6 +65,8 @@ struct State {
     /// The file transferer that can be used for calculating remote file
     /// digests.
     transferer: Arc<dyn Transferer>,
+    /// The content digest mode used by the cache.
+    mode: ContentDigestMode,
 }
 
 impl State {
@@ -92,8 +95,9 @@ impl Content {
         transferer: &dyn Transferer,
         path: EvaluationPath,
         kind: ContentKind,
+        mode: ContentDigestMode,
     ) -> Result<Self> {
-        let digest = path.calculate_digest(transferer, kind).await?;
+        let digest = path.calculate_digest(transferer, kind, mode).await?;
         Ok(Self {
             location: path.try_into()?,
             digest: digest.to_hex(),
@@ -109,9 +113,10 @@ impl Content {
         &self,
         transferer: &dyn Transferer,
         kind: ContentKind,
+        mode: ContentDigestMode,
     ) -> Result<EvaluationPath> {
         let path: EvaluationPath = self.location.parse()?;
-        let digest = path.calculate_digest(transferer, kind).await?;
+        let digest = path.calculate_digest(transferer, kind, mode).await?;
         if digest.to_hex() != self.digest {
             bail!(
                 "cached content `{location}` was modified",
@@ -297,7 +302,11 @@ impl CallCache {
     ///
     /// If `cache_dir` is `None`, the default operating system specified cache
     /// directory for the user is used.
-    pub async fn new(cache_dir: Option<&Path>, transferer: Arc<dyn Transferer>) -> Result<Self> {
+    pub async fn new(
+        cache_dir: Option<&Path>,
+        mode: ContentDigestMode,
+        transferer: Arc<dyn Transferer>,
+    ) -> Result<Self> {
         let cache_dir = match cache_dir {
             Some(cache_dir) => cache_dir.into(),
             None => crate::config::cache_dir()?.join(CALL_CACHE_SUBDIR),
@@ -322,6 +331,7 @@ impl CallCache {
                 .into(),
             cache_dir: cache_dir.into(),
             transferer,
+            mode,
         }))
     }
 
@@ -362,7 +372,7 @@ impl CallCache {
         for input in request.backend_inputs {
             let digest = input
                 .path()
-                .calculate_digest(self.0.transferer.as_ref(), input.kind())
+                .calculate_digest(self.0.transferer.as_ref(), input.kind(), self.0.mode)
                 .await?;
 
             backend_inputs.insert(input.path().to_string(), digest.to_hex());
@@ -418,15 +428,19 @@ impl CallCache {
 
         let stdout = entry
             .stdout
-            .to_evaluation_path(self.0.transferer.as_ref(), ContentKind::File)
+            .to_evaluation_path(self.0.transferer.as_ref(), ContentKind::File, self.0.mode)
             .await?;
         let stderr = entry
             .stderr
-            .to_evaluation_path(self.0.transferer.as_ref(), ContentKind::File)
+            .to_evaluation_path(self.0.transferer.as_ref(), ContentKind::File, self.0.mode)
             .await?;
         let work = entry
             .work
-            .to_evaluation_path(self.0.transferer.as_ref(), ContentKind::Directory)
+            .to_evaluation_path(
+                self.0.transferer.as_ref(),
+                ContentKind::Directory,
+                self.0.mode,
+            )
             .await?;
 
         Ok(Some(TaskExecutionResult {
@@ -462,6 +476,7 @@ impl CallCache {
                     .as_str()
                     .parse()?,
                 ContentKind::File,
+                self.0.mode,
             )
             .await?,
             stderr: Content::from_evaluation_path(
@@ -473,12 +488,14 @@ impl CallCache {
                     .as_str()
                     .parse()?,
                 ContentKind::File,
+                self.0.mode,
             )
             .await?,
             work: Content::from_evaluation_path(
                 self.0.transferer.as_ref(),
                 result.work_dir.clone(),
                 ContentKind::Directory,
+                self.0.mode,
             )
             .await?,
         };
@@ -552,7 +569,7 @@ mod test {
                 )]),
                 backend_inputs: [Input::new(
                     ContentKind::File,
-                    EvaluationPath::Local(input),
+                    EvaluationPath::from_local_path(input),
                     Some(GuestPath::new("/mnt/task/0/input")),
                 )],
             }
@@ -630,7 +647,7 @@ mod test {
         // Cache an execution result
         let result = TaskExecutionResult {
             exit_code: 0,
-            work_dir: EvaluationPath::Local(task.paths.work_dir.clone()),
+            work_dir: EvaluationPath::from_local_path(task.paths.work_dir.clone()),
             stdout: PrimitiveValue::new_file(task.paths.stdout.to_str().unwrap()).into(),
             stderr: PrimitiveValue::new_file(task.paths.stderr.to_str().unwrap()).into(),
         };
@@ -682,9 +699,13 @@ mod test {
 
             // Create the cache
             let transfer = Arc::new(DigestTransferer::new([]));
-            let cache = CallCache::new(Some(&root_dir.path().join("cache")), transfer)
-                .await
-                .unwrap();
+            let cache = CallCache::new(
+                Some(&root_dir.path().join("cache")),
+                ContentDigestMode::Strong,
+                transfer,
+            )
+            .await
+            .unwrap();
 
             // Populate the cache with the initial entry
             populate_cache(&cache, &task).await;
@@ -932,7 +953,7 @@ mod test {
                     ctx.task.backend_inputs[0].clone(),
                     Input::new(
                         ContentKind::File,
-                        EvaluationPath::Local(input2.clone()),
+                        EvaluationPath::from_local_path(input2.clone()),
                         Some(GuestPath::new("/mnt/task/0/input2")),
                     ),
                 ],

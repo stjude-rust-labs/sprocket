@@ -12,13 +12,14 @@ use wdl::analysis::Analyzer;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
+use wdl::analysis::config::FeatureFlags;
 use wdl::lint::Linter;
 
 mod results;
 mod source;
 
 pub use results::AnalysisResults;
-pub use source::Source;
+pub use source::*;
 use wdl::lint::Rule;
 use wdl::lint::TagSet;
 
@@ -32,6 +33,9 @@ type ProgressCb =
     Box<dyn Fn(ProgressKind, usize, usize) -> BoxFuture<'static, ()> + Send + Sync + 'static>;
 
 /// An analysis.
+// For some reason, `missing_debug_implementations` fires for this even though a Debug impl is not
+// derivable for this type.
+#[expect(missing_debug_implementations)]
 pub struct Analysis {
     /// The set of root nodes to analyze.
     ///
@@ -49,6 +53,9 @@ pub struct Analysis {
 
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
+
+    /// Feature flags for experimental features.
+    feature_flags: FeatureFlags,
 
     /// The initialization callback.
     init: InitCb,
@@ -129,7 +136,8 @@ impl Analysis {
         }
         let config = wdl::analysis::Config::default()
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
-            .with_ignore_filename(self.ignore_filename);
+            .with_ignore_filename(self.ignore_filename)
+            .with_feature_flags(self.feature_flags);
 
         (self.init)();
 
@@ -177,6 +185,7 @@ impl Default for Analysis {
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            feature_flags: FeatureFlags::default(),
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

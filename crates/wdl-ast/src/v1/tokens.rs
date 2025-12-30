@@ -130,6 +130,7 @@ define_token!(SingleQuote, "the `'` symbol", "'");
 define_token!(Slash, "the `/` symbol", "/");
 define_token!(StringTypeKeyword, "the `String` type keyword", "String");
 define_token!(StructKeyword, "the `struct` keyword", "struct");
+define_token!(EnumKeyword, "the `enum` keyword", "enum");
 define_token!(TaskKeyword, "the `task` keyword", "task");
 define_token!(ThenKeyword, "the `then` keyword", "then");
 define_token!(TrueKeyword, "the `true` keyword", "true");

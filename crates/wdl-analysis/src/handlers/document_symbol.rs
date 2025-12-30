@@ -19,6 +19,7 @@ use wdl_ast::v1::CallStatement;
 use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
@@ -70,6 +71,9 @@ pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<Docume
             DocumentItem::Struct(s) => {
                 symbols.push(struct_to_symbol(uri, &s, &lines)?);
             }
+            DocumentItem::Enum(e) => {
+                symbols.push(enum_to_symbol(uri, &e, &lines)?);
+            }
             DocumentItem::Import(ns) => {
                 symbols.push(import_to_symbol(uri, &ns, &lines)?);
             }
@@ -87,14 +91,18 @@ fn import_to_symbol(
 ) -> Result<DocumentSymbol> {
     let (name, selection_span) = import.namespace().unwrap_or_else(|| {
         (
-            import.uri().text().unwrap().text().to_string(),
+            import
+                .uri()
+                .text()
+                .map(|t| t.text().to_string())
+                .unwrap_or_else(|| "<import>".to_string()),
             import.uri().span(),
         )
     });
 
     Ok(DocumentSymbol {
         name,
-        detail: Some(import.uri().text().unwrap().text().to_string()),
+        detail: import.uri().text().map(|t| t.text().to_string()),
         kind: SymbolKind::NAMESPACE,
         range: common::location_from_span(uri, import.span(), lines)?.range,
         selection_range: common::location_from_span(uri, selection_span, lines)?.range,
@@ -199,6 +207,41 @@ fn struct_to_symbol(
         kind: SymbolKind::STRUCT,
         range: common::location_from_span(uri, s.span(), lines)?.range,
         selection_range: common::location_from_span(uri, s.name().span(), lines)?.range,
+        children: Some(children),
+        tags: None,
+        #[allow(deprecated)]
+        deprecated: None,
+    })
+}
+
+/// Converts an [`EnumDefinition`] to a [`DocumentSymbol`].
+fn enum_to_symbol(
+    uri: &Url,
+    e: &EnumDefinition,
+    lines: &std::sync::Arc<line_index::LineIndex>,
+) -> Result<DocumentSymbol> {
+    let mut children = Vec::new();
+
+    for variant in e.variants() {
+        children.push(DocumentSymbol {
+            name: variant.name().text().to_string(),
+            detail: None,
+            kind: SymbolKind::ENUM_MEMBER,
+            range: common::location_from_span(uri, variant.span(), lines)?.range,
+            selection_range: common::location_from_span(uri, variant.name().span(), lines)?.range,
+            children: None,
+            tags: None,
+            #[allow(deprecated)]
+            deprecated: None,
+        });
+    }
+
+    Ok(DocumentSymbol {
+        name: e.name().text().to_string(),
+        detail: Some("enum".to_string()),
+        kind: SymbolKind::ENUM,
+        range: common::location_from_span(uri, e.span(), lines)?.range,
+        selection_range: common::location_from_span(uri, e.name().span(), lines)?.range,
         children: Some(children),
         tags: None,
         #[allow(deprecated)]

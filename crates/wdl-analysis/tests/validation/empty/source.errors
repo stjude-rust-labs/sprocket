@@ -1,4 +1,4 @@
-error: there must be at least one task, workflow, or struct definition in the file
+error: there must be at least one task, workflow, struct, or enum definition in the file
   ┌─ tests/validation/empty/source.wdl:4:1
   │
 4 │ 

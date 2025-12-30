@@ -87,7 +87,7 @@ async fn should_goto_imported_task_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(2, 5), Position::new(2, 8)) // `task add` in lib.wdl
+        Range::new(Position::new(8, 5), Position::new(8, 8)) // `task add` in lib.wdl
     );
 }
 
@@ -104,7 +104,7 @@ async fn should_goto_imported_struct_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(17, 7), Position::new(17, 13)) // `task add` in lib.wdl
+        Range::new(Position::new(23, 7), Position::new(23, 13)) // `struct Person` in lib.wdl
     );
 }
 
@@ -122,7 +122,7 @@ async fn should_goto_struct_member_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(18, 11), Position::new(18, 15)) // `String name` in Person struct
+        Range::new(Position::new(24, 11), Position::new(24, 15)) // `String name` in Person struct
     );
 }
 
@@ -131,7 +131,7 @@ async fn should_goto_call_output_definition() {
     let mut ctx = setup().await;
 
     // Position of `result` in `t3.result`
-    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(40, 24)).await;
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(43, 24)).await;
 
     let Some(GotoDefinitionResponse::Scalar(location)) = response else {
         panic!("expected a single location response, got {:?}", response);
@@ -140,7 +140,7 @@ async fn should_goto_call_output_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(13, 12), Position::new(13, 18)) // `Int result` in add's output
+        Range::new(Position::new(19, 12), Position::new(19, 18)) // `Int result` in add's output
     );
 }
 
@@ -250,13 +250,13 @@ async fn should_goto_struct_member_definition_for_struct_literal() {
     assert_eq!(location1.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location1.range,
-        Range::new(Position::new(18, 11), Position::new(18, 15)) // `name` in `String name`
+        Range::new(Position::new(24, 11), Position::new(24, 15)) // `name` in `String name`
     );
 
     assert_eq!(location2.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location2.range,
-        Range::new(Position::new(19, 8), Position::new(19, 11)) // `age` in `Int age`
+        Range::new(Position::new(25, 8), Position::new(25, 11)) // `age` in `Int age`
     );
 }
 
@@ -273,7 +273,7 @@ async fn should_goto_call_task_input_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(4, 12), Position::new(4, 13)) // `a` in `Int a`
+        Range::new(Position::new(10, 12), Position::new(10, 13)) // `a` in `Int a`
     );
 }
 
@@ -290,7 +290,7 @@ async fn should_goto_call_workflow_input_definition() {
     assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
     assert_eq!(
         location.range,
-        Range::new(Position::new(24, 15), Position::new(24, 21)) // `person` in `Person person`
+        Range::new(Position::new(30, 15), Position::new(30, 21)) // `person` in `Person person`
     );
 }
 
@@ -337,5 +337,105 @@ async fn lhs_and_rhs_navigation_in_call_inputs_should_goto_correct_definintions(
     assert_eq!(
         location2.range,
         Range::new(Position::new(16, 15), Position::new(16, 19)) // `name` in `String name`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_enum_definition() {
+    let mut ctx = setup().await;
+
+    // Position of `Status` in `Status s`
+    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 4))
+        .await
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_enum_variant_definition() {
+    let mut ctx = setup().await;
+
+    // Position of `Active` in `Status.Active`
+    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 22))
+        .await
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(3, 4), Position::new(3, 10)) // `Active,`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_enum_definition_in_member_access() {
+    let mut ctx = setup().await;
+
+    // Position of `Status` in `Status.Active`
+    let response = goto_definition_request(&mut ctx, "enum.wdl", Position::new(9, 17))
+        .await
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("enum.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 11)) // `enum Status`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_imported_enum_definition() {
+    let mut ctx = setup().await;
+
+    // Position of `Priority` in `lib.Priority priority`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(40, 8))
+        .await
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 13)) // `enum Priority`
+    );
+}
+
+#[tokio::test]
+async fn should_goto_imported_enum_definition_in_member_access() {
+    let mut ctx = setup().await;
+
+    // Position of `Priority` in `lib.Priority.High`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(40, 35))
+        .await
+        .unwrap();
+
+    let GotoDefinitionResponse::Scalar(location) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 13)) // `enum Priority`
     );
 }

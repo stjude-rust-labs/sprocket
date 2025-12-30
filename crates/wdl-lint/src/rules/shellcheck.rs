@@ -20,6 +20,7 @@ use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
+use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -347,15 +348,30 @@ impl EvaluationContext for CommandContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        if let Some(ty) = self.document.get_custom_type(name) {
+            return Some(
+                ty.type_name_ref()
+                    .expect("type name ref to be created from custom type"),
+            );
+        }
+
+        None
     }
 
     fn resolve_type_name(
         &mut self,
         name: &str,
-        _span: Span,
+        span: Span,
     ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
-        Ok(self.scope.lookup(name).map(|n| n.ty().clone()).unwrap())
+        self.scope
+            .lookup(name)
+            .map(|n| n.ty().clone())
+            .ok_or_else(|| unknown_type(name, span))
     }
 
     fn task(&self) -> Option<&wdl_analysis::document::Task> {

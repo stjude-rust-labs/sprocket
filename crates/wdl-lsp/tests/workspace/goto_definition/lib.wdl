@@ -1,4 +1,10 @@
-version 1.2
+version 1.3
+
+enum Priority {
+    Low,
+    Medium,
+    High
+}
 
 task add {
     input {

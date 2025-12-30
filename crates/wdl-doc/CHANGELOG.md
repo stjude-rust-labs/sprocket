@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added documentation generation placeholder for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
 #### Fixed
 
 * Dark mode is now properly initialized by default ([#478](https://github.com/stjude-rust-labs/sprocket/pull/478)).
