@@ -194,9 +194,24 @@ impl Visitor for DocMetaStringsRule {
         for item in section.items() {
             let value = item.value();
 
-            // Only check objects - ParameterDescription handles simple types
-            if let MetadataValue::Object(obj) = value {
-                check_object_items(&obj, diagnostics, &self.exceptable_nodes());
+            match value {
+                // Simple string description - this is valid
+                MetadataValue::String(_) => {}
+
+                // Object with potential reserved keys - recursively check all nested objects
+                MetadataValue::Object(obj) => {
+                    check_object_items(&obj, diagnostics, &self.exceptable_nodes());
+                }
+
+                // Any other type - warn that parameter descriptions should be strings
+                _ => {
+                    let value_type = get_value_type_name(&value);
+                    diagnostics.exceptable_add(
+                        non_string_value_diagnostic("description", value_type, item.span()),
+                        SyntaxElement::from(item.inner().clone()),
+                        &self.exceptable_nodes(),
+                    );
+                }
             }
         }
     }

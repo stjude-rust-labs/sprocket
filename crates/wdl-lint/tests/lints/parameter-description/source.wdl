@@ -1,3 +1,5 @@
+#@ except: DocMetaStrings
+
 version 1.1
 
 # Test workflow for ParameterDescription lint rule
