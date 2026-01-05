@@ -57,7 +57,7 @@ fn has_valid_description(value: &MetadataValue) -> bool {
                 let key = name.text();
                 if key == DESCRIPTION_KEY {
                     // Found description key, `DocMetaStrings` will handle if it's not a string
-                    return true
+                    return true;
                 }
             }
             // No description key found
@@ -102,11 +102,7 @@ impl Rule for ParameterDescriptionRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &[
-            "DescriptionLength", 
-            "MatchingOutputMeta", 
-            "MetaDescription",
-        ]
+        &["DescriptionLength", "MatchingOutputMeta", "MetaDescription"]
     }
 }
 
