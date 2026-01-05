@@ -102,7 +102,11 @@ impl Rule for ParameterDescriptionRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &[]
+        &[
+            "DescriptionLength", 
+            "MatchingOutputMeta", 
+            "MetaDescription",
+        ]
     }
 }
 
