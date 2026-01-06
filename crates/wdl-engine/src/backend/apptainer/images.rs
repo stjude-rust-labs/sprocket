@@ -25,6 +25,7 @@
 //! this is not much of a slowdown, but it does increase disk space consumption
 //! depending on where the images directory is created.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -120,6 +121,18 @@ impl ApptainerImages {
     }
 }
 
+/// Ensures a container reference has a URI scheme.
+///
+/// If the container already has a URI scheme (e.g., `docker://`, `library://`, `oras://`),
+/// it is returned as-is. Otherwise, the `docker://` scheme is prepended.
+fn ensure_image_scheme(container: &str) -> Cow<'_, str> {
+    if container.contains("://") {
+        Cow::Borrowed(container)
+    } else {
+        Cow::Owned(format!("docker://{container}"))
+    }
+}
+
 /// Try once to use `apptainer pull` to build the `.sif` file.
 ///
 /// The tricky thing about this function is determining whether a failure is
@@ -132,15 +145,17 @@ impl ApptainerImages {
 /// whether a failure is transient, but as we gain experience recognizing its
 /// output patterns, we can enhance the fidelity of the error handling.
 async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<anyhow::Error>> {
-    info!(container, "pulling image");
+    let container = ensure_image_scheme(container);
+    info!(container = container.as_ref(), "pulling image");
+
+    // Pipe the stdio handles, both for tracing and to inspect for telltale signs of permanent
+    // errors
     let mut apptainer_pull_child = Command::new("apptainer")
-        // Pipe the stdio handles, both for tracing and to inspect for telltale signs of permanent
-        // errors
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .arg("pull")
         .arg(sif_path)
-        .arg(format!("docker://{container}"))
+        .arg(container.as_ref())
         .spawn()
         // If the system can't handle spawning a process, we're better off failing quickly
         .map_err(|e| RetryError::permanent(e.into()))?;
@@ -151,7 +166,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stdout
         .take()
         .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stdout missing")))?;
-    let stdout_container = container.to_owned();
+    let stdout_container: String  = container.clone().into();
     let _stdout_is_permanent = is_permanent.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(child_stdout).lines();
@@ -163,7 +178,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stderr
         .take()
         .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stderr missing")))?;
-    let stderr_container = container.to_owned();
+    let stderr_container: String = container.into();
     let stderr_is_permanent = is_permanent.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(child_stderr).lines();
@@ -204,5 +219,43 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         }
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ensure_image_scheme_adds_docker_prefix() {
+        assert_eq!(ensure_image_scheme("ubuntu:22.04"), "docker://ubuntu:22.04");
+        assert_eq!(
+            ensure_image_scheme("ghcr.io/org/image:latest"),
+            "docker://ghcr.io/org/image:latest"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_existing_docker_scheme() {
+        assert_eq!(
+            ensure_image_scheme("docker://ubuntu:22.04"),
+            "docker://ubuntu:22.04"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_library_scheme() {
+        assert_eq!(
+            ensure_image_scheme("library://sylabs/default/alpine:3.11"),
+            "library://sylabs/default/alpine:3.11"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_oras_scheme() {
+        assert_eq!(
+            ensure_image_scheme("oras://ghcr.io/org/image:latest"),
+            "oras://ghcr.io/org/image:latest"
+        );
     }
 }
