@@ -52,7 +52,6 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::container;
 use crate::v1::cpu;

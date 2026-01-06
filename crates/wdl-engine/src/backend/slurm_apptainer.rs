@@ -46,7 +46,6 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::SlurmApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1;
 

@@ -47,7 +47,6 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1;
 use crate::v1::cpu;

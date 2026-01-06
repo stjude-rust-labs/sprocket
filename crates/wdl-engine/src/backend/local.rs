@@ -49,7 +49,6 @@ use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::v1::cpu;
 use crate::v1::cpu_from_values;
