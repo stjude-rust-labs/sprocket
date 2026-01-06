@@ -72,6 +72,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
+use wdl_grammar::Spanned;
 
 use super::Evaluator;
 use super::validators::SettingSource;
@@ -155,6 +156,37 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
+/// Finds the span of a requirements item within a task definition.
+///
+/// It checks both `requirements` and `runtime` sections. If the item is not
+/// found, it falls back to the span of the entire task.
+fn find_requirements_or_runtime_item_span(task: &TaskDefinition<SyntaxNode>, key: &str) -> Span {
+    if let Some(requirements) = task.requirements() {
+        requirements
+            .items()
+            .find(|i| i.name().text() == key)
+            .map(|i| i.span())
+    } else if let Some(runtime) = task.runtime() {
+        runtime
+            .items()
+            .find(|i| i.name().text() == key)
+            .map(|i| i.span())
+    } else {
+        None
+    }
+    .unwrap_or_else(|| task.span())
+}
+
+/// Finds the span of a hint item within a task definition.
+///
+/// If the item is not found, it falls back to the span of the entire task.
+fn find_hint_item_span(task: &TaskDefinition<SyntaxNode>, key: &str) -> Span {
+    task.hints()
+        .and_then(|h| h.items().find(|i| i.name().text() == key))
+        .map(|i| i.span())
+        .unwrap_or_else(|| task.span())
+}
+
 /// Returns the first entry in `map` that matches the provided keys.
 fn lookup_entry<'a>(
     map: &'a HashMap<String, Value>,
@@ -225,8 +257,10 @@ pub(crate) fn container<'a>(
         })
 }
 
-/// Gets the `cpu` requirement from a requirements map.
-pub(crate) fn cpu(requirements: &HashMap<String, Value>) -> f64 {
+/// Gets the `cpu` requirement from a map of requirement values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn cpu_from_values(requirements: &HashMap<String, Value>) -> f64 {
     requirements
         .get(TASK_REQUIREMENT_CPU)
         .map(|v| {
@@ -237,8 +271,21 @@ pub(crate) fn cpu(requirements: &HashMap<String, Value>) -> f64 {
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_CPU)
 }
 
-/// Gets the `max_cpu` hint from a hints map.
-pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
+/// Gets the `cpu` task requirement value and its corresponding source span.
+pub(crate) fn cpu(
+    task: &TaskDefinition<SyntaxNode>,
+    requirements: &HashMap<String, Value>,
+) -> Spanned<f64> {
+    Spanned {
+        value: cpu_from_values(requirements),
+        span: find_requirements_or_runtime_item_span(task, TASK_REQUIREMENT_CPU),
+    }
+}
+
+/// Gets the `max_cpu` hint from a map of hint values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn max_cpu_from_values(hints: &HashMap<String, Value>) -> Option<f64> {
     hints
         .get(TASK_HINT_MAX_CPU)
         .or_else(|| hints.get(TASK_HINT_MAX_CPU_ALIAS))
@@ -249,8 +296,21 @@ pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
         })
 }
 
-/// Gets the `memory` requirement from a requirements map.
-pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
+/// Gets the `max_cpu` task hint value and its corresponding source span.
+pub(crate) fn max_cpu(
+    task: &TaskDefinition<SyntaxNode>,
+    hints: &HashMap<String, Value>,
+) -> Option<Spanned<f64>> {
+    max_cpu_from_values(hints).map(|value| Spanned {
+        value,
+        span: find_hint_item_span(task, TASK_HINT_MAX_CPU),
+    })
+}
+
+/// Gets the `memory` requirement from a map of requirement values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn memory_from_values(requirements: &HashMap<String, Value>) -> Result<i64> {
     if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
         let bytes = parse_storage_value(value, |raw| {
             invalid_numeric_value_message(SettingSource::Requirement, key, raw)
@@ -262,14 +322,66 @@ pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
     Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
 }
 
-/// Gets the `max_memory` hint from a hints map.
-pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
+/// Gets the `memory` task requirement value and its corresponding source span.
+pub(crate) fn memory(
+    task: &TaskDefinition<SyntaxNode>,
+    requirements: &HashMap<String, Value>,
+) -> Result<Spanned<i64>, Diagnostic> {
+    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
+        let span = find_requirements_or_runtime_item_span(task, key);
+        let bytes = parse_storage_value(value, |raw| {
+            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
+        })
+        .map_err(|e| Diagnostic::error(e.to_string()).with_label("this value is invalid", span))?;
+
+        let value =
+            ensure_non_negative_i64(SettingSource::Requirement, key, bytes).map_err(|e| {
+                Diagnostic::error(e.to_string()).with_label("this value cannot be negative", span)
+            })?;
+
+        return Ok(Spanned { value, span });
+    }
+
+    Ok(Spanned {
+        value: DEFAULT_TASK_REQUIREMENT_MEMORY,
+        span: task.span(),
+    })
+}
+
+/// Gets the `max_memory` hint from a map of hint values.
+///
+/// This is intended for use where the task's AST is not available.
+pub(crate) fn max_memory_from_values(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
     match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
         Some((key, value)) => {
             let bytes = parse_storage_value(value, |raw| {
                 invalid_numeric_value_message(SettingSource::Hint, key, raw)
             })?;
             ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
+        }
+        None => Ok(None),
+    }
+}
+
+/// Gets the `max_memory` task hint value and its corresponding source span.
+pub(crate) fn max_memory(
+    task: &TaskDefinition<SyntaxNode>,
+    hints: &HashMap<String, Value>,
+) -> Result<Option<Spanned<i64>>, Diagnostic> {
+    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
+        Some((key, value)) => {
+            let span = find_hint_item_span(task, key);
+            let bytes = parse_storage_value(value, |raw| {
+                invalid_numeric_value_message(SettingSource::Hint, key, raw)
+            })
+            .map_err(|e| {
+                Diagnostic::error(e.to_string()).with_label("this value is invalid", span)
+            })?;
+            let value = ensure_non_negative_i64(SettingSource::Hint, key, bytes).map_err(|e| {
+                Diagnostic::error(e.to_string()).with_label("this value cannot be negative", span)
+            })?;
+
+            Ok(Some(Spanned { value, span }))
         }
         None => Ok(None),
     }
@@ -1997,13 +2109,8 @@ impl<'a> State<'a> {
             let constraints = self
                 .evaluator
                 .backend
-                .constraints(&requirements, &hints)
-                .with_context(|| {
-                    format!(
-                        "failed to get constraints for task `{task}`",
-                        task = self.task.name()
-                    )
-                })?;
+                .constraints(definition, &requirements, &hints)
+                .map_err(|diagnostic| EvaluationError::new(self.document.clone(), diagnostic))?;
 
             let max_retries = max_retries(&requirements, &self.evaluator.config)?;
 
@@ -2271,7 +2378,7 @@ mod resource_validation_tests {
     #[test]
     fn memory_disallows_negative_values() {
         let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
-        let err = memory(&requirements).expect_err("`memory` should reject negatives");
+        let err = memory_from_values(&requirements).expect_err("`memory` should reject negatives");
         assert!(
             err.to_string()
                 .contains("task requirement `memory` cannot be less than zero")

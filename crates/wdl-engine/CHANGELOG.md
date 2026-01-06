@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Validate constraints in the Docker backend, and point error messages to problematic `hints`/`requirements` sections for all backends ([#484](https://github.com/stjude-rust-labs/sprocket/pull/484)).
 * Fixed a missing check for empty arrays in the evaluation of scatter
   statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
 * Fixed authentication issue for cloud storage URLs by moving implementations
