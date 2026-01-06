@@ -1,0 +1,54 @@
+warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `missing_outputs_key`
+  ┌─ tests/lints/matching-output-meta/source.wdl:7:5
+  │
+7 │     meta {
+  │     ^^^^
+  │
+  = fix: add an `outputs` key to `meta` section describing the outputs
+
+warning[MatchingOutputMeta]: output `count` is missing from `meta.outputs` section in task `missing_specific_output`
+   ┌─ tests/lints/matching-output-meta/source.wdl:36:13
+   │
+36 │         Int count = 42
+   │             ^^^^^
+   │
+   = fix: add a description of output `count` to documentation in `meta.outputs`
+
+warning[MatchingOutputMeta]: `phantom` appears in `outputs` section of the task `extra_output_key` but is not a declared `output`
+   ┌─ tests/lints/matching-output-meta/source.wdl:46:13
+   │
+46 │             phantom: "This output doesn't actually exist",
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: ensure the output exists or remove the `phantom` key from `meta.outputs`
+
+note[MatchingOutputMeta]: `outputs` section of `meta` for the task `out_of_order_keys` is out of order
+   ┌─ tests/lints/matching-output-meta/source.wdl:63:9
+   │  
+63 │ ╭         outputs: {
+64 │ │             second: "Second output",
+65 │ │             first: "First output",
+66 │ │         }
+   │ ╰─────────^
+   ·  
+73 │       output {
+   │       ------
+   │  
+   = fix: ensure the keys within `meta.outputs` have the same order as they appear in `output`
+
+warning[MatchingOutputMeta]: task `non_object_outputs` has a `meta.outputs` key that is not an object containing output descriptions
+   ┌─ tests/lints/matching-output-meta/source.wdl:83:9
+   │
+83 │         outputs: "This should be an object, not a string"
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: ensure `meta.outputs` is an object containing descriptions for each output
+
+warning[MatchingOutputMeta]: output `result` is missing from `meta.outputs` section in task `non_object_outputs`
+   ┌─ tests/lints/matching-output-meta/source.wdl:91:16
+   │
+91 │         String result = read_string(stdout())
+   │                ^^^^^^
+   │
+   = fix: add a description of output `result` to documentation in `meta.outputs`
+

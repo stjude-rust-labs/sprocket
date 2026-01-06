@@ -103,8 +103,6 @@ pub struct MatchingOutputMetaRule<'a> {
     ty: Option<&'a str>,
     /// The item name.
     name: Option<String>,
-    /// Prior objects
-    prior_objects: Vec<String>,
 }
 
 impl Rule for MatchingOutputMetaRule<'_> {
@@ -256,7 +254,6 @@ impl Visitor for MatchingOutputMetaRule<'_> {
         self.output_keys.clear();
         self.name = None;
         self.ty = None;
-        self.prior_objects.clear();
     }
 
     fn workflow_definition(
@@ -367,51 +364,34 @@ impl Visitor for MatchingOutputMetaRule<'_> {
         reason: VisitReason,
         item: &wdl_ast::v1::MetadataObjectItem,
     ) {
-        if !self.in_meta {
+        // Only process on Enter, and only if we're inside a meta section
+        if reason != VisitReason::Enter || !self.in_meta {
             return;
         }
 
-        match reason {
-            VisitReason::Exit => {
-                if let MetadataValue::Object(_) = item.value() {
-                    self.prior_objects.pop();
-                }
-            }
-            VisitReason::Enter => {
-                if let Some(_meta_span) = self.current_meta_span {
-                    if item.name().text() == "outputs" {
-                        self.current_meta_outputs_span = Some(item.span());
-                        match item.value() {
-                            MetadataValue::Object(_) => {}
-                            _ => {
-                                diagnostics.exceptable_add(
-                                    non_object_meta_outputs(
-                                        item.span(),
-                                        self.name.as_deref().expect("should have a name"),
-                                        self.ty.expect("should have a type"),
-                                    ),
-                                    SyntaxElement::from(item.inner().clone()),
-                                    &self.exceptable_nodes(),
-                                );
-                            }
-                        }
-                    } else if let Some(meta_outputs_span) = self.current_meta_outputs_span {
-                        let span = item.span();
-                        if span.start() > meta_outputs_span.start()
-                            && span.end() < meta_outputs_span.end()
-                            && self
-                                .prior_objects
-                                .last()
-                                .expect("should have seen `meta.outputs`")
-                                == "outputs"
-                        {
-                            self.meta_outputs_keys
-                                .insert(item.name().text().to_string(), item.span());
-                        }
+        // Check if this is the top-level "outputs" key in meta
+        if item.name().text() == "outputs" {
+            self.current_meta_outputs_span = Some(item.span());
+
+            // Validate that outputs is an object
+            match item.value() {
+                MetadataValue::Object(obj) => {
+                    // Properly walk the AST to collect all direct children of meta.outputs
+                    for child_item in obj.items() {
+                        self.meta_outputs_keys
+                            .insert(child_item.name().text().to_string(), child_item.span());
                     }
                 }
-                if let MetadataValue::Object(_) = item.value() {
-                    self.prior_objects.push(item.name().text().to_string());
+                _ => {
+                    diagnostics.exceptable_add(
+                        non_object_meta_outputs(
+                            item.span(),
+                            self.name.as_deref().expect("should have a name"),
+                            self.ty.expect("should have a type"),
+                        ),
+                        SyntaxElement::from(item.inner().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }
