@@ -123,8 +123,9 @@ impl ApptainerImages {
 
 /// Ensures a container reference has a URI scheme.
 ///
-/// If the container already has a URI scheme (e.g., `docker://`, `library://`, `oras://`),
-/// it is returned as-is. Otherwise, the `docker://` scheme is prepended.
+/// If the container already has a URI scheme (e.g., `docker://`, `library://`,
+/// `oras://`), it is returned as-is. Otherwise, the `docker://` scheme is
+/// prepended.
 fn ensure_image_scheme(container: &str) -> Cow<'_, str> {
     if container.contains("://") {
         Cow::Borrowed(container)
@@ -148,8 +149,8 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
     let container = ensure_image_scheme(container);
     info!(container = container.as_ref(), "pulling image");
 
-    // Pipe the stdio handles, both for tracing and to inspect for telltale signs of permanent
-    // errors
+    // Pipe the stdio handles, both for tracing and to inspect for telltale signs of
+    // permanent errors
     let mut apptainer_pull_child = Command::new("apptainer")
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -166,7 +167,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stdout
         .take()
         .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stdout missing")))?;
-    let stdout_container: String  = container.clone().into();
+    let stdout_container: String = container.clone().into();
     let _stdout_is_permanent = is_permanent.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(child_stdout).lines();
