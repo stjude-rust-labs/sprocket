@@ -33,16 +33,17 @@ use super::TaskExecutionConstraints;
 use super::TaskManager;
 use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::COMMAND_FILE_NAME;
+use crate::EvaluationPath;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::SYSTEM;
-use crate::TaskExecutionResult;
 use crate::Value;
-use crate::WORK_DIR_NAME;
+use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
+use crate::backend::STDERR_FILE_NAME;
+use crate::backend::STDOUT_FILE_NAME;
+use crate::backend::TaskExecutionResult;
+use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LocalBackendConfig;
@@ -218,7 +219,7 @@ impl TaskManagerRequest for LocalTaskRequest {
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
                         Ok(TaskExecutionResult {
                             exit_code,
-                            work_dir: EvaluationPath::Local(work_dir),
+                            work_dir: EvaluationPath::from_local_path(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                         })

@@ -162,8 +162,8 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
         TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
-        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone()),
-        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
+        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
         TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
             Some(Type::from(PrimitiveType::Integer).optional())
         }
@@ -186,8 +186,10 @@ pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
         TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
         TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().optional()),
-        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => {
+            Some(Type::from(STDLIB.array_string_type().clone()).optional())
+        }
+        TASK_FIELD_DISKS => Some(Type::from(STDLIB.map_string_int_type().clone()).optional()),
         TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }
@@ -201,7 +203,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     static CONTAINER_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `cpu` requirement.
@@ -223,7 +225,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `max_retries` requirement.
@@ -233,7 +235,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_int_type().clone(),
+            STDLIB.array_int_type().clone().into(),
         ])
     });
 
@@ -268,7 +270,7 @@ pub fn task_hint_types(
     static DISKS_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.map_string_string_type().clone(),
+            STDLIB.map_string_string_type().clone().into(),
         ])
     });
     /// The types for the `fpga` hint.
@@ -502,10 +504,12 @@ where
     ) -> Result<StructType, Diagnostic> {
         Ok(StructType {
             name: Arc::new(definition.name().text().to_string()),
-            members: definition
-                .members()
-                .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<_, _>>()?,
+            members: Arc::new(
+                definition
+                    .members()
+                    .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
+                    .collect::<Result<_, _>>()?,
+            ),
         })
     }
 }
@@ -1735,8 +1739,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Type::Compound(CompoundType::Pair(ty), _) => {
                 // Support `left` and `right` accessors for pairs
                 return match name.text() {
-                    "left" => Some(ty.left_type.clone()),
-                    "right" => Some(ty.right_type.clone()),
+                    "left" => Some(ty.left_type().clone()),
+                    "right" => Some(ty.right_type().clone()),
                     _ => {
                         self.context.add_diagnostic(not_a_pair_accessor(&name));
                         None

@@ -117,6 +117,7 @@ use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::unknown_enum_variant;
+use crate::diagnostics::unknown_enum_variant_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -125,7 +126,7 @@ use crate::tree::SyntaxToken;
 
 /// Represents a WDL V1 expression evaluator.
 #[derive(Debug)]
-pub struct ExprEvaluator<C> {
+pub(crate) struct ExprEvaluator<C> {
     /// The expression evaluation context.
     context: C,
     /// The nested count of placeholder evaluation.
@@ -542,7 +543,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         };
 
         Ok(
-            Array::new(Some(&self.context), ArrayType::new(element_ty), values)
+            Array::new_with_context(Some(&self.context), ArrayType::new(element_ty), values)
                 .expect("array elements should coerce")
                 .into(),
         )
@@ -556,7 +557,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).await?;
         let right = self.evaluate_expr(&right).await?;
-        Ok(Pair::new(
+        Ok(Pair::new_with_context(
             Some(&self.context),
             PairType::new(left.ty(), right.ty()),
             left,
@@ -670,7 +671,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Type::Union, Vec::new()),
         };
 
-        Ok(Map::new(
+        Ok(Map::new_with_context(
             Some(&self.context),
             MapType::new(key_ty, value_ty),
             elements,
@@ -1505,9 +1506,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     let value = self
                         .context()
                         .enum_variant_value(ty.name(), name.text())
-                        .map_err(|_| {
-                            crate::diagnostics::unknown_enum_variant_access(ty.name(), &name)
-                        })?;
+                        .map_err(|_| unknown_enum_variant_access(ty.name(), &name))?;
                     let variant = EnumVariant::new(ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
                 } else {
@@ -1549,62 +1548,56 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     let value = match target_ty {
         Type::Primitive(PrimitiveType::Boolean, _) => {
             match_literal_value!(expr, Boolean(b), PrimitiveType::Boolean);
-            Some(Value::Primitive(crate::PrimitiveValue::Boolean(b.value())))
+            Some(Value::Primitive(PrimitiveValue::Boolean(b.value())))
         }
         Type::Primitive(PrimitiveType::Integer, _) => {
             match_literal_value!(expr, Integer(i), PrimitiveType::Integer);
-            Some(Value::Primitive(crate::PrimitiveValue::Integer(i.value()?)))
+            Some(Value::Primitive(PrimitiveValue::Integer(i.value()?)))
         }
         Type::Primitive(PrimitiveType::Float, _) => {
             match_literal_value!(expr, Float(f), PrimitiveType::Float);
-            Some(Value::Primitive(crate::PrimitiveValue::Float(
-                f.value()?.into(),
-            )))
+            Some(Value::Primitive(PrimitiveValue::Float(f.value()?.into())))
         }
         Type::Primitive(PrimitiveType::String, _) => {
             match_literal_value!(expr, String(s), PrimitiveType::String);
-            Some(Value::Primitive(crate::PrimitiveValue::new_string(
+            Some(Value::Primitive(PrimitiveValue::new_string(
                 s.text()?.text(),
             )))
         }
         Type::Primitive(PrimitiveType::File, _) => {
             match_literal_value!(expr, String(s), PrimitiveType::File);
-            Some(Value::Primitive(crate::PrimitiveValue::new_file(
-                s.text()?.text(),
-            )))
+            Some(Value::Primitive(PrimitiveValue::new_file(s.text()?.text())))
         }
         Type::Primitive(PrimitiveType::Directory, _) => {
             match_literal_value!(expr, String(s), PrimitiveType::Directory);
-            Some(Value::Primitive(crate::PrimitiveValue::new_directory(
+            Some(Value::Primitive(PrimitiveValue::new_directory(
                 s.text()?.text(),
             )))
         }
-        Type::Compound(CompoundType::Array(inner), _) => {
+        Type::Compound(CompoundType::Array(array_ty), _) => {
             match_literal_value!(expr, Array(arr), CompoundType::Array);
-            let element_type = inner.element_type();
+            let element_type = array_ty.element_type();
             let elements: Option<Vec<Value>> = arr
                 .elements()
                 .map(|e| parse_constant_value(element_type, &e))
                 .collect();
-            Some(Value::Compound(crate::CompoundValue::Array(
-                crate::Array::new(None, inner.clone(), elements?)
-                    .expect("array construction should succeed"),
+            Some(Value::Compound(CompoundValue::Array(
+                Array::new(array_ty.clone(), elements?).expect("array construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Pair(inner), _) => {
+        Type::Compound(CompoundType::Pair(pair_ty), _) => {
             match_literal_value!(expr, Pair(pair), CompoundType::Pair);
             let (left_expr, right_expr) = pair.exprs();
-            let left = parse_constant_value(inner.left_type(), &left_expr)?;
-            let right = parse_constant_value(inner.right_type(), &right_expr)?;
-            Some(Value::Compound(crate::CompoundValue::Pair(
-                crate::Pair::new(None, target_ty.clone(), left, right)
-                    .expect("pair construction should succeed"),
+            let left = parse_constant_value(pair_ty.left_type(), &left_expr)?;
+            let right = parse_constant_value(pair_ty.right_type(), &right_expr)?;
+            Some(Value::Compound(CompoundValue::Pair(
+                Pair::new(pair_ty.clone(), left, right).expect("pair construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Map(inner), _) => {
+        Type::Compound(CompoundType::Map(map_ty), _) => {
             match_literal_value!(expr, Map(map), CompoundType::Map);
-            let key_type = inner.key_type();
-            let value_type = inner.value_type();
+            let key_type = map_ty.key_type();
+            let value_type = map_ty.value_type();
             let entries: Option<Vec<(Value, Value)>> = map
                 .items()
                 .map(|item| {
@@ -1614,19 +1607,18 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                     Some((key, val))
                 })
                 .collect();
-            Some(Value::Compound(crate::CompoundValue::Map(
-                crate::Map::new(None, target_ty.clone(), entries?)
-                    .expect("map construction should succeed"),
+            Some(Value::Compound(CompoundValue::Map(
+                Map::new(map_ty.clone(), entries?).expect("map construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Custom(CustomType::Struct(inner)), _) => {
+        Type::Compound(CompoundType::Custom(CustomType::Struct(struct_ty)), _) => {
             match_literal_value!(expr, Struct(s), CustomType::Struct);
             let members: Option<indexmap::IndexMap<String, Value>> = s
                 .items()
                 .map(|item| {
                     let (name, val_expr) = item.name_value();
                     let name_str = name.text().to_string();
-                    let member_type = inner
+                    let member_type = struct_ty
                         .members()
                         .get(&name_str)
                         .expect("member should exist in struct type");
@@ -1634,9 +1626,9 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                     Some((name_str, val))
                 })
                 .collect();
-            Some(Value::Compound(crate::CompoundValue::Object(
-                crate::Object::new(members?),
-            )))
+            Some(Value::Compound(CompoundValue::Object(Object::new(
+                members?,
+            ))))
         }
         Type::Object | Type::OptionalObject => {
             match_literal_value!(expr, Object(obj), ty);
@@ -1652,9 +1644,9 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                     Some((name_str, val))
                 })
                 .collect();
-            Some(Value::Compound(crate::CompoundValue::Object(
-                crate::Object::new(members?),
-            )))
+            Some(Value::Compound(CompoundValue::Object(Object::new(
+                members?,
+            ))))
         }
         _ => None,
     }?;
@@ -1692,9 +1684,7 @@ pub(crate) fn resolve_enum_variant_value(
     } else {
         // NOTE: when no expression is provided, the default is the
         // variant name as a string.
-        Ok(Value::Primitive(crate::PrimitiveValue::new_string(
-            variant_name,
-        )))
+        Ok(Value::Primitive(PrimitiveValue::new_string(variant_name)))
     }
 }
 
@@ -1717,14 +1707,14 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
-    use crate::ScopeRef;
+    use crate::EvaluationPath;
     use crate::eval::Scope;
+    use crate::eval::ScopeRef;
     use crate::http::Location;
     use crate::http::Transferer;
-    use crate::path::EvaluationPath;
 
     /// Represents a test environment.
-    pub struct TestEnv {
+    pub(crate) struct TestEnv {
         /// The scopes for the test.
         scopes: Vec<Scope>,
         /// The structs for the test.
@@ -1740,7 +1730,7 @@ pub(crate) mod test {
     }
 
     impl TestEnv {
-        pub fn scope(&self) -> ScopeRef<'_> {
+        fn scope(&self) -> ScopeRef<'_> {
             ScopeRef::new(&self.scopes, 0)
         }
 
@@ -1772,7 +1762,7 @@ pub(crate) mod test {
     impl Default for TestEnv {
         fn default() -> Self {
             let test_dir = TempDir::new().expect("failed to create test directory");
-            let base_dir = EvaluationPath::Local(test_dir.path().to_path_buf());
+            let base_dir = test_dir.path().into();
 
             Self {
                 scopes: vec![Scope::default()],
@@ -3590,11 +3580,10 @@ pub(crate) mod test {
         let array_ty = ArrayType::new(PrimitiveType::Integer);
         let map_ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
 
-        env.insert_name("foo", Array::new(None, array_ty, [1, 2, 3, 4, 5]).unwrap());
+        env.insert_name("foo", Array::new(array_ty, [1, 2, 3, 4, 5]).unwrap());
         env.insert_name(
             "bar",
             Map::new(
-                None,
                 map_ty,
                 [
                     (PrimitiveValue::new_string("foo"), 1),
@@ -3672,12 +3661,11 @@ pub(crate) mod test {
 
         env.insert_name(
             "foo",
-            Pair::new(None, pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
+            Pair::new(pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
         );
         env.insert_name(
             "bar",
             Struct::new(
-                None,
                 struct_ty,
                 [
                     ("foo", 1.into()),

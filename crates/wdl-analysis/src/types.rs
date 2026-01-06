@@ -8,6 +8,8 @@ use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
+use crate::diagnostics::enum_variant_does_not_coerce_to_type;
+use crate::diagnostics::no_common_inferred_type_for_enum;
 use crate::document::Input;
 use crate::document::Output;
 
@@ -477,9 +479,9 @@ impl Coercible for Type {
             (Self::Compound(src, false), Self::Object)
             | (Self::Compound(src, false), Self::OptionalObject)
             | (Self::Compound(src, _), Self::OptionalObject) => match src {
-                CompoundType::Map(src) => {
-                    src.key_type.is_coercible_to(&PrimitiveType::String.into())
-                }
+                CompoundType::Map(src) => src
+                    .key_type()
+                    .is_coercible_to(&PrimitiveType::String.into()),
                 CompoundType::Custom(CustomType::Struct(_)) => true,
                 _ => false,
             },
@@ -493,7 +495,7 @@ impl Coercible for Type {
             | (Self::OptionalObject, Self::Compound(target, true)) => {
                 match target {
                     CompoundType::Map(target) => {
-                        Type::from(PrimitiveType::String).is_coercible_to(&target.key_type)
+                        Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
                     }
                     CompoundType::Custom(CustomType::Struct(_)) => {
                         // Note: checking object keys and values is a runtime constraint
@@ -578,9 +580,9 @@ impl From<CallType> for Type {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CustomType {
     /// The type is a struct (e.g. `Foo`).
-    Struct(Arc<StructType>),
+    Struct(StructType),
     /// The type is an enum.
-    Enum(Arc<EnumType>),
+    Enum(EnumType),
 }
 
 impl CustomType {
@@ -624,13 +626,13 @@ impl std::fmt::Display for CustomType {
 
 impl From<StructType> for CustomType {
     fn from(value: StructType) -> Self {
-        Self::Struct(value.into())
+        Self::Struct(value)
     }
 }
 
 impl From<EnumType> for CustomType {
     fn from(value: EnumType) -> Self {
-        Self::Enum(value.into())
+        Self::Enum(value)
     }
 }
 
@@ -640,9 +642,9 @@ pub enum CompoundType {
     /// The type is an `Array`.
     Array(ArrayType),
     /// The type is a `Pair`.
-    Pair(Arc<PairType>),
+    Pair(PairType),
     /// The type is a `Map`.
-    Map(Arc<MapType>),
+    Map(MapType),
     /// The type is a custom type (a struct or enum).
     Custom(CustomType),
 }
@@ -721,13 +723,13 @@ impl CompoundType {
                 Some(ArrayType::new(element_type).into())
             }
             (Self::Pair(this), Self::Pair(other)) => {
-                let left_type = this.left_type.common_type(&other.left_type)?;
-                let right_type = this.right_type.common_type(&other.right_type)?;
+                let left_type = this.left_type().common_type(other.left_type())?;
+                let right_type = this.right_type().common_type(other.right_type())?;
                 Some(PairType::new(left_type, right_type).into())
             }
             (Self::Map(this), Self::Map(other)) => {
-                let key_type = this.key_type.common_type(&other.key_type)?;
-                let value_type = this.value_type.common_type(&other.value_type)?;
+                let key_type = this.key_type().common_type(other.key_type())?;
+                let value_type = this.value_type().common_type(other.value_type())?;
                 Some(MapType::new(key_type, value_type).into())
             }
             _ => None,
@@ -773,7 +775,10 @@ impl Coercible for CompoundType {
             // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
             // keys match member names, and Y -> member type
             (Self::Map(src), Self::Custom(CustomType::Struct(target))) => {
-                if !src.key_type.is_coercible_to(&PrimitiveType::String.into()) {
+                if !src
+                    .key_type()
+                    .is_coercible_to(&PrimitiveType::String.into())
+                {
                     return false;
                 }
 
@@ -781,7 +786,7 @@ impl Coercible for CompoundType {
                 if !target
                     .members
                     .values()
-                    .all(|ty| src.value_type.is_coercible_to(ty))
+                    .all(|ty| src.value_type().is_coercible_to(ty))
                 {
                     return false;
                 }
@@ -793,7 +798,7 @@ impl Coercible for CompoundType {
             // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X
             // and member types -> Y
             (Self::Custom(CustomType::Struct(src)), Self::Map(target)) => {
-                if !Type::from(PrimitiveType::String).is_coercible_to(&target.key_type) {
+                if !Type::from(PrimitiveType::String).is_coercible_to(target.key_type()) {
                     return false;
                 }
 
@@ -801,7 +806,7 @@ impl Coercible for CompoundType {
                 if !src
                     .members
                     .values()
-                    .all(|ty| ty.is_coercible_to(&target.value_type))
+                    .all(|ty| ty.is_coercible_to(target.value_type()))
                 {
                     return false;
                 }
@@ -822,31 +827,25 @@ impl From<ArrayType> for CompoundType {
 
 impl From<PairType> for CompoundType {
     fn from(value: PairType) -> Self {
-        Self::Pair(value.into())
+        Self::Pair(value)
     }
 }
 
 impl From<MapType> for CompoundType {
     fn from(value: MapType) -> Self {
-        Self::Map(value.into())
+        Self::Map(value)
     }
 }
 
 impl From<StructType> for CompoundType {
     fn from(value: StructType) -> Self {
-        Self::Custom(CustomType::from(value))
+        Self::Custom(CustomType::Struct(value))
     }
 }
 
 impl From<EnumType> for CompoundType {
     fn from(value: EnumType) -> Self {
-        Self::Custom(CustomType::from(value))
-    }
-}
-
-impl From<CustomType> for CompoundType {
-    fn from(value: CustomType) -> Self {
-        Self::Custom(value)
+        Self::Custom(CustomType::Enum(value))
     }
 }
 
@@ -916,30 +915,22 @@ impl Coercible for ArrayType {
 
 /// Represents the type of a `Pair`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PairType {
-    /// The type of the left element of the pair.
-    left_type: Type,
-    /// The type of the right element of the pair.
-    right_type: Type,
-}
+pub struct PairType(Arc<(Type, Type)>);
 
 impl PairType {
     /// Constructs a new pair type.
     pub fn new(left_type: impl Into<Type>, right_type: impl Into<Type>) -> Self {
-        Self {
-            left_type: left_type.into(),
-            right_type: right_type.into(),
-        }
+        Self(Arc::new((left_type.into(), right_type.into())))
     }
 
     /// Gets the pairs's left type.
     pub fn left_type(&self) -> &Type {
-        &self.left_type
+        &self.0.0
     }
 
     /// Gets the pairs's right type.
     pub fn right_type(&self) -> &Type {
-        &self.right_type
+        &self.0.1
     }
 }
 
@@ -948,8 +939,8 @@ impl fmt::Display for PairType {
         write!(
             f,
             "Pair[{left}, {right}]",
-            left = self.left_type,
-            right = self.right_type
+            left = self.left_type(),
+            right = self.right_type()
         )?;
 
         Ok(())
@@ -958,37 +949,38 @@ impl fmt::Display for PairType {
 
 impl Coercible for PairType {
     fn is_coercible_to(&self, target: &Self) -> bool {
-        self.left_type.is_coercible_to(&target.left_type)
-            && self.right_type.is_coercible_to(&target.right_type)
+        self.left_type().is_coercible_to(target.left_type())
+            && self.right_type().is_coercible_to(target.right_type())
     }
 }
 
 /// Represents the type of a `Map`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MapType {
-    /// The key type of the map.
-    key_type: Type,
-    /// The value type of the map.
-    value_type: Type,
-}
+pub struct MapType(Arc<(Type, Type)>);
 
 impl MapType {
     /// Constructs a new map type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given key type is not primitive.
     pub fn new(key_type: impl Into<Type>, value_type: impl Into<Type>) -> Self {
-        Self {
-            key_type: key_type.into(),
-            value_type: value_type.into(),
-        }
+        let key_type = key_type.into();
+        assert!(
+            key_type.is_union() || key_type.as_primitive().is_some(),
+            "map key type `{key_type}` is not primitive"
+        );
+        Self(Arc::new((key_type, value_type.into())))
     }
 
     /// Gets the maps's key type.
     pub fn key_type(&self) -> &Type {
-        &self.key_type
+        &self.0.0
     }
 
     /// Gets the maps's value type.
     pub fn value_type(&self) -> &Type {
-        &self.value_type
+        &self.0.1
     }
 }
 
@@ -997,8 +989,8 @@ impl fmt::Display for MapType {
         write!(
             f,
             "Map[{key}, {value}]",
-            key = self.key_type,
-            value = self.value_type
+            key = self.key_type(),
+            value = self.value_type()
         )?;
 
         Ok(())
@@ -1007,8 +999,8 @@ impl fmt::Display for MapType {
 
 impl Coercible for MapType {
     fn is_coercible_to(&self, target: &Self) -> bool {
-        self.key_type.is_coercible_to(&target.key_type)
-            && self.value_type.is_coercible_to(&target.value_type)
+        self.key_type().is_coercible_to(target.key_type())
+            && self.value_type().is_coercible_to(target.value_type())
     }
 }
 
@@ -1018,7 +1010,7 @@ pub struct StructType {
     /// The name of the struct.
     name: Arc<String>,
     /// The members of the struct.
-    members: IndexMap<String, Type>,
+    members: Arc<IndexMap<String, Type>>,
 }
 
 impl StructType {
@@ -1030,10 +1022,12 @@ impl StructType {
     {
         Self {
             name: Arc::new(name.into()),
-            members: members
-                .into_iter()
-                .map(|(n, ty)| (n.into(), ty.into()))
-                .collect(),
+            members: Arc::new(
+                members
+                    .into_iter()
+                    .map(|(n, ty)| (n.into(), ty.into()))
+                    .collect(),
+            ),
         }
     }
 
@@ -1076,7 +1070,7 @@ pub struct EnumType {
     /// The name of the enum.
     name: Arc<String>,
     /// The common coerced type computed from all variant values.
-    inner_value_type: Type,
+    inner_value_type: Arc<Type>,
     /// The variants.
     variants: Arc<[String]>,
 }
@@ -1101,7 +1095,7 @@ impl EnumType {
         // Validate that all variant types are coercible to the value type
         for (variant_idx, (variant_name, variant_type)) in variants.iter().enumerate() {
             if !variant_type.is_coercible_to(&explicit_inner_type) {
-                return Err(crate::diagnostics::enum_variant_does_not_coerce_to_type(
+                return Err(enum_variant_does_not_coerce_to_type(
                     &enum_name,
                     enum_span,
                     variant_name,
@@ -1116,7 +1110,7 @@ impl EnumType {
 
         Ok(Self {
             name: Arc::new(enum_name),
-            inner_value_type: explicit_inner_type,
+            inner_value_type: explicit_inner_type.into(),
             variants: results.into(),
         })
     }
@@ -1145,7 +1139,7 @@ impl EnumType {
                         common_ty = Some(new_common_ty);
                     }
                     None => {
-                        return Err(crate::diagnostics::no_common_inferred_type_for_enum(
+                        return Err(no_common_inferred_type_for_enum(
                             &enum_name,
                             &current_common_ty,
                             variant_spans[i - 1],
@@ -1162,7 +1156,7 @@ impl EnumType {
 
         Ok(Self {
             name: Arc::new(enum_name),
-            inner_value_type: common_ty.unwrap_or(Type::Union),
+            inner_value_type: common_ty.unwrap_or(Type::Union).into(),
             variants: names.into(),
         })
     }
@@ -1232,7 +1226,7 @@ pub struct CallType {
 
 impl CallType {
     /// Constructs a new call type given the task or workflow name being called.
-    pub fn new(
+    pub(crate) fn new(
         kind: CallKind,
         name: impl Into<String>,
         specified: Arc<HashSet<String>>,
@@ -1251,7 +1245,7 @@ impl CallType {
 
     /// Constructs a new call type given namespace and the task or workflow name
     /// being called.
-    pub fn namespaced(
+    pub(crate) fn namespaced(
         kind: CallKind,
         namespace: impl Into<String>,
         name: impl Into<String>,
