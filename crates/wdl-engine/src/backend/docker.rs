@@ -452,8 +452,11 @@ impl TaskExecutionBackend for DockerBackend {
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.max_memory);
         }
-        let max_cpu = max_cpu(hints);
-        let max_memory = max_memory(hints)?.map(|i| i as u64);
+        // NOTE: in the Docker backend, we clamp the `max_cpu` and `max_memory`
+        // to what is reported by the backend, as the Docker daemon does not
+        // respond gracefully to over-subscribing these.
+        let max_cpu = max_cpu(hints).map(|c| c.min(self.max_cpu as f64));
+        let max_memory = max_memory(hints)?.map(|i| (i as u64).min(self.max_memory));
         let gpu = gpu(requirements, hints);
 
         let name = format!(
