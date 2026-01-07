@@ -2345,13 +2345,13 @@ workflow test_basename {
     );
 
     const JOIN_PATHS_DEFINITION: &str = r#"
-Joins together two or more paths into an absolute path in the host filesystem.
+Joins together two or more paths into an absolute path in the execution environment's filesystem.
 
 There are three variants of this function:
 
-1. `File join_paths(File, String)`: Joins together exactly two paths. The first path may be either absolute or relative and must specify a directory; the second path is relative to the first path and may specify a file or directory.
-2. `File join_paths(File, Array[String]+)`: Joins together any number of relative paths with a base path. The first argument may be either an absolute or a relative path and must specify a directory. The paths in the second array argument must all be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
-3. `File join_paths(Array[String]+)`: Joins together any number of paths. The array must not be empty. The *first* element of the array may be either absolute or relative; subsequent path(s) must be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+1. `String join_paths(Directory, String)`: Joins together exactly two paths. The second path is relative to the first directory and may specify a file or directory.
+2. `String join_paths(Directory, Array[String]+)`: Joins together any number of relative paths with a base directory. The paths in the array argument must all be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
+3. `String join_paths(Array[String]+)`: Joins together any number of paths. The array must not be empty. The *first* element of the array may be either absolute or relative; subsequent path(s) must be relative. The *last* element may specify a file or directory; all other elements must specify a directory.
 
 An absolute path starts with `/` and indicates that the path is relative to the root of the environment in which the task is executed. Only the first path may be absolute. If any subsequent paths are absolute, it is an error.
 
@@ -2359,46 +2359,36 @@ A relative path does not start with `/` and indicates the path is relative to it
 
 **Parameters**
 
-1. `File|Array[String]+`: Either a path or an array of paths.
-2. `String|Array[String]+`: A relative path or paths; only allowed if the first argument is a `File`.
+1. `Directory|Array[String]+`: Either a directory path or an array of paths.
+2. `String|Array[String]+`: A relative path or paths; only allowed if the first argument is a `Directory`.
 
-**Returns**: A `File` representing an absolute path that results from joining all the paths in order (left-to-right), and resolving the resulting path against the default parent directory if it is relative.
+**Returns**: A `String` representing an absolute path that results from joining all the paths in order (left-to-right), and resolving the resulting path against the default parent directory if it is relative.
 
 Example: join_paths_task.wdl
 
 ```wdl
 version 1.2
 
-task resolve_paths_task {
+task join_paths {
   input {
-    File abs_file = "/usr"
+    Directory abs_dir = "/usr"
     String abs_str = "/usr"
     String rel_dir_str = "bin"
-    File rel_file = "echo"
-    File rel_dir_file = "mydir"
-    String rel_str = "mydata.txt"
+    String rel_file = "echo"
   }
 
   # these are all equivalent to '/usr/bin/echo'
-  File bin1 = join_paths(abs_file, [rel_dir_str, rel_file])
-  File bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
-  File bin3 = join_paths([abs_str, rel_dir_str, rel_file])
+  String bin1 = join_paths(abs_dir, [rel_dir_str, rel_file])
+  String bin2 = join_paths(abs_str, [rel_dir_str, rel_file])
+  String bin3 = join_paths([abs_str, rel_dir_str, rel_file])
 
-  # the default behavior is that this resolves to
-  # '<working dir>/mydir/mydata.txt'
-  File data = join_paths(rel_dir_file, rel_str)
-
-  # this resolves to '<working dir>/bin/echo', which is non-existent
-  File doesnt_exist = join_paths([rel_dir_str, rel_file])
   command <<<
-    mkdir ~{rel_dir_file}
-    ~{bin1} -n "hello" > ~{data}
+    ~{bin1} -n "hello" > output.txt
   >>>
 
   output {
     Boolean bins_equal = (bin1 == bin2) && (bin1 == bin3)
-    String result = read_string(data)
-    File? missing_file = doesnt_exist
+    String result = read_string("output.txt")
   }
 
   runtime {
@@ -2418,32 +2408,32 @@ task resolve_paths_task {
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(
                             "base",
-                            PrimitiveType::File,
+                            PrimitiveType::Directory,
                             "Either a path or an array of paths.",
                         )
                         .parameter(
                             "relative",
                             PrimitiveType::String,
                             "A relative path or paths; only allowed if the first argument is a \
-                             `File`.",
+                             `Directory`.",
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
                         .parameter(
                             "base",
-                            PrimitiveType::File,
+                            PrimitiveType::Directory,
                             "Either a path or an array of paths."
                         )
                         .parameter(
                             "relative",
                             array_string_non_empty.clone(),
                             "A relative path or paths; only allowed if the first argument is a \
-                             `File`."
+                             `Directory`."
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                     FunctionSignature::builder()
@@ -2453,7 +2443,7 @@ task resolve_paths_task {
                             array_string_non_empty.clone(),
                             "Either a path or an array of paths."
                         )
-                        .ret(PrimitiveType::File)
+                        .ret(PrimitiveType::String)
                         .definition(JOIN_PATHS_DEFINITION)
                         .build(),
                 ])
