@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Reduced public surface of the wdl-engine crate and cleaned up some code
   internals ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed the `sub()` function to use POSIX ERE/`sed`-style backreferences
+  (`\1`-`\9`) instead of Rust regex syntax (`$1`-`$9`) per the WDL spec
+  ([#518](https://github.com/stjude-rust-labs/sprocket/issues/518),
+  [#522](https://github.com/stjude-rust-labs/sprocket/pull/522)).
 * Added shared validation for task runtime and hint numeric settings (memory,
   max_memory, max_retries, preemptible), rejecting invalid or negative values
   earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
