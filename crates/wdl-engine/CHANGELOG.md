@@ -24,12 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added shared validation for task runtime and hint numeric settings (memory,
   max_memory, max_retries, preemptible), rejecting invalid or negative values
   earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first
+  argument and return `String` instead of `File` per WDL v1.2.1
+  ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
+  [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
 
 #### Fixed
 
 * Fixed `select_first` to return the default value when the array is empty
   ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),
   [#525](https://github.com/stjude-rust-labs/sprocket/pull/525)).
+* Fixed evaluation of literal `input`, `output`, and `hints` expressions to
+  return the correct hidden value types; also fixed clamping of `max_cpu` and
+  `max_memory` hints in the Docker backend
+  ([#521](https://github.com/stjude-rust-labs/sprocket/pull/521)).
 * Fixed a missing check for empty arrays in the evaluation of scatter
   statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
 * Fixed authentication issue for cloud storage URLs by moving implementations
