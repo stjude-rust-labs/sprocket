@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed `select_first` to return the default value when the array is empty
+  ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),
+  [#525](https://github.com/stjude-rust-labs/sprocket/pull/525)).
 * Fixed evaluation of literal `input`, `output`, and `hints` expressions to
   return the correct hidden value types; also fixed clamping of `max_cpu` and
   `max_memory` hints in the Docker backend
