@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Added support for `disks` requirement mount points in the Docker backend
+  ([#527](https://github.com/stjude-rust-labs/sprocket/pull/527)). The mount
+  points are created as volumes but size constraints cannot be enforced.
 * Fixed a missing check for empty arrays in the evaluation of scatter
   statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
 * Fixed authentication issue for cloud storage URLs by moving implementations
