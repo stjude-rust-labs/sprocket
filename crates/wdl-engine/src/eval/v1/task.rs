@@ -359,7 +359,6 @@ pub(crate) struct DiskRequirement {
     pub size: i64,
 
     /// The disk type as specified by a corresponding task hint.
-    #[expect(unused, reason = "may be needed by backends in the future")]
     pub ty: Option<DiskType>,
 }
 
