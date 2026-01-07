@@ -531,6 +531,9 @@ impl TaskExecutionBackend for TesBackend {
         }
         let volumes: Vec<String> = disks
             .keys()
+            // NOTE: the root mount point is already handled by the work
+            // directory mount, so we filter it here to avoid duplicate volume
+            // mapping.
             .filter(|mp| **mp != DEFAULT_DISK_MOUNT_POINT)
             .map(|s| s.to_string())
             .collect();
