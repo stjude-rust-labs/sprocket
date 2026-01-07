@@ -35,7 +35,17 @@ fn convert_replacement(s: &str) -> Cow<'_, str> {
 
     while let Some(c) = chars.next() {
         match c {
-            '\\' => convert_escape(&mut chars, &mut result),
+            '\\' => match chars.peek() {
+                Some('1'..='9') => {
+                    result.push('$');
+                    result.push(chars.next().unwrap());
+                }
+                Some('\\') => {
+                    result.push('\\');
+                    chars.next();
+                }
+                _ => result.push('\\'),
+            },
             '$' => result.push_str("$$"),
             _ => result.push(c),
         }
@@ -46,22 +56,22 @@ fn convert_replacement(s: &str) -> Cow<'_, str> {
 
 /// Returns true if the string contains characters requiring conversion.
 fn needs_conversion(s: &str) -> bool {
-    s.bytes().any(|b| b == b'\\' || b == b'$')
-}
-
-/// Processes an escape sequence, converting `\N` to `$N` for digits 1-9.
-fn convert_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>, result: &mut String) {
-    match chars.peek() {
-        Some('1'..='9') => {
-            result.push('$');
-            result.push(chars.next().unwrap());
+    let mut iter = s.bytes().peekable();
+    while let Some(c) = iter.next() {
+        match c {
+            b'\\' => match iter.peek() {
+                Some(b'1'..=b'9') => return true,
+                _ => {
+                    iter.next();
+                    continue;
+                }
+            },
+            b'$' => return true,
+            _ => continue,
         }
-        Some('\\') => {
-            result.push('\\');
-            chars.next();
-        }
-        _ => result.push('\\'),
     }
+
+    false
 }
 
 /// Given three String parameters `input`, `pattern`, and `replace`, this
