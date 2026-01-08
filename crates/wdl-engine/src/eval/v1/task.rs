@@ -2097,9 +2097,21 @@ impl<'a> State<'a> {
                 self.base_dir.as_local(),
                 Some(self.transferer().as_ref()),
                 &|path| {
+                    // If the path is already a host path, return it as-is.
+                    if self.path_map.contains_left(path) {
+                        return Ok(path.clone());
+                    }
+
                     // Join the path with the work directory.
                     let output_path = evaluated.result.work_dir.join(path.as_str())?;
 
+                    // If the backend does not use guest paths (i.e. the local backend), don't
+                    // translate it
+                    if self.evaluator.backend.guest_inputs_dir().is_none() {
+                        return Ok(HostPath::new(String::try_from(output_path)?));
+                    }
+
+                    // Perform guest to path translation
                     let output_path = if let (Some(joined), Some(base)) =
                         (output_path.as_local(), evaluated.result.work_dir.as_local())
                     {

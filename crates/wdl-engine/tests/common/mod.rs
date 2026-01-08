@@ -52,7 +52,11 @@ pub fn find_tests(
             let test_path = path.clone();
             tests.push(Trial::test(
                 format!("{test_name_base}_{config_name}"),
-                move || Ok(test_runtime.block_on(run_test(test_path.as_path(), config))?),
+                move || {
+                    Ok(test_runtime
+                        .block_on(run_test(test_path.as_path(), config))
+                        .map_err(|e| format!("{e:?}"))?)
+                },
             ));
         }
     }

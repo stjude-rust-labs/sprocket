@@ -172,11 +172,13 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
                         let outputs =
                             to_string_pretty(&outputs).context("failed to serialize outputs")?;
                         let outputs = strip_paths(dir.path(), &outputs);
+                        let outputs = strip_paths(&test_dir, &outputs);
                         compare_result(&test.join("outputs.json"), &outputs)?;
                     }
                     Err(e) => {
                         let error = e.to_string();
                         let error = strip_paths(dir.path(), &error);
+                        let error = strip_paths(&test_dir, &error);
                         compare_result(&test.join("error.txt"), &error)?;
                     }
                 }
