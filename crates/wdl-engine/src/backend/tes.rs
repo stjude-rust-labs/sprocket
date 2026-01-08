@@ -456,8 +456,8 @@ impl TaskExecutionBackend for TesBackend {
             }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "TES backend does not support local SIF files; use a registry-based container \
-                     image instead"
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
                 )
             }
             ContainerSource::Unknown(_) => {
@@ -531,8 +531,8 @@ impl TaskExecutionBackend for TesBackend {
             }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "TES backend does not support local SIF files; use a registry-based container \
-                     image instead"
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
                 )
             }
             ContainerSource::Unknown(_) => {

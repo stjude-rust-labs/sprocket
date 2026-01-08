@@ -364,8 +364,8 @@ impl TaskExecutionBackend for DockerBackend {
             }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "Docker backend does not support local SIF files; use a Docker registry image \
-                     instead"
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
                 )
             }
             ContainerSource::Unknown(_) => {
@@ -487,8 +487,8 @@ impl TaskExecutionBackend for DockerBackend {
             }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "Docker backend does not support local SIF files; use a Docker registry image \
-                     instead"
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
                 )
             }
             ContainerSource::Unknown(_) => {

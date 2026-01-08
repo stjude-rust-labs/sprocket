@@ -129,7 +129,7 @@ impl ApptainerImages {
                     )?,
             };
 
-            info!(sif_path = %sif_path.display(), container = container, "image pulled successfully");
+            info!(sif_path = %sif_path.display(), container, "image pulled successfully");
             Ok(sif_path)
         })
         .await
