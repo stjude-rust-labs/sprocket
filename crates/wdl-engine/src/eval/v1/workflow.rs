@@ -179,13 +179,8 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
 
         let mut cache = self.state.evaluator.variant_cache.lock();
         if let Some(cached_value) = cache.get(&cache_key) {
-            eprintln!("🟢 CACHE HIT: {}::{} (key: {:?}) - cache size: {}", 
-                enum_name, variant_name, cache_key, cache.len());
             return Ok(cached_value.clone());
         }
-
-        eprintln!("🔴 CACHE MISS: {}::{} (key: {:?}) - evaluating from AST", 
-            enum_name, variant_name, cache_key);
 
         let r#enum = self
             .state
@@ -195,8 +190,6 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         let value = resolve_enum_variant_value(r#enum, variant_name)?;
 
         cache.insert(cache_key, value.clone());
-        eprintln!("💾 CACHED: {}::{} - cache size now: {}", 
-            enum_name, variant_name, cache.len());
         Ok(value)
     }
 
