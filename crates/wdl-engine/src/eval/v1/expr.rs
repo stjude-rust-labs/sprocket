@@ -98,8 +98,11 @@ use crate::CompoundValue;
 use crate::EnumVariant;
 use crate::EvaluationContext;
 use crate::HiddenValue;
+use crate::HintsValue;
+use crate::InputValue;
 use crate::Map;
 use crate::Object;
+use crate::OutputValue;
 use crate::Pair;
 use crate::PrimitiveValue;
 use crate::Struct;
@@ -778,7 +781,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name.text().to_string(), value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(HintsValue::new(members).into())
     }
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
@@ -824,7 +827,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(InputValue::new(members).into())
     }
 
     /// Evaluates a literal output expression.
@@ -840,7 +843,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(OutputValue::new(members).into())
     }
 
     /// Evaluates a literal input/output item.

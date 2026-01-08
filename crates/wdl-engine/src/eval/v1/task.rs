@@ -143,6 +143,8 @@ const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+/// The default mount point for disk requirements when none is specified.
+pub(crate) const DEFAULT_DISK_MOUNT_POINT: &str = "/";
 /// The default GPU count when a GPU is required but no supported hint is
 /// provided.
 const DEFAULT_GPU_COUNT: u64 = 1;
@@ -357,7 +359,6 @@ pub(crate) struct DiskRequirement {
     pub size: i64,
 
     /// The disk type as specified by a corresponding task hint.
-    #[expect(unused, reason = "may be needed by backends in the future")]
     pub ty: Option<DiskType>,
 }
 
@@ -471,7 +472,7 @@ pub(crate) fn disks<'a>(
             parse_disk_spec(spec).with_context(|| format!("invalid disk specification `{spec}"))?;
 
         let prev = disks.insert(
-            mount_point.unwrap_or("/"),
+            mount_point.unwrap_or(DEFAULT_DISK_MOUNT_POINT),
             DiskRequirement {
                 size,
                 ty: lookup_type(mount_point, hints),
@@ -481,7 +482,7 @@ pub(crate) fn disks<'a>(
         if prev.is_some() {
             bail!(
                 "duplicate mount point `{mp}` specified in `disks` requirement",
-                mp = mount_point.unwrap_or("/")
+                mp = mount_point.unwrap_or(DEFAULT_DISK_MOUNT_POINT)
             );
         }
 
