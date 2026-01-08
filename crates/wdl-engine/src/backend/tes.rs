@@ -451,11 +451,13 @@ impl TaskExecutionBackend for TesBackend {
         let container_source = container(requirements, self.config.task.container.as_deref());
         let container = match &container_source {
             ContainerSource::Docker(s) => s.clone(),
-            ContainerSource::Library(_) | ContainerSource::Oras(_) => format!("{container_source:#}"),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "TES backend does not support local SIF files; use a registry-based \
-                     container image instead"
+                    "TES backend does not support local SIF files; use a registry-based container \
+                     image instead"
                 )
             }
             ContainerSource::Unknown(_) => {
@@ -524,11 +526,13 @@ impl TaskExecutionBackend for TesBackend {
         let container_source = container(requirements, self.config.task.container.as_deref());
         let container = match &container_source {
             ContainerSource::Docker(s) => s.clone(),
-            ContainerSource::Library(_) | ContainerSource::Oras(_) => format!("{container_source:#}"),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
             ContainerSource::SifFile(_) => {
                 bail!(
-                    "TES backend does not support local SIF files; use a registry-based \
-                     container image instead"
+                    "TES backend does not support local SIF files; use a registry-based container \
+                     image instead"
                 )
             }
             ContainerSource::Unknown(_) => {

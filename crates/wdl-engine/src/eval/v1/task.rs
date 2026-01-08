@@ -176,7 +176,8 @@ const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 /// Represents the source of a container image.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ContainerSource {
-    /// A Docker registry image (e.g., `ubuntu:22.04` or `docker://ubuntu:22.04`).
+    /// A Docker registry image (e.g., `ubuntu:22.04` or
+    /// `docker://ubuntu:22.04`).
     Docker(String),
     /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
     Library(String),
@@ -2489,8 +2490,7 @@ mod container_source_tests {
 
     #[test]
     fn parses_docker_image_with_digest() {
-        let source: ContainerSource =
-            "ubuntu@sha256:abcdef1234567890".parse().unwrap();
+        let source: ContainerSource = "ubuntu@sha256:abcdef1234567890".parse().unwrap();
         assert_eq!(
             source,
             ContainerSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())

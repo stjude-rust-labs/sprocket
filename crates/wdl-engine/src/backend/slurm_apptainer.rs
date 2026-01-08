@@ -473,8 +473,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 }
             }
         }
-        let container =
-            v1::container(requirements, self.engine_config.task.container.as_deref());
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
             bail!(
                 "Slurm Apptainer backend does not support unknown container source `{container:#}`"
@@ -515,8 +514,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container =
-            v1::container(requirements, self.engine_config.task.container.as_deref());
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
             bail!(
                 "Slurm Apptainer backend does not support unknown container source `{container:#}`"

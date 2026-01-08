@@ -358,8 +358,8 @@ impl TaskExecutionBackend for DockerBackend {
             ContainerSource::Docker(s) => s.clone(),
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {
                 bail!(
-                    "Docker backend does not support `{container_source:#}`; use a Docker registry \
-                     image instead"
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
                 )
             }
             ContainerSource::SifFile(_) => {
@@ -370,7 +370,8 @@ impl TaskExecutionBackend for DockerBackend {
             }
             ContainerSource::Unknown(_) => {
                 bail!(
-                    "Docker backend does not support unknown container source `{container_source:#}`"
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
                 )
             }
         };
@@ -480,8 +481,8 @@ impl TaskExecutionBackend for DockerBackend {
             ContainerSource::Docker(s) => s.clone(),
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {
                 bail!(
-                    "Docker backend does not support `{container_source:#}`; use a Docker registry \
-                     image instead"
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
                 )
             }
             ContainerSource::SifFile(_) => {
@@ -492,7 +493,8 @@ impl TaskExecutionBackend for DockerBackend {
             }
             ContainerSource::Unknown(_) => {
                 bail!(
-                    "Docker backend does not support unknown container source `{container_source:#}`"
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
                 )
             }
         };

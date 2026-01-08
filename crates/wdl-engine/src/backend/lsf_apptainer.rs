@@ -466,12 +466,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 }
             }
         }
-        let container =
-            v1::container(requirements, self.engine_config.task.container.as_deref());
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
-            bail!(
-                "LSF Apptainer backend does not support unknown container source `{container:#}`"
-            )
+            bail!("LSF Apptainer backend does not support unknown container source `{container:#}`")
         }
 
         Ok(super::TaskExecutionConstraints {
@@ -503,12 +500,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container =
-            v1::container(requirements, self.engine_config.task.container.as_deref());
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
-            bail!(
-                "LSF Apptainer backend does not support unknown container source `{container:#}`"
-            )
+            bail!("LSF Apptainer backend does not support unknown container source `{container:#}`")
         }
 
         let mut required_cpu = v1::cpu(requirements);
