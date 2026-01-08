@@ -895,9 +895,6 @@ impl Document {
     }
 
     /// Gets a cache key for an enum variant lookup.
-    ///
-    /// Returns `None` if the enum of the given name doesn't exist or if the enum
-    /// doesn't contain the given variant name.
     pub fn get_variant_cache_key(
         &self,
         name: &str,
