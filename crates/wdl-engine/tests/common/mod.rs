@@ -132,10 +132,11 @@ pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
             ..TestConfig::default()
         },
     )]);
+
     // Currently we limit running the Docker backend to Linux as GitHub does not
     // have Docker installed on macOS hosted runners and the Windows hosted
     // runners are configured to use Windows containers
-    if cfg!(target_os = "linux") {
+    if std::env::var("DISABLE_DOCKER_TESTS").is_err() {
         configs.insert(
             "docker".to_string(),
             TestConfig {

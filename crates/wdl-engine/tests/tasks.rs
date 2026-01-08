@@ -238,10 +238,12 @@ fn compare_evaluation_results(
 
     let stdout = strip_paths(temp_dir, &stdout);
     let stdout = strip_paths(test_dir, &stdout);
+    let stdout = PATH_PREFIX_REGEX.replace_all(&stdout, "");
     compare_result(&test_dir.join("stdout"), &stdout)?;
 
     let stderr = strip_paths(temp_dir, &stderr);
     let stderr = strip_paths(test_dir, &stderr);
+    let stderr = PATH_PREFIX_REGEX.replace_all(&stderr, "");
     compare_result(&test_dir.join("stderr"), &stderr)?;
 
     // Compare expected output files
