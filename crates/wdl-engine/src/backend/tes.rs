@@ -126,7 +126,6 @@ struct TesTaskRequest {
     token: CancellationToken,
 }
 
-
 impl TaskManagerRequest for TesTaskRequest {
     fn cpu(&self) -> f64 {
         self.cpu
@@ -525,9 +524,7 @@ impl TaskExecutionBackend for TesBackend {
             }
         };
         if disks.values().any(|d| d.ty.is_some()) {
-            debug!(
-                "disk type hints are not supported by the TES backend and will be ignored"
-            );
+            debug!("disk type hints are not supported by the TES backend and will be ignored");
         }
         let volumes: Vec<String> = disks
             .keys()
