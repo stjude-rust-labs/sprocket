@@ -58,6 +58,7 @@ use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
+use crate::v1::ContainerSource;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
@@ -447,7 +448,24 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.config.task.container.as_deref());
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "TES backend does not support unknown container source `{container_source:#}`"
+                )
+            }
+        };
 
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -478,7 +496,7 @@ impl TaskExecutionBackend for TesBackend {
             .collect();
 
         Ok(TaskExecutionConstraints {
-            container: Some(container.into_owned()),
+            container: Some(container),
             cpu,
             memory,
             gpu: Default::default(),
@@ -505,7 +523,24 @@ impl TaskExecutionBackend for TesBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "TES backend does not support unknown container source `{container_source:#}`"
+                )
+            }
+        };
         let cpu = cpu(requirements);
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);

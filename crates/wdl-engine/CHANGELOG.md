@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added support for multiple container protocols: `docker://`, `library://`,
+  `oras://`, and `file://` for local `.sif` files
+  ([#529](https://github.com/stjude-rust-labs/sprocket/pull/529)). Protocol
+  support varies by backend (see documentation for details).
 * Added support for `disks` requirement mount points in the Docker backend
   ([#527](https://github.com/stjude-rust-labs/sprocket/pull/528)). The mount
   points are created as volumes but size constraints cannot be enforced.

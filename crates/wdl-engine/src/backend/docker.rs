@@ -51,6 +51,7 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
+use crate::v1::ContainerSource;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -352,7 +353,28 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.config.task.container.as_deref());
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                bail!(
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
+                )
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
+                )
+            }
+        };
 
         let mut cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -427,7 +449,7 @@ impl TaskExecutionBackend for DockerBackend {
             .collect::<IndexMap<_, _>>();
 
         Ok(TaskExecutionConstraints {
-            container: Some(container.into_owned()),
+            container: Some(container),
             cpu,
             memory,
             gpu,
@@ -454,7 +476,28 @@ impl TaskExecutionBackend for DockerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                bail!(
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
+                )
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
+                )
+            }
+        };
         let mut cpu = cpu(requirements);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             cpu = std::cmp::min(cpu.ceil() as u64, self.max_cpu) as f64;
