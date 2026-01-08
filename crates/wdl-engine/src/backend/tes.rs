@@ -32,8 +32,8 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::info;
-use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -58,6 +58,7 @@ use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
+use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -117,36 +118,12 @@ struct TesTaskRequest {
     /// If this value is 0, no preemptible tasks are requested from the TES
     /// server.
     preemptible: i64,
+    /// The total disk size for the task in GiB.
+    disk: f64,
+    /// The volume mount points for the task.
+    volumes: Vec<String>,
     /// The cancellation token for the request.
     token: CancellationToken,
-}
-
-impl TesTaskRequest {
-    /// Gets the TES disk resource for the request.
-    fn disk_resource(&self) -> Result<f64> {
-        let disks = disks(self.inner.requirements(), self.inner.hints())?;
-        if disks.len() > 1 {
-            bail!(
-                "TES backend does not support more than one disk specification for the \
-                 `{TASK_REQUIREMENT_DISKS}` task requirement"
-            );
-        }
-
-        if let Some(mount_point) = disks.keys().next()
-            && *mount_point != "/"
-        {
-            bail!(
-                "TES backend does not support a disk mount point other than `/` for the \
-                 `{TASK_REQUIREMENT_DISKS}` task requirement"
-            );
-        }
-
-        Ok(disks
-            .values()
-            .next()
-            .map(|d| d.size as f64)
-            .unwrap_or(DEFAULT_TASK_REQUIREMENT_DISKS))
-    }
 }
 
 impl TaskManagerRequest for TesTaskRequest {
@@ -338,11 +315,12 @@ impl TaskManagerRequest for TesTaskRequest {
                         .cpu(self.cpu)
                         .maybe_cpu_limit(self.max_cpu)
                         .ram(self.memory as f64 / ONE_GIBIBYTE)
-                        .disk(self.disk_resource()?)
+                        .disk(self.disk)
                         .maybe_ram_limit(self.max_memory.map(|m| m as f64 / ONE_GIBIBYTE))
                         .preemptible(preemptible > 0)
                         .build(),
                 )
+                .volumes(self.volumes.clone())
                 .build();
 
             let statuses = match self.backend.run(task, self.token.clone())?.await {
@@ -534,6 +512,29 @@ impl TaskExecutionBackend for TesBackend {
         let max_memory = max_memory(hints)?.map(|i| i as u64);
         let preemptible = preemptible(hints)?;
 
+        let disks = disks(requirements, hints)?;
+        let disk: f64 = if disks.is_empty() {
+            DEFAULT_TASK_REQUIREMENT_DISKS
+        } else {
+            let sum: f64 = disks.values().map(|d| d.size as f64).sum();
+            if disks.contains_key(DEFAULT_DISK_MOUNT_POINT) {
+                sum
+            } else {
+                sum + DEFAULT_TASK_REQUIREMENT_DISKS
+            }
+        };
+        if disks.values().any(|d| d.ty.is_some()) {
+            debug!("disk type hints are not supported by the TES backend and will be ignored");
+        }
+        let volumes: Vec<String> = disks
+            .keys()
+            // NOTE: the root mount point is already handled by the work
+            // directory mount, so we filter it here to avoid duplicate volume
+            // mapping.
+            .filter(|mp| **mp != DEFAULT_DISK_MOUNT_POINT)
+            .map(|s| s.to_string())
+            .collect();
+
         let name = format!(
             "{id}-{generated}",
             id = request.id(),
@@ -558,6 +559,8 @@ impl TaskExecutionBackend for TesBackend {
                 max_memory,
                 token,
                 preemptible,
+                disk,
+                volumes,
             },
             completed_tx,
         );
