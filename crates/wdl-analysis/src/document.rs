@@ -894,6 +894,26 @@ impl Document {
         None
     }
 
+    /// Gets a cache key for an enum variant lookup.
+    ///
+    /// Returns `None` if the enum of the given name doesn't exist or if the enum
+    /// doesn't contain the given variant name.
+    pub fn get_variant_cache_key(
+        &self,
+        name: &str,
+        variant: &str,
+    ) -> Option<crate::types::EnumVariantCacheKey> {
+        let enum_index = self.data.enums.get_index_of(name)?;
+        let r#enum = &self.data.enums[enum_index];
+        let enum_ty = r#enum.ty()?.as_enum()?;
+        let variant_index = enum_ty.variants().iter().position(|v| v == variant)?;
+        Some(crate::types::EnumVariantCacheKey::new(
+            enum_index,
+            variant_index,
+        ))
+    }
+
+
     /// Gets the parse diagnostics for the document.
     pub fn parse_diagnostics(&self) -> &[Diagnostic] {
         &self.data.parse_diagnostics

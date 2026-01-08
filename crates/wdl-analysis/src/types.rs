@@ -1064,6 +1064,23 @@ impl Coercible for StructType {
     }
 }
 
+/// Cache key for enum variant values (enum index, variant index).
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+pub struct EnumVariantCacheKey {
+    enum_index: usize,
+    variant_index: usize,
+}
+
+impl EnumVariantCacheKey {
+    /// Constructs a new enum variant cache key.
+    pub fn new(enum_index: usize, variant_index: usize) -> Self {
+        Self {
+            enum_index,
+            variant_index,
+        }
+    }
+}
+
 /// Represents the type of an enum.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumType {

@@ -171,17 +171,22 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
-        let cache_key = (enum_name.to_string(), variant_name.to_string());
+        let cache_key = self
+            .state
+            .document
+            .get_variant_cache_key(enum_name, variant_name)
+            .ok_or_else(|| unknown_enum(enum_name))?;
 
-        // Check cache first (fast path with read lock)
-        {
-            let cache = self.state.evaluator.variant_cache.read();
-            if let Some(cached_value) = cache.get(&cache_key) {
-                return Ok(cached_value.clone());
-            }
+        let mut cache = self.state.evaluator.variant_cache.lock();
+        if let Some(cached_value) = cache.get(&cache_key) {
+            eprintln!("🟢 CACHE HIT: {}::{} (key: {:?}) - cache size: {}", 
+                enum_name, variant_name, cache_key, cache.len());
+            return Ok(cached_value.clone());
         }
 
-        // Cache miss - compute the value
+        eprintln!("🔴 CACHE MISS: {}::{} (key: {:?}) - evaluating from AST", 
+            enum_name, variant_name, cache_key);
+
         let r#enum = self
             .state
             .document
@@ -189,13 +194,9 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .ok_or(unknown_enum(enum_name))?;
         let value = resolve_enum_variant_value(r#enum, variant_name)?;
 
-        // Store in cache
-        self.state
-            .evaluator
-            .variant_cache
-            .write()
-            .insert(cache_key, value.clone());
-
+        cache.insert(cache_key, value.clone());
+        eprintln!("💾 CACHED: {}::{} - cache size now: {}", 
+            enum_name, variant_name, cache.len());
         Ok(value)
     }
 

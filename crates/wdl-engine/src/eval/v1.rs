@@ -14,7 +14,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use anyhow::Result;
 pub(crate) use expr::*;
-use parking_lot::RwLock;
+use parking_lot::Mutex;
 use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
@@ -68,7 +68,7 @@ pub struct Evaluator {
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
     /// Cache for evaluated enum variant values to avoid redundant AST lookups.
-    variant_cache: Arc<RwLock<HashMap<(String, String), crate::Value>>>,
+    variant_cache: Arc<Mutex<HashMap<wdl_analysis::types::EnumVariantCacheKey, crate::Value>>>,
 }
 
 impl Evaluator {
@@ -117,7 +117,7 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
-            variant_cache: Arc::new(RwLock::new(HashMap::new())),
+            variant_cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }
