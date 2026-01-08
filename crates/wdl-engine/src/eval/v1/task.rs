@@ -7,6 +7,7 @@ use std::fs;
 use std::io::BufRead;
 use std::mem;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -149,6 +150,21 @@ pub(crate) const DEFAULT_DISK_MOUNT_POINT: &str = "/";
 /// provided.
 const DEFAULT_GPU_COUNT: u64 = 1;
 
+/// The Docker registry protocol prefix.
+const DOCKER_PROTOCOL: &str = "docker://";
+
+/// The Sylabs library protocol prefix.
+const LIBRARY_PROTOCOL: &str = "library://";
+
+/// The OCI Registry as Storage protocol prefix.
+const ORAS_PROTOCOL: &str = "oras://";
+
+/// The file protocol prefix for local container files.
+const FILE_PROTOCOL: &str = "file://";
+
+/// The expected extension for local SIF files.
+const SIF_EXTENSION: &str = "sif";
+
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
 /// The index of a task's output scope.
@@ -156,6 +172,78 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// The index of the evaluation scope where the WDL 1.2 `task` variable is
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
+
+/// Represents the source of a container image.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ContainerSource {
+    /// A Docker registry image (e.g., `ubuntu:22.04` or `docker://ubuntu:22.04`).
+    Docker(String),
+    /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
+    Library(String),
+    /// An OCI Registry as Storage image (e.g., `oras://ghcr.io/org/image`).
+    Oras(String),
+    /// A local SIF file (e.g., `file:///path/to/image.sif`).
+    SifFile(PathBuf),
+    /// An unknown container source that could not be parsed.
+    Unknown(String),
+}
+
+impl FromStr for ContainerSource {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Check for `file://` protocol.
+        if let Some(path_str) = s.strip_prefix(FILE_PROTOCOL) {
+            let path = PathBuf::from(path_str);
+            return match path.extension().and_then(|e| e.to_str()) {
+                Some(ext) if ext == SIF_EXTENSION => Ok(Self::SifFile(path)),
+                _ => Ok(Self::Unknown(s.to_string())),
+            };
+        }
+
+        // Check for known registry protocols.
+        if let Some(image) = s.strip_prefix(DOCKER_PROTOCOL) {
+            return Ok(Self::Docker(image.to_string()));
+        }
+        if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
+            return Ok(Self::Library(image.to_string()));
+        }
+        if let Some(image) = s.strip_prefix(ORAS_PROTOCOL) {
+            return Ok(Self::Oras(image.to_string()));
+        }
+
+        // Check for unknown protocols.
+        if s.contains("://") {
+            return Ok(Self::Unknown(s.to_string()));
+        }
+
+        // No protocol assumes `docker://`.
+        Ok(Self::Docker(s.to_string()))
+    }
+}
+
+impl std::fmt::Display for ContainerSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            // Pretty format includes protocol prefix.
+            match self {
+                Self::Docker(s) => write!(f, "docker://{s}"),
+                Self::Library(s) => write!(f, "library://{s}"),
+                Self::Oras(s) => write!(f, "oras://{s}"),
+                Self::SifFile(p) => write!(f, "file://{}", p.display()),
+                Self::Unknown(s) => write!(f, "{s}"),
+            }
+        } else {
+            // Normal format omits protocol prefix.
+            match self {
+                Self::Docker(s) | Self::Library(s) | Self::Oras(s) | Self::Unknown(s) => {
+                    write!(f, "{s}")
+                }
+                Self::SifFile(p) => write!(f, "{}", p.display()),
+            }
+        }
+    }
+}
 
 /// Returns the first entry in `map` that matches the provided keys.
 fn lookup_entry<'a>(
@@ -187,17 +275,20 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
 }
 
 /// Gets the `container` requirement from a requirements map.
-pub(crate) fn container<'a>(
-    requirements: &'a HashMap<String, Value>,
-    default: Option<&'a str>,
-) -> Cow<'a, str> {
-    requirements
+///
+/// Returns a [`ContainerSource`] indicating whether the container is a
+/// registry-based image or a local SIF file.
+pub(crate) fn container(
+    requirements: &HashMap<String, Value>,
+    default: Option<&str>,
+) -> ContainerSource {
+    let value: Cow<'_, str> = requirements
         .get(TASK_REQUIREMENT_CONTAINER)
         .or_else(|| requirements.get(TASK_REQUIREMENT_CONTAINER_ALIAS))
         .and_then(|v| -> Option<Cow<'_, str>> {
-            // If the value is an array, use the first element or the default
-            // Note: in the future we should be resolving which element in the array is
-            // usable; this will require some work in Crankshaft to enable
+            // If the value is an array, use the first element or the default.
+            // NOTE: in the future we should be resolving which element in the array is
+            // usable; this will require some work in Crankshaft to enable.
             if let Some(array) = v.as_array() {
                 return array.as_slice().first().map(|v| {
                     v.as_string()
@@ -217,14 +308,17 @@ pub(crate) fn container<'a>(
             )
         })
         .and_then(|v| {
-            // Treat star as the default
+            // Treat `*` as the default.
             if v == "*" { None } else { Some(v) }
         })
         .unwrap_or_else(|| {
             default
                 .map(Into::into)
                 .unwrap_or(DEFAULT_TASK_REQUIREMENT_CONTAINER.into())
-        })
+        });
+
+    // SAFETY: `FromStr` for `ContainerSource` is infallible.
+    value.parse().unwrap()
 }
 
 /// Gets the `cpu` requirement from a requirements map.
@@ -1133,6 +1227,8 @@ impl Evaluator {
                 && let Some(cache) = &self.cache
             {
                 if cacheable(&hints, &self.config) {
+                    let container =
+                        container(&requirements, self.config.task.container.as_deref()).to_string();
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
@@ -1140,7 +1236,7 @@ impl Evaluator {
                         command: &command,
                         requirements: requirements.as_ref(),
                         hints: hints.as_ref(),
-                        container: &container(&requirements, self.config.task.container.as_deref()),
+                        container: &container,
                         shell: self
                             .config
                             .task
@@ -2298,6 +2394,106 @@ mod resource_validation_tests {
         assert!(
             err.to_string()
                 .contains("task hint `preemptible` cannot be less than zero")
+        );
+    }
+}
+
+#[cfg(test)]
+mod container_source_tests {
+    use std::path::PathBuf;
+
+    use super::ContainerSource;
+
+    #[test]
+    fn parses_bare_docker_image() {
+        let source: ContainerSource = "ubuntu:22.04".parse().unwrap();
+        assert_eq!(source, ContainerSource::Docker("ubuntu:22.04".to_string()));
+        assert_eq!(source.to_string(), "ubuntu:22.04");
+        assert_eq!(format!("{source:#}"), "docker://ubuntu:22.04");
+    }
+
+    #[test]
+    fn parses_docker_protocol() {
+        let source: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
+        assert_eq!(source, ContainerSource::Docker("ubuntu:latest".to_string()));
+        assert_eq!(source.to_string(), "ubuntu:latest");
+        assert_eq!(format!("{source:#}"), "docker://ubuntu:latest");
+    }
+
+    #[test]
+    fn parses_library_protocol() {
+        let source: ContainerSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Library("sylabs/default/alpine:3.18".to_string())
+        );
+        assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
+        assert_eq!(
+            format!("{source:#}"),
+            "library://sylabs/default/alpine:3.18"
+        );
+    }
+
+    #[test]
+    fn parses_oras_protocol() {
+        let source: ContainerSource = "oras://ghcr.io/org/image:tag".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Oras("ghcr.io/org/image:tag".to_string())
+        );
+        assert_eq!(source.to_string(), "ghcr.io/org/image:tag");
+        assert_eq!(format!("{source:#}"), "oras://ghcr.io/org/image:tag");
+    }
+
+    #[test]
+    fn parses_file_protocol_sif() {
+        let source: ContainerSource = "file:///path/to/image.sif".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::SifFile(PathBuf::from("/path/to/image.sif"))
+        );
+        assert_eq!(source.to_string(), "/path/to/image.sif");
+        assert_eq!(format!("{source:#}"), "file:///path/to/image.sif");
+    }
+
+    #[test]
+    fn parses_file_protocol_unknown_extension() {
+        let source: ContainerSource = "file:///path/to/image.tar".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Unknown("file:///path/to/image.tar".to_string())
+        );
+        assert_eq!(source.to_string(), "file:///path/to/image.tar");
+        assert_eq!(format!("{source:#}"), "file:///path/to/image.tar");
+    }
+
+    #[test]
+    fn parses_unknown_protocol() {
+        let source: ContainerSource = "ftp://example.com/image".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Unknown("ftp://example.com/image".to_string())
+        );
+        assert_eq!(source.to_string(), "ftp://example.com/image");
+        assert_eq!(format!("{source:#}"), "ftp://example.com/image");
+    }
+
+    #[test]
+    fn parses_complex_docker_image() {
+        let source: ContainerSource = "ghcr.io/stjude/sprocket:v1.0.0".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Docker("ghcr.io/stjude/sprocket:v1.0.0".to_string())
+        );
+    }
+
+    #[test]
+    fn parses_docker_image_with_digest() {
+        let source: ContainerSource =
+            "ubuntu@sha256:abcdef1234567890".parse().unwrap();
+        assert_eq!(
+            source,
+            ContainerSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())
         );
     }
 }

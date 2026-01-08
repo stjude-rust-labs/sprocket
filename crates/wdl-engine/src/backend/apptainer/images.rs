@@ -48,6 +48,8 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
+use crate::v1::ContainerSource;
+
 /// Apptainer images that have been converted to `.sif` from OCI format.
 #[derive(Debug)]
 pub struct ApptainerImages {
@@ -69,18 +71,32 @@ impl ApptainerImages {
     /// Get the path to the container image in `.sif` format, potentially
     /// performing an `apptainer pull` if the image cache has not already
     /// been populated.
+    ///
+    /// For local SIF files, the path is returned directly without any pull
+    /// operation.
     pub(crate) async fn sif_for_container(
         &self,
-        container: &str,
+        container: &ContainerSource,
         cancellation_token: CancellationToken,
     ) -> Result<PathBuf, anyhow::Error> {
+        // For local SIF files, return the path directly.
+        if let ContainerSource::SifFile(path) = container {
+            return Ok(path.clone());
+        }
+
+        // For unknown container sources, error early.
+        if let ContainerSource::Unknown(s) = container {
+            return Err(anyhow!("unknown container source `{s}`"));
+        }
+
+        // For registry-based images, pull and cache.
+        let container = format!("{container:#}");
         let once = {
             let mut map = self.images.lock().unwrap();
-            map.entry(container.to_owned())
+            map.entry(container.clone())
                 .or_insert_with(|| Arc::new(OnceCell::new()))
                 .clone()
         };
-        let container = container.to_owned();
         once.get_or_try_init(|| async move {
             tokio::fs::create_dir_all(&self.images_dir).await?;
             let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
@@ -113,7 +129,7 @@ impl ApptainerImages {
                     )?,
             };
 
-            info!(sif_path = %sif_path.display(), container, "image pulled successfully");
+            info!(sif_path = %sif_path.display(), container = container, "image pulled successfully");
             Ok(sif_path)
         })
         .await

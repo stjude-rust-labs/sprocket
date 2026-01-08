@@ -16,6 +16,7 @@ use tokio_util::sync::CancellationToken;
 use super::TaskSpawnRequest;
 use crate::Value;
 use crate::config::ApptainerConfig;
+use crate::v1::ContainerSource;
 
 mod images;
 
@@ -75,7 +76,7 @@ impl ApptainerState {
     /// GPFS.
     pub async fn prepare_apptainer_command(
         &self,
-        container: &str,
+        container: &ContainerSource,
         cancellation_token: CancellationToken,
         spawn_request: &TaskSpawnRequest,
     ) -> Result<String, anyhow::Error> {

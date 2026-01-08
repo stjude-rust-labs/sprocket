@@ -5253,6 +5253,7 @@ dependencies = [
  "shellexpand",
  "sysinfo",
  "tempfile",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-retry2 0.6.2",
  "tokio-util",
