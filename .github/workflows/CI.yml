@@ -116,6 +116,7 @@ jobs:
           docker pull alpine:latest
       - name: Run tests (Docker disabled)
         if: runner.os != 'Linux'
+        shell: bash
         run: DISABLE_DOCKER_TESTS=1 cargo --locked test --workspace --benches --all-features --no-fail-fast
       - name: Run tests
         if: runner.os == 'Linux'
