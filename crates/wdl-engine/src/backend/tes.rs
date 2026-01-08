@@ -32,8 +32,8 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::info;
-use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -525,7 +525,7 @@ impl TaskExecutionBackend for TesBackend {
             }
         };
         if disks.values().any(|d| d.ty.is_some()) {
-            warn!(
+            debug!(
                 "disk type hints are not supported by the TES backend and will be ignored"
             );
         }
