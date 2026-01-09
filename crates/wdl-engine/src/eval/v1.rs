@@ -19,6 +19,7 @@ use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
+use wdl_analysis::types::EnumVariantCacheKey;
 
 use super::CancellationContext;
 use super::Events;
@@ -30,7 +31,6 @@ use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::http::HttpTransferer;
 use crate::http::Transferer;
-use wdl_analysis::types::EnumVariantCacheKey;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
