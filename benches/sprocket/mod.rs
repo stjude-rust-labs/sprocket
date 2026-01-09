@@ -50,7 +50,10 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                     };
                     let check_args = sprocket::commands::check::CheckArgs { common, lint: true };
                     runtime
-                        .block_on(sprocket::commands::check::check(check_args, Default::default()))
+                        .block_on(sprocket::commands::check::check(
+                            check_args,
+                            Default::default(),
+                        ))
                         .unwrap()
                 })
             });
