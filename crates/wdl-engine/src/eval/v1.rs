@@ -10,11 +10,11 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
 pub(crate) use expr::*;
-use parking_lot::Mutex;
 use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
@@ -23,12 +23,14 @@ use tracing::info;
 use super::CancellationContext;
 use super::Events;
 use crate::EngineEvent;
+use crate::Value;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
 use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::http::HttpTransferer;
 use crate::http::Transferer;
+use wdl_analysis::types::EnumVariantCacheKey;
 
 /// The name of the inputs file to write for each task and workflow in the
 /// outputs directory.
@@ -68,7 +70,7 @@ pub struct Evaluator {
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
     /// Cache for evaluated enum variant values to avoid redundant AST lookups.
-    variant_cache: Arc<Mutex<HashMap<wdl_analysis::types::EnumVariantCacheKey, crate::Value>>>,
+    variant_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
 }
 
 impl Evaluator {
@@ -117,7 +119,7 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
-            variant_cache: Arc::new(Mutex::new(HashMap::new())),
+            variant_cache: Default::default(),
         })
     }
 }

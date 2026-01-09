@@ -29,7 +29,6 @@ libc = { workspace = true }
 nonempty = { workspace = true }
 num_enum = { workspace = true }
 ordered-float = { workspace = true }
-parking_lot = { workspace = true }
 path-clean = { workspace = true }
 petgraph = { workspace = true }
 rand = { workspace = true }

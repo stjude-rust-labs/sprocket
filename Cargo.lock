@@ -5239,7 +5239,6 @@ dependencies = [
  "nonempty",
  "num_enum",
  "ordered-float",
- "parking_lot",
  "path-clean",
  "petgraph",
  "pretty_assertions",

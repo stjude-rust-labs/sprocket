@@ -900,8 +900,7 @@ impl Document {
         name: &str,
         variant: &str,
     ) -> Option<crate::types::EnumVariantCacheKey> {
-        let enum_index = self.data.enums.get_index_of(name)?;
-        let r#enum = &self.data.enums[enum_index];
+        let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
         let variant_index = enum_ty.variants().iter().position(|v| v == variant)?;
         Some(crate::types::EnumVariantCacheKey::new(
@@ -909,7 +908,6 @@ impl Document {
             variant_index,
         ))
     }
-
 
     /// Gets the parse diagnostics for the document.
     pub fn parse_diagnostics(&self) -> &[Diagnostic] {
