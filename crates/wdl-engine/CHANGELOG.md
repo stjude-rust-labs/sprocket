@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fixed `write_json` not translating host paths to guest paths ([#530](https://github.com/stjude-rust-labs/sprocket/pull/530)).
 * Fixed `select_first` to return the default value when the array is empty
   ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),
   [#525](https://github.com/stjude-rust-labs/sprocket/pull/525)).
