@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added sorting of `#@ except` directive rule names ([#505](https://github.com/stjude-rust-labs/sprocket/pull/505)).
+
 ## 0.13.0 - 11-21-2025
 
 #### Added
