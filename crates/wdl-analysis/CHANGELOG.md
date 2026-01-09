@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first
+  argument and return `String` instead of `File` per WDL v1.2.1
+  ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
+  [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
 
 #### Fixed
 

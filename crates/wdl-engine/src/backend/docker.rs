@@ -22,6 +22,7 @@ use crankshaft::engine::task::input::Contents;
 use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use crankshaft::events::Event;
+use indexmap::IndexMap;
 use nonempty::NonEmpty;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
@@ -50,8 +51,11 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::DockerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
+use crate::v1::ContainerSource;
+use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::container;
 use crate::v1::cpu;
+use crate::v1::disks;
 use crate::v1::gpu;
 use crate::v1::max_cpu;
 use crate::v1::max_memory;
@@ -96,6 +100,8 @@ struct DockerTaskRequest {
     max_memory: Option<u64>,
     /// The requested GPU count for the task.
     gpu: Option<u64>,
+    /// The disk mount points for the task.
+    volumes: Vec<String>,
     /// The cancellation token for the request.
     token: CancellationToken,
 }
@@ -236,6 +242,7 @@ impl TaskManagerRequest for DockerTaskRequest {
                     .maybe_gpu(self.gpu)
                     .build(),
             )
+            .volumes(self.volumes)
             .build();
 
         let statuses = self.backend.run(task, self.token.clone())?.await?;
@@ -346,7 +353,28 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.config.task.container.as_deref());
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                bail!(
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
+                )
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
+                )
+            }
+        };
 
         let mut cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -415,13 +443,18 @@ impl TaskExecutionBackend for DockerBackend {
             .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
             .unwrap_or_default();
 
+        let disks = disks(requirements, hints)?
+            .into_iter()
+            .map(|(mount_point, disk)| (mount_point.to_string(), disk.size))
+            .collect::<IndexMap<_, _>>();
+
         Ok(TaskExecutionConstraints {
-            container: Some(container.into_owned()),
+            container: Some(container),
             cpu,
             memory,
             gpu,
             fpga: Default::default(),
-            disks: Default::default(),
+            disks,
         })
     }
 
@@ -443,7 +476,28 @@ impl TaskExecutionBackend for DockerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                bail!(
+                    "Docker backend does not support `{container_source:#}`; use a Docker \
+                     registry image instead"
+                )
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "Docker backend does not support local SIF file `{container_source:#}`; use a \
+                     Docker registry image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "Docker backend does not support unknown container source \
+                     `{container_source:#}`"
+                )
+            }
+        };
         let mut cpu = cpu(requirements);
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
             cpu = std::cmp::min(cpu.ceil() as u64, self.max_cpu) as f64;
@@ -452,9 +506,26 @@ impl TaskExecutionBackend for DockerBackend {
         if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
             memory = std::cmp::min(memory, self.max_memory);
         }
-        let max_cpu = max_cpu(hints);
-        let max_memory = max_memory(hints)?.map(|i| i as u64);
+        // NOTE: in the Docker backend, we clamp the `max_cpu` and `max_memory`
+        // to what is reported by the backend, as the Docker daemon does not
+        // respond gracefully to over-subscribing these.
+        let max_cpu = max_cpu(hints).map(|c| c.min(self.max_cpu as f64));
+        let max_memory = max_memory(hints)?.map(|i| (i as u64).min(self.max_memory));
         let gpu = gpu(requirements, hints);
+        let volumes = disks(requirements, hints)?
+            .into_keys()
+            // NOTE: the root mount point is already handled by the work
+            // directory mount, so we filter it here to avoid duplicate volume
+            // mapping.
+            .filter(|mp| *mp != DEFAULT_DISK_MOUNT_POINT)
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        if !volumes.is_empty() {
+            warn!(
+                "disk size constraints cannot be enforced by the Docker backend; mount points \
+                 will be created but sizes will not be limited"
+            );
+        }
 
         let name = format!(
             "{id}-{generated}",
@@ -478,6 +549,7 @@ impl TaskExecutionBackend for DockerBackend {
                 max_cpu,
                 max_memory,
                 gpu,
+                volumes,
                 token,
             },
             completed_tx,

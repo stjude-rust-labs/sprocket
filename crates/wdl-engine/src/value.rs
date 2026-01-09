@@ -3562,9 +3562,20 @@ impl TaskPostEvaluationValue {
 pub struct HintsValue(Object);
 
 impl HintsValue {
+    /// Creates a new hints value.
+    pub fn new(members: IndexMap<String, Value>) -> Self {
+        Self(Object::new(members))
+    }
+
     /// Converts the hints value to an object.
     pub fn as_object(&self) -> &Object {
         &self.0
+    }
+}
+
+impl From<HintsValue> for Value {
+    fn from(value: HintsValue) -> Self {
+        Self::Hidden(HiddenValue::Hints(value))
     }
 }
 
@@ -3597,9 +3608,20 @@ impl From<Object> for HintsValue {
 pub struct InputValue(Object);
 
 impl InputValue {
+    /// Creates a new input value.
+    pub fn new(members: IndexMap<String, Value>) -> Self {
+        Self(Object::new(members))
+    }
+
     /// Converts the input value to an object.
     pub fn as_object(&self) -> &Object {
         &self.0
+    }
+}
+
+impl From<InputValue> for Value {
+    fn from(value: InputValue) -> Self {
+        Self::Hidden(HiddenValue::Input(value))
     }
 }
 
@@ -3632,9 +3654,20 @@ impl From<Object> for InputValue {
 pub struct OutputValue(Object);
 
 impl OutputValue {
+    /// Creates a new output value.
+    pub fn new(members: IndexMap<String, Value>) -> Self {
+        Self(Object::new(members))
+    }
+
     /// Converts the output value to an object.
     pub fn as_object(&self) -> &Object {
         &self.0
+    }
+}
+
+impl From<OutputValue> for Value {
+    fn from(value: OutputValue) -> Self {
+        Self::Hidden(HiddenValue::Output(value))
     }
 }
 

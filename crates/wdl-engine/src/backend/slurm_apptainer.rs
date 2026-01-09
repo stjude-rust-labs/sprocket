@@ -46,6 +46,7 @@ use crate::config::Config;
 use crate::config::SlurmApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::v1;
+use crate::v1::ContainerSource;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -73,7 +74,7 @@ struct SlurmApptainerTaskRequest {
     /// The task spawn request.
     spawn_request: TaskSpawnRequest,
     /// The requested container for the task.
-    container: String,
+    container: ContainerSource,
     /// The requested CPU reservation for the task.
     required_cpu: f64,
     /// The requested memory reservation for the task.
@@ -472,11 +473,15 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 }
             }
         }
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
+        if let ContainerSource::Unknown(_) = &container {
+            bail!(
+                "Slurm Apptainer backend does not support unknown container source `{container:#}`"
+            )
+        }
+
         Ok(super::TaskExecutionConstraints {
-            container: Some(
-                v1::container(requirements, self.engine_config.task.container.as_deref())
-                    .into_owned(),
-            ),
+            container: Some(format!("{container:#}")),
             // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
             // Slurm partition.
             //
@@ -509,8 +514,12 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container =
-            v1::container(requirements, self.engine_config.task.container.as_deref()).into_owned();
+        let container = v1::container(requirements, self.engine_config.task.container.as_deref());
+        if let ContainerSource::Unknown(_) = &container {
+            bail!(
+                "Slurm Apptainer backend does not support unknown container source `{container:#}`"
+            )
+        }
 
         let mut required_cpu = v1::cpu(requirements);
         let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);

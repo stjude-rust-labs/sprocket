@@ -32,8 +32,8 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use tracing::info;
-use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
@@ -58,6 +58,8 @@ use crate::config::TesBackendAuthConfig;
 use crate::config::TesBackendConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
+use crate::v1::ContainerSource;
+use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::container;
 use crate::v1::cpu;
@@ -117,36 +119,12 @@ struct TesTaskRequest {
     /// If this value is 0, no preemptible tasks are requested from the TES
     /// server.
     preemptible: i64,
+    /// The total disk size for the task in GiB.
+    disk: f64,
+    /// The volume mount points for the task.
+    volumes: Vec<String>,
     /// The cancellation token for the request.
     token: CancellationToken,
-}
-
-impl TesTaskRequest {
-    /// Gets the TES disk resource for the request.
-    fn disk_resource(&self) -> Result<f64> {
-        let disks = disks(self.inner.requirements(), self.inner.hints())?;
-        if disks.len() > 1 {
-            bail!(
-                "TES backend does not support more than one disk specification for the \
-                 `{TASK_REQUIREMENT_DISKS}` task requirement"
-            );
-        }
-
-        if let Some(mount_point) = disks.keys().next()
-            && *mount_point != "/"
-        {
-            bail!(
-                "TES backend does not support a disk mount point other than `/` for the \
-                 `{TASK_REQUIREMENT_DISKS}` task requirement"
-            );
-        }
-
-        Ok(disks
-            .values()
-            .next()
-            .map(|d| d.size as f64)
-            .unwrap_or(DEFAULT_TASK_REQUIREMENT_DISKS))
-    }
 }
 
 impl TaskManagerRequest for TesTaskRequest {
@@ -338,11 +316,12 @@ impl TaskManagerRequest for TesTaskRequest {
                         .cpu(self.cpu)
                         .maybe_cpu_limit(self.max_cpu)
                         .ram(self.memory as f64 / ONE_GIBIBYTE)
-                        .disk(self.disk_resource()?)
+                        .disk(self.disk)
                         .maybe_ram_limit(self.max_memory.map(|m| m as f64 / ONE_GIBIBYTE))
                         .preemptible(preemptible > 0)
                         .build(),
                 )
+                .volumes(self.volumes.clone())
                 .build();
 
             let statuses = match self.backend.run(task, self.token.clone())?.await {
@@ -469,7 +448,24 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = container(requirements, self.config.task.container.as_deref());
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "TES backend does not support unknown container source `{container_source:#}`"
+                )
+            }
+        };
 
         let cpu = cpu(requirements);
         if (self.max_cpu as f64) < cpu {
@@ -500,7 +496,7 @@ impl TaskExecutionBackend for TesBackend {
             .collect();
 
         Ok(TaskExecutionConstraints {
-            container: Some(container.into_owned()),
+            container: Some(container),
             cpu,
             memory,
             gpu: Default::default(),
@@ -527,12 +523,52 @@ impl TaskExecutionBackend for TesBackend {
         let requirements = request.requirements();
         let hints = request.hints();
 
-        let container = container(requirements, self.config.task.container.as_deref()).into_owned();
+        let container_source = container(requirements, self.config.task.container.as_deref());
+        let container = match &container_source {
+            ContainerSource::Docker(s) => s.clone(),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                format!("{container_source:#}")
+            }
+            ContainerSource::SifFile(_) => {
+                bail!(
+                    "TES backend does not support local SIF file `{container_source:#}`; use a \
+                     registry-based container image instead"
+                )
+            }
+            ContainerSource::Unknown(_) => {
+                bail!(
+                    "TES backend does not support unknown container source `{container_source:#}`"
+                )
+            }
+        };
         let cpu = cpu(requirements);
         let memory = memory(requirements)? as u64;
         let max_cpu = max_cpu(hints);
         let max_memory = max_memory(hints)?.map(|i| i as u64);
         let preemptible = preemptible(hints)?;
+
+        let disks = disks(requirements, hints)?;
+        let disk: f64 = if disks.is_empty() {
+            DEFAULT_TASK_REQUIREMENT_DISKS
+        } else {
+            let sum: f64 = disks.values().map(|d| d.size as f64).sum();
+            if disks.contains_key(DEFAULT_DISK_MOUNT_POINT) {
+                sum
+            } else {
+                sum + DEFAULT_TASK_REQUIREMENT_DISKS
+            }
+        };
+        if disks.values().any(|d| d.ty.is_some()) {
+            debug!("disk type hints are not supported by the TES backend and will be ignored");
+        }
+        let volumes: Vec<String> = disks
+            .keys()
+            // NOTE: the root mount point is already handled by the work
+            // directory mount, so we filter it here to avoid duplicate volume
+            // mapping.
+            .filter(|mp| **mp != DEFAULT_DISK_MOUNT_POINT)
+            .map(|s| s.to_string())
+            .collect();
 
         let name = format!(
             "{id}-{generated}",
@@ -558,6 +594,8 @@ impl TaskExecutionBackend for TesBackend {
                 max_memory,
                 token,
                 preemptible,
+                disk,
+                volumes,
             },
             completed_tx,
         );
