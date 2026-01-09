@@ -2111,7 +2111,7 @@ impl<'a> State<'a> {
                         return Ok(HostPath::new(String::try_from(output_path)?));
                     }
 
-                    // Perform guest to path translation
+                    // Perform guest to host path translation
                     let output_path = if let (Some(joined), Some(base)) =
                         (output_path.as_local(), evaluated.result.work_dir.as_local())
                     {
