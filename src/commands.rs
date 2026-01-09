@@ -134,11 +134,6 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
-    /// [UNDER CONSTRUCTION] Runs unit tests for a WDL workspace. [DOES NOT
-    /// EXECUTE ANY TESTS]
-    ///
-    /// Currently, this command will parse test definitions and log information
-    /// about found tests at the `INFO` level. To see these logs, add the `-v`
-    /// flag to the command.
+    /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }

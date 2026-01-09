@@ -99,7 +99,7 @@ impl TaskManagerRequest for SlurmApptainerTaskRequest {
         self.required_memory.as_u64()
     }
 
-    async fn run(self) -> anyhow::Result<super::TaskExecutionResult> {
+    async fn run(self) -> anyhow::Result<TaskExecutionResult> {
         let crankshaft_task_id = crankshaft::events::next_task_id();
 
         let attempt_dir = self.spawn_request.attempt_dir();

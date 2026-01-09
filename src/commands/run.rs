@@ -679,8 +679,8 @@ pub async fn run(args: Args) -> CommandResult<()> {
         document,
         &entrypoint,
         inputs,
-        origins,
-        args.engine,
+        &origins,
+        args.engine.into(),
         &output_dir,
     );
 

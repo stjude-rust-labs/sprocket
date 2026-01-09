@@ -1,15 +1,19 @@
 //! Facilities for unit testing WDL documents.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::once;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use indexmap::IndexMap;
 use itertools::Either;
 use itertools::Itertools;
+use regex::Regex;
 use serde_yaml_ng::Mapping;
 use serde_yaml_ng::Value;
+use tracing::warn;
 
 /// Represents a grouping of input sequences that must be iterated through
 /// together.
@@ -120,7 +124,7 @@ pub(crate) struct TestDefinition {
     /// If no assertions defined, it is assumed that failing execution for any
     /// reason is considered a test fail.
     #[serde(default)]
-    assertions: Mapping,
+    pub assertions: Assertions,
 }
 
 impl TestDefinition {
@@ -184,17 +188,99 @@ impl TestDefinition {
 
         Ok(InputMatrix(result))
     }
+}
 
-    /// Parse the defined assertions into an ordered map.
-    pub fn parse_assertions(&self) -> Result<IndexMap<String, Value>> {
-        self.assertions
+/// Possible assertions for a test.
+#[derive(Default, serde::Deserialize, Debug)]
+pub(crate) struct Assertions {
+    /// The expected exit code of the task (ignored when testing workflows).
+    #[serde(default)]
+    pub exit_code: i32,
+    /// Whether a workflow should fail or not (ignored when testing tasks).
+    #[serde(default)]
+    pub should_fail: bool,
+    /// Regular expressions that should match within STDOUT of the task (ignored
+    /// when testing workflows).
+    #[serde(default)]
+    pub stdout: Vec<String>,
+    /// Regular expressions that should match within STDERR of the task (ignored
+    /// when testing workflows).
+    #[serde(default)]
+    pub stderr: Vec<String>,
+    /// Assertions about WDL outputs.
+    ///
+    /// TODO(Ari): implement these assertions.
+    #[serde(default)]
+    #[allow(unused)]
+    pub outputs: HashMap<String, Value>,
+    /// A custom command to execute.
+    ///
+    /// TODO(Ari): implement this assertion.
+    #[allow(unused)]
+    pub custom: Option<String>,
+}
+
+impl Assertions {
+    /// Parse the assertions from the serde definitions.
+    pub fn parse(&self, is_workflow: bool) -> Result<ParsedAssertions> {
+        if is_workflow {
+            if self.exit_code != 0 {
+                warn!("ignoring `exit_code` assertion for workflow");
+            }
+            if !self.stdout.is_empty() {
+                warn!("ignoring `stdout` assertion for workflow");
+            }
+            if !self.stderr.is_empty() {
+                warn!("ignoring `stderr` assertion for workflow");
+            }
+        } else if self.should_fail {
+            warn!("ignoring `should_fail` assertion for task");
+        }
+
+        let stdout = self
+            .stdout
             .iter()
-            .map(|(key, val)| {
-                let Value::String(key) = key else {
-                    bail!("expected a YAML `String`: `{key:?}`");
-                };
-                Ok((key.clone(), val.clone()))
-            })
-            .collect()
+            .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
+            .collect::<Result<Vec<_>>>()?;
+        let stderr = self
+            .stdout
+            .iter()
+            .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
+            .collect::<Result<Vec<_>>>()?;
+        Ok(ParsedAssertions {
+            exit_code: self.exit_code,
+            should_fail: self.should_fail,
+            stdout,
+            stderr,
+            outputs: self.outputs.clone(),
+            custom: self.custom.clone(),
+        })
     }
+}
+
+/// Parsed assertions for a test.
+// This is pretty much a clone of `Assertions` at the moment, but will differentiate in a future PR
+// as output assertions are implemented.
+#[derive(Debug)]
+pub(crate) struct ParsedAssertions {
+    /// The expected exit code of the task (ignored when testing workflows).
+    pub exit_code: i32,
+    /// Whether a workflow should fail or not (ignored when testing tasks).
+    pub should_fail: bool,
+    /// Regular expressions that should match within STDOUT of the task (ignored
+    /// when testing workflows).
+    pub stdout: Vec<Regex>,
+    /// Regular expressions that should match within STDERR of the task (ignored
+    /// when testing workflows).
+    pub stderr: Vec<Regex>,
+    /// Assertions about WDL outputs.
+    ///
+    /// TODO(Ari): implement these assertions.
+    #[allow(unused)]
+    pub outputs: HashMap<String, Value>,
+    /// A custom command to execute.
+    ///
+    /// TODO(Ari): implement this assertion.
+    #[allow(unused)]
+    pub custom: Option<String>,
 }
