@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added shared validation for task runtime and hint numeric settings (memory,
   max_memory, max_retries, preemptible), rejecting invalid or negative values
   earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+* Cached enum variant values at the Evaluator level to avoid redundant AST
+  lookups and parsing, improving performance for workflows with heavy enum
+  usage ([#511](https://github.com/stjude-rust-labs/sprocket/pull/511)).
 * Changed `join_paths` to take a `Directory` instead of `File` as the first
   argument and return `String` instead of `File` per WDL v1.2.1
   ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
