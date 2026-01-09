@@ -20,6 +20,8 @@ use crate::Events;
 
 /// Represents a parked task.
 struct ParkedTask {
+    /// The id of the parked task.
+    id: usize,
     /// The requested CPU for the task.
     cpu: f64,
     /// The requested memory, in bytes, for the task.
@@ -40,6 +42,8 @@ struct Limits {
 
 /// Represents state used by a limited task manager.
 struct LimitsState {
+    /// The next parked task id to use.
+    next_id: usize,
     /// The amount of available CPU remaining.
     cpu: OrderedFloat<f64>,
     /// The amount of available memory remaining, in bytes.
@@ -52,6 +56,7 @@ impl LimitsState {
     /// Constructs a limits state with the given total CPU and memory.
     fn new(cpu: f64, memory: u64) -> Self {
         Self {
+            next_id: 0,
             cpu: OrderedFloat(cpu),
             memory,
             parked: Default::default(),
@@ -122,7 +127,7 @@ impl LimitsState {
 
             assert_eq!(
                 range.start, 0,
-                "expected the fit tasks to be at the front of the queue"
+                "expected the fit tasks to be at the front of the list"
             );
 
             for _ in range {
@@ -219,98 +224,112 @@ impl TaskManager {
             );
         }
 
-        // For running with limits, check to see if there is enough resources available
-        let parked = if let Some(limits) = self.limits.as_ref() {
-            let mut state = limits.state.lock().expect("failed to lock state");
+        match &self.limits {
+            Some(limits) => {
+                let mut parked = {
+                    let mut state = limits.state.lock().expect("failed to lock state");
 
-            // If the task can't run due to unavailable resources, park the task until
-            // resources are available
-            if cpu > state.cpu.into() || memory > state.memory {
-                debug!(
-                    "parking task due to insufficient resources: task requests {cpu} CPU(s) and \
-                     {memory} bytes of memory but there are only {cpu_remaining} CPU(s) and \
-                     {memory_remaining} bytes of memory available",
-                    cpu_remaining = state.cpu,
-                    memory_remaining = state.memory
-                );
+                    // If the task can't run due to unavailable resources, park the task until
+                    // resources are available
+                    if cpu > state.cpu.into() || memory > state.memory {
+                        debug!(
+                            "parking task due to insufficient resources: task requests {cpu} \
+                             CPU(s) and {memory} bytes of memory but there are only \
+                             {cpu_remaining} CPU(s) and {memory_remaining} bytes of memory \
+                             available",
+                            cpu_remaining = state.cpu,
+                            memory_remaining = state.memory
+                        );
 
-                let (tx, rx) = oneshot::channel();
-                state.parked.push_back(ParkedTask {
-                    cpu,
-                    memory,
-                    notify: tx,
-                });
+                        let (notify_tx, notify_rx) = oneshot::channel();
 
-                // Wait for the task to unpark; the resource counts will be decremented as part
-                // of unparking
-                Some(rx)
-            } else {
-                // Decrement the resource counts now and continue on to spawn the task
-                state.cpu -= cpu;
-                state.memory -= memory;
+                        let id = state.next_id;
+                        state.next_id += 1;
 
-                debug!(
-                    "spawning task with {cpu} CPUs and {memory} bytes of memory remaining",
-                    cpu = state.cpu,
-                    memory = state.memory
-                );
+                        state.parked.push_back(ParkedTask {
+                            id,
+                            cpu,
+                            memory,
+                            notify: notify_tx,
+                        });
 
-                None
-            }
-        } else {
-            None
-        };
+                        Some((notify_rx, id))
+                    } else {
+                        // Decrement the resource counts now and continue on to spawn the task
+                        state.cpu -= cpu;
+                        state.memory -= memory;
 
-        // Wait for the task to unpark if there is a notification receiver
-        let res = if let Some(notify) = parked {
-            // SAFETY: a task can only be parked if the task manager is limited
-            let limits = self.limits.as_ref().unwrap();
-            if let Some(sender) = limits.events.engine() {
-                let _ = sender.send(EngineEvent::TaskParked);
-            }
+                        debug!(
+                            "spawning task with {cpu} CPUs and {memory} bytes of memory remaining",
+                            cpu = state.cpu,
+                            memory = state.memory
+                        );
 
-            let token = limits.cancellation.first();
+                        None
+                    }
+                };
 
-            let canceled = tokio::select! {
-                biased;
-                _ = token.cancelled() => true,
-                r = notify => {
-                    r?;
-                    false
+                // Spawn the task (waiting for it to be unparked if neccessary)
+                let res = match &mut parked {
+                    Some((notify, _)) => {
+                        if let Some(sender) = limits.events.engine() {
+                            let _ = sender.send(EngineEvent::TaskParked);
+                        }
+
+                        // Wait for cancellation or notice of being unparked
+                        let token = limits.cancellation.first();
+                        let canceled = tokio::select! {
+                            biased;
+                            _ = token.cancelled() => true,
+                            r = notify => {
+                                r?;
+                                false
+                            }
+                        };
+
+                        if let Some(sender) = limits.events.engine() {
+                            let _ = sender.send(EngineEvent::TaskUnparked { canceled });
+                        }
+
+                        if canceled {
+                            Ok(None)
+                        } else {
+                            tokio::spawn(task).await?
+                        }
+                    }
+                    None => tokio::spawn(task).await?,
+                };
+
+                let mut state = limits.state.lock().expect("failed to lock state");
+                match parked {
+                    Some((_, id)) if state.parked.iter().any(|t| t.id == id) => {
+                        // Task is still parked, it must have been canceled; don't increment the
+                        // resource counts
+                        assert!(matches!(res, Ok(None)), "task should be canceled");
+                    }
+                    _ => {
+                        // Task was either not parked or previously unparked, increment the resource
+                        // counts
+                        state.cpu += cpu;
+                        state.memory += memory;
+                    }
                 }
-            };
 
-            if let Some(sender) = limits.events.engine() {
-                let _ = sender.send(EngineEvent::TaskUnparked { canceled });
+                // If a cancellation has occurred, clear the parked tasks; otherwise, unpark
+                // what tasks we can
+                if limits.cancellation.state() != CancellationContextState::NotCanceled {
+                    state.parked.clear();
+                } else {
+                    state.unpark_tasks();
+                }
+
+                res
             }
-
-            if canceled {
-                // Skip spawning the task
-                Ok(None)
-            } else {
+            None => {
+                // Task manager is unlimited, just spawn the task
                 tokio::spawn(task).await?
             }
-        } else {
-            tokio::spawn(task).await?
-        };
-
-        // Update the counts and unpack additional tasks, if needed
-        if let Some(limits) = self.limits.as_ref() {
-            let mut state = limits.state.lock().expect("failed to lock state");
-
-            state.cpu += cpu;
-            state.memory += memory;
-
-            // If a cancellation has occurred, clear the parked tasks; otherwise, unpark
-            // what tasks we can
-            if limits.cancellation.state() != CancellationContextState::NotCanceled {
-                state.parked.clear();
-            } else {
-                state.unpark_tasks();
-            }
         }
-
-        res
     }
 }
 
