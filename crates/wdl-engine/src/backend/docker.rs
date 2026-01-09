@@ -36,7 +36,6 @@ use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 use super::TaskSpawnRequest;
 use crate::CancellationContext;
-use crate::CancellationContextState;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -105,11 +104,9 @@ struct DockerTask {
 
 impl DockerTask {
     /// Runs the docker task.
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
-        if self.cancellation.state() != CancellationContextState::NotCanceled {
-            return Ok(None);
-        }
-
         // Create the working directory
         let work_dir = self.request.attempt_dir().join(WORK_DIR_NAME);
         fs::create_dir_all(&work_dir).with_context(|| {
@@ -321,11 +318,9 @@ struct CleanupTask {
 #[cfg(unix)]
 impl CleanupTask {
     /// Runs the cleanup task.
-    async fn run(self) -> Result<()> {
-        if self.cancellation.state() != CancellationContextState::NotCanceled {
-            return Ok(());
-        }
-
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    async fn run(self) -> Result<Option<()>> {
         use crankshaft::engine::service::runner::backend::TaskRunError;
         use tracing::debug;
 
@@ -379,7 +374,7 @@ impl CleanupTask {
             Ok(statuses) => {
                 let status = statuses.first();
                 if status.success() {
-                    Ok(())
+                    Ok(Some(()))
                 } else {
                     bail!(
                         "failed to chown task work directory `{path}`",
@@ -387,7 +382,7 @@ impl CleanupTask {
                     );
                 }
             }
-            Err(TaskRunError::Canceled) => Ok(()),
+            Err(TaskRunError::Canceled) => Ok(None),
             Err(e) => Err(e).context("failed to run cleanup task"),
         }
     }

@@ -30,7 +30,6 @@ use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskSpawnRequest;
 use crate::CancellationContext;
-use crate::CancellationContextState;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -73,12 +72,8 @@ struct LocalTask {
 impl LocalTask {
     /// Runs the local task.
     ///
-    /// Returns the task execution result or `None` if the task was canceled.
+    /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
-        if self.cancellation.state() != CancellationContextState::NotCanceled {
-            return Ok(None);
-        }
-
         let id = next_task_id();
         let work_dir = self.request.attempt_dir().join(WORK_DIR_NAME);
         let stdout_path = self.request.attempt_dir().join(STDOUT_FILE_NAME);

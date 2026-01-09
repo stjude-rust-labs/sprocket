@@ -196,9 +196,9 @@ impl TaskManager {
     ///
     /// If there are not enough local resources available for running the task,
     /// it will be parked until the requested resources become available.
-    pub async fn spawn<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<O>
+    pub async fn spawn<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<O>>
     where
-        T: Future<Output = Result<O>> + Send + 'static,
+        T: Future<Output = Result<Option<O>>> + Send + 'static,
         O: Send + 'static,
     {
         // Ensure the task does not exceed the maximum CPU
@@ -262,7 +262,7 @@ impl TaskManager {
         };
 
         // Wait for the task to unpark if there is a notification receiver
-        if let Some(notify) = parked {
+        let res = if let Some(notify) = parked {
             // SAFETY: a task can only be parked if the task manager is limited
             let limits = self.limits.as_ref().unwrap();
             if let Some(sender) = limits.events.engine() {
@@ -283,10 +283,16 @@ impl TaskManager {
             if let Some(sender) = limits.events.engine() {
                 let _ = sender.send(EngineEvent::TaskUnparked { canceled });
             }
-        }
 
-        // Spawn the task
-        let res = tokio::spawn(task).await?;
+            if canceled {
+                // Skip spawning the task
+                Ok(None)
+            } else {
+                tokio::spawn(task).await?
+            }
+        } else {
+            tokio::spawn(task).await?
+        };
 
         // Update the counts and unpack additional tasks, if needed
         if let Some(limits) = self.limits.as_ref() {
