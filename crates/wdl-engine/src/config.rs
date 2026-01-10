@@ -12,17 +12,17 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use bytesize::ByteSize;
-use crankshaft::events::Event;
 use indexmap::IndexMap;
 use secrecy::ExposeSecret;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::process::Command;
-use tokio::sync::broadcast;
 use tracing::error;
 use tracing::warn;
 use url::Url;
 
+use crate::CancellationContext;
+use crate::Events;
 use crate::SYSTEM;
 use crate::Value;
 use crate::backend::TaskExecutionBackend;
@@ -306,56 +306,67 @@ impl Config {
         }
     }
 
+    /// Gets the backend configuration.
+    ///
+    /// Returns an error if the configuration specifies a named backend that
+    /// isn't present in the configuration.
+    pub fn backend(&self) -> Result<Cow<'_, BackendConfig>> {
+        if self.backend.is_some() || self.backends.len() >= 2 {
+            // Lookup the backend to use
+            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
+            return Ok(Cow::Borrowed(self.backends.get(backend).ok_or_else(
+                || anyhow!("a backend named `{backend}` is not present in the configuration"),
+            )?));
+        }
+
+        if self.backends.len() == 1 {
+            // Use the singular entry
+            Ok(Cow::Borrowed(self.backends.values().next().unwrap()))
+        } else {
+            // Use the default
+            Ok(Cow::Owned(BackendConfig::default()))
+        }
+    }
+
     /// Creates a new task execution backend based on this configuration.
     pub(crate) async fn create_backend(
         self: &Arc<Self>,
         run_root_dir: &Path,
-        events: Option<broadcast::Sender<Event>>,
+        events: Events,
+        cancellation: CancellationContext,
     ) -> Result<Arc<dyn TaskExecutionBackend>> {
         use crate::backend::*;
 
-        let config = if self.backend.is_none() && self.backends.len() < 2 {
-            if self.backends.len() == 1 {
-                // Use the singular entry
-                Cow::Borrowed(self.backends.values().next().unwrap())
-            } else {
-                // Use the default
-                Cow::Owned(BackendConfig::default())
-            }
-        } else {
-            // Lookup the backend to use
-            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
-            Cow::Borrowed(self.backends.get(backend).ok_or_else(|| {
-                anyhow!("a backend named `{backend}` is not present in the configuration")
-            })?)
-        };
-
-        match config.as_ref() {
-            BackendConfig::Local(config) => {
+        match self.backend()?.as_ref() {
+            BackendConfig::Local(_) => {
                 warn!(
                     "the engine is configured to use the local backend: tasks will not be run \
                      inside of a container"
                 );
-                Ok(Arc::new(LocalBackend::new(self.clone(), config, events)?))
+                Ok(Arc::new(LocalBackend::new(
+                    self.clone(),
+                    events,
+                    cancellation,
+                )?))
             }
-            BackendConfig::Docker(config) => Ok(Arc::new(
-                DockerBackend::new(self.clone(), config, events).await?,
+            BackendConfig::Docker(_) => Ok(Arc::new(
+                DockerBackend::new(self.clone(), events, cancellation).await?,
             )),
-            BackendConfig::Tes(config) => Ok(Arc::new(
-                TesBackend::new(self.clone(), config, events).await?,
+            BackendConfig::Tes(_) => Ok(Arc::new(
+                TesBackend::new(self.clone(), events, cancellation).await?,
             )),
-            BackendConfig::LsfApptainer(config) => Ok(Arc::new(LsfApptainerBackend::new(
-                run_root_dir,
+            BackendConfig::LsfApptainer(_) => Ok(Arc::new(LsfApptainerBackend::new(
                 self.clone(),
-                config.clone(),
-                events,
-            ))),
-            BackendConfig::SlurmApptainer(config) => Ok(Arc::new(SlurmApptainerBackend::new(
                 run_root_dir,
-                self.clone(),
-                config.clone(),
                 events,
-            ))),
+                cancellation,
+            )?)),
+            BackendConfig::SlurmApptainer(_) => Ok(Arc::new(SlurmApptainerBackend::new(
+                self.clone(),
+                run_root_dir,
+                events,
+                cancellation,
+            )?)),
         }
     }
 }
@@ -619,13 +630,13 @@ impl WorkflowConfig {
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
     ///
-    /// By default, the value is the parallelism supported by the task
-    /// execution backend.
+    /// Defaults to `1000`.
     ///
     /// A value of `0` is invalid.
     ///
     /// Lower values use less memory for evaluation and higher values may better
-    /// saturate the task execution backend with tasks to execute.
+    /// saturate the task execution backend with tasks to execute for large
+    /// scatters.
     ///
     /// This setting does not change how many tasks an execution backend can run
     /// concurrently, but may affect how many tasks are sent to the backend to
@@ -821,15 +832,15 @@ pub enum BackendConfig {
     /// Use the Docker task execution backend.
     Docker(DockerBackendConfig),
     /// Use the TES task execution backend.
-    Tes(Box<TesBackendConfig>),
+    Tes(TesBackendConfig),
     /// Use the experimental LSF + Apptainer task execution backend.
     ///
     /// Requires enabling experimental features.
-    LsfApptainer(Arc<LsfApptainerBackendConfig>),
+    LsfApptainer(LsfApptainerBackendConfig),
     /// Use the experimental Slurm + Apptainer task execution backend.
     ///
     /// Requires enabling experimental features.
-    SlurmApptainer(Arc<SlurmApptainerBackendConfig>),
+    SlurmApptainer(SlurmApptainerBackendConfig),
 }
 
 impl Default for BackendConfig {
@@ -876,6 +887,28 @@ impl BackendConfig {
     pub fn as_tes(&self) -> Option<&TesBackendConfig> {
         match self {
             Self::Tes(config) => Some(config),
+            _ => None,
+        }
+    }
+
+    /// Converts the backend configuration into a LSF Apptainer backend
+    /// configuration
+    ///
+    /// Returns `None` if the backend configuration is not LSF Apptainer.
+    pub fn as_lsf_apptainer(&self) -> Option<&LsfApptainerBackendConfig> {
+        match self {
+            Self::LsfApptainer(config) => Some(config),
+            _ => None,
+        }
+    }
+
+    /// Converts the backend configuration into a Slurm Apptainer backend
+    /// configuration
+    ///
+    /// Returns `None` if the backend configuration is not Slurm Apptainer.
+    pub fn as_slurm_apptainer(&self) -> Option<&SlurmApptainerBackendConfig> {
+        match self {
+            Self::SlurmApptainer(config) => Some(config),
             _ => None,
         }
     }
@@ -1320,7 +1353,7 @@ impl LsfQueueConfig {
 /// Configuration for the LSF + Apptainer backend.
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct LsfApptainerBackendConfig {
     /// Which queue, if any, to specify when submitting normal jobs to LSF.
     ///
@@ -1347,12 +1380,6 @@ pub struct LsfApptainerBackendConfig {
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
-    /// The maximum number of scatter subtasks that can be evaluated
-    /// concurrently.
-    ///
-    /// By default, this is 200.
-    #[serde(default = "default_max_scatter_concurrency")]
-    pub max_scatter_concurrency: u64,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where LSF dispatches tasks.
     ///
@@ -1365,24 +1392,6 @@ pub struct LsfApptainerBackendConfig {
     // actually have meaningful composition of in-place runtimes.
     #[serde(flatten)]
     pub apptainer_config: ApptainerConfig,
-}
-
-const fn default_max_scatter_concurrency() -> u64 {
-    200
-}
-
-impl Default for LsfApptainerBackendConfig {
-    fn default() -> Self {
-        Self {
-            default_lsf_queue: None,
-            short_task_lsf_queue: None,
-            gpu_lsf_queue: None,
-            fpga_lsf_queue: None,
-            extra_bsub_args: None,
-            max_scatter_concurrency: default_max_scatter_concurrency(),
-            apptainer_config: ApptainerConfig::default(),
-        }
-    }
 }
 
 impl LsfApptainerBackendConfig {
@@ -1427,10 +1436,6 @@ impl LsfApptainerBackendConfig {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Option<&LsfQueueConfig> {
-        // TODO ACF 2025-09-26: what's the relationship between this code and
-        // `TaskExecutionConstraints`? Should this be there instead, or be pulling
-        // values from that instead of directly from `requirements` and `hints`?
-
         // Specialized hardware gets priority.
         if let Some(queue) = self.fpga_lsf_queue.as_ref()
             && let Some(true) = requirements
@@ -1570,7 +1575,7 @@ impl SlurmPartitionConfig {
 /// Configuration for the Slurm + Apptainer backend.
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct SlurmApptainerBackendConfig {
     /// Which partition, if any, to specify when submitting normal jobs to
     /// Slurm.
@@ -1600,12 +1605,6 @@ pub struct SlurmApptainerBackendConfig {
     /// Additional command-line arguments to pass to `sbatch` when submitting
     /// jobs to Slurm.
     pub extra_sbatch_args: Option<Vec<String>>,
-    /// The maximum number of scatter subtasks that can be evaluated
-    /// concurrently.
-    ///
-    /// By default, this is 200.
-    #[serde(default = "default_max_scatter_concurrency")]
-    pub max_scatter_concurrency: u64,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where Slurm dispatches tasks.
     ///
@@ -1618,20 +1617,6 @@ pub struct SlurmApptainerBackendConfig {
     // actually have meaningful composition of in-place runtimes.
     #[serde(flatten)]
     pub apptainer_config: ApptainerConfig,
-}
-
-impl Default for SlurmApptainerBackendConfig {
-    fn default() -> Self {
-        Self {
-            default_slurm_partition: None,
-            short_task_slurm_partition: None,
-            gpu_slurm_partition: None,
-            fpga_slurm_partition: None,
-            extra_sbatch_args: None,
-            max_scatter_concurrency: default_max_scatter_concurrency(),
-            apptainer_config: ApptainerConfig::default(),
-        }
-    }
 }
 
 impl SlurmApptainerBackendConfig {
@@ -1743,28 +1728,22 @@ mod test {
             backends: [
                 (
                     "first".to_string(),
-                    BackendConfig::Tes(
-                        TesBackendConfig {
-                            auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
-                                username: "foo".into(),
-                                password: "secret".into(),
-                            })),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
+                    BackendConfig::Tes(TesBackendConfig {
+                        auth: Some(TesBackendAuthConfig::Basic(BasicAuthConfig {
+                            username: "foo".into(),
+                            password: "secret".into(),
+                        })),
+                        ..Default::default()
+                    }),
                 ),
                 (
                     "second".to_string(),
-                    BackendConfig::Tes(
-                        TesBackendConfig {
-                            auth: Some(TesBackendAuthConfig::Bearer(BearerAuthConfig {
-                                token: "secret".into(),
-                            })),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
+                    BackendConfig::Tes(TesBackendConfig {
+                        auth: Some(TesBackendAuthConfig::Bearer(BearerAuthConfig {
+                            token: "secret".into(),
+                        })),
+                        ..Default::default()
+                    }),
                 ),
             ]
             .into(),
@@ -1952,14 +1931,11 @@ mod test {
         let config = Config {
             backends: [(
                 "default".to_string(),
-                BackendConfig::Tes(
-                    TesBackendConfig {
-                        url: Some("https://example.com".parse().unwrap()),
-                        max_concurrency: Some(0),
-                        ..Default::default()
-                    }
-                    .into(),
-                ),
+                BackendConfig::Tes(TesBackendConfig {
+                    url: Some("https://example.com".parse().unwrap()),
+                    max_concurrency: Some(0),
+                    ..Default::default()
+                }),
             )]
             .into(),
             ..Default::default()
@@ -1973,15 +1949,12 @@ mod test {
         let config = Config {
             backends: [(
                 "default".to_string(),
-                BackendConfig::Tes(
-                    TesBackendConfig {
-                        url: Some("http://example.com".parse().unwrap()),
-                        inputs: Some("http://example.com".parse().unwrap()),
-                        outputs: Some("http://example.com".parse().unwrap()),
-                        ..Default::default()
-                    }
-                    .into(),
-                ),
+                BackendConfig::Tes(TesBackendConfig {
+                    url: Some("http://example.com".parse().unwrap()),
+                    inputs: Some("http://example.com".parse().unwrap()),
+                    outputs: Some("http://example.com".parse().unwrap()),
+                    ..Default::default()
+                }),
             )]
             .into(),
             ..Default::default()
@@ -1996,16 +1969,13 @@ mod test {
         let config = Config {
             backends: [(
                 "default".to_string(),
-                BackendConfig::Tes(
-                    TesBackendConfig {
-                        url: Some("http://example.com".parse().unwrap()),
-                        inputs: Some("http://example.com".parse().unwrap()),
-                        outputs: Some("http://example.com".parse().unwrap()),
-                        insecure: true,
-                        ..Default::default()
-                    }
-                    .into(),
-                ),
+                BackendConfig::Tes(TesBackendConfig {
+                    url: Some("http://example.com".parse().unwrap()),
+                    inputs: Some("http://example.com".parse().unwrap()),
+                    outputs: Some("http://example.com".parse().unwrap()),
+                    insecure: true,
+                    ..Default::default()
+                }),
             )]
             .into(),
             ..Default::default()
