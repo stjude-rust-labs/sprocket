@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed `allows_nested_inputs()` not handling WDL v1.3 workflows
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+
 ## 0.19.0 - 11-21-2025
 
 #### Added
