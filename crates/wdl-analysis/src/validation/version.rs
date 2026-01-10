@@ -69,10 +69,13 @@ fn env_var_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
-/// Creates an "experimental WDL 1.3 features required" diagnostic.
-fn wdl_1_3_required(span: Span) -> Diagnostic {
-    Diagnostic::error("use of WDL version 1.3 requires the `wdl_1_3` feature flag to be enabled")
-        .with_highlight(span)
+/// Creates a deprecation warning for a deprecated version feature flag.
+fn deprecated_version_feature_flag(flag_name: &str, span: Span) -> Diagnostic {
+    Diagnostic::warning(format!(
+        "the `{flag_name}` feature flag is deprecated; please remove this feature flag from your \
+         configuration file"
+    ))
+    .with_highlight(span)
 }
 
 /// Creates an "unsupported version" diagnostic.
@@ -80,23 +83,34 @@ fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
 }
 
+/// Tracks the state of a deprecated version feature flag.
+#[derive(Clone, Copy, Debug, Default)]
+struct DeprecatedVersionFeatureFlag {
+    /// Whether the user explicitly disabled the feature flag.
+    explicitly_disabled: bool,
+    /// Whether the deprecation warning has been emitted.
+    warning_emitted: bool,
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
 pub struct VersionVisitor {
-    /// Whether or not experimental support for WDL 1.3 is enabled.
-    wdl_1_3: bool,
+    /// The state of the deprecated `wdl_1_3` feature flag.
+    wdl_1_3_ff: DeprecatedVersionFeatureFlag,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
 
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
-        self.wdl_1_3 = config.feature_flags().wdl_1_3();
+        self.wdl_1_3_ff.explicitly_disabled = config.feature_flags().wdl_1_3_explicitly_disabled();
     }
 
     fn reset(&mut self) {
+        let wdl_1_3_ff = self.wdl_1_3_ff;
         *self = Default::default();
+        self.wdl_1_3_ff = wdl_1_3_ff;
     }
 
     fn document(
@@ -123,18 +137,22 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && !self.wdl_1_3
-        {
+        // Emit a deprecation warning if the user explicitly disabled WDL 1.3 and we
+        // encounter a WDL 1.3 document.
+        if let Some(version) = self.version {
             match version {
-                SupportedVersion::V1(v1) if v1 <= V1::Two => {}
-                SupportedVersion::V1(V1::Three) => {
-                    diagnostics.add(wdl_1_3_required(stmt.version().span()))
+                SupportedVersion::V1(V1::Three)
+                    if self.wdl_1_3_ff.explicitly_disabled && !self.wdl_1_3_ff.warning_emitted =>
+                {
+                    diagnostics
+                        .add(deprecated_version_feature_flag("wdl_1_3", stmt.version().span()));
+                    self.wdl_1_3_ff.warning_emitted = true;
                 }
                 // TODO ACF 2025-10-21: This is an unfortunate consequence of using
                 // `#[non_exhaustive]` on the version enums. We should consider removing that
                 // attribute in the future to get static assurance that downstream consumers of
                 // versions comprehensively handle the possible cases.
+                SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),
             }
         }

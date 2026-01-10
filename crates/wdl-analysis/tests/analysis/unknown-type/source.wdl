@@ -1,6 +1,6 @@
 ## This is a test of an unknown type name.
 
-version 1.2
+version 1.3
 
 import "foo.wdl"
 

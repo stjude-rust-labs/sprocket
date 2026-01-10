@@ -1,5 +1,5 @@
 # Comments are allowed before version
-version 1.2
+version 1.3
 
 # This is how you
 # write a long

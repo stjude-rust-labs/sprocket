@@ -89,7 +89,6 @@ impl TestContext {
                 client,
                 ServerOptions {
                     lint: true,
-                    feature_flags: wdl_analysis::FeatureFlags::default().with_wdl_1_3(),
                     ..Default::default()
                 },
             )

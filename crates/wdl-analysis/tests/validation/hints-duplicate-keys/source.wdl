@@ -1,6 +1,6 @@
 # This is a test for duplicate keys in a hints section.
 
-version 1.2
+version 1.3
 
 task test {
     hints {

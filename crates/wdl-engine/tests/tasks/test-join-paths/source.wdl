@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task resolve_paths_task {
   # We use strings here as the paths might not exist

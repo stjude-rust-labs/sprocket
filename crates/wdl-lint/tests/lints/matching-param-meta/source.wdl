@@ -4,7 +4,7 @@
 ## in a `parameter_meta` section, and for ensuring that
 ## the order is the same as `input` section.
 
-version 1.2
+version 1.3
 
 # This workflow has both an extraneous and missing entry
 # in the `parameter_meta` section

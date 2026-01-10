@@ -1,6 +1,6 @@
 ## This is a test of using task environment variables in WDL 1.2
 
-version 1.2
+version 1.3
 
 task test {
     input {

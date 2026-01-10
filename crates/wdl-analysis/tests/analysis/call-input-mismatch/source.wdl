@@ -1,7 +1,7 @@
 #@ except: UnusedInput, UnusedDeclaration, UnusedCall
 # This is a test of passing an incorrect type to a call input.
 
-version 1.2
+version 1.3
 
 task my_task {
     input {
