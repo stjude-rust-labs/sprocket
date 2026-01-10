@@ -144,8 +144,10 @@ impl Visitor for VersionVisitor {
                 SupportedVersion::V1(V1::Three)
                     if self.wdl_1_3_ff.explicitly_disabled && !self.wdl_1_3_ff.warning_emitted =>
                 {
-                    diagnostics
-                        .add(deprecated_version_feature_flag("wdl_1_3", stmt.version().span()));
+                    diagnostics.add(deprecated_version_feature_flag(
+                        "wdl_1_3",
+                        stmt.version().span(),
+                    ));
                     self.wdl_1_3_ff.warning_emitted = true;
                 }
                 // TODO ACF 2025-10-21: This is an unfortunate consequence of using
