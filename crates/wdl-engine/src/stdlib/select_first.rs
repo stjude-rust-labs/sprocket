@@ -30,27 +30,21 @@ fn select_first(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .as_array()
         .expect("argument should be an array");
 
-    if array.is_empty() {
-        return Err(function_call_failed(
-            FUNCTION_NAME,
-            "array is empty",
-            context.arguments[0].span,
-        ));
-    }
+    let has_default = context.arguments.len() >= 2;
 
     match array.as_slice().iter().find(|v| !v.is_none()) {
         Some(v) => Ok(v.clone()),
-        None => {
-            if context.arguments.len() < 2 {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    "array contains only `None` values",
-                    context.arguments[0].span,
-                ));
-            }
-
-            Ok(context.arguments[1].value.clone())
-        }
+        None if has_default => Ok(context.arguments[1].value.clone()),
+        None if array.is_empty() => Err(function_call_failed(
+            FUNCTION_NAME,
+            "array is empty",
+            context.arguments[0].span,
+        )),
+        None => Err(function_call_failed(
+            FUNCTION_NAME,
+            "array contains only `None` values",
+            context.arguments[0].span,
+        )),
     }
 }
 
@@ -86,13 +80,10 @@ mod test {
             "call to function `select_first` failed: array is empty"
         );
 
-        let diagnostic = eval_v1_expr(&env, V1::One, "select_first([], 1)")
+        let value = eval_v1_expr(&env, V1::One, "select_first([], 1)")
             .await
-            .unwrap_err();
-        assert_eq!(
-            diagnostic.message(),
-            "call to function `select_first` failed: array is empty"
-        );
+            .unwrap();
+        assert_eq!(value.unwrap_integer(), 1);
 
         let diagnostic = eval_v1_expr(&env, V1::One, "select_first([None, None, None])")
             .await

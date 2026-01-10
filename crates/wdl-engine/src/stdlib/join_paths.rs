@@ -18,22 +18,22 @@ use crate::diagnostics::function_call_failed;
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "join_paths";
 
-/// Joins together two paths into an absolute path in the host
-/// filesystem.
+/// Joins together two paths into an absolute path in the execution
+/// environment's filesystem.
 ///
-/// `File join_paths(File, String)`: Joins together exactly two paths. The first
-/// path may be either absolute or relative and must specify a directory; the
-/// second path is relative to the first path and may specify a file or
-/// directory.
+/// `String join_paths(Directory, String)`: Joins together exactly two paths.
+/// The first path may be either absolute or relative and must specify a
+/// directory; the second path is relative to the first path and may specify a
+/// file or directory.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 2);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let first = context
-        .coerce_argument(0, PrimitiveType::File)
-        .unwrap_file();
+        .coerce_argument(0, PrimitiveType::Directory)
+        .unwrap_directory();
 
     let second = context
         .coerce_argument(1, PrimitiveType::String)
@@ -62,7 +62,7 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             ));
         }
 
-        Ok(PrimitiveValue::new_file(
+        Ok(PrimitiveValue::new_string(
             path.join(second)
                 .clean()
                 .into_os_string()
@@ -89,7 +89,7 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         }
 
         url.join(&second)
-            .map(|u| PrimitiveValue::new_file(u).into())
+            .map(|u| PrimitiveValue::new_string(u.to_string()).into())
             .map_err(|_| {
                 function_call_failed(
                     FUNCTION_NAME,
@@ -100,16 +100,16 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     }
 }
 
-/// Joins together two or more paths into an absolute path in the host
-/// filesystem.
+/// Joins together two or more paths into an absolute path in the execution
+/// environment's filesystem.
 ///
-/// `File join_paths(File, Array[String]+)`: Joins together any number of
+/// `String join_paths(Directory, Array[String]+)`: Joins together any number of
 /// relative paths with a base path. The first argument may be either an
 /// absolute or a relative path and must specify a directory. The paths in the
 /// second array argument must all be relative. The last element may specify a
 /// file or directory; all other elements must specify a directory.
 ///
-/// `File join_paths(Array[String]+)`: Joins together any number of paths. The
+/// `String join_paths(Array[String]+)`: Joins together any number of paths. The
 /// array must not be empty. The first element of the array may be either
 /// absolute or relative; subsequent path(s) must be relative. The last element
 /// may specify a file or directory; all other elements must specify a
@@ -118,7 +118,7 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     // Handle being provided one or two arguments
     let (first, array, skip, array_span) = if context.arguments.len() == 1 {
@@ -134,8 +134,8 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     } else {
         let first = context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
+            .coerce_argument(0, PrimitiveType::Directory)
+            .unwrap_directory()
             .into();
 
         let array = context
@@ -175,7 +175,7 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             path.push(p);
         }
 
-        Ok(PrimitiveValue::new_file(
+        Ok(PrimitiveValue::new_string(
             path.clean()
                 .into_os_string()
                 .into_string()
@@ -216,7 +216,7 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             })?;
         }
 
-        Ok(PrimitiveValue::new_file(url).into())
+        Ok(PrimitiveValue::new_string(url.to_string()).into())
     }
 }
 
@@ -226,15 +226,15 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(base: File, relative: String) -> File",
+                    "(base: Directory, relative: String) -> String",
                     Callback::Sync(join_paths_simple),
                 ),
                 Signature::new(
-                    "(base: File, relative: Array[String]+) -> File",
+                    "(base: Directory, relative: Array[String]+) -> String",
                     Callback::Sync(join_paths),
                 ),
                 Signature::new(
-                    "(paths: Array[String]+) -> File",
+                    "(paths: Array[String]+) -> String",
                     Callback::Sync(join_paths),
                 ),
             ]
@@ -260,18 +260,18 @@ mod test {
             let value = eval_v1_expr(&env, V1::Two, "join_paths('/usr', ['bin', 'echo'])")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let value = eval_v1_expr(&env, V1::Two, "join_paths(['/usr', 'bin', 'echo'])")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let value = eval_v1_expr(&env, V1::Two, "join_paths('mydir', 'mydata.txt')")
                 .await
                 .unwrap();
             assert_eq!(
-                Path::new(value.unwrap_file().as_str())
+                Path::new(value.unwrap_string().as_str())
                     .strip_prefix(env.base_dir().as_local().unwrap())
                     .unwrap()
                     .to_str()
@@ -282,7 +282,7 @@ mod test {
             let value = eval_v1_expr(&env, V1::Two, "join_paths('/usr', 'bin/echo')")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let diagnostic = eval_v1_expr(&env, V1::Two, "join_paths('/usr', '/bin/echo')")
                 .await
@@ -395,7 +395,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz"
         );
 
@@ -407,7 +407,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz"
         );
 
@@ -418,7 +418,10 @@ mod test {
         )
         .await
         .unwrap();
-        assert_eq!(value.unwrap_file().as_str(), "https://example.com/foo/baz");
+        assert_eq!(
+            value.unwrap_string().as_str(),
+            "https://example.com/foo/baz"
+        );
 
         let value = eval_v1_expr(
             &env,
@@ -428,7 +431,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz/qux"
         );
 
@@ -440,7 +443,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz?foo=qux"
         );
     }

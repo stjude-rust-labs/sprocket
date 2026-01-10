@@ -6,6 +6,7 @@ use wdl::analysis::FeatureFlags;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
+use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
@@ -37,23 +38,17 @@ pub struct Args {
 }
 
 impl Args {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.lint = self.lint || config.analyzer.lint;
-        self.except = self
-            .except
-            .clone()
-            .into_iter()
-            .chain(config.analyzer.except.clone())
-            .collect();
-
-        self
+    /// Applies the given configuration to the CLI arguments.
+    fn apply(&mut self, config: &Config) {
+        self.lint |= config.analyzer.lint;
+        self.except.extend(config.analyzer.except.iter().cloned());
     }
 }
 
 /// Runs the `analyzer` command.
-pub async fn analyzer(args: Args) -> CommandResult<()> {
+pub async fn analyzer(mut args: Args, config: Config) -> CommandResult<()> {
+    args.apply(&config);
+
     Server::run(ServerOptions {
         name: Some("Sprocket".into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),

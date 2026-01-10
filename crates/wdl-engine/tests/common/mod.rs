@@ -52,7 +52,11 @@ pub fn find_tests(
             let test_path = path.clone();
             tests.push(Trial::test(
                 format!("{test_name_base}_{config_name}"),
-                move || Ok(test_runtime.block_on(run_test(test_path.as_path(), config))?),
+                move || {
+                    Ok(test_runtime
+                        .block_on(run_test(test_path.as_path(), config))
+                        .map_err(|e| format!("{e:?}"))?)
+                },
             ));
         }
     }
@@ -128,10 +132,11 @@ pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
             ..TestConfig::default()
         },
     )]);
+
     // Currently we limit running the Docker backend to Linux as GitHub does not
     // have Docker installed on macOS hosted runners and the Windows hosted
     // runners are configured to use Windows containers
-    if cfg!(target_os = "linux") {
+    if std::env::var("DISABLE_DOCKER_TESTS").is_err() {
         configs.insert(
             "docker".to_string(),
             TestConfig {
