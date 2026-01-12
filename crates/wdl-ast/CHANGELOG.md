@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.20.0 - 01-12-2026
+
 #### Fixed
 
 * Fixed `allows_nested_inputs()` not handling WDL v1.3 workflows

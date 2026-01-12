@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 01-12-2026
+
 #### Changed
 
 * WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
