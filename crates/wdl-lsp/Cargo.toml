@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lsp"
-version = "0.16.0"
+version = "0.16.1"
 description = "Language Server Protocol implementation for WDL"
 license.workspace = true
 rust-version.workspace = true

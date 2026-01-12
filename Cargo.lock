@@ -4222,7 +4222,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5329,7 +5329,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -5435,7 +5435,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "approx",
@@ -5543,7 +5543,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "anyhow",
  "fs_extra",

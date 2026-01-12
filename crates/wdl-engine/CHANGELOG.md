@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.1 - 01-12-2026
+
+## Fixed
+
+* Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
+
 ## 0.11.0 - 01-12-2026
 
 #### Added
