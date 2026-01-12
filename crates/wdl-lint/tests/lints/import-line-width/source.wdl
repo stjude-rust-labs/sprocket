@@ -1,3 +1,8 @@
+#@ except: ImportWhitespace
+
+## This is a test of checking for allowing the exceeding of line width maximums
+## in import statements
+
 version 1.2
 
 # Test case 1: Long URI that exceeds 90 characters
