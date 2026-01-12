@@ -82,11 +82,11 @@ impl Evaluator {
 
         let root_dir = root_dir.as_ref();
         let backend = config
-            .create_backend(root_dir, events.crankshaft().clone())
+            .create_backend(root_dir, events.clone(), cancellation.clone())
             .await?;
         let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
-            cancellation.token(),
+            cancellation.first(),
             events.transfer().clone(),
         )?);
 

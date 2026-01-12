@@ -20,14 +20,14 @@ use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use tokio::select;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
+use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::engine;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::EngineEvent;
@@ -37,6 +37,7 @@ use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -191,46 +192,26 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
-
-    /// The events channel capacity.
-    ///
-    /// This is not exposed via [`clap`] and thus not a CLI option.
-    ///
-    /// It is an advanced setting exposed via the configuration file.
-    #[clap(skip)]
-    pub events_capacity: usize,
-
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: engine::config::Config,
 }
 
 impl Args {
-    /// Applies the configuration to the arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.events_capacity = config
-            .run
-            .events_capacity
-            .unwrap_or(DEFAULT_EVENTS_CHANNEL_CAPACITY);
-        self.engine = config.run.engine;
-
+    /// Applies the given configuration to the CLI arguments.
+    fn apply(&mut self, config: &Config) {
         if self.runs_dir.is_none() {
-            self.runs_dir = Some(config.run.runs_dir);
+            self.runs_dir = Some(config.run.runs_dir.clone());
         }
 
         self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
+    }
 
+    /// Applies the CLI arguments to the given engine configuration.
+    fn apply_engine_config(&self, config: &mut wdl::engine::config::Config) {
         // Apply the Azure auth to the engine config
         if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
-            let auth = self.engine.storage.azure.auth.get_or_insert_default();
+            let auth = config.storage.azure.auth.get_or_insert_default();
             if let Some(key) = &self.azure_account_name {
                 auth.account_name = key.clone();
             }
@@ -242,12 +223,12 @@ impl Args {
 
         // Apply the AWS default region to the engine config
         if let Some(region) = &self.aws_default_region {
-            self.engine.storage.s3.region = Some(region.clone());
+            config.storage.s3.region = Some(region.clone());
         }
 
         // Apply the AWS auth to the engine config
         if self.aws_access_key_id.is_some() || self.aws_secret_access_key.is_some() {
-            let auth = self.engine.storage.s3.auth.get_or_insert_default();
+            let auth = config.storage.s3.auth.get_or_insert_default();
             if let Some(key) = &self.aws_access_key_id {
                 auth.access_key_id = key.clone();
             }
@@ -259,7 +240,7 @@ impl Args {
 
         // Apply the Google auth to the engine config
         if self.google_hmac_access_key.is_some() || self.google_hmac_secret.is_some() {
-            let auth = self.engine.storage.google.auth.get_or_insert_default();
+            let auth = config.storage.google.auth.get_or_insert_default();
             if let Some(key) = &self.google_hmac_access_key {
                 auth.access_key = key.clone();
             }
@@ -271,10 +252,8 @@ impl Args {
 
         // Disable the call cache if requested
         if self.no_call_cache {
-            self.engine.task.cache = CallCachingMode::Off;
+            config.task.cache = CallCachingMode::Off;
         }
-
-        self
     }
 }
 
@@ -306,26 +285,41 @@ impl std::fmt::Display for Tasks<'_> {
     }
 }
 
+/// Represents information about a Crankshaft task.
+struct Task {
+    /// The name of the task.
+    name: Arc<String>,
+    /// The per-task cancellation token.
+    ///
+    /// This is used to cancel Crankshaft tasks that haven't yet executed.
+    token: CancellationToken,
+}
+
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
     /// The map of task identifiers to names.
-    tasks: HashMap<u64, Arc<String>>,
+    tasks: HashMap<u64, Task>,
     /// The set of currently executing tasks.
     executing: IndexSet<Arc<String>>,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
     completed: usize,
+    /// The number of canceled tasks.
+    canceled: usize,
+    /// The number of parked tasks.
+    parked: usize,
     /// The number of task results reused from the cache.
     cached: usize,
 }
 
 /// Displays evaluation progress.
 async fn progress(
-    mut crankshaft: broadcast::Receiver<CrankshaftEvent>,
-    mut engine: broadcast::Receiver<EngineEvent>,
-    pb: tracing::Span,
+    progress_bar: tracing::Span,
+    mut crankshaft: Receiver<CrankshaftEvent>,
+    mut engine: Receiver<EngineEvent>,
+    token: CancellationToken,
 ) {
     /// Helper for formatting the progress bar
     fn message(state: &State) -> String {
@@ -351,9 +345,10 @@ async fn progress(
         append(&mut message, state.completed, "completed".green());
         append(&mut message, state.cached, "cached".green());
         append(&mut message, state.failed, "failed".red());
+        append(&mut message, state.canceled, "canceled".red());
         append(
             &mut message,
-            state.tasks.len() - state.executing.len(),
+            (state.tasks.len() - state.executing.len()) + state.parked,
             "waiting".yellow(),
         );
         append(&mut message, state.executing.len(), "executing".cyan());
@@ -367,51 +362,69 @@ async fn progress(
 
     let mut state = State::default();
     let mut lagged = false;
+    let mut tasks_canceled = false;
 
-    pb.pb_set_message(&message(&state));
-    pb.pb_start();
+    progress_bar.pb_set_message(&message(&state));
+    progress_bar.pb_start();
 
     loop {
         tokio::select! {
+            _ = token.cancelled(), if !tasks_canceled => {
+                // Upon the initial cancellation, immediately cancel any Crankshaft task that is not executing.
+                for task in state.tasks.values().filter(|t| !state.executing.contains(&t.name)) {
+                    task.token.cancel();
+                }
+
+                tasks_canceled = true;
+            }
             r = crankshaft.recv() => match r {
                 Ok(event) if !lagged => {
-                    match event {
-                        CrankshaftEvent::TaskCreated { id, name, .. } => {
-                            state.tasks.insert(id, name.into());
+                    let removed = match event {
+                        CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {
+                            // If there has already been an initial cancellation, immediately signal the new task to cancel
+                            if token.is_cancelled() {
+                                task_token.cancel();
+                            }
+
+                            state.tasks.insert(id, Task { name: name.into(), token: task_token });
+                            None
                         }
                         CrankshaftEvent::TaskStarted { id } => {
-                            if let Some(name) = state.tasks.get(&id).cloned() {
-                                state.executing.insert(name);
+                            if let Some(task) = state.tasks.get(&id) {
+                                state.executing.insert(task.name.clone());
                             }
+
+                            None
                         }
                         CrankshaftEvent::TaskCompleted { id, .. } => {
-                            if let Some(name) = state.tasks.remove(&id) {
-                                state.executing.swap_remove(&name);
-                            }
                             state.completed += 1;
+                            Some(id)
                         }
-                        CrankshaftEvent::TaskFailed { id, .. } => {
-                            if let Some(name) = state.tasks.remove(&id) {
-                                state.executing.swap_remove(&name);
-                            }
+                        CrankshaftEvent::TaskFailed { id, .. } | CrankshaftEvent::TaskPreempted { id } => {
                             state.failed += 1;
+                            Some(id)
                         }
-                        CrankshaftEvent::TaskCanceled { id } | CrankshaftEvent::TaskPreempted { id } => {
-                            if let Some(name) = state.tasks.remove(&id) {
-                                state.executing.swap_remove(&name);
-                            }
-                            state.failed += 1;
+                        CrankshaftEvent::TaskCanceled { id } => {
+                            state.canceled += 1;
+                            Some(id)
                         }
-                        _ => continue,
+                        CrankshaftEvent::TaskContainerCreated { .. }
+                        | CrankshaftEvent::TaskContainerExited { .. }
+                        | CrankshaftEvent::TaskStdout { .. }
+                        | CrankshaftEvent::TaskStderr { .. } => continue,
                     };
 
-                    pb.pb_set_message(&message(&state));
+                    if let Some(id) = removed && let Some(task) = state.tasks.remove(&id) {
+                        state.executing.swap_remove(&task.name);
+                    }
+
+                    progress_bar.pb_set_message(&message(&state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,
                 Err(RecvError::Lagged(_)) => {
                     lagged = true;
-                    pb.pb_set_message(" - progress is unavailable due to missed events");
+                    progress_bar.pb_set_message(" - progress is unavailable due to missed events");
                 }
             },
             r = engine.recv() => match r {
@@ -420,15 +433,25 @@ async fn progress(
                         EngineEvent::ReusedCachedExecutionResult { .. } => {
                             state.cached += 1;
                         }
+                        EngineEvent::TaskParked => {
+                            state.parked += 1;
+                        }
+                        EngineEvent::TaskUnparked { canceled } => {
+                            state.parked = state.parked.saturating_sub(1);
+
+                            if canceled {
+                                state.canceled += 1;
+                            }
+                        }
                     };
 
-                    pb.pb_set_message(&message(&state));
+                    progress_bar.pb_set_message(&message(&state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,
                 Err(RecvError::Lagged(_)) => {
                     lagged = true;
-                    pb.pb_set_message(" - progress is unavailable due to missed events");
+                    progress_bar.pb_set_message(" - progress is unavailable due to missed events");
                 }
             }
         }
@@ -490,43 +513,46 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(args: Args) -> CommandResult<()> {
+pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
+
+    args.apply(&config);
+    args.apply_engine_config(&mut config.run.engine);
 
     let style = ProgressStyle::with_template(
         "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
     )
     .unwrap();
 
-    let span = tracing::span!(Level::WARN, "progress");
+    let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
 
     let results = Analysis::default()
         .add_source(args.source.clone())
         .init({
-            let span = span.clone();
+            let progress_bar = progress_bar.clone();
             Box::new(move || {
-                span.pb_set_style(&style);
+                progress_bar.pb_set_style(&style);
             })
         })
         .progress({
-            let span = span.clone();
+            let progress_bar = progress_bar.clone();
             move |kind, completed, total| {
-                let span = span.clone();
+                let progress_bar = progress_bar.clone();
                 async move {
                     if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
                         return;
                     }
 
                     if completed == 0 {
-                        span.pb_start();
-                        span.pb_set_length(total.try_into().unwrap());
-                        span.pb_set_message(&format!("{kind}"));
+                        progress_bar.pb_start();
+                        progress_bar.pb_set_length(total.try_into().unwrap());
+                        progress_bar.pb_set_message(&format!("{kind}"));
                     }
 
-                    span.pb_set_position(completed.try_into().unwrap());
+                    progress_bar.pb_set_position(completed.try_into().unwrap());
                 }
                 .boxed()
             }
@@ -647,7 +673,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
         EngineInputs::Workflow(_) => "workflow",
     };
 
-    span.pb_set_style(
+    progress_bar.pb_set_style(
         &ProgressStyle::with_template(&format!(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
              {name}{{msg}}",
@@ -657,22 +683,28 @@ pub async fn run(args: Args) -> CommandResult<()> {
         .unwrap(),
     );
 
-    let cancellation = CancellationContext::new(args.engine.failure_mode);
-    let events = Events::new(args.events_capacity);
+    let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    let events = Events::new(
+        config
+            .run
+            .events_capacity
+            .unwrap_or(DEFAULT_EVENTS_CHANNEL_CAPACITY),
+    );
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        cancellation.token(),
+        cancellation.first(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
+        progress_bar,
         events
             .subscribe_crankshaft()
             .expect("should have Crankshaft events"),
         events
             .subscribe_engine()
             .expect("should have engine events"),
-        span,
+        cancellation.first(),
     ));
 
     let evaluator = Evaluator::new(
@@ -680,7 +712,7 @@ pub async fn run(args: Args) -> CommandResult<()> {
         &entrypoint,
         inputs,
         &origins,
-        args.engine.into(),
+        config.run.engine.into(),
         &output_dir,
     );
 
