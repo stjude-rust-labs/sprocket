@@ -1,6 +1,7 @@
 //! Facilities for performing a typical WDL evaluation using the `wdl-*` crates.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use wdl::analysis::Document;
@@ -28,10 +29,10 @@ pub struct Evaluator<'a> {
     inputs: Inputs,
 
     /// The origin paths for the input keys.
-    origins: OriginPaths,
+    origins: &'a OriginPaths,
 
     /// The configuration for the WDL engine.
-    config: Config,
+    config: Arc<Config>,
 
     /// The output directory.
     output_dir: &'a Path,
@@ -43,8 +44,8 @@ impl<'a> Evaluator<'a> {
         document: &'a Document,
         name: &'a str,
         inputs: Inputs,
-        origins: OriginPaths,
-        config: Config,
+        origins: &'a OriginPaths,
+        config: Arc<Config>,
         output_dir: &'a Path,
     ) -> Self {
         Self {
@@ -57,6 +58,52 @@ impl<'a> Evaluator<'a> {
         }
     }
 
+    /// Is this evaluator evaluating a workflow?
+    pub fn is_workflow(&self) -> bool {
+        matches!(self.inputs, Inputs::Workflow(_))
+    }
+
+    /// Evaluate a task, returning [`Result<EvaluatedTask, EvaluationError>`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the evaluator is for a workflow.
+    pub async fn evaluate_task(
+        self,
+        cancellation: CancellationContext,
+        events: Events,
+    ) -> Result<EvaluatedTask, EvaluationError> {
+        if self.is_workflow() {
+            panic!(
+                "cannot evaluate workflow `{name}` as a task",
+                name = self.name
+            );
+        }
+        let mut inputs = self.inputs.unwrap_task_inputs();
+        let task = self.document.task_by_name(self.name).ok_or_else(|| {
+            anyhow!(
+                "document does not contain a task named `{name}`",
+                name = self.name
+            )
+        })?;
+
+        // Ensure all the paths specified in the inputs are relative to
+        // their respective origin paths.
+        inputs
+            .join_paths(task, |key| {
+                self.origins
+                    .get(key)
+                    .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+            })
+            .await?;
+
+        let evaluator =
+            WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
+        evaluator
+            .evaluate_task(self.document, task, inputs, self.output_dir)
+            .await
+    }
+
     /// Runs a WDL task or workflow evaluation.
     pub async fn run(
         self,
@@ -64,31 +111,10 @@ impl<'a> Evaluator<'a> {
         events: Events,
     ) -> EvaluationResult<Outputs> {
         match self.inputs {
-            Inputs::Task(mut inputs) => {
-                let task = self.document.task_by_name(self.name).ok_or_else(|| {
-                    anyhow!(
-                        "document does not contain a task named `{name}`",
-                        name = self.name
-                    )
-                })?;
-
-                // Ensure all the paths specified in the inputs are relative to
-                // their respective origin paths.
-                inputs
-                    .join_paths(task, |key| {
-                        self.origins
-                            .get(key)
-                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                    })
-                    .await?;
-
-                let evaluator =
-                    WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
-                evaluator
-                    .evaluate_task(self.document, task, inputs, self.output_dir)
-                    .await
-                    .and_then(EvaluatedTask::into_outputs)
-            }
+            Inputs::Task(_) => self
+                .evaluate_task(cancellation, events)
+                .await
+                .and_then(EvaluatedTask::into_outputs),
             Inputs::Workflow(mut inputs) => {
                 let workflow = self
                     .document

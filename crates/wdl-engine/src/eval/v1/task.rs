@@ -2569,7 +2569,7 @@ mod test {
 
         let evaluator = Evaluator::new(
             &root_dir.join("runs"),
-            config,
+            config.into(),
             CancellationContext::default(),
             Events::disabled(),
         )

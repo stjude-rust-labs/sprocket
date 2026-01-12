@@ -18,7 +18,7 @@ use wdl::engine::EvaluationPath;
 /// This is useful when, for example, resolving all paths within an
 /// [`Inputs`](super::Inputs) to be relative to the input file from whence they
 /// originated.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum OriginPaths {
     /// A single origin path for all inputs.
     Single(EvaluationPath),

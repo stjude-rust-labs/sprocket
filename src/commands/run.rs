@@ -711,8 +711,8 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         document,
         &entrypoint,
         inputs,
-        origins,
-        config.run.engine,
+        &origins,
+        config.run.engine.into(),
         &output_dir,
     );
 
