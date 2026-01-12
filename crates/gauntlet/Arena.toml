@@ -24,11 +24,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:57:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L57"
 
@@ -154,11 +149,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:59:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L59"
 
@@ -231,11 +221,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
 message = "testrun.wdl:24:37: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -454,11 +439,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bcftools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L6"
 
@@ -501,11 +481,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
 message = "testrun.wdl:15:29: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/testrun.wdl/#L15"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/testrun.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
@@ -595,11 +570,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -769,11 +739,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:50:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L50"
 
@@ -855,11 +820,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -1034,11 +994,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
 message = "testrun.wdl:64:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L64"
 
@@ -1169,11 +1124,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `deseq2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L6"
 
@@ -1260,11 +1210,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -1640,11 +1585,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -2229,11 +2169,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
 message = "testrun.wdl:43:19: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L43"
 
@@ -2339,11 +2274,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:51:19: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L51"
 
@@ -2429,11 +2359,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `manta_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L6"
 
@@ -2500,11 +2425,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -2631,11 +2551,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:46:21: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:4:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L4"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
@@ -2789,11 +2704,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
 message = "testrun.wdl:46:19: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L46"
 
@@ -2893,11 +2803,6 @@ message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts wi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L33"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L3"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
 message = "ww-shapemapper.wdl:15:84: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L15"
@@ -2980,11 +2885,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -3085,11 +2985,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -3229,11 +3124,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `sra_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L5"
 
@@ -3325,11 +3215,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -3480,11 +3365,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -3783,11 +3663,6 @@ message = "testrun.wdl:43:17: note[OutputName]: declaration identifier starts wi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L43"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
-message = "testrun.wdl:4:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L4"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:13:3: note[CommentWhitespace]: comment not sufficiently indented"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L13"
@@ -4001,11 +3876,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
 message = "testrun.wdl:35:24: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -4449,11 +4319,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
 message = "testrun.wdl:41:3: note[CommentWhitespace]: comment not sufficiently indented"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L41"
 
@@ -4580,11 +4445,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L3"
 
 [[diagnostics]]
@@ -4739,11 +4599,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
 message = "testrun.wdl:41:3: note[CommentWhitespace]: comment not sufficiently indented"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L41"
 
@@ -4761,11 +4616,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
 message = "ww-bwa-gatk.wdl:22:73: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
@@ -4834,11 +4684,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
 message = "testrun.wdl:41:3: note[CommentWhitespace]: comment not sufficiently indented"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L41"
 
@@ -4901,11 +4746,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:35:76: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
@@ -4999,11 +4839,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
 message = "testrun.wdl:41:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L41"
 
@@ -5089,11 +4924,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
 message = "ww-saturation.wdl:40:5: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L40"
 
@@ -5149,11 +4979,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L6"
 
@@ -5175,11 +5000,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
 message = "ww-sra-salmon.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L3"
 
 [[diagnostics]]
@@ -5244,11 +5064,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L6"
 
@@ -5266,11 +5081,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
 message = "ww-sra-star.wdl:39:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L39"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
@@ -5444,11 +5254,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:42:28: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L42"
 
@@ -5510,11 +5315,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L3"
 
 [[diagnostics]]
@@ -5601,11 +5401,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:39:30: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L39"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
@@ -5881,11 +5676,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:433:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L433"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:43:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L43"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
@@ -6353,54 +6143,9 @@ message = "util.wdl:83:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L83"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:12:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L12"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:14:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L14"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:16:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L16"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-core.wdl"
-message = "dnaseq-core.wdl:5:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-core.wdl/#L5"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard-fastq.wdl"
-message = "dnaseq-standard-fastq.wdl:5:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard-fastq.wdl/#L5"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
 message = "dnaseq-standard.wdl:161:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L161"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
-message = "dnaseq-standard.wdl:5:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L5"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
-message = "alignment-post.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/general/alignment-post.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
-message = "alignment-post.wdl:7:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/general/alignment-post.wdl/#L7"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -6428,51 +6173,11 @@ message = "methylation-preprocess.wdl:64:20: note[ContainerUri]: container URI u
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-preprocess.wdl/#L64"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/methylation/methylation-standard.wdl"
-message = "methylation-standard.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-standard.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/markdups-post.wdl"
-message = "markdups-post.wdl:11:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/markdups-post.wdl/#L11"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L3"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:550:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L550"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard-fastq.wdl"
-message = "rnaseq-standard-fastq.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard-fastq.wdl/#L3"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:184:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L184"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
-message = "rnaseq-standard.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L3"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L3"
