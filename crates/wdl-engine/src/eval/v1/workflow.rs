@@ -87,6 +87,10 @@ use crate::v1::OUTPUTS_FILE;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
+/// The default number of elements to concurrently process for a scatter
+/// statement.
+const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
+
 /// Helper for formatting a workflow or task identifier for a call statement.
 fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: &str) -> String {
     if alias != target {
@@ -676,13 +680,6 @@ impl Evaluator {
         let mut subgraph = Subgraph::new(&graph);
         let subgraphs = subgraph.split(&graph);
 
-        let max_concurrency = self
-            .config
-            .workflow
-            .scatter
-            .concurrency
-            .unwrap_or_else(|| self.backend.max_concurrency());
-
         // Create the temp directory now as it may be needed for workflow evaluation
         let temp_dir = eval_root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
@@ -726,12 +723,7 @@ impl Evaluator {
         // Evaluate the root graph to completion
         state
             .clone()
-            .evaluate_subgraph(
-                Scopes::ROOT_INDEX,
-                subgraph,
-                max_concurrency,
-                Arc::new(id.to_string()),
-            )
+            .evaluate_subgraph(Scopes::ROOT_INDEX, subgraph, Arc::new(id.to_string()))
             .await?;
 
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
@@ -762,14 +754,13 @@ impl State {
         self: Arc<State>,
         scope: ScopeIndex,
         subgraph: Subgraph,
-        max_concurrency: u64,
         id: Arc<String>,
     ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
             let cancellation = self.evaluator.cancellation.clone();
             let mut futures = JoinSet::new();
             match self
-                .perform_subgraph_evaluation(scope, subgraph, max_concurrency, id, &mut futures)
+                .perform_subgraph_evaluation(scope, subgraph, id, &mut futures)
                 .await
             {
                 Ok(_) => {
@@ -796,7 +787,6 @@ impl State {
         self: Arc<State>,
         scope: ScopeIndex,
         mut subgraph: Subgraph,
-        max_concurrency: u64,
         id: Arc<String>,
         futures: &mut JoinSet<EvaluationResult<NodeIndex>>,
     ) -> EvaluationResult<()> {
@@ -900,9 +890,7 @@ impl State {
                         let state = self.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            state
-                                .evaluate_conditional(id, scope, node, &stmt, max_concurrency)
-                                .await?;
+                            state.evaluate_conditional(id, scope, node, &stmt).await?;
                             Ok(node)
                         });
                         awaiting.insert(node);
@@ -915,14 +903,7 @@ impl State {
                             let cancellation = state.evaluator.cancellation.clone();
                             let mut futures = JoinSet::new();
                             match state
-                                .evaluate_scatter(
-                                    id,
-                                    scope,
-                                    node,
-                                    &stmt,
-                                    max_concurrency,
-                                    &mut futures,
-                                )
+                                .evaluate_scatter(id, scope, node, &stmt, &mut futures)
                                 .await
                             {
                                 Ok(_) => {
@@ -1214,7 +1195,6 @@ impl State {
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ConditionalStatement<SyntaxNode>,
-        max_concurrency: u64,
     ) -> EvaluationResult<()> {
         let mut scope_union = ScopeUnion::new();
         for clause in stmt.clauses() {
@@ -1311,12 +1291,7 @@ impl State {
 
             // Evaluate this clause's subgraph
             self.clone()
-                .evaluate_subgraph(
-                    scope,
-                    self.subgraphs[&clause_node].clone(),
-                    max_concurrency,
-                    id,
-                )
+                .evaluate_subgraph(scope, self.subgraphs[&clause_node].clone(), id)
                 .await?;
 
             let mut scopes = self.scopes.write().await;
@@ -1396,7 +1371,6 @@ impl State {
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ScatterStatement<SyntaxNode>,
-        max_concurrency: u64,
         futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
     ) -> EvaluationResult<()> {
         /// Awaits the next future in the set of futures.
@@ -1464,6 +1438,14 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
+        let max_concurrency = self
+            .evaluator
+            .config
+            .workflow
+            .scatter
+            .concurrency
+            .unwrap_or(DEFAULT_SCATTER_CONCURRENCY);
+
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
             if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
@@ -1489,9 +1471,7 @@ impl State {
                 let subgraph = self.subgraphs[&entry].clone();
                 let id = id.clone();
                 futures.spawn(async move {
-                    state
-                        .evaluate_subgraph(scope, subgraph, max_concurrency, id)
-                        .await?;
+                    state.evaluate_subgraph(scope, subgraph, id).await?;
 
                     Ok((i, scope))
                 });

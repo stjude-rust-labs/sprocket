@@ -3330,7 +3330,7 @@ impl TaskPostEvaluationValue {
     pub(crate) fn new(
         name: impl Into<String>,
         id: impl Into<String>,
-        constraints: TaskExecutionConstraints,
+        constraints: &TaskExecutionConstraints,
         max_retries: i64,
         attempt: i64,
         meta: Object,
@@ -3341,14 +3341,20 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints.container.map(Into::into),
+                container: constraints
+                    .container
+                    .as_ref()
+                    .map(|c| Arc::new(c.to_string())),
                 cpu: constraints.cpu,
-                memory: constraints.memory,
+                memory: constraints
+                    .memory
+                    .try_into()
+                    .expect("memory exceeds a valid WDL value"),
                 gpu: Array::new_unchecked(
                     ANALYSIS_STDLIB.array_string_type().clone(),
                     constraints
                         .gpu
-                        .into_iter()
+                        .iter()
                         .map(|v| PrimitiveValue::new_string(v).into())
                         .collect(),
                 ),
@@ -3356,7 +3362,7 @@ impl TaskPostEvaluationValue {
                     ANALYSIS_STDLIB.array_string_type().clone(),
                     constraints
                         .fpga
-                        .into_iter()
+                        .iter()
                         .map(|v| PrimitiveValue::new_string(v).into())
                         .collect(),
                 ),
@@ -3364,8 +3370,8 @@ impl TaskPostEvaluationValue {
                     ANALYSIS_STDLIB.map_string_int_type().clone(),
                     constraints
                         .disks
-                        .into_iter()
-                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), v.into()))
+                        .iter()
+                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), (*v).into()))
                         .collect(),
                 ),
                 max_retries,
