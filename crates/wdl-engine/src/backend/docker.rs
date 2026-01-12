@@ -588,9 +588,12 @@ impl TaskExecutionBackend for DockerBackend {
     ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
         async move {
             let cpu = request.constraints().cpu;
-            let max_cpu = max_cpu(request.hints());
             let memory = request.constraints().memory;
-            let max_memory = max_memory(request.hints())?.map(|i| i as u64);
+            // NOTE: in the Docker backend, we clamp `max_cpu` and `max_memory`
+            // to what is reported by the backend, as the Docker daemon does not
+            // respond gracefully to over-subscribing these.
+            let max_cpu = max_cpu(request.hints()).map(|m| m.min(self.max_cpu));
+            let max_memory = max_memory(request.hints())?.map(|i| (i as u64).min(self.max_memory));
             let gpu = gpu(request.requirements(), request.hints());
 
             let name = format!(
