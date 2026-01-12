@@ -244,8 +244,6 @@ pub const fn descriptor() -> Function {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
@@ -257,6 +255,8 @@ mod test {
         let env = TestEnv::default();
         #[cfg(unix)]
         {
+            use std::path::Path;
+
             let value = eval_v1_expr(&env, V1::Two, "join_paths('/usr', ['bin', 'echo'])")
                 .await
                 .unwrap();

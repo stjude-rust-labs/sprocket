@@ -11,7 +11,7 @@ task test {
   }
 
   command <<<
-    cat ~{write_json(foo)}
+    cat "~{write_json(foo)}"
   >>>
 
   output {
