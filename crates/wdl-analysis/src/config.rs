@@ -213,16 +213,10 @@ impl Default for FeatureFlags {
 impl FeatureFlags {
     /// Returns whether WDL 1.3 is enabled.
     ///
-    /// This always returns `true` as WDL 1.3 is now fully supported.
+    /// WDL 1.3 is now fully supported and defaults to `true`. Setting this to
+    /// `false` will emit a deprecation warning.
     pub fn wdl_1_3(&self) -> bool {
-        true
-    }
-
-    /// Returns whether the user explicitly disabled WDL 1.3.
-    ///
-    /// This is used to emit a deprecation warning.
-    pub fn wdl_1_3_explicitly_disabled(&self) -> bool {
-        !self.wdl_1_3
+        self.wdl_1_3
     }
 
     /// Returns a new `FeatureFlags` with WDL 1.3 features enabled.

@@ -104,7 +104,7 @@ pub struct VersionVisitor {
 
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
-        self.wdl_1_3_ff.explicitly_disabled = config.feature_flags().wdl_1_3_explicitly_disabled();
+        self.wdl_1_3_ff.explicitly_disabled = !config.feature_flags().wdl_1_3();
     }
 
     fn reset(&mut self) {
