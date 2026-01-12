@@ -1,10 +1,9 @@
 //! Implementation of the `test` subcommand.
 
 use std::collections::HashSet;
-use std::fs::File;
 use std::fs::read;
+use std::fs::read_to_string;
 use std::fs::remove_dir;
-use std::io::read_to_string;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -102,7 +101,7 @@ pub struct Args {
     ///
     /// The default behavior is to remove directories of successful tests,
     /// leaving only failed and errored run directories on the file system.
-    #[clap(long)]
+    #[clap(long, conflicts_with = "clean_all")]
     pub no_clean: bool,
     /// Clean all exectuion directories, even for tests that failed or errored.
     #[clap(long)]
@@ -172,15 +171,19 @@ fn filter_test(
     false
 }
 
-fn file_matches<'a>(path: &'a str, regexs: &'a [Regex]) -> Result<Result<(), &'a str>> {
-    let contents = read_to_string(File::open(path).with_context(|| "opening file")?)
-        .with_context(|| "reading file")?;
+/// Checks that the contents of the given file path match every given regular
+/// expression.
+///
+/// Returns `Ok(None)` if the file's contents match every regular expression.
+/// Returns `Ok(Some(regex))` upon the first unmatched regular expression.
+fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> {
+    let contents = read_to_string(path).with_context(|| format!("failed to read file `{path}`"))?;
     for re in regexs {
         if !re.is_match(&contents) {
-            return Ok(Err(re.as_str()));
+            return Ok(Some(re.as_str()));
         }
     }
-    Ok(Ok(()))
+    Ok(None)
 }
 
 #[derive(Debug)]
@@ -241,8 +244,8 @@ impl TestIteration {
                                 stdout_path.as_str(),
                                 self.assertions.stdout.as_slice(),
                             ) {
-                                Ok(Ok(_)) => {}
-                                Ok(Err(re)) => {
+                                Ok(None) => {}
+                                Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
                                         "test iteration #{num} of `{name}`'s stdout did not \
                                          contain `{re}`: see `{dir}`",
@@ -263,8 +266,8 @@ impl TestIteration {
                                 stderr_path.as_str(),
                                 self.assertions.stderr.as_slice(),
                             ) {
-                                Ok(Ok(_)) => {}
-                                Ok(Err(re)) => {
+                                Ok(None) => {}
+                                Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
                                         "test iteration #{num} of `{name}`'s stderr did not \
                                          contain `{re}`: see `{dir}`",
