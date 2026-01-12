@@ -766,12 +766,31 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let cache_key = self
+            .state
+            .document
+            .get_variant_cache_key(enum_name, variant_name)
+            .ok_or_else(|| unknown_enum(enum_name))?;
+
+        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        if let Some(cached_value) = cache.get(&cache_key) {
+            return Ok(cached_value.clone());
+        }
+
+        drop(cache);
+
         let r#enum = self
             .state
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        resolve_enum_variant_value(r#enum, variant_name)
+        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+
+        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        cache.insert(cache_key, value.clone());
+        drop(cache);
+
+        Ok(value)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
