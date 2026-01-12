@@ -1,6 +1,6 @@
 #@ except: ExpressionSpacing, ElementSpacing
 
-version 1.2
+version 1.3
 
 #a bad comment
     # another bad comment

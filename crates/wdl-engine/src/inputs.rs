@@ -324,7 +324,7 @@ impl Serialize for TaskInputs {
         // Only serialize the input values
         let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(v, true);
+            let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
         map.end()
@@ -666,7 +666,7 @@ impl Serialize for WorkflowInputs {
         // inputs
         let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(v, true);
+            let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
         map.end()

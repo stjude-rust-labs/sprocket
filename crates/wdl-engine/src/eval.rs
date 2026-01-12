@@ -133,14 +133,18 @@ impl CancellationContextState {
 /// Represents context for cancelling workflow or task evaluation.
 ///
 /// Uses a default failure mode of [`Slow`](FailureMode::Slow).
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct CancellationContext {
     /// The failure mode for the cancellation context.
     mode: FailureMode,
     /// The state of the cancellation context.
     state: Arc<AtomicU8>,
-    /// Stores the underlying cancellation token.
-    token: CancellationToken,
+    /// The cancellation token that is canceled upon the first cancellation.
+    first: CancellationToken,
+    /// The cancellation token that is canceled upon the second cancellation
+    /// when the failure mode is "slow" or upon the first cancellation when the
+    /// failure mode is "fast".
+    second: CancellationToken,
 }
 
 impl CancellationContext {
@@ -157,7 +161,8 @@ impl CancellationContext {
         Self {
             mode,
             state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
-            token: CancellationToken::new(),
+            first: CancellationToken::new(),
+            second: CancellationToken::new(),
         }
     }
 
@@ -177,28 +182,44 @@ impl CancellationContext {
     pub fn cancel(&self) -> CancellationContextState {
         let state =
             CancellationContextState::update(self.mode, false, &self.state).expect("should update");
-        assert!(
-            state != CancellationContextState::NotCanceled,
-            "should be canceled"
-        );
 
-        if state == CancellationContextState::Canceling {
-            self.token.cancel();
+        match state {
+            CancellationContextState::NotCanceled => panic!("should be canceled"),
+            CancellationContextState::Waiting => self.first.cancel(),
+            CancellationContextState::Canceling => {
+                self.first.cancel();
+                self.second.cancel();
+            }
         }
 
         state
     }
 
-    /// Gets the cancellation token from the context.
+    /// Gets the cancellation token that is canceled upon the first
+    /// cancellation.
     ///
-    /// The token will be canceled when the [`CancellationContext::cancel`] is
+    /// The token will be canceled when [`CancellationContext::cancel`] is
+    /// called and the resulting state is [`CancellationContextState::Waiting`]
+    /// or [`CancellationContextState::Canceling`].
+    ///
+    /// Callers should _not_ directly cancel the returned token and instead call
+    /// [`CancellationContext::cancel`].
+    pub fn first(&self) -> CancellationToken {
+        self.first.clone()
+    }
+
+    /// Gets the cancellation token that is canceled upon the second
+    /// cancellation when the failure mode is "slow" or first cancellation when
+    /// the failure mode is "fast".
+    ///
+    /// The token will be canceled when [`CancellationContext::cancel`] is
     /// called and the resulting state is
     /// [`CancellationContextState::Canceling`].
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn token(&self) -> CancellationToken {
-        self.token.clone()
+    pub fn second(&self) -> CancellationToken {
+        self.second.clone()
     }
 
     /// Determines if the user initiated the cancellation.
@@ -224,13 +245,16 @@ impl CancellationContext {
             match state {
                 CancellationContextState::NotCanceled => unreachable!("should be canceled"),
                 CancellationContextState::Waiting => {
+                    self.first.cancel();
+
                     error!(
                         "an evaluation error occurred: waiting for any executing tasks to \
                          complete: {message}"
                     );
                 }
                 CancellationContextState::Canceling => {
-                    self.token.cancel();
+                    self.first.cancel();
+                    self.second.cancel();
 
                     error!(
                         "an evaluation error occurred: waiting for any executing tasks to cancel: \
@@ -255,6 +279,14 @@ pub enum EngineEvent {
     ReusedCachedExecutionResult {
         /// The id of the task that reused a cached execution result.
         id: String,
+    },
+    /// A locally running task has been parked by the engine due to insufficient
+    /// resources.
+    TaskParked,
+    /// A locally running task has been unparked by the engine.
+    TaskUnparked {
+        /// Whether or not the task was unparked due to being canceled.
+        canceled: bool,
     },
 }
 
@@ -731,23 +763,26 @@ mod test {
         let context = CancellationContext::new(FailureMode::Slow);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // The first cancel should not cancel the token
+        // The first cancel should not cancel the fast token
         assert_eq!(context.cancel(), CancellationContextState::Waiting);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // The second cancel should cancel the token
+        // The second cancel should cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -755,17 +790,19 @@ mod test {
         let context = CancellationContext::new(FailureMode::Fast);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // Fail fast should immediately cancel the token
+        // Fail fast should immediately cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -773,23 +810,26 @@ mod test {
         let context = CancellationContext::new(FailureMode::Slow);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // An error should not cancel the token
+        // An error should not cancel the fast token
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(!context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // A repeated error should not cancel the token either
+        // A repeated error should not cancel the fast token either
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(!context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // However, another cancellation will
+        // However, another cancellation will cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -797,22 +837,25 @@ mod test {
         let context = CancellationContext::new(FailureMode::Fast);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // An error should cancel the context
+        // An error should cancel both tokens
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // A repeated error should not change anything
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Neither should another `cancel` call
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 }

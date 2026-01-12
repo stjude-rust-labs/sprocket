@@ -61,7 +61,7 @@ impl Serialize for Outputs {
 
         let mut s = serializer.serialize_map(Some(self.values.len()))?;
         for (k, v) in &self.values {
-            let v = crate::ValueSerializer::new(v, true);
+            let v = crate::ValueSerializer::new(None, v, true);
             match &self.name {
                 Some(prefix) => s.serialize_entry(&format!("{prefix}.{k}"), &v)?,
                 None => s.serialize_entry(k, &v)?,

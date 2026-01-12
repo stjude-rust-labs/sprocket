@@ -1547,22 +1547,6 @@ impl Coercible for PrimitiveValue {
     }
 }
 
-impl serde::Serialize for PrimitiveValue {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Self::Boolean(v) => v.serialize(serializer),
-            Self::Integer(v) => v.serialize(serializer),
-            Self::Float(v) => v.serialize(serializer),
-            Self::String(s) | Self::File(HostPath(s)) | Self::Directory(HostPath(s)) => {
-                s.serialize(serializer)
-            }
-        }
-    }
-}
-
 /// Represents a `Pair` value.
 ///
 /// Pairs are cheap to clone.
@@ -3346,7 +3330,7 @@ impl TaskPostEvaluationValue {
     pub(crate) fn new(
         name: impl Into<String>,
         id: impl Into<String>,
-        constraints: TaskExecutionConstraints,
+        constraints: &TaskExecutionConstraints,
         max_retries: i64,
         attempt: i64,
         meta: Object,
@@ -3357,14 +3341,20 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints.container.map(Into::into),
+                container: constraints
+                    .container
+                    .as_ref()
+                    .map(|c| Arc::new(c.to_string())),
                 cpu: constraints.cpu,
-                memory: constraints.memory,
+                memory: constraints
+                    .memory
+                    .try_into()
+                    .expect("memory exceeds a valid WDL value"),
                 gpu: Array::new_unchecked(
                     ANALYSIS_STDLIB.array_string_type().clone(),
                     constraints
                         .gpu
-                        .into_iter()
+                        .iter()
                         .map(|v| PrimitiveValue::new_string(v).into())
                         .collect(),
                 ),
@@ -3372,7 +3362,7 @@ impl TaskPostEvaluationValue {
                     ANALYSIS_STDLIB.array_string_type().clone(),
                     constraints
                         .fpga
-                        .into_iter()
+                        .iter()
                         .map(|v| PrimitiveValue::new_string(v).into())
                         .collect(),
                 ),
@@ -3380,8 +3370,8 @@ impl TaskPostEvaluationValue {
                     ANALYSIS_STDLIB.map_string_int_type().clone(),
                     constraints
                         .disks
-                        .into_iter()
-                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), v.into()))
+                        .iter()
+                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), (*v).into()))
                         .collect(),
                 ),
                 max_retries,
@@ -3740,6 +3730,8 @@ impl fmt::Display for CallValue {
 
 /// Serializes a value with optional serialization of pairs.
 pub(crate) struct ValueSerializer<'a> {
+    /// The evaluation context to use for host-to-guest path translations.
+    context: Option<&'a dyn EvaluationContext>,
     /// The value to serialize.
     value: &'a Value,
     /// Whether pairs should be serialized as a map with `left` and `right`
@@ -3749,8 +3741,20 @@ pub(crate) struct ValueSerializer<'a> {
 
 impl<'a> ValueSerializer<'a> {
     /// Constructs a new `ValueSerializer`.
-    pub fn new(value: &'a Value, allow_pairs: bool) -> Self {
-        Self { value, allow_pairs }
+    ///
+    /// If the provided evaluation context is `None`, host to guest translation
+    /// is not performed; `File` and `Directory` values will serialize directly
+    /// as a string.
+    pub fn new(
+        context: Option<&'a dyn EvaluationContext>,
+        value: &'a Value,
+        allow_pairs: bool,
+    ) -> Self {
+        Self {
+            context,
+            value,
+            allow_pairs,
+        }
     }
 }
 
@@ -3763,10 +3767,11 @@ impl serde::Serialize for ValueSerializer<'_> {
 
         match &self.value {
             Value::None(_) => serializer.serialize_none(),
-            Value::Primitive(v) => v.serialize(serializer),
-            Value::Compound(v) => {
-                CompoundValueSerializer::new(v, self.allow_pairs).serialize(serializer)
+            Value::Primitive(v) => {
+                PrimitiveValueSerializer::new(self.context, v).serialize(serializer)
             }
+            Value::Compound(v) => CompoundValueSerializer::new(self.context, v, self.allow_pairs)
+                .serialize(serializer),
             Value::Call(_) | Value::Hidden(_) | Value::TypeNameRef(_) => {
                 Err(S::Error::custom("value cannot be serialized"))
             }
@@ -3774,8 +3779,51 @@ impl serde::Serialize for ValueSerializer<'_> {
     }
 }
 
+/// Responsible for serializing primitive values.
+pub(crate) struct PrimitiveValueSerializer<'a> {
+    /// The evaluation context to use for host-to-guest path translations.
+    context: Option<&'a dyn EvaluationContext>,
+    /// The primitive value to serialize.
+    value: &'a PrimitiveValue,
+}
+
+impl<'a> PrimitiveValueSerializer<'a> {
+    /// Constructs a new `PrimitiveValueSerializer`.
+    ///
+    /// If the provided evaluation context is `None`, host to guest translation
+    /// is not performed; `File` and `Directory` values will serialize directly
+    /// as a string.
+    pub fn new(context: Option<&'a dyn EvaluationContext>, value: &'a PrimitiveValue) -> Self {
+        Self { context, value }
+    }
+}
+
+impl serde::Serialize for PrimitiveValueSerializer<'_> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self.value {
+            PrimitiveValue::Boolean(v) => v.serialize(serializer),
+            PrimitiveValue::Integer(v) => v.serialize(serializer),
+            PrimitiveValue::Float(v) => v.serialize(serializer),
+            PrimitiveValue::String(s) => s.serialize(serializer),
+            PrimitiveValue::File(p) | PrimitiveValue::Directory(p) => {
+                let path = self
+                    .context
+                    .and_then(|c| c.guest_path(p).map(|p| Cow::Owned(p.0)))
+                    .unwrap_or(Cow::Borrowed(&p.0));
+
+                path.serialize(serializer)
+            }
+        }
+    }
+}
+
 /// Serializes a `CompoundValue` with optional serialization of pairs.
 pub(crate) struct CompoundValueSerializer<'a> {
+    /// The evaluation context to use for host-to-guest path translations.
+    context: Option<&'a dyn EvaluationContext>,
     /// The compound value to serialize.
     value: &'a CompoundValue,
     /// Whether pairs should be serialized as a map with `left` and `right`
@@ -3785,8 +3833,20 @@ pub(crate) struct CompoundValueSerializer<'a> {
 
 impl<'a> CompoundValueSerializer<'a> {
     /// Constructs a new `CompoundValueSerializer`.
-    pub fn new(value: &'a CompoundValue, allow_pairs: bool) -> Self {
-        Self { value, allow_pairs }
+    ///
+    /// If the provided evaluation context is `None`, host to guest translation
+    /// is not performed; `File` and `Directory` values will serialize directly
+    /// as a string.
+    pub fn new(
+        context: Option<&'a dyn EvaluationContext>,
+        value: &'a CompoundValue,
+        allow_pairs: bool,
+    ) -> Self {
+        Self {
+            context,
+            value,
+            allow_pairs,
+        }
     }
 }
 
@@ -3800,8 +3860,8 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
         match &self.value {
             CompoundValue::Pair(pair) if self.allow_pairs => {
                 let mut state = serializer.serialize_map(Some(2))?;
-                let left = ValueSerializer::new(pair.left(), self.allow_pairs);
-                let right = ValueSerializer::new(pair.right(), self.allow_pairs);
+                let left = ValueSerializer::new(self.context, pair.left(), self.allow_pairs);
+                let right = ValueSerializer::new(self.context, pair.right(), self.allow_pairs);
                 state.serialize_entry("left", &left)?;
                 state.serialize_entry("right", &right)?;
                 state.end()
@@ -3810,7 +3870,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
             CompoundValue::Array(v) => {
                 let mut s = serializer.serialize_seq(Some(v.len()))?;
                 for v in v.as_slice() {
-                    s.serialize_element(&ValueSerializer::new(v, self.allow_pairs))?;
+                    s.serialize_element(&ValueSerializer::new(self.context, v, self.allow_pairs))?;
                 }
 
                 s.end()
@@ -3830,7 +3890,11 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 let mut s = serializer.serialize_map(Some(v.len()))?;
                 for (k, v) in v.iter() {
-                    s.serialize_entry(k, &ValueSerializer::new(v, self.allow_pairs))?;
+                    s.serialize_entry(
+                        &k.as_ref()
+                            .map(|k| PrimitiveValueSerializer::new(self.context, k)),
+                        &ValueSerializer::new(self.context, v, self.allow_pairs),
+                    )?;
                 }
 
                 s.end()
@@ -3838,7 +3902,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
             CompoundValue::Object(object) => {
                 let mut s = serializer.serialize_map(Some(object.len()))?;
                 for (k, v) in object.iter() {
-                    s.serialize_entry(k, &ValueSerializer::new(v, self.allow_pairs))?;
+                    s.serialize_entry(k, &ValueSerializer::new(self.context, v, self.allow_pairs))?;
                 }
 
                 s.end()
@@ -3846,7 +3910,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
             CompoundValue::Struct(Struct { members, .. }) => {
                 let mut s = serializer.serialize_map(Some(members.len()))?;
                 for (k, v) in members.iter() {
-                    s.serialize_entry(k, &ValueSerializer::new(v, self.allow_pairs))?;
+                    s.serialize_entry(k, &ValueSerializer::new(self.context, v, self.allow_pairs))?;
                 }
 
                 s.end()
@@ -4601,12 +4665,12 @@ Caused by:
         .expect("should create pair value")
         .into();
         // Serialize pair with `left` and `right` keys
-        let value_serializer = ValueSerializer::new(&pair, true);
+        let value_serializer = ValueSerializer::new(None, &pair, true);
         let serialized = serde_json::to_string(&value_serializer).expect("should serialize");
         assert_eq!(serialized, r#"{"left":"foo","right":"bar"}"#);
 
         // Serialize pair without `left` and `right` keys (should fail)
-        let value_serializer = ValueSerializer::new(&pair, false);
+        let value_serializer = ValueSerializer::new(None, &pair, false);
         assert!(serde_json::to_string(&value_serializer).is_err());
 
         let array_ty = ArrayType::new(PairType::new(PrimitiveType::File, PrimitiveType::String));
@@ -4615,7 +4679,7 @@ Caused by:
             .into();
 
         // Serialize array of pairs with `left` and `right` keys
-        let value_serializer = ValueSerializer::new(&array, true);
+        let value_serializer = ValueSerializer::new(None, &array, true);
         let serialized = serde_json::to_string(&value_serializer).expect("should serialize");
         assert_eq!(serialized, r#"[{"left":"foo","right":"bar"}]"#);
     }

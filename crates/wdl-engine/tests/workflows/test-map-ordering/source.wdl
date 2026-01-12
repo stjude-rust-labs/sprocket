@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 workflow test_map_ordering {
   # declaration using a map literal

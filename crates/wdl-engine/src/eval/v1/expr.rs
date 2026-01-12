@@ -422,6 +422,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
                 }
+                Value::Compound(CompoundValue::EnumVariant(e)) => {
+                    write!(buffer, "{}", e.name()).unwrap()
+                }
                 v => {
                     return Err(cannot_coerce_to_string(&v.ty(), expr.span()));
                 }
