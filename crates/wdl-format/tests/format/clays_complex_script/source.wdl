@@ -4,7 +4,7 @@
 #@ except: InputSorted, ParameterMetaMatched, MatchingOutputMeta
 
 ## part of preamble
-version 1.2
+version 1.3
 
 #@ except: MetaSections
 struct AStruct {

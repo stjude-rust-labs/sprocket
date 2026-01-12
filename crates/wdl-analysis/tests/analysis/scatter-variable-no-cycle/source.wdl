@@ -1,7 +1,7 @@
 ## This is a test to ensure scatter variable dependency edges are added correctly
 ## It should not generate any diagnostics
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/508
-version 1.2
+version 1.3
 
 task bar {
     input {

@@ -1,7 +1,7 @@
 ## This is a representative WDL workflow to test the behavior of the default inputs command
 ## This will show the necessary inputs required in json format necessary to run this command in the stdout
 
-version 1.2
+version 1.3
 
 struct Foo {
     Int int

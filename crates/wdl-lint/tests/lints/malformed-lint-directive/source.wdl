@@ -3,7 +3,7 @@
 
 ## This is a test of the `LintDirectiveFormatted` rule
 
-version 1.2
+version 1.3
 
 #@ stop: This should be flagged for using 'stop' instead of 'except'
 

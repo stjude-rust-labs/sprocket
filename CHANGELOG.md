@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
+  and will emit a warning if explicitly disabled
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+
 ### Added
 
 * Added setting `run.tasks.digests` to `sprocket.toml` for controlling content
