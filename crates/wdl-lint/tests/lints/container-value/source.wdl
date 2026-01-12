@@ -2,7 +2,7 @@
 
 ## This is a test of the `ContainerUri` lint.
 
-version 1.2
+version 1.3
 
 task a {
     meta {}

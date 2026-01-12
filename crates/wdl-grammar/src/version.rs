@@ -75,7 +75,7 @@ impl SupportedVersion {
 
 impl Default for SupportedVersion {
     fn default() -> Self {
-        Self::V1(V1::Two)
+        Self::V1(V1::Three)
     }
 }
 

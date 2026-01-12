@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 workflow string_to_file {
   String path1 = "data/file"

@@ -1823,7 +1823,6 @@ mod test {
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
-    use wdl_analysis::FeatureFlags;
 
     use super::*;
     use crate::CancellationContext;
@@ -2044,9 +2043,7 @@ workflow foo {
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_wdl_1_3()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer

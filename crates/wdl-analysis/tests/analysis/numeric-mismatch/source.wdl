@@ -1,7 +1,7 @@
 #@ except: UnusedDeclaration
 ## This is a test of type mismatches in numeric expressions.
 
-version 1.2
+version 1.3
 
 task test {
     Int a = 1

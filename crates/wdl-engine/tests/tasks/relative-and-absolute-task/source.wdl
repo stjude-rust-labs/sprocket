@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task relative_and_absolute {
   command <<<

@@ -189,22 +189,39 @@ struct ConfigInner {
 }
 
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct FeatureFlags {
-    /// When available, enables experimental WDL 1.3 features.
-    #[serde(default)]
+    /// Formerly enabled experimental WDL 1.3 features.
+    ///
+    /// This flag is now a no-op as WDL 1.3 is fully supported. Setting this to
+    /// `false` will emit a warning.
+    #[serde(default = "default_wdl_1_3")]
     wdl_1_3: bool,
 }
 
+/// Returns the default value for the `wdl_1_3` feature flag.
+fn default_wdl_1_3() -> bool {
+    true
+}
+
+impl Default for FeatureFlags {
+    fn default() -> Self {
+        Self { wdl_1_3: true }
+    }
+}
+
 impl FeatureFlags {
-    /// Gets whether experimental WDL 1.3 features are enabled.
+    /// Returns whether WDL 1.3 is enabled.
+    ///
+    /// WDL 1.3 is now fully supported and defaults to `true`. Setting this to
+    /// `false` will emit a deprecation warning.
     pub fn wdl_1_3(&self) -> bool {
         self.wdl_1_3
     }
 
-    /// Returns a new `FeatureFlags` with experimental WDL 1.3 features enabled.
-    pub fn with_wdl_1_3(mut self) -> Self {
-        self.wdl_1_3 = true;
+    /// Returns a new `FeatureFlags` with WDL 1.3 features enabled.
+    #[deprecated(note = "WDL 1.3 is now enabled by default; this method is a no-op")]
+    pub fn with_wdl_1_3(self) -> Self {
         self
     }
 }
