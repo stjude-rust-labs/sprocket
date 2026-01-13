@@ -35,6 +35,7 @@ use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::CallCachingMode;
+use wdl::engine::Config as WdlEngineConfig;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
@@ -200,7 +201,7 @@ pub struct Args {
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: engine::Config,
+    pub engine: WdlEngineConfig,
 }
 
 impl Args {
@@ -217,7 +218,7 @@ impl Args {
     }
 
     /// Applies the CLI arguments to the given engine configuration.
-    fn apply_engine_config(&self, config: &mut wdl::engine::config::Config) {
+    fn apply_engine_config(&self, config: &mut wdl::engine::Config) {
         // Apply the Azure auth to the engine config
         if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
             let auth = config.storage.azure.auth.get_or_insert_default();

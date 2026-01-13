@@ -13,7 +13,6 @@ use sqlx::SqlitePool;
 use tempfile::TempDir;
 use uuid::Uuid;
 use wdl::analysis::types::ArrayType;
-use wdl::analysis::types::CompoundType;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 use wdl::engine::Array;
@@ -225,14 +224,7 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
         "results".to_string(),
         Value::Compound(CompoundValue::Array(
             Array::new(
-                None,
-                Type::Compound(
-                    CompoundType::Array(ArrayType::new(Type::Primitive(
-                        PrimitiveType::File,
-                        false,
-                    ))),
-                    false,
-                ),
+                ArrayType::new(Type::Primitive(PrimitiveType::File, false)),
                 vec![
                     Value::Primitive(PrimitiveValue::File(HostPath::new("result1.txt"))),
                     Value::Primitive(PrimitiveValue::File(HostPath::new("result2.txt"))),
@@ -551,7 +543,7 @@ async fn create_index_with_empty_outputs(pool: SqlitePool) -> Result<()> {
     let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
     fs::write(run_dir.root().join("outputs.json"), "{}")?;
 
-    let outputs: Outputs = Outputs::new();
+    let outputs: Outputs = Outputs::default();
 
     create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
 

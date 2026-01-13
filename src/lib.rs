@@ -119,7 +119,7 @@ async fn inner() -> CommandResult<()> {
         }
         _ => {
             // For all other commands, load config normally
-            let config = Config::new(
+            let mut config = Config::new(
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
             )?;

@@ -1,6 +1,7 @@
 //! Execution of runs for provenance tracking in v1.
 
 use std::sync::Arc;
+use wdl::engine::Config as WdlConfig;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -15,12 +16,11 @@ use wdl::analysis::Analyzer;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
-use CancellationContext;
+use wdl::engine::CancellationContext;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::v1::TaskEvaluator;
-use wdl::engine::v1::WorkflowEvaluator;
+use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 use crate::system::v1::db::Database;
 use crate::system::v1::fs::RunDirectory;
@@ -333,7 +333,7 @@ async fn execute_workflow_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: wdl::engine::Config,
+    config: Arc<WdlConfig>,
     cancellation: CancellationContext,
     events: Events,
     inputs: &JsonValue,
@@ -341,12 +341,12 @@ async fn execute_workflow_target(
 ) -> Result<Outputs> {
     let workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
 
-    let evaluator = WorkflowEvaluator::new(config, cancellation, events)
+    let evaluator = WdlEvaluator::new(run_dir.root(), config, cancellation, events)
         .await
         .context("failed to create workflow evaluator")?;
 
     evaluator
-        .evaluate(document, workflow_inputs, run_dir.root())
+        .evaluate_workflow(document, workflow_inputs, run_dir.root())
         .await
         .map_err(|e| anyhow::anyhow!("workflow evaluation failed: {:#?}", e))
 }
@@ -362,7 +362,7 @@ async fn execute_task_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
-    config: wdl::engine::Config,
+    config: Arc<WdlConfig>,
     cancellation: CancellationContext,
     events: Events,
     target: &Target,
@@ -377,17 +377,17 @@ async fn execute_task_target(
 
     let task_inputs = parse_task_inputs(db, ctx, inputs, document, task, run_dir).await?;
 
-    let evaluator = TaskEvaluator::new(config, cancellation, events)
+    let evaluator = WdlEvaluator::new(run_dir.root(), config, cancellation, events)
         .await
         .context("failed to create task evaluator")?;
 
     let evaluated_task = evaluator
-        .evaluate(document, task, &task_inputs, run_dir.root())
+        .evaluate_task(document, task, task_inputs, run_dir.root())
         .await
         .map_err(|e| anyhow::anyhow!("task evaluation failed: {:#?}", e))?;
 
     evaluated_task
-        .into_result()
+        .into_outputs()
         .map_err(|e| anyhow::anyhow!("task outputs evaluation failed: {:#?}", e))
 }
 
@@ -417,7 +417,7 @@ pub async fn execute_target(
     db: Arc<dyn Database>,
     ctx: &RunContext,
     document: AnalysisDocument,
-    config: wdl::engine::Config,
+    config: WdlConfig,
     cancellation: CancellationContext,
     events: Events,
     target: Target,
@@ -425,6 +425,7 @@ pub async fn execute_target(
     run_dir: &RunDirectory,
     index_on: Option<&str>,
 ) -> Result<()> {
+    let config = Arc::new(config);
     db.start_run(ctx.run_id, ctx.started_at).await?;
 
     let result: Result<()> = async {
@@ -434,7 +435,7 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
+                    config.clone(),
                     cancellation.clone(),
                     events.clone(),
                     &target,
@@ -448,7 +449,7 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config,
+                    config.clone(),
                     cancellation.clone(),
                     events.clone(),
                     inputs,

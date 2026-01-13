@@ -60,6 +60,8 @@ fail = "slow"
 [execution.task]
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache = "off"
+digests = "weak"
 
 [execution.storage.azure]
 

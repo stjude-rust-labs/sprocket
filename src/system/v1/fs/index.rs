@@ -171,10 +171,10 @@ pub async fn create_index_entries(
 fn extract_symlink_paths(value: &Value, paths: &mut Vec<PathBuf>) {
     match value {
         Value::Primitive(PrimitiveValue::File(path)) => {
-            paths.push(path.to_path_buf());
+            paths.push(PathBuf::from(path.as_str()));
         }
         Value::Primitive(PrimitiveValue::Directory(path)) => {
-            paths.push(path.to_path_buf());
+            paths.push(PathBuf::from(path.as_str()));
         }
         Value::Compound(compound) => {
             if let Some(array) = compound.as_array() {

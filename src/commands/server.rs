@@ -2,10 +2,10 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
 use clap::Parser;
 
 use crate::Config;
+use crate::commands::CommandResult;
 
 /// Arguments to the `server` subcommand.
 #[derive(Parser, Debug)]
@@ -73,15 +73,18 @@ impl Args {
 }
 
 /// The main function for the `server` subcommand.
-pub async fn server(args: Args, config: Config) -> Result<()> {
+pub async fn server(args: Args, config: Config) -> CommandResult<()> {
     let config = args.apply(config);
 
     // Validate that at least one source type is allowed
     if config.execution.allowed_file_paths.is_empty() && config.execution.allowed_urls.is_empty() {
-        anyhow::bail!(
+        return Err(anyhow::anyhow!(
             "at least one of `allowed_file_paths` or `allowed_urls` must be specified"
-        );
+        )
+        .into());
     }
 
-    crate::server::run(config.server, config.execution).await
+    crate::server::run(config.server, config.execution)
+        .await
+        .map_err(Into::into)
 }

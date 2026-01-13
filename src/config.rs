@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::trace;
 use tracing::warn;
-use wdl::engine;
+use wdl::engine::Config as EngineConfig;
 
 use crate::diagnostics::Mode;
 use crate::system::v1::exec::ExecutionConfig;
@@ -132,7 +132,7 @@ pub struct AnalyzerConfig {
 pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
-    pub engine: engine::Config,
+    pub engine: EngineConfig,
 
     /// The "runs" directory under which new `run` sessions' execution
     /// directories will be placed.
@@ -156,7 +156,7 @@ pub struct RunConfig {
 impl Default for RunConfig {
     fn default() -> Self {
         Self {
-            engine: engine::Config::default(),
+            engine: EngineConfig::default(),
             runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
             events_capacity: None,
         }

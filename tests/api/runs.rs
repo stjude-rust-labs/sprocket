@@ -1272,7 +1272,7 @@ version 1.2
     let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let error_message = error_json["message"].as_str().unwrap();
     assert!(
-        error_message.contains("there must be at least one task, workflow, or struct definition"),
+        error_message.contains("there must be at least one task, workflow, struct, or enum definition"),
         "error message should indicate no executable target, got: {}",
         error_message
     );

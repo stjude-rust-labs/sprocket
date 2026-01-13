@@ -382,7 +382,7 @@ async fn submit_run(
     let cancellation = CancellationContext::new(engine_config.failure_mode);
 
     // Subscribe to all events during evaluation
-    let events = Events::all(EVENTS_CHANNEL_CAPACITY);
+    let events = Events::new(EVENTS_CHANNEL_CAPACITY);
 
     // Spawn run execution task
     let async_semaphore = semaphore;

@@ -4621,6 +4621,7 @@ dependencies = [
  "sqlx",
  "strum",
  "tempfile",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-util",
  "toml 0.9.11+spec-1.1.0",
