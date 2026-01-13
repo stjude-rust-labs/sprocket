@@ -1120,7 +1120,7 @@ task my_task {
     let outputs_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(
-        outputs_json["outputs"]["my_task.result"]
+        outputs_json["outputs"]["my_task.message"]
             .as_str()
             .unwrap()
             .trim(),

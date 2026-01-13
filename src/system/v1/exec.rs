@@ -95,11 +95,11 @@ fn select_target(
         if let Some(workflow) = document.workflow()
             && workflow.name() == target
         {
-            return Ok(Target::Task(target.to_owned()));
+            return Ok(Target::Workflow(target.to_owned()));
         }
 
         if document.task_by_name(target).is_some() {
-            return Ok(Target::Workflow(target.to_owned()));
+            return Ok(Target::Task(target.to_owned()));
         }
 
         Err(SelectTargetError::TargetNotFound(target.to_owned()))
@@ -429,15 +429,15 @@ pub async fn execute_target(
     db.start_run(ctx.run_id, ctx.started_at).await?;
 
     let result: Result<()> = async {
-        let outputs = match target {
+        let outputs = match &target {
             Target::Task(_) => {
                 execute_task_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config.clone(),
-                    cancellation.clone(),
-                    events.clone(),
+                    config,
+                    cancellation,
+                    events,
                     &target,
                     inputs,
                     run_dir,
@@ -449,9 +449,9 @@ pub async fn execute_target(
                     db.as_ref(),
                     ctx,
                     &document,
-                    config.clone(),
-                    cancellation.clone(),
-                    events.clone(),
+                    config,
+                    cancellation,
+                    events,
                     inputs,
                     run_dir,
                 )
