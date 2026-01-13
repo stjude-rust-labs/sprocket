@@ -2,8 +2,8 @@
 
 use chrono::Utc;
 use sprocket::system::v1::db::Database;
-use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::RunStatus;
+use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -361,38 +361,17 @@ async fn list_runs_ordered_by_created_at(pool: SqlitePool) {
     let run_id_2 = Uuid::new_v4();
     let run_id_3 = Uuid::new_v4();
 
-    db.create_run(
-        run_id_1,
-        session_id,
-        "first",
-        "/test1.wdl",
-        "{}",
-        "/tmp/1",
-    )
-    .await
-    .unwrap();
+    db.create_run(run_id_1, session_id, "first", "/test1.wdl", "{}", "/tmp/1")
+        .await
+        .unwrap();
 
-    db.create_run(
-        run_id_2,
-        session_id,
-        "second",
-        "/test2.wdl",
-        "{}",
-        "/tmp/2",
-    )
-    .await
-    .unwrap();
+    db.create_run(run_id_2, session_id, "second", "/test2.wdl", "{}", "/tmp/2")
+        .await
+        .unwrap();
 
-    db.create_run(
-        run_id_3,
-        session_id,
-        "third",
-        "/test3.wdl",
-        "{}",
-        "/tmp/3",
-    )
-    .await
-    .unwrap();
+    db.create_run(run_id_3, session_id, "third", "/test3.wdl", "{}", "/tmp/3")
+        .await
+        .unwrap();
 
     let workflows = db.list_runs_by_session(session_id).await.unwrap();
 
@@ -485,9 +464,7 @@ async fn run_status_transitions(pool: SqlitePool) {
     let run = db.get_run(run_id).await.unwrap().unwrap();
     assert_eq!(run.status, RunStatus::Completed);
 
-    db.fail_run(run_id, "test error", Utc::now())
-        .await
-        .unwrap();
+    db.fail_run(run_id, "test error", Utc::now()).await.unwrap();
     let run = db.get_run(run_id).await.unwrap().unwrap();
     assert_eq!(run.status, RunStatus::Failed);
 

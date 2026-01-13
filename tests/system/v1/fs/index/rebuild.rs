@@ -3,10 +3,10 @@
 use std::fs;
 
 use anyhow::Result;
-use sprocket::system::v1::fs::OutputDirectory;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::fs::OutputDirectory;
 use sprocket::system::v1::fs::create_index_entries;
 use sprocket::system::v1::fs::rebuild_index;
 use sqlx::SqlitePool;

@@ -66,8 +66,8 @@ impl TaskMonitorSvc {
                 }
                 Err(RecvError::Lagged(_)) => {
                     error!(
-                        "task event handler lagged; task entries \
-                        in database may not reflect the true status",
+                        "task event handler lagged; task entries in database may not reflect the \
+                         true status",
                     );
                 }
                 Err(RecvError::Closed) => {

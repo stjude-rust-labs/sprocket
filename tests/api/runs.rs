@@ -7,14 +7,14 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
+use sprocket::server::AppState;
+use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::ExecutionConfig;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
-use sprocket::server::AppState;
-use sprocket::server::create_router;
 use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
@@ -55,7 +55,10 @@ async fn create_test_server(
     rx.await.unwrap().unwrap();
 
     let state = AppState::builder().run_manager_tx(run_manager_tx).build();
-    let router = create_router().state(state).cors_layer(CorsLayer::new()).call();
+    let router = create_router()
+        .state(state)
+        .cors_layer(CorsLayer::new())
+        .call();
 
     (router, db, temp)
 }
@@ -100,7 +103,12 @@ async fn poll_for_completion(
     poll_for_run(
         db,
         run_id,
-        |status| matches!(status, RunStatus::Completed | RunStatus::Failed | RunStatus::Canceled),
+        |status| {
+            matches!(
+                status,
+                RunStatus::Completed | RunStatus::Failed | RunStatus::Canceled
+            )
+        },
         timeout_secs,
         "run did not complete",
     )
@@ -343,7 +351,8 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 
     // Find the second execution directory (most recent)
     let second_execution_dir = execution_dirs
-        .iter().find(|p| *p != first_execution_dir)
+        .iter()
+        .find(|p| *p != first_execution_dir)
         .unwrap();
 
     // Verify `_latest` now points to second run
@@ -472,7 +481,10 @@ task sleep_task {
 #[sqlx::test]
 async fn cancel_running_run_fast_mode(pool: sqlx::SqlitePool) {
     // Create execution config with fast failure mode
-    let engine_config = wdl::engine::Config { failure_mode: wdl::engine::config::FailureMode::Fast, ..Default::default() };
+    let engine_config = wdl::engine::Config {
+        failure_mode: wdl::engine::config::FailureMode::Fast,
+        ..Default::default()
+    };
 
     let (app, db, temp) = create_test_server()
         .pool(pool)
@@ -897,7 +909,10 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
     assert_eq!(run.status, RunStatus::Completed);
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
-    assert!(run.error.is_none(), "completed workflow should not have error");
+    assert!(
+        run.error.is_none(),
+        "completed workflow should not have error"
+    );
     assert!(
         run.outputs.is_some(),
         "completed workflow should have outputs"
@@ -909,7 +924,12 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
         "index_directory should be set when index_on is provided"
     );
 
-    let index_dir_relative = run.index_directory.as_ref().unwrap().strip_prefix("./").unwrap();
+    let index_dir_relative = run
+        .index_directory
+        .as_ref()
+        .unwrap()
+        .strip_prefix("./")
+        .unwrap();
     let index_path = temp.path().join(index_dir_relative);
 
     assert!(
@@ -927,10 +947,10 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
     );
 
     // Verify we can read and parse the outputs
-    let outputs_content = std::fs::read_to_string(&outputs_json_path)
-        .expect("should be able to read outputs.json");
-    let outputs: serde_json::Value = serde_json::from_str(&outputs_content)
-        .expect("outputs.json should be valid JSON");
+    let outputs_content =
+        std::fs::read_to_string(&outputs_json_path).expect("should be able to read outputs.json");
+    let outputs: serde_json::Value =
+        serde_json::from_str(&outputs_content).expect("outputs.json should be valid JSON");
 
     // The outputs are serialized with the workflow name as a prefix
     assert_eq!(outputs["test.message"], "hello world");
@@ -1272,7 +1292,8 @@ version 1.2
     let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let error_message = error_json["message"].as_str().unwrap();
     assert!(
-        error_message.contains("there must be at least one task, workflow, struct, or enum definition"),
+        error_message
+            .contains("there must be at least one task, workflow, struct, or enum definition"),
         "error message should indicate no executable target, got: {}",
         error_message
     );
@@ -1333,7 +1354,6 @@ workflow test {
     let mut events_rx = submit_response.events.subscribe_crankshaft().unwrap();
     // Wait for the task to finish.
     submit_response.handle.await.unwrap();
-    
 
     // Collect events - we should have received some crankshaft events
     let mut event_count = 0;

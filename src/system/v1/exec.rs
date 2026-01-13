@@ -1,7 +1,6 @@
 //! Execution of runs for provenance tracking in v1.
 
 use std::sync::Arc;
-use wdl::engine::Config as WdlConfig;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -17,6 +16,7 @@ use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
+use wdl::engine::Config as WdlConfig;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
@@ -120,7 +120,6 @@ fn select_target(
         }
     }
 }
-
 
 /// Run execution context.
 #[derive(Debug, Clone)]

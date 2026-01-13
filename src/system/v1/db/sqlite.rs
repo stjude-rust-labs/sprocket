@@ -16,11 +16,11 @@ use super::Database;
 use super::DatabaseError;
 use super::Result;
 use super::models::IndexLogEntry;
-use super::models::Session;
-use super::models::SprocketCommand;
 use super::models::LogSource;
 use super::models::Run;
 use super::models::RunStatus;
+use super::models::Session;
+use super::models::SprocketCommand;
 use super::models::Task;
 use super::models::TaskLog;
 use super::models::TaskStatus;
@@ -101,23 +101,20 @@ impl SqliteDatabase {
         sqlx::migrate!("./migrations").run(&pool).await?;
 
         // Check or initialize version metadata element
-        let version: Option<String> = sqlx::query_scalar(
-            "select value from metadata where key = ?"
-        )
-        .bind(VERSION_KEY)
-        .fetch_optional(&pool)
-        .await?;
+        let version: Option<String> =
+            sqlx::query_scalar("select value from metadata where key = ?")
+                .bind(VERSION_KEY)
+                .fetch_optional(&pool)
+                .await?;
 
         match version {
             None => {
                 // Initialize version metadata element
-                sqlx::query(
-                    "insert into metadata (key, value) values (?, ?)"
-                )
-                .bind(VERSION_KEY)
-                .bind(EXPECTED_VERSION)
-                .execute(&pool)
-                .await?;
+                sqlx::query("insert into metadata (key, value) values (?, ?)")
+                    .bind(VERSION_KEY)
+                    .bind(EXPECTED_VERSION)
+                    .execute(&pool)
+                    .await?;
             }
             Some(ref v) if v == EXPECTED_VERSION => {
                 // Version matches, all good
@@ -147,7 +144,10 @@ impl Database for SqliteDatabase {
         subcommand: SprocketCommand,
         created_by: &str,
     ) -> Result<Session> {
-        debug_assert!(!created_by.is_empty(), "`created_by` cannot be empty for a session");
+        debug_assert!(
+            !created_by.is_empty(),
+            "`created_by` cannot be empty for a session"
+        );
 
         sqlx::query("insert into sessions (id, subcommand, created_by) values (?, ?, ?)")
             .bind(id.to_string())
@@ -177,11 +177,7 @@ impl Database for SqliteDatabase {
         Ok(session)
     }
 
-    async fn list_sessions(
-        &self,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Session>> {
+    async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>> {
         let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
         let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
@@ -208,7 +204,10 @@ impl Database for SqliteDatabase {
     ) -> Result<Run> {
         debug_assert!(!name.is_empty(), "`name` cannot be empty for a run");
         debug_assert!(!source.is_empty(), "`source` cannot be empty for a run");
-        debug_assert!(!directory.is_empty(), "`directory` cannot be empty for a run");
+        debug_assert!(
+            !directory.is_empty(),
+            "`directory` cannot be empty for a run"
+        );
 
         sqlx::query(
             "insert into runs (id, session_id, name, source, status, inputs, directory) values \
@@ -326,9 +325,9 @@ impl Database for SqliteDatabase {
 
         let runs: Vec<Run> = if let Some(status) = status {
             sqlx::query_as(
-                "select id, session_id, name, source, status, inputs, outputs, error, \
-                 directory, index_directory, started_at, completed_at, created_at from runs where \
-                 status = ? order by created_at desc limit ? offset ?",
+                "select id, session_id, name, source, status, inputs, outputs, error, directory, \
+                 index_directory, started_at, completed_at, created_at from runs where status = ? \
+                 order by created_at desc limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -337,9 +336,9 @@ impl Database for SqliteDatabase {
             .await?
         } else {
             sqlx::query_as(
-                "select id, session_id, name, source, status, inputs, outputs, error, \
-                 directory, index_directory, started_at, completed_at, created_at from runs order \
-                 by created_at desc limit ? offset ?",
+                "select id, session_id, name, source, status, inputs, outputs, error, directory, \
+                 index_directory, started_at, completed_at, created_at from runs order by \
+                 created_at desc limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -368,8 +367,8 @@ impl Database for SqliteDatabase {
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>> {
         let runs: Vec<Run> = sqlx::query_as(
             "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-             index_directory, started_at, completed_at, created_at from runs where session_id \
-             = ? order by created_at",
+             index_directory, started_at, completed_at, created_at from runs where session_id = ? \
+             order by created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -710,7 +709,10 @@ mod tests {
         // Now connect using `from_pool()` — should fail with `InvalidVersion` error
         let result = SqliteDatabase::from_pool(pool).await;
 
-        assert!(result.is_err(), "expected error when connecting with incorrect version");
+        assert!(
+            result.is_err(),
+            "expected error when connecting with incorrect version"
+        );
 
         match result.unwrap_err() {
             DatabaseError::InvalidVersion { expected, found } => {
@@ -848,7 +850,11 @@ mod tests {
             .await
             .expect("failed to update run status");
 
-        let run = db.get_run(run_id).await.expect("failed to get run").unwrap();
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
         assert_eq!(run.status, RunStatus::Running);
     }
 
@@ -911,7 +917,10 @@ mod tests {
             .expect("failed to update run status");
 
         // Test without filtering
-        let runs = db.list_runs(None, None, None).await.expect("failed to list runs");
+        let runs = db
+            .list_runs(None, None, None)
+            .await
+            .expect("failed to list runs");
         assert_eq!(runs.len(), 3);
 
         // Test filtering by status
@@ -929,7 +938,10 @@ mod tests {
         assert_eq!(runs[0].id, run2_id);
 
         // Test with limit
-        let runs = db.list_runs(None, Some(2), None).await.expect("failed to list runs");
+        let runs = db
+            .list_runs(None, Some(2), None)
+            .await
+            .expect("failed to list runs");
         assert_eq!(runs.len(), 2);
 
         // Test with offset
@@ -1005,14 +1017,28 @@ mod tests {
             .expect("failed to create session");
 
         let run1_id = Uuid::new_v4();
-        db.create_run(run1_id, session_id, "test-run1", "test.wdl", "{}", "/tmp/run1")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run1_id,
+            session_id,
+            "test-run1",
+            "test.wdl",
+            "{}",
+            "/tmp/run1",
+        )
+        .await
+        .expect("failed to create run");
 
         let run2_id = Uuid::new_v4();
-        db.create_run(run2_id, session_id, "test-run2", "test.wdl", "{}", "/tmp/run2")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run2_id,
+            session_id,
+            "test-run2",
+            "test.wdl",
+            "{}",
+            "/tmp/run2",
+        )
+        .await
+        .expect("failed to create run");
 
         db.create_task("task1", run1_id)
             .await

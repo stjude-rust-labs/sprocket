@@ -16,8 +16,8 @@ use uuid::Uuid;
 use super::AppState;
 use super::LogSource;
 use super::TaskStatus;
-use super::send_command;
 use super::error::Error;
+use super::send_command;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
 
@@ -217,8 +217,11 @@ pub async fn get_task(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> Result<Json<GetTaskResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTask { name, rx })
-        .await?;
+    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTask {
+        name,
+        rx,
+    })
+    .await?;
 
     Ok(Json(response.into()))
 }

@@ -67,11 +67,7 @@ pub trait Database: Send + Sync {
     async fn get_session(&self, id: Uuid) -> Result<Option<Session>>;
 
     /// List sessions.
-    async fn list_sessions(
-        &self,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Session>>;
+    async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>>;
 
     /// Create a new run.
     async fn create_run(
@@ -227,7 +223,8 @@ pub trait Database: Send + Sync {
         Ok(())
     }
 
-    /// Transition a run to `Failed` status with error message and `completed_at` timestamp.
+    /// Transition a run to `Failed` status with error message and
+    /// `completed_at` timestamp.
     async fn fail_run(&self, id: Uuid, error: &str, completed_at: DateTime<Utc>) -> Result<()> {
         self.update_run_status(id, RunStatus::Failed).await?;
         self.update_run_error(id, error).await?;

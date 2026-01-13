@@ -21,12 +21,11 @@ use wdl::engine::Config as EngineConfig;
 use wdl::engine::Events;
 
 use crate::system::v1::db::Database;
-use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::db::DatabaseError;
-use crate::system::v1::db::Session;
-use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::LogSource;
 use crate::system::v1::db::RunStatus;
+use crate::system::v1::db::Session;
+use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::AllowedSource;
 use crate::system::v1::exec::ConfigError;
@@ -34,6 +33,7 @@ use crate::system::v1::exec::ExecutionConfig;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::names::generate_run_name;
 use crate::system::v1::exec::svc::TaskMonitorSvc;
+use crate::system::v1::fs::OutputDirectory;
 
 pub(crate) mod commands;
 
@@ -55,8 +55,7 @@ type Rx = mpsc::Receiver<RunManagerCmd>;
 async fn create_server_session(db: Arc<dyn Database>) -> Result<Session, DatabaseError> {
     let id = Uuid::new_v4();
     let username = whoami::username();
-    db
-        .create_session(id, SprocketCommand::Server, &username)
+    db.create_session(id, SprocketCommand::Server, &username)
         .await
 }
 

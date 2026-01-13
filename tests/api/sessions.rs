@@ -7,13 +7,13 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
+use sprocket::server::AppState;
+use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::ExecutionConfig;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
-use sprocket::server::AppState;
-use sprocket::server::create_router;
 use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
@@ -45,11 +45,17 @@ async fn create_test_server(
 
     // Wait for manager to be ready
     let (tx, rx) = oneshot::channel();
-    run_manager_tx.send(RunManagerCmd::Ping { rx: tx }).await.unwrap();
+    run_manager_tx
+        .send(RunManagerCmd::Ping { rx: tx })
+        .await
+        .unwrap();
     rx.await.unwrap().unwrap();
 
     let state = AppState::builder().run_manager_tx(run_manager_tx).build();
-    let router = create_router().state(state).cors_layer(CorsLayer::new()).call();
+    let router = create_router()
+        .state(state)
+        .cors_layer(CorsLayer::new())
+        .call();
 
     (router, db, temp)
 }

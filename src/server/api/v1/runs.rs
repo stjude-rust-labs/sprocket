@@ -16,8 +16,8 @@ use uuid::Uuid;
 
 use super::AppState;
 use super::RunStatus;
-use super::send_command;
 use super::error::Error;
+use super::send_command;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
 

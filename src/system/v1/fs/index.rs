@@ -10,8 +10,8 @@ use wdl::engine::Outputs;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
 
-use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::db::Database;
+use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
 /// Files to always symlink from execution directory to index directory.

@@ -26,7 +26,7 @@ pub enum RunStatus {
     /// The run failed with an error.
     Failed,
     /// The run is being canceled.
-    /// 
+    ///
     /// This state occurs when slow failing is enabled in Sprocket—the workflow
     /// waits until all currently running tasks and complete before finishing.
     Canceling,

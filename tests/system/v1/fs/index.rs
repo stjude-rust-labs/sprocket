@@ -4,10 +4,10 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
-use sprocket::system::v1::fs::OutputDirectory;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::fs::OutputDirectory;
 use sprocket::system::v1::fs::create_index_entries;
 use sqlx::SqlitePool;
 use tempfile::TempDir;

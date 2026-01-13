@@ -70,7 +70,8 @@ pub async fn run(
     });
 
     let db = Arc::new(SqliteDatabase::new(&db_path).await?);
-    let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, execution_config, db);
+    let (_, run_manager_tx) =
+        RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, execution_config, db);
 
     let state = AppState::builder().run_manager_tx(run_manager_tx).build();
 
