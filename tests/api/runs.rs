@@ -10,6 +10,7 @@ use serde_json::json;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
+use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::ExecutionConfig;
@@ -72,7 +73,7 @@ async fn poll_for_run<F>(
     error_msg: &str,
 ) -> Result<RunStatus, String>
 where
-    F: Fn(&RunStatus) -> bool,
+    F: Fn(&Run) -> bool,
 {
     let poll_interval = std::time::Duration::from_millis(100);
     let max_polls = (timeout_secs * 1000) / 100;
@@ -86,7 +87,7 @@ where
             .map_err(|e| format!("database error: {}", e))?
             .ok_or_else(|| "run not found".to_string())?;
 
-        if predicate(&run.status) {
+        if predicate(&run) {
             return Ok(run.status);
         }
     }
@@ -94,7 +95,7 @@ where
     Err(format!("{} (timeout: {} seconds)", error_msg, timeout_secs))
 }
 
-/// Poll until run reaches any terminal state.
+/// Poll until run reaches any terminal state with `completed_at` set.
 async fn poll_for_completion(
     db: &Arc<dyn Database>,
     run_id: uuid::Uuid,
@@ -103,11 +104,11 @@ async fn poll_for_completion(
     poll_for_run(
         db,
         run_id,
-        |status| {
+        |run| {
             matches!(
-                status,
+                run.status,
                 RunStatus::Completed | RunStatus::Failed | RunStatus::Canceled
-            )
+            ) && run.completed_at.is_some()
         },
         timeout_secs,
         "run did not complete",
@@ -125,7 +126,7 @@ async fn poll_for_status(
     poll_for_run(
         db,
         run_id,
-        |status| *status == expected,
+        |run| run.status == expected,
         timeout_secs,
         &format!("run did not reach status {:?}", expected),
     )
