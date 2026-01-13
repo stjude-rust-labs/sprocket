@@ -26,9 +26,6 @@ const DEFAULT_HOST: &str = "127.0.0.1";
 /// Default port.
 const DEFAULT_PORT: u16 = 8080;
 
-/// Default max database connections.
-const DEFAULT_MAX_CONNECTIONS: u32 = 20;
-
 /// Default database filename.
 pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
@@ -152,25 +149,13 @@ impl Default for RunConfig {
 }
 
 /// Server database configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerDatabaseConfig {
-    /// Database URL (e.g., `sqlite://sprocket.db` or `postgresql://...`).
+    /// Database URL (e.g., `sqlite://sprocket.db`).
     /// If not provided, defaults to `sprocket.db` in the output directory.
     #[serde(default)]
     pub url: Option<String>,
-    /// Maximum database connections (default: `20`).
-    #[serde(default)]
-    pub max_connections: u32,
-}
-
-impl Default for ServerDatabaseConfig {
-    fn default() -> Self {
-        Self {
-            url: None,
-            max_connections: DEFAULT_MAX_CONNECTIONS,
-        }
-    }
 }
 
 /// Server configuration.

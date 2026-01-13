@@ -147,11 +147,7 @@ impl Database for SqliteDatabase {
         subcommand: SprocketCommand,
         created_by: &str,
     ) -> Result<Session> {
-        if created_by.is_empty() {
-            return Err(DatabaseError::Validation(String::from(
-                "`created_by` cannot be empty for an session",
-            )));
-        }
+        debug_assert!(!created_by.is_empty(), "`created_by` cannot be empty for a session");
 
         sqlx::query("insert into sessions (id, subcommand, created_by) values (?, ?, ?)")
             .bind(id.to_string())
@@ -210,21 +206,9 @@ impl Database for SqliteDatabase {
         inputs: &str,
         directory: &str,
     ) -> Result<Run> {
-        if name.is_empty() {
-            return Err(DatabaseError::Validation(String::from(
-                "`name` cannot be empty for a run",
-            )));
-        }
-        if source.is_empty() {
-            return Err(DatabaseError::Validation(String::from(
-                "`source` cannot be empty for a run",
-            )));
-        }
-        if directory.is_empty() {
-            return Err(DatabaseError::Validation(String::from(
-                "`directory` cannot be empty for a run",
-            )));
-        }
+        debug_assert!(!name.is_empty(), "`name` cannot be empty for a run");
+        debug_assert!(!source.is_empty(), "`source` cannot be empty for a run");
+        debug_assert!(!directory.is_empty(), "`directory` cannot be empty for a run");
 
         sqlx::query(
             "insert into runs (id, session_id, name, source, status, inputs, directory) values \

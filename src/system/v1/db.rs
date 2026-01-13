@@ -35,10 +35,6 @@ pub enum DatabaseError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
-    /// A validation error.
-    #[error("validation error: {0}")]
-    Validation(String),
-
     /// Invalid database schema version.
     #[error("invalid database schema version: expected `{expected}`, found `{found}`")]
     InvalidVersion {

@@ -26,10 +26,6 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_directory: Option<PathBuf>,
 
-    /// Maximum database connections.
-    #[arg(long)]
-    pub max_connections: Option<u32>,
-
     /// Allowed file paths for file-based workflows.
     #[arg(long)]
     pub allowed_file_paths: Vec<PathBuf>,
@@ -56,10 +52,6 @@ impl Args {
 
         if let Some(database_url) = self.database_url {
             config.server.database.url = Some(database_url);
-        }
-
-        if let Some(max_connections) = self.max_connections {
-            config.server.database.max_connections = max_connections;
         }
 
         if let Some(output_directory) = self.output_directory {

@@ -1,23 +1,21 @@
 //! Execution of runs for provenance tracking in v1.
 
-use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
 use chrono::DateTime;
-use thiserror::Error;
 use chrono::Utc;
 use serde_json::Value as JsonValue;
+use thiserror::Error;
 use tracing::info;
-use url::Url;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::analysis::Analyzer;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
+use CancellationContext;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
@@ -29,12 +27,14 @@ use crate::system::v1::fs::RunDirectory;
 
 pub mod config;
 pub mod names;
+pub mod source;
 pub mod svc;
 
 pub use config::ConfigError;
 pub use config::ConfigResult;
 pub use config::ExecutionConfig;
 pub use names::generate_run_name;
+pub use source::AllowedSource;
 
 /// An identified target to run.
 #[derive(Clone, Debug)]
@@ -133,170 +133,6 @@ pub struct RunContext {
     pub started_at: DateTime<Utc>,
 }
 
-/// A validated workflow source.
-///
-/// This enum represents a workflow source that has been validated against the
-/// execution configuration to prevent:
-///
-/// - **Path traversal attacks.** File paths are canonicalized and checked
-///   against allowed directories using prefix matching.
-/// - **Information leakage.** File existence is only revealed for paths within
-///   allowed directories.
-/// - **URL restriction.** URLs must match configured prefixes exactly,
-///   including scheme.
-///
-/// # Security Invariants
-///
-/// Once constructed, an [`AllowedSource`] guarantees:
-///
-/// - File paths are absolute, canonical, and within allowed directories
-/// - File paths contain valid UTF-8
-/// - URLs match at least one configured prefix
-#[derive(Debug, Clone)]
-pub enum AllowedSource {
-    /// A URL source that has been validated against allowed URL prefixes.
-    Url(Url),
-    /// A file path that has been shell-expanded, canonicalized, and validated
-    /// against allowed file paths.
-    File(PathBuf),
-}
-
-impl AllowedSource {
-    /// Validates a source path against the execution configuration.
-    ///
-    /// # Preconditions
-    ///
-    /// The configuration must have been validated via
-    /// `ExecutionConfig::validate()` which ensures all allowed paths are
-    /// canonical.
-    pub fn validate(source: &str, config: &ExecutionConfig) -> ConfigResult<Self> {
-        if let Ok(url) = Url::parse(source) {
-            let url_str = url.as_str();
-            let is_allowed = config
-                .allowed_urls
-                .iter()
-                .any(|prefix| url_str.starts_with(prefix));
-
-            if !is_allowed {
-                return Err(ConfigError::UrlForbidden(url));
-            }
-
-            Ok(AllowedSource::Url(url))
-        } else {
-            let expanded = shellexpand::tilde(source);
-            let path = Path::new(expanded.as_ref());
-
-            let Ok(canonical_path) = path.canonicalize() else {
-                if let Some(parent) = path.parent()
-                    && let Ok(parent_canonical) = parent.canonicalize()
-                    && let Some(filename) = path.file_name()
-                {
-                    let would_be_path = parent_canonical.join(filename);
-                    let is_allowed = config
-                        .allowed_file_paths
-                        .iter()
-                        .any(|allowed| would_be_path.starts_with(allowed));
-
-                    if is_allowed {
-                        return Err(if path.exists() {
-                            ConfigError::FailedToCanonicalize(path.to_path_buf())
-                        } else {
-                            ConfigError::FileNotFound(path.to_path_buf())
-                        });
-                    }
-                }
-                return Err(ConfigError::FilePathForbidden(path.to_path_buf()));
-            };
-
-            // Check to make sure the path is valid UTF-8.
-            canonical_path.to_str().expect("path is not UTF-8");
-
-            // Check to make sure the path is allowed.
-            let is_allowed = config
-                .allowed_file_paths
-                .iter()
-                .any(|allowed| canonical_path.starts_with(allowed));
-
-            if !is_allowed {
-                return Err(ConfigError::FilePathForbidden(canonical_path));
-            }
-
-            Ok(AllowedSource::File(canonical_path))
-        }
-    }
-
-    /// Returns a reference to the URL if this is an [`AllowedSource::Url`].
-    pub fn as_url(&self) -> Option<&Url> {
-        match self {
-            AllowedSource::Url(url) => Some(url),
-            AllowedSource::File(_) => None,
-        }
-    }
-
-    /// Consumes self and returns the URL if this is an [`AllowedSource::Url`].
-    pub fn into_url(self) -> Option<Url> {
-        match self {
-            AllowedSource::Url(url) => Some(url),
-            AllowedSource::File(_) => None,
-        }
-    }
-
-    /// Returns a reference to the file path if this is an
-    /// [`AllowedSource::File`].
-    pub fn as_file_path(&self) -> Option<&Path> {
-        match self {
-            AllowedSource::Url(_) => None,
-            AllowedSource::File(path) => Some(path),
-        }
-    }
-
-    /// Consumes self and returns the file path if this is an
-    /// [`AllowedSource::File`].
-    pub fn into_file_path(self) -> Option<PathBuf> {
-        match self {
-            AllowedSource::Url(_) => None,
-            AllowedSource::File(path) => Some(path),
-        }
-    }
-
-    /// Returns the source as a string slice.
-    ///
-    /// For [`AllowedSource::Url`]s, this returns the URL string.  For file
-    /// paths, this returns the path as a string.
-    pub fn as_str(&self) -> &str {
-        match self {
-            AllowedSource::Url(url) => url.as_str(),
-            AllowedSource::File(path) => {
-                // SAFETY: path was checked to ensure valid UTF-8 at creation.
-                path.to_str().expect("path should be valid UTF-8")
-            }
-        }
-    }
-
-    /// Converts the source to a URL.
-    ///
-    /// For [`AllowedSource::Url`]s, this clones the URL. For file paths, this
-    /// converts the path to a `file://` URL.
-    pub fn to_url(&self) -> Url {
-        match self {
-            AllowedSource::Url(url) => url.clone(),
-            AllowedSource::File(path) => {
-                // SAFETY: path is absolute (canonicalized at creation).
-                Url::from_file_path(path).expect("file path should convert to URL")
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for AllowedSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AllowedSource::Url(url) => write!(f, "{}", url),
-            AllowedSource::File(path) => write!(f, "{}", path.display()),
-        }
-    }
-}
-
 /// Analyzes a WDL document from the given source.
 ///
 /// Creates an analyzer, adds the document, runs analysis, and returns the first
@@ -374,6 +210,12 @@ async fn parse_workflow_inputs(
 }
 
 /// Parse and validate task inputs from JSON.
+///
+/// Handles empty or null inputs by returning default values. For non-empty
+/// inputs, writes them to a file in the run directory, parses them, and
+/// validates that they match the target task. If the inputs are for a workflow
+/// or a different task, marks the run as failed in the database and returns an
+/// error.
 async fn parse_task_inputs(
     db: &dyn Database,
     ctx: &RunContext,
@@ -481,13 +323,18 @@ async fn set_run_success(
 }
 
 /// Execute a workflow target.
+///
+/// Parses the workflow inputs from JSON, creates a workflow evaluator with the
+/// provided configuration, cancellation context, and events handler, then
+/// evaluates the workflow and returns the outputs. The workflow is executed in
+/// the provided run directory.
 #[allow(clippy::too_many_arguments)]
 async fn execute_workflow_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
     config: wdl::engine::Config,
-    cancellation: wdl::engine::CancellationContext,
+    cancellation: CancellationContext,
     events: Events,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
@@ -505,13 +352,18 @@ async fn execute_workflow_target(
 }
 
 /// Execute a task target.
+///
+/// Retrieves the task from the document by name, parses the task inputs from
+/// JSON, creates a task evaluator with the provided configuration, cancellation
+/// context, and events handler, then evaluates the task and returns the
+/// outputs. The task is executed in the provided run directory.
 #[allow(clippy::too_many_arguments)]
 async fn execute_task_target(
     db: &dyn Database,
     ctx: &RunContext,
     document: &AnalysisDocument,
     config: wdl::engine::Config,
-    cancellation: wdl::engine::CancellationContext,
+    cancellation: CancellationContext,
     events: Events,
     target: &Target,
     inputs: &JsonValue,
@@ -566,7 +418,7 @@ pub async fn execute_target(
     ctx: &RunContext,
     document: AnalysisDocument,
     config: wdl::engine::Config,
-    cancellation: wdl::engine::CancellationContext,
+    cancellation: CancellationContext,
     events: Events,
     target: Target,
     inputs: &JsonValue,
@@ -617,204 +469,4 @@ pub async fn execute_target(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validate_url_allowed() {
-        let mut config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![
-                String::from("https://example.com/"),
-                String::from("http://localhost/"),
-            ])
-            .build();
-        config.validate().unwrap();
-
-        let result = AllowedSource::validate("https://example.com/workflow.wdl", &config);
-        assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), AllowedSource::Url(_)));
-    }
-
-    #[test]
-    fn validate_url_forbidden() {
-        let mut config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/")])
-            .build();
-        config.validate().unwrap();
-
-        let result = AllowedSource::validate("https://forbidden.com/workflow.wdl", &config);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ConfigError::UrlForbidden(_)));
-    }
-
-    #[test]
-    fn validate_file_allowed() {
-        use std::fs::File;
-
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("workflow.wdl");
-        File::create(&file_path).unwrap();
-
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
-
-        let result = AllowedSource::validate(file_path.to_str().unwrap(), &config);
-        assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), AllowedSource::File(_)));
-    }
-
-    #[test]
-    fn validate_file_forbidden() {
-        use std::fs::File;
-
-        use tempfile::TempDir;
-
-        let allowed_dir = TempDir::new().unwrap();
-        let forbidden_dir = TempDir::new().unwrap();
-
-        // Create a file in the forbidden directory
-        let existing_file = forbidden_dir.path().join("workflow.wdl");
-        File::create(&existing_file).unwrap();
-
-        // Also test with non-existent file in forbidden directory
-        let nonexistent_file = forbidden_dir.path().join("missing.wdl");
-
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![allowed_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
-
-        // Both should return `FilePathForbidden` without leaking existence info
-        let result1 = AllowedSource::validate(existing_file.to_str().unwrap(), &config);
-        assert!(matches!(
-            result1.unwrap_err(),
-            ConfigError::FilePathForbidden(_)
-        ));
-
-        let result2 = AllowedSource::validate(nonexistent_file.to_str().unwrap(), &config);
-        assert!(matches!(
-            result2.unwrap_err(),
-            ConfigError::FilePathForbidden(_)
-        ));
-    }
-
-    #[test]
-    fn validate_file_not_found() {
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let nonexistent = temp_dir.path().join("missing.wdl");
-
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
-
-        // Should reveal `FileNotFound` since it's in an allowed directory
-        let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
-        assert!(matches!(result.unwrap_err(), ConfigError::FileNotFound(_)));
-    }
-
-    #[test]
-    fn validate_url_scheme_must_match() {
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/")])
-            .build();
-
-        // http should not be allowed when only https is configured
-        let result = AllowedSource::validate("http://example.com/workflow.wdl", &config);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ConfigError::UrlForbidden(_)));
-    }
-
-    #[test]
-    fn path_with_dotdot() {
-        use std::fs::File;
-
-        use tempfile::TempDir;
-
-        let temp_dir = TempDir::new().unwrap();
-        let subdir = temp_dir.path().join("subdir");
-        std::fs::create_dir(&subdir).unwrap();
-        let file_path = subdir.join("workflow.wdl");
-        File::create(&file_path).unwrap();
-
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
-
-        let path_with_dotdot = subdir.join("..").join("subdir").join("workflow.wdl");
-        let result = AllowedSource::validate(path_with_dotdot.to_str().unwrap(), &config);
-        assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), AllowedSource::File(_)));
-    }
-
-    #[test]
-    fn url_trailing_slash() {
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/allowed/")])
-            .build();
-
-        let allowed = AllowedSource::validate("https://example.com/allowed/workflow.wdl", &config);
-        assert!(allowed.is_ok());
-
-        let forbidden =
-            AllowedSource::validate("https://example.com/allowedother/workflow.wdl", &config);
-        assert!(forbidden.is_err());
-        assert!(matches!(
-            forbidden.unwrap_err(),
-            ConfigError::UrlForbidden(_)
-        ));
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn symlink_escape() {
-        use std::fs::File;
-        use std::os::unix::fs::symlink;
-
-        use tempfile::TempDir;
-
-        let allowed_dir = TempDir::new().unwrap();
-        let forbidden_dir = TempDir::new().unwrap();
-
-        let forbidden_file = forbidden_dir.path().join("secret.wdl");
-        File::create(&forbidden_file).unwrap();
-
-        let symlink_path = allowed_dir.path().join("escape.wdl");
-        symlink(&forbidden_file, &symlink_path).unwrap();
-
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![allowed_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
-
-        let result = AllowedSource::validate(symlink_path.to_str().unwrap(), &config);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ConfigError::FilePathForbidden(_)
-        ));
-    }
 }
