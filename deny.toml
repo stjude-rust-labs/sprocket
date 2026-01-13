@@ -72,6 +72,7 @@ feature-depth = 1
 ignore = [
     { id = "RUSTSEC-2024-0384", reason = "dependency only activated for wasm32, which is not a supported target" },
     { id = "RUSTSEC-2024-0436", reason = "dependency is unmaintained, but a relatively small macro helper for creating identifiers" },
+    { id = "RUSTSEC-2025-0141", reason = "dependency is unmaintained, but it's considered feature complete and is a unchangeable transitive dependency" },
     #"RUSTSEC-0000-0000",
     #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
     #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
@@ -101,6 +102,7 @@ allow = [
     "Unicode-3.0",
     "BSL-1.0",
     "Zlib",
+    "OpenSSL",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the

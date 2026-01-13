@@ -63,11 +63,16 @@ impl LineWidthRule {
             let previous_offset = self.previous_newline_offset.unwrap_or_default();
             let length = current_offset - previous_offset;
 
-            if !self.ignored_section && length > self.max_width {
-                let span = Span::new(previous_offset, length);
-
+            // If not in an ignored section, the length exceeds the maximum, and the
+            // previous element isn't contained in an import statement, add the diagnostic
+            if !self.ignored_section
+                && length > self.max_width
+                && !element
+                    .ancestors()
+                    .any(|n| n.kind() == wdl_ast::SyntaxKind::ImportStatementNode)
+            {
                 diagnostics.exceptable_add(
-                    line_too_long(span, self.max_width),
+                    line_too_long(Span::new(previous_offset, length), self.max_width),
                     element.clone(),
                     exceptable_nodes,
                 );
@@ -119,7 +124,10 @@ impl Rule for LineWidthRule {
 
 impl Visitor for LineWidthRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        *self = Self {
+            max_width: self.max_width,
+            ..Default::default()
+        }
     }
 
     fn whitespace(&mut self, diagnostics: &mut Diagnostics, whitespace: &Whitespace) {
@@ -130,7 +138,7 @@ impl Visitor for LineWidthRule {
             whitespace
                 .inner()
                 .prev_sibling_or_token()
-                .unwrap_or(SyntaxElement::from(whitespace.inner().clone())),
+                .unwrap_or_else(|| SyntaxElement::from(whitespace.inner().clone())),
             &self.exceptable_nodes(),
         );
     }

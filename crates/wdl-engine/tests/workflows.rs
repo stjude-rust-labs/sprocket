@@ -37,8 +37,7 @@ use wdl_ast::Severity;
 use wdl_engine::EvaluationError;
 use wdl_engine::Events;
 use wdl_engine::Inputs;
-use wdl_engine::path::EvaluationPath;
-use wdl_engine::v1::WorkflowEvaluator;
+use wdl_engine::v1::Evaluator;
 
 mod common;
 
@@ -64,7 +63,20 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             bail!("parsing failed: {e:#}");
         }
         if result.document().has_errors() {
-            bail!("test WDL contains errors; run a `check` on `source.wdl`");
+            let errors: Vec<_> = result
+                .document()
+                .diagnostics()
+                .filter(|d| d.severity() == Severity::Error)
+                .collect();
+            bail!(
+                "test WDL contains {} error(s):\n{}",
+                errors.len(),
+                errors
+                    .iter()
+                    .map(|d| format!("  - {:?}", d))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
         }
 
         let path = result.document().path();
@@ -86,7 +98,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         };
 
         let test_dir = absolute(test).expect("failed to get absolute directory");
-        let test_dir_path = EvaluationPath::Local(test_dir.clone());
+        let test_dir_path = test_dir.as_path().into();
 
         // Make any paths specified in the inputs file relative to the test directory
         let workflow = result
@@ -103,21 +115,28 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
         } else {
             info!(dir = %dir.path().display(), "test temp dir created");
         }
-        let evaluator =
-            WorkflowEvaluator::new(config.engine, Default::default(), Events::none()).await?;
+        let evaluator = Evaluator::new(
+            dir.path(),
+            config.engine.into(),
+            Default::default(),
+            Events::disabled(),
+        )
+        .await?;
         match evaluator
-            .evaluate(result.document(), inputs.clone(), &dir)
+            .evaluate_workflow(result.document(), inputs.clone(), &dir)
             .await
         {
             Ok(outputs) => {
                 let outputs = outputs.with_name(workflow.name());
                 let outputs = to_string_pretty(&outputs).context("failed to serialize outputs")?;
                 let outputs = strip_paths(dir.path(), &outputs);
+                let outputs = strip_paths(&test_dir, &outputs);
                 compare_result(&test.join("outputs.json"), &outputs)?;
             }
             Err(e) => {
                 let error = e.to_string();
                 let error = strip_paths(dir.path(), &error);
+                let error = strip_paths(&test_dir, &error);
                 compare_result(&test.join("error.txt"), &error)?;
             }
         }

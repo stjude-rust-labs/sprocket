@@ -24,39 +24,17 @@
 //! still benefit from the Apptainer cache when building new `.sif` files, so
 //! this is not much of a slowdown, but it does increase disk space consumption
 //! depending on where the images directory is created.
-//!
-//! NOTE ACF 2025-09-22: This is currently a ⚠️ Hack Zone ⚠️ and is not meant to
-//! reflect final behavior.
-//!
-//! We don't currently have a notion of a top-level directory for an entire
-//! workflow execution; the `root` path for each workflow and task evaluator is
-//! specific to _that_ workflow or task, but the point of keeping our own cache
-//! of Apptainer images is to avoid pushing our luck with spotty
-//! container registries by inducing repeated requests for the same image.
-//!
-//! For expedience, this implementation makes the simplifying assumption that we
-//! have one top-level workflow execution per process, and keeps the images
-//! directory in a global variable. This should be replaced with something more
-//! robust, but currently fits the execution model of the `sprocket`
-//! CLI well enough to proceed.
-//!
-//! Since an ordinary `cargo test` runs each test executable once, and each
-//! executable can contain many targets, this hack has a particularly distorting
-//! effect on tests of this backend. Consider using `cargo nextest` to run each
-//! target in a separate process in order to eliminate cross-test target
-//! interference.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::LazyLock;
 use std::sync::Mutex;
 
-use anyhow::Context as _;
+use anyhow::Context;
 use anyhow::anyhow;
-use tempfile::TempDir;
 use tokio::io::AsyncBufReadExt as _;
 use tokio::io::BufReader;
 use tokio::process::Command;
@@ -70,89 +48,106 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use super::ApptainerConfig;
+use crate::v1::ContainerSource;
 
-/// The path to the global cache of `.sif`-format container images.
-static APPTAINER_IMAGES_DIR: OnceCell<PathBuf> = OnceCell::const_new();
-/// A global map from container strings to paths pointing to the `.sif` version
-/// of that container.
-static APPTAINER_IMAGES: LazyLock<Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-/// Get the directory containing converted `.sif`-format container images.
-///
-/// See the module-level documentation for details about the current behavior,
-/// which unfortunately depends on global variables.
-pub(crate) async fn global_apptainer_images_dir(
-    config: &ApptainerConfig,
-) -> Result<&'static Path, anyhow::Error> {
-    APPTAINER_IMAGES_DIR
-        .get_or_try_init(|| async {
-            // Create a new temp directory to hold the images for this run. This approach
-            // leaks space, but when using the default tmpdir or a
-            // user-controlled destination, the system or user is hopefully able
-            // to manage consumption appropriately enough for this interim
-            // solution.
-            let path = {
-                let expanded =
-                    PathBuf::from(shellexpand::full(&config.apptainer_images_dir)?.into_owned());
-                tokio::fs::create_dir_all(&expanded).await?;
-                TempDir::with_prefix_in("sprocket-apptainer-images-", &expanded)?.keep()
-            };
-            Ok::<PathBuf, anyhow::Error>(path)
-        })
-        .await
-        .context("initializing Apptainer images directory")
-        .map(|buf| buf.as_path())
+/// Apptainer images that have been converted to `.sif` from OCI format.
+#[derive(Debug)]
+pub struct ApptainerImages {
+    /// The directory in which the `.sif` images should be created.
+    images_dir: PathBuf,
+    /// The map of `container` specifications to `.sif` paths.
+    images: Mutex<HashMap<String, Arc<OnceCell<PathBuf>>>>,
 }
 
-/// Get the path to the container image in `.sif` format, potentially performing
-/// an `apptainer pull` if the image cache has not already been populated.
-pub(crate) async fn sif_for_container(
-    config: &ApptainerConfig,
-    container: &str,
-    cancellation_token: CancellationToken,
-) -> Result<PathBuf, anyhow::Error> {
-    let once = {
-        let mut map = APPTAINER_IMAGES.lock().unwrap();
-        map.entry(container.to_owned())
-            .or_insert_with(|| Arc::new(OnceCell::new()))
-            .clone()
-    };
-    let container = container.to_owned();
-    once.get_or_try_init(|| async move {
-        let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
-        let sif_path = global_apptainer_images_dir(config)
-            .await?
-            // Append `.sif` to the filename. It would be nice to use a method like
-            // [`with_added_extension()`](https://doc.rust-lang.org/std/path/struct.Path.html#method.with_added_extension)
-            // instead, but it's not stable yet.
-            .join(format!("{sif_filename}.sif"));
+impl ApptainerImages {
+    /// Make a new [`ApptainerImages`].
+    pub fn new(run_root_dir: &Path) -> Self {
+        Self {
+            images_dir: run_root_dir.join("apptainer-images"),
+            images: Mutex::new(HashMap::new()),
+        }
+    }
 
-        let retry = Retry::spawn_notify(
-            // TODO ACF 2025-09-22: configure the retry behavior based on actual experience with
-            // flakiness of the container registries. This is a finger-in-the-wind guess at some
-            // reasonable parameters that shouldn't lead to us making our own problems worse by
-            // overwhelming registries with repeated retries.
-            ExponentialBackoff::from_millis(50)
-                .max_delay_millis(60_000)
-                .take(10),
-            || try_pull(&sif_path, &container),
-            |e, _| {
-                warn!(e = %e, "`apptainer pull` failed");
-            },
-        );
+    /// Get the path to the container image in `.sif` format, potentially
+    /// performing an `apptainer pull` if the image cache has not already
+    /// been populated.
+    ///
+    /// For local SIF files, the path is returned directly without any pull
+    /// operation.
+    pub(crate) async fn sif_for_container(
+        &self,
+        container: &ContainerSource,
+        cancellation_token: CancellationToken,
+    ) -> Result<PathBuf, anyhow::Error> {
+        // For local SIF files, return the path directly.
+        if let ContainerSource::SifFile(path) = container {
+            return Ok(path.clone());
+        }
 
-        tokio::select! {
-            _ = cancellation_token.cancelled() => return Err(anyhow!("task execution cancelled")),
-            res = retry => res?,
+        // For unknown container sources, error early.
+        if let ContainerSource::Unknown(s) = container {
+            return Err(anyhow!("unknown container source `{s}`"));
+        }
+
+        // For registry-based images, pull and cache.
+        let container = format!("{container:#}");
+        let once = {
+            let mut map = self.images.lock().unwrap();
+            map.entry(container.clone())
+                .or_insert_with(|| Arc::new(OnceCell::new()))
+                .clone()
         };
+        once.get_or_try_init(|| async move {
+            tokio::fs::create_dir_all(&self.images_dir).await?;
+            let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
+            let sif_path = self
+                .images_dir
+                .join(sif_filename)
+                .with_added_extension("sif");
 
-        info!(sif_path = %sif_path.display(), container, "image pulled successfully");
-        Ok(sif_path)
-    })
-    .await
-    .cloned()
+            let retry = Retry::spawn_notify(
+                // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
+                // with flakiness of the container registries. This is a
+                // finger-in-the-wind guess at some reasonable parameters that
+                // shouldn't lead to us making our own problems worse by
+                // overwhelming registries with repeated retries.
+                ExponentialBackoff::from_millis(50)
+                    .max_delay_millis(60_000)
+                    .take(10),
+                || try_pull(&sif_path, &container),
+                |e, _| {
+                    warn!(e = %e, "`apptainer pull` failed");
+                },
+            );
+
+            tokio::select! {
+                _ = cancellation_token.cancelled() =>
+                    return Err(anyhow!("task execution cancelled")),
+                res = retry =>
+                    res.with_context(
+                        || format!("pulling Apptainer image for container `{container}`")
+                    )?,
+            };
+
+            info!(sif_path = %sif_path.display(), container, "image pulled successfully");
+            Ok(sif_path)
+        })
+        .await
+        .cloned()
+    }
+}
+
+/// Ensures a container reference has a URI scheme.
+///
+/// If the container already has a URI scheme (e.g., `docker://`, `library://`,
+/// `oras://`), it is returned as-is. Otherwise, the `docker://` scheme is
+/// prepended.
+fn ensure_image_scheme(container: &str) -> Cow<'_, str> {
+    if container.contains("://") {
+        Cow::Borrowed(container)
+    } else {
+        Cow::Owned(format!("docker://{container}"))
+    }
 }
 
 /// Try once to use `apptainer pull` to build the `.sif` file.
@@ -167,15 +162,17 @@ pub(crate) async fn sif_for_container(
 /// whether a failure is transient, but as we gain experience recognizing its
 /// output patterns, we can enhance the fidelity of the error handling.
 async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<anyhow::Error>> {
-    info!(container, "pulling image");
+    let container = ensure_image_scheme(container);
+    info!(container = container.as_ref(), "pulling image");
+
+    // Pipe the stdio handles, both for tracing and to inspect for telltale signs of
+    // permanent errors
     let mut apptainer_pull_child = Command::new("apptainer")
-        // Pipe the stdio handles, both for tracing and to inspect for telltale signs of permanent
-        // errors
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .arg("pull")
         .arg(sif_path)
-        .arg(format!("docker://{container}"))
+        .arg(container.as_ref())
         .spawn()
         // If the system can't handle spawning a process, we're better off failing quickly
         .map_err(|e| RetryError::permanent(e.into()))?;
@@ -186,7 +183,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stdout
         .take()
         .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stdout missing")))?;
-    let stdout_container = container.to_owned();
+    let stdout_container: String = container.clone().into();
     let _stdout_is_permanent = is_permanent.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(child_stdout).lines();
@@ -198,7 +195,7 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .stderr
         .take()
         .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stderr missing")))?;
-    let stderr_container = container.to_owned();
+    let stderr_container: String = container.into();
     let stderr_is_permanent = is_permanent.clone();
     tokio::spawn(async move {
         let mut lines = BufReader::new(child_stderr).lines();
@@ -239,5 +236,43 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         }
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ensure_image_scheme_adds_docker_prefix() {
+        assert_eq!(ensure_image_scheme("ubuntu:22.04"), "docker://ubuntu:22.04");
+        assert_eq!(
+            ensure_image_scheme("ghcr.io/org/image:latest"),
+            "docker://ghcr.io/org/image:latest"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_existing_docker_scheme() {
+        assert_eq!(
+            ensure_image_scheme("docker://ubuntu:22.04"),
+            "docker://ubuntu:22.04"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_library_scheme() {
+        assert_eq!(
+            ensure_image_scheme("library://sylabs/default/alpine:3.11"),
+            "library://sylabs/default/alpine:3.11"
+        );
+    }
+
+    #[test]
+    fn ensure_image_scheme_preserves_oras_scheme() {
+        assert_eq!(
+            ensure_image_scheme("oras://ghcr.io/org/image:latest"),
+            "oras://ghcr.io/org/image:latest"
+        );
     }
 }

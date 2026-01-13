@@ -1,6 +1,6 @@
 #@ except: RequirementsSection, InputSorted, MatchingOutputMeta, MetaSections
 
-version 1.2
+version 1.3
 
 task test_declaration_names {
     meta {

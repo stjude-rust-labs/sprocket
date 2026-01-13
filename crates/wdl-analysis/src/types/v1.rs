@@ -53,6 +53,7 @@ use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
+use wdl_ast::v1::TASK_HINT_CACHEABLE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_FPGA;
 use wdl_ast::v1::TASK_HINT_GPU;
@@ -131,6 +132,7 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
+use crate::types::CustomType;
 
 /// Gets the type of a `task` variable member for pre-evaluation contexts.
 ///
@@ -140,12 +142,10 @@ use crate::types::Coercible;
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
         _ => None,
     }
 }
@@ -158,26 +158,20 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT => {
-            Some(PrimitiveType::Integer.into())
-        }
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone())
-        }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone()),
-        n if n == TASK_FIELD_END_TIME || n == TASK_FIELD_RETURN_CODE => {
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
+        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
+        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
             Some(Type::from(PrimitiveType::Integer).optional())
         }
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
         }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+        TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
         _ => None,
@@ -189,14 +183,14 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
 /// Returns [`None`] if the given member name is unknown.
 pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
-        n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone().optional())
+        TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => {
+            Some(Type::from(STDLIB.array_string_type().clone()).optional())
         }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
-        n if n == TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_DISKS => Some(Type::from(STDLIB.map_string_int_type().clone()).optional()),
+        TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }
 }
@@ -209,7 +203,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     static CONTAINER_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `cpu` requirement.
@@ -231,7 +225,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `max_retries` requirement.
@@ -241,29 +235,25 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_int_type().clone(),
+            STDLIB.array_int_type().clone().into(),
         ])
     });
 
     match name {
-        n if n == TASK_REQUIREMENT_CONTAINER || n == TASK_REQUIREMENT_CONTAINER_ALIAS => {
-            Some(&CONTAINER_TYPES)
-        }
-        n if n == TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
-        n if n == TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
-        n if n == TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_FPGA => {
-            Some(FPGA_TYPES)
-        }
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_MAX_RETRIES => {
+        TASK_REQUIREMENT_CONTAINER | TASK_REQUIREMENT_CONTAINER_ALIAS => Some(&CONTAINER_TYPES),
+        TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
+        TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
+        TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
+        TASK_REQUIREMENT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_REQUIREMENT_MAX_RETRIES if version >= SupportedVersion::V1(V1::Two) => {
             Some(MAX_RETRIES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
-        n if n == TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_RETURN_CODES => {
+        TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
+        TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
         _ => None,
     }
 }
@@ -280,7 +270,7 @@ pub fn task_hint_types(
     static DISKS_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.map_string_string_type().clone(),
+            STDLIB.map_string_string_type().clone().into(),
         ])
     });
     /// The types for the `fpga` hint.
@@ -315,41 +305,32 @@ pub fn task_hint_types(
     const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Output)];
     /// The types for the `short_task` hint.
     const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
+    /// The types for the `cacheable` hint
+    const CACHEABLE_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
 
     match name {
-        n if n == TASK_HINT_DISKS => Some(&DISKS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_FPGA => Some(FPGA_TYPES),
-        n if n == TASK_HINT_GPU => Some(GPU_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_INPUTS =>
-        {
+        TASK_HINT_DISKS => Some(&DISKS_TYPES),
+        TASK_HINT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_HINT_GPU => Some(GPU_TYPES),
+        TASK_HINT_INPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(INPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_INPUTS => Some(INPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_LOCALIZATION_OPTIONAL => {
+        TASK_HINT_INPUTS => Some(INPUTS_TYPES),
+        TASK_HINT_LOCALIZATION_OPTIONAL if version >= SupportedVersion::V1(V1::Two) => {
             Some(LOCALIZATION_OPTIONAL_TYPES)
         }
-        n if n == TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_CPU => {
-            Some(MAX_CPU_TYPES)
-        }
-        n if n == TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_MEMORY => {
-            Some(MAX_MEMORY_TYPES)
-        }
-        n if n == TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_OUTPUTS =>
-        {
+        TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
+        TASK_HINT_MAX_CPU if version >= SupportedVersion::V1(V1::Two) => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_MEMORY if version >= SupportedVersion::V1(V1::Two) => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_OUTPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(OUTPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_SHORT_TASK => {
-            Some(SHORT_TASK_TYPES)
-        }
-        n if n == TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
+        TASK_HINT_SHORT_TASK if version >= SupportedVersion::V1(V1::Two) => Some(SHORT_TASK_TYPES),
+        TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_CACHEABLE => Some(CACHEABLE_TYPES),
         _ => None,
     }
 }
@@ -523,10 +504,12 @@ where
     ) -> Result<StructType, Diagnostic> {
         Ok(StructType {
             name: Arc::new(definition.name().text().to_string()),
-            members: definition
-                .members()
-                .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<_, _>>()?,
+            members: Arc::new(
+                definition
+                    .members()
+                    .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
+                    .collect::<Result<_, _>>()?,
+            ),
         })
     }
 }
@@ -550,9 +533,19 @@ pub trait EvaluationContext {
     fn version(&self) -> SupportedVersion;
 
     /// Gets the type of the given name in scope.
+    ///
+    /// - If the name is a variable, returns the type of that variable. For
+    ///   example, returns the type of `foo` in the expression `foo.bar`.
+    /// - If the name refers to a custom type, returns a type name reference to
+    ///   that custom type. For example, returns a type name reference to
+    ///   `Status` in the expression `Status.Active` (where `Status`) is an
+    ///   enum.
     fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
+    ///
+    /// For example, returns the type of `MyStruct` in the expression `MyStruct
+    /// a = MyStruct { ... }`.
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the task associated with the evaluation context.
@@ -746,7 +739,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
             } else {
                 match ty {
-                    Type::Primitive(..) | Type::Union | Type::None => {}
+                    Type::Primitive(..)
+                    | Type::Union
+                    | Type::None
+                    | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
@@ -909,7 +905,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
                 let ty = match ty {
-                    Type::Compound(CompoundType::Struct(ty), false) => ty,
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,
                     _ => panic!("type should be a required struct"),
                 };
 
@@ -978,7 +974,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         .add_diagnostic(missing_struct_members(&name, count, &members));
                 }
 
-                Some(Type::Compound(CompoundType::Struct(ty), false))
+                Some(Type::Compound(
+                    CompoundType::Custom(CustomType::Struct(ty)),
+                    false,
+                ))
             }
             Err(diagnostic) => {
                 self.context.add_diagnostic(diagnostic);
@@ -1180,7 +1179,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             };
 
             match ty {
-                Type::Compound(CompoundType::Struct(ty), _) => s = Some(ty),
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => s = Some(ty),
                 _ if names.peek().is_some() => {
                     self.context.add_diagnostic(not_a_struct(&name, i == 0));
                     break;
@@ -1404,8 +1403,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     Type::Compound(CompoundType::Map(b), _),
                 ) => a == b,
                 (
-                    Type::Compound(CompoundType::Struct(a), _),
-                    Type::Compound(CompoundType::Struct(b), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(b)), _),
+                ) => a == b,
+                (
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(b)), _),
                 ) => a == b,
                 _ => false,
             };
@@ -1724,12 +1727,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            _ => {}
-        }
-
-        // Check to see if it's a compound type or call output
-        match &ty {
-            Type::Compound(CompoundType::Struct(ty), _) => {
+            Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
                 if let Some(ty) = ty.members.get(name.text()) {
                     return Some(ty.clone());
                 }
@@ -1741,8 +1739,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Type::Compound(CompoundType::Pair(ty), _) => {
                 // Support `left` and `right` accessors for pairs
                 return match name.text() {
-                    "left" => Some(ty.left_type.clone()),
-                    "right" => Some(ty.right_type.clone()),
+                    "left" => Some(ty.left_type().clone()),
+                    "right" => Some(ty.right_type().clone()),
                     _ => {
                         self.context.add_diagnostic(not_a_pair_accessor(&name));
                         None
@@ -1758,6 +1756,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     .add_diagnostic(unknown_call_io(ty, &name, Io::Output));
                 return None;
             }
+            Type::TypeNameRef(custom_ty) => match custom_ty {
+                CustomType::Struct(_) => {
+                    self.context
+                        .add_diagnostic(cannot_access(&ty, target.span()));
+                    return None;
+                }
+                CustomType::Enum(_) => {
+                    return Some(Type::from(CompoundType::Custom(custom_ty.clone())));
+                }
+            },
             _ => {}
         }
 

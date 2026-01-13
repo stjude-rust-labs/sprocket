@@ -16,37 +16,38 @@ use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event;
 use crankshaft::events::next_task_id;
 use crankshaft::events::send_event;
+use futures::FutureExt;
+use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tokio::process::Command;
 use tokio::select;
 use tokio::sync::broadcast;
-use tokio::sync::oneshot;
-use tokio::sync::oneshot::Receiver;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskManager;
-use super::TaskManagerRequest;
 use super::TaskSpawnRequest;
-use crate::COMMAND_FILE_NAME;
+use crate::CancellationContext;
+use crate::EvaluationPath;
+use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
-use crate::STDERR_FILE_NAME;
-use crate::STDOUT_FILE_NAME;
 use crate::SYSTEM;
-use crate::TaskExecutionResult;
 use crate::Value;
-use crate::WORK_DIR_NAME;
+use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
+use crate::backend::STDERR_FILE_NAME;
+use crate::backend::STDOUT_FILE_NAME;
+use crate::backend::TaskExecutionResult;
+use crate::backend::WORK_DIR_NAME;
+use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
-use crate::config::LocalBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
-use crate::path::EvaluationPath;
+use crate::http::Transferer;
 use crate::v1::cpu;
 use crate::v1::memory;
 
@@ -55,41 +56,28 @@ use crate::v1::memory;
 /// This request contains the requested cpu and memory reservations for the task
 /// as well as the result receiver channel.
 #[derive(Debug)]
-struct LocalTaskRequest {
+struct LocalTask {
     /// The engine configuration.
     config: Arc<Config>,
-    /// The inner task spawn request.
-    inner: TaskSpawnRequest,
+    /// The task spawn request.
+    request: TaskSpawnRequest,
     /// The name of the task.
     name: String,
-    /// The requested CPU reservation for the task.
-    ///
-    /// Note that CPU isn't actually reserved for the task process.
-    cpu: f64,
-    /// The requested memory reservation for the task.
-    ///
-    /// Note that memory isn't actually reserved for the task process.
-    memory: u64,
-    /// The cancellation token for the request.
-    token: CancellationToken,
     /// The sender for events.
     events: Option<broadcast::Sender<Event>>,
+    /// The evaluation cancellation context.
+    cancellation: CancellationContext,
 }
 
-impl TaskManagerRequest for LocalTaskRequest {
-    fn cpu(&self) -> f64 {
-        self.cpu
-    }
-
-    fn memory(&self) -> u64 {
-        self.memory
-    }
-
-    async fn run(self) -> Result<TaskExecutionResult> {
+impl LocalTask {
+    /// Runs the local task.
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    async fn run(self) -> Result<Option<TaskExecutionResult>> {
         let id = next_task_id();
-        let work_dir = self.inner.attempt_dir().join(WORK_DIR_NAME);
-        let stdout_path = self.inner.attempt_dir().join(STDOUT_FILE_NAME);
-        let stderr_path = self.inner.attempt_dir().join(STDERR_FILE_NAME);
+        let work_dir = self.request.attempt_dir().join(WORK_DIR_NAME);
+        let stdout_path = self.request.attempt_dir().join(STDOUT_FILE_NAME);
+        let stderr_path = self.request.attempt_dir().join(STDERR_FILE_NAME);
 
         let run = async {
             // Create the working directory
@@ -101,8 +89,8 @@ impl TaskManagerRequest for LocalTaskRequest {
             })?;
 
             // Write the evaluated command to disk
-            let command_path = self.inner.attempt_dir().join(COMMAND_FILE_NAME);
-            fs::write(&command_path, self.inner.command()).with_context(|| {
+            let command_path = self.request.attempt_dir().join(COMMAND_FILE_NAME);
+            fs::write(&command_path, self.request.command()).with_context(|| {
                 format!(
                     "failed to write command contents to `{path}`",
                     path = command_path.display()
@@ -139,7 +127,7 @@ impl TaskManagerRequest for LocalTaskRequest {
                 .stdout(stdout)
                 .stderr(stderr)
                 .envs(
-                    self.inner
+                    self.request
                         .env()
                         .iter()
                         .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
@@ -186,23 +174,29 @@ impl TaskManagerRequest for LocalTaskRequest {
         };
 
         // Send the created event
+        let task_token = CancellationToken::new();
         send_event!(
             self.events,
             Event::TaskCreated {
                 id,
                 name: self.name.clone(),
                 tes_id: None,
-                token: self.token.clone(),
+                token: task_token.clone(),
             }
         );
 
-        select! {
-            // Poll the cancellation token before the child future
-            biased;
+        let token = self.cancellation.second();
 
-            _ = self.token.cancelled() => {
+        select! {
+            // Poll the cancellation tokens before the child future
+            biased;
+            _ = task_token.cancelled() => {
                 send_event!(self.events, Event::TaskCanceled { id });
-                bail!("task was cancelled");
+                Ok(None)
+            }
+            _ = token.cancelled() => {
+                send_event!(self.events, Event::TaskCanceled { id });
+                Ok(None)
             }
             result = run => {
                 match result {
@@ -211,12 +205,12 @@ impl TaskManagerRequest for LocalTaskRequest {
 
                         let exit_code = status.code().expect("process should have exited");
                         info!("process {id} for task `{name}` has terminated with status code {exit_code}", name = self.name);
-                        Ok(TaskExecutionResult {
+                        Ok(Some(TaskExecutionResult {
                             exit_code,
-                            work_dir: EvaluationPath::Local(work_dir),
+                            work_dir: EvaluationPath::from_local_path(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
-                        })
+                        }))
                     }
                     Err(e) => {
                         send_event!(self.events, Event::TaskFailed { id, message: format!("{e:#}") });
@@ -237,16 +231,18 @@ impl TaskManagerRequest for LocalTaskRequest {
 pub struct LocalBackend {
     /// The engine configuration.
     config: Arc<Config>,
+    /// The evaluation cancellation context.
+    cancellation: CancellationContext,
     /// The total CPU of the host.
-    cpu: u64,
+    cpu: f64,
     /// The total memory of the host.
     memory: u64,
     /// The underlying task manager.
-    manager: TaskManager<LocalTaskRequest>,
+    manager: TaskManager,
     /// The name generator for tasks.
     names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
     /// The sender for events.
-    events: Option<broadcast::Sender<Event>>,
+    events: Events,
 }
 
 impl LocalBackend {
@@ -256,8 +252,8 @@ impl LocalBackend {
     /// The provided configuration is expected to have already been validated.
     pub fn new(
         config: Arc<Config>,
-        backend_config: &LocalBackendConfig,
-        events: Option<broadcast::Sender<Event>>,
+        events: Events,
+        cancellation: CancellationContext,
     ) -> Result<Self> {
         info!("initializing local backend");
 
@@ -266,18 +262,31 @@ impl LocalBackend {
             INITIAL_EXPECTED_NAMES,
         )));
 
+        let backend_config = config.backend()?;
+        let backend_config = backend_config
+            .as_local()
+            .context("configured backend is not local")?;
         let cpu = backend_config
             .cpu
-            .unwrap_or_else(|| SYSTEM.cpus().len() as u64);
+            .map(|v| v as f64)
+            .unwrap_or_else(|| SYSTEM.cpus().len() as f64);
         let memory = backend_config
             .memory
             .as_ref()
             .map(|s| convert_unit_string(s).expect("value should be valid"))
             .unwrap_or_else(|| SYSTEM.total_memory());
-        let manager = TaskManager::new(cpu, cpu, memory, memory);
+        let manager = TaskManager::new(
+            cpu,
+            cpu,
+            memory,
+            memory,
+            events.clone(),
+            cancellation.clone(),
+        );
 
         Ok(Self {
             config,
+            cancellation,
             cpu,
             memory,
             manager,
@@ -288,17 +297,13 @@ impl LocalBackend {
 }
 
 impl TaskExecutionBackend for LocalBackend {
-    fn max_concurrency(&self) -> u64 {
-        self.cpu
-    }
-
     fn constraints(
         &self,
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = cpu(requirements);
-        if (self.cpu as f64) < cpu {
+        if self.cpu < cpu {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
             } else {
@@ -314,7 +319,7 @@ impl TaskExecutionBackend for LocalBackend {
                         s = if cpu == 1.0 { "" } else { "s" },
                     );
                     // clamp the reported constraint to what's available
-                    cpu = self.cpu as f64;
+                    cpu = self.cpu;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
@@ -325,7 +330,7 @@ impl TaskExecutionBackend for LocalBackend {
             }
         }
 
-        let mut memory = memory(requirements)?;
+        let mut memory = memory(requirements)? as u64;
         if self.memory < memory as u64 {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -343,7 +348,7 @@ impl TaskExecutionBackend for LocalBackend {
                         memory = memory as f64 / ONE_GIBIBYTE,
                     );
                     // clamp the reported constraint to what's available
-                    memory = self.memory.try_into().unwrap_or(i64::MAX);
+                    memory = self.memory;
                 }
                 TaskResourceLimitBehavior::Deny => {
                     bail!(
@@ -370,51 +375,36 @@ impl TaskExecutionBackend for LocalBackend {
         None
     }
 
-    fn needs_local_inputs(&self) -> bool {
-        true
-    }
-
     fn spawn(
         &self,
         request: TaskSpawnRequest,
-        token: CancellationToken,
-    ) -> Result<Receiver<Result<TaskExecutionResult>>> {
-        let (completed_tx, completed_rx) = oneshot::channel();
+        _transferer: Arc<dyn Transferer>,
+    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+        async move {
+            let name = format!(
+                "{id}-{generated}",
+                id = request.id(),
+                generated = self
+                    .names
+                    .lock()
+                    .expect("generator should always acquire")
+                    .next()
+                    .expect("generator should never be exhausted")
+            );
 
-        let requirements = request.requirements();
-        let mut cpu = cpu(requirements);
-        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.cpu_limit_behavior {
-            cpu = std::cmp::min(cpu.ceil() as u64, self.cpu) as f64;
-        }
-        let mut memory = memory(requirements)? as u64;
-        if let TaskResourceLimitBehavior::TryWithMax = self.config.task.memory_limit_behavior {
-            memory = std::cmp::min(memory, self.memory);
-        }
+            let cpu = request.constraints().cpu;
+            let memory = request.constraints().memory;
 
-        let name = format!(
-            "{id}-{generated}",
-            id = request.id(),
-            generated = self
-                .names
-                .lock()
-                .expect("generator should always acquire")
-                .next()
-                .expect("generator should never be exhausted")
-        );
-
-        self.manager.send(
-            LocalTaskRequest {
+            let task = LocalTask {
                 config: self.config.clone(),
-                inner: request,
+                request,
                 name,
-                cpu,
-                memory,
-                token,
-                events: self.events.clone(),
-            },
-            completed_tx,
-        );
+                events: self.events.crankshaft().clone(),
+                cancellation: self.cancellation.clone(),
+            };
 
-        Ok(completed_rx)
+            self.manager.spawn(cpu, memory, task.run()).await
+        }
+        .boxed()
     }
 }

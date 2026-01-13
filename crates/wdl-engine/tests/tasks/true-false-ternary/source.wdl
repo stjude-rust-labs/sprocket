@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task true_false_ternary {
   input {

@@ -1,7 +1,7 @@
 #@ except: UnusedDeclaration
 ## This is a simple test of identifying the inner type of an array.
 
-version 1.2
+version 1.3
 
 task test {
     String? opt_string = "foo"

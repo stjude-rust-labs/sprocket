@@ -222,6 +222,13 @@ pub const TASK_HINT_KEYS: &[(&str, &str)] = &[
          take long to execute, which the execution engine can interpret as permission to optimize \
          the execution of the task.",
     ),
+    (
+        TASK_HINT_CACHEABLE,
+        "A hint to the execution engine that the task's execution result is cacheable. The value \
+         of this hint is a Boolean for which true indicates that the execution result is \
+         cacheable and false indicates it is not. The default value of the hint depends on the \
+         engine's configuration.",
+    ),
 ];
 
 /// The name of the `name` task variable field.
@@ -307,6 +314,8 @@ pub const TASK_HINT_OUTPUTS: &str = "outputs";
 pub const TASK_HINT_SHORT_TASK: &str = "short_task";
 /// The alias of the `short_task` task hint (e.g. `shortTask`).
 pub const TASK_HINT_SHORT_TASK_ALIAS: &str = "shortTask";
+/// The name of the `cacheable` task hint.
+pub const TASK_HINT_CACHEABLE: &str = "cacheable";
 
 /// Unescapes command text.
 fn unescape_command_text(s: &str, heredoc: bool, buffer: &mut String) {

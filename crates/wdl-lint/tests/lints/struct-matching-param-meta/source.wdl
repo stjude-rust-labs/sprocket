@@ -4,7 +4,7 @@
 ## in a `parameter_meta` section specifically in structs , and for ensuring
 ## that the order is the same as `input` section.
 
-version 1.2
+version 1.3
 
 struct Text {
     meta {

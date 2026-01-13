@@ -1,5 +1,6 @@
 //! Implementation of workflow and task inputs.
 
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::File;
@@ -22,7 +23,6 @@ use wdl_analysis::types::CallKind;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
-use wdl_analysis::types::Type;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -30,8 +30,8 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
 use crate::Coercible;
+use crate::EvaluationPath;
 use crate::Value;
-use crate::path::EvaluationPath;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
@@ -55,40 +55,6 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
     let ty = value.ty();
     if !ty.is_coercible_to(&expected_ty) {
         bail!("expected type `{expected_ty}` for input `{name}`, but found `{ty}`");
-    }
-
-    Ok(())
-}
-
-/// Helper for replacing input paths with a path derived from joining a base
-/// directory with the input path.
-async fn join_paths<'a>(
-    inputs: &mut IndexMap<String, Value>,
-    base_dir: impl Fn(&str) -> Result<&'a EvaluationPath>,
-    ty: impl Fn(&str) -> Option<Type>,
-) -> Result<()> {
-    for (name, value) in inputs.iter_mut() {
-        let ty = match ty(name) {
-            Some(ty) => ty,
-            _ => {
-                continue;
-            }
-        };
-
-        let base_dir = base_dir(name)?;
-
-        // Replace the value with `None` temporarily as we need to coerce the value
-        // This is useful when this value is the only reference to shared data as this
-        // would prevent internal cloning
-        let mut current = std::mem::replace(value, Value::None(value.ty()));
-        if let Ok(mut v) = current.coerce(None, &ty) {
-            drop(current);
-            v.ensure_paths_exist(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                .await?;
-            current = v;
-        }
-
-        *value = current;
     }
 
     Ok(())
@@ -153,10 +119,20 @@ impl TaskInputs {
         task: &Task,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
-            task.inputs().get(name).map(|input| input.ty().clone())
-        })
-        .await
+        for (name, value) in self.inputs.iter_mut() {
+            let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
+                bail!("could not find an expected type for input {name}");
+            };
+
+            let base_dir = path(name)?;
+
+            if let Ok(v) = value.coerce(None, &ty) {
+                *value = v
+                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .await?;
+            }
+        }
+        Ok(())
     }
 
     /// Validates the inputs for the given task.
@@ -348,7 +324,7 @@ impl Serialize for TaskInputs {
         // Only serialize the input values
         let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(v, true);
+            let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
         map.end()
@@ -409,10 +385,20 @@ impl WorkflowInputs {
         workflow: &Workflow,
         path: impl Fn(&str) -> Result<&'a EvaluationPath>,
     ) -> Result<()> {
-        join_paths(&mut self.inputs, path, |name| {
-            workflow.inputs().get(name).map(|input| input.ty().clone())
-        })
-        .await
+        for (name, value) in self.inputs.iter_mut() {
+            let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
+                bail!("could not find an expected type for input {name}");
+            };
+
+            let base_dir = path(name)?;
+
+            if let Ok(v) = value.coerce(None, &ty) {
+                *value = v
+                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .await?;
+            }
+        }
+        Ok(())
     }
 
     /// Validates the inputs for the given workflow.
@@ -680,7 +666,7 @@ impl Serialize for WorkflowInputs {
         // inputs
         let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(v, true);
+            let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
         map.end()
@@ -757,7 +743,7 @@ impl Inputs {
                 })?,
         );
 
-        Self::parse_object(document, map)
+        Self::parse_json_object(document, map)
     }
 
     /// Parses a YAML inputs file from the given file path.
@@ -797,7 +783,7 @@ impl Inputs {
             )
         })?);
 
-        Self::parse_object(document, object)
+        Self::parse_json_object(document, object)
     }
 
     /// Gets an input value.
@@ -887,47 +873,64 @@ impl Inputs {
     /// Returns `Ok(Some(_))` if the inputs are not empty.
     ///
     /// Returns `Ok(None)` if the inputs are empty.
-    pub fn parse_object(document: &Document, object: JsonMap) -> Result<Option<(String, Self)>> {
-        // Determine the root workflow or task name
-        let (key, name) = match object.iter().next() {
-            Some((key, _)) => match key.split_once('.') {
-                Some((name, _remainder)) => (key, name),
-                None => {
-                    bail!(
-                        "invalid input key `{key}`: expected the value to be prefixed with the \
-                         workflow or task name",
-                    )
-                }
-            },
-            // If the object is empty, treat it as a workflow evaluation without any inputs
-            None => {
-                return Ok(None);
-            }
+    pub fn parse_json_object(
+        document: &Document,
+        object: JsonMap,
+    ) -> Result<Option<(String, Self)>> {
+        // If the object is empty, treat it as an invocation without any inputs.
+        if object.is_empty() {
+            return Ok(None);
+        }
+
+        // Otherwise, build a set of candidate entrypoints from the prefixes of each
+        // input key.
+        let mut entrypoint_candidates = BTreeSet::new();
+        for key in object.keys() {
+            let Some((prefix, _)) = key.split_once('.') else {
+                bail!(
+                    "invalid input key `{key}`: expected the key to be prefixed with the workflow \
+                     or task name",
+                )
+            };
+            entrypoint_candidates.insert(prefix);
+        }
+
+        // If every prefix is the same, there will be only one candidate. If not, report
+        // an error.
+        let entrypoint_name = match entrypoint_candidates
+            .iter()
+            .take(2)
+            .collect::<Vec<_>>()
+            .as_slice()
+        {
+            [] => panic!("no entrypoint candidates for inputs; report this as a bug"),
+            [entrypoint_name] => entrypoint_name.to_string(),
+            _ => bail!(
+                "invalid inputs: expected each input key to be prefixed with the same workflow or \
+                 task name, but found multiple prefixes: {entrypoint_candidates:?}",
+            ),
         };
 
-        match (document.task_by_name(name), document.workflow()) {
-            (Some(task), _) => Ok(Some(Self::parse_task_inputs(document, task, object)?)),
-            (None, Some(workflow)) if workflow.name() == name => Ok(Some(
-                Self::parse_workflow_inputs(document, workflow, object)?,
-            )),
+        let inputs = match (document.task_by_name(&entrypoint_name), document.workflow()) {
+            (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
+            (None, Some(workflow)) if workflow.name() == entrypoint_name => {
+                Self::parse_workflow_inputs(document, workflow, object)?
+            }
             _ => bail!(
-                "invalid input key `{key}`: a task or workflow named `{name}` does not exist in \
+                "invalid inputs: a task or workflow named `{entrypoint_name}` does not exist in \
                  the document"
             ),
-        }
+        };
+        Ok(Some((entrypoint_name, inputs)))
     }
 
     /// Parses the inputs for a task.
-    fn parse_task_inputs(
-        document: &Document,
-        task: &Task,
-        object: JsonMap,
-    ) -> Result<(String, Self)> {
+    fn parse_task_inputs(document: &Document, task: &Task, object: JsonMap) -> Result<Self> {
         let mut inputs = TaskInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
             let value = serde_json::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
+                .with_context(|| format!("invalid input value for key `{key}`"))?;
 
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == task.name() => {
@@ -936,6 +939,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
+                    // This should be caught by the initial check of the prefixes in
+                    // `parse_json_object()`, but we retain a friendly error message in case this
+                    // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{task}`",
                         task = task.name()
@@ -944,7 +950,7 @@ impl Inputs {
             }
         }
 
-        Ok((task.name().to_string(), Inputs::Task(inputs)))
+        Ok(Inputs::Task(inputs))
     }
 
     /// Parses the inputs for a workflow.
@@ -952,12 +958,12 @@ impl Inputs {
         document: &Document,
         workflow: &Workflow,
         object: JsonMap,
-    ) -> Result<(String, Self)> {
+    ) -> Result<Self> {
         let mut inputs = WorkflowInputs::default();
         for (key, value) in object {
             // Convert from serde_json::Value to crate::Value
             let value = serde_json::from_value(value)
-                .with_context(|| format!("invalid input key `{key}`"))?;
+                .with_context(|| format!("invalid input value for key `{key}`"))?;
 
             match key.split_once(".") {
                 Some((prefix, remainder)) if prefix == workflow.name() => {
@@ -966,6 +972,9 @@ impl Inputs {
                         .with_context(|| format!("invalid input key `{key}`"))?;
                 }
                 _ => {
+                    // This should be caught by the initial check of the prefixes in
+                    // `parse_json_object()`, but we retain a friendly error message in case this
+                    // function gets called from another context in the future.
                     bail!(
                         "invalid input key `{key}`: expected key to be prefixed with `{workflow}`",
                         workflow = workflow.name()
@@ -974,7 +983,7 @@ impl Inputs {
             }
         }
 
-        Ok((workflow.name().to_string(), Inputs::Workflow(inputs)))
+        Ok(Inputs::Workflow(inputs))
     }
 }
 

@@ -1,24 +1,15 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
-use std::fmt;
-use std::fs;
-use std::io::BufRead;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 
-use anyhow::Context;
 use anyhow::Result;
-use anyhow::bail;
 use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
-use itertools::Itertools;
-use rev_buf_reader::RevBufReader;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -28,26 +19,18 @@ use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
-use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 
-use crate::CompoundValue;
+use crate::EvaluationPath;
+use crate::GuestPath;
+use crate::HostPath;
 use crate::Outputs;
-use crate::PrimitiveValue;
-use crate::TaskExecutionResult;
 use crate::Value;
+use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
-use crate::http::Location;
 use crate::http::Transferer;
-use crate::path;
-use crate::path::EvaluationPath;
-use crate::stdlib::download_file;
 
-pub mod trie;
+mod trie;
 pub mod v1;
-
-/// The maximum number of stderr lines to display in error messages.
-const MAX_STDERR_LINES: usize = 10;
 
 /// A name used whenever a file system "root" is mapped.
 ///
@@ -150,14 +133,18 @@ impl CancellationContextState {
 /// Represents context for cancelling workflow or task evaluation.
 ///
 /// Uses a default failure mode of [`Slow`](FailureMode::Slow).
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct CancellationContext {
     /// The failure mode for the cancellation context.
     mode: FailureMode,
     /// The state of the cancellation context.
     state: Arc<AtomicU8>,
-    /// Stores the underlying cancellation token.
-    token: CancellationToken,
+    /// The cancellation token that is canceled upon the first cancellation.
+    first: CancellationToken,
+    /// The cancellation token that is canceled upon the second cancellation
+    /// when the failure mode is "slow" or upon the first cancellation when the
+    /// failure mode is "fast".
+    second: CancellationToken,
 }
 
 impl CancellationContext {
@@ -174,7 +161,8 @@ impl CancellationContext {
         Self {
             mode,
             state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
-            token: CancellationToken::new(),
+            first: CancellationToken::new(),
+            second: CancellationToken::new(),
         }
     }
 
@@ -194,28 +182,44 @@ impl CancellationContext {
     pub fn cancel(&self) -> CancellationContextState {
         let state =
             CancellationContextState::update(self.mode, false, &self.state).expect("should update");
-        assert!(
-            state != CancellationContextState::NotCanceled,
-            "should be canceled"
-        );
 
-        if state == CancellationContextState::Canceling {
-            self.token.cancel();
+        match state {
+            CancellationContextState::NotCanceled => panic!("should be canceled"),
+            CancellationContextState::Waiting => self.first.cancel(),
+            CancellationContextState::Canceling => {
+                self.first.cancel();
+                self.second.cancel();
+            }
         }
 
         state
     }
 
-    /// Gets the cancellation token from the context.
+    /// Gets the cancellation token that is canceled upon the first
+    /// cancellation.
     ///
-    /// The token will be canceled when the [`CancellationContext::cancel`] is
+    /// The token will be canceled when [`CancellationContext::cancel`] is
+    /// called and the resulting state is [`CancellationContextState::Waiting`]
+    /// or [`CancellationContextState::Canceling`].
+    ///
+    /// Callers should _not_ directly cancel the returned token and instead call
+    /// [`CancellationContext::cancel`].
+    pub fn first(&self) -> CancellationToken {
+        self.first.clone()
+    }
+
+    /// Gets the cancellation token that is canceled upon the second
+    /// cancellation when the failure mode is "slow" or first cancellation when
+    /// the failure mode is "fast".
+    ///
+    /// The token will be canceled when [`CancellationContext::cancel`] is
     /// called and the resulting state is
     /// [`CancellationContextState::Canceling`].
     ///
     /// Callers should _not_ directly cancel the returned token and instead call
     /// [`CancellationContext::cancel`].
-    pub fn token(&self) -> CancellationToken {
-        self.token.clone()
+    pub fn second(&self) -> CancellationToken {
+        self.second.clone()
     }
 
     /// Determines if the user initiated the cancellation.
@@ -241,13 +245,16 @@ impl CancellationContext {
             match state {
                 CancellationContextState::NotCanceled => unreachable!("should be canceled"),
                 CancellationContextState::Waiting => {
+                    self.first.cancel();
+
                     error!(
                         "an evaluation error occurred: waiting for any executing tasks to \
                          complete: {message}"
                     );
                 }
                 CancellationContextState::Canceling => {
-                    self.token.cancel();
+                    self.first.cancel();
+                    self.second.cancel();
 
                     error!(
                         "an evaluation error occurred: waiting for any executing tasks to cancel: \
@@ -265,9 +272,31 @@ impl Default for CancellationContext {
     }
 }
 
-/// Represents events that may be sent during evaluation.
+/// Represents an event from the WDL evaluation engine.
+#[derive(Debug, Clone)]
+pub enum EngineEvent {
+    /// A cached task execution result was reused due to a call cache hit.
+    ReusedCachedExecutionResult {
+        /// The id of the task that reused a cached execution result.
+        id: String,
+    },
+    /// A locally running task has been parked by the engine due to insufficient
+    /// resources.
+    TaskParked,
+    /// A locally running task has been unparked by the engine.
+    TaskUnparked {
+        /// Whether or not the task was unparked due to being canceled.
+        canceled: bool,
+    },
+}
+
+/// Represents events that may be sent during WDL evaluation.
 #[derive(Debug, Clone, Default)]
 pub struct Events {
+    /// The WDL engine events channel.
+    ///
+    /// This is `None` when engine events are not enabled.
+    engine: Option<broadcast::Sender<EngineEvent>>,
     /// The Crankshaft events channel.
     ///
     /// This is `None` when Crankshaft events are not enabled.
@@ -280,34 +309,24 @@ pub struct Events {
 
 impl Events {
     /// Constructs a new `Events` and enables subscribing to all event channels.
-    pub fn all(capacity: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         Self {
+            engine: Some(broadcast::Sender::new(capacity)),
             crankshaft: Some(broadcast::Sender::new(capacity)),
             transfer: Some(broadcast::Sender::new(capacity)),
         }
     }
 
     /// Constructs a new `Events` and disable subscribing to any event channel.
-    pub fn none() -> Self {
+    pub fn disabled() -> Self {
         Self::default()
     }
 
-    /// Constructs a new `Events` and enable subscribing to only the Crankshaft
-    /// events channel.
-    pub fn crankshaft_only(capacity: usize) -> Self {
-        Self {
-            crankshaft: Some(broadcast::Sender::new(capacity)),
-            transfer: None,
-        }
-    }
-
-    /// Constructs a new `Events` and enable subscribing to only the transfer
-    /// events channel.
-    pub fn transfer_only(capacity: usize) -> Self {
-        Self {
-            crankshaft: None,
-            transfer: Some(broadcast::Sender::new(capacity)),
-        }
+    /// Subscribes to the WDL engine events channel.
+    ///
+    /// Returns `None` if WDL engine events are not enabled.
+    pub fn subscribe_engine(&self) -> Option<broadcast::Receiver<EngineEvent>> {
+        self.engine.as_ref().map(|s| s.subscribe())
     }
 
     /// Subscribes to the Crankshaft events channel.
@@ -322,6 +341,11 @@ impl Events {
     /// Returns `None` if transfer events are not enabled.
     pub fn subscribe_transfer(&self) -> Option<broadcast::Receiver<TransferEvent>> {
         self.transfer.as_ref().map(|s| s.subscribe())
+    }
+
+    /// Gets the sender for the Crankshaft events.
+    pub(crate) fn engine(&self) -> &Option<broadcast::Sender<EngineEvent>> {
+        &self.engine
     }
 
     /// Gets the sender for the Crankshaft events.
@@ -382,9 +406,10 @@ impl EvaluationError {
     }
 
     /// Helper for tests for converting an evaluation error to a string.
-    #[cfg(feature = "codespan-reporting")]
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
+        use std::collections::HashMap;
+
         use codespan_reporting::diagnostic::Label;
         use codespan_reporting::diagnostic::LabelStyle;
         use codespan_reporting::files::SimpleFiles;
@@ -438,113 +463,8 @@ impl From<anyhow::Error> for EvaluationError {
 /// Represents a result from evaluating a workflow or task.
 pub type EvaluationResult<T> = Result<T, EvaluationError>;
 
-/// Represents a path to a file or directory on the host file system or a URL to
-/// a remote file.
-///
-/// The host in this context is where the WDL evaluation is taking place.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct HostPath(pub(crate) Arc<String>);
-
-impl HostPath {
-    /// Constructs a new host path from a string.
-    pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
-    }
-
-    /// Gets the string representation of the host path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Converts the host path to a `PathBuf`.
-    pub fn to_path_buf(&self) -> PathBuf {
-        PathBuf::from(self.as_str())
-    }
-
-    /// Shell expands the path.
-    ///
-    /// The path is also joined with the provided base directory.
-    pub fn expand(&mut self, base_dir: &EvaluationPath) -> Result<()> {
-        // Perform the expansion
-        if let Cow::Owned(s) = shellexpand::full(self.as_str()).with_context(|| {
-            format!("failed to shell expand path `{path}`", path = self.as_str())
-        })? {
-            *Arc::make_mut(&mut self.0) = s;
-        }
-
-        // Don't join URLs
-        if path::is_url(self.as_str()) {
-            return Ok(());
-        }
-
-        // Perform the join
-        if let Some(s) = base_dir.join(self.as_str())?.to_str() {
-            *Arc::make_mut(&mut self.0) = s.to_string();
-        }
-
-        Ok(())
-    }
-}
-
-impl fmt::Display for HostPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<Arc<String>> for HostPath {
-    fn from(path: Arc<String>) -> Self {
-        Self(path)
-    }
-}
-
-impl From<HostPath> for Arc<String> {
-    fn from(path: HostPath) -> Self {
-        path.0
-    }
-}
-
-/// Represents a path to a file or directory on the guest.
-///
-/// The guest in this context is the container where tasks are run.
-///
-/// For backends that do not use containers, a guest path is the same as a host
-/// path.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct GuestPath(pub(crate) Arc<String>);
-
-impl GuestPath {
-    /// Constructs a new guest path from a string.
-    pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
-    }
-
-    /// Gets the string representation of the guest path.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl fmt::Display for GuestPath {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl From<Arc<String>> for GuestPath {
-    fn from(path: Arc<String>) -> Self {
-        Self(path)
-    }
-}
-
-impl From<GuestPath> for Arc<String> {
-    fn from(path: GuestPath) -> Self {
-        path.0
-    }
-}
-
 /// Represents context to an expression evaluator.
-pub trait EvaluationContext: Send + Sync {
+pub(crate) trait EvaluationContext: Send + Sync {
     /// Gets the supported version of the document being evaluated.
     fn version(&self) -> SupportedVersion;
 
@@ -553,6 +473,9 @@ pub trait EvaluationContext: Send + Sync {
 
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
+
+    /// Returns the literal value of an enum variant.
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic>;
 
     /// Gets the base directory for the evaluation.
     ///
@@ -621,7 +544,7 @@ pub trait EvaluationContext: Send + Sync {
 
 /// Represents an index of a scope in a collection of scopes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ScopeIndex(usize);
+struct ScopeIndex(usize);
 
 impl ScopeIndex {
     /// Constructs a new scope index from a raw index.
@@ -644,7 +567,7 @@ impl From<ScopeIndex> for usize {
 
 /// Represents an evaluation scope in a WDL document.
 #[derive(Default, Debug)]
-pub struct Scope {
+struct Scope {
     /// The index of the parent scope.
     ///
     /// This is `None` for the root scopes.
@@ -696,9 +619,15 @@ impl From<Scope> for IndexMap<String, Value> {
     }
 }
 
+impl From<Scope> for Outputs {
+    fn from(scope: Scope) -> Self {
+        scope.names.into()
+    }
+}
+
 /// Represents a reference to a scope.
 #[derive(Debug, Clone, Copy)]
-pub struct ScopeRef<'a> {
+struct ScopeRef<'a> {
     /// The reference to the scopes collection.
     scopes: &'a [Scope],
     /// The index of the scope in the collection.
@@ -722,32 +651,6 @@ impl<'a> ScopeRef<'a> {
             scopes: self.scopes,
             index: p,
         })
-    }
-
-    /// Gets all of the name and values available at this scope.
-    pub fn names(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
-        self.scopes[self.index.0]
-            .names
-            .iter()
-            .map(|(n, name)| (n.as_str(), name))
-    }
-
-    /// Iterates over each name and value visible to the scope and calls the
-    /// provided callback.
-    ///
-    /// Stops iterating and returns an error if the callback returns an error.
-    pub fn for_each(&self, mut cb: impl FnMut(&str, &Value) -> Result<()>) -> Result<()> {
-        let mut current = Some(self.index);
-
-        while let Some(index) = current {
-            for (n, v) in self.scopes[index.0].local() {
-                cb(n, v)?;
-            }
-
-            current = self.scopes[index.0].parent;
-        }
-
-        Ok(())
     }
 
     /// Gets the value of a name local to this scope.
@@ -776,42 +679,52 @@ impl<'a> ScopeRef<'a> {
 }
 
 /// Represents an evaluated task.
+///
+/// An evaluated task is one that was executed by a task execution backend.
+///
+/// The evaluated task may have failed as a result of an unacceptable exit code.
+///
+/// Use [`EvaluatedTask::into_outputs`] to get the outputs of the task.
 #[derive(Debug)]
 pub struct EvaluatedTask {
-    /// The task attempt directory.
-    attempt_dir: PathBuf,
-    /// The task execution result.
+    /// The underlying task execution result.
     result: TaskExecutionResult,
     /// The evaluated outputs of the task.
+    outputs: Outputs,
+    /// Stores the execution error for the evaluated task.
     ///
-    /// This is `Ok` when the task executes successfully and all of the task's
-    /// outputs evaluated without error.
-    ///
-    /// Otherwise, this contains the error that occurred while attempting to
-    /// evaluate the task's outputs.
-    outputs: EvaluationResult<Outputs>,
+    /// This is `None` when the evaluated task successfully executed.
+    error: Option<EvaluationError>,
+    /// Whether or not the execution result was from the call cache.
+    cached: bool,
 }
 
 impl EvaluatedTask {
     /// Constructs a new evaluated task.
-    ///
-    /// Returns an error if the stdout or stderr paths are not UTF-8.
-    fn new(attempt_dir: PathBuf, result: TaskExecutionResult) -> anyhow::Result<Self> {
-        Ok(Self {
+    fn new(cached: bool, result: TaskExecutionResult, error: Option<EvaluationError>) -> Self {
+        Self {
             result,
-            attempt_dir,
-            outputs: Ok(Default::default()),
-        })
+            outputs: Default::default(),
+            error,
+            cached,
+        }
+    }
+
+    /// Gets whether or not the evaluated task failed as a result of an
+    /// unacceptable exit code.
+    pub fn failed(&self) -> bool {
+        self.error.is_some()
+    }
+
+    /// Determines whether or not the task execution result was used from the
+    /// call cache.
+    pub fn cached(&self) -> bool {
+        self.cached
     }
 
     /// Gets the exit code of the evaluated task.
     pub fn exit_code(&self) -> i32 {
         self.result.exit_code
-    }
-
-    /// Gets the attempt directory of the task.
-    pub fn attempt_dir(&self) -> &Path {
-        &self.attempt_dir
     }
 
     /// Gets the working directory of the evaluated task.
@@ -829,194 +742,15 @@ impl EvaluatedTask {
         &self.result.stderr
     }
 
-    /// Gets the outputs of the evaluated task.
+    /// Converts the evaluated task into its [`Outputs`].
     ///
-    /// This is `Ok` when the task executes successfully and all of the task's
-    /// outputs evaluated without error.
-    ///
-    /// Otherwise, this contains the error that occurred while attempting to
-    /// evaluate the task's outputs.
-    pub fn outputs(&self) -> &EvaluationResult<Outputs> {
-        &self.outputs
-    }
-
-    /// Converts the evaluated task into an evaluation result.
-    ///
-    /// Returns `Ok(_)` if the task outputs were evaluated.
-    ///
-    /// Returns `Err(_)` if the task outputs could not be evaluated.
-    pub fn into_result(self) -> EvaluationResult<Outputs> {
-        self.outputs
-    }
-
-    /// Handles the exit of a task execution.
-    ///
-    /// Returns an error if the task failed.
-    async fn handle_exit(
-        &self,
-        requirements: &HashMap<String, Value>,
-        transferer: &dyn Transferer,
-    ) -> anyhow::Result<()> {
-        let mut error = true;
-        if let Some(return_codes) = requirements
-            .get(TASK_REQUIREMENT_RETURN_CODES)
-            .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
-        {
-            match return_codes {
-                Value::Primitive(PrimitiveValue::String(s)) if s.as_ref() == "*" => {
-                    error = false;
-                }
-                Value::Primitive(PrimitiveValue::String(s)) => {
-                    bail!(
-                        "invalid return code value `{s}`: only `*` is accepted when the return \
-                         code is specified as a string"
-                    );
-                }
-                Value::Primitive(PrimitiveValue::Integer(ok)) => {
-                    if self.result.exit_code == i32::try_from(*ok).unwrap_or_default() {
-                        error = false;
-                    }
-                }
-                Value::Compound(CompoundValue::Array(codes)) => {
-                    error = !codes.as_slice().iter().any(|v| {
-                        v.as_integer()
-                            .map(|i| i32::try_from(i).unwrap_or_default() == self.result.exit_code)
-                            .unwrap_or(false)
-                    });
-                }
-                _ => unreachable!("unexpected return codes value"),
-            }
-        } else {
-            error = self.result.exit_code != 0;
+    /// An error is returned if the task failed as a result of an unacceptable
+    /// exit code.
+    pub fn into_outputs(self) -> EvaluationResult<Outputs> {
+        match self.error {
+            Some(e) => Err(e),
+            None => Ok(self.outputs),
         }
-
-        if error {
-            // Read the last `MAX_STDERR_LINES` number of lines from stderr
-            // If there's a problem reading stderr, don't output it
-            let stderr = download_file(
-                transferer,
-                self.work_dir(),
-                self.stderr().as_file().unwrap(),
-            )
-            .await
-            .ok()
-            .and_then(|l| {
-                fs::File::open(l).ok().map(|f| {
-                    // Buffer the last N number of lines
-                    let reader = RevBufReader::new(f);
-                    let lines: Vec<_> = reader
-                        .lines()
-                        .take(MAX_STDERR_LINES)
-                        .map_while(|l| l.ok())
-                        .collect();
-
-                    // Iterate the lines in reverse order as we read them in reverse
-                    lines
-                        .iter()
-                        .rev()
-                        .format_with("\n", |l, f| f(&format_args!("  {l}")))
-                        .to_string()
-                })
-            })
-            .unwrap_or_default();
-
-            // If the work directory is remote,
-            bail!(
-                "process terminated with exit code {code}: see `{stdout_path}` and \
-                 `{stderr_path}` for task output{header}{stderr}{trailer}",
-                code = self.result.exit_code,
-                stdout_path = self.stdout().as_file().expect("must be file"),
-                stderr_path = self.stderr().as_file().expect("must be file"),
-                header = if stderr.is_empty() {
-                    Cow::Borrowed("")
-                } else {
-                    format!("\n\ntask stderr output (last {MAX_STDERR_LINES} lines):\n\n").into()
-                },
-                trailer = if stderr.is_empty() { "" } else { "\n" }
-            );
-        }
-
-        Ok(())
-    }
-}
-
-/// Gets the kind of an input.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InputKind {
-    /// The input is a single file.
-    File,
-    /// The input is a directory.
-    Directory,
-}
-
-impl From<InputKind> for crankshaft::engine::task::input::Type {
-    fn from(value: InputKind) -> Self {
-        match value {
-            InputKind::File => Self::File,
-            InputKind::Directory => Self::Directory,
-        }
-    }
-}
-
-/// Represents a `File` or `Directory` input to a task.
-#[derive(Debug, Clone)]
-pub struct Input {
-    /// The input kind.
-    kind: InputKind,
-    /// The path for the input.
-    path: EvaluationPath,
-    /// The guest path for the input.
-    ///
-    /// This is `None` when the backend isn't mapping input paths.
-    guest_path: Option<GuestPath>,
-    /// The download location for the input.
-    ///
-    /// This is `Some` if the input has been downloaded to a known location.
-    location: Option<Location>,
-}
-
-impl Input {
-    /// Creates a new input with the given path and access.
-    fn new(kind: InputKind, path: EvaluationPath, guest_path: Option<GuestPath>) -> Self {
-        Self {
-            kind,
-            path,
-            guest_path,
-            location: None,
-        }
-    }
-
-    /// Gets the kind of the input.
-    pub fn kind(&self) -> InputKind {
-        self.kind
-    }
-
-    /// Gets the path to the input.
-    ///
-    /// The path of the input may be local or remote.
-    pub fn path(&self) -> &EvaluationPath {
-        &self.path
-    }
-
-    /// Gets the guest path for the input.
-    ///
-    /// This is `None` for inputs to backends that don't use containers.
-    pub fn guest_path(&self) -> Option<&GuestPath> {
-        self.guest_path.as_ref()
-    }
-
-    /// Gets the local path of the input.
-    ///
-    /// Returns `None` if the input is remote and has not been localized.
-    pub fn local_path(&self) -> Option<&Path> {
-        self.location.as_deref().or_else(|| self.path.as_local())
-    }
-
-    /// Sets the location of the input.
-    ///
-    /// This is used during localization to set a local path for remote inputs.
-    pub fn set_location(&mut self, location: Location) {
-        self.location = Some(location);
     }
 }
 
@@ -1029,23 +763,26 @@ mod test {
         let context = CancellationContext::new(FailureMode::Slow);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // The first cancel should not cancel the token
+        // The first cancel should not cancel the fast token
         assert_eq!(context.cancel(), CancellationContextState::Waiting);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // The second cancel should cancel the token
+        // The second cancel should cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -1053,17 +790,19 @@ mod test {
         let context = CancellationContext::new(FailureMode::Fast);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // Fail fast should immediately cancel the token
+        // Fail fast should immediately cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -1071,23 +810,26 @@ mod test {
         let context = CancellationContext::new(FailureMode::Slow);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // An error should not cancel the token
+        // An error should not cancel the fast token
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(!context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // A repeated error should not cancel the token either
+        // A repeated error should not cancel the fast token either
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
         assert!(!context.user_canceled());
-        assert!(!context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(!context.second.is_cancelled());
 
-        // However, another cancellation will
+        // However, another cancellation will cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 
     #[test]
@@ -1095,22 +837,25 @@ mod test {
         let context = CancellationContext::new(FailureMode::Fast);
         assert_eq!(context.state(), CancellationContextState::NotCanceled);
 
-        // An error should cancel the context
+        // An error should cancel both tokens
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // A repeated error should not change anything
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
 
         // Neither should another `cancel` call
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
         assert!(!context.user_canceled());
-        assert!(context.token.is_cancelled());
+        assert!(context.first.is_cancelled());
+        assert!(context.second.is_cancelled());
     }
 }

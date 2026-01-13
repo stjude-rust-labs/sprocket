@@ -137,6 +137,20 @@ pub struct RunConfig {
     /// The "runs" directory under which new `run` sessions' execution
     /// directories will be placed.
     pub runs_dir: PathBuf,
+
+    /// The capacity of the events channel used to display progress statistics.
+    ///
+    /// If the number of progress events being generated outpaces Sprocket's
+    /// ability to read the events for displaying the progress statistics and
+    /// the channel reaches its capacity, Sprocket will stop displaying progress
+    /// statistics. This is most likely to occur when Sprocket has concurrently
+    /// queued up a large number of tasks.
+    ///
+    /// Increasing the capacity will increase the size of the memory allocation
+    /// made by the events channel.
+    ///
+    /// The default is `5000`.
+    pub events_capacity: Option<usize>,
 }
 
 impl Default for RunConfig {
@@ -144,6 +158,7 @@ impl Default for RunConfig {
         Self {
             engine: engine::Config::default(),
             runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
+            events_capacity: None,
         }
     }
 }

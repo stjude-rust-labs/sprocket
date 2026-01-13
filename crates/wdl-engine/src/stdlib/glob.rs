@@ -1,9 +1,13 @@
 //! Implements the `glob` function from the WDL standard library.
 
+use std::path::Path;
+
 use anyhow::Result;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use globset::GlobBuilder;
+use globset::GlobMatcher;
+use url::Url;
 use walkdir::WalkDir;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
@@ -14,10 +18,10 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
+use crate::EvaluationPathKind;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::path::EvaluationPath;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "glob";
@@ -43,77 +47,97 @@ fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
 
         let matcher = glob.compile_matcher();
 
-        let mut matches: Vec<Value> = Vec::new();
-        match context.base_dir() {
-            EvaluationPath::Local(path) => {
-                for entry in WalkDir::new(path).sort_by_file_name() {
-                    let entry = entry.map_err(|e| {
-                        function_call_failed(
-                            FUNCTION_NAME,
-                            format!(
-                                "failed to read directory `{path}`: {e}",
-                                path = path.display()
-                            ),
-                            context.call_site,
-                        )
-                    })?;
-
-                    let metadata = entry.metadata().map_err(|e| {
-                        function_call_failed(
-                            FUNCTION_NAME,
-                            format!(
-                                "failed to read metadata of path `{path}`: {e}",
-                                path = path.display()
-                            ),
-                            context.call_site,
-                        )
-                    })?;
-
-                    // Filter out directories (only files are returned from WDL's `glob` function)
-                    if !metadata.is_file() {
-                        continue;
-                    }
-
-                    let relative_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
-
-                    // Add it to the list if it matches
-                    if matcher.is_match(relative_path) {
-                        matches.push(
-                            PrimitiveValue::new_file(relative_path.to_str().ok_or_else(|| {
-                                function_call_failed(
-                                    FUNCTION_NAME,
-                                    format!(
-                                        "path `{path}` cannot be represented as UTF-8",
-                                        path = relative_path.display()
-                                    ),
-                                    context.call_site,
-                                )
-                            })?)
-                            .into(),
-                        );
-                    }
-                }
-            }
-            EvaluationPath::Remote(url) => {
-                // Use `Transferer::walk` to walk the URL looking for matches
-                let paths = context
-                    .transferer()
-                    .walk(url)
-                    .await
-                    .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
-
-                for path in paths.iter() {
-                    // Add it to the list if it matches
-                    if matcher.is_match(path) {
-                        matches.push(PrimitiveValue::new_file(path).into());
-                    }
-                }
-            }
-        }
+        let matches = match context.base_dir().kind() {
+            EvaluationPathKind::Local(path) => glob_local_path(&context, &matcher, path)?,
+            EvaluationPathKind::Remote(url) => glob_remote_path(&context, &matcher, url).await?,
+        };
 
         Ok(Array::new_unchecked(context.return_type, matches).into())
     }
     .boxed()
+}
+
+/// Globs a local path and returns the matching entries.
+fn glob_local_path(
+    context: &CallContext<'_>,
+    matcher: &GlobMatcher,
+    path: &Path,
+) -> Result<Vec<Value>, Diagnostic> {
+    let mut matches: Vec<Value> = Vec::new();
+    for entry in WalkDir::new(path).sort_by_file_name() {
+        let entry = entry.map_err(|e| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!(
+                    "failed to read directory `{path}`: {e}",
+                    path = path.display()
+                ),
+                context.call_site,
+            )
+        })?;
+
+        let metadata = entry.metadata().map_err(|e| {
+            function_call_failed(
+                FUNCTION_NAME,
+                format!(
+                    "failed to read metadata of path `{path}`: {e}",
+                    path = path.display()
+                ),
+                context.call_site,
+            )
+        })?;
+
+        // Filter out directories (only files are returned from WDL's `glob` function)
+        if !metadata.is_file() {
+            continue;
+        }
+
+        let relative_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+
+        // Add it to the list if it matches
+        if matcher.is_match(relative_path) {
+            matches.push(
+                PrimitiveValue::new_file(relative_path.to_str().ok_or_else(|| {
+                    function_call_failed(
+                        FUNCTION_NAME,
+                        format!(
+                            "path `{path}` cannot be represented as UTF-8",
+                            path = relative_path.display()
+                        ),
+                        context.call_site,
+                    )
+                })?)
+                .into(),
+            );
+        }
+    }
+
+    Ok(matches)
+}
+
+/// Globs a remote URL path.
+async fn glob_remote_path(
+    context: &CallContext<'_>,
+    matcher: &GlobMatcher,
+    url: &Url,
+) -> Result<Vec<Value>, Diagnostic> {
+    let mut matches: Vec<Value> = Vec::new();
+
+    // Use `Transferer::walk` to walk the URL looking for matches
+    let paths = context
+        .transferer()
+        .walk(url)
+        .await
+        .map_err(|e| function_call_failed(FUNCTION_NAME, e, context.call_site))?;
+
+    for path in paths.iter() {
+        // Add it to the list if it matches
+        if matcher.is_match(path) {
+            matches.push(PrimitiveValue::new_file(path.as_str()).into());
+        }
+    }
+
+    Ok(matches)
 }
 
 /// Gets the function describing `glob`.

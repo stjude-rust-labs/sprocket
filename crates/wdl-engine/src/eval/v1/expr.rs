@@ -40,12 +40,15 @@ use wdl_analysis::diagnostics::unknown_call_io;
 use wdl_analysis::diagnostics::unknown_function;
 use wdl_analysis::diagnostics::unknown_task_io;
 use wdl_analysis::diagnostics::unsupported_function;
+use wdl_analysis::document::Enum;
 use wdl_analysis::document::Task;
+use wdl_analysis::document::v1::infer_type_from_literal;
 use wdl_analysis::stdlib::FunctionBindError;
 use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -92,9 +95,14 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
+use crate::EnumVariant;
 use crate::EvaluationContext;
+use crate::HiddenValue;
+use crate::HintsValue;
+use crate::InputValue;
 use crate::Map;
 use crate::Object;
+use crate::OutputValue;
 use crate::Pair;
 use crate::PrimitiveValue;
 use crate::Struct;
@@ -111,6 +119,8 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::unknown_enum_variant;
+use crate::diagnostics::unknown_enum_variant_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -119,7 +129,7 @@ use crate::tree::SyntaxToken;
 
 /// Represents a WDL V1 expression evaluator.
 #[derive(Debug)]
-pub struct ExprEvaluator<C> {
+pub(crate) struct ExprEvaluator<C> {
     /// The expression evaluation context.
     context: C,
     /// The nested count of placeholder evaluation.
@@ -412,6 +422,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
                 }
+                Value::Compound(CompoundValue::EnumVariant(e)) => {
+                    write!(buffer, "{}", e.name()).unwrap()
+                }
                 v => {
                     return Err(cannot_coerce_to_string(&v.ty(), expr.span()));
                 }
@@ -536,7 +549,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         };
 
         Ok(
-            Array::new(Some(&self.context), ArrayType::new(element_ty), values)
+            Array::new_with_context(Some(&self.context), ArrayType::new(element_ty), values)
                 .expect("array elements should coerce")
                 .into(),
         )
@@ -550,7 +563,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).await?;
         let right = self.evaluate_expr(&right).await?;
-        Ok(Pair::new(
+        Ok(Pair::new_with_context(
             Some(&self.context),
             PairType::new(left.ty(), right.ty()),
             left,
@@ -664,7 +677,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             None => (Type::Union, Type::Union, Vec::new()),
         };
 
-        Ok(Map::new(
+        Ok(Map::new_with_context(
             Some(&self.context),
             MapType::new(key_ty, value_ty),
             elements,
@@ -771,7 +784,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name.text().to_string(), value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(HintsValue::new(members).into())
     }
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
@@ -817,7 +830,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(InputValue::new(members).into())
     }
 
     /// Evaluates a literal output expression.
@@ -833,7 +846,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             members.insert(name, value);
         }
 
-        Ok(Object::new(members).into())
+        Ok(OutputValue::new(members).into())
     }
 
     /// Evaluates a literal input/output item.
@@ -901,7 +914,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             };
 
             match ty {
-                Type::Compound(CompoundType::Struct(ty), _) => {
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
                     struct_ty = Some(ty);
                 }
                 _ if segments.peek().is_some() => {
@@ -1458,7 +1471,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
     ) -> Result<Value, Diagnostic> {
         let (target, name) = expr.operands();
 
-        match self.evaluate_expr(&target).await? {
+        let target_value = self.evaluate_expr(&target).await?;
+        match target_value {
             Value::Compound(CompoundValue::Pair(pair)) => match name.text() {
                 "left" => Ok(pair.left().clone()),
                 "right" => Ok(pair.right().clone()),
@@ -1475,17 +1489,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_an_object_member(&name)),
             },
-            Value::TaskPreEvaluation(task) => match task.field(name.text()) {
+            Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
             },
-            Value::TaskPostEvaluation(task) => {
+            Value::Hidden(HiddenValue::TaskPostEvaluation(task)) => {
                 match task.field(self.context.version(), name.text()) {
                     Some(value) => Ok(value.clone()),
                     None => Err(not_a_task_member(&name)),
                 }
             }
-            Value::PreviousTaskData(prev) => match prev.field(name.text()) {
+            Value::Hidden(HiddenValue::PreviousTaskData(prev)) => match prev.field(name.text()) {
                 Some(value) => Ok(value),
                 None => Err(not_a_previous_task_data_member(&name)),
             },
@@ -1493,14 +1507,195 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
+            Value::TypeNameRef(ty) => {
+                if let Some(ty) = ty.as_enum() {
+                    let value = self
+                        .context()
+                        .enum_variant_value(ty.name(), name.text())
+                        .map_err(|_| unknown_enum_variant_access(ty.name(), &name))?;
+                    let variant = EnumVariant::new(ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                } else {
+                    Err(cannot_access(&ty, target.span()))
+                }
+            }
             value => Err(cannot_access(&value.ty(), target.span())),
         }
     }
 }
 
+/// Checks that a provided type matches the literal expression type.
+///
+/// # Panics
+///
+/// Panics if the expression does not match the expected literal type.
+macro_rules! match_literal_value {
+    ($expr:expr, $variant:ident($binding:ident), $ty:expr) => {
+        let Expr::Literal(LiteralExpr::$variant($binding)) = $expr else {
+            panic!(
+                "expected `LiteralExpr::{expr}` expression for `{ty}` type",
+                expr = stringify!($variant),
+                ty = stringify!($ty)
+            );
+        };
+    };
+}
+
+/// Parses a constant value from an AST expression and target type.
+///
+/// Returns `None` if the value cannot be parsed as a constant value.
+///
+/// # Panics
+///
+/// Panics if any of the expressions do not match their expected literal type
+/// _or_ if the provided value does not coerce to the inner enum type. Both of
+/// these issues should be caught at analysis time.
+fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
+    let value = match target_ty {
+        Type::Primitive(PrimitiveType::Boolean, _) => {
+            match_literal_value!(expr, Boolean(b), PrimitiveType::Boolean);
+            Some(Value::Primitive(PrimitiveValue::Boolean(b.value())))
+        }
+        Type::Primitive(PrimitiveType::Integer, _) => {
+            match_literal_value!(expr, Integer(i), PrimitiveType::Integer);
+            Some(Value::Primitive(PrimitiveValue::Integer(i.value()?)))
+        }
+        Type::Primitive(PrimitiveType::Float, _) => {
+            match_literal_value!(expr, Float(f), PrimitiveType::Float);
+            Some(Value::Primitive(PrimitiveValue::Float(f.value()?.into())))
+        }
+        Type::Primitive(PrimitiveType::String, _) => {
+            match_literal_value!(expr, String(s), PrimitiveType::String);
+            Some(Value::Primitive(PrimitiveValue::new_string(
+                s.text()?.text(),
+            )))
+        }
+        Type::Primitive(PrimitiveType::File, _) => {
+            match_literal_value!(expr, String(s), PrimitiveType::File);
+            Some(Value::Primitive(PrimitiveValue::new_file(s.text()?.text())))
+        }
+        Type::Primitive(PrimitiveType::Directory, _) => {
+            match_literal_value!(expr, String(s), PrimitiveType::Directory);
+            Some(Value::Primitive(PrimitiveValue::new_directory(
+                s.text()?.text(),
+            )))
+        }
+        Type::Compound(CompoundType::Array(array_ty), _) => {
+            match_literal_value!(expr, Array(arr), CompoundType::Array);
+            let element_type = array_ty.element_type();
+            let elements: Option<Vec<Value>> = arr
+                .elements()
+                .map(|e| parse_constant_value(element_type, &e))
+                .collect();
+            Some(Value::Compound(CompoundValue::Array(
+                Array::new(array_ty.clone(), elements?).expect("array construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Pair(pair_ty), _) => {
+            match_literal_value!(expr, Pair(pair), CompoundType::Pair);
+            let (left_expr, right_expr) = pair.exprs();
+            let left = parse_constant_value(pair_ty.left_type(), &left_expr)?;
+            let right = parse_constant_value(pair_ty.right_type(), &right_expr)?;
+            Some(Value::Compound(CompoundValue::Pair(
+                Pair::new(pair_ty.clone(), left, right).expect("pair construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Map(map_ty), _) => {
+            match_literal_value!(expr, Map(map), CompoundType::Map);
+            let key_type = map_ty.key_type();
+            let value_type = map_ty.value_type();
+            let entries: Option<Vec<(Value, Value)>> = map
+                .items()
+                .map(|item| {
+                    let (key_expr, val_expr) = item.key_value();
+                    let key = parse_constant_value(key_type, &key_expr)?;
+                    let val = parse_constant_value(value_type, &val_expr)?;
+                    Some((key, val))
+                })
+                .collect();
+            Some(Value::Compound(CompoundValue::Map(
+                Map::new(map_ty.clone(), entries?).expect("map construction should succeed"),
+            )))
+        }
+        Type::Compound(CompoundType::Custom(CustomType::Struct(struct_ty)), _) => {
+            match_literal_value!(expr, Struct(s), CustomType::Struct);
+            let members: Option<indexmap::IndexMap<String, Value>> = s
+                .items()
+                .map(|item| {
+                    let (name, val_expr) = item.name_value();
+                    let name_str = name.text().to_string();
+                    let member_type = struct_ty
+                        .members()
+                        .get(&name_str)
+                        .expect("member should exist in struct type");
+                    let val = parse_constant_value(member_type, &val_expr)?;
+                    Some((name_str, val))
+                })
+                .collect();
+            Some(Value::Compound(CompoundValue::Object(Object::new(
+                members?,
+            ))))
+        }
+        Type::Object | Type::OptionalObject => {
+            match_literal_value!(expr, Object(obj), ty);
+            let members: Option<indexmap::IndexMap<String, Value>> = obj
+                .items()
+                .map(|item| {
+                    let (name, val_expr) = item.name_value();
+                    let name_str = name.text().to_string();
+
+                    // Infer the type from the literal expression and recursively extract value
+                    let inferred_ty = infer_type_from_literal(&val_expr)?;
+                    let val = parse_constant_value(&inferred_ty, &val_expr)?;
+                    Some((name_str, val))
+                })
+                .collect();
+            Some(Value::Compound(CompoundValue::Object(Object::new(
+                members?,
+            ))))
+        }
+        _ => None,
+    }?;
+
+    // SAFETY: see the panic notice for this function.
+    Some(value.coerce(None, target_ty).unwrap())
+}
+
+/// Resolves the value of an enum variant by looking up the variant's expression
+/// in the AST and resolving it to its literal value.
+///
+/// # Panics
+///
+/// The function panics if the variant value cannot be parsed as a literal or if
+/// the variant's value does not coerce to the enum's inner value type.
+///
+/// All of these should be caught by `wdl-analysis` checks.
+pub(crate) fn resolve_enum_variant_value(
+    r#enum: &Enum,
+    variant_name: &str,
+) -> Result<Value, Diagnostic> {
+    // SAFETY: we can assume that any type associated with an [`Enum`] entry is
+    // an [`EnumType`] at this point in analysis.
+    let enum_ty = r#enum.ty().unwrap().as_enum().unwrap();
+
+    let variant = r#enum
+        .definition()
+        .variants()
+        .find(|variant| variant.name().text() == variant_name)
+        .ok_or(unknown_enum_variant(enum_ty.name(), variant_name))?;
+
+    if let Some(value_expr) = variant.value() {
+        // SAFETY: see the panic notice for this function.
+        Ok(parse_constant_value(enum_ty.inner_value_type(), &value_expr).unwrap())
+    } else {
+        // NOTE: when no expression is provided, the default is the
+        // variant name as a string.
+        Ok(Value::Primitive(PrimitiveValue::new_string(variant_name)))
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test {
-    use std::borrow::Cow;
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
@@ -1518,18 +1713,20 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
-    use crate::ScopeRef;
+    use crate::EvaluationPath;
     use crate::eval::Scope;
+    use crate::eval::ScopeRef;
     use crate::http::Location;
     use crate::http::Transferer;
-    use crate::path::EvaluationPath;
 
     /// Represents a test environment.
-    pub struct TestEnv {
+    pub(crate) struct TestEnv {
         /// The scopes for the test.
         scopes: Vec<Scope>,
         /// The structs for the test.
         structs: HashMap<&'static str, Type>,
+        /// The enums for the test.
+        enums: HashMap<&'static str, Type>,
         /// The test directory.
         test_dir: TempDir,
         /// The evaluation base directory.
@@ -1539,7 +1736,7 @@ pub(crate) mod test {
     }
 
     impl TestEnv {
-        pub fn scope(&self) -> ScopeRef<'_> {
+        fn scope(&self) -> ScopeRef<'_> {
             ScopeRef::new(&self.scopes, 0)
         }
 
@@ -1549,6 +1746,10 @@ pub(crate) mod test {
 
         pub fn insert_struct(&mut self, name: &'static str, ty: impl Into<Type>) {
             self.structs.insert(name, ty.into());
+        }
+
+        pub fn insert_enum(&mut self, name: &'static str, ty: impl Into<Type>) {
+            self.enums.insert(name, ty.into());
         }
 
         pub fn base_dir(&self) -> &EvaluationPath {
@@ -1567,11 +1768,12 @@ pub(crate) mod test {
     impl Default for TestEnv {
         fn default() -> Self {
             let test_dir = TempDir::new().expect("failed to create test directory");
-            let base_dir = EvaluationPath::Local(test_dir.path().to_path_buf());
+            let base_dir = test_dir.path().into();
 
             Self {
                 scopes: vec![Scope::default()],
                 structs: Default::default(),
+                enums: Default::default(),
                 test_dir,
                 base_dir,
                 temp_dir: TempDir::new().expect("failed to create temp directory"),
@@ -1604,15 +1806,18 @@ pub(crate) mod test {
             std::future::ready(Ok(Some(1234))).boxed()
         }
 
-        fn apply_auth<'a>(&self, url: &'a Url) -> anyhow::Result<Cow<'a, Url>> {
-            Ok(Cow::Borrowed(url))
-        }
-
         fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
             unimplemented!()
         }
 
         fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+            unimplemented!()
+        }
+
+        fn digest<'a>(
+            &'a self,
+            _: &'a Url,
+        ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
             unimplemented!()
         }
     }
@@ -1657,19 +1862,39 @@ pub(crate) mod test {
         }
 
         fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-            self.env
-                .scope()
-                .lookup(name)
-                .cloned()
-                .ok_or_else(|| unknown_name(name, span))
+            // Check if there are any variables with this name and return if so.
+            if let Some(var) = self.env.scope().lookup(name).cloned() {
+                return Ok(var);
+            }
+
+            // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.structs.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
+            if let Some(ty) = self.env.enums.get(name) {
+                return Ok(Value::TypeNameRef(ty.clone()));
+            }
+
+            Err(unknown_name(name, span))
         }
 
         fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             self.env
                 .structs
                 .get(name)
+                .or_else(|| self.env.enums.get(name))
                 .cloned()
                 .ok_or_else(|| unknown_type(name, span))
+        }
+
+        fn enum_variant_value(
+            &self,
+            _enum_name: &str,
+            _variant_name: &str,
+        ) -> Result<Value, Diagnostic> {
+            unimplemented!();
         }
 
         fn base_dir(&self) -> &EvaluationPath {
@@ -2142,6 +2367,9 @@ pub(crate) mod test {
         env.insert_struct("Foo", foo_ty);
         env.insert_struct("Bar", bar_ty);
 
+        let mut base_dir = env.base_dir().to_string();
+        base_dir.push(std::path::MAIN_SEPARATOR);
+
         let value = eval_v1_expr(
             &env,
             V1::Two,
@@ -2150,7 +2378,7 @@ pub(crate) mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_struct().to_string(),
+            value.unwrap_struct().to_string().replace(&base_dir, ""),
             r#"Foo {foo: 1.000000, bar: Bar {foo: "baz", bar: 2}}"#
         );
 
@@ -2199,6 +2427,9 @@ pub(crate) mod test {
         env.insert_name("bar", false);
         env.insert_name("baz", PrimitiveValue::new_file("file"));
 
+        let mut base_dir = env.base_dir().to_string();
+        base_dir.push(std::path::MAIN_SEPARATOR);
+
         let value = eval_v1_expr(&env, V1::Zero, r#"if (foo) then "foo" else "bar""#)
             .await
             .unwrap();
@@ -2227,7 +2458,7 @@ pub(crate) mod test {
         let value = eval_v1_expr(&env, V1::Zero, r#"if (bar) then baz else "path""#)
             .await
             .unwrap();
-        assert_eq!(value.unwrap_file().as_str(), "path");
+        assert_eq!(value.unwrap_file().as_str().replace(&base_dir, ""), "path");
     }
 
     #[tokio::test]
@@ -3355,11 +3586,10 @@ pub(crate) mod test {
         let array_ty = ArrayType::new(PrimitiveType::Integer);
         let map_ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer);
 
-        env.insert_name("foo", Array::new(None, array_ty, [1, 2, 3, 4, 5]).unwrap());
+        env.insert_name("foo", Array::new(array_ty, [1, 2, 3, 4, 5]).unwrap());
         env.insert_name(
             "bar",
             Map::new(
-                None,
                 map_ty,
                 [
                     (PrimitiveValue::new_string("foo"), 1),
@@ -3437,12 +3667,11 @@ pub(crate) mod test {
 
         env.insert_name(
             "foo",
-            Pair::new(None, pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
+            Pair::new(pair_ty, 1, PrimitiveValue::new_string("foo")).unwrap(),
         );
         env.insert_name(
             "bar",
             Struct::new(
-                None,
                 struct_ty,
                 [
                     ("foo", 1.into()),

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lint"
-version = "0.17.0"
+version = "0.19.0"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
 authors.workspace = true
@@ -10,9 +10,6 @@ homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lint"
 documentation = "https://docs.rs/wdl-lint"
 readme = "../README.md"
-
-[features]
-codespan = ["wdl-ast/codespan"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -27,8 +24,8 @@ strsim = { workspace = true }
 strum = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-wdl-analysis = { path = "../wdl-analysis", version = "0.14.0" }
-wdl-ast = { path = "../wdl-ast", version = "0.18.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.16.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.20.0" }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
@@ -43,5 +40,4 @@ workspace = true
 
 [[test]]
 name = "lints"
-required-features = ["codespan"]
 harness = false

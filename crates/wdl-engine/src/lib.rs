@@ -1,31 +1,11 @@
 //! Execution engine for Workflow Description Language (WDL) documents.
 
-mod backend;
-pub mod config;
-pub mod diagnostics;
-mod eval;
-pub(crate) mod hash;
-pub(crate) mod http;
-mod inputs;
-mod outputs;
-pub mod path;
-mod stdlib;
-pub(crate) mod tree;
-mod units;
-mod value;
-
 use std::sync::LazyLock;
 
-pub use backend::*;
-pub use config::Config;
-pub use eval::*;
-pub use inputs::*;
-pub use outputs::*;
+use num_enum::IntoPrimitive;
 use sysinfo::CpuRefreshKind;
 use sysinfo::MemoryRefreshKind;
 use sysinfo::System;
-pub use units::*;
-pub use value::*;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::types::Type;
@@ -34,6 +14,30 @@ use wdl_analysis::types::v1::AstTypeConverter;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::TreeNode;
+
+mod backend;
+mod cache;
+pub mod config;
+mod diagnostics;
+mod digest;
+mod eval;
+mod http;
+mod inputs;
+mod outputs;
+mod path;
+mod stdlib;
+mod tree;
+mod units;
+mod value;
+
+pub use eval::*;
+pub use inputs::*;
+pub use outputs::*;
+pub use path::*;
+use units::*;
+pub use value::*;
+
+use crate::cache::Hashable;
 
 /// One gibibyte (GiB) as a float.
 ///
@@ -48,6 +52,11 @@ fn resolve_type_name(document: &Document, name: &str, span: Span) -> Result<Type
     document
         .struct_by_name(name)
         .map(|s| s.ty().expect("struct should have type").clone())
+        .or_else(|| {
+            document
+                .enum_by_name(name)
+                .map(|e| e.ty().expect("enum should have type").clone())
+        })
         .ok_or_else(|| unknown_type(name, span))
 }
 
@@ -75,3 +84,28 @@ static SYSTEM: LazyLock<System> = LazyLock::new(|| {
     system.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
     system
 });
+
+/// Represents either file or directory content.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
+#[repr(u8)]
+enum ContentKind {
+    /// The content is a single file.
+    File,
+    /// The content is a directory.
+    Directory,
+}
+
+impl Hashable for ContentKind {
+    fn hash(&self, hasher: &mut blake3::Hasher) {
+        hasher.update(&[(*self).into()]);
+    }
+}
+
+impl From<ContentKind> for crankshaft::engine::task::input::Type {
+    fn from(value: ContentKind) -> Self {
+        match value {
+            ContentKind::File => Self::File,
+            ContentKind::Directory => Self::Directory,
+        }
+    }
+}

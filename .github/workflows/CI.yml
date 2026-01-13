@@ -104,21 +104,23 @@ jobs:
           podman machine set --rootful
           podman machine start
           Add-Content $env:GITHUB_ENV "DOCKER_HOST=npipe:////./pipe/podman-machine-default"
-
       # TODO ACF 2025-09-18: these pulls are absorbed from the `wdl` repo's CI script. Since the
       # Sprocket CI is already setting up container runtimes on Mac and Windows, should we revisit
       # whether these steps are Linux-only?
-      - run: docker pull ubuntu:latest
+      - name: Pull test images
         if: runner.os == 'Linux'
-      - run: docker pull ubuntu:focal
-        if: runner.os == 'Linux'
-      - run: docker pull ghcr.io/multiqc/multiqc:v1.31
-        if: runner.os == 'Linux'
-      - run: docker pull alpine:latest
-        if: runner.os == 'Linux'
-
+        run: |
+          docker pull ubuntu:latest
+          docker pull ubuntu:focal
+          docker pull ghcr.io/multiqc/multiqc:v1.31
+          docker pull alpine:latest
+      - name: Run tests (Docker disabled)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: DISABLE_DOCKER_TESTS=1 cargo --locked test --workspace --all-targets --all-features --no-fail-fast
       - name: Run tests
-        run: cargo --locked test --workspace --all-features --no-fail-fast
+        if: runner.os == 'Linux'
+        run: cargo --locked test --workspace --all-targets --all-features --no-fail-fast
 
   docs:
     runs-on: ubuntu-latest

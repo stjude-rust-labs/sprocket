@@ -39,13 +39,18 @@ impl AnalysisResults {
         self.0
     }
 
+    /// Gets the slice of analysis results.
+    pub fn as_slice(&self) -> &[AnalysisResult] {
+        &self.0
+    }
+
     /// Attempts to find all analysis results that match any of the provided
     /// sources.
     pub fn filter(&self, sources: &[&Source]) -> impl Iterator<Item = &AnalysisResult> {
         self.0.iter().filter(|r| {
             let mut path = None;
             sources.iter().any(|s| match s {
-                Source::Remote(url) | Source::File(url) => url == r.document().uri().as_ref(),
+                Source::File(url) => url == r.document().uri().as_ref(),
                 Source::Directory(dir) => path
                     .get_or_insert_with(|| r.document().uri().to_file_path())
                     .as_ref()

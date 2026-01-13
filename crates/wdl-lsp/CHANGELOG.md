@@ -7,13 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.1 - 01-12-2026
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.16.0 - 01-12-2026
+
+### Added
+
+* Added LSP support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
+## 0.15.0 - 11-21-2025
+
 ## 0.14.0 - 10-14-2025
 
 * Added support for signature help ([#409](https://github.com/stjude-rust-labs/sprocket/pull/409)).
 
 ## 0.13.0 - 09-15-2025
 
-#### Added
+### Added
 
 * Added support for workspace symbols ([#588](https://github.com/stjude-rust-labs/wdl/pull/588)).
 * Added support for snippets ([#577](https://github.com/stjude-rust-labs/wdl/pull/577)).
@@ -21,41 +36,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.12.0 - 08-13-2025
 
-#### Added
+### Added
 
 * Added support for semantic highlighting ([#569](https://github.com/stjude-rust-labs/wdl/pull/569)).
 
-#### Added
+### Added
 
 * Added support for renaming ([#563](https://github.com/stjude-rust-labs/wdl/pull/563)).
 * Added support for hover ([#540](https://github.com/stjude-rust-labs/wdl/pull/540)).
 
 ## 0.11.0 - 07-31-2025
 
-#### Added
+### Added
 
 * Added support for completions ([#519](https://github.com/stjude-rust-labs/wdl/pull/519)).
 * Added `exceptions` to `ServerOptions` ([#542](https://github.com/stjude-rust-labs/wdl/pull/542)).
 
 ## 0.10.0 - 07-09-2025
 
-#### Added
+### Added
 
 * Added `goto_definition`, `find_all_references` tests ([#489](https://github.com/stjude-rust-labs/wdl/pull/489)).
 
-#### Fixed
+### Fixed
 
 * Ensure the server is fully initialized before responding ([#487](https://github.com/stjude-rust-labs/wdl/pull/487)).
 
 ## 0.9.0 - 05-27-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 
 ## 0.8.2 - 05-05-2025
 
-#### Dependencies
+### Dependencies
 
 * Bumps dependencies.
 

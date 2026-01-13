@@ -1,6 +1,6 @@
 ## This is a test of using the `env` keyword on a non-primitive type.
 
-version 1.2
+version 1.3
 
 task test {
     input {

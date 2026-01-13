@@ -1,0 +1,11 @@
+foo:
+  - name: unequal lengths
+    inputs:
+      $group:
+          one:
+            - foo
+          two:
+            - bar
+            - baz
+      three:
+        - doesn't matter

@@ -21,12 +21,13 @@ edition = "2024"
 authors = ["The Sprocket project contributors"]
 homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-rust-version = "1.89.0"
+rust-version = "1.91.1"
 
 [workspace.dependencies]
 ammonia = "4.1.2"
 anyhow = "1.0.98"
 approx = "0.5.1"
+arrayvec = { version = "0.7.6", features = ["serde"] }
 async-trait = "0.1.87"
 axum = "0.8.6"
 bimap = "0.6.3"
@@ -37,11 +38,12 @@ chrono = "0.4.41"
 clap = { version = "4.5.45", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.3", features = ["tracing"] }
 clap_complete = "4.5.55"
-cloud-copy = { version = "0.4.0", features = ["cli"] }
+cloud-copy = { version = "0.6.0", features = ["cli"], git = "https://github.com/stjude-rust-labs/cloud-copy" }
 codespan-reporting = "0.12.0"
 colored = "3.0.0"
 convert_case = "0.8.0"
-crankshaft = { version = "0.6.0", path = "vendor/crankshaft/crankshaft", features = ["docker"] }
+crankshaft = { version = "0.8.0", path = "vendor/crankshaft/crankshaft", features = ["docker"] }
+criterion = "0.7.0"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
 figment = { version = "0.10.19", features = ["toml", "yaml"] }
@@ -64,13 +66,14 @@ macropol = "0.1.3"
 maud = "0.27.0"
 nonempty = "0.12.0"
 notify = "8.2.0"
+num_enum = "0.7.5"
 opener = "0.8.1"
 ordered-float = "5.0.0"
 parking_lot = "0.12.3"
 paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
-pest = { version = "2.8.1", features = ["pretty-print"] }
+peak_alloc = "0.3.0"
 petgraph = "0.8.1"
 petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
@@ -112,15 +115,17 @@ tracing = "0.1.41"
 tracing-indicatif = "0.3.9"
 tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tracing-test = "0.2.5"
 url = "2.5.4"
 urlencoding = "2.1.3"
 utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 uuid = { version = "1.18.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.19.0", path = "crates/wdl", features = ["codespan", "engine", "lint", "lsp", "doc"] }
+wdl = { version = "0.21.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc"] }
 which = "8.0.0"
 whoami = "1.6.1"
+zip = "6.0.0"
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -144,7 +149,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.18.0"
+version = "0.20.1"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -173,11 +178,12 @@ futures.workspace = true
 git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
+itertools.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
-pest.workspace = true
+peak_alloc.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
@@ -190,7 +196,6 @@ shellexpand.workspace = true
 similar.workspace = true
 sqlx.workspace = true
 strum.workspace = true
-thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 toml.workspace = true
@@ -208,14 +213,21 @@ wdl.workspace = true
 whoami.workspace = true
 
 [dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 http-body-util = "0.1.3"
+reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
+zip.workspace = true
 
 [lints]
 workspace = true
 
 [[test]]
 name = "cli"
+harness = false
+
+[[bench]]
+name = "bench"
 harness = false

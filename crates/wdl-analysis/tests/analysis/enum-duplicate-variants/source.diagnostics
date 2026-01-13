@@ -1,0 +1,9 @@
+error: conflicting enum variant name `Active`
+  ┌─ tests/analysis/enum-duplicate-variants/source.wdl:7:5
+  │
+5 │     Active,
+  │     ------ the enum variant with the conflicting name is here
+6 │     Pending,
+7 │     Active
+  │     ^^^^^^ this enum variant conflicts with a previously used name
+

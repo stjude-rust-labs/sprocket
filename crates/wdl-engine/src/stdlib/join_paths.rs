@@ -14,27 +14,26 @@ use super::Signature;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
-use crate::path::EvaluationPath;
 
 /// The name of the function defined in this file for use in diagnostics.
 const FUNCTION_NAME: &str = "join_paths";
 
-/// Joins together two paths into an absolute path in the host
-/// filesystem.
+/// Joins together two paths into an absolute path in the execution
+/// environment's filesystem.
 ///
-/// `File join_paths(File, String)`: Joins together exactly two paths. The first
-/// path may be either absolute or relative and must specify a directory; the
-/// second path is relative to the first path and may specify a file or
-/// directory.
+/// `String join_paths(Directory, String)`: Joins together exactly two paths.
+/// The first path may be either absolute or relative and must specify a
+/// directory; the second path is relative to the first path and may specify a
+/// file or directory.
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(context.arguments.len() == 2);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let first = context
-        .coerce_argument(0, PrimitiveType::File)
-        .unwrap_file();
+        .coerce_argument(0, PrimitiveType::Directory)
+        .unwrap_directory();
 
     let second = context
         .coerce_argument(1, PrimitiveType::String)
@@ -49,69 +48,68 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     })?;
 
-    match first {
-        EvaluationPath::Local(path) => {
-            let second = Path::new(second.as_str());
-            if !second.is_relative() {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    format!(
-                        "path `{second}` is not a relative path",
-                        second = second.display()
-                    ),
-                    context.arguments[1].span,
-                ));
-            }
-
-            Ok(PrimitiveValue::new_file(
-                path.join(second)
-                    .clean()
-                    .into_os_string()
-                    .into_string()
-                    .expect("should be UTF-8"),
-            )
-            .into())
+    if first.is_local() {
+        let path = first.unwrap_local();
+        let second = Path::new(second.as_str());
+        if !second.is_relative() {
+            return Err(function_call_failed(
+                FUNCTION_NAME,
+                format!(
+                    "path `{second}` is not a relative path",
+                    second = second.display()
+                ),
+                context.arguments[1].span,
+            ));
         }
-        EvaluationPath::Remote(mut url) => {
-            if second.starts_with('/') || second.contains(":") {
-                return Err(function_call_failed(
-                    FUNCTION_NAME,
-                    format!("path `{second}` is not a relative path"),
-                    context.arguments[1].span,
-                ));
-            }
 
-            // For consistency with `PathBuf::push`, push an empty segment so that we treat
-            // the last segment as a directory; otherwise, `Url::join` will treat it as a
-            // file.
-            if let Ok(mut segments) = url.path_segments_mut() {
-                segments.pop_if_empty();
-                segments.push("");
-            }
-
-            url.join(&second)
-                .map(|u| PrimitiveValue::new_file(u).into())
-                .map_err(|_| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{second}` cannot be joined with URL `{url}`"),
-                        context.arguments[1].span,
-                    )
-                })
+        Ok(PrimitiveValue::new_string(
+            path.join(second)
+                .clean()
+                .into_os_string()
+                .into_string()
+                .expect("should be UTF-8"),
+        )
+        .into())
+    } else {
+        let mut url = first.unwrap_remote();
+        if second.starts_with('/') || second.contains(":") {
+            return Err(function_call_failed(
+                FUNCTION_NAME,
+                format!("path `{second}` is not a relative path"),
+                context.arguments[1].span,
+            ));
         }
+
+        // For consistency with `PathBuf::push`, push an empty segment so that we treat
+        // the last segment as a directory; otherwise, `Url::join` will treat it as a
+        // file.
+        if let Ok(mut segments) = url.path_segments_mut() {
+            segments.pop_if_empty();
+            segments.push("");
+        }
+
+        url.join(&second)
+            .map(|u| PrimitiveValue::new_string(u.to_string()).into())
+            .map_err(|_| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{second}` cannot be joined with URL `{url}`"),
+                    context.arguments[1].span,
+                )
+            })
     }
 }
 
-/// Joins together two or more paths into an absolute path in the host
-/// filesystem.
+/// Joins together two or more paths into an absolute path in the execution
+/// environment's filesystem.
 ///
-/// `File join_paths(File, Array[String]+)`: Joins together any number of
+/// `String join_paths(Directory, Array[String]+)`: Joins together any number of
 /// relative paths with a base path. The first argument may be either an
 /// absolute or a relative path and must specify a directory. The paths in the
 /// second array argument must all be relative. The last element may specify a
 /// file or directory; all other elements must specify a directory.
 ///
-/// `File join_paths(Array[String]+)`: Joins together any number of paths. The
+/// `String join_paths(Array[String]+)`: Joins together any number of paths. The
 /// array must not be empty. The first element of the array may be either
 /// absolute or relative; subsequent path(s) must be relative. The last element
 /// may specify a file or directory; all other elements must specify a
@@ -120,7 +118,7 @@ fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert!(!context.arguments.is_empty() && context.arguments.len() < 3);
-    debug_assert!(context.return_type_eq(PrimitiveType::File));
+    debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     // Handle being provided one or two arguments
     let (first, array, skip, array_span) = if context.arguments.len() == 1 {
@@ -136,8 +134,8 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     } else {
         let first = context
-            .coerce_argument(0, PrimitiveType::File)
-            .unwrap_file()
+            .coerce_argument(0, PrimitiveType::Directory)
+            .unwrap_directory()
             .into();
 
         let array = context
@@ -156,72 +154,69 @@ fn join_paths(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         )
     })?;
 
-    match first {
-        EvaluationPath::Local(mut path) => {
-            for (i, element) in array
-                .as_slice()
-                .iter()
-                .enumerate()
-                .skip(if skip { 1 } else { 0 })
-            {
-                let next = element.as_string().expect("element should be string");
-                let p = Path::new(next.as_str());
-                if !p.is_relative() {
-                    return Err(function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{next}` (array index {i}) is not a relative path"),
-                        array_span,
-                    ));
-                }
-
-                path.push(p);
+    if first.is_local() {
+        let mut path = first.unwrap_local();
+        for (i, element) in array
+            .as_slice()
+            .iter()
+            .enumerate()
+            .skip(if skip { 1 } else { 0 })
+        {
+            let next = element.as_string().expect("element should be string");
+            let p = Path::new(next.as_str());
+            if !p.is_relative() {
+                return Err(function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) is not a relative path"),
+                    array_span,
+                ));
             }
 
-            Ok(PrimitiveValue::new_file(
-                path.clean()
-                    .into_os_string()
-                    .into_string()
-                    .expect("should be UTF-8"),
-            )
-            .into())
+            path.push(p);
         }
-        EvaluationPath::Remote(mut url) => {
-            for (i, element) in array
-                .as_slice()
-                .iter()
-                .enumerate()
-                .skip(if skip { 1 } else { 0 })
-            {
-                let next = element.as_string().expect("element should be string");
-                if next.starts_with('/') || next.contains(":") {
-                    return Err(function_call_failed(
-                        FUNCTION_NAME,
-                        format!("path `{next}` (array index {i}) is not a relative path"),
-                        array_span,
-                    ));
-                }
 
-                // For consistency with `PathBuf::push`, push an empty segment so that we treat
-                // the last segment as a directory; otherwise, `Url::join` will treat it as a
-                // file.
-                if let Ok(mut segments) = url.path_segments_mut() {
-                    segments.pop_if_empty();
-                    segments.push("");
-                }
-
-                url = url.join(next).map_err(|_| {
-                    function_call_failed(
-                        FUNCTION_NAME,
-                        format!(
-                            "path `{next}` (array index {i}) cannot be joined with URL `{url}`"
-                        ),
-                        context.arguments[1].span,
-                    )
-                })?;
+        Ok(PrimitiveValue::new_string(
+            path.clean()
+                .into_os_string()
+                .into_string()
+                .expect("should be UTF-8"),
+        )
+        .into())
+    } else {
+        let mut url = first.unwrap_remote();
+        for (i, element) in array
+            .as_slice()
+            .iter()
+            .enumerate()
+            .skip(if skip { 1 } else { 0 })
+        {
+            let next = element.as_string().expect("element should be string");
+            if next.starts_with('/') || next.contains(":") {
+                return Err(function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) is not a relative path"),
+                    array_span,
+                ));
             }
 
-            Ok(PrimitiveValue::new_file(url).into())
+            // For consistency with `PathBuf::push`, push an empty segment so that we treat
+            // the last segment as a directory; otherwise, `Url::join` will treat it as a
+            // file.
+            if let Ok(mut segments) = url.path_segments_mut() {
+                segments.pop_if_empty();
+                segments.push("");
+            }
+
+            url = url.join(next).map_err(|_| {
+                function_call_failed(
+                    FUNCTION_NAME,
+                    format!("path `{next}` (array index {i}) cannot be joined with URL `{url}`"),
+                    context.arguments[1].span,
+                )
+            })?;
         }
+
+        Ok(PrimitiveValue::new_string(url.to_string()).into())
     }
 }
 
@@ -231,15 +226,15 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(base: File, relative: String) -> File",
+                    "(base: Directory, relative: String) -> String",
                     Callback::Sync(join_paths_simple),
                 ),
                 Signature::new(
-                    "(base: File, relative: Array[String]+) -> File",
+                    "(base: Directory, relative: Array[String]+) -> String",
                     Callback::Sync(join_paths),
                 ),
                 Signature::new(
-                    "(paths: Array[String]+) -> File",
+                    "(paths: Array[String]+) -> String",
                     Callback::Sync(join_paths),
                 ),
             ]
@@ -249,8 +244,6 @@ pub const fn descriptor() -> Function {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
@@ -262,21 +255,23 @@ mod test {
         let env = TestEnv::default();
         #[cfg(unix)]
         {
+            use std::path::Path;
+
             let value = eval_v1_expr(&env, V1::Two, "join_paths('/usr', ['bin', 'echo'])")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let value = eval_v1_expr(&env, V1::Two, "join_paths(['/usr', 'bin', 'echo'])")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let value = eval_v1_expr(&env, V1::Two, "join_paths('mydir', 'mydata.txt')")
                 .await
                 .unwrap();
             assert_eq!(
-                Path::new(value.unwrap_file().as_str())
+                Path::new(value.unwrap_string().as_str())
                     .strip_prefix(env.base_dir().as_local().unwrap())
                     .unwrap()
                     .to_str()
@@ -287,7 +282,7 @@ mod test {
             let value = eval_v1_expr(&env, V1::Two, "join_paths('/usr', 'bin/echo')")
                 .await
                 .unwrap();
-            assert_eq!(value.unwrap_file().as_str(), "/usr/bin/echo");
+            assert_eq!(value.unwrap_string().as_str(), "/usr/bin/echo");
 
             let diagnostic = eval_v1_expr(&env, V1::Two, "join_paths('/usr', '/bin/echo')")
                 .await
@@ -400,7 +395,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz"
         );
 
@@ -412,7 +407,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz"
         );
 
@@ -423,7 +418,10 @@ mod test {
         )
         .await
         .unwrap();
-        assert_eq!(value.unwrap_file().as_str(), "https://example.com/foo/baz");
+        assert_eq!(
+            value.unwrap_string().as_str(),
+            "https://example.com/foo/baz"
+        );
 
         let value = eval_v1_expr(
             &env,
@@ -433,7 +431,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz/qux"
         );
 
@@ -445,7 +443,7 @@ mod test {
         .await
         .unwrap();
         assert_eq!(
-            value.unwrap_file().as_str(),
+            value.unwrap_string().as_str(),
             "https://example.com/foo/bar/baz?foo=qux"
         );
     }
