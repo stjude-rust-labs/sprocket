@@ -42,6 +42,7 @@ use crate::EvaluationPathKind;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskInputs;
 use crate::Value;
 use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::STDERR_FILE_NAME;
@@ -54,16 +55,11 @@ use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
 use crate::http::Transferer;
-use crate::v1::ContainerSource;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
-use crate::v1::container;
-use crate::v1::cpu;
-use crate::v1::disks;
-use crate::v1::max_cpu;
-use crate::v1::max_memory;
-use crate::v1::memory;
-use crate::v1::preemptible;
+use crate::v1::hints;
+use crate::v1::requirements;
+use crate::v1::requirements::ContainerSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -156,11 +152,12 @@ impl TesBackend {
 impl TaskExecutionBackend for TesBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container: ContainerSource =
-            container(requirements, self.config.task.container.as_deref());
+        let container =
+            requirements::container(inputs, requirements, self.config.task.container.as_deref());
         match &container {
             ContainerSource::Docker(_) | ContainerSource::Library(_) | ContainerSource::Oras(_) => {
             }
@@ -175,15 +172,15 @@ impl TaskExecutionBackend for TesBackend {
             }
         };
 
-        let disks = disks(requirements, hints)?;
+        let disks = requirements::disks(inputs, requirements, hints)?;
         if disks.values().any(|d| d.ty.is_some()) {
             debug!("disk type hints are not supported by the TES backend and will be ignored");
         }
 
         Ok(TaskExecutionConstraints {
             container: Some(container),
-            cpu: cpu(requirements),
-            memory: memory(requirements)? as u64,
+            cpu: requirements::cpu(inputs, requirements),
+            memory: requirements::memory(inputs, requirements)? as u64,
             gpu: Default::default(),
             fpga: Default::default(),
             disks: disks
@@ -197,11 +194,12 @@ impl TaskExecutionBackend for TesBackend {
         false
     }
 
-    fn spawn(
-        &self,
+    fn spawn<'a>(
+        &'a self,
+        inputs: &'a TaskInputs,
         request: TaskSpawnRequest,
         transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
             let backend_config = backend_config
@@ -209,8 +207,9 @@ impl TaskExecutionBackend for TesBackend {
                 .expect("configured backend should be TES");
 
             let constraints = request.constraints();
-            let preemptible = preemptible(request.hints())?;
-            let max_memory = max_memory(request.hints())?.map(|m| m as f64 / ONE_GIBIBYTE);
+            let preemptible = hints::preemptible(inputs, request.hints())?;
+            let max_memory =
+                hints::max_memory(inputs, request.hints())?.map(|m| m as f64 / ONE_GIBIBYTE);
             let name = format!(
                 "{id}-{generated}",
                 id = request.id(),
@@ -251,7 +250,7 @@ impl TaskExecutionBackend for TesBackend {
             );
 
             // Start with the command file as an input
-            let mut inputs = vec![
+            let mut backend_inputs = vec![
                 Input::builder()
                     .path(GUEST_COMMAND_PATH)
                     .contents(Contents::Path(command_path.to_path_buf()))
@@ -297,7 +296,7 @@ impl TaskExecutionBackend for TesBackend {
                     }
                     EvaluationPathKind::Remote(url) => {
                         // Input is already remote, add it to the Crankshaft inputs list
-                        inputs.push(
+                        backend_inputs.push(
                             Input::builder()
                                 .path(
                                     input
@@ -318,7 +317,7 @@ impl TaskExecutionBackend for TesBackend {
             while let Some(result) = uploads.join_next().await {
                 let (i, url) = result.context("upload task")??;
                 let input = &request.inputs()[i];
-                inputs.push(
+                backend_inputs.push(
                     Input::builder()
                         .path(
                             input
@@ -440,12 +439,12 @@ impl TaskExecutionBackend for TesBackend {
                             .stderr(GUEST_STDERR_PATH)
                             .build(),
                     ))
-                    .inputs(inputs.clone())
+                    .inputs(backend_inputs.clone())
                     .outputs(outputs.clone())
                     .resources(
                         Resources::builder()
                             .cpu(constraints.cpu)
-                            .maybe_cpu_limit(max_cpu(request.hints()))
+                            .maybe_cpu_limit(hints::max_cpu(inputs, request.hints()))
                             .ram(constraints.memory as f64 / ONE_GIBIBYTE)
                             .disk(disk)
                             .maybe_ram_limit(max_memory)
