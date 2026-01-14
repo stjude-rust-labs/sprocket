@@ -92,6 +92,7 @@ pub(crate) fn cacheable(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::PrimitiveValue;
 
     #[test]
     fn preemptible_disallows_negative_values() {
@@ -103,5 +104,25 @@ mod tests {
             err.to_string()
                 .contains("task hint `preemptible` cannot be less than zero")
         );
+    }
+
+    #[test]
+    fn respect_inputs_over_hints() {
+        let mut inputs = TaskInputs::default();
+        inputs.override_hint("max_cpu", 1234);
+        inputs.override_hint("max_memory", 1234);
+        inputs.override_hint("preemptible", 1234);
+        inputs.override_hint("cacheable", true);
+
+        let mut hints: HashMap<String, Value> = Default::default();
+        hints.insert("max_cpu".to_string(), PrimitiveValue::from(1).into());
+        hints.insert("max_memory".to_string(), PrimitiveValue::from(1).into());
+        hints.insert("preemptible".to_string(), PrimitiveValue::from(1).into());
+        hints.insert("cacheable".to_string(), PrimitiveValue::from(false).into());
+
+        assert_eq!(max_cpu(&inputs, &hints), Some(1234.0));
+        assert_eq!(max_memory(&inputs, &hints).unwrap(), Some(1234));
+        assert_eq!(preemptible(&inputs, &hints).unwrap(), 1234);
+        assert!(cacheable(&inputs, &hints, &Default::default()));
     }
 }

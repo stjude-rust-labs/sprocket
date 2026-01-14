@@ -283,6 +283,7 @@ impl FromStr for DiskType {
 }
 
 /// Represents a task disk requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DiskRequirement {
     /// The size of the disk, in GiB.
     pub size: i64,
@@ -496,6 +497,7 @@ mod tests {
 
     use super::ContainerSource;
     use super::*;
+    use crate::PrimitiveValue;
 
     fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
         let mut map = HashMap::new();
@@ -614,6 +616,56 @@ mod tests {
         assert_eq!(
             source,
             ContainerSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())
+        );
+    }
+
+    #[test]
+    fn respect_inputs_over_requirements() {
+        let mut inputs = TaskInputs::default();
+        inputs.override_requirement("container", PrimitiveValue::new_string("foo:bar"));
+        inputs.override_requirement("cpu", 1234);
+        inputs.override_requirement("gpu", true);
+        inputs.override_requirement("memory", 1234);
+        inputs.override_requirement("disks", 1234);
+        inputs.override_requirement("max_retries", 1234);
+        inputs.override_hint("gpu", 10);
+
+        let mut requirements: HashMap<String, Value> = Default::default();
+        requirements.insert(
+            "container".to_string(),
+            PrimitiveValue::new_string("baz:qux").into(),
+        );
+        requirements.insert("cpu".to_string(), PrimitiveValue::from(1.0).into());
+        requirements.insert("memory".to_string(), PrimitiveValue::from(1).into());
+        requirements.insert(
+            "disks".to_string(),
+            PrimitiveValue::new_string("1 GiB").into(),
+        );
+        requirements.insert("max_retries".to_string(), PrimitiveValue::from(1).into());
+
+        assert_eq!(
+            container(&inputs, &requirements, None).to_string(),
+            "foo:bar"
+        );
+
+        assert_eq!(cpu(&inputs, &requirements), 1234.0);
+
+        assert_eq!(gpu(&inputs, &requirements, &Default::default()), Some(10));
+
+        assert_eq!(
+            disks(&inputs, &requirements, &Default::default()).unwrap(),
+            HashMap::from_iter([(
+                "/",
+                DiskRequirement {
+                    size: 1234,
+                    ty: None
+                }
+            )])
+        );
+
+        assert_eq!(
+            max_retries(&inputs, &requirements, &Default::default()).unwrap(),
+            1234
         );
     }
 }

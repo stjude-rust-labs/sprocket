@@ -1,0 +1,5 @@
+{
+    "w.t.requirements.container": "ubuntu:focal",
+    "w.t.requirements.cpu": 0.2,
+    "w.t.requirements.memory": 200
+}
