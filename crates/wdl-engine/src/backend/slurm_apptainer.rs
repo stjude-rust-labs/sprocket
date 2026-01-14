@@ -33,7 +33,7 @@ use tracing::debug;
 use tracing::trace;
 use tracing::warn;
 
-use super::ApptainerState;
+use super::ApptainerRuntime;
 use super::TaskExecutionBackend;
 use crate::CancellationContext;
 use crate::EvaluationPath;
@@ -71,8 +71,8 @@ pub struct SlurmApptainerBackend {
     events: Events,
     /// The evaluation cancellation context.
     cancellation: CancellationContext,
-    /// Apptainer state.
-    apptainer_state: ApptainerState,
+    /// The underlying Apptainer runtime to use.
+    apptainer: ApptainerRuntime,
 }
 
 impl SlurmApptainerBackend {
@@ -93,7 +93,7 @@ impl SlurmApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer_state: ApptainerState::new(run_root_dir),
+            apptainer: ApptainerRuntime::new(run_root_dir),
         })
     }
 }
@@ -260,15 +260,10 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     )
                 })?;
 
-            let apptainer_command = self
-                .apptainer_state
-                .prepare_apptainer_command(
-                    request
-                        .constraints
-                        .container
-                        .as_ref()
-                        .expect("should have container"),
-                    self.cancellation.first(),
+            let Some(apptainer_script) = self
+                .apptainer
+                .generate_script(
+                    &self.config,
                     &request,
                     backend_config
                         .apptainer_config
@@ -277,11 +272,14 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                         .unwrap_or_default()
                         .iter()
                         .map(String::as_str),
+                    self.cancellation.first(),
                 )
-                .await?;
+                .await? else {
+                    return Ok(None);
+                };
 
             let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-            fs::write(&apptainer_command_path, apptainer_command)
+            fs::write(&apptainer_command_path, apptainer_script)
                 .await
                 .with_context(|| {
                     format!(

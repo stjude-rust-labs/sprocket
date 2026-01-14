@@ -38,6 +38,9 @@ pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 /// The default backend name.
 pub(crate) const DEFAULT_BACKEND_NAME: &str = "default";
 
+/// The maximum size, in bytes, for an LSF job name prefix.
+const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
+
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
 
@@ -1246,6 +1249,7 @@ impl TesBackendConfig {
 
 /// Configuration for the Apptainer container runtime.
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -1268,6 +1272,7 @@ impl ApptainerConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
     /// <queue_name>`.
@@ -1354,7 +1359,22 @@ impl LsfQueueConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
+    /// The task monitor polling interval, in seconds.
+    ///
+    /// Defaults to 30 seconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+    /// The maximum number of concurrent LSF operations the backend will
+    /// perform.
+    ///
+    /// This controls the maximum concurrent number of `bsub` processes the
+    /// backend will spawn to queue tasks.
+    ///
+    /// Defaults to 10 concurrent operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrency: Option<u32>,
     /// Which queue, if any, to specify when submitting normal jobs to LSF.
     ///
     /// This may be superseded by
@@ -1404,6 +1424,7 @@ impl LsfApptainerBackendConfig {
         if cfg!(not(unix)) {
             bail!("LSF + Apptainer backend is not supported on non-unix platforms");
         }
+
         if !engine_config.experimental_features_enabled {
             bail!("LSF + Apptainer backend requires enabling experimental features");
         }
@@ -1413,17 +1434,29 @@ impl LsfApptainerBackendConfig {
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
         // us to get better error messages in circumstances typical to a cluster.
-        if let Some(queue) = self.default_lsf_queue.as_ref() {
+        if let Some(queue) = &self.default_lsf_queue {
             queue.validate("default").await?;
         }
-        if let Some(queue) = self.short_task_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.short_task_lsf_queue {
             queue.validate("short_task").await?;
         }
-        if let Some(queue) = self.gpu_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.gpu_lsf_queue {
             queue.validate("gpu").await?;
         }
-        if let Some(queue) = self.fpga_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.fpga_lsf_queue {
             queue.validate("fpga").await?;
+        }
+
+        if let Some(prefix) = &self.job_name_prefix
+            && prefix.len() > MAX_LSF_JOB_NAME_PREFIX
+        {
+            bail!(
+                "LSF job name prefix `{prefix}` exceeds the maximum {MAX_LSF_JOB_NAME_PREFIX} \
+                 bytes"
+            );
         }
 
         self.apptainer_config.validate().await?;
@@ -1481,6 +1514,7 @@ impl LsfApptainerBackendConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
     /// --partition=<partition_name>`.
@@ -1580,6 +1614,7 @@ impl SlurmPartitionConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// Which partition, if any, to specify when submitting normal jobs to
     /// Slurm.
@@ -2008,6 +2043,24 @@ mod test {
         assert!(
             config.validate().await.is_ok(),
             "should pass for default (None)"
+        );
+
+        // Test invalid LSF job name prefix
+        let job_name_prefix = "A".repeat(MAX_LSF_JOB_NAME_PREFIX * 2);
+        let mut config = Config {
+            experimental_features_enabled: true,
+            ..Default::default()
+        };
+        config.backends.insert(
+            "default".to_string(),
+            BackendConfig::LsfApptainer(LsfApptainerBackendConfig {
+                job_name_prefix: Some(job_name_prefix.clone()),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            format!("LSF job name prefix `{job_name_prefix}` exceeds the maximum 100 bytes")
         );
     }
 }
