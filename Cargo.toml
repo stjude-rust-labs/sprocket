@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "crates/ci",
     "crates/gauntlet",
     "crates/wdl",
     "crates/wdl-analysis",

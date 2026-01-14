@@ -6,32 +6,40 @@ Various CI features have been implemented to ease the release process, but some 
 
 ## Time to Release!
 
-The first step in making a release is to run the [`bump` GitHub action](https://github.com/stjude-rust-labs/sprocket/actions/workflows/bump.yml). This action will do two things:
+The following steps are handled automatically by the [release-plz](./.github/workflows/release-plz.yml) workflow.
+In the event it fails, they can be performed manually.
+
+<details>
+<summary>Manual release steps</summary>
 
 1. Go through each publishable crate (i.e., each `wdl-*` crate, `wdl`, and `sprocket`) and increment the version in `Cargo.toml` (as well as match any internal dependency versions that need to be bumped).
 2. Update each CHANGELOG.md file with a new release header.
-    * This piece of the `ci` code relies on the line `## Unreleased` being present in the CHANGELOG.md file (see the [`ci` crate code](https://github.com/stjude-rust-labs/sprocket/blob/main/crates/ci/src/main.rs) for details).
+3. Create a new tag for each new crate version _excluding_ `sprocket`, with the format `{CRATE_NAME}-v{VERSION}` (where `VERSION` matches the latest version in the root `Cargo.toml`)
+    * For new `sprocket` releases, the tag name format is `v{VERSION}`
 
-Then the `bump` action will open a PR with the above changes for manual review. Please ensure everything looks good and the CI is passing before merging the PR!
+    ```bash
+    git tag {CRATE_NAME}-v{VERSION}
+    git push --tags
+    ```
+4. Publish each crate to [crates.io](https://crates.io)
 
-Once the bump PR merges, tag the HEAD commit with `v{VERSION}` (where `VERSION` matches the latest version in the root `Cargo.toml`) and push the tag:
+    ```bash
+    cargo publish --workspace
+    ```
+5. If updating `sprocket`, create a new GitHub release with the title `v{VERSION}` and mark it as the latest release
+</details>
 
-```bash
-git tag v{VERSION}
-git push --tags
-```
+The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of the `release-plz` workflow.
+By default, the release will only include the changelog of the `sprocket` crate. Each crate's most recent CHANGELOG entries should be copy and pasted into the release notes.
+These should be ordered topologically (starting with `wdl-grammar`, ending with `sprocket` itself if that had non-dependency changes).
 
-The CI should handle publishing each crate to crates.io.
-
-Next up is making a GitHub release, which should be done manually. Please review the most recent releases, as we sometimes change the GitHub "Release Notes" formatting. Each crate's most recent CHANGELOG entries should be copy and pasted into the release notes. These should be ordered topologically (starting with `wdl-grammar`, ending with `sprocket` itself if that had non-dependency changes). Format each section so that it looks like:
+Format each section so that it looks like:
 
 ```
 ### `<crate name>`
 
 <copy and pasted CHANGELOG entries>
 ```
-
-Make sure to mark this release as the latest.
 
 ## Post-Release
 
