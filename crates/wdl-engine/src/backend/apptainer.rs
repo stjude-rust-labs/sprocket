@@ -14,8 +14,8 @@ use anyhow::anyhow;
 use images::ApptainerImages;
 use tokio_util::sync::CancellationToken;
 
-use super::TaskSpawnRequest;
 use crate::Value;
+use crate::backend::ExecuteTaskRequest;
 use crate::v1::requirements::ContainerSource;
 
 mod images;
@@ -74,14 +74,14 @@ impl ApptainerState {
         &self,
         container: &ContainerSource,
         cancellation_token: CancellationToken,
-        spawn_request: &TaskSpawnRequest,
+        request: &ExecuteTaskRequest<'_>,
         extra_args: impl Iterator<Item = &str>,
     ) -> Result<String> {
         let container_sif = self
             .images
             .sif_for_container(container, cancellation_token)
             .await?;
-        self.generate_apptainer_script(&container_sif, spawn_request, extra_args)
+        self.generate_apptainer_script(&container_sif, request, extra_args)
             .await
     }
 
@@ -93,7 +93,7 @@ impl ApptainerState {
     async fn generate_apptainer_script(
         &self,
         container_sif: &Path,
-        spawn_request: &TaskSpawnRequest,
+        request: &ExecuteTaskRequest<'_>,
         extra_args: impl Iterator<Item = &str>,
     ) -> Result<String> {
         // Create a temp dir for the container's execution within the attempt dir
@@ -103,7 +103,7 @@ impl ApptainerState {
         // for other inputs and outputs prevents this from being a capacity problem,
         // though potentially at the expense of execution speed if the
         // non-`/tmp` filesystem is significantly slower.
-        let container_tmp_path = spawn_request.temp_dir().join("container_tmp");
+        let container_tmp_path = request.temp_dir.join("container_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_tmp_path)
@@ -114,7 +114,7 @@ impl ApptainerState {
                     path = container_tmp_path.display()
                 )
             })?;
-        let container_var_tmp_path = spawn_request.temp_dir().join("container_var_tmp");
+        let container_var_tmp_path = request.temp_dir.join("container_var_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_var_tmp_path)
@@ -128,13 +128,13 @@ impl ApptainerState {
 
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
-        for (k, v) in spawn_request.env().iter() {
+        for (k, v) in request.env.iter() {
             writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
         writeln!(&mut apptainer_command, "apptainer -v exec \\")?;
         writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
         writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
-        for input in spawn_request.inputs() {
+        for input in request.backend_inputs {
             writeln!(
                 &mut apptainer_command,
                 "--mount type=bind,src=\"{host_path}\",dst=\"{guest_path}\",ro \\",
@@ -150,12 +150,12 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_COMMAND_PATH}\",ro \\",
-            spawn_request.command_path().display()
+            request.command_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_WORK_DIR}\" \\",
-            spawn_request.work_dir().display()
+            request.work_dir().display()
         )?;
         writeln!(
             &mut apptainer_command,
@@ -170,16 +170,16 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDOUT_PATH}\" \\",
-            spawn_request.stdout_path().display()
+            request.stdout_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDERR_PATH}\" \\",
-            spawn_request.stderr_path().display()
+            request.stderr_path().display()
         )?;
 
-        if let Some(true) = spawn_request
-            .requirements()
+        if let Some(true) = request
+            .requirements
             .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
             .and_then(Value::as_boolean)
         {
@@ -196,7 +196,7 @@ impl ApptainerState {
             "bash -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
              \\\"{GUEST_STDERR_PATH}\\\"\" \\"
         )?;
-        let attempt_dir = spawn_request.attempt_dir();
+        let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
         let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
         writeln!(
@@ -211,7 +211,6 @@ impl ApptainerState {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::iter::empty;
 
     use indexmap::IndexMap;
@@ -219,46 +218,41 @@ mod tests {
 
     use super::*;
     use crate::ONE_GIBIBYTE;
+    use crate::TaskInputs;
+    use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
-    use crate::backend::TaskSpawnInfo;
-
-    fn mk_example_task() -> (TempDir, ApptainerState, TaskSpawnRequest) {
-        let tmp = tempfile::tempdir().unwrap();
-        let state = ApptainerState::new(tmp.path());
-        let mut env = IndexMap::new();
-        env.insert("FOO".to_string(), "bar".to_string());
-        env.insert("BAZ".to_string(), "\"quux\"".to_string());
-        let info = TaskSpawnInfo::new(
-            "echo hello".to_string(),
-            vec![],
-            HashMap::new().into(),
-            HashMap::new().into(),
-            env.into(),
-        );
-        let spawn_request = TaskSpawnRequest {
-            id: "example_task".to_string(),
-            info,
-            attempt_dir: tmp.path().join("0"),
-            temp_dir: tmp.path().join("tmp"),
-            constraints: TaskExecutionConstraints {
-                container: None,
-                cpu: 1.0,
-                memory: ONE_GIBIBYTE as u64,
-                gpu: Default::default(),
-                fpga: Default::default(),
-                disks: Default::default(),
-            },
-        };
-        (tmp, state, spawn_request)
-    }
 
     #[tokio::test]
     async fn example_task_generates() {
-        let (tmp, state, spawn_request) = mk_example_task();
+        let root = TempDir::new().unwrap();
+
+        let mut env = IndexMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("BAZ".to_string(), "\"quux\"".to_string());
+
+        let state = ApptainerState::new(&root.path().join("runs"));
         let _ = state
             .generate_apptainer_script(
-                &tmp.path().join("non-existent.sif"),
-                &spawn_request,
+                &root.path().join("non-existent.sif"),
+                &ExecuteTaskRequest {
+                    id: "example-task",
+                    command: "echo hello",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Default::default(),
+                    hints: &Default::default(),
+                    env: &env,
+                    constraints: &TaskExecutionConstraints {
+                        container: None,
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    attempt_dir: &root.path().join("0"),
+                    temp_dir: &root.path().join("temp"),
+                },
                 empty(),
             )
             .await
@@ -273,17 +267,42 @@ mod tests {
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
-        let (tmp, state, spawn_request) = mk_example_task();
+        let root = TempDir::new().unwrap();
+
+        let mut env = IndexMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("BAZ".to_string(), "\"quux\"".to_string());
+
+        let state = ApptainerState::new(&root.path().join("runs"));
+
         let script = state
             .generate_apptainer_script(
-                &tmp.path().join("non-existent.sif"),
-                &spawn_request,
+                &root.path().join("non-existent.sif"),
+                &ExecuteTaskRequest {
+                    id: "example-task",
+                    command: "echo hello",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Default::default(),
+                    hints: &Default::default(),
+                    env: &env,
+                    constraints: &TaskExecutionConstraints {
+                        container: None,
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    attempt_dir: &root.path().join("0"),
+                    temp_dir: &root.path().join("temp"),
+                },
                 empty(),
             )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
             .expect("example task script should generate");
-        let script_file = tmp.path().join("apptainer_script");
+        let script_file = root.path().join("apptainer_script");
         tokio::fs::write(&script_file, &script)
             .await
             .expect("can write script to disk");

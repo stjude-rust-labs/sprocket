@@ -32,10 +32,10 @@ use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
 
+use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
-use super::TaskSpawnRequest;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
@@ -194,11 +194,10 @@ impl TaskExecutionBackend for TesBackend {
         false
     }
 
-    fn spawn<'a>(
+    fn execute<'a>(
         &'a self,
-        inputs: &'a TaskInputs,
-        request: TaskSpawnRequest,
-        transferer: Arc<dyn Transferer>,
+        transferer: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
@@ -206,13 +205,12 @@ impl TaskExecutionBackend for TesBackend {
                 .as_tes()
                 .expect("configured backend should be TES");
 
-            let constraints = request.constraints();
-            let preemptible = hints::preemptible(inputs, request.hints())?;
+            let preemptible = hints::preemptible(request.inputs, request.hints)?;
             let max_memory =
-                hints::max_memory(inputs, request.hints())?.map(|m| m as f64 / ONE_GIBIBYTE);
+                hints::max_memory(request.inputs, request.hints)?.map(|m| m as f64 / ONE_GIBIBYTE);
             let name = format!(
                 "{id}-{generated}",
-                id = request.id(),
+                id = request.id,
                 generated = self
                     .names
                     .lock()
@@ -233,7 +231,7 @@ impl TaskExecutionBackend for TesBackend {
                 })?;
             }
 
-            fs::write(&command_path, request.command()).with_context(|| {
+            fs::write(&command_path, request.command).with_context(|| {
                 format!(
                     "failed to write command contents to `{path}`",
                     path = command_path.display()
@@ -262,7 +260,7 @@ impl TaskExecutionBackend for TesBackend {
             // Spawn upload tasks for inputs available locally, and apply authentication to
             // the URLs for remote inputs.
             let mut uploads = JoinSet::new();
-            for (i, input) in request.inputs().iter().enumerate() {
+            for (i, input) in request.backend_inputs.iter().enumerate() {
                 match input.path().kind() {
                     EvaluationPathKind::Local(path) => {
                         // Input is local, spawn an upload of it
@@ -316,7 +314,7 @@ impl TaskExecutionBackend for TesBackend {
             // Wait for any uploads to complete
             while let Some(result) = uploads.join_next().await {
                 let (i, url) = result.context("upload task")??;
-                let input = &request.inputs()[i];
+                let input = &request.backend_inputs[i];
                 backend_inputs.push(
                     Input::builder()
                         .path(
@@ -373,7 +371,7 @@ impl TaskExecutionBackend for TesBackend {
             // Calculate the total size required for all disks as TES does not have a way of
             // specifying volume sizes; a single disk will be created from which all volumes
             // will be mounted
-            let disks = &request.constraints().disks;
+            let disks = &request.constraints.disks;
             let disk: f64 = if disks.is_empty() {
                 DEFAULT_TASK_REQUIREMENT_DISKS
             } else {
@@ -386,7 +384,7 @@ impl TaskExecutionBackend for TesBackend {
             };
 
             let volumes = request
-                .constraints()
+                .constraints
                 .disks
                 .keys()
                 .filter_map(|mp| {
@@ -415,7 +413,8 @@ impl TaskExecutionBackend for TesBackend {
                     .executions(NonEmpty::new(
                         Execution::builder()
                             .image(
-                                match constraints
+                                match request
+                                    .constraints
                                     .container
                                     .as_ref()
                                     .expect("constraints should have a container")
@@ -434,7 +433,7 @@ impl TaskExecutionBackend for TesBackend {
                             )
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
-                            .env(request.env().clone())
+                            .env(request.env.clone())
                             .stdout(GUEST_STDOUT_PATH)
                             .stderr(GUEST_STDERR_PATH)
                             .build(),
@@ -443,9 +442,9 @@ impl TaskExecutionBackend for TesBackend {
                     .outputs(outputs.clone())
                     .resources(
                         Resources::builder()
-                            .cpu(constraints.cpu)
-                            .maybe_cpu_limit(hints::max_cpu(inputs, request.hints()))
-                            .ram(constraints.memory as f64 / ONE_GIBIBYTE)
+                            .cpu(request.constraints.cpu)
+                            .maybe_cpu_limit(hints::max_cpu(request.inputs, request.hints))
+                            .ram(request.constraints.memory as f64 / ONE_GIBIBYTE)
                             .disk(disk)
                             .maybe_ram_limit(max_memory)
                             .preemptible(preemptible > 0)
