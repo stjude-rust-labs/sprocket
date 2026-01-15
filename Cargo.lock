@@ -863,6 +863,7 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.8.0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#c293a650b6c4070aebc8deca727bf02e07e744d6"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -873,6 +874,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#c293a650b6c4070aebc8deca727bf02e07e744d6"
 dependencies = [
  "base64",
  "bon",
@@ -887,6 +889,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.4.0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#c293a650b6c4070aebc8deca727bf02e07e744d6"
 dependencies = [
  "anyhow",
  "bollard",
@@ -907,6 +910,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-engine"
 version = "0.8.0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#c293a650b6c4070aebc8deca727bf02e07e744d6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -941,6 +945,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#c293a650b6c4070aebc8deca727bf02e07e744d6"
 dependencies = [
  "bytes",
  "nonempty",
