@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 * Fixed `LineWidth` rule incorrectly emitting diagnostics for import statements ([#501](https://github.com/stjude-rust-labs/sprocket/pull/501)).
+* Fixed `ShellCheck` diagnostic spans for command sections with leading empty lines ([#545](https://github.com/stjude-rust-labs/sprocket/pull/545)).
 
 ## 0.19.0 - 01-12-2026
 
