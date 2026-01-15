@@ -138,8 +138,14 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
-/// A helper for looking up a set of keys within a map.
-fn lookup_entry<'a, 'b, F>(keys: &[&'a str], lookup: F) -> Option<(&'a str, &'b Value)>
+/// Finds a key and value from a set of keys and a lookup function.
+///
+/// The lookup function takes the key and returns `Some` if the value was found
+/// or `None` if there was no value for the given key.
+///
+/// Returns the first key found along with the associated value or `None` if
+/// none of the keys is associated with a value.
+fn find_key_value<'a, 'b, F>(keys: &[&'a str], lookup: F) -> Option<(&'a str, &'b Value)>
 where
     F: Fn(&str) -> Option<&'b Value>,
 {

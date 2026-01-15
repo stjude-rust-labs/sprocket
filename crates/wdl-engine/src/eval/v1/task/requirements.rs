@@ -33,7 +33,7 @@ use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CONTAINER;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CPU;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MEMORY;
-use crate::v1::task::lookup_entry;
+use crate::v1::task::find_key_value;
 use crate::v1::task::parse_storage_value;
 use crate::v1::validators::SettingSource;
 use crate::v1::validators::ensure_non_negative_i64;
@@ -136,7 +136,7 @@ pub(crate) fn container(
     requirements: &HashMap<String, Value>,
     default: Option<&str>,
 ) -> ContainerSource {
-    let value: Cow<'_, str> = lookup_entry(
+    let value: Cow<'_, str> = find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
         |key| inputs.requirement(key).or_else(|| requirements.get(key)),
     )
@@ -178,7 +178,7 @@ pub(crate) fn container(
 
 /// Gets the `cpu` requirement from a requirements map.
 pub(crate) fn cpu(inputs: &TaskInputs, requirements: &HashMap<String, Value>) -> f64 {
-    lookup_entry(&[TASK_REQUIREMENT_CPU], |key| {
+    find_key_value(&[TASK_REQUIREMENT_CPU], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     })
     .map(|(_, v)| {
@@ -191,7 +191,7 @@ pub(crate) fn cpu(inputs: &TaskInputs, requirements: &HashMap<String, Value>) ->
 
 /// Gets the `memory` requirement from a requirements map.
 pub(crate) fn memory(inputs: &TaskInputs, requirements: &HashMap<String, Value>) -> Result<i64> {
-    if let Some((key, value)) = lookup_entry(&[TASK_REQUIREMENT_MEMORY], |key| {
+    if let Some((key, value)) = find_key_value(&[TASK_REQUIREMENT_MEMORY], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     }) {
         let bytes = parse_storage_value(value, |raw| {
@@ -212,7 +212,7 @@ pub(crate) fn gpu(
 ) -> Option<u64> {
     // If `requirements { gpu: false }` or there is no `gpu` requirement, return
     // `None`.
-    let Some(true) = lookup_entry(&[TASK_REQUIREMENT_GPU], |key| {
+    let Some(true) = find_key_value(&[TASK_REQUIREMENT_GPU], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     })
     .and_then(|(_, v)| v.as_boolean()) else {
@@ -221,7 +221,7 @@ pub(crate) fn gpu(
 
     // If there is no `gpu` hint giving us more detail on the request, use the
     // default count.
-    let Some((_, hint)) = lookup_entry(&[TASK_HINT_GPU], |key| {
+    let Some((_, hint)) = find_key_value(&[TASK_HINT_GPU], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     }) else {
         return Some(DEFAULT_GPU_COUNT);
@@ -308,7 +308,7 @@ pub(crate) fn disks<'a>(
         hints: &HashMap<String, Value>,
         inputs: &TaskInputs,
     ) -> Option<DiskType> {
-        lookup_entry(&[TASK_HINT_DISKS], |key| {
+        find_key_value(&[TASK_HINT_DISKS], |key| {
             inputs.hint(key).or_else(|| hints.get(key))
         })
         .and_then(|(_, v)| {
@@ -429,7 +429,7 @@ pub(crate) fn disks<'a>(
     }
 
     let mut disks = HashMap::new();
-    if let Some((key, v)) = lookup_entry(&[TASK_REQUIREMENT_DISKS], |key| {
+    if let Some((key, v)) = find_key_value(&[TASK_REQUIREMENT_DISKS], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     }) {
         if let Some(size) = v.as_integer() {
@@ -471,7 +471,7 @@ pub(crate) fn max_retries(
     requirements: &HashMap<String, Value>,
     config: &Config,
 ) -> Result<u64> {
-    if let Some((key, value)) = lookup_entry(
+    if let Some((key, value)) = find_key_value(
         &[
             TASK_REQUIREMENT_MAX_RETRIES,
             TASK_REQUIREMENT_MAX_RETRIES_ALIAS,

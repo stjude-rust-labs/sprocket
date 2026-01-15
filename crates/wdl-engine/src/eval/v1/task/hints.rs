@@ -15,7 +15,7 @@ use crate::TaskInputs;
 use crate::Value;
 use crate::config::CallCachingMode;
 use crate::config::Config;
-use crate::v1::task::lookup_entry;
+use crate::v1::task::find_key_value;
 use crate::v1::task::parse_storage_value;
 use crate::v1::validators::SettingSource;
 use crate::v1::validators::ensure_non_negative_i64;
@@ -23,7 +23,7 @@ use crate::v1::validators::invalid_numeric_value_message;
 
 /// Gets the `max_cpu` hint from a hints map.
 pub(crate) fn max_cpu(inputs: &TaskInputs, hints: &HashMap<String, Value>) -> Option<f64> {
-    lookup_entry(&[TASK_HINT_MAX_CPU, TASK_HINT_MAX_CPU_ALIAS], |key| {
+    find_key_value(&[TASK_HINT_MAX_CPU, TASK_HINT_MAX_CPU_ALIAS], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
     .map(|(_, v)| {
@@ -38,7 +38,7 @@ pub(crate) fn max_memory(
     inputs: &TaskInputs,
     hints: &HashMap<String, Value>,
 ) -> Result<Option<i64>> {
-    match lookup_entry(&[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS], |key| {
+    match find_key_value(&[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     }) {
         Some((key, value)) => {
@@ -60,7 +60,7 @@ pub(crate) fn preemptible(inputs: &TaskInputs, hints: &HashMap<String, Value>) -
     const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
     const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
 
-    Ok(lookup_entry(&[TASK_HINT_PREEMPTIBLE], |key| {
+    Ok(find_key_value(&[TASK_HINT_PREEMPTIBLE], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
     .and_then(|(_, v)| {
@@ -79,7 +79,7 @@ pub(crate) fn cacheable(
     hints: &HashMap<String, Value>,
     config: &Config,
 ) -> bool {
-    lookup_entry(&[TASK_HINT_CACHEABLE], |key| {
+    find_key_value(&[TASK_HINT_CACHEABLE], |key| {
         inputs.hint(key).or_else(|| hints.get(key))
     })
     .and_then(|(_, v)| v.as_boolean())
