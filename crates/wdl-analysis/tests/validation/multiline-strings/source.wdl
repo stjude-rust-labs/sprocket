@@ -1,7 +1,7 @@
 ## This is a test of multi-line strings from WDL 1.2
 ## There should be no diagnostics for this test.
 
-version 1.2
+version 1.3
 
 workflow ok {
     String ok = <<<

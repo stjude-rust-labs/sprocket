@@ -2,8 +2,11 @@
 
 use std::collections::HashSet;
 use std::fs::read;
+use std::fs::read_to_string;
+use std::fs::remove_dir;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -11,22 +14,72 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
+use indexmap::IndexMap;
 use nonempty::NonEmpty;
+use path_clean::PathClean;
+use regex::Regex;
+use serde_json::Value as JsonValue;
+use tokio::fs::remove_dir_all;
+use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
+use wdl::analysis::AnalysisResult;
+use wdl::engine::CancellationContext;
+use wdl::engine::EvaluatedTask;
+use wdl::engine::EvaluationError;
+use wdl::engine::Events;
+use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::Outputs;
+use wdl::engine::config::CallCachingMode;
+use wdl::engine::config::FailureMode;
+use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::run::DEFAULT_RUNS_DIR;
+use crate::eval::Evaluator;
+use crate::inputs::OriginPaths;
+use crate::test::DocumentTests;
+use crate::test::ParsedAssertions;
 use crate::test::TestDefinition;
+
+/// Test definitions may appear either sibling to their source WDL, or nested
+/// under this directory.
+const DEFINITIONS_TEST_DIR: &str = "test";
+/// Directory which is located at the root of a WDL workspace.
+///
+/// At a minimum, this directory will contain a `runs/` directory where tests
+/// are executed.
+const WORKSPACE_TEST_DIR: &str = "test";
+/// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
+const FIXTURES_DIR: &str = "fixtures";
 
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Local path to a WDL document or workspace to unit test.
+    ///
+    /// If not specified, this defaults to the current working directory.
     pub source: Option<Source>,
+    /// Root of the workspace where the `test/` directory will be located. Test
+    /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is
+    /// present.
+    ///
+    /// If a `<workspace>/test/` directory does not exist, one will be created
+    /// and it will contain a `runs/` directory for test executions.
+    ///
+    /// If not specified and the `source` argument is a directory, it's assumed
+    /// that directory is also the workspace. This can be specified in addition
+    /// to a source directory if they are different.
+    ///
+    /// If not specified and the `source` argument is a file, it's assumed that
+    /// the current working directory is the workspace. This can be specified in
+    /// addition to a source file if the CWD is not the right workspace.
+    #[clap(short, long)]
+    pub workspace: Option<PathBuf>,
     /// Specific test tag that should be run.
     ///
     /// Can be repeated multiple times.
@@ -44,9 +97,34 @@ pub struct Args {
         num_args = 1,
     )]
     pub filter_tag: Vec<String>,
+    /// Do not clean the file system of successful tests.
+    ///
+    /// The default behavior is to remove directories of successful tests,
+    /// leaving only failed and errored run directories on the file system.
+    #[clap(long, conflicts_with = "clean_all")]
+    pub no_clean: bool,
+    /// Clean all exectuion directories, even for tests that failed or errored.
+    #[clap(long)]
+    pub clean_all: bool,
+    /// The engine configuration to use.
+    ///
+    /// This is not exposed via [`clap`] and is not settable by users.
+    /// It will always be overwritten by the engine config provided by the user
+    /// (which will be set with `Default::default()` if the user does not
+    /// explicitly set `run` config values).
+    #[clap(skip)]
+    pub engine: wdl::engine::config::Config,
 }
 
-const NESTED_TEST_DIR_NAME: &str = "test";
+impl Args {
+    pub fn apply(mut self, config: crate::config::Config) -> Self {
+        self.engine = config.run.engine;
+        self.engine.task.cache = CallCachingMode::Off;
+        self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        self.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        self
+    }
+}
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
     let mut result: Option<PathBuf> = None;
@@ -72,62 +150,424 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
     let parent = wdl_path.parent().expect("should have parent");
     let nested = parent
-        .join(NESTED_TEST_DIR_NAME)
+        .join(DEFINITIONS_TEST_DIR)
         .join(wdl_path.file_name().expect("should have filename"));
     inner(&nested)?;
     Ok(result)
 }
 
-fn log_test(
+/// Returns `true` if the test should be filtered.
+fn filter_test(
     test: &TestDefinition,
     include_tags: &HashSet<String>,
     filter_tags: &HashSet<String>,
-) -> Result<()> {
-    let assertions = test.parse_assertions();
-    info!("---NEW TEST---");
-    println!("test name: `{}`", &test.name);
-    info!("assertions: {:#?}", &assertions);
-    info!("tags: {:?}", &test.tags);
+) -> bool {
     if !include_tags.is_empty() && !test.tags.iter().any(|t| include_tags.contains(t)) {
-        println!("skipping test because of tag");
-        return Ok(());
+        return true;
     }
     if test.tags.iter().any(|t| filter_tags.contains(t)) {
-        println!("skipping test because of tag");
-        return Ok(());
+        return true;
     }
-    info!("logging each individual execution defined by test matrix");
-    let mut counter = 0;
-    let matrix = test.parse_inputs()?;
-    for run in matrix.cartesian_product() {
-        info!("execution with inputs: {:#?}", run.collect::<Vec<_>>());
-        counter += 1;
+    false
+}
+
+/// Checks that the contents of the given file path match every given regular
+/// expression.
+///
+/// Returns `Ok(None)` if the file's contents match every regular expression.
+/// Returns `Ok(Some(regex))` upon the first unmatched regular expression.
+fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> {
+    let contents = read_to_string(path).with_context(|| format!("failed to read file `{path}`"))?;
+    for re in regexs {
+        if !re.is_match(&contents) {
+            return Ok(Some(re.as_str()));
+        }
     }
-    println!("computed {counter} executions");
+    Ok(None)
+}
+
+#[derive(Debug)]
+enum RunResult {
+    Workflow(Result<Outputs, EvaluationError>),
+    Task(Box<Result<EvaluatedTask, EvaluationError>>),
+}
+
+#[derive(Debug)]
+struct TestIteration {
+    name: Arc<String>,
+    iteration_num: usize,
+    result: RunResult,
+    assertions: Arc<ParsedAssertions>,
+    run_dir: PathBuf,
+}
+
+impl TestIteration {
+    pub fn evaluate(&self) -> Result<IterationResult> {
+        match &self.result {
+            RunResult::Workflow(result) => match result {
+                Ok(_outputs) => {
+                    if self.assertions.should_fail {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` succeeded but was expected to \
+                             fail: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            dir = self.run_dir.display(),
+                        )))
+                    } else {
+                        Ok(IterationResult::Success)
+                    }
+                }
+                Err(_eval_err) => {
+                    if self.assertions.should_fail {
+                        Ok(IterationResult::Success)
+                    } else {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` failed but was expected to \
+                             succeed: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            dir = self.run_dir.display(),
+                        )))
+                    }
+                }
+            },
+            RunResult::Task(result) => match &**result {
+                Ok(evaled_task) => {
+                    if evaled_task.exit_code() == self.assertions.exit_code {
+                        if !self.assertions.stdout.is_empty() {
+                            let stdout_path = evaled_task
+                                .stdout()
+                                .as_file()
+                                .expect("stdout should be `File`");
+                            match file_matches(
+                                stdout_path.as_str(),
+                                self.assertions.stdout.as_slice(),
+                            ) {
+                                Ok(None) => {}
+                                Ok(Some(re)) => {
+                                    return Ok(IterationResult::Fail(anyhow!(
+                                        "test iteration #{num} of `{name}`'s stdout did not \
+                                         contain `{re}`: see `{dir}`",
+                                        num = self.iteration_num,
+                                        name = self.name,
+                                        dir = self.run_dir.display(),
+                                    )));
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
+                        if !self.assertions.stderr.is_empty() {
+                            let stderr_path = evaled_task
+                                .stderr()
+                                .as_file()
+                                .expect("stderr should be `File`");
+                            match file_matches(
+                                stderr_path.as_str(),
+                                self.assertions.stderr.as_slice(),
+                            ) {
+                                Ok(None) => {}
+                                Ok(Some(re)) => {
+                                    return Ok(IterationResult::Fail(anyhow!(
+                                        "test iteration #{num} of `{name}`'s stderr did not \
+                                         contain `{re}`: see `{dir}`",
+                                        num = self.iteration_num,
+                                        name = self.name,
+                                        dir = self.run_dir.display(),
+                                    )));
+                                }
+                                Err(e) => return Err(e),
+                            }
+                        }
+                        Ok(IterationResult::Success)
+                    } else {
+                        Ok(IterationResult::Fail(anyhow!(
+                            "test iteration #{num} of `{name}` exited with code `{actual}` but \
+                             test expected exit code `{expected}`: see `{dir}`",
+                            num = self.iteration_num,
+                            name = self.name,
+                            actual = evaled_task.exit_code(),
+                            expected = self.assertions.exit_code,
+                            dir = self.run_dir.display(),
+                        )))
+                    }
+                }
+                Err(eval_err) => Err(anyhow!(
+                    "unexpected evaluation error: {}",
+                    eval_err.to_string()
+                )),
+            },
+        }
+    }
+}
+
+enum IterationResult {
+    Success,
+    Fail(anyhow::Error),
+}
+
+async fn launch_tests(
+    analysis: &AnalysisResult,
+    tests: DocumentTests,
+    root: &Path,
+    fixtures: &Arc<OriginPaths>,
+    engine: &Arc<wdl::engine::config::Config>,
+    errors: &mut Vec<Arc<anyhow::Error>>,
+    should_filter: impl Fn(&TestDefinition) -> bool,
+) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {
+    let mut results = IndexMap::new();
+    let wdl_document = analysis.document();
+    info!("testing WDL document `{}`", wdl_document.path());
+    for (entrypoint, definitions) in tests.entrypoints {
+        let entrypoint = Arc::new(entrypoint);
+        let is_workflow = match (
+            wdl_document.task_by_name(&entrypoint),
+            wdl_document.workflow(),
+        ) {
+            (Some(_), _) => false,
+            (None, Some(wf)) if wf.name() == *entrypoint => true,
+            (..) => {
+                errors.push(Arc::new(anyhow!(
+                    "no entrypoint named `{}` in `{}`",
+                    entrypoint,
+                    wdl_document.path()
+                )));
+                continue;
+            }
+        };
+        info!("testing entrypoint `{}`", entrypoint);
+        let mut tests = IndexMap::new();
+        for test in definitions {
+            let test_name = Arc::new(test.name.clone());
+            let assertions = Arc::new(test.assertions.parse(is_workflow)?);
+            if should_filter(&test) {
+                info!("skipping `{}` due to tag selection", test.name);
+                continue;
+            }
+            let matrix = match test.parse_inputs().with_context(|| {
+                format!(
+                    "parsing input matrix of test `{}` for WDL document `{}`",
+                    test.name,
+                    wdl_document.path()
+                )
+            }) {
+                Ok(res) => res,
+                Err(e) => {
+                    errors.push(Arc::new(e));
+                    warn!(
+                        "skipping test `{}` due to problem with input matrix",
+                        test.name
+                    );
+                    continue;
+                }
+            };
+            info!("running `{}`", test.name);
+            let run_root = root
+                .join(DEFAULT_RUNS_DIR)
+                .join(entrypoint.as_ref())
+                .join(test_name.as_ref());
+            if run_root.exists() {
+                remove_dir_all(&run_root).await.with_context(|| {
+                    format!("removing prior test dir: `{}`", run_root.display())
+                })?;
+            }
+            let mut futures = JoinSet::new();
+            for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
+                let inputs = match run_inputs
+                    .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
+                        Ok(json_val) => Ok((format!("{entrypoint}.{key}"), json_val)),
+                        Err(e) => Err(anyhow!(e)),
+                    })
+                    .collect::<Result<serde_json::Map<String, JsonValue>>>()
+                    .with_context(|| {
+                        format!(
+                            "converting YAML inputs to a JSON map for test `{}` for WDL document \
+                             `{}`",
+                            test_name,
+                            wdl_document.path()
+                        )
+                    }) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        errors.push(Arc::new(e));
+                        warn!(
+                            "skipping test `{}` due to problem with input matrix",
+                            test.name
+                        );
+                        continue;
+                    }
+                };
+
+                let engine_inputs = EngineInputs::parse_json_object(wdl_document, inputs)
+                    .with_context(|| {
+                        format!(
+                            "converting to WDL inputs for test `{}` for WDL document `{}`",
+                            test_name,
+                            wdl_document.path()
+                        )
+                    })?;
+
+                let wdl_inputs = match engine_inputs {
+                    Some((_, inputs)) => inputs,
+                    None => {
+                        if is_workflow {
+                            EngineInputs::Workflow(Default::default())
+                        } else {
+                            EngineInputs::Task(Default::default())
+                        }
+                    }
+                };
+                let run_dir = run_root.join(test_num.to_string());
+                let events = Events::disabled();
+                let name = test_name.clone();
+                let fixtures = fixtures.clone();
+                let engine = engine.clone();
+                let entrypoint = entrypoint.clone();
+                let assertions = assertions.clone();
+                let document = wdl_document.clone();
+                futures.spawn(async move {
+                    let evaluator = Evaluator::new(
+                        &document,
+                        &entrypoint,
+                        wdl_inputs,
+                        &fixtures,
+                        engine,
+                        &run_dir,
+                    );
+                    let cancellation = CancellationContext::new(FailureMode::Fast);
+                    TestIteration {
+                        name,
+                        iteration_num: test_num,
+                        result: if is_workflow {
+                            RunResult::Workflow(evaluator.run(cancellation, events).await)
+                        } else {
+                            RunResult::Task(Box::new(
+                                evaluator.evaluate_task(cancellation, events).await,
+                            ))
+                        },
+                        assertions,
+                        run_dir,
+                    }
+                });
+            }
+            tests.insert(test_name.to_string(), futures);
+        }
+        results.insert(entrypoint.to_string(), tests);
+    }
+
+    Ok(results)
+}
+
+async fn process_tests(
+    tests: IndexMap<String, IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>>,
+    root: &Path,
+    clean: bool,
+    errors: &mut Vec<Arc<anyhow::Error>>,
+) -> Result<()> {
+    for (document_name, entrypoint_results) in tests {
+        info!("evaluating document: `{document_name}`");
+        for (entrypoint_name, results) in entrypoint_results {
+            info!("evaluating entrypoint: `{entrypoint_name}`");
+            let entrypoint_dir = root.join(&entrypoint_name);
+            for (test_name, mut test_results) in results {
+                info!("evaluating test: `{test_name}`");
+                let mut success_counter = 0usize;
+                let mut fail_counter = 0usize;
+                let mut err_counter = 0usize;
+
+                while let Some(result) = test_results.join_next().await {
+                    let test_iteration = result.with_context(|| "joining futures")?;
+                    match test_iteration.evaluate() {
+                        Ok(IterationResult::Success) => {
+                            success_counter += 1;
+                            if clean {
+                                let _ = remove_dir_all(&test_iteration.run_dir).await;
+                            }
+                        }
+                        Ok(IterationResult::Fail(e)) => {
+                            fail_counter += 1;
+                            errors.push(Arc::new(e));
+                        }
+                        Err(e) => {
+                            err_counter += 1;
+                            errors.push(Arc::new(e));
+                        }
+                    }
+                }
+                if err_counter > 0 {
+                    let total = err_counter + fail_counter + success_counter;
+                    println!(
+                        "☠️ `{document_name}::{entrypoint_name}::{test_name}` had errors: \
+                         {err_counter} execution{err_plural} errored (out of {total} test \
+                         execution{total_plural})",
+                        err_plural = if err_counter > 1 { "s" } else { "" },
+                        total_plural = if total > 1 { "s" } else { "" },
+                    );
+                } else if fail_counter > 0 {
+                    let total = fail_counter + success_counter;
+                    println!(
+                        "❌ `{document_name}::{entrypoint_name}::{test_name}` failed: \
+                         {fail_counter} execution{fail_plural} failed assertions (out of {total} \
+                         execution{total_plural})",
+                        fail_plural = if fail_counter > 1 { "s" } else { "" },
+                        total_plural = if total > 1 { "s" } else { "" },
+                    )
+                } else {
+                    println!(
+                        "✅ `{document_name}::{entrypoint_name}::{test_name}` success! \
+                         ({success_counter} successful test execution{plural})",
+                        plural = if success_counter > 1 { "s" } else { "" }
+                    );
+                    if clean {
+                        let test_dir = entrypoint_dir.join(test_name);
+                        let _ = remove_dir_all(&test_dir).await;
+                    }
+                }
+            }
+            // If the entrypoint directory is empty, remove it; otherwise leave it.
+            let _ = remove_dir(root.join(&entrypoint_name));
+        }
+    }
     Ok(())
 }
 
 /// Performs the `test` command.
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
-    let source = match &source {
-        Source::File(url) if url.scheme() != "file" => {
+    let (source, workspace) = match (&source, args.workspace) {
+        (Source::File(url), _) if url.scheme() != "file" => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
-        Source::Directory(_) | Source::File(_) => source,
+        (Source::Directory(_), Some(workspace)) => (source, workspace),
+        (Source::Directory(source_dir), None) => (source.clone(), source_dir.to_path_buf()),
+        (Source::File(_), Some(workspace)) => (source, workspace),
+        (Source::File(_), None) => (
+            source,
+            std::env::current_dir().context("failed to get current directory")?,
+        ),
     };
-    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let workspace = absolute(&workspace)
+        .with_context(|| {
+            format!(
+                "resolving absolute path to workspace: `{}`",
+                workspace.display()
+            )
+        })?
+        .clean();
 
-    let results = Analysis::default()
+    let analysis_results = Analysis::default()
         .add_source(source.clone())
         .run()
         .await
         .map_err(CommandError::from)?;
 
-    let mut errors = Vec::new();
-    for result in results.filter(&[&source]) {
-        let document = result.document();
+    // Find and parse all YAML before beginning any executions.
+    // This is so that any totally invalid YAML is caught up-front before we start
+    // testing. Smaller issues with test definitions will later be collected and
+    // reported on after all tests execute.
+    let mut documents = Vec::new();
+    for analysis in analysis_results.filter(&[&source]) {
+        let document = analysis.document();
         let wdl_path = PathBuf::from(document.path().as_ref());
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,
@@ -139,47 +579,50 @@ pub async fn test(args: Args) -> CommandResult<()> {
                 continue;
             }
         };
-        info!("---------NEW WDL DOCUMENT----------");
-        println!(
-            "found tests in `{}` for WDL document `{}`",
-            yaml_path.display(),
-            wdl_path.display()
-        );
         let document_tests: crate::test::DocumentTests = serde_yaml_ng::from_slice(
             &read(&yaml_path)
                 .with_context(|| format!("reading file: `{}`", yaml_path.display()))?,
         )
         .with_context(|| format!("parsing YAML: `{}`", yaml_path.display()))?;
-        for (entrypoint, tests) in document_tests.entrypoints.iter() {
-            if let Some(task) = document.task_by_name(entrypoint) {
-                info!("-------NEW TASK-------");
-                println!("found tests for task: `{}`", task.name());
-                for test in tests {
-                    if let Err(e) = log_test(test, &include_tags, &filter_tags).with_context(|| {
-                        format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
-                    }) {
-                        errors.push(Arc::new(e));
-                    }
-                }
-            } else if let Some(workflow) = document.workflow()
-                && workflow.name() == entrypoint
-            {
-                info!("-------NEW WORKFLOW-------");
-                println!("found tests for workflow: `{}`", workflow.name());
-                for test in tests {
-                    if let Err(e) = log_test(test, &include_tags, &filter_tags).with_context(|| {
-                        format!("parsing test `{}` in `{}`", test.name, yaml_path.display())
-                    }) {
-                        errors.push(Arc::new(e));
-                    }
-                }
-            } else {
-                warn!(
-                    "no task or workflow named `{entrypoint}` found in `{}`",
-                    wdl_path.display()
-                );
-            }
-        }
+        info!(
+            "found tests for WDL `{}` in `{}`",
+            wdl_path.display(),
+            yaml_path.display()
+        );
+        documents.push((analysis, document_tests));
+    }
+
+    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
+    let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
+        test_dir.join(FIXTURES_DIR).as_path(),
+    )));
+    let engine = Arc::new(args.engine);
+
+    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
+    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
+    let mut errors = Vec::new();
+    let mut all_results = IndexMap::new();
+    for (analysis, test_definitions) in documents {
+        let tests = launch_tests(
+            analysis,
+            test_definitions,
+            &test_dir,
+            &fixture_origins,
+            &engine,
+            &mut errors,
+            should_filter,
+        )
+        .await?;
+        all_results.insert(analysis.document().path().to_string(), tests);
+    }
+
+    process_tests(all_results, &test_dir, !args.no_clean, &mut errors).await?;
+
+    if args.clean_all {
+        remove_dir_all(test_dir.join(DEFAULT_RUNS_DIR))
+            .await
+            .with_context(|| "cleaning the file system of all test exections")?;
     }
 
     if let Some(errors) = NonEmpty::from_vec(errors) {

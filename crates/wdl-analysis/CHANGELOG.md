@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 01-12-2026
+
 #### Changed
 
+* WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
+  and will emit a warning if explicitly disabled
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
 * Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
 * Changed `join_paths` to take a `Directory` instead of `File` as the first
   argument and return `String` instead of `File` per WDL v1.2.1

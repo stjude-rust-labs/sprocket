@@ -1,7 +1,7 @@
 ## This is a test to ensure that input paths are mapped early so that
 ## intermediary expressions see the mapped values.
 
-version 1.2
+version 1.3
 
 task test {
     input {

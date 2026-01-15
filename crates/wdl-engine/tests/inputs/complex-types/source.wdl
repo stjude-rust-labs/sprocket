@@ -1,7 +1,7 @@
 ## This is a test of passing complex type inputs.
 ## No error should be present in `error.txt`.
 
-version 1.2
+version 1.3
 
 struct Foo {
     Int foo

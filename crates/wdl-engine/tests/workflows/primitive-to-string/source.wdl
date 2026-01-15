@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 workflow primitive_to_string {
   input {

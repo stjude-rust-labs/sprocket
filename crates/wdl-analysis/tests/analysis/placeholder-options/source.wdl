@@ -1,7 +1,7 @@
 ## Test cases for placeholder options analysis
 #@ except: UnusedDeclaration
 
-version 1.2
+version 1.3
 
 task valid_case {
     input {

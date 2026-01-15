@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.11.1 - 01-12-2026
+
+## Fixed
+
+* Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
+
+## 0.11.0 - 01-12-2026
+
 #### Added
 
 * Added support for multiple container protocols: `docker://`, `library://`,
@@ -42,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Cached enum variant values at the Evaluator level to avoid redundant AST
+  lookups and parsing, improving performance for workflows with heavy enum
+  usage ([#511](https://github.com/stjude-rust-labs/sprocket/pull/511)).
+* Fixed enum variant serialization in command placeholders
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
 * Fixed `write_json` not translating host paths to guest paths ([#530](https://github.com/stjude-rust-labs/sprocket/pull/530)).
 * Fixed `select_first` to return the default value when the array is empty
   ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),

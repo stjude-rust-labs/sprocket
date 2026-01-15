@@ -1,5 +1,5 @@
 ## This is a test of properly translating host to guest paths during JSON serialization.
-version 1.2
+version 1.3
 
 struct Foo {
   File file
@@ -11,7 +11,7 @@ task test {
   }
 
   command <<<
-    cat ~{write_json(foo)}
+    cat "~{write_json(foo)}"
   >>>
 
   output {

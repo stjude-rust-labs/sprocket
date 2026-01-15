@@ -1,7 +1,7 @@
 #@ except: MetaDescription, InputName, RequirementsSection
 #@ except: ParameterMetaMatched
 
-version 1.2
+version 1.3
 
 #@ except: MetaSections
 struct MyStruct {

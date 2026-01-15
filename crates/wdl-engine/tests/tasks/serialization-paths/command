@@ -1,1 +1,1 @@
-cat tmp0
+cat "tmp0"

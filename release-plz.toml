@@ -1,0 +1,22 @@
+[workspace]
+publish_timeout = "10m"    # set a timeout for `cargo publish`
+semver_check = true
+git_release_enable = false # GitHub releases are only done for new `sprocket` versions
+git_tag_enable = true
+git_tag_name = "{{ package }}-v{{ version }}"
+
+[[package]]
+name = "sprocket"
+git_release_enable = true
+git_release_name = "v{{ version }}"
+git_tag_name = "v{{ version }}"
+
+[changelog]
+body = """
+
+## [{{ version }}]\
+    {%- if release_link -%}\
+        ({{ release_link }})\
+    {% endif %} \
+    - {{ timestamp | date(format="%Y-%m-%d") }}
+"""

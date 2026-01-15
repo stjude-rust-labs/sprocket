@@ -5,10 +5,12 @@ mod task;
 mod validators;
 mod workflow;
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -17,10 +19,12 @@ use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
+use wdl_analysis::types::EnumVariantCacheKey;
 
 use super::CancellationContext;
 use super::Events;
 use crate::EngineEvent;
+use crate::Value;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
 use crate::config::CallCachingMode;
@@ -65,6 +69,8 @@ pub struct Evaluator {
     cache: Option<CallCache>,
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
+    /// Cache for evaluated enum variant values to avoid redundant AST lookups.
+    variant_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
 }
 
 impl Evaluator {
@@ -74,14 +80,13 @@ impl Evaluator {
     /// Returns an error if the configuration isn't valid.
     pub async fn new(
         root_dir: impl AsRef<Path>,
-        config: Config,
+        config: Arc<Config>,
         cancellation: CancellationContext,
         events: Events,
     ) -> Result<Self> {
         config.validate().await?;
 
         let root_dir = root_dir.as_ref();
-        let config = Arc::new(config);
         let backend = config
             .create_backend(root_dir, events.clone(), cancellation.clone())
             .await?;
@@ -113,6 +118,7 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
+            variant_cache: Default::default(),
         })
     }
 }

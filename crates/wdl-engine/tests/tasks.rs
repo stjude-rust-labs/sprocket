@@ -154,7 +154,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
 
         let evaluator = Evaluator::new(
             dir.path(),
-            config.engine,
+            config.engine.into(),
             Default::default(),
             Events::disabled(),
         )

@@ -1,6 +1,6 @@
 ## This is a test of duplicate placeholder options.
 
-version 1.2
+version 1.3
 
 task test {
   String foo = "foo"

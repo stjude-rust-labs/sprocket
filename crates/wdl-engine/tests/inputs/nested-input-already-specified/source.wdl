@@ -1,6 +1,6 @@
 ## This is a test of attempting to override an explicitly specified input.
 
-version 1.2
+version 1.3
 
 task foo {
     input {

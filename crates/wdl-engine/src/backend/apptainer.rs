@@ -216,7 +216,6 @@ mod tests {
 
     use indexmap::IndexMap;
     use tempfile::TempDir;
-    use tokio::process::Command;
 
     use super::*;
     use crate::ONE_GIBIBYTE;
@@ -272,6 +271,8 @@ mod tests {
     // on Windows anytime soon, we limit this test to Unixy systems
     #[cfg(unix)]
     async fn example_task_shellchecks() {
+        use tokio::process::Command;
+
         let (tmp, state, spawn_request) = mk_example_task();
         let script = state
             .generate_apptainer_script(

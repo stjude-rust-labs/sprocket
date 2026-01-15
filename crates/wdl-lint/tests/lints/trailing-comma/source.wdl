@@ -2,7 +2,7 @@
 #@ except: ParameterMetaMatched, MetaSections, RequirementsSection
 #@ except: DocMetaStrings
 
-version 1.2
+version 1.3
 
 workflow bar {
     call foo {

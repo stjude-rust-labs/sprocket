@@ -175,12 +175,31 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let cache_key = self
+            .state
+            .document
+            .get_variant_cache_key(enum_name, variant_name)
+            .ok_or_else(|| unknown_enum(enum_name))?;
+
+        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        if let Some(cached_value) = cache.get(&cache_key) {
+            return Ok(cached_value.clone());
+        }
+
+        drop(cache);
+
         let r#enum = self
             .state
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        resolve_enum_variant_value(r#enum, variant_name)
+        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+
+        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        cache.insert(cache_key, value.clone());
+        drop(cache);
+
+        Ok(value)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -1823,7 +1842,6 @@ mod test {
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
-    use wdl_analysis::FeatureFlags;
 
     use super::*;
     use crate::CancellationContext;
@@ -1910,7 +1928,7 @@ workflow test {
         };
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -2044,9 +2062,7 @@ workflow foo {
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_wdl_1_3()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2070,7 +2086,7 @@ workflow foo {
         };
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -2316,7 +2332,7 @@ workflow w {
             }
         });
 
-        let evaluator = Evaluator::new(root_dir.path(), config, Default::default(), events)
+        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
             .await
             .unwrap();
 
@@ -2395,7 +2411,7 @@ workflow w {
         let cancellation = CancellationContext::new(FailureMode::Slow);
         let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             cancellation.clone(),
             Events::disabled(),
         )
