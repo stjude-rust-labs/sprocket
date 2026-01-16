@@ -20,6 +20,7 @@ use crate::AdditionalScript;
 use crate::Markdown;
 use crate::Render;
 use crate::document::Document;
+use crate::r#enum::Enum;
 use crate::full_page;
 use crate::get_assets;
 use crate::r#struct::Struct;
@@ -40,6 +41,8 @@ pub(crate) enum PageType {
     Index(Document),
     /// A struct page.
     Struct(Struct),
+    /// An enum page.
+    Enum(Enum),
     /// A task page.
     Task(Task),
     /// A workflow page.
@@ -869,6 +872,14 @@ impl DocsTree {
                                 "struct-unselected.svg"
                             },
                         )),
+                        PageType::Enum(_) => Some(self.get_asset(
+                            base,
+                            if ancestor {
+                                "enum-selected.svg"
+                            } else {
+                                "enum-unselected.svg"
+                            },
+                        )),
                         PageType::Workflow(_) => Some(self.get_asset(
                             base,
                             if ancestor {
@@ -1360,6 +1371,7 @@ impl DocsTree {
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
             PageType::Struct(s) => s.render(),
+            PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
             PageType::Task(t) => t.render(&self.assets_relative_to(base)),
             PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),
         };
