@@ -42,7 +42,7 @@ impl Struct {
                 }
                 div class="main__section" {
                     sprocket-code language="wdl" {
-                        (self.definition.inner())
+                        (self.definition)
                     }
                 }
             }
