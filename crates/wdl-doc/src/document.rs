@@ -26,6 +26,7 @@ use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::docs_tree::PageType;
+use crate::meta::{doc_comments, MetaMapExt};
 use crate::runnable::Runnable;
 
 /// Parse the preamble comments of a document using the version statement.
@@ -91,10 +92,10 @@ impl Document {
 
     /// Get the preamble comments of the document as HTML if there are any.
     pub fn render_preamble(&self) -> Option<Markup> {
-        let preamble = parse_preamble_comments(&self.version_statement);
-        if preamble.is_empty() {
+        let Some(preamble) = doc_comments(&self.version_statement.keyword()).full_description() else {
             return None;
-        }
+        };
+        
         Some(html! {
             div class="markdown-body" {
                 (Markdown(&preamble).render())

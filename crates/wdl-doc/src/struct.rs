@@ -3,7 +3,6 @@
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::StructDefinition;

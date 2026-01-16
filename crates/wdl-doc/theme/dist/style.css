@@ -2410,6 +2410,15 @@
   .main__summary-container {
     display: inline;
   }
+  .main__meta-enum-variant {
+    margin-bottom: 0.75em;
+  }
+  .main__meta-enum-variant-description {
+    margin-left: 1.5em;
+  }
+  .main__meta-enum-variant-description-para {
+    margin-bottom: 0.75em;
+  }
   .left-sidebar__indent {
     margin-right: calc(var(--spacing) * 1);
     margin-left: calc(var(--spacing) * 1.5);

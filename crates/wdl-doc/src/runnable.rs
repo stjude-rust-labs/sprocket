@@ -20,7 +20,7 @@ use wdl_ast::v1::ParameterMetadataSection;
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
-use crate::meta::MetaMap;
+use crate::meta::{MetaMap, MetaMapValueSource};
 use crate::meta::MetaMapExt;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
@@ -264,7 +264,7 @@ fn parse_meta(meta: &MetadataSection) -> MetaMap {
         .map(|m| {
             let name = m.name().text().to_owned();
             let item = m.value();
-            (name, item)
+            (name, MetaMapValueSource::MetaValue(item))
         })
         .collect()
 }
@@ -276,7 +276,7 @@ fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
         .map(|m| {
             let name = m.name().text().to_owned();
             let item = m.value();
-            (name, item)
+            (name, MetaMapValueSource::MetaValue(item))
         })
         .collect()
 }
@@ -293,6 +293,7 @@ fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<P
         .collect()
 }
 
+// TODO: Collect doc comments on outputs
 /// Parse the [`OutputSection`] into a vector of [`Parameter`]s.
 fn parse_outputs(
     output_section: &OutputSection,
@@ -302,12 +303,12 @@ fn parse_outputs(
     let output_meta: MetaMap = meta
         .get("outputs")
         .and_then(|v| match v {
-            MetadataValue::Object(o) => Some(o),
+            MetaMapValueSource::MetaValue(MetadataValue::Object(o)) => Some(o),
             _ => None,
         })
         .map(|o| {
             o.items()
-                .map(|i| (i.name().text().to_owned(), i.value().clone()))
+                .map(|i| (i.name().text().to_owned(), MetaMapValueSource::MetaValue(i.value().clone())))
                 .collect()
         })
         .unwrap_or_default();
@@ -383,6 +384,8 @@ mod tests {
                 .get("name")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -394,6 +397,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -434,6 +439,7 @@ mod tests {
                 .get("a")
                 .unwrap()
                 .clone()
+                .into_meta().unwrap()
                 .unwrap_object()
                 .items()
                 .next()

@@ -10,7 +10,7 @@ use wdl_ast::v1::WorkflowDefinition;
 use super::*;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
-use crate::meta::DESCRIPTION_KEY;
+use crate::meta::{MetaMapValueSource, DESCRIPTION_KEY};
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.
@@ -72,28 +72,12 @@ impl Workflow {
 
     /// Returns the [`NAME_KEY`] meta entry, if it exists and is a String.
     pub fn name_override(&self) -> Option<String> {
-        self.meta.get(NAME_KEY).and_then(|v| match v {
-            MetadataValue::String(s) => Some(
-                s.text()
-                    .expect("meta string should not be interpolated")
-                    .text()
-                    .to_string(),
-            ),
-            _ => None,
-        })
+        self.meta.get(NAME_KEY).and_then(MetaMapValueSource::text)
     }
 
     /// Returns the [`CATEGORY_KEY`] meta entry, if it exists and is a String.
     pub fn category(&self) -> Option<String> {
-        self.meta.get(CATEGORY_KEY).and_then(|v| match v {
-            MetadataValue::String(s) => Some(
-                s.text()
-                    .expect("meta string should not be interpolated")
-                    .text()
-                    .to_string(),
-            ),
-            _ => None,
-        })
+        self.meta.get(CATEGORY_KEY).and_then(MetaMapValueSource::text)
     }
 
     /// Returns the name of the workflow as HTML.
@@ -133,7 +117,7 @@ impl Workflow {
     /// If the value is `true`, it renders an "allowed badge", in all other
     /// cases it renders a "disabled badge".
     pub fn render_allow_nested_inputs(&self) -> Markup {
-        if let Some(MetadataValue::Boolean(b)) = self
+        if let Some(MetaMapValueSource::MetaValue(MetadataValue::Boolean(b))) = self
             .meta
             .get("allowNestedInputs")
             .or(self.meta.get("allow_nested_inputs"))
