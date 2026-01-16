@@ -17,6 +17,7 @@ mod meta;
 mod parameter;
 mod runnable;
 mod r#struct;
+mod r#enum;
 
 use std::io::Error as IoError;
 use std::io::ErrorKind;
@@ -612,7 +613,17 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
                 }
                 DocumentItem::Import(_) => {}
-                DocumentItem::Enum(_) => todo!("enum documentation support"),
+                DocumentItem::Enum(e) => {
+                    let name = e.name().text().to_owned();
+                    let path = cur_dir.join(format!("{name}-enum.html"));
+
+                    let r#enum = r#enum::Enum::new(e, version);
+
+                    let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages
+                        .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
+                },
             }
         }
         let document_name = root_to_wdl

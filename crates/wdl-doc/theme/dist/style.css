@@ -1758,6 +1758,9 @@
   .text-brand-violet-400 {
     color: var(--color-brand-violet-400);
   }
+  .text-brand-yellow-400 {
+    color: var(--color-brand-yellow-400);
+  }
   .text-slate-50 {
     color: var(--color-slate-50);
   }
@@ -1853,6 +1856,13 @@
     &:hover {
       @media (hover: hover) {
         color: var(--color-violet-200);
+      }
+    }
+  }
+  .hover\:text-yellow-200 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-yellow-200);
       }
     }
   }

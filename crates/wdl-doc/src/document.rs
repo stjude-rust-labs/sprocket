@@ -117,6 +117,15 @@ impl Document {
                             div class="main__grid-cell" { code { "struct" } }
                             div class="main__grid-cell" { "N/A" }
                         }
+                        PageType::Enum(_) => {
+                            div class="main__grid-cell" {
+                                a class="text-brand-yellow-400 hover:text-yellow-200" href=(page.0.to_string_lossy()) {
+                                    (page.1.name())
+                                }
+                            }
+                            div class="main__grid-cell" { code { "enum" } }
+                            div class="main__grid-cell" { "N/A" }
+                        }
                         PageType::Task(t) => {
                             div class="main__grid-cell" {
                                 a class="text-brand-violet-400 hover:text-violet-200" href=(page.0.to_string_lossy()) {
@@ -149,14 +158,13 @@ impl Document {
                     }
                     div x-show="description_expanded" class="main__grid-full-width-cell" {
                         @match page.1.page_type() {
-                            PageType::Struct(_) => "ERROR"
                             PageType::Task(t) => {
                                 (t.render_description(false))
                             }
                             PageType::Workflow(w) => {
                                 (w.render_description(false))
                             }
-                            PageType::Index(_) => "ERROR"
+                            PageType::Struct(_) | PageType::Enum(_) | PageType::Index(_) => "ERROR"
                         }
                     }
                 }

@@ -51,7 +51,40 @@ impl<N: TreeNode> EnumDefinition<N> {
         f: &mut impl fmt::Write,
         computed_type: Option<&str>,
     ) -> fmt::Result {
-        write!(f, "```wdl\nenum {}", self.name().text())?;
+        writeln!(f, "```wdl")?;
+        self.fmt(f, computed_type)?;
+        write!(f, "```")?;
+
+        Ok(())
+    }
+
+    /// Writes a formatted definition to a writer.
+    /// 
+    /// This is the enum definition stripped of any extra tokens, such as comments.
+    /// 
+    /// For example:
+    /// 
+    /// ```wdl
+    /// ## An RGB24 color enum
+    /// enum Color[String] {
+    ///     ## Pure red
+    ///     Red = "#FF0000",
+    /// }
+    /// ```
+    /// 
+    /// Will produce:
+    /// 
+    /// ```wdl
+    /// enum Color[String] {
+    ///     Red = "#FF0000",
+    /// }
+    /// ```
+    pub fn fmt(
+        &self,
+        f: &mut impl fmt::Write,
+        computed_type: Option<&str>,
+    ) -> fmt::Result {
+        write!(f, "enum {}", self.name().text())?;
 
         if let Some(ty_param) = self.type_parameter() {
             write!(f, "[{}]", ty_param.ty().inner().text())?;
@@ -69,7 +102,7 @@ impl<N: TreeNode> EnumDefinition<N> {
             writeln!(f, ",")?;
         }
 
-        writeln!(f, "}}\n```")?;
+        writeln!(f, "}}")?;
         Ok(())
     }
 }
