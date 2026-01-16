@@ -13,7 +13,6 @@ documentation = "https://docs.rs/wdl-doc"
 [dependencies]
 ammonia.workspace = true
 anyhow.workspace = true
-indexmap.workspace = true
 maud.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true

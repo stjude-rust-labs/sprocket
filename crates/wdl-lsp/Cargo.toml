@@ -12,7 +12,6 @@ documentation = "https://docs.rs/wdl-lsp"
 
 [dependencies]
 anyhow = { workspace = true }
-indexmap = { workspace = true }
 line-index = { workspace = true }
 parking_lot = { workspace = true }
 serde_json = { workspace = true }
@@ -23,7 +22,6 @@ url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 wdl-analysis = { path = "../wdl-analysis", version = "0.16.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.20.0" }
-wdl-format = { path = "../wdl-format", version = "0.14.0" }
 wdl-lint = { path = "../wdl-lint", version = "0.19.0" }
 
 [dev-dependencies]
