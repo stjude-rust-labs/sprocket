@@ -88,12 +88,20 @@ fn glob_local_path(
             )
         })?;
 
-        // For symlinks, include the symlink if it points at a file or is broken
+        // For symlinks, ensure it points at a file
         let is_file = if metadata.is_symlink() {
             if let Ok(metadata) = fs::metadata(entry.path()) {
                 metadata.is_file()
             } else {
-                true
+                // Currently this is at odd with the 1.3 spec, specifically:
+                //
+                // `Broken symlinks (those that point to non-existent targets) are included.`
+                //
+                // However, since this function returns `Array[File]` and 1.3 also says that
+                // non-optional files should exist, including them doesn't seem appropriate.
+                //
+                // For now, we'll exclude them until that matter is resolved.
+                false
             }
         } else {
             metadata.is_file()
