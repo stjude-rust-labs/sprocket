@@ -1,5 +1,6 @@
 //! Implements the `glob` function from the WDL standard library.
 
+use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
@@ -87,8 +88,27 @@ fn glob_local_path(
             )
         })?;
 
-        // Filter out directories (only files are returned from WDL's `glob` function)
-        if !metadata.is_file() {
+        // For symlinks, ensure it points at a file
+        let is_file = if metadata.is_symlink() {
+            if let Ok(metadata) = fs::metadata(entry.path()) {
+                metadata.is_file()
+            } else {
+                // Currently this is at odd with the 1.3 spec, specifically:
+                //
+                // `Broken symlinks (those that point to non-existent targets) are included.`
+                //
+                // However, since this function returns `Array[File]` and 1.3 also says that
+                // non-optional files should exist, including them doesn't seem appropriate.
+                //
+                // For now, we'll exclude them until that matter is resolved.
+                false
+            }
+        } else {
+            metadata.is_file()
+        };
+
+        // Don't include directories
+        if !is_file {
             continue;
         }
 

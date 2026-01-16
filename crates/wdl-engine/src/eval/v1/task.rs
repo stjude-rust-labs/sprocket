@@ -25,7 +25,6 @@ use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
-use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl_analysis::Document;
@@ -1465,7 +1464,7 @@ impl Evaluator {
                         );
                     }
                     Err(e) => {
-                        error!(
+                        warn!(
                             "failed to update call cache entry for task `{name}` (task id \
                              `{id}`): cache entry has been discard: {e:#}",
                             name = task.name()
