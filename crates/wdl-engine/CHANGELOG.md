@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed an issue with call caching not working when a directory being cached
   contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
-* Fixed the `glob` function not returning broken symlinks as required by the
-  WDL spec ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+* Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 
 ## 0.11.1 - 01-12-2026
 
