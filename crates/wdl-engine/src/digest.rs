@@ -813,7 +813,7 @@ pub(crate) mod test {
         symlink(&target, &link).expect("failed to create symlink");
 
         // Digest the directory with the file
-        let digest = calculate_directory_digest(dir.path(), ContentDigestMode::Weak)
+        let digest = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
 
@@ -821,7 +821,7 @@ pub(crate) mod test {
         fs::remove_file(&target).expect("failed to delete file");
 
         // Digest again; the link should be ignored and the digest changed
-        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Weak)
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
         assert!(digest != modified);
@@ -830,7 +830,7 @@ pub(crate) mod test {
         fs::write(&target, b"hello world!").expect("failed to create temporary file");
 
         // Digest again; the digest should match the original
-        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Weak)
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
         assert_eq!(digest, modified);
