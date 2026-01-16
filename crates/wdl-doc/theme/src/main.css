@@ -300,6 +300,15 @@
   .main__summary-container {
     @apply inline;
   }
+  .main__meta-enum-variant {
+    @apply mb-[0.75em];
+  }
+  .main__meta-enum-variant-description {
+    @apply ml-[1.5em];
+  }
+  .main__meta-enum-variant-description-para {
+    @apply mb-[0.75em];
+  }
   /**
    * Left sidebar
    */

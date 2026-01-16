@@ -1,11 +1,12 @@
 //! Create HTML documentation for WDL meta sections.
 
 use std::collections::BTreeMap;
+use std::fmt::Display;
 use std::path::Path;
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::AstNode;
+use wdl_ast::{AstNode, SyntaxTokenExt, TreeToken};
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataValue;
@@ -27,12 +28,51 @@ const DESCRIPTION_MAX_LENGTH: usize = 140;
 /// The length of a description when summarized.
 const DESCRIPTION_CLIP_LENGTH: usize = 80;
 
+#[derive(Debug, Clone)]
+pub(crate) enum MetaMapValueSource {
+    /// The value comes from a `meta`/`parameter_meta` section in the document
+    MetaValue(MetadataValue),
+    /// The value comes from a doc comment
+    Comment(String),
+}
+
+impl MetaMapValueSource {
+    /// Get the text representation of this value, if possible
+    ///
+    /// For `Comment` values, this will always return a value.
+    /// For `MetaValue` values, this will only return if the value is [`MetadataValue::String`].
+    pub fn text(&self) -> Option<String> {
+        match self {
+            MetaMapValueSource::Comment(text) => Some(text.clone()),
+            MetaMapValueSource::MetaValue(MetadataValue::String(s)) => Some(s.text()
+                .expect("meta string should not be interpolated")
+                .text()
+                .to_string()),
+            _ => None
+        }
+    }
+
+    /// Consumes the value, returning a [`MetadataValue`] if the variant is `MetaValue`
+    #[cfg(test)]
+    pub fn into_meta(self) -> Option<MetadataValue> {
+        match self {
+            MetaMapValueSource::MetaValue(meta) => Some(meta),
+            _ => None
+        }
+    }
+}
+
 /// A map of metadata key-value pairs, sorted by key.
-pub(crate) type MetaMap = BTreeMap<String, MetadataValue>;
+pub(crate) type MetaMap = BTreeMap<String, MetaMapValueSource>;
 
 /// An extension trait for [`MetaMap`] to provide additional functionality
 /// commonly used in WDL documentation generation.
 pub(crate) trait MetaMapExt {
+    /// Returns the "full" description for an item
+    ///
+    /// This is a concatenation of `help` and `description`. If neither is present, this
+    /// will return `None`.
+    fn full_description(&self) -> Option<String>;
     /// Returns the rendered [`Markup`] of the `description` key, optionally
     /// summarizing it.
     ///
@@ -45,14 +85,30 @@ pub(crate) trait MetaMapExt {
 }
 
 impl MetaMapExt for MetaMap {
+    fn full_description(&self) -> Option<String> {
+        let help = self.get(HELP_KEY).and_then(MetaMapValueSource::text);
+
+        if let Some(mut description) = self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text) {
+            if let Some(help) = help {
+                description.push('\n');
+                description.push_str(&help);
+            }
+
+            return Some(description);
+        }
+
+        help
+    }
+
     fn render_description(&self, summarize: bool) -> Markup {
         let desc = self
             .get(DESCRIPTION_KEY)
             .map(|v| match v {
-                MetadataValue::String(s) => {
+                MetaMapValueSource::MetaValue(MetadataValue::String(s)) => {
                     let t = s.text().expect("meta string should not be interpolated");
                     t.text().to_string()
-                }
+                },
+                MetaMapValueSource::Comment(s) => s.to_string(),
                 _ => "ERROR: description not of type String".to_string(),
             })
             .unwrap_or_else(|| "No description provided".to_string());
@@ -98,7 +154,7 @@ impl MetaMapExt for MetaMap {
             return None;
         }
 
-        let external_link_on_click = if let Some(MetadataValue::String(s)) = external_help_item {
+        let external_link_on_click = if let Some(MetaMapValueSource::MetaValue(MetadataValue::String(s))) = external_help_item {
             Some(format!(
                 "window.open('{}', '_blank')",
                 s.text()
@@ -133,7 +189,9 @@ impl MetaMapExt for MetaMap {
                 div class="main__grid-nested-container" {
                     // No header row, just the items
                     @for (key, value) in filtered_items {
-                        (render_key_value(key, value))
+                        @if let MetaMapValueSource::MetaValue(value) = value {
+                            (render_key_value(key, value))
+                        }
                     }
                 }
             }
@@ -141,15 +199,21 @@ impl MetaMapExt for MetaMap {
     }
 }
 
-/// Recursively render a [`MetadataValue`] as HTML.
-fn render_value(value: &MetadataValue) -> Markup {
+/// Recursively render a [`MetaMapValueSource`] as HTML.
+fn render_value(value: &MetaMapValueSource) -> Markup {
+    match value {
+        MetaMapValueSource::Comment(comment) => render_string(comment),
+        MetaMapValueSource::MetaValue(meta) => render_metadata_value(meta),
+    }
+}
+
+fn render_metadata_value(value: &MetadataValue) -> Markup {
     match value {
         MetadataValue::String(s) => {
-            let inner_text = s
+            s
                 .text()
-                .map(|t| t.text().to_string())
-                .expect("meta string should not be interpolated");
-            Markdown(inner_text).render()
+                .map(|t| render_string(t.text()))
+                .expect("meta string should not be interpolated")
         }
         MetadataValue::Boolean(b) => html! { code { (b.text()) } },
         MetadataValue::Integer(i) => html! { code { (i.text()) } },
@@ -165,7 +229,7 @@ fn render_value(value: &MetadataValue) -> Markup {
                                 // don't have a real example case for this,
                                 // so I'm leaving it as is for now. This would be a very
                                 // odd structure in WDL metadata, but it is valid.
-                                (render_value(&item))
+                                (render_metadata_value(&item))
                             }
                             _ => {
                                 div class="main__grid-meta-array-item" {
@@ -187,6 +251,10 @@ fn render_value(value: &MetadataValue) -> Markup {
             }
         }
     }
+}
+
+fn render_string(s: &str) -> Markup {
+    Markdown(s).render()
 }
 
 /// Render a key-value pair from metadata as HTML.
@@ -216,7 +284,7 @@ fn render_key_value(key: &str, value: &MetadataValue) -> Markup {
                         @match item {
                             MetadataValue::Array(_) | MetadataValue::Object(_) => {
                                 // TODO: revisit this
-                                (render_value(&item))
+                                (render_metadata_value(&item))
                             }
                             _ => {
                                 div class="main__grid-meta-array-item" {
@@ -284,4 +352,76 @@ pub(crate) fn summarize_if_needed(
     } else {
         MaybeSummarized::No(in_string)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Paragraph(Vec<String>);
+
+impl Paragraph {
+    /// Whether this paragraph contains text
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl Display for Paragraph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.join(" "))
+    }
+}
+
+/// Collect all doc comments preceding `token` into a [`MetaMap`]
+///
+/// The first paragraph of the doc comment text will be placed under the `description` key of the map. All other
+/// paragraphs will be joined with newlines and placed under the `help` key.
+pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt, A: AstToken<T>>(token: &A) -> MetaMap {
+    let mut map = MetaMap::new();
+
+    let mut current_paragraph = Paragraph(Vec::new());
+    let mut paragraphs = Vec::new();
+    for token in token.inner().preceding_trivia() {
+        match token.kind() {
+            SyntaxKind::Comment => {
+                let Some(comment) = token.text().strip_prefix("##") else {
+                    break;
+                };
+
+                let comment = comment.trim();
+                if comment.is_empty() {
+                    paragraphs.push(current_paragraph);
+                    current_paragraph = Paragraph(Vec::new());
+                    continue;
+                }
+
+                current_paragraph.0.push(comment.to_owned());
+            },
+            SyntaxKind::Whitespace => continue,
+            _ => break,
+        }
+    }
+
+    if !current_paragraph.is_empty() {
+        paragraphs.push(current_paragraph);
+    }
+
+    if paragraphs.is_empty() {
+        return map;
+    }
+
+    map.insert(DESCRIPTION_KEY.to_string(), MetaMapValueSource::Comment(paragraphs.remove(0).to_string()));
+
+    let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
+        if !acc.is_empty() {
+            acc.push('\n');
+        }
+
+        acc.push_str(&p.to_string());
+        acc
+    });
+
+    if !help.is_empty() {
+        map.insert(HELP_KEY.to_string(), MetaMapValueSource::Comment(help));
+    }
+
+    map
 }

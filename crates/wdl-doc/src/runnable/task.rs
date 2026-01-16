@@ -263,6 +263,7 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta().unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
