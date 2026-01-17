@@ -41,13 +41,10 @@ use crate::v1::validators::invalid_numeric_value_message;
 
 /// The Docker registry protocol prefix.
 const DOCKER_PROTOCOL: &str = "docker://";
-
 /// The Sylabs library protocol prefix.
 const LIBRARY_PROTOCOL: &str = "library://";
-
 /// The OCI Registry as Storage protocol prefix.
 const ORAS_PROTOCOL: &str = "oras://";
-
 /// The file protocol prefix for local container files.
 const FILE_PROTOCOL: &str = "file://";
 
