@@ -41,14 +41,15 @@ use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskInputs;
 use crate::Value;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
-use crate::v1;
-use crate::v1::ContainerSource;
+use crate::v1::requirements;
+use crate::v1::requirements::ContainerSource;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -103,11 +104,12 @@ impl LsfApptainerBackend {
 impl TaskExecutionBackend for LsfApptainerBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+        let mut required_cpu = requirements::cpu(inputs, requirements);
+        let mut required_memory = ByteSize::b(requirements::memory(inputs, requirements)? as u64);
 
         let backend_config = self.config.backend()?;
         let backend_config = backend_config
@@ -173,7 +175,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let container = v1::container(requirements, self.config.task.container.as_deref());
+        let container =
+            requirements::container(inputs, requirements, self.config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
             bail!("LSF Apptainer backend does not support unknown container source `{container:#}`")
         }
@@ -189,11 +192,12 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         })
     }
 
-    fn spawn(
-        &self,
+    fn spawn<'a>(
+        &'a self,
+        inputs: &'a TaskInputs,
         request: TaskSpawnRequest,
         _transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
             let backend_config = backend_config
@@ -308,7 +312,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
 
             // If GPUs are required, pass a basic `-gpu` flag to `bsub`.
-            if let Some(n_gpu) = v1::gpu(request.requirements(), request.hints()) {
+            if let Some(n_gpu) = requirements::gpu(inputs, request.requirements(), request.hints())
+            {
                 bsub_command.arg("-gpu").arg(format!("num={n_gpu}/host"));
             }
 

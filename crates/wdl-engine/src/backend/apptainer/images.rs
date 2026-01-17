@@ -48,7 +48,7 @@ use tracing::info;
 use tracing::trace;
 use tracing::warn;
 
-use crate::v1::ContainerSource;
+use crate::v1::requirements::ContainerSource;
 
 /// Apptainer images that have been converted to `.sif` from OCI format.
 #[derive(Debug)]

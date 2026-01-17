@@ -40,6 +40,7 @@ use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskInputs;
 use crate::Value;
 use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
@@ -51,15 +52,10 @@ use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
-use crate::v1::ContainerSource;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
-use crate::v1::container;
-use crate::v1::cpu;
-use crate::v1::disks;
-use crate::v1::gpu;
-use crate::v1::max_cpu;
-use crate::v1::max_memory;
-use crate::v1::memory;
+use crate::v1::hints;
+use crate::v1::requirements;
+use crate::v1::requirements::ContainerSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -475,11 +471,12 @@ impl DockerBackend {
 impl TaskExecutionBackend for DockerBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container: ContainerSource =
-            container(requirements, self.config.task.container.as_deref());
+        let container =
+            requirements::container(inputs, requirements, self.config.task.container.as_deref());
         match &container {
             ContainerSource::Docker(_) => {}
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {
@@ -499,7 +496,7 @@ impl TaskExecutionBackend for DockerBackend {
             }
         };
 
-        let mut cpu = cpu(requirements);
+        let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -527,7 +524,7 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        let mut memory = memory(requirements)? as u64;
+        let mut memory = requirements::memory(inputs, requirements)? as u64;
         if self.max_memory < memory as u64 {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -562,11 +559,11 @@ impl TaskExecutionBackend for DockerBackend {
         // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
         // This is the first backend to populate the gpu field; other backends should
         // follow this format for consistency.
-        let gpu = gpu(requirements, hints)
+        let gpu = requirements::gpu(inputs, requirements, hints)
             .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
             .unwrap_or_default();
 
-        let disks = disks(requirements, hints)?
+        let disks = requirements::disks(inputs, requirements, hints)?
             .into_iter()
             .map(|(mount_point, disk)| (mount_point.to_string(), disk.size))
             .collect::<IndexMap<_, _>>();
@@ -581,20 +578,22 @@ impl TaskExecutionBackend for DockerBackend {
         })
     }
 
-    fn spawn(
-        &self,
+    fn spawn<'a>(
+        &'a self,
+        inputs: &'a TaskInputs,
         request: TaskSpawnRequest,
         _transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let cpu = request.constraints().cpu;
             let memory = request.constraints().memory;
             // NOTE: in the Docker backend, we clamp `max_cpu` and `max_memory`
             // to what is reported by the backend, as the Docker daemon does not
             // respond gracefully to over-subscribing these.
-            let max_cpu = max_cpu(request.hints()).map(|m| m.min(self.max_cpu));
-            let max_memory = max_memory(request.hints())?.map(|i| (i as u64).min(self.max_memory));
-            let gpu = gpu(request.requirements(), request.hints());
+            let max_cpu = hints::max_cpu(inputs, request.hints()).map(|m| m.min(self.max_cpu));
+            let max_memory = hints::max_memory(inputs, request.hints())?
+                .map(|i| (i as u64).min(self.max_memory));
+            let gpu = requirements::gpu(inputs, request.requirements(), request.hints());
 
             let name = format!(
                 "{id}-{generated}",

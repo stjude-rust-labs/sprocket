@@ -12,10 +12,11 @@ use indexmap::IndexMap;
 use crate::ContentKind;
 use crate::EvaluationPath;
 use crate::GuestPath;
+use crate::TaskInputs;
 use crate::Value;
 use crate::http::Location;
 use crate::http::Transferer;
-use crate::v1::ContainerSource;
+use crate::v1::requirements::ContainerSource;
 
 mod apptainer;
 mod docker;
@@ -306,7 +307,8 @@ pub struct TaskExecutionResult {
 
 /// Represents a task execution backend.
 pub(crate) trait TaskExecutionBackend: Send + Sync {
-    /// Gets the execution constraints given a task's requirements and hints.
+    /// Gets the execution constraints given a task's inputs, requirements, and
+    /// hints.
     ///
     /// The returned constraints are used to populate the `task` variable in WDL
     /// 1.2+.
@@ -315,6 +317,7 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
     /// environment or if the task specifies invalid requirements.
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
@@ -339,9 +342,10 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
     ///
     /// Returns the result of the task's execution or `None` if the task was
     /// canceled.
-    fn spawn(
-        &self,
+    fn spawn<'a>(
+        &'a self,
+        inputs: &'a TaskInputs,
         request: TaskSpawnRequest,
         transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>>;
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>>;
 }

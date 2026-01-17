@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed an issue where task requirements and hints sources from an inputs file
+  were not being respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed a spec issue where nested task requirements and hints could not be set
+  from inputs unless the the calling workflow allowed nested inputs ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
 * Fixed an issue with call caching not working when a directory being cached
   contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 * Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 
 ## 0.11.1 - 01-12-2026
 
-## Fixed
+#### Fixed
 
 * Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
 

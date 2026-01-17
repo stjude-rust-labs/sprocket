@@ -35,6 +35,7 @@ use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::SYSTEM;
+use crate::TaskInputs;
 use crate::Value;
 use crate::backend::COMMAND_FILE_NAME;
 use crate::backend::INITIAL_EXPECTED_NAMES;
@@ -48,8 +49,7 @@ use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
 use crate::http::Transferer;
-use crate::v1::cpu;
-use crate::v1::memory;
+use crate::v1::requirements;
 
 /// Represents a local task request.
 ///
@@ -299,10 +299,11 @@ impl LocalBackend {
 impl TaskExecutionBackend for LocalBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         _: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let mut cpu = cpu(requirements);
+        let mut cpu = requirements::cpu(inputs, requirements);
         if self.cpu < cpu {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -330,7 +331,7 @@ impl TaskExecutionBackend for LocalBackend {
             }
         }
 
-        let mut memory = memory(requirements)? as u64;
+        let mut memory = requirements::memory(inputs, requirements)? as u64;
         if self.memory < memory as u64 {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -375,11 +376,12 @@ impl TaskExecutionBackend for LocalBackend {
         None
     }
 
-    fn spawn(
-        &self,
+    fn spawn<'a>(
+        &'a self,
+        _: &'a TaskInputs,
         request: TaskSpawnRequest,
         _transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let name = format!(
                 "{id}-{generated}",

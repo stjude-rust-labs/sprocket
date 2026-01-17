@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::TaskSpawnRequest;
 use crate::Value;
-use crate::v1::ContainerSource;
+use crate::v1::requirements::ContainerSource;
 
 mod images;
 
