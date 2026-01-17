@@ -54,8 +54,7 @@ const SIF_EXTENSION: &str = "sif";
 /// Represents the source of a container image.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ContainerSource {
-    /// A Docker registry image (e.g., `ubuntu:22.04` or
-    /// `docker://ubuntu:22.04`).
+    /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
     /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
     Library(String),
