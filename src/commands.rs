@@ -18,6 +18,7 @@ pub mod format;
 pub mod inputs;
 pub mod lock;
 pub mod run;
+pub mod server;
 pub mod test;
 pub mod validate;
 
@@ -134,6 +135,8 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// Runs the HTTP API server for run execution.
+    Server(server::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }

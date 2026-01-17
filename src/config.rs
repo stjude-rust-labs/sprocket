@@ -15,9 +15,19 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::trace;
 use tracing::warn;
-use wdl::engine;
+use wdl::engine::Config as EngineConfig;
 
 use crate::diagnostics::Mode;
+use crate::system::v1::exec::ExecutionConfig;
+
+/// Default host.
+const DEFAULT_HOST: &str = "127.0.0.1";
+
+/// Default port.
+const DEFAULT_PORT: u16 = 8080;
+
+/// Default database filename.
+pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Represents the configuration for the Sprocket CLI tool.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -31,6 +41,10 @@ pub struct Config {
     pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
     pub run: RunConfig,
+    /// Configuration for the `server` command.
+    pub server: ServerConfig,
+    /// Shared execution configuration for both `run` and `server` commands.
+    pub execution: ExecutionConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
 }
@@ -118,9 +132,9 @@ pub struct AnalyzerConfig {
 pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
-    pub engine: engine::config::Config,
+    pub engine: EngineConfig,
 
-    /// The "runs" directory under which new `run` invocations' execution
+    /// The "runs" directory under which new `run` sessions' execution
     /// directories will be placed.
     pub runs_dir: PathBuf,
 
@@ -142,9 +156,48 @@ pub struct RunConfig {
 impl Default for RunConfig {
     fn default() -> Self {
         Self {
-            engine: engine::config::Config::default(),
+            engine: EngineConfig::default(),
             runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
             events_capacity: None,
+        }
+    }
+}
+
+/// Server database configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ServerDatabaseConfig {
+    /// Database URL (e.g., `sqlite://sprocket.db`).
+    /// If not provided, defaults to `sprocket.db` in the output directory.
+    #[serde(default)]
+    pub url: Option<String>,
+}
+
+/// Server configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ServerConfig {
+    /// Host to bind to (default: `127.0.0.1`).
+    #[serde(default)]
+    pub host: String,
+    /// Port to bind to (default: `8080`).
+    #[serde(default)]
+    pub port: u16,
+    /// Allowed CORS origins.
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+    /// Database configuration.
+    #[serde(default)]
+    pub database: ServerDatabaseConfig,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            host: String::from(DEFAULT_HOST),
+            port: DEFAULT_PORT,
+            allowed_origins: Vec::new(),
+            database: ServerDatabaseConfig::default(),
         }
     }
 }
@@ -224,10 +277,14 @@ impl Config {
     }
 
     /// Validate a configuration
-    pub fn validate(&self) -> Result<()> {
+    pub fn validate(&mut self) -> Result<()> {
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
+
+        // Validate execution config
+        self.execution.validate()?;
+
         Ok(())
     }
 

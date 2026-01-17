@@ -177,9 +177,9 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
 ///
 /// The current environment variables supported are:
 ///
-/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized
-///   [`wdl::engine::config::Config`] that will be substituted in place of the
-///   default engine config for all of the `run/` tests.
+/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized [`wdl::engine::Config`]
+///   that will be substituted in place of the default engine config for all of
+///   the `run/` tests.
 async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
     let mut sprocket_config = sprocket::Config::default();
