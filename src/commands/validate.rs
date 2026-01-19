@@ -4,7 +4,6 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::path::EvaluationPath;
 
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -96,9 +95,12 @@ pub async fn validate(args: Args) -> CommandResult<()> {
         inputs
     } else {
         // No inputs provided
-        let origins = OriginPaths::Single(EvaluationPath::Local(
-            std::env::current_dir().context("failed to get current directory")?,
-        ));
+        let origins = OriginPaths::Single(
+            std::env::current_dir()
+                .context("failed to get current directory")?
+                .as_path()
+                .into(),
+        );
 
         if let Some(name) = args.entrypoint {
             match (document.task_by_name(&name), document.workflow()) {

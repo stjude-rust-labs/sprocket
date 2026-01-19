@@ -1,6 +1,6 @@
 #@ except: ParameterMetaMatched, RequirementsSection
 
-version 1.2
+version 1.3
 
 task foo {
     meta {

@@ -7,20 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Added
+#### Fixed
 
-* Added setting for controlling content digests; supported values are `strong`
-  for full cryptographic hashing of file content and `weak` to digest based
-  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+* Fixed an issue where task requirements and hints sources from an inputs file
+  were not being respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed a spec issue where nested task requirements and hints could not be set
+  from inputs unless the the calling workflow allowed nested inputs ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed an issue with call caching not working when a directory being cached
+  contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+* Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 
-#### Changed
-
-* Added shared validation for task runtime and hint numeric settings (memory,
-  max_memory, max_retries, preemptible), rejecting invalid or negative values
-  earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+## 0.11.1 - 01-12-2026
 
 #### Fixed
 
+* Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
+
+## 0.11.0 - 01-12-2026
+
+#### Added
+
+* Added support for multiple container protocols: `docker://`, `library://`,
+  `oras://`, and `file://` for local `.sif` files
+  ([#529](https://github.com/stjude-rust-labs/sprocket/pull/529)). Protocol
+  support varies by backend (see documentation for details).
+* Added support for `disks` requirement mount points in the Docker backend
+  ([#527](https://github.com/stjude-rust-labs/sprocket/pull/528)). The mount
+  points are created as volumes but size constraints cannot be enforced.
+* Added setting for controlling content digests; supported values are `strong`
+  for full cryptographic hashing of file content and `weak` to digest based
+  solely off file metadata ([#503](https://github.com/stjude-rust-labs/sprocket/pull/503)).
+* Added runtime support for WDL enumerations in preparation for WDL v1.3
+  ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+* Added `value()` standard library function to extract underlying values from
+  enums ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
+
+#### Changed
+
+* Reduced public surface of the wdl-engine crate and cleaned up some code
+  internals ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed the `sub()` function to use POSIX ERE/`sed`-style backreferences
+  (`\1`-`\9`) instead of Rust regex syntax (`$1`-`$9`) per the WDL spec
+  ([#518](https://github.com/stjude-rust-labs/sprocket/issues/518),
+  [#522](https://github.com/stjude-rust-labs/sprocket/pull/522)).
+* Added shared validation for task runtime and hint numeric settings (memory,
+  max_memory, max_retries, preemptible), rejecting invalid or negative values
+  earlier ([#485](https://github.com/stjude-rust-labs/sprocket/pull/485)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first
+  argument and return `String` instead of `File` per WDL v1.2.1
+  ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
+  [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
+
+#### Fixed
+
+* Cached enum variant values at the Evaluator level to avoid redundant AST
+  lookups and parsing, improving performance for workflows with heavy enum
+  usage ([#511](https://github.com/stjude-rust-labs/sprocket/pull/511)).
+* Fixed enum variant serialization in command placeholders
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+* Fixed `write_json` not translating host paths to guest paths ([#530](https://github.com/stjude-rust-labs/sprocket/pull/530)).
+* Fixed `select_first` to return the default value when the array is empty
+  ([#520](https://github.com/stjude-rust-labs/sprocket/issues/520),
+  [#525](https://github.com/stjude-rust-labs/sprocket/pull/525)).
+* Fixed evaluation of literal `input`, `output`, and `hints` expressions to
+  return the correct hidden value types; also fixed clamping of `max_cpu` and
+  `max_memory` hints in the Docker backend
+  ([#521](https://github.com/stjude-rust-labs/sprocket/pull/521)).
 * Fixed a missing check for empty arrays in the evaluation of scatter
   statements ([#504](https://github.com/stjude-rust-labs/sprocket/pull/504)).
 * Fixed authentication issue for cloud storage URLs by moving implementations

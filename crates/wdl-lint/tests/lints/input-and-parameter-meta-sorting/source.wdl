@@ -3,7 +3,7 @@
 ## This is a test related to the `InputSorted` and `MatchingParamMeta`
 ## diagnostic, specifically, it tests how they interact with each other.
 
-version 1.2
+version 1.3
 
 # This should trigger a InputSorted diagnostic,
 # but not a `ParameterMetaMatched` diagnostic

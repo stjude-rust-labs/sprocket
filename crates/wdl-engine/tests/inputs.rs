@@ -60,7 +60,9 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
                 .into_owned();
             let test_runtime = runtime.clone();
             Some(Trial::test(test_name, move || {
-                Ok(test_runtime.block_on(run_test(&path))?)
+                Ok(test_runtime
+                    .block_on(run_test(&path))
+                    .map_err(|e| format!("{e:?}"))?)
             }))
         })
         .collect()

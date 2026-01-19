@@ -380,3 +380,25 @@ note[ShellCheck]: rc is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
+note[ShellCheck]: Use $(...) notation instead of legacy backticks `...`.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:202:9
+    │
+202 │         `true`
+    │         ^^^^^^
+    │         │
+    │         SC2006[style]: Use $(...) notation instead of legacy backticks `...`.
+    │         more info: https://www.shellcheck.net/wiki/SC2006
+    │
+    = fix: did you mean `$(true)`?
+
+note[ShellCheck]: Remove backticks to avoid executing output (or use eval if intentional).
+    ┌─ tests/lints/shellcheck-warn/source.wdl:202:9
+    │
+202 │         `true`
+    │         ^^^^^^
+    │         │
+    │         SC2092[warning]: Remove backticks to avoid executing output (or use eval if intentional).
+    │         more info: https://www.shellcheck.net/wiki/SC2092
+    │
+    = fix: address the diagnostic as recommended in the message
+

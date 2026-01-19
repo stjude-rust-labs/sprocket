@@ -1,13 +1,11 @@
 //! Implementation of evaluation for V1 tasks.
 
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
 use std::mem;
 use std::path::Path;
 use std::path::absolute;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -21,7 +19,6 @@ use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
-use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl_analysis::Document;
@@ -33,7 +30,6 @@ use wdl_analysis::document::Task;
 use wdl_analysis::eval::v1::TaskGraphBuilder;
 use wdl_analysis::eval::v1::TaskGraphNode;
 use wdl_analysis::types::Optional;
-use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -49,31 +45,13 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
-use wdl_ast::v1::TASK_HINT_CACHEABLE;
-use wdl_ast::v1::TASK_HINT_DISKS;
-use wdl_ast::v1::TASK_HINT_GPU;
-use wdl_ast::v1::TASK_HINT_MAX_CPU;
-use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
-use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
-use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
-use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_CPU;
-use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
-use wdl_ast::v1::TASK_REQUIREMENT_GPU;
-use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
-use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
-use super::TopLevelEvaluator;
-use super::validators::SettingSource;
-use super::validators::ensure_non_negative_i64;
-use super::validators::invalid_numeric_value_message;
+use super::Evaluator;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
@@ -81,65 +59,71 @@ use crate::ContentKind;
 use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationPath;
 use crate::EvaluationResult;
 use crate::GuestPath;
 use crate::HiddenValue;
 use crate::HostPath;
-use crate::Input;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
 use crate::PrimitiveValue;
-use crate::Scope;
-use crate::ScopeIndex;
-use crate::ScopeRef;
-use crate::StorageUnit;
-use crate::TaskExecutionResult;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::Value;
+use crate::backend::Input;
+use crate::backend::TaskExecutionConstraints;
+use crate::backend::TaskExecutionResult;
 use crate::backend::TaskSpawnInfo;
 use crate::backend::TaskSpawnRequest;
 use crate::cache::KeyRequest;
 use crate::config::CallCachingMode;
-use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::MAX_RETRIES;
-use crate::convert_unit_string;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
 use crate::diagnostics::task_localization_failed;
+use crate::diagnostics::unknown_enum;
 use crate::eval::EvaluatedTask;
+use crate::eval::Scope;
+use crate::eval::ScopeIndex;
+use crate::eval::ScopeRef;
 use crate::eval::trie::InputTrie;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 use crate::path::is_file_url;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
+use crate::units::convert_unit_string;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
+
+pub(crate) mod hints;
+pub(crate) mod requirements;
 
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
 
 /// The default container requirement.
-pub const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
+const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
 /// The default value for the `cpu` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
+const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
+const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-pub const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
-pub const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
+/// The default mount point for disk requirements when none is specified.
+pub(crate) const DEFAULT_DISK_MOUNT_POINT: &str = "/";
 /// The default GPU count when a GPU is required but no supported hint is
 /// provided.
-pub const DEFAULT_GPU_COUNT: u64 = 1;
+const DEFAULT_GPU_COUNT: u64 = 1;
 
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
@@ -149,13 +133,19 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
-/// Returns the first entry in `map` that matches the provided keys.
-fn lookup_entry<'a>(
-    map: &'a HashMap<String, Value>,
-    keys: &[&'static str],
-) -> Option<(&'static str, &'a Value)> {
+/// Finds a key and value from a set of keys and a lookup function.
+///
+/// The lookup function takes the key and returns `Some` if the value was found
+/// or `None` if there was no value for the given key.
+///
+/// Returns the first key found along with the associated value or `None` if
+/// none of the keys is associated with a value.
+fn find_key_value<'a, 'b, F>(keys: &[&'a str], lookup: F) -> Option<(&'a str, &'b Value)>
+where
+    F: Fn(&str) -> Option<&'b Value>,
+{
     keys.iter()
-        .find_map(|key| map.get(*key).map(|value| (*key, value)))
+        .find_map(|key| lookup(key).map(|value| (*key, value)))
 }
 
 /// Parses an integer or byte-unit string into a byte count using the supplied
@@ -176,396 +166,6 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
     }
 
     unreachable!("value should be an integer or string");
-}
-
-/// Gets the `container` requirement from a requirements map.
-pub(crate) fn container<'a>(
-    requirements: &'a HashMap<String, Value>,
-    default: Option<&'a str>,
-) -> Cow<'a, str> {
-    requirements
-        .get(TASK_REQUIREMENT_CONTAINER)
-        .or_else(|| requirements.get(TASK_REQUIREMENT_CONTAINER_ALIAS))
-        .and_then(|v| -> Option<Cow<'_, str>> {
-            // If the value is an array, use the first element or the default
-            // Note: in the future we should be resolving which element in the array is
-            // usable; this will require some work in Crankshaft to enable
-            if let Some(array) = v.as_array() {
-                return array.as_slice().first().map(|v| {
-                    v.as_string()
-                        .expect("type should be string")
-                        .as_ref()
-                        .into()
-                });
-            }
-
-            Some(
-                v.coerce(None, &PrimitiveType::String.into())
-                    .expect("type should coerce")
-                    .unwrap_string()
-                    .as_ref()
-                    .clone()
-                    .into(),
-            )
-        })
-        .and_then(|v| {
-            // Treat star as the default
-            if v == "*" { None } else { Some(v) }
-        })
-        .unwrap_or_else(|| {
-            default
-                .map(Into::into)
-                .unwrap_or(DEFAULT_TASK_REQUIREMENT_CONTAINER.into())
-        })
-}
-
-/// Gets the `cpu` requirement from a requirements map.
-pub(crate) fn cpu(requirements: &HashMap<String, Value>) -> f64 {
-    requirements
-        .get(TASK_REQUIREMENT_CPU)
-        .map(|v| {
-            v.coerce(None, &PrimitiveType::Float.into())
-                .expect("type should coerce")
-                .unwrap_float()
-        })
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_CPU)
-}
-
-/// Gets the `max_cpu` hint from a hints map.
-pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
-    hints
-        .get(TASK_HINT_MAX_CPU)
-        .or_else(|| hints.get(TASK_HINT_MAX_CPU_ALIAS))
-        .map(|v| {
-            v.coerce(None, &PrimitiveType::Float.into())
-                .expect("type should coerce")
-                .unwrap_float()
-        })
-}
-
-/// Gets the `memory` requirement from a requirements map.
-pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
-        let bytes = parse_storage_value(value, |raw| {
-            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
-        })?;
-
-        return ensure_non_negative_i64(SettingSource::Requirement, key, bytes);
-    }
-
-    Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
-}
-
-/// Gets the `max_memory` hint from a hints map.
-pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
-        Some((key, value)) => {
-            let bytes = parse_storage_value(value, |raw| {
-                invalid_numeric_value_message(SettingSource::Hint, key, raw)
-            })?;
-            ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
-        }
-        None => Ok(None),
-    }
-}
-
-/// Gets the number of required GPUs from requirements and hints.
-pub(crate) fn gpu(
-    requirements: &HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
-) -> Option<u64> {
-    // If `requirements { gpu: false }` or there is no `gpu` requirement, return
-    // `None`.
-    let Some(true) = requirements
-        .get(TASK_REQUIREMENT_GPU)
-        .and_then(|v| v.as_boolean())
-    else {
-        return None;
-    };
-
-    // If there is no `gpu` hint giving us more detail on the request, use the
-    // default count.
-    let Some(hint) = hints.get(TASK_HINT_GPU) else {
-        return Some(DEFAULT_GPU_COUNT);
-    };
-
-    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
-    // Fall back to the default count.
-    //
-    // TODO(clay): support string hints for GPU specifications.
-    if let Some(hint) = hint.as_string() {
-        warn!(
-            %hint,
-            "string `gpu` hints are not supported; falling back to {DEFAULT_GPU_COUNT} GPU(s)"
-        );
-        return Some(DEFAULT_GPU_COUNT);
-    }
-
-    match hint.as_integer() {
-        Some(count) if count >= 1 => Some(count as u64),
-        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
-        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
-        // warning, and continue with no GPU request.
-        Some(count) => {
-            warn!(
-                %count,
-                "`gpu` hint specified {count} GPU(s); no GPUs will be requested for execution"
-            );
-            None
-        }
-        None => {
-            // Typechecking should have already validated that the hint is an integer or
-            // a string.
-            unreachable!("`gpu` hint must be an integer or string")
-        }
-    }
-}
-
-/// Represents the type of a disk.
-///
-/// Disk types are specified via hints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DiskType {
-    /// The disk type is a solid state drive.
-    SSD,
-    /// The disk type is a hard disk drive.
-    HDD,
-}
-
-impl FromStr for DiskType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "SSD" => Ok(Self::SSD),
-            "HDD" => Ok(Self::HDD),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Represents a task disk requirement.
-pub struct DiskRequirement {
-    /// The size of the disk, in GiB.
-    pub size: i64,
-
-    /// The disk type as specified by a corresponding task hint.
-    pub ty: Option<DiskType>,
-}
-
-/// Gets the `disks` requirement.
-///
-/// Upon success, returns a mapping of mount point to disk requirement.
-pub(crate) fn disks<'a>(
-    requirements: &'a HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
-) -> Result<HashMap<&'a str, DiskRequirement>> {
-    /// Helper for looking up a disk type from the hints.
-    ///
-    /// If we don't recognize the specification, we ignore it.
-    fn lookup_type(mount_point: Option<&str>, hints: &HashMap<String, Value>) -> Option<DiskType> {
-        hints.get(TASK_HINT_DISKS).and_then(|v| {
-            if let Some(ty) = v.as_string() {
-                return ty.parse().ok();
-            }
-
-            if let Some(map) = v.as_map() {
-                // Find the corresponding key; we have to scan the keys because the map is
-                // storing primitive values
-                if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
-                    (None, None) => true,
-                    (None, Some(_)) | (Some(_), None) => false,
-                    (Some(k), Some(mount_point)) => k
-                        .as_string()
-                        .map(|k| k.as_str() == mount_point)
-                        .unwrap_or(false),
-                }) {
-                    return v.as_string().and_then(|ty| ty.parse().ok());
-                }
-            }
-
-            None
-        })
-    }
-
-    /// Parses a disk specification into a size (in GiB) and optional mount
-    /// point.
-    fn parse_disk_spec(spec: &str) -> Option<(i64, Option<&str>)> {
-        let iter = spec.split_whitespace();
-        let mut first = None;
-        let mut second = None;
-        let mut third = None;
-
-        for part in iter {
-            if first.is_none() {
-                first = Some(part);
-                continue;
-            }
-
-            if second.is_none() {
-                second = Some(part);
-                continue;
-            }
-
-            if third.is_none() {
-                third = Some(part);
-                continue;
-            }
-
-            return None;
-        }
-
-        match (first, second, third) {
-            (None, None, None) => None,
-            (Some(size), None, None) => {
-                // Specification is `<size>` (in GiB)
-                Some((size.parse().ok()?, None))
-            }
-            (Some(first), Some(second), None) => {
-                // Check for `<size> <unit>`; convert from the specified unit to GiB
-                if let Ok(size) = first.parse() {
-                    let unit: StorageUnit = second.parse().ok()?;
-                    let size = unit.bytes(size)? / (ONE_GIBIBYTE as u64);
-                    return Some((size.try_into().ok()?, None));
-                }
-
-                // Specification is `<mount-point> <size>` (where size is already in GiB)
-                // The mount point must be absolute, i.e. start with `/`
-                if !first.starts_with('/') {
-                    return None;
-                }
-
-                Some((second.parse().ok()?, Some(first)))
-            }
-            (Some(mount_point), Some(size), Some(unit)) => {
-                // Specification is `<mount-point> <size> <units>`
-                let unit: StorageUnit = unit.parse().ok()?;
-                let size = unit.bytes(size.parse().ok()?)? / (ONE_GIBIBYTE as u64);
-
-                // Mount point must be absolute
-                if !mount_point.starts_with('/') {
-                    return None;
-                }
-
-                Some((size.try_into().ok()?, Some(mount_point)))
-            }
-            _ => unreachable!("should have one, two, or three values"),
-        }
-    }
-
-    /// Inserts a disk into the disks map.
-    fn insert_disk<'a>(
-        spec: &'a str,
-        hints: &HashMap<String, Value>,
-        disks: &mut HashMap<&'a str, DiskRequirement>,
-    ) -> Result<()> {
-        let (size, mount_point) =
-            parse_disk_spec(spec).with_context(|| format!("invalid disk specification `{spec}"))?;
-
-        let prev = disks.insert(
-            mount_point.unwrap_or("/"),
-            DiskRequirement {
-                size,
-                ty: lookup_type(mount_point, hints),
-            },
-        );
-
-        if prev.is_some() {
-            bail!(
-                "duplicate mount point `{mp}` specified in `disks` requirement",
-                mp = mount_point.unwrap_or("/")
-            );
-        }
-
-        Ok(())
-    }
-
-    let mut disks = HashMap::new();
-    if let Some(v) = requirements.get(TASK_REQUIREMENT_DISKS) {
-        if let Some(size) = v.as_integer() {
-            // Disk spec is just the size (in GiB)
-            if size < 0 {
-                bail!("task requirement `disks` cannot be less than zero");
-            }
-
-            disks.insert(
-                "/",
-                DiskRequirement {
-                    size,
-                    ty: lookup_type(None, hints),
-                },
-            );
-        } else if let Some(spec) = v.as_string() {
-            insert_disk(spec, hints, &mut disks)?;
-        } else if let Some(v) = v.as_array() {
-            for spec in v.as_slice() {
-                insert_disk(
-                    spec.as_string().expect("spec should be a string"),
-                    hints,
-                    &mut disks,
-                )?;
-            }
-        } else {
-            unreachable!("value should be an integer, string, or array");
-        }
-    }
-
-    Ok(disks)
-}
-
-/// Gets the `preemptible` hint from a hints map.
-///
-/// This hint is not part of the WDL standard but is used for compatibility with
-/// Cromwell where backends can support preemptible retries before using
-/// dedicated instances.
-pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
-    const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
-    const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
-
-    Ok(hints
-        .get(TASK_HINT_PREEMPTIBLE)
-        .and_then(|v| {
-            v.coerce(None, &PrimitiveType::Integer.into())
-                .ok()
-                .map(|value| value.unwrap_integer())
-        })
-        .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
-        .transpose()?
-        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
-}
-
-/// Gets the `max_retries` requirement from a requirements map with config
-/// fallback.
-pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
-    if let Some((key, value)) = lookup_entry(
-        requirements,
-        &[
-            TASK_REQUIREMENT_MAX_RETRIES,
-            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
-        ],
-    ) {
-        let retries = value
-            .as_integer()
-            .expect("`max_retries` requirement should be an integer");
-        return ensure_non_negative_i64(SettingSource::Requirement, key, retries)
-            .map(|value| value as u64);
-    }
-
-    Ok(config
-        .task
-        .retries
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
-}
-
-/// Gets the `cacheable` hint from a hints map with config fallback.
-pub(crate) fn cacheable(hints: &HashMap<String, Value>, config: &Config) -> bool {
-    hints
-        .get(TASK_HINT_CACHEABLE)
-        .and_then(|v| v.as_boolean())
-        .unwrap_or(match config.task.cache {
-            CallCachingMode::Off | CallCachingMode::Explicit => false,
-            CallCachingMode::On => true,
-        })
 }
 
 /// Used to evaluate expressions in tasks.
@@ -641,14 +241,51 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        ScopeRef::new(&self.state.scopes, self.scope)
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = ScopeRef::new(&self.state.scopes, self.scope)
             .lookup(name)
             .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        {
+            return Ok(var);
+        }
+
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(self.state.document, name, span)
+    }
+
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let cache_key = self
+            .state
+            .document
+            .get_variant_cache_key(enum_name, variant_name)
+            .ok_or_else(|| unknown_enum(enum_name))?;
+
+        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        if let Some(cached_value) = cache.get(&cache_key) {
+            return Ok(cached_value.clone());
+        }
+
+        drop(cache);
+
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
+        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+
+        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        cache.insert(cache_key, value.clone());
+        drop(cache);
+
+        Ok(value)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -695,8 +332,8 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
 
 /// Represents task evaluation state.
 struct State<'a> {
-    /// The top-level evaluation context.
-    top_level: &'a TopLevelEvaluator,
+    /// The top-level evaluator.
+    evaluator: &'a Evaluator,
     /// The temp directory.
     temp_dir: &'a Path,
     /// The base directory for evaluation.
@@ -733,12 +370,12 @@ struct State<'a> {
 impl<'a> State<'a> {
     /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &Arc<dyn Transferer> {
-        &self.top_level.transferer
+        &self.evaluator.transferer
     }
 
     /// Constructs a new task evaluation state.
     fn new(
-        top_level: &'a TopLevelEvaluator,
+        evaluator: &'a Evaluator,
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
@@ -757,7 +394,7 @@ impl<'a> State<'a> {
             Scope::new(OUTPUT_SCOPE_INDEX),
         ];
 
-        let backend_inputs = if let Some(guest_inputs_dir) = top_level.backend.guest_inputs_dir() {
+        let backend_inputs = if let Some(guest_inputs_dir) = evaluator.backend.guest_inputs_dir() {
             InputTrie::new_with_guest_dir(guest_inputs_dir)
         } else {
             InputTrie::new()
@@ -772,7 +409,7 @@ impl<'a> State<'a> {
         })?;
 
         Ok(Self {
-            top_level,
+            evaluator,
             temp_dir,
             base_dir,
             document,
@@ -836,7 +473,7 @@ impl<'a> State<'a> {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
                 if needs_local_inputs
-                    && self.backend_inputs.as_slice()[index].guest_path.is_none()
+                    && self.backend_inputs.as_slice()[index].guest_path().is_none()
                     && is_supported_url(path.as_str())
                     && !is_file_url(path.as_str())
                 {
@@ -905,7 +542,7 @@ impl<'a> State<'a> {
         {
             // If the input has a guest path, map it
             let input = &self.backend_inputs.as_slice()[index];
-            if let Some(guest_path) = &input.guest_path {
+            if let Some(guest_path) = input.guest_path() {
                 self.path_map.insert(path.clone(), guest_path.clone());
             }
 
@@ -924,9 +561,11 @@ struct EvaluatedSections {
     requirements: Arc<HashMap<String, Value>>,
     /// The evaluated hints.
     hints: Arc<HashMap<String, Value>>,
+    /// The task's execution constraints.
+    constraints: TaskExecutionConstraints,
 }
 
-impl TopLevelEvaluator {
+impl Evaluator {
     /// Evaluates the given task.
     ///
     /// If the task fails to execute as a result of an unacceptable exit code,
@@ -939,8 +578,8 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         task: &Task,
-        inputs: &TaskInputs,
-        task_eval_root: impl AsRef<Path>,
+        inputs: TaskInputs,
+        eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<EvaluatedTask> {
         // We cannot evaluate a document with errors
         if document.has_errors() {
@@ -948,7 +587,7 @@ impl TopLevelEvaluator {
         }
 
         let result = self
-            .perform_task_evaluation(document, task, inputs, task_eval_root.as_ref(), task.name())
+            .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
         if self.cancellation.user_canceled() {
@@ -966,8 +605,8 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         task: &Task,
-        inputs: &TaskInputs,
-        task_eval_root: &Path,
+        inputs: TaskInputs,
+        eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<EvaluatedTask> {
         inputs.validate(document, task, None).with_context(|| {
@@ -996,7 +635,10 @@ impl TopLevelEvaluator {
 
         // Build an evaluation graph for the task
         let mut diagnostics = Vec::new();
-        let graph = TaskGraphBuilder::default().build(version, &definition, &mut diagnostics);
+        let graph =
+            TaskGraphBuilder::default().build(version, &definition, &mut diagnostics, |name| {
+                document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some()
+            });
         assert!(
             diagnostics.is_empty(),
             "task evaluation graph should have no diagnostics"
@@ -1009,10 +651,10 @@ impl TopLevelEvaluator {
             "evaluating task"
         );
 
-        let task_eval_root = absolute(task_eval_root).with_context(|| {
+        let task_eval_root = absolute(eval_root_dir).with_context(|| {
             format!(
                 "failed to determine absolute path of `{path}`",
-                path = task_eval_root.display()
+                path = eval_root_dir.display()
             )
         })?;
 
@@ -1026,7 +668,7 @@ impl TopLevelEvaluator {
         })?;
 
         // Write the inputs to the task's root directory
-        write_json_file(task_eval_root.join(INPUTS_FILE), inputs)?;
+        write_json_file(task_eval_root.join(INPUTS_FILE), &inputs)?;
 
         let mut state = State::new(self, document, task, &temp_dir)?;
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
@@ -1035,7 +677,7 @@ impl TopLevelEvaluator {
             match &graph[nodes[current]] {
                 TaskGraphNode::Input(decl) => {
                     state
-                        .evaluate_input(id, decl, inputs)
+                        .evaluate_input(id, decl, &inputs)
                         .await
                         .map_err(|d| EvaluationError::new(state.document.clone(), d))?;
                 }
@@ -1075,13 +717,20 @@ impl TopLevelEvaluator {
                 command,
                 requirements,
                 hints,
+                constraints,
             } = state
-                .evaluate_sections(id, &definition, inputs, attempt, previous_task_data.clone())
+                .evaluate_sections(
+                    id,
+                    &definition,
+                    &inputs,
+                    attempt,
+                    previous_task_data.clone(),
+                )
                 .await?;
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = max_retries(&requirements, &self.config)?;
+            let max_retries = requirements::max_retries(&inputs, &requirements, &self.config)?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1096,7 +745,7 @@ impl TopLevelEvaluator {
             let mut key = if attempt == 0
                 && let Some(cache) = &self.cache
             {
-                if cacheable(&hints, &self.config) {
+                if hints::cacheable(&inputs, &hints, &self.config) {
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
@@ -1104,7 +753,11 @@ impl TopLevelEvaluator {
                         command: &command,
                         requirements: requirements.as_ref(),
                         hints: hints.as_ref(),
-                        container: &container(&requirements, self.config.task.container.as_deref()),
+                        container: &constraints
+                            .container
+                            .as_ref()
+                            .map(|c| format!("{c:#}"))
+                            .unwrap_or_default(),
                         shell: self
                             .config
                             .task
@@ -1230,31 +883,26 @@ impl TopLevelEvaluator {
                             requirements.clone(),
                             hints.clone(),
                             env.clone(),
-                            self.transferer.clone(),
                         ),
-                        attempt,
+                        constraints,
                         attempt_dir.clone(),
-                        task_eval_root.clone(),
                         temp_dir.clone(),
                     );
 
-                    self.backend
-                        .spawn(request, self.cancellation.token())
-                        .with_context(|| {
-                            format!(
-                                "failed to spawn task `{name}` in `{path}` (task id `{id}`)",
-                                name = task.name(),
-                                path = document.path(),
-                            )
-                        })?
+                    match self
+                        .backend
+                        .spawn(&inputs, request, self.transferer.clone())
                         .await
-                        .expect("failed to receive response from spawned task")
-                        .map_err(|e| {
-                            EvaluationError::new(
+                    {
+                        Ok(None) => return Err(EvaluationError::Canceled),
+                        Ok(Some(result)) => result,
+                        Err(e) => {
+                            return Err(EvaluationError::new(
                                 state.document.clone(),
                                 task_execution_failed(&e, task.name(), id, task.name_span()),
-                            )
-                        })?
+                            ));
+                        }
+                    }
                 }
             };
 
@@ -1318,7 +966,7 @@ impl TopLevelEvaluator {
                         );
                     }
                     Err(e) => {
-                        error!(
+                        warn!(
                             "failed to update call cache entry for task `{name}` (task id \
                              `{id}`): cache entry has been discard: {e:#}",
                             name = task.name()
@@ -1330,15 +978,6 @@ impl TopLevelEvaluator {
             // Task execution succeeded, break out of the retry loop
             break EvaluatedTask::new(cached, result, None);
         };
-
-        // Perform backend cleanup before output evaluation
-        if !cached
-            && let Some(cleanup) = self
-                .backend
-                .cleanup(&evaluated.result.work_dir, self.cancellation.token())
-        {
-            cleanup.await;
-        }
 
         // Evaluate the remaining inputs (unused), private decls, and outputs if the
         // task executed successfully
@@ -1539,7 +1178,7 @@ impl<'a> State<'a> {
             decl_ty.is_optional(),
             &mut value,
             self.transferer().clone(),
-            self.top_level.backend.needs_local_inputs(),
+            self.evaluator.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1600,7 +1239,7 @@ impl<'a> State<'a> {
             decl_ty.is_optional(),
             &mut value,
             self.transferer().clone(),
-            self.top_level.backend.needs_local_inputs(),
+            self.evaluator.backend.needs_local_inputs(),
         )
         .await
         .map_err(|e| {
@@ -1954,28 +1593,29 @@ impl<'a> State<'a> {
             ),
         };
 
+        // Get the execution constraints
+        let constraints = self
+            .evaluator
+            .backend
+            .constraints(inputs, &requirements, &hints)
+            .with_context(|| {
+                format!(
+                    "failed to get constraints for task `{task}`",
+                    task = self.task.name()
+                )
+            })?;
+
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
         // `task` which includes those calculated requirements before the
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
-            // Get the execution constraints
-            let constraints = self
-                .top_level
-                .backend
-                .constraints(&requirements, &hints)
-                .with_context(|| {
-                    format!(
-                        "failed to get constraints for task `{task}`",
-                        task = self.task.name()
-                    )
-                })?;
-
-            let max_retries = max_retries(&requirements, &self.top_level.config)?;
+            let max_retries =
+                requirements::max_retries(inputs, &requirements, &self.evaluator.config)?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
                 id,
-                constraints,
+                &constraints,
                 max_retries.try_into().with_context(|| {
                     format!(
                         "the number of max retries is too large to run task `{task}`",
@@ -2020,6 +1660,7 @@ impl<'a> State<'a> {
             command,
             requirements: Arc::new(requirements),
             hints: Arc::new(hints),
+            constraints,
         })
     }
 
@@ -2061,25 +1702,36 @@ impl<'a> State<'a> {
                 self.base_dir.as_local(),
                 Some(self.transferer().as_ref()),
                 &|path| {
-                    // Join the path with the work directory.
-                    let mut output_path = evaluated.result.work_dir.join(path.as_str())?;
+                    // If the path is already a host path, return it as-is.
+                    if self.path_map.contains_left(path) {
+                        return Ok(path.clone());
+                    }
 
-                    // Ensure the output's path is valid
-                    let output_path = match (&mut output_path, &evaluated.result.work_dir) {
-                        (EvaluationPath::Local(joined), EvaluationPath::Local(base))
-                            if joined.starts_with(base)
-                                || joined == evaluated.stdout().as_file().unwrap().as_str()
-                                || joined == evaluated.stderr().as_file().unwrap().as_str() =>
+                    // Join the path with the work directory.
+                    let output_path = evaluated.result.work_dir.join(path.as_str())?;
+
+                    // If the backend does not use guest paths (i.e. the local backend), don't
+                    // translate it
+                    if self.evaluator.backend.guest_inputs_dir().is_none() {
+                        return Ok(HostPath::new(String::try_from(output_path)?));
+                    }
+
+                    // Perform guest to host path translation
+                    let output_path = if let (Some(joined), Some(base)) =
+                        (output_path.as_local(), evaluated.result.work_dir.as_local())
+                    {
+                        if joined.starts_with(base)
+                            || joined == evaluated.stdout().as_file().unwrap().as_str()
+                            || joined == evaluated.stderr().as_file().unwrap().as_str()
                         {
                             // The joined path is contained within the work directory or is
                             // stdout/stderr
                             HostPath::new(String::try_from(output_path)?)
-                        }
-                        (EvaluationPath::Local(_), EvaluationPath::Local(_)) => {
-                            // The joined path is not within the work or attempt directory;
-                            // therefore, it is required to be an input
+                        } else {
+                            // The joined path is not within the work directory, it must be a known
+                            // guest path
                             self.path_map
-                                .get_by_left(path)
+                                .get_by_right(&GuestPath(path.0.clone()))
                                 .ok_or_else(|| {
                                     anyhow!(
                                         "guest path `{path}` is not an input or within the task's \
@@ -2090,15 +1742,14 @@ impl<'a> State<'a> {
                                 .clone()
                                 .into()
                         }
-                        (EvaluationPath::Local(_), EvaluationPath::Remote(_)) => {
-                            // Path is local (and absolute) and the working directory is remote
-                            bail!(
-                                "cannot access guest path `{path}` from a remotely executing task"
-                            )
-                        }
-                        (EvaluationPath::Remote(_), _) => {
-                            HostPath::new(String::try_from(output_path)?)
-                        }
+                    } else if let (Some(_), Some(_)) = (
+                        output_path.as_local(),
+                        evaluated.result.work_dir.as_remote(),
+                    ) {
+                        // Path is local (and absolute) and the working directory is remote
+                        bail!("cannot access guest path `{path}` from a remotely executing task")
+                    } else {
+                        HostPath::new(String::try_from(output_path)?)
                     };
 
                     Ok(output_path)
@@ -2125,7 +1776,7 @@ impl<'a> State<'a> {
     /// Returns the inputs to pass to the backend.
     async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<Vec<Input>> {
         // If the backend needs local inputs, download them now
-        if self.top_level.backend.needs_local_inputs() {
+        if self.evaluator.backend.needs_local_inputs() {
             let mut downloads = JoinSet::new();
 
             // Download any necessary files
@@ -2134,8 +1785,8 @@ impl<'a> State<'a> {
                     continue;
                 }
 
-                if let EvaluationPath::Remote(url) = input.path() {
-                    let transferer = self.top_level.transferer.clone();
+                if let Some(url) = input.path().as_remote() {
+                    let transferer = self.evaluator.transferer.clone();
                     let url = url.clone();
                     downloads.spawn(async move {
                         transferer
@@ -2179,7 +1830,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                         );
                     }
                     // Input is remote and was downloaded to a local path
@@ -2189,7 +1840,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                             local_path = local_path.display()
                         );
                     }
@@ -2200,7 +1851,7 @@ impl<'a> State<'a> {
                             task_name = self.task.name(),
                             document = self.document.uri().as_str(),
                             "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                         );
                     }
                     // Input is remote and was both downloaded and mapped to a guest path
@@ -2211,7 +1862,7 @@ impl<'a> State<'a> {
                             document = self.document.uri().as_str(),
                             "task input `{path}` downloaded to `{local_path}` and mapped to \
                              `{guest_path}`",
-                            path = input.path().display(),
+                            path = input.path(),
                             local_path = local_path.display(),
                         );
                     }
@@ -2220,51 +1871,6 @@ impl<'a> State<'a> {
         }
 
         Ok(self.backend_inputs.as_slice().into())
-    }
-}
-
-#[cfg(test)]
-mod resource_validation_tests {
-    use std::collections::HashMap;
-
-    use super::*;
-
-    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
-        let mut map = HashMap::new();
-        map.insert(key.to_string(), value);
-        map
-    }
-
-    #[test]
-    fn memory_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
-        let err = memory(&requirements).expect_err("`memory` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task requirement `memory` cannot be less than zero")
-        );
-    }
-
-    #[test]
-    fn max_retries_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
-        let err = max_retries(&requirements, &Config::default())
-            .expect_err("`max_retries` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task requirement `max_retries` cannot be less than zero")
-        );
-    }
-
-    #[test]
-    fn preemptible_disallows_negative_values() {
-        let mut hints = HashMap::new();
-        hints.insert("preemptible".to_string(), Value::from(-3));
-        let err = preemptible(&hints).expect_err("`preemptible` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task hint `preemptible` cannot be less than zero")
-        );
     }
 }
 
@@ -2281,13 +1887,13 @@ mod test {
     use wdl_analysis::DiagnosticsConfig;
 
     use crate::CancellationContext;
-    use crate::EvaluatedTask;
     use crate::Events;
     use crate::TaskInputs;
     use crate::config::BackendConfig;
     use crate::config::CallCachingMode;
     use crate::config::Config;
-    use crate::v1::TopLevelEvaluator;
+    use crate::eval::EvaluatedTask;
+    use crate::v1::Evaluator;
 
     /// Helper for evaluating a simple task with the given call cache mode.
     async fn evaluate_task(mode: CallCachingMode, root_dir: &Path, source: &str) -> EvaluatedTask {
@@ -2317,9 +1923,9 @@ mod test {
             .backends
             .insert("default".into(), BackendConfig::Local(Default::default()));
 
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             &root_dir.join("runs"),
-            config,
+            config.into(),
             CancellationContext::default(),
             Events::disabled(),
         )
@@ -2331,7 +1937,7 @@ mod test {
             .evaluate_task(
                 document,
                 document.task_by_name("test").expect("should have task"),
-                &TaskInputs::default(),
+                TaskInputs::default(),
                 &runs_dir,
             )
             .await

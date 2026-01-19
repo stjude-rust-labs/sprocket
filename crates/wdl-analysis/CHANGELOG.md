@@ -7,10 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 01-12-2026
+
+#### Changed
+
+* WDL v1.3 is now enabled by default; the `wdl_1_3` feature flag is deprecated
+  and will emit a warning if explicitly disabled
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+* Removed `Arc` from type-related enumerations ([#510](https://github.com/stjude-rust-labs/sprocket/pull/510)).
+* Changed `join_paths` to take a `Directory` instead of `File` as the first
+  argument and return `String` instead of `File` per WDL v1.2.1
+  ([#519](https://github.com/stjude-rust-labs/sprocket/issues/519),
+  [#523](https://github.com/stjude-rust-labs/sprocket/pull/523)).
+
+#### Fixed
+
+* Fixed a bug where a dependency cycle was incorrectly detected due to an
+  invalid edge being added between nodes in the dependency graph when a scatter
+  variable shadowed an outer declaration of the same name (#[509](https://github.com/stjude-rust-labs/sprocket/pull/509)).
+
 ## 0.15.0 - 11-21-2025
 
 #### Added
 
+* Added type analysis and validation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Added feature flags support to enable experimental WDL versions ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 * Introduced pre-evaluation task type for all pre-evaluation contexts (task requirements, task hints, and task runtime sections) and expanded support of `task.previous` for post-evaluation sections in WDL v1.3 ([#432](https://github.com/stjude-rust-labs/sprocket/pull/432)).

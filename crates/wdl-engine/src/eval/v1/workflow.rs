@@ -64,26 +64,32 @@ use crate::CancellationContextState;
 use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationError;
+use crate::EvaluationPath;
 use crate::EvaluationResult;
 use crate::Inputs;
 use crate::Outputs;
-use crate::Scope;
-use crate::ScopeIndex;
-use crate::ScopeRef;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::if_conditional_mismatch;
 use crate::diagnostics::runtime_type_mismatch;
+use crate::diagnostics::unknown_enum;
+use crate::eval::Scope;
+use crate::eval::ScopeIndex;
+use crate::eval::ScopeRef;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 use crate::tree::SyntaxNode;
 use crate::tree::SyntaxToken;
+use crate::v1::Evaluator;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::TopLevelEvaluator;
+use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
+
+/// The default number of elements to concurrently process for a scatter
+/// statement.
+const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
 fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: &str) -> String {
@@ -152,14 +158,48 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
     }
 
     fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
-        self.scope
-            .lookup(name)
-            .cloned()
-            .ok_or_else(|| unknown_name(name, span))
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).cloned() {
+            return Ok(var);
+        }
+
+        if let Some(ty) = self.state.document.get_custom_type(name) {
+            return Ok(Value::TypeNameRef(ty));
+        }
+
+        Err(unknown_name(name, span))
     }
 
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         crate::resolve_type_name(&self.state.document, name, span)
+    }
+
+    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+        let cache_key = self
+            .state
+            .document
+            .get_variant_cache_key(enum_name, variant_name)
+            .ok_or_else(|| unknown_enum(enum_name))?;
+
+        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        if let Some(cached_value) = cache.get(&cache_key) {
+            return Ok(cached_value.clone());
+        }
+
+        drop(cache);
+
+        let r#enum = self
+            .state
+            .document
+            .enum_by_name(enum_name)
+            .ok_or(unknown_enum(enum_name))?;
+        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+
+        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        cache.insert(cache_key, value.clone());
+        drop(cache);
+
+        Ok(value)
     }
 
     fn base_dir(&self) -> &EvaluationPath {
@@ -312,7 +352,7 @@ impl GatherArray {
 
     /// Converts the gather array into a WDL array value.
     fn into_array(self) -> Array {
-        Array::new_unchecked(ArrayType::new(self.element_ty).into(), self.elements)
+        Array::new_unchecked(ArrayType::new(self.element_ty), self.elements)
     }
 }
 
@@ -536,8 +576,8 @@ impl Subgraph {
 
 /// Represents workflow evaluation state.
 struct State {
-    /// The top-level evaluation context.
-    top_level: TopLevelEvaluator,
+    /// The top-level evaluator.
+    evaluator: Evaluator,
     /// The document containing the workflow being evaluated.
     document: Document,
     /// The workflow's inputs.
@@ -561,11 +601,11 @@ struct State {
 impl State {
     /// Get the [`Transferer`] for this evaluation.
     fn transferer(&self) -> &dyn Transferer {
-        self.top_level.transferer.as_ref()
+        self.evaluator.transferer.as_ref()
     }
 }
 
-impl TopLevelEvaluator {
+impl Evaluator {
     /// Evaluates the workflow of the given document.
     ///
     /// Upon success, returns the outputs of the workflow.
@@ -573,7 +613,7 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         inputs: WorkflowInputs,
-        workflow_eval_root_dir: impl AsRef<Path>,
+        eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<Outputs> {
         let workflow = document
             .workflow()
@@ -585,12 +625,7 @@ impl TopLevelEvaluator {
         }
 
         let result = self
-            .perform_workflow_evaluation(
-                document,
-                inputs,
-                workflow_eval_root_dir.as_ref(),
-                workflow.name(),
-            )
+            .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
         if self.cancellation.user_canceled() {
@@ -608,7 +643,7 @@ impl TopLevelEvaluator {
         &self,
         document: &Document,
         inputs: WorkflowInputs,
-        workflow_eval_root_dir: &Path,
+        eval_root_dir: &Path,
         id: &str,
     ) -> EvaluationResult<Outputs> {
         // Validate the inputs for the workflow
@@ -649,8 +684,12 @@ impl TopLevelEvaluator {
 
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided
-        let graph = WorkflowGraphBuilder::default()
-            .build(&definition, &mut diagnostics, |name| inputs.contains(name));
+        let graph = WorkflowGraphBuilder::default().build(
+            &definition,
+            &mut diagnostics,
+            |name| inputs.contains(name),
+            |name| document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some(),
+        );
         assert!(
             diagnostics.is_empty(),
             "workflow evaluation graph should have no diagnostics"
@@ -660,15 +699,8 @@ impl TopLevelEvaluator {
         let mut subgraph = Subgraph::new(&graph);
         let subgraphs = subgraph.split(&graph);
 
-        let max_concurrency = self
-            .config
-            .workflow
-            .scatter
-            .concurrency
-            .unwrap_or_else(|| self.backend.max_concurrency());
-
         // Create the temp directory now as it may be needed for workflow evaluation
-        let temp_dir = workflow_eval_root_dir.join("tmp");
+        let temp_dir = eval_root_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -677,9 +709,9 @@ impl TopLevelEvaluator {
         })?;
 
         // Write the inputs to the workflow's root directory
-        write_json_file(workflow_eval_root_dir.join(INPUTS_FILE), &inputs)?;
+        write_json_file(eval_root_dir.join(INPUTS_FILE), &inputs)?;
 
-        let calls_dir = workflow_eval_root_dir.join("calls");
+        let calls_dir = eval_root_dir.join("calls");
         fs::create_dir_all(&calls_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -696,7 +728,7 @@ impl TopLevelEvaluator {
         })?;
 
         let state = Arc::new(State {
-            top_level: self.clone(),
+            evaluator: self.clone(),
             document: document.clone(),
             inputs,
             scopes: Default::default(),
@@ -710,12 +742,7 @@ impl TopLevelEvaluator {
         // Evaluate the root graph to completion
         state
             .clone()
-            .evaluate_subgraph(
-                Scopes::ROOT_INDEX,
-                subgraph,
-                max_concurrency,
-                Arc::new(id.to_string()),
-            )
+            .evaluate_subgraph(Scopes::ROOT_INDEX, subgraph, Arc::new(id.to_string()))
             .await?;
 
         let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
@@ -729,7 +756,7 @@ impl TopLevelEvaluator {
         }
 
         // Write the outputs to the workflow's root directory
-        write_json_file(workflow_eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
+        write_json_file(eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
         Ok(outputs)
     }
 }
@@ -746,14 +773,13 @@ impl State {
         self: Arc<State>,
         scope: ScopeIndex,
         subgraph: Subgraph,
-        max_concurrency: u64,
         id: Arc<String>,
     ) -> BoxFuture<'static, EvaluationResult<()>> {
         async move {
-            let cancellation = self.top_level.cancellation.clone();
+            let cancellation = self.evaluator.cancellation.clone();
             let mut futures = JoinSet::new();
             match self
-                .perform_subgraph_evaluation(scope, subgraph, max_concurrency, id, &mut futures)
+                .perform_subgraph_evaluation(scope, subgraph, id, &mut futures)
                 .await
             {
                 Ok(_) => {
@@ -780,7 +806,6 @@ impl State {
         self: Arc<State>,
         scope: ScopeIndex,
         mut subgraph: Subgraph,
-        max_concurrency: u64,
         id: Arc<String>,
         futures: &mut JoinSet<EvaluationResult<NodeIndex>>,
     ) -> EvaluationResult<()> {
@@ -884,9 +909,7 @@ impl State {
                         let state = self.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            state
-                                .evaluate_conditional(id, scope, node, &stmt, max_concurrency)
-                                .await?;
+                            state.evaluate_conditional(id, scope, node, &stmt).await?;
                             Ok(node)
                         });
                         awaiting.insert(node);
@@ -896,17 +919,10 @@ impl State {
                         let state = self.clone();
                         let stmt = stmt.clone();
                         futures.spawn(async move {
-                            let cancellation = state.top_level.cancellation.clone();
+                            let cancellation = state.evaluator.cancellation.clone();
                             let mut futures = JoinSet::new();
                             match state
-                                .evaluate_scatter(
-                                    id,
-                                    scope,
-                                    node,
-                                    &stmt,
-                                    max_concurrency,
-                                    &mut futures,
-                                )
+                                .evaluate_scatter(id, scope, node, &stmt, &mut futures)
                                 .await
                             {
                                 Ok(_) => {
@@ -1014,9 +1030,12 @@ impl State {
         };
 
         // Coerce the value to the expected type
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::ROOT_INDEX));
         let mut value = value
-            .coerce(None, &expected_ty)
+            .coerce(Some(&context), &expected_ty)
             .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if self
@@ -1080,9 +1099,12 @@ impl State {
         let value = self.evaluate_expr(scope, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(scope));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Ensure paths exist for WDL 1.2+
         if self
@@ -1140,9 +1162,12 @@ impl State {
         let value = self.evaluate_expr(Scopes::OUTPUT_INDEX, &expr).await?;
 
         // Coerce the value to the expected type
-        let mut value = value.coerce(None, &expected_ty).map_err(|e| {
+        let scopes = self.scopes.read().await;
+        let context = WorkflowEvaluationContext::new(self, scopes.reference(Scopes::OUTPUT_INDEX));
+        let mut value = value.coerce(Some(&context), &expected_ty).map_err(|e| {
             runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), expr.span())
         })?;
+        drop(scopes);
 
         // Finally ensure output files exist
         value = value
@@ -1189,7 +1214,6 @@ impl State {
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ConditionalStatement<SyntaxNode>,
-        max_concurrency: u64,
     ) -> EvaluationResult<()> {
         let mut scope_union = ScopeUnion::new();
         for clause in stmt.clauses() {
@@ -1286,12 +1310,7 @@ impl State {
 
             // Evaluate this clause's subgraph
             self.clone()
-                .evaluate_subgraph(
-                    scope,
-                    self.subgraphs[&clause_node].clone(),
-                    max_concurrency,
-                    id,
-                )
+                .evaluate_subgraph(scope, self.subgraphs[&clause_node].clone(), id)
                 .await?;
 
             let mut scopes = self.scopes.write().await;
@@ -1371,7 +1390,6 @@ impl State {
         parent: ScopeIndex,
         entry: NodeIndex,
         stmt: &ScatterStatement<SyntaxNode>,
-        max_concurrency: u64,
         futures: &mut JoinSet<EvaluationResult<(usize, ScopeIndex)>>,
     ) -> EvaluationResult<()> {
         /// Awaits the next future in the set of futures.
@@ -1439,9 +1457,17 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
+        let max_concurrency = self
+            .evaluator
+            .config
+            .workflow
+            .scatter
+            .concurrency
+            .unwrap_or(DEFAULT_SCATTER_CONCURRENCY);
+
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {
-            if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+            if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
                 break;
             }
 
@@ -1464,9 +1490,7 @@ impl State {
                 let subgraph = self.subgraphs[&entry].clone();
                 let id = id.clone();
                 futures.spawn(async move {
-                    state
-                        .evaluate_subgraph(scope, subgraph, max_concurrency, id)
-                        .await?;
+                    state.evaluate_subgraph(scope, subgraph, id).await?;
 
                     Ok((i, scope))
                 });
@@ -1484,7 +1508,7 @@ impl State {
         }
 
         // Return an error if all the tasks completed but there was a cancellation
-        if self.top_level.cancellation.state() != CancellationContextState::NotCanceled {
+        if self.evaluator.cancellation.state() != CancellationContextState::NotCanceled {
             return Err(EvaluationError::Canceled);
         }
 
@@ -1529,8 +1553,7 @@ impl State {
                     Outputs::from_iter(call_ty.outputs().iter().map(|(n, o)| {
                         (
                             n.clone(),
-                            Array::new_unchecked(ArrayType::new(o.ty().clone()).into(), Vec::new())
-                                .into(),
+                            Array::new_unchecked(ArrayType::new(o.ty().clone()), Vec::new()).into(),
                         )
                     }))
                     .into(),
@@ -1538,7 +1561,7 @@ impl State {
                 .into()
             } else {
                 // Promote the value as an empty array
-                Array::new_unchecked(ArrayType::new(local.ty().clone()).into(), Vec::new()).into()
+                Array::new_unchecked(ArrayType::new(local.ty().clone()), Vec::new()).into()
             };
 
             scope.insert(name.to_string(), value);
@@ -1566,7 +1589,7 @@ impl State {
             /// Returns the passed in context and the result of the evaluation.
             async fn evaluate(
                 self,
-                top_level: &TopLevelEvaluator,
+                evaluator: &Evaluator,
                 caller_id: &str,
                 document: &Document,
                 inputs: Inputs,
@@ -1576,11 +1599,11 @@ impl State {
                 match self {
                     Target::Task(task) => {
                         debug!(caller_id, callee_id, "evaluating call to task");
-                        top_level
+                        evaluator
                             .perform_task_evaluation(
                                 document,
                                 task,
-                                &inputs.unwrap_task_inputs(),
+                                inputs.unwrap_task_inputs(),
                                 root_dir,
                                 callee_id,
                             )
@@ -1589,7 +1612,7 @@ impl State {
                     }
                     Target::Workflow => {
                         debug!(caller_id, callee_id, "evaluating call to workflow");
-                        top_level
+                        evaluator
                             .perform_workflow_evaluation(
                                 document,
                                 inputs.unwrap_workflow_inputs(),
@@ -1710,7 +1733,7 @@ impl State {
         // Finally, evaluate the task or workflow and return the outputs
         let outputs = call_target
             .evaluate(
-                &self.top_level,
+                &self.evaluator,
                 id,
                 document,
                 inputs,
@@ -1819,7 +1842,6 @@ mod test {
     use wdl_analysis::Analyzer;
     use wdl_analysis::Config as AnalysisConfig;
     use wdl_analysis::DiagnosticsConfig;
-    use wdl_analysis::FeatureFlags;
 
     use super::*;
     use crate::CancellationContext;
@@ -1904,9 +1926,9 @@ workflow test {
             .into(),
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -1920,7 +1942,6 @@ workflow test {
         inputs.set(
             "c",
             Array::new(
-                None,
                 ArrayType::new(PrimitiveType::String),
                 ["jam".to_string(), "cakes".to_string()],
             )
@@ -2041,9 +2062,7 @@ workflow foo {
 
         // Analyze the source file
         let analyzer = Analyzer::new(
-            AnalysisConfig::default()
-                .with_diagnostics_config(DiagnosticsConfig::except_all())
-                .with_feature_flags(FeatureFlags::default().with_wdl_1_3()),
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2065,9 +2084,9 @@ workflow foo {
             experimental_features_enabled: true,
             ..Default::default()
         };
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             Default::default(),
             Events::disabled(),
         )
@@ -2313,7 +2332,7 @@ workflow w {
             }
         });
 
-        let evaluator = TopLevelEvaluator::new(root_dir.path(), config, Default::default(), events)
+        let evaluator = Evaluator::new(root_dir.path(), config.into(), Default::default(), events)
             .await
             .unwrap();
 
@@ -2390,9 +2409,9 @@ workflow w {
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);
-        let evaluator = TopLevelEvaluator::new(
+        let evaluator = Evaluator::new(
             root_dir.path(),
-            config,
+            config.into(),
             cancellation.clone(),
             Events::disabled(),
         )

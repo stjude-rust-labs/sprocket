@@ -11,6 +11,9 @@ use wdl_analysis::types::Type;
 use crate::Array;
 use crate::CompoundValue;
 use crate::ContentKind;
+use crate::EnumVariant;
+use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
@@ -22,7 +25,6 @@ use crate::PrimitiveValue;
 use crate::Struct;
 use crate::Value;
 use crate::digest::Digest;
-use crate::path::EvaluationPath;
 
 /// Trait used to implement WDL value hashing for call caching.
 pub trait Hashable {
@@ -64,6 +66,8 @@ enum ValueKind {
     Input,
     /// The value is an `Output` (hidden type).
     Output,
+    /// The value is an `EnumVariant`.
+    EnumVariant,
 }
 
 impl Hashable for ValueKind {
@@ -185,12 +189,12 @@ impl Hashable for Digest {
 
 impl Hashable for EvaluationPath {
     fn hash(&self, hasher: &mut Hasher) {
-        match self {
-            Self::Local(path) => {
+        match self.kind() {
+            EvaluationPathKind::Local(path) => {
                 PathKind::Local.hash(hasher);
                 path.hash(hasher);
             }
-            Self::Remote(url) => {
+            EvaluationPathKind::Remote(url) => {
                 PathKind::Remote.hash(hasher);
                 url.hash(hasher);
             }
@@ -246,7 +250,8 @@ impl Hashable for Value {
             Self::Hidden(HiddenValue::TaskPreEvaluation(_))
             | Self::Hidden(HiddenValue::TaskPostEvaluation(_))
             | Self::Hidden(HiddenValue::PreviousTaskData(_))
-            | Self::Call(_) => unreachable!("value cannot be hashed"),
+            | Self::Call(_)
+            | Self::TypeNameRef(_) => unreachable!("value cannot be hashed"),
         }
     }
 }
@@ -290,6 +295,7 @@ impl Hashable for CompoundValue {
             Self::Map(v) => v.hash(hasher),
             Self::Object(v) => v.hash(hasher),
             Self::Struct(v) => v.hash(hasher),
+            Self::EnumVariant(v) => v.hash(hasher),
         }
     }
 }
@@ -327,6 +333,14 @@ impl Hashable for Struct {
     fn hash(&self, hasher: &mut Hasher) {
         ValueKind::Struct.hash(hasher);
         hash_sequence(hasher, self.iter());
+    }
+}
+
+impl Hashable for EnumVariant {
+    fn hash(&self, hasher: &mut Hasher) {
+        ValueKind::EnumVariant.hash(hasher);
+        self.name().hash(hasher);
+        self.value().hash(hasher);
     }
 }
 
@@ -512,7 +526,7 @@ mod test {
 
         let mut hasher = Hasher::new();
         hasher.update(&[0]); // File tag
-        hasher.update(&32u32.to_le_bytes()); // Slice length 
+        hasher.update(&32u32.to_le_bytes()); // Slice length
         hasher.update(expected.as_bytes()); // Literal bytes
         assert_eq!(hash, hasher.finalize());
 
@@ -532,7 +546,7 @@ mod test {
     fn hash_evaluation_path() {
         // EvaluationPath::Local variant
         let mut hasher = Hasher::new();
-        EvaluationPath::Local("foo/bar".into()).hash(&mut hasher);
+        EvaluationPath::from_local_path("foo/bar".into()).hash(&mut hasher);
         let hash = hasher.finalize();
 
         let mut hasher = Hasher::new();
@@ -543,7 +557,9 @@ mod test {
 
         // EvaluationPath::Remote variant
         let mut hasher = Hasher::new();
-        EvaluationPath::Remote("https://example.com/foo".parse().unwrap()).hash(&mut hasher);
+        EvaluationPath::try_from("https://example.com/foo".parse::<Url>().unwrap())
+            .unwrap()
+            .hash(&mut hasher);
         let hash = hasher.finalize();
 
         let mut hasher = Hasher::new();
@@ -756,7 +772,6 @@ mod test {
     fn hash_wdl_pair() {
         let mut hasher = Hasher::new();
         Pair::new(
-            None,
             PairType::new(PrimitiveType::String, PrimitiveType::Boolean),
             PrimitiveValue::new_string("foo"),
             false,
@@ -779,7 +794,6 @@ mod test {
     fn hash_wdl_array() {
         let mut hasher = Hasher::new();
         Array::new(
-            None,
             ArrayType::new(PrimitiveType::String),
             [
                 PrimitiveValue::new_string("foo"),
@@ -810,7 +824,6 @@ mod test {
     fn hash_wdl_map() {
         let mut hasher = Hasher::new();
         Map::new(
-            None,
             MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean),
             [(1, true), (2, false), (3, true)],
         )
@@ -868,7 +881,6 @@ mod test {
     fn hash_wdl_struct() {
         let mut hasher = Hasher::new();
         Struct::new(
-            None,
             StructType::new(
                 "Foo",
                 [

@@ -19,6 +19,7 @@ use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use super::explain::ALL_TAG_NAMES;
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -145,21 +146,20 @@ pub struct CheckArgs {
 }
 
 impl CheckArgs {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.common.except = self
-            .common
+    /// Applies the configuration to the CLI options.
+    fn apply(&mut self, config: &crate::config::Config) {
+        self.common
             .except
-            .clone()
-            .into_iter()
-            .chain(config.check.except.clone())
-            .collect();
-        self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
-        self.common.deny_warnings =
-            self.common.deny_warnings || config.check.deny_warnings || self.common.deny_notes;
-        self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
-        self.common.no_color = self.common.no_color || !config.common.color;
+            .extend(config.check.except.iter().cloned());
+
+        self.common.deny_notes |= config.check.deny_notes;
+
+        self.common.deny_warnings |= config.check.deny_warnings || self.common.deny_notes;
+
+        self.common.hide_notes |= config.check.hide_notes;
+
+        self.common.no_color |= !config.common.color;
+
         if self.common.report_mode.is_none() {
             self.common.report_mode = Some(config.common.report_mode);
         }
@@ -172,25 +172,16 @@ impl CheckArgs {
             self.lint = true;
         }
 
-        self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
-        self.common.filter_lint_tag = self
-            .common
+        self.common.all_lint_rules |= config.check.all_lint_rules;
+        self.common
             .filter_lint_tag
-            .clone()
-            .into_iter()
-            .chain(config.check.filter_lint_tags.clone())
-            .collect();
-        if !self.common.all_lint_rules {
-            self.common.only_lint_tag = self
-                .common
-                .only_lint_tag
-                .clone()
-                .into_iter()
-                .chain(config.check.only_lint_tags.clone())
-                .collect();
-        }
+            .extend(config.check.filter_lint_tags.iter().cloned());
 
-        self
+        if !self.common.all_lint_rules {
+            self.common
+                .only_lint_tag
+                .extend(config.check.only_lint_tags.iter().cloned());
+        }
     }
 }
 
@@ -203,25 +194,10 @@ pub struct LintArgs {
     pub common: Common,
 }
 
-impl LintArgs {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        let args = CheckArgs {
-            common: self.common,
-            lint: true,
-        }
-        .apply(config);
-        self = LintArgs {
-            common: args.common,
-        };
-
-        self
-    }
-}
-
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs) -> CommandResult<()> {
+pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
+    args.apply(&config);
+
     let mut sources = args.common.sources;
     if sources.is_empty() {
         sources.push(Source::default());
@@ -245,7 +221,7 @@ pub async fn check(args: CheckArgs) -> CommandResult<()> {
     let show_remote_diagnostics = {
         let any_remote_sources = sources
             .iter()
-            .any(|source| matches!(source, Source::Remote(_)));
+            .any(|source| matches!(source, Source::File(url) if url.scheme() != "file"));
 
         if any_remote_sources {
             info!("remote source detected, showing all remote diagnostics");
@@ -407,11 +383,14 @@ pub async fn check(args: CheckArgs) -> CommandResult<()> {
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs) -> CommandResult<()> {
-    check(CheckArgs {
-        common: args.common,
-        lint: true,
-    })
+pub async fn lint(args: LintArgs, config: Config) -> CommandResult<()> {
+    check(
+        CheckArgs {
+            common: args.common,
+            lint: true,
+        },
+        config,
+    )
     .await
 }
 

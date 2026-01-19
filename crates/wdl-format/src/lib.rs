@@ -60,6 +60,11 @@ impl Writable for &FormatElement {
                 AstNode::DefaultOption(_) => v1::expr::format_default_option(self, stream),
                 AstNode::DivisionExpr(_) => v1::expr::format_division_expr(self, stream),
                 AstNode::EqualityExpr(_) => v1::expr::format_equality_expr(self, stream),
+                AstNode::EnumDefinition(_) => v1::r#enum::format_enum_definition(self, stream),
+                AstNode::EnumTypeParameter(_) => {
+                    v1::r#enum::format_enum_type_parameter(self, stream)
+                }
+                AstNode::EnumVariant(_) => v1::r#enum::format_enum_variant(self, stream),
                 AstNode::ExponentiationExpr(_) => {
                     v1::expr::format_exponentiation_expr(self, stream)
                 }

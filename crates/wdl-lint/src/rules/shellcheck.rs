@@ -20,6 +20,7 @@ use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
+use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::ScopeRef;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -347,15 +348,30 @@ impl EvaluationContext for CommandContext<'_> {
     }
 
     fn resolve_name(&self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
-        self.scope.lookup(name).map(|n| n.ty().clone())
+        // Check if there are any variables with this name and return if so.
+        if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
+            return Some(var);
+        }
+
+        if let Some(ty) = self.document.get_custom_type(name) {
+            return Some(
+                ty.type_name_ref()
+                    .expect("type name ref to be created from custom type"),
+            );
+        }
+
+        None
     }
 
     fn resolve_type_name(
         &mut self,
         name: &str,
-        _span: Span,
+        span: Span,
     ) -> std::result::Result<wdl_analysis::types::Type, Diagnostic> {
-        Ok(self.scope.lookup(name).map(|n| n.ty().clone()).unwrap())
+        self.scope
+            .lookup(name)
+            .map(|n| n.ty().clone())
+            .ok_or_else(|| unknown_type(name, span))
     }
 
     fn task(&self) -> Option<&wdl_analysis::document::Task> {
@@ -519,7 +535,7 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
 
 /// Sanitize a [CommandSection].
 ///
-/// Removes all trailing whitespace, replaces placeholders
+/// Removes all leading whitespace, replaces placeholders
 /// with dummy bash variables or literals.
 ///
 /// If the section contains mixed indentation, returns None.
@@ -572,6 +588,7 @@ fn map_shellcheck_lines(
     let mut line_map = HashMap::new();
     let mut line_num = 1;
     let mut skip_next_line = false;
+    let mut skipped_first_line = false;
     for part in section.parts() {
         match part {
             CommandPart::Text(ref text) => {
@@ -581,10 +598,15 @@ fn map_shellcheck_lines(
                         skip_next_line = false;
                         continue;
                     }
+
                     // The first line is removed entirely, UNLESS there is content on it.
-                    if line_num == 1 && line.is_empty() {
+                    if !skipped_first_line && line.is_empty() {
+                        skipped_first_line = true;
                         continue;
                     }
+
+                    skipped_first_line = true;
+
                     // Add back the leading whitespace that was stripped.
                     let adjusted_start = text.span().start() + line_start + leading_whitespace;
                     line_map.insert(line_num, Span::new(adjusted_start, line.len()));

@@ -8,8 +8,8 @@ validate_string_is_12bit_int:
       number:
         - "0x900"
     assertions:
-      stdout:
-        contains: Input number (0x900) is valid
+      stderr:
+        - Input number \(0x900\) is valid
   - name: too_big_hexadecimal_fails
     inputs:
       number:
@@ -17,7 +17,7 @@ validate_string_is_12bit_int:
     assertions:
       exit_code: 42
       stderr:
-        contains: Input number (0x1000) is invalid
+        - Input number \(0x1000\) is invalid
   - name: too_big_decimal_fails
     inputs:
       number:
@@ -25,9 +25,8 @@ validate_string_is_12bit_int:
     assertions:
       exit_code: 42
       stderr:
-        contains:
-          - Input number (4096) interpreted as decimal
-          - But number must be less than 4096!
+        - Input number \(4096\) interpreted as decimal
+        - But number must be less than 4096!
 validate_flag_filter:
   - name: valid_FlagFilter_passes
     inputs:

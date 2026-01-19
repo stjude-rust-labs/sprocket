@@ -11,14 +11,14 @@
 
 use std::collections::BTreeMap;
 
-use wdl::engine::path::EvaluationPath;
+use wdl::engine::EvaluationPath;
 
 /// An associated set of path origins for a set of input keys.
 ///
 /// This is useful when, for example, resolving all paths within an
 /// [`Inputs`](super::Inputs) to be relative to the input file from whence they
 /// originated.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum OriginPaths {
     /// A single origin path for all inputs.
     Single(EvaluationPath),
@@ -30,8 +30,8 @@ impl OriginPaths {
     /// Attempts to retrieve the origin path for an input key.
     pub fn get(&self, key: &str) -> Option<&EvaluationPath> {
         match self {
-            OriginPaths::Single(path) => Some(path),
-            OriginPaths::Map(paths) => paths.get(key),
+            Self::Single(path) => Some(path),
+            Self::Map(paths) => paths.get(key),
         }
     }
 }

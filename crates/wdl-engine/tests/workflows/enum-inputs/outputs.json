@@ -1,0 +1,7 @@
+{
+  "enum_inputs.provided_level": "Error",
+  "enum_inputs.default_used": "Info",
+  "enum_inputs.level_value": "ERROR",
+  "enum_inputs.default_value": "INFO",
+  "enum_inputs.is_error": true
+}

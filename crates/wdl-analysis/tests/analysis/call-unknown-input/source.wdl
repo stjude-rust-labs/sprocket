@@ -1,7 +1,7 @@
 #@ except: UnusedCall
 ## This is a test of having an unknown input in a call statement.
 
-version 1.2
+version 1.3
 
 task my_task {
     command <<<>>>

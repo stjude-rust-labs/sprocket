@@ -46,7 +46,7 @@ fn write_json(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     // Serialize the value
     let mut writer = BufWriter::new(file.as_file_mut());
     let mut serializer = serde_json::Serializer::pretty(&mut writer);
-    crate::ValueSerializer::new(&context.arguments[0].value, false)
+    crate::ValueSerializer::new(Some(context.inner()), &context.arguments[0].value, false)
         .serialize(&mut serializer)
         .map_err(|e| {
             function_call_failed(

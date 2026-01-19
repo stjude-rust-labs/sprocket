@@ -26,6 +26,7 @@ use git_testament::git_testament;
 use git_testament::render_testament;
 use tracing::trace;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt as _;
 
 use crate::commands::CommandResult;
@@ -43,7 +44,7 @@ mod eval;
 mod inputs;
 mod test;
 
-/// ignorefile basename to respect.
+/// The Sprocket ignore file name.
 const IGNORE_FILENAME: &str = ".sprocketignore";
 
 git_testament!(TESTAMENT);
@@ -96,6 +97,12 @@ async fn inner() -> CommandResult<()> {
                 .with_writer(indicatif_layer.get_stderr_writer())
                 .with_ansi(stderr().is_terminal())
                 .finish()
+                .with(
+                    Targets::new()
+                        .with_default(cli.verbosity)
+                        // Filter out hyper log messages by default
+                        .with_targets([("hyper_util", None)]),
+                )
                 .with(indicatif_layer);
 
             tracing::subscriber::set_global_default(subscriber)
@@ -127,8 +134,8 @@ async fn inner() -> CommandResult<()> {
     );
 
     match cli.command {
-        Commands::Analyzer(args) => commands::analyzer::analyzer(args.apply(config)).await,
-        Commands::Check(args) => commands::check::check(args.apply(config)).await,
+        Commands::Analyzer(args) => commands::analyzer::analyzer(args, config).await,
+        Commands::Check(args) => commands::check::check(args, config).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();
             commands::completions::completions(args, &mut cmd).await
@@ -137,12 +144,14 @@ async fn inner() -> CommandResult<()> {
         Commands::Explain(args) => commands::explain::explain(args),
         Commands::Format(args) => commands::format::format(args.apply(config)).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
-        Commands::Lint(args) => commands::check::lint(args.apply(config)).await,
-        Commands::Run(args) => commands::run::run(args.apply(config)).await,
+        Commands::Lint(args) => commands::check::lint(args, config).await,
+        Commands::Run(args) => commands::run::run(args, config).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
-        Commands::Dev(commands::DevCommands::Test(args)) => commands::test::test(args).await,
+        Commands::Dev(commands::DevCommands::Test(args)) => {
+            commands::test::test(args.apply(config)).await
+        }
     }
 }
 

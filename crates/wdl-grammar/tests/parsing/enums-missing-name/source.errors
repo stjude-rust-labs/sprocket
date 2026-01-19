@@ -1,0 +1,6 @@
+error: expected enum name, but found `{`
+  ┌─ tests/parsing/enums-missing-name/source.wdl:6:6
+  │
+6 │ enum {
+  │      ^ unexpected `{`
+

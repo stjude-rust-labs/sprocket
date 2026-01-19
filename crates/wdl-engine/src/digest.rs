@@ -3,7 +3,9 @@
 //! This is used by the call cache and for uploading inputs for remote backends.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::Mutex;
@@ -27,7 +29,6 @@ use crate::ContentKind;
 use crate::cache::Hashable;
 use crate::config::ContentDigestMode;
 use crate::http::Transferer;
-use crate::path::EvaluationPath;
 
 /// Represents a calculated [Blake3](https://github.com/BLAKE3-team/BLAKE3) digest of a file or directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,17 +49,23 @@ impl Digest {
     }
 }
 
-/// Represents a map of digest mode and evaluation path to digest.
-type DigestMap = HashMap<(ContentDigestMode, EvaluationPath), Arc<OnceCell<Digest>>>;
+/// Represents a map of (digest mode, local path) to digest.
+type LocalDigestMap = HashMap<(ContentDigestMode, PathBuf), Arc<OnceCell<Digest>>>;
 
-/// Keeps track of previously calculated digests.
+/// Represents a map of remote URL to digest.
+type RemoteDigestMap = HashMap<Url, Arc<OnceCell<Digest>>>;
+
+/// Keeps track of previously calculated local digests.
 ///
 /// As WDL evaluation cannot write to existing files, it is assumed that files
 /// and directories are not modified during evaluation.
 ///
 /// We check for changes to files and directories when we get a cache hit and
 /// error if the source has been modified.
-static DIGESTS: LazyLock<Mutex<DigestMap>> = LazyLock::new(Mutex::default);
+static LOCAL_DIGESTS: LazyLock<Mutex<LocalDigestMap>> = LazyLock::new(Mutex::default);
+
+/// Keeps track of previously calculated remote digests.
+static REMOTE_DIGESTS: LazyLock<Mutex<RemoteDigestMap>> = LazyLock::new(Mutex::default);
 
 /// An extension trait for joining a digest to a URL.
 pub trait UrlDigestExt: Sized {
@@ -199,15 +206,31 @@ fn calculate_directory_digest(
         drop(dir);
         entries.sort_by_key(|e| e.file_name());
 
+        let mut count: u32 = 0;
         let mut hasher = Hasher::new();
         for entry in &entries {
             let entry_path = entry.path();
-            let metadata = entry.metadata().await.with_context(|| {
+            let mut metadata = entry.metadata().await.with_context(|| {
                 format!(
                     "failed to read metadata for path `{path}`",
                     path = entry_path.display()
                 )
             })?;
+
+            // For symlink entries, ensure the link isn't broken by retrieving the target's
+            // metadata; if it is broken, ignore it by not including it
+            if metadata.is_symlink() {
+                match fs::metadata(&entry_path) {
+                    Ok(m) => metadata = m,
+                    Err(_) => continue,
+                }
+            }
+
+            let kind = if metadata.is_file() {
+                ContentKind::File
+            } else {
+                ContentKind::Directory
+            };
 
             // Hash the relative path to the entry
             let entry_rel_path = entry_path
@@ -219,18 +242,13 @@ fn calculate_directory_digest(
                 })?;
             entry_rel_path.hash(&mut hasher);
 
-            let kind = if metadata.is_file() {
-                ContentKind::File
-            } else {
-                ContentKind::Directory
-            };
-
             // Recursively calculate the entry's digest
             let digest = calculate_local_digest(&entry_path, kind, mode).await?;
             digest.hash(&mut hasher);
+            count += 1;
         }
 
-        hasher.update(&(entries.len() as u32).to_le_bytes());
+        hasher.update(&count.to_le_bytes());
         Ok(Digest::Directory(hasher.finalize()))
     }
     .boxed()
@@ -257,9 +275,9 @@ pub async fn calculate_local_digest(
     mode: ContentDigestMode,
 ) -> Result<Digest> {
     let digest = {
-        let mut digests = DIGESTS.lock().expect("failed to lock digests");
+        let mut digests = LOCAL_DIGESTS.lock().expect("failed to lock digests");
         digests
-            .entry((mode, EvaluationPath::Local(path.to_path_buf())))
+            .entry((mode, path.to_path_buf()))
             .or_default()
             .clone()
     };
@@ -315,14 +333,8 @@ pub async fn calculate_remote_digest(
     kind: ContentKind,
 ) -> Result<Digest> {
     let digest = {
-        let mut digests = DIGESTS.lock().expect("failed to lock digests");
-        digests
-            .entry((
-                ContentDigestMode::Strong,
-                EvaluationPath::Remote(url.clone()),
-            ))
-            .or_default()
-            .clone()
+        let mut digests = REMOTE_DIGESTS.lock().expect("failed to lock digests");
+        digests.entry(url.clone()).or_default().clone()
     };
 
     // Get an existing result or initialize a new one exactly once
@@ -381,11 +393,19 @@ pub(crate) mod test {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::ContentKind;
     use crate::http::Location;
 
     /// Helper for clearing the cached digests for tests
     pub fn clear_digest_cache() {
-        DIGESTS.lock().expect("failed to lock digests").clear();
+        LOCAL_DIGESTS
+            .lock()
+            .expect("failed to lock digests")
+            .clear();
+        REMOTE_DIGESTS
+            .lock()
+            .expect("failed to lock digests")
+            .clear();
     }
 
     pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);
@@ -774,5 +794,45 @@ pub(crate) mod test {
             ),
             "URL `http://example.com/missing/baz` does not have a known content digest"
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn ignore_broken_symlink() {
+        use std::os::unix::fs::symlink;
+
+        // Create a temp file as the target of the symlink
+        let target = NamedTempFile::new()
+            .expect("failed to create temporary file")
+            .into_temp_path();
+        fs::write(&target, b"hello world!").expect("failed to write temporary file");
+
+        // Symlink the file
+        let dir = tempdir().expect("failed to create temp directory");
+        let link = dir.path().join("b");
+        symlink(&target, &link).expect("failed to create symlink");
+
+        // Digest the directory with the file
+        let digest = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+
+        // Delete the file to break the link
+        fs::remove_file(&target).expect("failed to delete file");
+
+        // Digest again; the link should be ignored and the digest changed
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+        assert!(digest != modified);
+
+        // Restore the file
+        fs::write(&target, b"hello world!").expect("failed to create temporary file");
+
+        // Digest again; the digest should match the original
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+        assert_eq!(digest, modified);
     }
 }
