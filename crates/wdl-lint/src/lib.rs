@@ -107,7 +107,7 @@ pub trait Rule: Visitor {
 }
 
 /// Gets all of the lint rules.
-pub fn rules(_config: &Config) -> Vec<Box<dyn Rule>> {
+pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
@@ -132,7 +132,7 @@ pub fn rules(_config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DeprecatedObjectRule>::default(),
         Box::<rules::MetaDescriptionRule>::default(),
         Box::<rules::DeprecatedPlaceholderRule>::default(),
-        Box::<rules::ExpectedRuntimeKeysRule>::default(),
+        Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),

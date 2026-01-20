@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
+
 #### Fixed
 
 * Fixed `LineWidth` rule incorrectly emitting diagnostics for import statements ([#501](https://github.com/stjude-rust-labs/sprocket/pull/501)).

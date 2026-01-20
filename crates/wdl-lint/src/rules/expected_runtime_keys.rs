@@ -40,6 +40,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -145,12 +146,26 @@ fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
 /// Creates an "non-reserved runtime key" diagnostic.
 fn report_non_reserved_runtime_keys(
     keys: &HashSet<TokenText>,
+    allowed_runtime_keys: &HashSet<String>,
     runtime_span: Span,
     specification: &str,
-) -> Diagnostic {
+) -> Option<Diagnostic> {
     assert!(!keys.is_empty());
 
-    let mut key_names = keys.iter().map(|key| key.text()).collect::<Vec<_>>();
+    let mut key_names = keys
+        .iter()
+        .filter_map(|key| {
+            if allowed_runtime_keys.contains(key.text()) {
+                None
+            } else {
+                Some(key.text())
+            }
+        })
+        .collect::<Vec<_>>();
+    if key_names.is_empty() {
+        return None;
+    }
+
     key_names.sort();
 
     let (message, fix) = if key_names.len() == 1 {
@@ -204,7 +219,7 @@ fn report_non_reserved_runtime_keys(
         );
     }
 
-    diagnostic
+    Some(diagnostic)
 }
 
 /// Creates a "missing recommended runtime key" diagnostic.
@@ -250,7 +265,7 @@ fn report_missing_recommended_keys(
 }
 
 /// Detects the use of deprecated, unknown, or missing runtime keys.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ExpectedRuntimeKeysRule {
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
@@ -264,6 +279,22 @@ pub struct ExpectedRuntimeKeysRule {
     encountered_keys: Vec<Ident>,
     /// All non-reserved keys encountered in the current runtime section.
     non_reserved_keys: HashSet<TokenText>,
+    /// Whitelisted keys from the config.
+    allowed_runtime_keys: HashSet<String>,
+}
+
+impl ExpectedRuntimeKeysRule {
+    /// Create a new instance of `ExpectedRuntimeKeysRule`
+    pub fn new(config: &Config) -> Self {
+        Self {
+            version: None,
+            runtime_span: None,
+            runtime_processed_for_task: false,
+            encountered_keys: Vec::new(),
+            non_reserved_keys: HashSet::new(),
+            allowed_runtime_keys: config.allowed_runtime_keys.clone(),
+        }
+    }
 }
 
 impl Rule for ExpectedRuntimeKeysRule {
@@ -375,13 +406,16 @@ impl Visitor for ExpectedRuntimeKeysRule {
                 if let SupportedVersion::V1(minor_version) = self.version.unwrap() {
                     let specification = format!("the WDL {minor_version} specification");
 
-                    if !self.non_reserved_keys.is_empty() {
+                    if !self.non_reserved_keys.is_empty()
+                        && let Some(diagnostic) = report_non_reserved_runtime_keys(
+                            &self.non_reserved_keys,
+                            &self.allowed_runtime_keys,
+                            runtime_span,
+                            &specification,
+                        )
+                    {
                         diagnostics.exceptable_add(
-                            report_non_reserved_runtime_keys(
-                                &self.non_reserved_keys,
-                                runtime_span,
-                                &specification,
-                            ),
+                            diagnostic,
                             SyntaxElement::from(runtime_node.clone()),
                             &self.exceptable_nodes(),
                         );

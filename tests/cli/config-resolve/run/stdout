@@ -13,6 +13,7 @@ only_lint_tags = []
 filter_lint_tags = []
 
 [check.rules]
+allowed_runtime_keys = []
 
 [analyzer]
 lint = false
