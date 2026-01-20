@@ -6,9 +6,11 @@ use std::path::Path;
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::{AstNode, SyntaxTokenExt, TreeToken};
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxTokenExt;
+use wdl_ast::TreeToken;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
@@ -65,24 +67,28 @@ impl MetaMapValueSource {
     /// Get the text representation of this value, if possible
     ///
     /// For `Comment` values, this will always return a value.
-    /// For `MetaValue` values, this will only return if the value is [`MetadataValue::String`].
+    /// For `MetaValue` values, this will only return if the value is
+    /// [`MetadataValue::String`].
     pub fn text(&self) -> Option<String> {
         match self {
             MetaMapValueSource::Comment(text) => Some(text.clone()),
-            MetaMapValueSource::MetaValue(MetadataValue::String(s)) => Some(s.text()
-                .expect("meta string should not be interpolated")
-                .text()
-                .to_string()),
-            _ => None
+            MetaMapValueSource::MetaValue(MetadataValue::String(s)) => Some(
+                s.text()
+                    .expect("meta string should not be interpolated")
+                    .text()
+                    .to_string(),
+            ),
+            _ => None,
         }
     }
 
-    /// Consumes the value, returning a [`MetadataValue`] if the variant is `MetaValue`
+    /// Consumes the value, returning a [`MetadataValue`] if the variant is
+    /// `MetaValue`
     #[cfg(test)]
     pub fn into_meta(self) -> Option<MetadataValue> {
         match self {
             MetaMapValueSource::MetaValue(meta) => Some(meta),
-            _ => None
+            _ => None,
         }
     }
 }
@@ -95,8 +101,8 @@ pub(crate) type MetaMap = BTreeMap<String, MetaMapValueSource>;
 pub(crate) trait MetaMapExt {
     /// Returns the "full" description for an item
     ///
-    /// This is a concatenation of `help` and `description`. If neither is present, this
-    /// will return `None`.
+    /// This is a concatenation of `help` and `description`. If neither is
+    /// present, this will return `None`.
     fn full_description(&self) -> Option<String>;
     /// Returns the rendered [`Markup`] of the `description` key, optionally
     /// summarizing it.
@@ -113,7 +119,8 @@ impl MetaMapExt for MetaMap {
     fn full_description(&self) -> Option<String> {
         let help = self.get(HELP_KEY).and_then(MetaMapValueSource::text);
 
-        if let Some(mut description) = self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text) {
+        if let Some(mut description) = self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text)
+        {
             if let Some(help) = help {
                 description.push('\n');
                 description.push_str(&help);
@@ -132,7 +139,7 @@ impl MetaMapExt for MetaMap {
                 MetaMapValueSource::MetaValue(MetadataValue::String(s)) => {
                     let t = s.text().expect("meta string should not be interpolated");
                     t.text().to_string()
-                },
+                }
                 MetaMapValueSource::Comment(s) => s.to_string(),
                 _ => "ERROR: description not of type String".to_string(),
             })
@@ -179,16 +186,19 @@ impl MetaMapExt for MetaMap {
             return None;
         }
 
-        let external_link_on_click = if let Some(MetaMapValueSource::MetaValue(MetadataValue::String(s))) = external_help_item {
-            Some(format!(
-                "window.open('{}', '_blank')",
-                s.text()
-                    .expect("meta string should not be interpolated")
-                    .text()
-            ))
-        } else {
-            None
-        };
+        let external_link_on_click =
+            if let Some(MetaMapValueSource::MetaValue(MetadataValue::String(s))) =
+                external_help_item
+            {
+                Some(format!(
+                    "window.open('{}', '_blank')",
+                    s.text()
+                        .expect("meta string should not be interpolated")
+                        .text()
+                ))
+            } else {
+                None
+            };
 
         Some(html! {
             @if let Some(help) = help_item {
@@ -234,12 +244,10 @@ fn render_value(value: &MetaMapValueSource) -> Markup {
 
 fn render_metadata_value(value: &MetadataValue) -> Markup {
     match value {
-        MetadataValue::String(s) => {
-            s
-                .text()
-                .map(|t| render_string(t.text()))
-                .expect("meta string should not be interpolated")
-        }
+        MetadataValue::String(s) => s
+            .text()
+            .map(|t| render_string(t.text()))
+            .expect("meta string should not be interpolated"),
         MetadataValue::Boolean(b) => html! { code { (b.text()) } },
         MetadataValue::Integer(i) => html! { code { (i.text()) } },
         MetadataValue::Float(f) => html! { code { (f.text()) } },
@@ -397,8 +405,9 @@ impl Display for Paragraph {
 
 /// Collect all doc comments preceding `token` into a [`MetaMap`]
 ///
-/// The first paragraph of the doc comment text will be placed under the `description` key of the map. All other
-/// paragraphs will be joined with newlines and placed under the `help` key.
+/// The first paragraph of the doc comment text will be placed under the
+/// `description` key of the map. All other paragraphs will be joined with
+/// newlines and placed under the `help` key.
 pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt, A: AstToken<T>>(token: &A) -> MetaMap {
     let mut map = MetaMap::new();
 
@@ -419,7 +428,7 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt, A: AstToken<T>>(token:
                 }
 
                 current_paragraph.0.push(comment.to_owned());
-            },
+            }
             SyntaxKind::Whitespace => continue,
             _ => break,
         }
@@ -433,7 +442,10 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt, A: AstToken<T>>(token:
         return map;
     }
 
-    map.insert(DESCRIPTION_KEY.to_string(), MetaMapValueSource::Comment(paragraphs.remove(0).to_string()));
+    map.insert(
+        DESCRIPTION_KEY.to_string(),
+        MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),
+    );
 
     let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {

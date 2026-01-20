@@ -4,26 +4,27 @@ pub mod task;
 pub mod workflow;
 
 use std::collections::BTreeSet;
-use std::path::Path;
 use std::path::MAIN_SEPARATOR;
+use std::path::Path;
 
-use maud::html;
 use maud::Markup;
 use maud::PreEscaped;
+use maud::html;
+use wdl_ast::AstToken;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
-use wdl_ast::AstToken;
 
+use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
-use crate::meta::{MetaMap, MetaMapValueSource};
+use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
-use crate::parameter::render_non_required_parameters_table;
+use crate::meta::MetaMapValueSource;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
-use crate::VersionBadge;
+use crate::parameter::render_non_required_parameters_table;
 
 /// A runnable (workflow or task) in a WDL document.
 pub(crate) trait Runnable {
@@ -283,7 +284,12 @@ fn parse_outputs(
         })
         .map(|o| {
             o.items()
-                .map(|i| (i.name().text().to_owned(), MetaMapValueSource::MetaValue(i.value().clone())))
+                .map(|i| {
+                    (
+                        i.name().text().to_owned(),
+                        MetaMapValueSource::MetaValue(i.value().clone()),
+                    )
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -304,10 +310,12 @@ fn parse_outputs(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::meta::{parse_meta, parse_parameter_meta};
-    use crate::parameter::Group;
     use wdl_ast::Document;
+
+    use super::*;
+    use crate::meta::parse_meta;
+    use crate::meta::parse_parameter_meta;
+    use crate::parameter::Group;
 
     #[test]
     fn test_group_cmp() {
@@ -414,7 +422,8 @@ mod tests {
                 .get("a")
                 .unwrap()
                 .clone()
-                .into_meta().unwrap()
+                .into_meta()
+                .unwrap()
                 .unwrap_object()
                 .items()
                 .next()

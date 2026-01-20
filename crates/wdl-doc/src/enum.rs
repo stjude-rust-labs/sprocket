@@ -1,15 +1,20 @@
 //! Create HTML documentation for WDL enums.
 
 use std::path::Path;
+
 use maud::Markup;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
-use wdl_ast::v1::{EnumDefinition, EnumVariant};
+use wdl_ast::v1::EnumDefinition;
+use wdl_ast::v1::EnumVariant;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
-use crate::meta::{doc_comments, MetaMap, MetaMapExt, DESCRIPTION_KEY};
+use crate::meta::DESCRIPTION_KEY;
+use crate::meta::MetaMap;
+use crate::meta::MetaMapExt;
+use crate::meta::doc_comments;
 
 /// An [`EnumVariant`] with an associated [`MetaMap`]
 #[derive(Debug)]
@@ -25,7 +30,9 @@ impl DocumentedEnumVariant {
     ///
     /// [full description]: MetaMap::full_description()
     pub fn full_description(&self) -> String {
-        self.meta.full_description().unwrap_or_else(|| String::from("No description provided"))
+        self.meta
+            .full_description()
+            .unwrap_or_else(|| String::from("No description provided"))
     }
 }
 
@@ -83,15 +90,15 @@ impl Enum {
             }
         };
 
-        let meta_markup = self.meta.render_remaining(
-            &[
-                DESCRIPTION_KEY,
-            ],
-            assets,
-        ).map_or_else(|| html! {}, |markup| html! { (markup) });
+        let meta_markup = self
+            .meta
+            .render_remaining(&[DESCRIPTION_KEY], assets)
+            .map_or_else(|| html! {}, |markup| html! { (markup) });
 
         let mut definition = String::new();
-        self.definition.fmt(&mut definition, None).expect("writing to strings should never fail");
+        self.definition
+            .fmt(&mut definition, None)
+            .expect("writing to strings should never fail");
 
         let markup = html! {
             div class="main__container" {

@@ -10,7 +10,10 @@ use wdl_ast::v1::WorkflowDefinition;
 use super::*;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
-use crate::meta::{parse_meta, parse_parameter_meta, MetaMapValueSource, DESCRIPTION_KEY};
+use crate::meta::DESCRIPTION_KEY;
+use crate::meta::MetaMapValueSource;
+use crate::meta::parse_meta;
+use crate::meta::parse_parameter_meta;
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.
@@ -77,7 +80,9 @@ impl Workflow {
 
     /// Returns the [`CATEGORY_KEY`] meta entry, if it exists and is a String.
     pub fn category(&self) -> Option<String> {
-        self.meta.get(CATEGORY_KEY).and_then(MetaMapValueSource::text)
+        self.meta
+            .get(CATEGORY_KEY)
+            .and_then(MetaMapValueSource::text)
     }
 
     /// Returns the name of the workflow as HTML.
