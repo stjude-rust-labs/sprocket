@@ -12,12 +12,12 @@ include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 mod command_section;
 mod docs_tree;
 mod document;
+mod r#enum;
 pub mod error;
 mod meta;
 mod parameter;
 mod runnable;
 mod r#struct;
-mod r#enum;
 
 use std::io::Error as IoError;
 use std::io::ErrorKind;
@@ -622,7 +622,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     docs_tree.add_page(path.clone(), page.clone());
                     local_pages
                         .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
-                },
+                }
             }
         }
         let document_name = root_to_wdl
