@@ -15,6 +15,7 @@ use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
+use crate::Config;
 use crate::Rule;
 use crate::rules;
 
@@ -66,7 +67,10 @@ impl Linter {
 impl Default for Linter {
     fn default() -> Self {
         Self {
-            rules: rules().into_iter().map(|r| (r.id(), r)).collect(),
+            rules: rules(&Config::default())
+                .into_iter()
+                .map(|r| (r.id(), r))
+                .collect(),
             document_exceptions: HashSet::default(),
         }
     }

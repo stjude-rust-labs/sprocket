@@ -12,6 +12,8 @@ all_lint_rules = false
 only_lint_tags = []
 filter_lint_tags = []
 
+[check.rules]
+
 [analyzer]
 lint = false
 except = []

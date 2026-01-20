@@ -1,8 +1,11 @@
 //! Implementation of the language server protocol (LSP) subcommand.
 
+use std::sync::Arc;
+
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use wdl::analysis::FeatureFlags;
+use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
@@ -52,8 +55,11 @@ pub async fn analyzer(mut args: Args, config: Config) -> CommandResult<()> {
     Server::run(ServerOptions {
         name: Some("Sprocket".into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
-        lint: args.lint,
-        exceptions: args.except,
+        lint: LintOptions {
+            enabled: args.lint,
+            exceptions: args.except,
+            config: Arc::new(config.check.rules),
+        },
         ignore_filename: Some(IGNORE_FILENAME.to_string()),
         feature_flags: FeatureFlags::default(),
     })

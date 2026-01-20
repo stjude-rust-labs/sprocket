@@ -13,6 +13,7 @@ use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -53,7 +54,7 @@ fn misplaced_lint_directive(
 pub static RULE_MAP: LazyLock<HashMap<&'static str, Option<&'static [SyntaxKind]>>> =
     LazyLock::new(|| {
         let mut map = HashMap::new();
-        for rule in rules() {
+        for rule in rules(&Config::default()) {
             map.insert(rule.id(), rule.exceptable_nodes());
         }
         map
