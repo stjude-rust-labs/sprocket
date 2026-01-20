@@ -125,6 +125,7 @@ impl Enum {
     }
 }
 
+/// Parse the doc comments on the enum definition and its variants
 fn parse_meta(definition: &EnumDefinition) -> (MetaMap, Vec<DocumentedEnumVariant>) {
     let enum_docs = doc_comments(definition.keyword().inner());
 

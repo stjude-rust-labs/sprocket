@@ -148,6 +148,7 @@ impl Struct {
     }
 }
 
+/// Parse the `meta`/`parameter_meta` and doc comments on the struct members.
 fn parse_member_meta(definition: &StructDefinition, parameter_meta: &MetaMap) -> Vec<Member> {
     definition
         .members()

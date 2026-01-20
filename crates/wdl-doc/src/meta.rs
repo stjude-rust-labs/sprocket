@@ -55,6 +55,7 @@ pub(crate) fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) ->
         .collect()
 }
 
+/// The source a [`MetaMap`] entry
 #[derive(Debug, Clone)]
 pub(crate) enum MetaMapValueSource {
     /// The value comes from a `meta`/`parameter_meta` section in the document
@@ -242,6 +243,7 @@ fn render_value(value: &MetaMapValueSource) -> Markup {
     }
 }
 
+/// Render a [`MetadataValue`] as HTML.
 fn render_metadata_value(value: &MetadataValue) -> Markup {
     match value {
         MetadataValue::String(s) => s
@@ -286,6 +288,7 @@ fn render_metadata_value(value: &MetadataValue) -> Markup {
     }
 }
 
+/// Prepare a string for HTML rendering.
 fn render_string(s: &str) -> Markup {
     Markdown(s).render()
 }
@@ -387,6 +390,10 @@ pub(crate) fn summarize_if_needed(
     }
 }
 
+/// A doc comment paragraph
+///
+/// Internally, this retains the line breaks as they appear in the document.
+/// When rendered, the lines are joined with spaces.
 #[derive(Debug, Clone)]
 pub struct Paragraph(Vec<String>);
 
