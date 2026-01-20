@@ -257,7 +257,7 @@ impl TaskSpawnRequest {
 
     /// Gets the attempt directory for the task's execution.
     pub fn attempt_dir(&self) -> &Path {
-        &self.attempt_dir
+        self.attempt_dir_host()
     }
 
     /// The temp directory for the evaluation.

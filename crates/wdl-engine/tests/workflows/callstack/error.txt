@@ -1,4 +1,8 @@
-error: task execution failed for task `my_task`: process terminated with exit code 1: see `calls/test/calls/test/calls/my_task/attempts/0/stdout` and `calls/test/calls/test/calls/my_task/attempts/0/stderr` for task output
+error: task execution failed for task `my_task`: process terminated with exit code 1
+Attempt directory: calls/test/calls/test/calls/my_task/attempts/0
+Uploaded logs:
+  stdout: calls/test/calls/test/calls/my_task/attempts/0/stdout
+  stderr: calls/test/calls/test/calls/my_task/attempts/0/stderr
 
 task stderr output (last 10 lines):
 
