@@ -210,6 +210,7 @@ impl LocalTask {
                             work_dir: EvaluationPath::from_local_path(work_dir),
                             stdout: PrimitiveValue::new_file(stdout_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
                             stderr: PrimitiveValue::new_file(stderr_path.into_os_string().into_string().expect("path should be UTF-8")).into(),
+                            attempt_dir: Some(self.request.attempt_dir().to_path_buf()),
                         }))
                     }
                     Err(e) => {

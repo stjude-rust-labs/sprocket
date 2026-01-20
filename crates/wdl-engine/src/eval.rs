@@ -1,6 +1,9 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
+use std::fmt::Write as _;
+use std::fs;
+use std::io::BufRead;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU8;
@@ -752,6 +755,176 @@ impl EvaluatedTask {
             None => Ok(self.outputs),
         }
     }
+}
+
+/// Describes the category of failure so the error message can highlight the
+/// most useful guidance for the user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FailureKind {
+    /// A generic failure where at least one log was uploaded.
+    Generic,
+    /// Both stdout and stderr failed to upload, so we cannot show paths.
+    UploadFailed,
+    /// The stderr output indicates the execution environment ran out of disk.
+    OutOfDisk,
+}
+
+/// Captures whether the stderr artifact was retrieved as well as its tail
+/// lines.
+pub(crate) struct LogTailCapture {
+    /// True when the stderr artifact was downloaded successfully.
+    pub(crate) available: bool,
+    /// The final stderr lines, already ordered for presentation.
+    pub(crate) lines: Vec<String>,
+}
+
+/// Summarizes which log artifacts are reachable along with the stderr tail
+/// snippet so that `build_failure_message` can render consistent messaging.
+pub(crate) struct LogAvailability<'a> {
+    /// Path to the stdout artifact for inclusion in the error text.
+    pub(crate) stdout_path: &'a str,
+    /// True when stdout is accessible to the user.
+    pub(crate) stdout_uploaded: bool,
+    /// Path to the stderr artifact for inclusion in the error text.
+    pub(crate) stderr_path: &'a str,
+    /// True when stderr is accessible to the user.
+    pub(crate) stderr_uploaded: bool,
+    /// Tail of stderr that should be echoed in the error message.
+    pub(crate) stderr_lines: &'a [String],
+}
+
+/// Attempts to download the stderr artifact and capture its tail for later
+/// inclusion in the user-facing error message.
+pub(crate) async fn capture_stderr_tail(
+    transferer: &dyn Transferer,
+    work_dir: &EvaluationPath,
+    stderr_path: &HostPath,
+    max_lines: usize,
+) -> LogTailCapture {
+    match crate::stdlib::download_file(transferer, work_dir, stderr_path).await {
+        Ok(location) => {
+            let lines = fs::File::open(&*location)
+                .ok()
+                .map(|file| {
+                    let reader = rev_buf_reader::RevBufReader::new(file);
+                    let mut lines: Vec<_> = reader
+                        .lines()
+                        .take(max_lines)
+                        .map_while(|l| l.ok())
+                        .collect();
+                    lines.reverse();
+                    lines
+                })
+                .unwrap_or_default();
+
+            LogTailCapture {
+                available: true,
+                lines,
+            }
+        }
+        Err(_) => LogTailCapture {
+            available: false,
+            lines: Vec::new(),
+        },
+    }
+}
+
+/// Returns `true` when the referenced log artifact can still be accessed.
+pub(crate) async fn artifact_uploaded(transferer: &dyn Transferer, path: &HostPath) -> bool {
+    if let Some(url) = crate::path::parse_supported_url(path.as_str()) {
+        transferer.exists(&url).await.unwrap_or(false)
+    } else {
+        fs::metadata(path.as_str()).is_ok()
+    }
+}
+
+/// Heuristically detects whether stderr mentions running out of disk space.
+pub(crate) fn contains_out_of_disk(lines: &[String]) -> bool {
+    const HINTS: &[&str] = &[
+        "no space left on device",
+        "disk quota exceeded",
+        "out of disk",
+        "filesystem full",
+        "enospc",
+    ];
+
+    lines.iter().any(|line| {
+        let lower = line.to_ascii_lowercase();
+        HINTS.iter().any(|needle| lower.contains(needle))
+    })
+}
+
+/// Formats the stderr tail with indentation so it stands out in the message.
+pub(crate) fn format_stderr_tail(lines: &[String]) -> Option<String> {
+    if lines.is_empty() {
+        None
+    } else {
+        Some(
+            lines
+                .iter()
+                .map(|line| format!("  {line}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
+}
+
+/// Builds the final failure message, combining attempt directory, log
+/// availability, and heuristics about the failure kind.
+pub(crate) fn build_failure_message(
+    exit_code: i32,
+    attempt_dir: Option<&Path>,
+    logs: LogAvailability<'_>,
+    failure_kind: FailureKind,
+    max_lines: usize,
+) -> String {
+    let mut message = match failure_kind {
+        FailureKind::OutOfDisk => format!(
+            "process terminated with exit code {exit_code}: the execution environment ran out of \
+             disk space"
+        ),
+        FailureKind::UploadFailed => format!(
+            "process terminated with exit code {exit_code}: stdout and stderr were not uploaded"
+        ),
+        FailureKind::Generic => format!("process terminated with exit code {exit_code}"),
+    };
+
+    if let Some(dir) = attempt_dir {
+        write!(message, "\nAttempt directory: {}", dir.display()).unwrap();
+    }
+
+    if logs.stdout_uploaded || logs.stderr_uploaded {
+        message.push_str("\nUploaded logs:");
+        if logs.stdout_uploaded {
+            write!(message, "\n  stdout: {}", logs.stdout_path).unwrap();
+        }
+        if logs.stderr_uploaded {
+            write!(message, "\n  stderr: {}", logs.stderr_path).unwrap();
+        }
+    }
+
+    if !logs.stdout_uploaded || !logs.stderr_uploaded {
+        message.push_str("\nMissing logs:");
+        if !logs.stdout_uploaded {
+            message.push_str("\n  stdout was not uploaded");
+        }
+        if !logs.stderr_uploaded {
+            message.push_str("\n  stderr was not uploaded");
+        }
+        if attempt_dir.is_some() {
+            message.push_str("\nUse the attempt directory to inspect any partial logs.");
+        }
+    }
+
+    if let Some(tail) = format_stderr_tail(logs.stderr_lines) {
+        write!(
+            message,
+            "\n\ntask stderr output (last {max_lines} lines):\n\n{tail}\n"
+        )
+        .unwrap();
+    }
+
+    message
 }
 
 #[cfg(test)]

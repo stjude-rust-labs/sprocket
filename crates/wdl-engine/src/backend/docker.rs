@@ -289,6 +289,7 @@ impl DockerTask {
                     .expect("path should be UTF-8"),
             )
             .into(),
+            attempt_dir: Some(self.request.attempt_dir().to_path_buf()),
         }))
     }
 }

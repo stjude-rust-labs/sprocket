@@ -477,6 +477,7 @@ impl TaskExecutionBackend for TesBackend {
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),
                     stderr: PrimitiveValue::new_file(stderr_url).into(),
+                    attempt_dir: Some(request.attempt_dir().to_path_buf()),
                 }));
             }
         }

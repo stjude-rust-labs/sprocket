@@ -478,6 +478,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                         .expect("path should be UTF-8"),
                 )
                 .into(),
+                attempt_dir: Some(request.attempt_dir().to_path_buf()),
             }))
         }
         .boxed()

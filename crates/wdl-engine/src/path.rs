@@ -42,6 +42,15 @@ pub(crate) fn is_supported_url(s: &str) -> bool {
         .any(|scheme| starts_with_ignore_ascii_case(s.trim_start(), scheme))
 }
 
+/// Parses the string into a URL when it uses a supported scheme.
+pub(crate) fn parse_supported_url(s: &str) -> Option<Url> {
+    if is_supported_url(s) {
+        Url::parse(s.trim()).ok()
+    } else {
+        None
+    }
+}
+
 /// Represents the kind of an evaluation path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum EvaluationPathKind {
