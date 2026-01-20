@@ -408,12 +408,12 @@ impl Display for Paragraph {
 /// The first paragraph of the doc comment text will be placed under the
 /// `description` key of the map. All other paragraphs will be joined with
 /// newlines and placed under the `help` key.
-pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt, A: AstToken<T>>(token: &A) -> MetaMap {
+pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap {
     let mut map = MetaMap::new();
 
     let mut current_paragraph = Paragraph(Vec::new());
     let mut paragraphs = Vec::new();
-    for token in token.inner().preceding_trivia() {
+    for token in token.preceding_trivia() {
         match token.kind() {
             SyntaxKind::Comment => {
                 let Some(comment) = token.text().strip_prefix("##") else {

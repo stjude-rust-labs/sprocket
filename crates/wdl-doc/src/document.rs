@@ -93,7 +93,8 @@ impl Document {
 
     /// Get the preamble comments of the document as HTML if there are any.
     pub fn render_preamble(&self) -> Option<Markup> {
-        let Some(preamble) = doc_comments(&self.version_statement.keyword()).full_description()
+        let Some(preamble) =
+            doc_comments(self.version_statement.keyword().inner()).full_description()
         else {
             return None;
         };

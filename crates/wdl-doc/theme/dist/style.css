@@ -2410,13 +2410,13 @@
   .main__summary-container {
     display: inline;
   }
-  .main__meta-enum-variant {
+  .main__meta-item-member {
     margin-bottom: 0.75em;
   }
-  .main__meta-enum-variant-description {
+  .main__meta-item-member-description {
     margin-left: 1.5em;
   }
-  .main__meta-enum-variant-description-para {
+  .main__meta-item-member-description-para {
     margin-bottom: 0.75em;
   }
   .left-sidebar__indent {
