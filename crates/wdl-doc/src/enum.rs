@@ -126,12 +126,12 @@ impl Enum {
 }
 
 fn parse_meta(definition: &EnumDefinition) -> (MetaMap, Vec<DocumentedEnumVariant>) {
-    let enum_docs = doc_comments(&definition.keyword());
+    let enum_docs = doc_comments(definition.keyword().inner());
 
     let mut variant_docs = Vec::new();
     for variant in definition.variants() {
         variant_docs.push(DocumentedEnumVariant {
-            meta: doc_comments(&variant.name()),
+            meta: doc_comments(variant.name().inner()),
             variant: variant.clone(),
         });
     }
