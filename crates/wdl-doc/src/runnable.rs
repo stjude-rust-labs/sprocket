@@ -4,28 +4,26 @@ pub mod task;
 pub mod workflow;
 
 use std::collections::BTreeSet;
-use std::path::MAIN_SEPARATOR;
 use std::path::Path;
+use std::path::MAIN_SEPARATOR;
 
+use maud::html;
 use maud::Markup;
 use maud::PreEscaped;
-use maud::html;
-use wdl_ast::AstToken;
 use wdl_ast::v1::InputSection;
-use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
-use wdl_ast::v1::ParameterMetadataSection;
+use wdl_ast::AstToken;
 
-use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::{MetaMap, MetaMapValueSource};
 use crate::meta::MetaMapExt;
+use crate::parameter::render_non_required_parameters_table;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
-use crate::parameter::render_non_required_parameters_table;
+use crate::VersionBadge;
 
 /// A runnable (workflow or task) in a WDL document.
 pub(crate) trait Runnable {
@@ -258,29 +256,6 @@ pub(crate) trait Runnable {
     }
 }
 
-/// Parse a [`MetadataSection`] into a [`MetaMap`].
-fn parse_meta(meta: &MetadataSection) -> MetaMap {
-    meta.items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, MetaMapValueSource::MetaValue(item))
-        })
-        .collect()
-}
-
-/// Parse a [`ParameterMetadataSection`] into a [`MetaMap`].
-fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
-    parameter_meta
-        .items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, MetaMapValueSource::MetaValue(item))
-        })
-        .collect()
-}
-
 /// Parse the [`InputSection`] into a vector of [`Parameter`]s.
 fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<Parameter> {
     input_section
@@ -329,10 +304,10 @@ fn parse_outputs(
 
 #[cfg(test)]
 mod tests {
-    use wdl_ast::Document;
-
     use super::*;
+    use crate::meta::{parse_meta, parse_parameter_meta};
     use crate::parameter::Group;
+    use wdl_ast::Document;
 
     #[test]
     fn test_group_cmp() {

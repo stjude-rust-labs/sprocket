@@ -10,7 +10,7 @@ use wdl_ast::v1::WorkflowDefinition;
 use super::*;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
-use crate::meta::{MetaMapValueSource, DESCRIPTION_KEY};
+use crate::meta::{parse_meta, parse_parameter_meta, MetaMapValueSource, DESCRIPTION_KEY};
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.

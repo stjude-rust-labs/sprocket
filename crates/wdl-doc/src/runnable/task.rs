@@ -16,6 +16,8 @@ use crate::command_section::CommandSectionExt;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::parse_meta;
+use crate::meta::parse_parameter_meta;
 use crate::parameter::Parameter;
 
 /// A task in a WDL document.

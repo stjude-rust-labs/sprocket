@@ -1392,7 +1392,7 @@ impl DocsTree {
 
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
-            PageType::Struct(s) => s.render(),
+            PageType::Struct(s) => s.render(&self.assets_relative_to(base)),
             PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
             PageType::Task(t) => t.render(&self.assets_relative_to(base)),
             PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),

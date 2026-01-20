@@ -66,16 +66,16 @@ impl Enum {
                 @for variant in self.variants.iter() {
                     @let variant_name = variant.variant.name();
                     @let variant_id = format!("variant.{}", variant_name.text());
-                    @let variant_anchor = format!("@{variant_id}");
+                    @let variant_anchor = format!("#{variant_id}");
                     section id=(variant_id) {
-                        div class="main__meta-enum-variant" {
+                        div class="main__meta-item-member" {
                             a href=(variant_anchor) {}
                             h3 class="main__section-subheader" { (variant_name.text()) }
                         }
 
-                        div class="main__meta-enum-variant-description" {
+                        div class="main__meta-item-member-description" {
                             @for paragraph in variant.full_description().split('\n') {
-                                p class="main__meta-enum-variant-description-para" { (paragraph) }
+                                p class="main__meta-item-member-description-para" { (paragraph) }
                             }
                         }
                     }

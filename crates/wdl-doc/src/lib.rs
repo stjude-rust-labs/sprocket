@@ -561,7 +561,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-struct.html"));
 
-                    // TODO: handle >=v1.2 structs
                     let r#struct = r#struct::Struct::new(s.clone(), version);
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));

@@ -9,7 +9,9 @@ use maud::html;
 use wdl_ast::{AstNode, SyntaxTokenExt, TreeToken};
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
+use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
+use wdl_ast::v1::ParameterMetadataSection;
 
 use crate::Markdown;
 use crate::Render;
@@ -27,6 +29,29 @@ const WARNING_KEY: &str = "warning";
 const DESCRIPTION_MAX_LENGTH: usize = 140;
 /// The length of a description when summarized.
 const DESCRIPTION_CLIP_LENGTH: usize = 80;
+
+/// Parse a [`MetadataSection`] into a [`MetaMap`].
+pub(crate) fn parse_meta(meta: &MetadataSection) -> MetaMap {
+    meta.items()
+        .map(|m| {
+            let name = m.name().text().to_owned();
+            let item = m.value();
+            (name, MetaMapValueSource::MetaValue(item))
+        })
+        .collect()
+}
+
+/// Parse a [`ParameterMetadataSection`] into a [`MetaMap`].
+pub(crate) fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
+    parameter_meta
+        .items()
+        .map(|m| {
+            let name = m.name().text().to_owned();
+            let item = m.value();
+            (name, MetaMapValueSource::MetaValue(item))
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone)]
 pub(crate) enum MetaMapValueSource {
