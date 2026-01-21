@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+* Added support for enumerations ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+* Added support for `meta`/`parameter_meta` sections on structs in WDL >=v1.2 ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+* Added experimental support for documentation comments on enumerations and structs ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+    * The [design discussion](https://github.com/openwdl/wdl/issues/757) is still ongoing, so this
+      feature is subject to change.
 
 #### Changed
 
