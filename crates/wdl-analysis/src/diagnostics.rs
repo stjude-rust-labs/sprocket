@@ -45,6 +45,8 @@ impl fmt::Display for Io {
 /// Represents the context for diagnostic reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Context {
+    /// The name is a namespace introduced by an imported document.
+    Namespace(Span),
     /// The name is a workflow name.
     Workflow(Span),
     /// The name is a task name.
@@ -65,6 +67,7 @@ impl Context {
     /// Gets the span of the name.
     fn span(&self) -> Span {
         match self {
+            Self::Namespace(s) => *s,
             Self::Workflow(s) => *s,
             Self::Task(s) => *s,
             Self::Struct(s) => *s,
@@ -79,6 +82,7 @@ impl Context {
 impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Namespace(_) => write!(f, "namespace"),
             Self::Workflow(_) => write!(f, "workflow"),
             Self::Task(_) => write!(f, "task"),
             Self::Struct(_) => write!(f, "struct"),

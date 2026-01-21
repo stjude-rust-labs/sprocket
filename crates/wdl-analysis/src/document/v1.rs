@@ -306,7 +306,7 @@ fn add_namespace(
                 ));
                 return;
             }
-            _ => {
+            None => {
                 document.namespaces.insert(
                     ns.clone(),
                     Namespace {
@@ -514,36 +514,29 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
 fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     let name = definition.name();
 
-    // Check for conflicts with existing enums
-    if let Some(prev_enum) = document.enums.get(name.text()) {
+    // Check for a conflict with imported struct first otherwise for any name
+    if let Some(prev) = document.structs.get(name.text())
+        && prev.namespace.is_some()
+    {
+        let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
+            .expect("node should cast");
+
+        if !are_structs_equal(definition, &prev_def) {
+            document
+                .analysis_diagnostics
+                .push(struct_conflicts_with_import(
+                    name.text(),
+                    name.span(),
+                    prev.name_span,
+                ));
+            return;
+        }
+    } else if let Some(ctx) = document.context(name.text()) {
         document.analysis_diagnostics.push(name_conflict(
             name.text(),
             Context::Struct(name.span()),
-            Context::Enum(prev_enum.name_span),
+            ctx,
         ));
-        return;
-    }
-
-    if let Some(prev) = document.structs.get(name.text()) {
-        if prev.namespace.is_some() {
-            let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
-                .expect("node should cast");
-            if !are_structs_equal(definition, &prev_def) {
-                document
-                    .analysis_diagnostics
-                    .push(struct_conflicts_with_import(
-                        name.text(),
-                        name.span(),
-                        prev.name_span,
-                    ))
-            }
-        } else {
-            document.analysis_diagnostics.push(name_conflict(
-                name.text(),
-                Context::Struct(name.span()),
-                Context::Struct(prev.name_span),
-            ));
-        }
         return;
     }
 
@@ -591,35 +584,26 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         return;
     }
 
-    // Check for conflicts with existing structs
-    if let Some(prev_struct) = document.structs.get(name.text()) {
+    // Check for a conflict with imported enum first otherwise for any name
+    if let Some(prev) = document.enums.get(name.text())
+        && prev.namespace.is_some()
+    {
+        let prev_def = prev.definition();
+        if !are_enums_equal(definition, &prev_def) {
+            document
+                .analysis_diagnostics
+                .push(enum_conflicts_with_import(
+                    name.text(),
+                    name.span(),
+                    prev.name_span,
+                ))
+        }
+    } else if let Some(ctx) = document.context(name.text()) {
         document.analysis_diagnostics.push(name_conflict(
             name.text(),
             Context::Enum(name.span()),
-            Context::Struct(prev_struct.name_span),
+            ctx,
         ));
-        return;
-    }
-
-    if let Some(prev) = document.enums.get(name.text()) {
-        if prev.namespace.is_some() {
-            let prev_def = prev.definition();
-            if !are_enums_equal(definition, &prev_def) {
-                document
-                    .analysis_diagnostics
-                    .push(enum_conflicts_with_import(
-                        name.text(),
-                        name.span(),
-                        prev.name_span,
-                    ))
-            }
-        } else {
-            document.analysis_diagnostics.push(name_conflict(
-                name.text(),
-                Context::Enum(name.span()),
-                Context::Enum(prev.name_span),
-            ));
-        }
         return;
     }
 
@@ -781,29 +765,15 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         index
     }
 
-    // Check for a name conflict with another task or workflow
+    // Check for a name conflict
     let name = definition.name();
-    match document.tasks.get(name.text()) {
-        Some(s) => {
-            document.analysis_diagnostics.push(name_conflict(
-                name.text(),
-                Context::Task(name.span()),
-                Context::Task(s.name_span),
-            ));
-            return;
-        }
-        _ => {
-            if let Some(s) = &document.workflow
-                && s.name == name.text()
-            {
-                document.analysis_diagnostics.push(name_conflict(
-                    name.text(),
-                    Context::Task(name.span()),
-                    Context::Workflow(s.name_span),
-                ));
-                return;
-            }
-        }
+    if let Some(ctx) = document.context(name.text()) {
+        document.analysis_diagnostics.push(name_conflict(
+            name.text(),
+            Context::Task(name.span()),
+            ctx,
+        ));
+        return;
     }
 
     // Populate type maps for the tasks's inputs and outputs
@@ -1076,25 +1046,23 @@ fn add_decl(
 /// Returns `true` if the workflow was added to the document or `false` if not
 /// (i.e. there was a conflict).
 fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> bool {
-    // Check for conflicts with task names or an existing workflow
+    // Check for duplicate workflow first
     let name = workflow.name();
-    match document.tasks.get(name.text()) {
-        Some(s) => {
-            document.analysis_diagnostics.push(name_conflict(
-                name.text(),
-                Context::Workflow(name.span()),
-                Context::Task(s.name_span),
-            ));
-            return false;
-        }
-        _ => {
-            if let Some(s) = &document.workflow {
-                document
-                    .analysis_diagnostics
-                    .push(duplicate_workflow(&name, s.name_span));
-                return false;
-            }
-        }
+    if let Some(prev) = &document.workflow {
+        document
+            .analysis_diagnostics
+            .push(duplicate_workflow(&name, prev.name_span));
+        return false;
+    }
+
+    // Check for a name conflict
+    if let Some(ctx) = document.context(name.text()) {
+        document.analysis_diagnostics.push(name_conflict(
+            name.text(),
+            Context::Workflow(name.span()),
+            ctx,
+        ));
+        return false;
     }
 
     // Note: we delay populating the workflow until later on so that we can populate

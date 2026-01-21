@@ -21,6 +21,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::config::Config;
+use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
 use crate::diagnostics::unused_import;
 use crate::graph::DocumentGraph;
@@ -673,6 +674,29 @@ impl DocumentData {
             enums: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
+        }
+    }
+
+    /// Gets the context of the given name.
+    ///
+    /// The name may be for a namespace, task, workflow, struct, or enum.
+    ///
+    /// Returns `None` if there is no context for the given name.
+    pub fn context(&self, name: &str) -> Option<Context> {
+        // Look through the various data structures for the name
+        if let Some(ns) = self.namespaces.get(name) {
+            Some(Context::Namespace(ns.span()))
+        } else if let Some(task) = self.tasks.get(name) {
+            Some(Context::Task(task.name_span()))
+        } else if let Some(wf) = &self.workflow
+            && wf.name == name
+        {
+            Some(Context::Workflow(wf.name_span()))
+        } else if let Some(s) = self.structs.get(name) {
+            Some(Context::Struct(s.name_span()))
+        } else {
+            // Finally, check the enums and failing that return `None`
+            self.enums.get(name).map(|e| Context::Enum(e.name_span()))
         }
     }
 }
