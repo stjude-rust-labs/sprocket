@@ -6308,6 +6308,21 @@ message = "task-examples.wdl:50:45: error: unknown name `Y`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/template/task-examples.wdl/#L50"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
+message = "ESTIMATE.wdl:5:8: warning[UnusedImport]: unused import namespace `estimate`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/ESTIMATE.wdl/#L5"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
+message = "ESTIMATE.wdl:6:8: warning[UnusedImport]: unused import namespace `htseq`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/ESTIMATE.wdl/#L6"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/ESTIMATE.wdl"
+message = "ESTIMATE.wdl:8:10: error: conflicting workflow name `estimate`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/ESTIMATE.wdl/#L8"
+
+[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/alignment/task_bwa.wdl"
 message = "task_bwa.wdl:196:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/879b27e87a794dd9d4af712540fba5d1d1ae4af0/tasks/alignment/task_bwa.wdl/#L196"
