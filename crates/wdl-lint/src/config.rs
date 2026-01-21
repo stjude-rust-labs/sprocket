@@ -1,3 +1,5 @@
+//! Linter config definition.
+
 use std::collections::HashSet;
 
 use serde::Deserialize;
