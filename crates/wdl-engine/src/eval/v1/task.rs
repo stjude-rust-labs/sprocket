@@ -706,7 +706,7 @@ impl Evaluator {
             current += 1;
         }
 
-        // Spawn the task in a retry loop
+        // Execute the task in a retry loop
         let mut cached;
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
@@ -1521,7 +1521,7 @@ impl<'a> State<'a> {
         Ok(command)
     }
 
-    /// Evaluates sections prior to spawning the command.
+    /// Evaluates sections prior to executing the task.
     ///
     /// This method evaluates the following sections:
     ///   * runtime
