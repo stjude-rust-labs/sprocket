@@ -30,14 +30,14 @@ warning[ExpectedRuntimeKeys]: the following runtime keys are not reserved in the
    │
    = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `baz` and `foo` keys
 
-warning[ExpectedRuntimeKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `some_whitelisted_key`; therefore, its inclusion in the `runtime` section is deprecated
+warning[ExpectedRuntimeKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `some_allowed_key`; therefore, its inclusion in the `runtime` section is deprecated
    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:91:5
    │
 91 │     runtime {
    │     ^^^^^^^
    ·
-99 │         some_whitelisted_key: "bar"
-   │         -------------------- the `some_whitelisted_key` key should be removed
+99 │         some_allowed_key: "bar"
+   │         ---------------- the `some_allowed_key` key should be removed
    │
-   = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `some_whitelisted_key` key
+   = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `some_allowed_key` key
 

@@ -81,7 +81,7 @@ task a_task_with_two_extra_keys {
 }
 
 # https://github.com/stjude-rust-labs/sprocket/issues/538
-task a_task_with_a_whitelisted_key {
+task a_task_with_an_allowed_key {
     meta {}
 
     command <<<>>>
@@ -96,6 +96,6 @@ task a_task_with_a_whitelisted_key {
         disks: "1 GiB"
         maxRetries: 0
         returnCodes: 0
-        some_whitelisted_key: "bar"
+        some_allowed_key: "bar"
     }
 }

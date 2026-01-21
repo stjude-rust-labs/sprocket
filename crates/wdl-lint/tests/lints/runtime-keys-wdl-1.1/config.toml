@@ -1,1 +1,1 @@
-allowed_runtime_keys = ["some_whitelisted_key"]
+allowed_runtime_keys = ["some_allowed_key"]

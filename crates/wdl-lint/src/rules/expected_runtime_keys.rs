@@ -274,7 +274,7 @@ pub struct ExpectedRuntimeKeysRule {
     encountered_keys: Vec<Ident>,
     /// All non-reserved keys encountered in the current runtime section.
     non_reserved_keys: HashSet<TokenText>,
-    /// Whitelisted keys from the config.
+    /// Allowed keys from the config.
     allowed_runtime_keys: HashSet<String>,
 }
 
