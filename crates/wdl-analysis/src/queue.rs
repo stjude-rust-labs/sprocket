@@ -1,6 +1,5 @@
 //! Implements the analysis queue.
 
-use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
@@ -881,54 +880,48 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
-                set.iter()
-                    .filter_map(|index| {
-                        let index = *index;
-                        let node = graph.get(index);
-                        if node.document().is_some() {
-                            if graph.include_result(index) {
-                                results.push(AnalysisResult::new(node));
-                            }
-                            return None;
+
+                let handles = FuturesUnordered::new();
+                for index in set.iter().copied() {
+                    let node = graph.get(index);
+                    if node.document().is_some() {
+                        if graph.include_result(index) {
+                            results.push(AnalysisResult::new(node));
                         }
+                        continue;
+                    }
 
-                        let graph = self.graph.clone();
-                        let config = self.config.clone();
-                        let validator = self.validator.clone();
-                        Some(RayonHandle::spawn(move || {
-                            thread_local! {
-                                static VALIDATOR: RefCell<Option<crate::Validator>> = const { RefCell::new(None) };
+                    let graph = self.graph.clone();
+                    let config = self.config.clone();
+                    let validator = self.validator.clone();
+                    handles.push(RayonHandle::spawn(move || {
+                        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                        }));
+
+                        let mut graph = graph.write();
+                        let node = graph.get_mut(index);
+                        match result {
+                            Ok((_, document)) => {
+                                node.analysis_completed(document);
+                                (index, Ok(()))
                             }
+                            Err(payload) => {
+                                let error = Arc::new(anyhow!(
+                                    "analysis panicked for {uri}: {msg}",
+                                    uri = node.uri(),
+                                    msg = format_panic_payload(&payload)
+                                ));
+                                error!("{error}");
 
-                            let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                                VALIDATOR.with_borrow_mut(|v| {
-                                    let validator = v.get_or_insert_with(|| validator());
-                                    Self::analyze_node(&config, graph.clone(), index, validator)
-                                })
-                            }));
-
-                            let mut graph = graph.write();
-                            let node = graph.get_mut(index);
-                            match result {
-                                Ok((_, document)) => {
-                                    node.analysis_completed(document);
-                                    (index, Ok(()))
-                                }
-                                Err(payload) => {
-                                    let error = Arc::new(anyhow!(
-                                        "analysis panicked for {uri}: {msg}",
-                                        uri = node.uri(),
-                                        msg = format_panic_payload(&payload)
-                                    ));
-                                    error!("{error}");
-
-                                    node.analysis_failed(error.clone());
-                                    (index, Err(error))
-                                }
+                                node.analysis_failed(error.clone());
+                                (index, Err(error))
                             }
-                        }))
-                    })
-                    .collect::<FuturesUnordered<_>>()
+                        }
+                    }))
+                }
+
+                handles
             };
 
             let analyzed =
