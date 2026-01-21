@@ -154,13 +154,8 @@ fn report_non_reserved_runtime_keys(
 
     let mut key_names = keys
         .iter()
-        .filter_map(|key| {
-            if allowed_runtime_keys.contains(key.text()) {
-                None
-            } else {
-                Some(key.text())
-            }
-        })
+        .map(|key| key.text())
+        .filter(|text| !allowed_runtime_keys.contains(*text))
         .collect::<Vec<_>>();
     if key_names.is_empty() {
         return None;
