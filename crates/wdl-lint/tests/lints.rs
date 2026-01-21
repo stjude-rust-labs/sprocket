@@ -32,7 +32,9 @@ use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::Validator;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
+use wdl_lint::Config;
 use wdl_lint::Linter;
+use wdl_lint::rules;
 
 /// Finds tests for this package.
 fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
@@ -114,12 +116,32 @@ fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
 
 /// Runs a lint test.
 async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
+    let config_path = test.join("config.toml");
+    if config_path.exists() {
+        let config_str = fs::read_to_string(&config_path)?;
+        let config = toml::from_str(&config_str)?;
+
+        run_test_inner(test, "source.errors.default", Config::default()).await?;
+        run_test_inner(test, "source.errors", config).await?;
+    } else {
+        run_test_inner(test, "source.errors", Config::default()).await?;
+    }
+
+    Ok(())
+}
+
+/// Runs a lint test with the specified [`Config`]
+async fn run_test_inner(
+    test: &Path,
+    errors_path: &str,
+    config: Config,
+) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
         |_, _, _, _| async {},
-        || {
+        move || {
             let mut validator = Validator::default();
-            validator.add_visitor(Linter::default());
+            validator.add_visitor(Linter::new(rules(&config)));
             validator
         },
     );
@@ -129,9 +151,9 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
         .context("adding directory")?;
     let results = analyzer.analyze(()).await.context("running analysis")?;
 
-    let base = absolute(test).unwrap().clean();
+    let base = absolute(test)?.clean();
     let source_path = base.join("source.wdl");
-    let errors_path = base.join("source.errors");
+    let errors_path = base.join(errors_path);
 
     let Some(result) = results
         .into_iter()
