@@ -50,6 +50,8 @@ task is_red {
         Color color
     }
 
+    command { }
+
     output {
         Boolean result = color == Color.Red
     }
@@ -67,6 +69,8 @@ task is_green {
         Color color
     }
 
+    command { }
+
     output {
         Boolean result = color == Color.Green
     }
@@ -83,6 +87,8 @@ task is_blue {
     input {
         Color color
     }
+
+    command { }
 
     output {
         Boolean result = color == Color.Blue

@@ -16,27 +16,13 @@ struct Employee {
     Person person
     Int id
 
-    # In the case of duplicate sections, the last one will be used
-
-    meta {
-        description: "This description should not appear."
-    }
-
-    meta {
-        description: "This description also should not appear."
-    }
-
     meta {
         description: "An `Employee` is a `Person` who is formally employed by the organization."
     }
 
     parameter_meta {
-        person: "This description should not appear."
-        id: "The employee ID number."
-    }
-
-    parameter_meta {
         person: "The person from which the employee is derived."
+        id: "The employee ID number."
     }
 }
 
@@ -92,7 +78,7 @@ workflow employee_is_person {
     }
 }
 
-workflow contractor_is_person {
+task contractor_is_person {
     meta {
         description: "Determines whether the given person matches the given contractor."
         outputs: {
@@ -104,6 +90,8 @@ workflow contractor_is_person {
         Contractor contractor
         Person person
     }
+
+    command { }
 
     output {
         Boolean result = contractor.person == person
