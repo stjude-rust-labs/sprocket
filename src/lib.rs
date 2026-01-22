@@ -49,6 +49,7 @@ const IGNORE_FILENAME: &str = ".sprocketignore";
 
 git_testament!(TESTAMENT);
 
+/// The `sprocket` CLI arguments.
 #[derive(clap::Parser, Debug)]
 #[command(author, version = render_testament!(TESTAMENT), propagate_version = true, about, long_about = None)]
 struct Cli {
@@ -72,7 +73,8 @@ struct Cli {
     skip_config_search: bool,
 }
 
-async fn inner() -> CommandResult<()> {
+/// Logic for [`sprocket_main()`].
+async fn real_main() -> CommandResult<()> {
     let cli = Cli::parse();
 
     match std::env::var("RUST_LOG") {
@@ -157,7 +159,7 @@ async fn inner() -> CommandResult<()> {
 
 /// The Sprocket command line entrypoint.
 pub async fn sprocket_main<Guard>(guard: Guard) {
-    if let Err(e) = inner().await {
+    if let Err(e) = real_main().await {
         drop(guard);
         eprintln!("{e}");
         std::process::exit(1);
