@@ -668,7 +668,7 @@ mod tests {
     use wdl_ast::Document as AstDocument;
 
     use super::*;
-    use crate::runnable::Runnable;
+    use crate::meta::DefinitionMeta;
 
     #[test]
     fn test_parse_preamble_comments() {

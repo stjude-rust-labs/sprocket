@@ -44,6 +44,12 @@ pub struct Task {
     wdl_path: Option<PathBuf>,
 }
 
+impl DefinitionMeta for Task {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
+}
+
 impl Task {
     /// Create a new task.
     ///
@@ -200,10 +206,6 @@ impl Runnable for Task {
 
     fn version(&self) -> &VersionBadge {
         &self.version
-    }
-
-    fn meta(&self) -> &MetaMap {
-        &self.meta
     }
 
     fn inputs(&self) -> &[Parameter] {

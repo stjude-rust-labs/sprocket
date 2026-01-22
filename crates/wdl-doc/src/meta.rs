@@ -102,7 +102,7 @@ pub(crate) type MetaMap = BTreeMap<String, MetaMapValueSource>;
 pub(crate) trait MetaMapExt {
     /// Returns the "full" description for an item
     ///
-    /// This is a concatenation of `help` and `description`. If neither is
+    /// This is a concatenation of `description` and `help`. If neither is
     /// present, this will return `None`.
     fn full_description(&self) -> Option<String>;
     /// Returns the rendered [`Markup`] of the `description` key, optionally
@@ -468,4 +468,19 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
     }
 
     map
+}
+
+/// An extension trait for working with item definitions with an associated
+/// [`MetaMap`].
+pub(crate) trait DefinitionMeta {
+    /// Get the [`MetaMap`] of the item.
+    fn meta(&self) -> &MetaMap;
+
+    /// Render the description of the runnable as HTML.
+    ///
+    /// This will always return some text; in the absence of a `description`
+    /// key, it will return a default message ("No description provided").
+    fn render_description(&self, summarize: bool) -> Markup {
+        self.meta().render_description(summarize)
+    }
 }

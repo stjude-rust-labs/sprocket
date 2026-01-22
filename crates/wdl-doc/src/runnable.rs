@@ -18,6 +18,7 @@ use wdl_ast::v1::OutputSection;
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
@@ -27,12 +28,9 @@ use crate::parameter::Parameter;
 use crate::parameter::render_non_required_parameters_table;
 
 /// A runnable (workflow or task) in a WDL document.
-pub(crate) trait Runnable {
+pub(crate) trait Runnable: DefinitionMeta {
     /// Get the name of the runnable.
     fn name(&self) -> &str;
-
-    /// Get the [`MetaMap`] of the runnable.
-    fn meta(&self) -> &MetaMap;
 
     /// Get the inputs of the runnable.
     fn inputs(&self) -> &[Parameter];
@@ -95,14 +93,6 @@ pub(crate) trait Runnable {
     /// Render the version of the runnable as a badge.
     fn render_version(&self) -> Markup {
         self.version().render()
-    }
-
-    /// Render the description of the runnable as HTML.
-    ///
-    /// This will always return some text; in the absence of a `description`
-    /// key, it will return a default message ("No description provided").
-    fn render_description(&self, summarize: bool) -> Markup {
-        self.meta().render_description(summarize)
     }
 
     /// Render the "run with" component of the runnable.

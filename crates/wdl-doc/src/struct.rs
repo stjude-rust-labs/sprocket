@@ -14,6 +14,7 @@ use wdl_ast::v1::StructDefinition;
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
@@ -57,6 +58,12 @@ pub struct Struct {
     definition: StructDefinition,
     /// The version of WDL this struct is defined in.
     version: VersionBadge,
+}
+
+impl DefinitionMeta for Struct {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
 }
 
 impl Struct {
