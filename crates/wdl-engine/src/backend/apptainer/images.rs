@@ -98,7 +98,14 @@ impl ApptainerImages {
                 .clone()
         };
         once.get_or_try_init(|| async move {
-            tokio::fs::create_dir_all(&self.images_dir).await?;
+            tokio::fs::create_dir_all(&self.images_dir)
+                .await
+                .with_context(|| {
+                    format!(
+                        "failed to create directory `{path}`",
+                        path = self.images_dir.display()
+                    )
+                })?;
             let sif_filename = container.replace("/", "_2f_").replace(":", "_3a_");
             let sif_path = self
                 .images_dir
@@ -174,8 +181,14 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
         .arg(sif_path)
         .arg(container.as_ref())
         .spawn()
+        .with_context(|| {
+            format!(
+                "failed to spawn `apptainer pull '{path}' '{container}'",
+                path = sif_path.display()
+            )
+        })
         // If the system can't handle spawning a process, we're better off failing quickly
-        .map_err(|e| RetryError::permanent(e.into()))?;
+        .map_err(RetryError::permanent)?;
 
     let is_permanent = Arc::new(Mutex::new(false));
 
@@ -222,8 +235,9 @@ async fn try_pull(sif_path: &Path, container: &str) -> Result<(), RetryError<any
     let child_result = apptainer_pull_child
         .wait()
         .await
+        .context("failed to wait for `apptainer` to exit")
         // Permanently error if something goes wrong trying to wait for the child process
-        .map_err(|e| RetryError::permanent(e.into()))?;
+        .map_err(RetryError::permanent)?;
     if !child_result.success() {
         let e = anyhow!(
             "`apptainer pull` failed with exit code {:?}",
