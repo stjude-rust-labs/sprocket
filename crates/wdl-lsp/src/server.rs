@@ -227,6 +227,9 @@ pub struct ServerOptions {
     /// The options for linting.
     pub lint: LintOptions,
 
+    /// Analysis or lint rule IDs to except (ignore).
+    pub exceptions: Vec<String>,
+
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
 
@@ -239,8 +242,6 @@ pub struct ServerOptions {
 pub struct LintOptions {
     /// Whether or not linting is enabled.
     pub enabled: bool,
-    /// Analysis or lint rule IDs to except (ignore).
-    pub exceptions: Vec<String>,
     /// The lint rule configuration.
     pub config: Arc<wdl_lint::Config>,
 }
@@ -264,7 +265,7 @@ impl Server {
     /// Creates a new WDL language server.
     pub fn new(client: Client, options: ServerOptions) -> Self {
         let linting_enabled = options.lint.enabled;
-        let exceptions = options.lint.exceptions.clone();
+        let exceptions = options.exceptions.clone();
         let ignore_name = options.ignore_filename.clone();
         let analyzer_client = client.clone();
 

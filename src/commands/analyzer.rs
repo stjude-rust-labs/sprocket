@@ -57,9 +57,9 @@ pub async fn analyzer(mut args: Args, config: Config) -> CommandResult<()> {
         version: Some(env!("CARGO_PKG_VERSION").into()),
         lint: LintOptions {
             enabled: args.lint,
-            exceptions: args.except,
             config: Arc::new(config.check.rules),
         },
+        exceptions: args.except,
         ignore_filename: Some(IGNORE_FILENAME.to_string()),
         feature_flags: FeatureFlags::default(),
     })
