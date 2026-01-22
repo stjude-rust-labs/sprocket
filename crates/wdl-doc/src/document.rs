@@ -26,9 +26,9 @@ use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::docs_tree::PageType;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
-use crate::runnable::Runnable;
 
 /// Parse the preamble comments of a document using the version statement.
 pub fn parse_preamble_comments(version: &VersionStatement) -> String {
@@ -108,23 +108,27 @@ impl Document {
             html! {
                 div class="main__grid-row" x-data="{ description_expanded: false }" {
                     @match page.1.page_type() {
-                        PageType::Struct(_) => {
+                        PageType::Struct(s) => {
                             div class="main__grid-cell" {
                                 a class="text-brand-pink-400 hover:text-pink-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
                             div class="main__grid-cell" { code { "struct" } }
-                            div class="main__grid-cell" { "N/A" }
+                            div class="main__grid-cell" {
+                                (s.render_description(true))
+                            }
                         }
-                        PageType::Enum(_) => {
+                        PageType::Enum(e) => {
                             div class="main__grid-cell" {
                                 a class="text-brand-yellow-400 hover:text-yellow-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
                             div class="main__grid-cell" { code { "enum" } }
-                            div class="main__grid-cell" { "N/A" }
+                            div class="main__grid-cell" { 
+                                (e.render_description(true))
+                            }
                         }
                         PageType::Task(t) => {
                             div class="main__grid-cell" {
@@ -164,7 +168,13 @@ impl Document {
                             PageType::Workflow(w) => {
                                 (w.render_description(false))
                             }
-                            PageType::Struct(_) | PageType::Enum(_) | PageType::Index(_) => "ERROR"
+                            PageType::Struct(s) => {
+                                (s.render_description(false))
+                            }
+                            PageType::Enum(e) => {
+                                (e.render_description(false))
+                            }
+                            PageType::Index(_) => "ERROR"
                         }
                     }
                 }

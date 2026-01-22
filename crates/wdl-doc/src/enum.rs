@@ -12,6 +12,7 @@ use wdl_ast::v1::EnumVariant;
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
@@ -47,6 +48,12 @@ pub struct Enum {
     definition: EnumDefinition,
     /// The version of WDL this enum is defined in.
     version: VersionBadge,
+}
+
+impl DefinitionMeta for Enum {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
 }
 
 impl Enum {

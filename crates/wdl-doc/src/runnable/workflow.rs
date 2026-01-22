@@ -38,6 +38,12 @@ pub(crate) struct Workflow {
     wdl_path: Option<PathBuf>,
 }
 
+impl DefinitionMeta for Workflow {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
+}
+
 impl Workflow {
     /// Create a new workflow.
     pub fn new(
@@ -214,10 +220,6 @@ impl Runnable for Workflow {
 
     fn version(&self) -> &VersionBadge {
         &self.version
-    }
-
-    fn meta(&self) -> &MetaMap {
-        &self.meta
     }
 
     fn inputs(&self) -> &[Parameter] {
