@@ -101,7 +101,7 @@ pub struct CheckConfig {
     /// Set of lint tags to filter out of the enabled lint rules.
     pub filter_lint_tags: Vec<String>,
     /// Lint rule configuration.
-    pub rules: wdl::lint::Config,
+    pub lint: wdl::lint::Config,
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
