@@ -51,6 +51,9 @@ pub struct Analysis {
     /// Which lint rules to disable, as specified via a [`TagSet`].
     disabled_lint_tags: TagSet,
 
+    /// The lint rule configuration.
+    lint_config: wdl::lint::Config,
+
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
 
@@ -119,7 +122,7 @@ impl Analysis {
         if self.enabled_lint_tags.count() > 0 && tracing::enabled!(tracing::Level::INFO) {
             let mut enabled_rules = vec![];
             let mut disabled_rules = vec![];
-            for rule in wdl::lint::rules() {
+            for rule in wdl::lint::rules(&wdl::lint::Config::default()) {
                 if is_rule_enabled(
                     &self.enabled_lint_tags,
                     &self.disabled_lint_tags,
@@ -149,6 +152,7 @@ impl Analysis {
                     &self.enabled_lint_tags,
                     &self.disabled_lint_tags,
                     &self.exceptions,
+                    &self.lint_config,
                 );
                 validator.add_visitor(visitor);
             }
@@ -184,6 +188,7 @@ impl Default for Analysis {
             exceptions: Default::default(),
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
+            lint_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             init: Box::new(|| {}),
@@ -194,12 +199,11 @@ impl Default for Analysis {
 
 /// Warns about any unknown rules.
 fn warn_unknown_rules(exceptions: &HashSet<String>) {
-    let mut names = wdl::analysis::rules()
+    let names = wdl::analysis::ALL_RULE_IDS
         .iter()
-        .map(|rule| rule.id().to_owned())
+        .chain(wdl::lint::ALL_RULE_IDS.iter())
+        .map(ToString::to_string)
         .collect::<Vec<_>>();
-
-    names.extend(wdl::lint::rules().iter().map(|rule| rule.id().to_owned()));
 
     let mut unknown = exceptions
         .iter()
@@ -251,8 +255,9 @@ fn get_lint_visitor(
     enabled_lint_tags: &TagSet,
     disabled_lint_tags: &TagSet,
     exceptions: &HashSet<String>,
+    lint_config: &wdl::lint::Config,
 ) -> Linter {
-    Linter::new(wdl::lint::rules().into_iter().filter(|rule| {
+    Linter::new(wdl::lint::rules(lint_config).into_iter().filter(|rule| {
         is_rule_enabled(
             enabled_lint_tags,
             disabled_lint_tags,

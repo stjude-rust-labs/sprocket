@@ -12,6 +12,9 @@ all_lint_rules = false
 only_lint_tags = []
 filter_lint_tags = []
 
+[check.lint]
+allowed_runtime_keys = []
+
 [analyzer]
 lint = false
 except = []
