@@ -77,11 +77,9 @@ use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::Value;
-use crate::backend::Input;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
-use crate::backend::TaskSpawnInfo;
-use crate::backend::TaskSpawnRequest;
 use crate::cache::KeyRequest;
 use crate::config::CallCachingMode;
 use crate::config::DEFAULT_TASK_SHELL;
@@ -563,9 +561,9 @@ struct EvaluatedSections {
     /// The evaluated command.
     command: String,
     /// The evaluated requirements.
-    requirements: Arc<HashMap<String, Value>>,
+    requirements: HashMap<String, Value>,
     /// The evaluated hints.
-    hints: Arc<HashMap<String, Value>>,
+    hints: HashMap<String, Value>,
     /// The task's execution constraints.
     constraints: TaskExecutionConstraints,
 }
@@ -708,9 +706,8 @@ impl Evaluator {
             current += 1;
         }
 
+        // Execute the task in a retry loop
         let mut cached;
-        let env = Arc::new(mem::take(&mut state.env));
-        // Spawn the task in a retry loop
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
@@ -744,7 +741,8 @@ impl Evaluator {
                 .into());
             }
 
-            let backend_inputs = state.localize_inputs(id).await?;
+            // Localize the inputs now
+            state.localize_inputs(id).await?;
 
             // Calculate the cache key on the first attempt only
             let mut key = if attempt == 0
@@ -756,8 +754,8 @@ impl Evaluator {
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
-                        requirements: requirements.as_ref(),
-                        hints: hints.as_ref(),
+                        requirements: &requirements,
+                        hints: &hints,
                         container: &constraints
                             .container
                             .as_ref()
@@ -769,7 +767,7 @@ impl Evaluator {
                             .shell
                             .as_deref()
                             .unwrap_or(DEFAULT_TASK_SHELL),
-                        backend_inputs: &backend_inputs,
+                        backend_inputs: state.backend_inputs.as_slice(),
                     };
 
                     match cache.key(request).await {
@@ -880,23 +878,24 @@ impl Evaluator {
                     let mut attempt_dir = task_eval_root.clone();
                     attempt_dir.push("attempts");
                     attempt_dir.push(attempt.to_string());
-                    let request = TaskSpawnRequest::new(
-                        id.to_string(),
-                        TaskSpawnInfo::new(
-                            command,
-                            backend_inputs,
-                            requirements.clone(),
-                            hints.clone(),
-                            env.clone(),
-                        ),
-                        constraints,
-                        attempt_dir.clone(),
-                        temp_dir.clone(),
-                    );
 
                     match self
                         .backend
-                        .spawn(&inputs, request, self.transferer.clone())
+                        .execute(
+                            &self.transferer,
+                            ExecuteTaskRequest {
+                                id,
+                                command: &command,
+                                inputs: &inputs,
+                                backend_inputs: state.backend_inputs.as_slice(),
+                                requirements: &requirements,
+                                hints: &hints,
+                                env: &state.env,
+                                constraints: &constraints,
+                                attempt_dir: &attempt_dir,
+                                temp_dir: &temp_dir,
+                            },
+                        )
                         .await
                     {
                         Ok(None) => return Err(EvaluationError::Canceled),
@@ -1522,7 +1521,7 @@ impl<'a> State<'a> {
         Ok(command)
     }
 
-    /// Evaluates sections prior to spawning the command.
+    /// Evaluates sections prior to executing the task.
     ///
     /// This method evaluates the following sections:
     ///   * runtime
@@ -1665,8 +1664,8 @@ impl<'a> State<'a> {
 
         Ok(EvaluatedSections {
             command,
-            requirements: Arc::new(requirements),
-            hints: Arc::new(hints),
+            requirements,
+            hints,
             constraints,
         })
     }
@@ -1779,9 +1778,7 @@ impl<'a> State<'a> {
     }
 
     /// Localizes inputs for execution.
-    ///
-    /// Returns the inputs to pass to the backend.
-    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<Vec<Input>> {
+    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
         // If the backend needs local inputs, download them now
         if self.evaluator.backend.needs_local_inputs() {
             let mut downloads = JoinSet::new();
@@ -1877,7 +1874,7 @@ impl<'a> State<'a> {
             }
         }
 
-        Ok(self.backend_inputs.as_slice().into())
+        Ok(())
     }
 }
 
@@ -2030,7 +2027,10 @@ task test {
             logs_contain("call cache miss"),
             "expected first run to miss the cache"
         );
-        assert!(logs_contain("spawning task"), "expected the task to spawn");
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
 
         let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());
@@ -2221,7 +2221,10 @@ task test {
             logs_contain("call cache miss"),
             "expected first run to miss the cache"
         );
-        assert!(logs_contain("spawning task"), "expected the task to spawn");
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
 
         let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());

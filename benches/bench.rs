@@ -92,7 +92,7 @@ mod sprocket;
 /// clean` should make it retry the download. Don't do stuff like this in
 /// production!
 fn download_workflows_zip() -> Result<PathBuf, anyhow::Error> {
-    const WORKFLOWS_REPO_HASH: &str = "415a7e21e9c64f3f11eae0c1cf2cd0bea9b33ef0";
+    const WORKFLOWS_REPO_HASH: &str = "0821aba149dee1f671866673913c7eb7cf1418cd";
     let workflows_zip_path =
         Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("workflows-{WORKFLOWS_REPO_HASH}.zip"));
     if !workflows_zip_path.exists() {

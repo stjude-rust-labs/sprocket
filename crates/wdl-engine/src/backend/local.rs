@@ -28,7 +28,6 @@ use tracing::warn;
 
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
-use super::TaskSpawnRequest;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
@@ -37,12 +36,9 @@ use crate::PrimitiveValue;
 use crate::SYSTEM;
 use crate::TaskInputs;
 use crate::Value;
-use crate::backend::COMMAND_FILE_NAME;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::INITIAL_EXPECTED_NAMES;
-use crate::backend::STDERR_FILE_NAME;
-use crate::backend::STDOUT_FILE_NAME;
 use crate::backend::TaskExecutionResult;
-use crate::backend::WORK_DIR_NAME;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
@@ -55,12 +51,11 @@ use crate::v1::requirements;
 ///
 /// This request contains the requested cpu and memory reservations for the task
 /// as well as the result receiver channel.
-#[derive(Debug)]
-struct LocalTask {
+struct LocalTask<'a> {
     /// The engine configuration.
     config: Arc<Config>,
-    /// The task spawn request.
-    request: TaskSpawnRequest,
+    /// The task execution request.
+    request: ExecuteTaskRequest<'a>,
     /// The name of the task.
     name: String,
     /// The sender for events.
@@ -69,15 +64,15 @@ struct LocalTask {
     cancellation: CancellationContext,
 }
 
-impl LocalTask {
+impl<'a> LocalTask<'a> {
     /// Runs the local task.
     ///
     /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
         let id = next_task_id();
-        let work_dir = self.request.attempt_dir().join(WORK_DIR_NAME);
-        let stdout_path = self.request.attempt_dir().join(STDOUT_FILE_NAME);
-        let stderr_path = self.request.attempt_dir().join(STDERR_FILE_NAME);
+        let work_dir = self.request.work_dir();
+        let stdout_path = self.request.stdout_path();
+        let stderr_path = self.request.stderr_path();
 
         let run = async {
             // Create the working directory
@@ -89,8 +84,8 @@ impl LocalTask {
             })?;
 
             // Write the evaluated command to disk
-            let command_path = self.request.attempt_dir().join(COMMAND_FILE_NAME);
-            fs::write(&command_path, self.request.command()).with_context(|| {
+            let command_path = self.request.command_path();
+            fs::write(&command_path, self.request.command).with_context(|| {
                 format!(
                     "failed to write command contents to `{path}`",
                     path = command_path.display()
@@ -128,7 +123,7 @@ impl LocalTask {
                 .stderr(stderr)
                 .envs(
                     self.request
-                        .env()
+                        .env
                         .iter()
                         .map(|(k, v)| (OsStr::new(k), OsStr::new(v))),
                 )
@@ -376,16 +371,15 @@ impl TaskExecutionBackend for LocalBackend {
         None
     }
 
-    fn spawn<'a>(
+    fn execute<'a>(
         &'a self,
-        _: &'a TaskInputs,
-        request: TaskSpawnRequest,
-        _transferer: Arc<dyn Transferer>,
+        _: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let name = format!(
                 "{id}-{generated}",
-                id = request.id(),
+                id = request.id,
                 generated = self
                     .names
                     .lock()
@@ -394,8 +388,8 @@ impl TaskExecutionBackend for LocalBackend {
                     .expect("generator should never be exhausted")
             );
 
-            let cpu = request.constraints().cpu;
-            let memory = request.constraints().memory;
+            let cpu = request.constraints.cpu;
+            let memory = request.constraints.memory;
 
             let task = LocalTask {
                 config: self.config.clone(),
@@ -405,7 +399,7 @@ impl TaskExecutionBackend for LocalBackend {
                 cancellation: self.cancellation.clone(),
             };
 
-            self.manager.spawn(cpu, memory, task.run()).await
+            self.manager.run(cpu, memory, task.run()).await
         }
         .boxed()
     }

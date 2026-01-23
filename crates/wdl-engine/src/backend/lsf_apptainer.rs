@@ -35,7 +35,6 @@ use tracing::warn;
 
 use super::ApptainerState;
 use super::TaskExecutionBackend;
-use super::TaskSpawnRequest;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
@@ -43,6 +42,7 @@ use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::Value;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
@@ -192,11 +192,10 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         })
     }
 
-    fn spawn<'a>(
+    fn execute<'a>(
         &'a self,
-        inputs: &'a TaskInputs,
-        request: TaskSpawnRequest,
-        _transferer: Arc<dyn Transferer>,
+        _: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
@@ -205,18 +204,17 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .expect("configured backend is not LSF Apptainer");
 
             // Truncate the request ID to fit in the LSF job name length limit.
-            let request_id = request.id();
-            let name = if request_id.len() > LSF_JOB_NAME_MAX_LENGTH {
-                request_id
+            let name = if request.id.len() > LSF_JOB_NAME_MAX_LENGTH {
+                request
+                    .id
                     .chars()
                     .take(LSF_JOB_NAME_MAX_LENGTH)
                     .collect::<String>()
             } else {
-                request_id.to_string()
+                request.id.to_string()
             };
 
             let crankshaft_task_id = crankshaft::events::next_task_id();
-            let attempt_dir = request.attempt_dir();
 
             // Create the host directory that will be mapped to the working directory.
             let work_dir = request.work_dir();
@@ -247,7 +245,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
             // Write the evaluated command section to a host file.
             let command_path = request.command_path();
-            fs::write(&command_path, request.command())
+            fs::write(&command_path, request.command)
                 .await
                 .with_context(|| {
                     format!(
@@ -260,7 +258,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .apptainer_state
                 .prepare_apptainer_command(
                     request
-                        .constraints()
+                        .constraints
                         .container
                         .as_ref()
                         .expect("should have container"),
@@ -276,7 +274,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 )
                 .await?;
 
-            let apptainer_command_path = attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
+            let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
             fs::write(&apptainer_command_path, apptainer_command)
                 .await
                 .with_context(|| {
@@ -298,21 +296,22 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
             // The path for the LSF-level stdout and stderr. This primarily contains the job
             // report, as we redirect Apptainer and WDL output separately.
-            let lsf_stdout_path = attempt_dir.join("lsf.stdout");
-            let lsf_stderr_path = attempt_dir.join("lsf.stderr");
+            let lsf_stdout_path = request.attempt_dir.join("lsf.stdout");
+            let lsf_stderr_path = request.attempt_dir.join("lsf.stderr");
 
             let mut bsub_command = Command::new("bsub");
 
             // If an LSF queue has been configured, specify it. Otherwise, the job will end
             // up on the cluster's default queue.
             if let Some(queue) =
-                backend_config.lsf_queue_for_task(request.requirements(), request.hints())
+                backend_config.lsf_queue_for_task(request.requirements, request.hints)
             {
                 bsub_command.arg("-q").arg(queue.name());
             }
 
             // If GPUs are required, pass a basic `-gpu` flag to `bsub`.
-            if let Some(n_gpu) = requirements::gpu(inputs, request.requirements(), request.hints())
+            if let Some(n_gpu) =
+                requirements::gpu(request.inputs, request.requirements, request.hints)
             {
                 bsub_command.arg("-gpu").arg(format!("num={n_gpu}/host"));
             }
@@ -353,7 +352,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .arg("-R")
                 .arg(format!(
                     "affinity[cpu({cpu})]",
-                    cpu = request.constraints().cpu.ceil() as u64
+                    cpu = request.constraints.cpu.ceil() as u64
                 ))
                 // Memory request is specified per job to avoid ambiguity on clusters which may be
                 // configured to interpret memory requests as per-core or per-task. We also use an
@@ -361,7 +360,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .arg("-R")
                 .arg(format!(
                     "rusage[mem={memory_kb}KB/job]",
-                    memory_kb = request.constraints().memory / bytesize::KIB,
+                    memory_kb = request.constraints.memory / bytesize::KIB,
                 ))
                 .arg(apptainer_command_path);
 

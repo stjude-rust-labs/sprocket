@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 * Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
 
+#### Changed
+
+* Refactored how task execution backends are passed data relating to the tasks
+  to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
+
 ## 0.11.1 - 01-12-2026
 
 #### Fixed
