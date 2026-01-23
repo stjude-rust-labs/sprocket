@@ -5,6 +5,7 @@ use std::io::Write as _;
 use std::sync::LazyLock;
 
 use anyhow::Context as _;
+use anyhow::anyhow;
 use clap::ValueEnum;
 use codespan_reporting::diagnostic::Label;
 use codespan_reporting::diagnostic::LabelStyle;
@@ -34,6 +35,58 @@ static ONE_LINE_CONFIG: LazyLock<TermConfig> = LazyLock::new(|| TermConfig {
     display_style: DisplayStyle::Short,
     ..Default::default()
 });
+
+/// A counter tracking the types of diagnostics emitted during analysis.
+#[derive(Default)]
+pub struct DiagnosticCounts {
+    /// The number of errors encountered.
+    pub errors: usize,
+    /// The number of warnings encountered.
+    pub warnings: usize,
+    /// The number of notes encountered.
+    pub notes: usize,
+}
+
+impl DiagnosticCounts {
+    /// Returns an error if the `errors` count is 1 or more
+    pub fn fail_errors(&self) -> Option<anyhow::Error> {
+        if self.errors == 0 {
+            return None;
+        }
+
+        Some(anyhow!(
+            "failing due to {errors} error{s}",
+            errors = self.errors,
+            s = if self.errors == 1 { "" } else { "s" }
+        ))
+    }
+
+    /// Returns an error if the `warnings` count is 1 or more
+    pub fn fail_warnings(&self) -> Option<anyhow::Error> {
+        if self.warnings == 0 {
+            return None;
+        }
+
+        Some(anyhow!(
+            "failing due to {warnings} warning{s} (`--deny-warnings` was specified)",
+            warnings = self.warnings,
+            s = if self.warnings == 1 { "" } else { "s" }
+        ))
+    }
+
+    /// Returns an error if the `notes` count is 1 or more
+    pub fn fail_notes(&self) -> Option<anyhow::Error> {
+        if self.notes == 0 {
+            return None;
+        }
+
+        Some(anyhow!(
+            "failing due to {notes} note{s} (`--deny-notes` was specified)",
+            notes = self.notes,
+            s = if self.notes == 1 { "" } else { "s" }
+        ))
+    }
+}
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Deserialize, Serialize)]

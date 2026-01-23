@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+  * Support is currently limited, with `anyhow` errors still being used in most places.
+
+#### Changed
+
+* WDL documents with analysis errors will now **fail**
+  * Ignoring analysis errors could lead to generating invalid documentation (See [#555](https://github.com/stjude-rust-labs/sprocket/issues/555))
+
 ## 0.11.0 - 01-12-2026
 
 #### Added
