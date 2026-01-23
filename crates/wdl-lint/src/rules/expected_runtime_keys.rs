@@ -143,7 +143,9 @@ fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
     ))
 }
 
-/// Creates an "non-reserved runtime key" diagnostic.
+/// Creates a "non-reserved runtime key" diagnostic.
+///
+/// Returns `None` if every given key is allowed.
 fn report_non_reserved_runtime_keys(
     keys: &HashSet<TokenText>,
     allowed_runtime_keys: &HashSet<String>,
