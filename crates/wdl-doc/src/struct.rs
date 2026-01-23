@@ -68,7 +68,11 @@ impl DefinitionMeta for Struct {
 
 impl Struct {
     /// Create a new struct.
-    pub fn new(definition: StructDefinition, version: SupportedVersion) -> Self {
+    pub fn new(
+        definition: StructDefinition,
+        version: SupportedVersion,
+        enable_doc_comments: bool,
+    ) -> Self {
         let mut meta = definition.metadata().map(|meta| parse_meta(&meta)).fold(
             MetaMap::new(),
             |mut acc, mut meta| {
@@ -77,8 +81,10 @@ impl Struct {
             },
         );
 
-        // Doc comments take precedence
-        meta.append(&mut doc_comments(definition.keyword().inner()));
+        if enable_doc_comments {
+            // Doc comments take precedence
+            meta.append(&mut doc_comments(definition.keyword().inner()));
+        }
 
         let parameter_meta = definition
             .parameter_metadata()
@@ -88,7 +94,7 @@ impl Struct {
                 acc
             });
 
-        let members = parse_member_meta(&definition, &parameter_meta);
+        let members = parse_member_meta(&definition, &parameter_meta, enable_doc_comments);
         Self {
             meta,
             members,
@@ -156,7 +162,11 @@ impl Struct {
 }
 
 /// Parse the `meta`/`parameter_meta` and doc comments on the struct members.
-fn parse_member_meta(definition: &StructDefinition, parameter_meta: &MetaMap) -> Vec<Member> {
+fn parse_member_meta(
+    definition: &StructDefinition,
+    parameter_meta: &MetaMap,
+    enable_doc_comments: bool,
+) -> Vec<Member> {
     definition
         .members()
         .map(|decl| {
@@ -182,9 +192,11 @@ fn parse_member_meta(definition: &StructDefinition, parameter_meta: &MetaMap) ->
                 }
             }
 
-            // Doc comments take precedence
-            if let Some(token) = decl.inner().first_token() {
-                meta_map.append(&mut doc_comments(&token));
+            if enable_doc_comments {
+                // Doc comments take precedence
+                if let Some(token) = decl.inner().first_token() {
+                    meta_map.append(&mut doc_comments(&token));
+                }
             }
 
             Member::new(Decl::Unbound(decl.clone()), meta_map)
