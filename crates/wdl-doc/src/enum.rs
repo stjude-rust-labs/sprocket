@@ -58,8 +58,12 @@ impl DefinitionMeta for Enum {
 
 impl Enum {
     /// Create a new enum.
-    pub fn new(definition: EnumDefinition, version: SupportedVersion) -> Self {
-        let (meta, variants) = parse_meta(&definition);
+    pub fn new(
+        definition: EnumDefinition,
+        version: SupportedVersion,
+        enable_doc_comments: bool,
+    ) -> Self {
+        let (meta, variants) = parse_meta(&definition, enable_doc_comments);
 
         Self {
             meta,
@@ -133,13 +137,26 @@ impl Enum {
 }
 
 /// Parse the doc comments on the enum definition and its variants
-fn parse_meta(definition: &EnumDefinition) -> (MetaMap, Vec<DocumentedEnumVariant>) {
-    let enum_docs = doc_comments(definition.keyword().inner());
+fn parse_meta(
+    definition: &EnumDefinition,
+    enable_doc_comments: bool,
+) -> (MetaMap, Vec<DocumentedEnumVariant>) {
+    let enum_docs = if enable_doc_comments {
+        doc_comments(definition.keyword().inner())
+    } else {
+        MetaMap::new()
+    };
 
     let mut variant_docs = Vec::new();
     for variant in definition.variants() {
+        let meta = if enable_doc_comments {
+            doc_comments(variant.name().inner())
+        } else {
+            MetaMap::new()
+        };
+
         variant_docs.push(DocumentedEnumVariant {
-            meta: doc_comments(variant.name().inner()),
+            meta,
             variant: variant.clone(),
         });
     }

@@ -105,6 +105,12 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
+    /// Enables support for documentation comments
+    ///
+    /// This option is *experimental* and will be removed in a future major
+    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+    #[arg(long)]
+    pub with_doc_comments: bool,
 
     // Diagnostics
     /// Disables color output.
@@ -121,6 +127,10 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args) -> CommandResult<()> {
+    if args.with_doc_comments {
+        tracing::warn!("the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757");
+    }
+
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -199,7 +209,8 @@ pub async fn doc(args: Args) -> CommandResult<()> {
         .custom_logo(args.logo)
         .alt_logo(args.alt_light_logo)
         .additional_javascript(addl_js)
-        .prefer_full_directory(!args.prioritize_workflows_view);
+        .prefer_full_directory(!args.prioritize_workflows_view)
+        .enable_doc_comments(args.with_doc_comments);
 
     let mut counts = DiagnosticCounts::default();
     if let Err(e) = document_workspace(config).await {
