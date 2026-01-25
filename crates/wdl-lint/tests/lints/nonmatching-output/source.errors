@@ -1,3 +1,11 @@
+note[ShellCheck]: running `shellcheck` on command section
+   ┌─ tests/lints/nonmatching-output/source.wdl:13:5
+   │
+13 │     command <<< >>>
+   │     ^^^^^^^ could not find `shellcheck` executable.
+   │
+   = fix: install shellcheck (https://www.shellcheck.net) or disable this lint.
+
 warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bar`
    ┌─ tests/lints/nonmatching-output/source.wdl:22:5
    │
@@ -111,18 +119,18 @@ warning[MatchingOutputMeta]: `v` appears in `outputs` section of the task `quuux
     = fix: ensure the output exists or remove the `v` key from `meta.outputs`
 
 warning[MatchingOutputMeta]: `nonexistent` appears in `outputs` section of the task `no_output_section` but is not a declared `output`
-   ┌─ tests/lints/nonmatching-output/source.wdl:222:13
-   │
+    ┌─ tests/lints/nonmatching-output/source.wdl:222:13
+    │
 222 │             nonexistent: "This output does not exist",
-   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = fix: ensure the output exists or remove the `nonexistent` key from `meta.outputs`
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = fix: ensure the output exists or remove the `nonexistent` key from `meta.outputs`
 
 warning[MatchingOutputMeta]: `also_nonexistent` appears in `outputs` section of the task `no_output_section` but is not a declared `output`
-   ┌─ tests/lints/nonmatching-output/source.wdl:223:13
-   │
+    ┌─ tests/lints/nonmatching-output/source.wdl:223:13
+    │
 223 │             also_nonexistent: "Neither does this one",
-   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = fix: ensure the output exists or remove the `also_nonexistent` key from `meta.outputs`
+    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = fix: ensure the output exists or remove the `also_nonexistent` key from `meta.outputs`
 
