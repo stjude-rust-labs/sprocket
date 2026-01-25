@@ -1,11 +1,3 @@
-note[ShellCheck]: running `shellcheck` on command section
-   ┌─ tests/lints/nonmatching-output/source.wdl:13:5
-   │
-13 │     command <<< >>>
-   │     ^^^^^^^ could not find `shellcheck` executable.
-   │
-   = fix: install shellcheck (https://www.shellcheck.net) or disable this lint.
-
 warning[MatchingOutputMeta]: `outputs` key missing in `meta` section for the task `bar`
    ┌─ tests/lints/nonmatching-output/source.wdl:22:5
    │
