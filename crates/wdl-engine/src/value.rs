@@ -4450,14 +4450,16 @@ mod test {
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::File).into();
         assert_eq!(
             format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            "failed to coerce map key for element at index 0: cannot coerce type `String` to type `Int`"
+            "failed to coerce map key for element at index 0: cannot coerce type `String` to type \
+             `Int`"
         );
 
         // Map[String, File] -> Map[String, Int] (invalid)
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert_eq!(
             format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            "failed to coerce map value for element at index 0: cannot coerce type `File` to type `Int`"
+            "failed to coerce map value for element at index 0: cannot coerce type `File` to type \
+             `Int`"
         );
 
         // Map[String, File] -> Struct
