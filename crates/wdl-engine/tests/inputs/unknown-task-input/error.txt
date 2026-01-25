@@ -1,5 +1,1 @@
-failed to parse input file `tests/inputs/unknown-task-input/inputs.json`
-
-Caused by:
-    0: invalid input key `test.x`
-    1: task `test` does not have an input named `x`
+failed to parse input file `tests/inputs/unknown-task-input/inputs.json`: invalid input key `test.x`: task `test` does not have an input named `x`

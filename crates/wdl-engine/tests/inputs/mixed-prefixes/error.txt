@@ -1,4 +1,1 @@
-failed to parse input file `tests/inputs/mixed-prefixes/inputs.json`
-
-Caused by:
-    invalid inputs: expected each input key to be prefixed with the same workflow or task name, but found multiple prefixes: {"testA", "testB"}
+failed to parse input file `tests/inputs/mixed-prefixes/inputs.json`: invalid inputs: expected each input key to be prefixed with the same workflow or task name, but found multiple prefixes: {"testA", "testB"}

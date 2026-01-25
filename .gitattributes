@@ -4,6 +4,10 @@
 # Ensure that WDL files always use LF line endings.
 *.wdl text eol=lf
 
+# Ignore these two files as they formatting tests require exact content
+tests/cli/format/check/format_check_does_not_overwrite_file/inputs/file.wdl -text
+tests/cli/format/check/format_check_does_not_overwrite_file/outputs/file.wdl -text
+
 # Ensure that the wdl-doc file tests use LF line endings.
 crates/wdl-doc/tests/output_docs/**/*.html text eol=lf
 crates/wdl-doc/tests/output_docs/style.css text eol=lf
