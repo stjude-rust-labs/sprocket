@@ -59,6 +59,42 @@ const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
 /// See <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-j>.
 const LSF_JOB_NAME_MAX_LENGTH: usize = 4094;
 
+/// Construct an LSF job name by combining an optional prefix with the task
+/// identifier while ensuring the total length fits within the byte-oriented
+/// LSF limit.
+fn build_lsf_job_name(prefix: Option<&str>, identifier: &str) -> String {
+    fn push_segment(segment: &str, name: &mut String, bytes_used: &mut usize) -> bool {
+        for ch in segment.chars() {
+            let ch_bytes = ch.len_utf8();
+            if *bytes_used + ch_bytes > LSF_JOB_NAME_MAX_LENGTH {
+                return false;
+            }
+            name.push(ch);
+            *bytes_used += ch_bytes;
+        }
+
+        true
+    }
+
+    let mut name = String::new();
+    let mut bytes_used = 0usize;
+
+    if let Some(prefix) = prefix
+        && !push_segment(prefix, &mut name, &mut bytes_used)
+    {
+        warn!(
+            prefix_bytes = prefix.len(),
+            stored_prefix_bytes = bytes_used,
+            max_bytes = LSF_JOB_NAME_MAX_LENGTH,
+            "truncating job name prefix to fit LSF byte limit; using remaining bytes for \
+             identifier"
+        );
+    }
+
+    push_segment(identifier, &mut name, &mut bytes_used);
+    name
+}
+
 /// The experimental LSF + Apptainer backend.
 ///
 /// See the module-level documentation for details.
@@ -203,18 +239,8 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .as_lsf_apptainer()
                 .expect("configured backend is not LSF Apptainer");
 
-            // Truncate the request ID to fit in the LSF job name length limit.
-            let name = if request.id.len() > LSF_JOB_NAME_MAX_LENGTH {
-                request
-                    .id
-                    .chars()
-                    .take(LSF_JOB_NAME_MAX_LENGTH)
-                    .collect::<String>()
-            } else {
-                request.id.to_string()
-            };
-
             let crankshaft_task_id = crankshaft::events::next_task_id();
+            let name = build_lsf_job_name(backend_config.job_name_prefix.as_deref(), request.id);
 
             // Create the host directory that will be mapped to the working directory.
             let work_dir = request.work_dir();
@@ -480,5 +506,42 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }))
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lsf_job_name_without_prefix() {
+        let request_id = "task-123";
+        let name = build_lsf_job_name(None, request_id);
+        assert_eq!(name, request_id);
+    }
+
+    #[test]
+    fn lsf_job_name_applies_prefix_when_configured() {
+        let name = build_lsf_job_name(Some("sprocket_"), "task-123");
+        assert_eq!(name, "sprocket_task-123");
+    }
+
+    #[test]
+    fn lsf_job_name_truncates_request_id_by_bytes() {
+        let identifier = "é".repeat((LSF_JOB_NAME_MAX_LENGTH / 2) + 10);
+        let name = build_lsf_job_name(None, &identifier);
+        assert!(name.len() <= LSF_JOB_NAME_MAX_LENGTH);
+        assert!(identifier.starts_with(&name));
+    }
+
+    #[test]
+    fn lsf_job_name_truncates_prefix_but_keeps_identifier_bytes() {
+        let prefix = "☃".repeat((LSF_JOB_NAME_MAX_LENGTH / 3) + 10);
+        let identifier = "xy";
+        let name = build_lsf_job_name(Some(&prefix), identifier);
+        assert!(name.len() <= LSF_JOB_NAME_MAX_LENGTH);
+        assert!(name.ends_with(identifier));
+        let prefix_portion = &name[..name.len() - identifier.len()];
+        assert!(prefix_portion.chars().all(|ch| ch == '☃'));
     }
 }
