@@ -699,7 +699,7 @@ impl LsfApptainerBackend {
             .permits
             .acquire()
             .await
-            .context("failed to acquire permit for submitting job")?;
+            .context("failed to acquire permit for canceling job")?;
 
         debug!(?command, "spawning `bkill` to cancel task");
 
