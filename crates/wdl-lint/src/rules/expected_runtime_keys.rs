@@ -331,6 +331,7 @@ impl Rule for ExpectedRuntimeKeysRule {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::RuntimeSectionNode,
+            SyntaxKind::RuntimeItemNode,
         ])
     }
 
@@ -527,7 +528,16 @@ impl Visitor for ExpectedRuntimeKeysRule {
                     None => {
                         // If the key was _not_ found in the map, that means the
                         // key was not one of the permitted values for WDL v1.1.
-                        self.non_reserved_keys.insert(key_name.hashable());
+                        //
+                        // Add it to the list of tracked non-reserved keys if it wasn't
+                        // specifically except'ed
+                        if !Diagnostics::is_rule_excepted_in_ancestors(
+                            ID,
+                            SyntaxElement::from(item.inner().clone()),
+                            &self.exceptable_nodes(),
+                        ) {
+                            self.non_reserved_keys.insert(key_name.hashable());
+                        }
                     }
                 }
             }

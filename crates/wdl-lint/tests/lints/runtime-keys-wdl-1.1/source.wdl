@@ -99,3 +99,24 @@ task a_task_with_an_allowed_key {
         some_allowed_key: "bar"
     }
 }
+
+task a_task_with_an_explicitly_excepted_key {
+    meta {}
+
+    command <<<>>>
+
+    output {}
+
+    runtime {
+        container: "ubuntu"
+        cpu: 1
+        memory: "2 GiB"
+        gpu: false
+        disks: "1 GiB"
+        maxRetries: 0
+        returnCodes: 0
+        #@ except: ExpectedRuntimeKeys
+        this_key_is_allowed: "bar"
+        this_key_is_not_allowed: "baz"
+    }
+}
