@@ -1,5 +1,1 @@
-failed to parse input file `tests/inputs/invalid-requirement-type/inputs.json`
-
-Caused by:
-    0: invalid input key `test.requirements.container`
-    1: expected type `String` or type `Array[String]` for requirements key `container`, but found type `Int`
+failed to parse input file `tests/inputs/invalid-requirement-type/inputs.json`: invalid input key `test.requirements.container`: expected type `String` or type `Array[String]` for requirements key `container`, but found type `Int`

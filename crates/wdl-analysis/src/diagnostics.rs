@@ -273,7 +273,7 @@ pub fn import_cycle(span: Span) -> Diagnostic {
 
 /// Creates an "import failure" diagnostic.
 pub fn import_failure(uri: &str, error: &anyhow::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("failed to import `{uri}`: {error:?}")).with_highlight(span)
+    Diagnostic::error(format!("failed to import `{uri}`: {error:#}")).with_highlight(span)
 }
 
 /// Creates an "incompatible import" diagnostic.
@@ -303,7 +303,7 @@ pub fn import_missing_version(span: Span) -> Diagnostic {
 
 /// Creates an "invalid relative import" diagnostic.
 pub fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("{error:?}")).with_highlight(span)
+    Diagnostic::error(format!("{error:#}")).with_highlight(span)
 }
 
 /// Creates a "struct not in document" diagnostic.

@@ -154,6 +154,8 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("RUST_LOG", "none")
+        .env_remove("RUST_BACKTRACE")
         .spawn()
         .context("failed to spawn command")?
         .wait_with_output()
@@ -409,7 +411,7 @@ async fn main() {
             }
             Err(e) => {
                 println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, format!("{e:?}")));
+                errors.push((test_name, format!("{e:#}")));
             }
         }
     }
