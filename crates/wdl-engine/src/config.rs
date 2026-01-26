@@ -2046,21 +2046,24 @@ mod test {
         );
 
         // Test invalid LSF job name prefix
-        let job_name_prefix = "A".repeat(MAX_LSF_JOB_NAME_PREFIX * 2);
-        let mut config = Config {
-            experimental_features_enabled: true,
-            ..Default::default()
-        };
-        config.backends.insert(
-            "default".to_string(),
-            BackendConfig::LsfApptainer(LsfApptainerBackendConfig {
-                job_name_prefix: Some(job_name_prefix.clone()),
+        #[cfg(unix)]
+        {
+            let job_name_prefix = "A".repeat(MAX_LSF_JOB_NAME_PREFIX * 2);
+            let mut config = Config {
+                experimental_features_enabled: true,
                 ..Default::default()
-            }),
-        );
-        assert_eq!(
-            config.validate().await.unwrap_err().to_string(),
-            format!("LSF job name prefix `{job_name_prefix}` exceeds the maximum 100 bytes")
-        );
+            };
+            config.backends.insert(
+                "default".to_string(),
+                BackendConfig::LsfApptainer(LsfApptainerBackendConfig {
+                    job_name_prefix: Some(job_name_prefix.clone()),
+                    ..Default::default()
+                }),
+            );
+            assert_eq!(
+                config.validate().await.unwrap_err().to_string(),
+                format!("LSF job name prefix `{job_name_prefix}` exceeds the maximum 100 bytes")
+            );
+        }
     }
 }
