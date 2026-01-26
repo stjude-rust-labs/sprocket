@@ -120,7 +120,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         // the in-WDL `task` values) and below in `spawn` (for the actual
         // resource request)
         if let Some(partition) = backend_config.slurm_partition_for_task(requirements, hints) {
-            if let Some(max_cpu) = partition.max_cpu_per_task()
+            if let Some(max_cpu) = partition.max_cpu_per_task
                 && required_cpu > max_cpu as f64
             {
                 let env_specific = if self.config.suppress_env_specific_output {
@@ -145,7 +145,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     }
                 }
             }
-            if let Some(max_memory) = partition.max_memory_per_task()
+            if let Some(max_memory) = partition.max_memory_per_task
                 && required_memory > max_memory
             {
                 let env_specific = if self.config.suppress_env_specific_output {
@@ -310,7 +310,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             if let Some(partition) =
                 backend_config.slurm_partition_for_task(request.requirements, request.hints)
             {
-                sbatch_command.arg("--partition").arg(partition.name());
+                sbatch_command.arg("--partition").arg(&partition.name);
             }
 
             // If GPUs are required, use the gpu helper to determine the count and pass it

@@ -412,7 +412,7 @@ impl Monitor {
 
         // Set the queue to use if specified in configuration
         if let Some(queue) = config.lsf_queue_for_task(request.requirements, request.hints) {
-            command.arg("-q").arg(queue.name());
+            command.arg("-q").arg(&queue.name);
         }
 
         // If GPUs are required, pass a basic `-gpu` flag to `bsub`.
@@ -731,7 +731,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         // Determine whether CPU or memory limits are set for this queue, and clamp or
         // deny them as appropriate if the limits are exceeded
         if let Some(queue) = backend_config.lsf_queue_for_task(requirements, hints) {
-            if let Some(max_cpu) = queue.max_cpu_per_task()
+            if let Some(max_cpu) = queue.max_cpu_per_task
                 && required_cpu > max_cpu as f64
             {
                 let env_specific = if self.config.suppress_env_specific_output {
@@ -757,7 +757,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 }
             }
 
-            if let Some(max_memory) = queue.max_memory_per_task()
+            if let Some(max_memory) = queue.max_memory_per_task
                 && required_memory > max_memory
             {
                 let env_specific = if self.config.suppress_env_specific_output {

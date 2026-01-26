@@ -1276,54 +1276,25 @@ impl ApptainerConfig {
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
     /// <queue_name>`.
-    name: String,
+    pub name: String,
     /// The maximum number of CPUs this queue can provision for a single task.
-    max_cpu_per_task: Option<u64>,
+    pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this queue can provision for a single task.
-    max_memory_per_task: Option<ByteSize>,
+    pub max_memory_per_task: Option<ByteSize>,
 }
 
 impl LsfQueueConfig {
-    /// Create an [`LsfQueueConfig`].
-    pub fn new(
-        name: String,
-        max_cpu_per_task: Option<u64>,
-        max_memory_per_task: Option<ByteSize>,
-    ) -> Self {
-        Self {
-            name,
-            max_cpu_per_task,
-            max_memory_per_task,
-        }
-    }
-
-    /// The name of the queue; this is the string passed to `bsub -q
-    /// <queue_name>`.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The maximum number of CPUs this queue can provision for a single task.
-    pub fn max_cpu_per_task(&self) -> Option<u64> {
-        self.max_cpu_per_task
-    }
-
-    /// The maximum memory this queue can provision for a single task.
-    pub fn max_memory_per_task(&self) -> Option<ByteSize> {
-        self.max_memory_per_task
-    }
-
     /// Validate that this LSF queue exists according to the local `bqueues`.
-    async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
-        let queue = self.name();
+    pub async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
+        let queue = &self.name;
         ensure!(!queue.is_empty(), "{name}_lsf_queue name cannot be empty");
-        if let Some(max_cpu_per_task) = self.max_cpu_per_task() {
+        if let Some(max_cpu_per_task) = self.max_cpu_per_task {
             ensure!(
                 max_cpu_per_task > 0,
                 "{name}_lsf_queue `{queue}` must allow at least 1 CPU to be provisioned"
             );
         }
-        if let Some(max_memory_per_task) = self.max_memory_per_task() {
+        if let Some(max_memory_per_task) = self.max_memory_per_task {
             ensure!(
                 max_memory_per_task.as_u64() > 0,
                 "{name}_lsf_queue `{queue}` must allow at least some memory to be provisioned"
@@ -1518,60 +1489,30 @@ impl LsfApptainerBackendConfig {
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
     /// --partition=<partition_name>`.
-    name: String,
+    pub name: String,
     /// The maximum number of CPUs this partition can provision for a single
     /// task.
-    max_cpu_per_task: Option<u64>,
+    pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this partition can provision for a single task.
-    max_memory_per_task: Option<ByteSize>,
+    pub max_memory_per_task: Option<ByteSize>,
 }
 
 impl SlurmPartitionConfig {
-    /// Create a [`SlurmPartitionConfig`].
-    pub fn new(
-        name: String,
-        max_cpu_per_task: Option<u64>,
-        max_memory_per_task: Option<ByteSize>,
-    ) -> Self {
-        Self {
-            name,
-            max_cpu_per_task,
-            max_memory_per_task,
-        }
-    }
-
-    /// The name of the partition; this is the string passed to `sbatch
-    /// --partition=<partition_name>`.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The maximum number of CPUs this partition can provision for a single
-    /// task.
-    pub fn max_cpu_per_task(&self) -> Option<u64> {
-        self.max_cpu_per_task
-    }
-
-    /// The maximum memory this partition can provision for a single task.
-    pub fn max_memory_per_task(&self) -> Option<ByteSize> {
-        self.max_memory_per_task
-    }
-
     /// Validate that this Slurm partition exists according to the local
     /// `sinfo`.
-    async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
-        let partition = self.name();
+    pub async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
+        let partition = &self.name;
         ensure!(
             !partition.is_empty(),
             "{name}_slurm_partition name cannot be empty"
         );
-        if let Some(max_cpu_per_task) = self.max_cpu_per_task() {
+        if let Some(max_cpu_per_task) = self.max_cpu_per_task {
             ensure!(
                 max_cpu_per_task > 0,
                 "{name}_slurm_partition `{partition}` must allow at least 1 CPU to be provisioned"
             );
         }
-        if let Some(max_memory_per_task) = self.max_memory_per_task() {
+        if let Some(max_memory_per_task) = self.max_memory_per_task {
             ensure!(
                 max_memory_per_task.as_u64() > 0,
                 "{name}_slurm_partition `{partition}` must allow at least some memory to be \
