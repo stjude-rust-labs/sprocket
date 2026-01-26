@@ -24,11 +24,21 @@ wdl-analysis = { path = "../wdl-analysis", version = "0.16.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.20.0" }
 
 [dev-dependencies]
+async-trait.workspace = true
+axum.workspace = true
+libtest-mimic = { workspace = true }
 fs_extra.workspace = true
 pretty_assertions.workspace = true
+thirtyfour = { git = "https://github.com/vrtgs/thirtyfour.git", rev = "0ea8e3b" }
+tower-http = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wdl-analysis = { path = "../wdl-analysis", version = "0.16.0" }
 
 [lints]
 workspace = true
 
 [[test]]
-name = "doc"
+name = "ui"
+path = "tests/ui.rs"
+harness = false

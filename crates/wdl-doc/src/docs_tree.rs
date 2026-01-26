@@ -1363,7 +1363,7 @@ impl DocsTree {
                                 document.documentElement.classList.toggle('light')
                                 localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
                                 "
-                                class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
+                                class="theme-toggle border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
                                     "☀︎"
                                 }
                                 @if let Some(breadcrumbs) = breadcrumbs {
