@@ -188,6 +188,7 @@ struct Job {
     completed: oneshot::Sender<Result<u8>>,
 }
 
+/// State used by the LSF task monitor.
 #[derive(Debug)]
 struct MonitorState {
     /// The name generator for tasks.
