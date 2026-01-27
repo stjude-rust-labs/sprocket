@@ -170,8 +170,26 @@ struct JobRecord {
     #[serde(rename = "STAT")]
     state: String,
     /// The job exit code (may be empty).
-    #[serde(rename = "EXIT_CODE")]
+    #[serde(default, rename = "EXIT_CODE")]
     exit_code: String,
+    /// The amount of memory used by the job.
+    #[serde(default, rename = "MEM")]
+    memory: String,
+    /// The average amount of memory used by the job.
+    #[serde(default, rename = "AVG_MEM")]
+    avg_memory: String,
+    /// The maximum amount of memory used by the job.
+    #[serde(default, rename = "MAX_MEM")]
+    max_memory: String,
+    /// The amount of CPU used time while executing the job.
+    #[serde(default, rename = "CPU_USED")]
+    cpu_used: String,
+    /// CPU user time cost by executing the job.
+    #[serde(default, rename = "RU_UTIME")]
+    user_cpu_time: String,
+    /// CPU system time cost by executing the job.
+    #[serde(default, rename = "RU_STIME")]
+    system_cpu_time: String,
 }
 
 /// Represents information about an LSF job.
@@ -298,6 +316,20 @@ impl MonitorState {
                                     },
                                 );
                             }
+
+                            debug!(
+                                "LSF job `{job_id}` has terminated: memory `{mem}`, average \
+                                 memory `{avg_mem}`, maximum memory `{max_mem}`,  CPU used \
+                                 `{cpu_used}`, user CPU time `{user_cpu_time}`, system CPU time \
+                                 `{system_cpu_time}`",
+                                job_id = record.job_id,
+                                mem = record.memory,
+                                avg_mem = record.avg_memory,
+                                max_mem = record.max_memory,
+                                cpu_used = record.cpu_used,
+                                user_cpu_time = record.user_cpu_time,
+                                system_cpu_time = record.system_cpu_time
+                            );
 
                             let job = self.jobs.remove(&job_id).unwrap();
                             let _ = job
@@ -593,7 +625,7 @@ impl Monitor {
             .arg(search_prefix)
             .arg("-json") // JSON output
             .arg("-o") // output specified fields
-            .arg("jobid stat exit_code") // output jobid, state, and exit code
+            .arg("jobid stat exit_code mem max_mem avg_mem cpu_used ru_utime ru_stime")
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
