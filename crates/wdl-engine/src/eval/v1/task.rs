@@ -972,7 +972,7 @@ impl Evaluator {
                     Err(e) => {
                         warn!(
                             "failed to update call cache entry for task `{name}` (task id \
-                             `{id}`): cache entry has been discard: {e:#}",
+                             `{id}`): cache entry has been discarded: {e:#}",
                             name = task.name()
                         );
                     }
