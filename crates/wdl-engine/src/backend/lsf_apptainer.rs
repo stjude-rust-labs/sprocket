@@ -173,9 +173,6 @@ struct JobRecord {
     /// The job exit code (may be empty).
     #[serde(default, rename = "EXIT_CODE")]
     exit_code: String,
-    /// The amount of memory used by the job.
-    #[serde(default, rename = "MEM")]
-    memory: String,
     /// The average amount of memory used by the job.
     #[serde(default, rename = "AVG_MEM")]
     avg_memory: String,
@@ -294,8 +291,6 @@ impl MonitorState {
             match record.state.parse::<JobState>() {
                 Ok(job_state) => {
                     if job.state != job_state {
-                        debug!("LSF job `{job_id}` is now in the `{job_state}` state");
-
                         // If the job state is now running, send the started event
                         if job_state == JobState::Running {
                             send_event!(
@@ -318,13 +313,14 @@ impl MonitorState {
                                 );
                             }
 
+                            let exit_code: u8 = record.exit_code.parse().unwrap_or_default();
+
                             debug!(
-                                "LSF job `{job_id}` has terminated: memory `{mem}`, average \
+                                "LSF job `{job_id}` has exited with code `{exit_code}`: average \
                                  memory `{avg_mem}`, maximum memory `{max_mem}`,  CPU used \
                                  `{cpu_used}`, user CPU time `{user_cpu_time}`, system CPU time \
                                  `{system_cpu_time}`",
                                 job_id = record.job_id,
-                                mem = record.memory,
                                 avg_mem = record.avg_memory,
                                 max_mem = record.max_memory,
                                 cpu_used = record.cpu_used,
@@ -333,10 +329,10 @@ impl MonitorState {
                             );
 
                             let job = self.jobs.remove(&job_id).unwrap();
-                            let _ = job
-                                .completed
-                                .send(Ok(record.exit_code.parse().unwrap_or_default()));
+                            let _ = job.completed.send(Ok(exit_code));
                             continue;
+                        } else {
+                            debug!("LSF job `{job_id}` is now in the `{job_state}` state");
                         }
 
                         job.state = job_state;
@@ -626,7 +622,7 @@ impl Monitor {
             .arg(search_prefix)
             .arg("-json") // JSON output
             .arg("-o") // output specified fields
-            .arg("jobid stat exit_code mem max_mem avg_mem cpu_used ru_utime ru_stime")
+            .arg("jobid stat exit_code max_mem avg_mem cpu_used ru_utime ru_stime")
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
