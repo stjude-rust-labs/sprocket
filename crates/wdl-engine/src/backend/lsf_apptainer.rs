@@ -48,6 +48,7 @@ use tokio::time::MissedTickBehavior;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
+use tracing::trace;
 use tracing::warn;
 
 use super::TaskExecutionBackend;
@@ -502,7 +503,7 @@ impl Monitor {
             ))
             .arg(command_path);
 
-        debug!(?command, "spawning `bsub` to queue task");
+        trace!(?command, "spawning `bsub` to queue task");
 
         let child = command.spawn().context("failed to spawn `bsub`")?;
         let output = child
@@ -630,7 +631,7 @@ impl Monitor {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        debug!(?command, "spawning `bjobs` to monitor tasks");
+        trace!(?command, "spawning `bjobs` to monitor tasks");
 
         let child = command.spawn().context("failed to spawn `bjobs` command")?;
 
@@ -733,7 +734,7 @@ impl LsfApptainerBackend {
             .await
             .context("failed to acquire permit for canceling job")?;
 
-        debug!(?command, "spawning `bkill` to cancel task");
+        trace!(?command, "spawning `bkill` to cancel task");
 
         let mut child = command.spawn().context("failed to spawn `bkill` command")?;
         let status = child.wait().await.context("failed to wait for `bkill`")?;

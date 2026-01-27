@@ -17,8 +17,6 @@ use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 use tokio_retry2::Retry;
@@ -26,7 +24,6 @@ use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
-use tracing::trace;
 use tracing::warn;
 
 use crate::Value;
@@ -326,11 +323,10 @@ impl ApptainerRuntime {
     /// its output patterns, we can enhance the fidelity of the error
     /// handling.
     async fn try_pull_image(image: &str, path: &Path) -> Result<(), RetryError<anyhow::Error>> {
-        info!(image, "pulling image");
+        info!("spawning `apptainer` to pull image `{image}`");
 
-        // Pipe the stdio handles, both for tracing and to inspect for telltale signs of
-        // permanent errors
-        let mut apptainer_pull_child = Command::new("apptainer")
+        let child = Command::new("apptainer")
+            .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .arg("pull")
@@ -346,57 +342,38 @@ impl ApptainerRuntime {
             // If the system can't handle spawning a process, we're better off failing quickly
             .map_err(RetryError::permanent)?;
 
-        let is_permanent = Arc::new(Mutex::new(false));
-
-        let child_stdout = apptainer_pull_child
-            .stdout
-            .take()
-            .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stdout missing")))?;
-        let stdout_image: String = image.into();
-        let _stdout_is_permanent = is_permanent.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(child_stdout).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                trace!(line = line, image = stdout_image, "`apptainer` stdout");
-            }
-        });
-        let child_stderr = apptainer_pull_child
-            .stderr
-            .take()
-            .ok_or_else(|| RetryError::permanent(anyhow!("apptainer pull child stderr missing")))?;
-        let stderr_image: String = image.into();
-        let stderr_is_permanent = is_permanent.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(child_stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
+        let output = child
+            .wait_with_output()
+            .await
+            .context("failed to wait for `apptainer`")
+            .map_err(RetryError::permanent)?;
+        if !output.status.success() {
+            let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
+                let mut permanent = false;
                 // A collection of strings observed in `apptainer pull` stderr in unrecoverable
                 // conditions. Finding one of these in the output marks the attempt as a
                 // permanent failure.
                 let needles = ["manifest unknown", "403 (Forbidden)"];
                 for needle in needles {
-                    if line.contains(needle) {
-                        trace!(line = line, image = stderr_image, "`apptainer` stderr");
-                        *stderr_is_permanent.lock().unwrap() = true;
+                    if stderr.contains(needle) {
+                        permanent = true;
                         break;
                     }
                 }
-                trace!(stderr = line, image = stderr_image);
-            }
-        });
 
-        let child_result = apptainer_pull_child
-            .wait()
-            .await
-            .context("failed to wait for `apptainer` to exit")
-            // Permanently error if something goes wrong trying to wait for the child process
-            .map_err(RetryError::permanent)?;
+                permanent
+            } else {
+                false
+            };
 
-        if !child_result.success() {
             let e = anyhow!(
-                "`apptainer pull` failed with exit code {:?}",
-                child_result.code()
+                "`apptainer` failed: {status}: {stderr}",
+                status = output.status,
+                stderr = str::from_utf8(&output.stderr)
+                    .unwrap_or("<output not UTF-8>")
+                    .trim()
             );
-            return if *is_permanent.lock().unwrap() {
+            return if permanent {
                 Err(RetryError::permanent(e))
             } else {
                 Err(RetryError::transient(e))
