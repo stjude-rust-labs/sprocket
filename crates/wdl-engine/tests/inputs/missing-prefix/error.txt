@@ -1,4 +1,1 @@
-failed to parse input file `tests/inputs/missing-prefix/inputs.json`
-
-Caused by:
-    invalid input key `y`: expected the key to be prefixed with the workflow or task name
+failed to parse input file `tests/inputs/missing-prefix/inputs.json`: invalid input key `y`: expected the key to be prefixed with the workflow or task name

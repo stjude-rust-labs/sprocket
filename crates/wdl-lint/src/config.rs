@@ -16,6 +16,6 @@ pub struct Config {
     /// allowed_runtime_keys = ["foo"]
     /// ```
     ///
-    /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeys
+    /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule.
     pub allowed_runtime_keys: HashSet<String>,
 }

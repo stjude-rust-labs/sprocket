@@ -62,7 +62,7 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
             Some(Trial::test(test_name, move || {
                 Ok(test_runtime
                     .block_on(run_test(&path))
-                    .map_err(|e| format!("{e:?}"))?)
+                    .map_err(|e| format!("{e:#}"))?)
             }))
         })
         .collect()
@@ -175,7 +175,7 @@ async fn run_test(test: &Path) -> Result<()> {
         // Always use the JSON path for consistency across platforms and pass as &Path
         let result = match Inputs::parse(document, &json_path) {
             Ok(_) => String::new(),
-            Err(e) => format!("{e:?}"),
+            Err(e) => format!("{e:#}"),
         };
 
         let output = test.join("error.txt");
@@ -207,7 +207,7 @@ async fn run_test(test: &Path) -> Result<()> {
                         .with_context(|| format!("failed to validate the inputs to task `{name}`"))
                     {
                         Ok(()) => String::new(),
-                        Err(e) => format!("{e:?}"),
+                        Err(e) => format!("{e:#}"),
                     }
                 }
                 Inputs::Workflow(inputs) => {
@@ -219,12 +219,12 @@ async fn run_test(test: &Path) -> Result<()> {
                         )
                     }) {
                         Ok(()) => String::new(),
-                        Err(e) => format!("{e:?}"),
+                        Err(e) => format!("{e:#}"),
                     }
                 }
             },
             Ok(None) => String::new(),
-            Err(e) => format!("{e:?}"),
+            Err(e) => format!("{e:#}"),
         };
 
         let output = test.join("error.txt");

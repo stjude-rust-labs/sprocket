@@ -5,5 +5,5 @@ backends.default.default_lsf_queue.name = "short"
 backends.default.default_lsf_queue.max_cpu_per_task = 4
 backends.default.default_lsf_queue.max_memory_per_task = "16 GiB"
 backends.default.max_scatter_concurrency = 200
-backends.default.job_name_prefix = "sprocket_"
+backends.default.job_name_prefix = "sprocket"
 experimental_features_enabled = true
