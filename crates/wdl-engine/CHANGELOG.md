@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Refactored LSF backend to more efficiently track LSF jobs ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
 * Refactored how task execution backends are passed data relating to the tasks
   to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
 

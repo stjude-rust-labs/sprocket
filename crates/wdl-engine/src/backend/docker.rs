@@ -24,7 +24,6 @@ use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use indexmap::IndexMap;
 use nonempty::NonEmpty;
 use tracing::debug;
 use tracing::info;
@@ -561,7 +560,7 @@ impl TaskExecutionBackend for DockerBackend {
         let disks = requirements::disks(inputs, requirements, hints)?
             .into_iter()
             .map(|(mount_point, disk)| (mount_point.to_string(), disk.size))
-            .collect::<IndexMap<_, _>>();
+            .collect();
 
         Ok(TaskExecutionConstraints {
             container: Some(container),
