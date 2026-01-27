@@ -776,7 +776,16 @@ pub struct TaskConfig {
     ///
     /// <div class="warning">
     /// Warning: the use of a shell other than `bash` may lead to tasks that may
-    /// not be portable to other execution engines.</div>
+    /// not be portable to other execution engines.
+    ///
+    /// The shell must support a `-c` option to run a specific script file (i.e.
+    /// an evaluated task command).
+    ///
+    /// Note that this option affects all task commands, so every container that
+    /// is used must contain the specified shell.
+    ///
+    /// If using this setting causes your tasks to fail, please do not file an
+    /// issue. </div>
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell: Option<String>,
     /// The behavior when a task's `cpu` requirement cannot be met.
