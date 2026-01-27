@@ -1,5 +1,6 @@
 //! Implementation of the `test` subcommand.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::read;
 use std::fs::read_to_string;
@@ -43,6 +44,7 @@ use crate::commands::run::DEFAULT_RUNS_DIR;
 use crate::eval::Evaluator;
 use crate::inputs::OriginPaths;
 use crate::test::DocumentTests;
+use crate::test::OutputAssertion;
 use crate::test::ParsedAssertions;
 use crate::test::TestDefinition;
 
@@ -186,13 +188,26 @@ fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> 
     Ok(None)
 }
 
+fn evaluate_outputs(
+    assertions: &HashMap<String, Vec<OutputAssertion>>,
+    outputs: &wdl::engine::Outputs,
+) -> Result<()> {
+    for (name, fns) in assertions {
+        let output = outputs.get(name).expect("output should exist");
+        for func in fns {
+            func.evaluate(output)
+                .with_context(|| format!("evalutating WDL output with name `{name}`"))?
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug)]
 enum RunResult {
     Workflow(Result<Outputs, EvaluationError>),
     Task(Box<Result<EvaluatedTask, EvaluationError>>),
 }
 
-#[derive(Debug)]
 struct TestIteration {
     name: Arc<String>,
     iteration_num: usize,
@@ -202,10 +217,10 @@ struct TestIteration {
 }
 
 impl TestIteration {
-    pub fn evaluate(&self) -> Result<IterationResult> {
-        match &self.result {
+    pub fn evaluate(self) -> Result<IterationResult> {
+        match self.result {
             RunResult::Workflow(result) => match result {
-                Ok(_outputs) => {
+                Ok(outputs) => {
                     if self.assertions.should_fail {
                         Ok(IterationResult::Fail(anyhow!(
                             "test iteration #{num} of `{name}` succeeded but was expected to \
@@ -214,36 +229,46 @@ impl TestIteration {
                             name = self.name,
                             dir = self.run_dir.display(),
                         )))
+                    } else if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
+                        .with_context(|| {
+                            format!(
+                                "test iteration #{num} of `{name}` failed output assertions: see \
+                                 `{dir}`",
+                                num = self.iteration_num,
+                                name = self.name,
+                                dir = self.run_dir.display()
+                            )
+                        })
+                    {
+                        Ok(IterationResult::Fail(e))
                     } else {
                         Ok(IterationResult::Success)
                     }
                 }
-                Err(_eval_err) => {
+                Err(eval_err) => {
                     if self.assertions.should_fail {
                         Ok(IterationResult::Success)
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
                             "test iteration #{num} of `{name}` failed but was expected to \
-                             succeed: see `{dir}`",
+                             succeed; see `{dir}`: {err}",
                             num = self.iteration_num,
                             name = self.name,
                             dir = self.run_dir.display(),
+                            err = eval_err.to_string(),
                         )))
                     }
                 }
             },
-            RunResult::Task(result) => match &**result {
+            RunResult::Task(result) => match *result {
                 Ok(evaled_task) => {
                     if evaled_task.exit_code() == self.assertions.exit_code {
-                        if !self.assertions.stdout.is_empty() {
+                        if let Some(regexs) = &self.assertions.stdout {
                             let stdout_path = evaled_task
                                 .stdout()
                                 .as_file()
                                 .expect("stdout should be `File`");
-                            match file_matches(
-                                stdout_path.as_str(),
-                                self.assertions.stdout.as_slice(),
-                            ) {
+                            match file_matches(stdout_path.as_str(), regexs.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -257,15 +282,12 @@ impl TestIteration {
                                 Err(e) => return Err(e),
                             }
                         }
-                        if !self.assertions.stderr.is_empty() {
+                        if let Some(regexs) = &self.assertions.stderr {
                             let stderr_path = evaled_task
                                 .stderr()
                                 .as_file()
                                 .expect("stderr should be `File`");
-                            match file_matches(
-                                stderr_path.as_str(),
-                                self.assertions.stderr.as_slice(),
-                            ) {
+                            match file_matches(stderr_path.as_str(), regexs.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -279,7 +301,34 @@ impl TestIteration {
                                 Err(e) => return Err(e),
                             }
                         }
-                        Ok(IterationResult::Success)
+                        let res = evaled_task.into_outputs();
+                        let outputs = match res {
+                            Ok(outputs) => outputs,
+                            Err(eval_err) => {
+                                if self.assertions.exit_code == 0 {
+                                    return Err(anyhow!(
+                                        "unexpected evaluation error: {}",
+                                        eval_err.to_string()
+                                    ));
+                                }
+                                return Ok(IterationResult::Success);
+                            }
+                        };
+                        if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
+                            .with_context(|| {
+                                format!(
+                                    "test iteration #{num} of `{name}` failed output assertions: \
+                                     see `{dir}`",
+                                    num = self.iteration_num,
+                                    name = self.name,
+                                    dir = self.run_dir.display()
+                                )
+                            })
+                        {
+                            Ok(IterationResult::Fail(e))
+                        } else {
+                            Ok(IterationResult::Success)
+                        }
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
                             "test iteration #{num} of `{name}` exited with code `{actual}` but \
@@ -320,12 +369,12 @@ async fn launch_tests(
     info!("testing WDL document `{}`", wdl_document.path());
     for (entrypoint, definitions) in tests.entrypoints {
         let entrypoint = Arc::new(entrypoint);
-        let is_workflow = match (
+        let (is_workflow, outputs) = match (
             wdl_document.task_by_name(&entrypoint),
             wdl_document.workflow(),
         ) {
-            (Some(_), _) => false,
-            (None, Some(wf)) if wf.name() == *entrypoint => true,
+            (Some(task), _) => (false, task.outputs()),
+            (None, Some(wf)) if wf.name() == *entrypoint => (true, wf.outputs()),
             (..) => {
                 errors.push(Arc::new(anyhow!(
                     "no entrypoint named `{}` in `{}`",
@@ -338,8 +387,6 @@ async fn launch_tests(
         info!("testing entrypoint `{}`", entrypoint);
         let mut tests = IndexMap::new();
         for test in definitions {
-            let test_name = Arc::new(test.name.clone());
-            let assertions = Arc::new(test.assertions.parse(is_workflow)?);
             if should_filter(&test) {
                 info!("skipping `{}` due to tag selection", test.name);
                 continue;
@@ -365,12 +412,33 @@ async fn launch_tests(
             let run_root = root
                 .join(DEFAULT_RUNS_DIR)
                 .join(entrypoint.as_ref())
-                .join(test_name.as_ref());
+                .join(&test.name);
             if run_root.exists() {
                 remove_dir_all(&run_root).await.with_context(|| {
                     format!("removing prior test dir: `{}`", run_root.display())
                 })?;
             }
+            let test_name = Arc::new(test.name.clone());
+            let assertions = match test
+                .assertions
+                .parse(is_workflow, outputs)
+                .with_context(|| {
+                    format!(
+                        "parsing assertions of test `{}` for WDL document `{}`",
+                        &test.name,
+                        wdl_document.path()
+                    )
+                }) {
+                Ok(res) => Arc::new(res),
+                Err(e) => {
+                    errors.push(Arc::new(e));
+                    warn!(
+                        "skipping test `{}` due to problem with assertions",
+                        test.name
+                    );
+                    continue;
+                }
+            };
             let mut futures = JoinSet::new();
             for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
                 let inputs = match run_inputs
@@ -391,21 +459,32 @@ async fn launch_tests(
                     Err(e) => {
                         errors.push(Arc::new(e));
                         warn!(
-                            "skipping test `{}` due to problem with input matrix",
+                            "skipping an iteration of test `{}` due to problem with input matrix",
                             test.name
                         );
                         continue;
                     }
                 };
 
-                let engine_inputs = EngineInputs::parse_json_object(wdl_document, inputs)
+                let engine_inputs = match EngineInputs::parse_json_object(wdl_document, inputs)
                     .with_context(|| {
                         format!(
                             "converting to WDL inputs for test `{}` for WDL document `{}`",
                             test_name,
                             wdl_document.path()
                         )
-                    })?;
+                    }) {
+                    Ok(res) => res,
+                    Err(e) => {
+                        errors.push(Arc::new(e));
+                        warn!(
+                            "skipping an iteration of test `{}` due to problem with provided \
+                             inputs",
+                            test.name
+                        );
+                        continue;
+                    }
+                };
 
                 let wdl_inputs = match engine_inputs {
                     Some((_, inputs)) => inputs,
@@ -477,11 +556,12 @@ async fn process_tests(
 
                 while let Some(result) = test_results.join_next().await {
                     let test_iteration = result.with_context(|| "joining futures")?;
+                    let run_dir = test_iteration.run_dir.clone();
                     match test_iteration.evaluate() {
                         Ok(IterationResult::Success) => {
                             success_counter += 1;
                             if clean {
-                                let _ = remove_dir_all(&test_iteration.run_dir).await;
+                                let _ = remove_dir_all(run_dir).await;
                             }
                         }
                         Ok(IterationResult::Fail(e)) => {
