@@ -55,16 +55,9 @@ impl<N: TreeNode> StructDefinition<N> {
 
     /// Writes a Markdown formatted description of the struct.
     pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "```wdl\nstruct {} {{", self.name().text())?;
-        for member in self.members() {
-            writeln!(
-                f,
-                "  {} {}",
-                member.ty().inner().text(),
-                member.name().text()
-            )?;
-        }
-        writeln!(f, "}}\n```\n---")?;
+        writeln!(f, "```wdl")?;
+        writeln!(f, "{self}")?;
+        writeln!(f, "```\n---")?;
 
         if let Some(meta) = self.metadata().next()
             && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
@@ -90,6 +83,22 @@ impl<N: TreeNode> StructDefinition<N> {
             }
         }
 
+        Ok(())
+    }
+}
+
+impl<N: TreeNode> fmt::Display for StructDefinition<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "struct {} {{", self.name().text())?;
+        for member in self.members() {
+            writeln!(
+                f,
+                "  {} {}",
+                member.ty().inner().text(),
+                member.name().text()
+            )?;
+        }
+        writeln!(f, "}}")?;
         Ok(())
     }
 }

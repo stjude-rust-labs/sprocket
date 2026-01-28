@@ -16,6 +16,8 @@ use crate::command_section::CommandSectionExt;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::parse_meta;
+use crate::meta::parse_parameter_meta;
 use crate::parameter::Parameter;
 
 /// A task in a WDL document.
@@ -40,6 +42,12 @@ pub struct Task {
     ///
     /// Used to render the "run with" component.
     wdl_path: Option<PathBuf>,
+}
+
+impl DefinitionMeta for Task {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
 }
 
 impl Task {
@@ -200,10 +208,6 @@ impl Runnable for Task {
         &self.version
     }
 
-    fn meta(&self) -> &MetaMap {
-        &self.meta
-    }
-
     fn inputs(&self) -> &[Parameter] {
         &self.inputs
     }
@@ -263,6 +267,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
