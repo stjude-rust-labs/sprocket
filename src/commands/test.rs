@@ -193,7 +193,9 @@ fn evaluate_outputs(
     outputs: &wdl::engine::Outputs,
 ) -> Result<()> {
     for (name, fns) in assertions {
-        let output = outputs.get(name).expect("output should have been validated");
+        let output = outputs
+            .get(name)
+            .expect("output should have been validated");
         for func in fns {
             func.evaluate(output)
                 .with_context(|| format!("evalutating WDL output with name `{name}`"))?
