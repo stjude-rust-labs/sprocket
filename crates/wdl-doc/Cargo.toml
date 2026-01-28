@@ -27,8 +27,6 @@ wdl-ast = { path = "../wdl-ast", version = "0.20.0" }
 async-trait.workspace = true
 axum.workspace = true
 libtest-mimic = { workspace = true }
-fs_extra.workspace = true
-pretty_assertions.workspace = true
 thirtyfour = { git = "https://github.com/vrtgs/thirtyfour.git", rev = "0ea8e3b" }
 tower-http = { workspace = true, features = ["fs"] }
 tracing.workspace = true
