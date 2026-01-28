@@ -428,6 +428,8 @@ impl OutputAssertion {
                 }
             }
             OutputAssertion::Name(expected_name) => {
+                // `HostPath::as_str()` returns the absolute path instead of basename
+                todo!("implement `Name` assertion");
                 let real_name = if let Some(f) = output.as_file() {
                     f.as_str()
                 } else if let Some(d) = output.as_directory() {
