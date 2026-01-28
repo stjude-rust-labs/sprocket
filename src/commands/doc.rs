@@ -7,16 +7,22 @@ use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
+use wdl::ast::AstNode;
+use wdl::ast::Severity;
 use wdl::doc::AdditionalScript;
 use wdl::doc::Config;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
+use wdl::doc::error::DocError;
 use wdl::doc::install_theme;
 
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
+use crate::diagnostics::DiagnosticCounts;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -99,6 +105,15 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
+
+    // Diagnostics
+    /// Disables color output.
+    #[arg(long)]
+    pub no_color: bool,
+
+    /// The report mode.
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 }
 
 /// The default output directory for the generated documentation.
@@ -186,12 +201,46 @@ pub async fn doc(args: Args) -> CommandResult<()> {
         .additional_javascript(addl_js)
         .prefer_full_directory(!args.prioritize_workflows_view);
 
-    document_workspace(config).await.with_context(|| {
-        format!(
-            "failed to generate documentation for workspace at `{}`",
-            workspace.display()
-        )
-    })?;
+    let mut counts = DiagnosticCounts::default();
+    if let Err(e) = document_workspace(config).await {
+        match e {
+            DocError::AnalysisFailed(analysis_results) => {
+                for result in analysis_results {
+                    let path = result.document().path().to_string();
+                    let source = result.document().root().text().to_string();
+
+                    emit_diagnostics(
+                        &path,
+                        source,
+                        result.document().diagnostics().filter(|d| {
+                            if d.severity() == Severity::Error {
+                                counts.errors += 1;
+                                return true;
+                            }
+
+                            false
+                        }),
+                        &[],
+                        args.report_mode.unwrap_or_default(),
+                        args.no_color,
+                    )
+                    .context("failed to emit diagnostics")?;
+                }
+            }
+            DocError::Other(e) => {
+                return Err(e
+                    .context(format!(
+                        "failed to generate documentation for workspace at `{}`",
+                        workspace.display()
+                    ))
+                    .into());
+            }
+        }
+    }
+
+    if let Some(e) = counts.fail_errors() {
+        return Err(e.into());
+    }
 
     if args.open {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;

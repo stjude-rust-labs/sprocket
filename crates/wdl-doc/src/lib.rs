@@ -12,6 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 mod command_section;
 mod docs_tree;
 mod document;
+pub mod error;
 mod meta;
 mod parameter;
 mod runnable;
@@ -24,7 +25,6 @@ use std::path::absolute;
 use std::rc::Rc;
 
 use anyhow::Context;
-use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 pub use command_section::CommandSectionExt;
@@ -52,12 +52,14 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::version::V1;
 
+use crate::error::DocError;
+
 /// Start on the "Full Directory" left sidebar view instead of the
 /// "Workflows" view.
 const PREFER_FULL_DIRECTORY: bool = true;
 
 /// Install the theme dependencies using npm.
-pub fn install_theme(theme_dir: &Path) -> Result<()> {
+pub fn install_theme(theme_dir: &Path) -> anyhow::Result<()> {
     let theme_dir = absolute(theme_dir)?;
     if !theme_dir.exists() {
         bail!("theme directory does not exist: {}", theme_dir.display());
@@ -82,7 +84,7 @@ pub fn install_theme(theme_dir: &Path) -> Result<()> {
 }
 
 /// Build the web components for the theme.
-pub fn build_web_components(theme_dir: &Path) -> Result<()> {
+pub fn build_web_components(theme_dir: &Path) -> anyhow::Result<()> {
     let theme_dir = absolute(theme_dir)?;
     let output = std::process::Command::new("npm")
         .arg("run")
@@ -105,7 +107,7 @@ pub fn build_web_components(theme_dir: &Path) -> Result<()> {
 }
 
 /// Build a stylesheet for the documentation, using Tailwind CSS.
-pub fn build_stylesheet(theme_dir: &Path) -> Result<()> {
+pub fn build_stylesheet(theme_dir: &Path) -> anyhow::Result<()> {
     let theme_dir = absolute(theme_dir)?;
     let output = std::process::Command::new("npx")
         .arg("@tailwindcss/cli")
@@ -291,7 +293,7 @@ impl VersionBadge {
 async fn analyze_workspace(
     workspace_root: impl AsRef<Path>,
     config: AnalysisConfig,
-) -> Result<Vec<wdl_analysis::AnalysisResult>> {
+) -> Result<Vec<wdl_analysis::AnalysisResult>, DocError> {
     let workspace = workspace_root.as_ref();
     let analyzer = Analyzer::new(config, async |_, _, _, _| ());
     analyzer
@@ -304,32 +306,16 @@ async fn analyze_workspace(
         .with_context(|| "failed to analyze workspace".to_string())?;
 
     if results.is_empty() {
-        return Err(anyhow!("no WDL documents found in analysis",));
+        return Err(anyhow!("no WDL documents found in analysis",).into());
     }
     let mut workspace_in_results = false;
+    let mut has_errors = false;
     for r in &results {
-        if let Some(e) = r.error() {
-            return Err(anyhow!(
-                "failed to analyze WDL document `{}`: {}",
-                r.document().uri(),
-                e,
-            ));
-        }
-        if r.document().version().is_none() {
-            return Err(anyhow!(
-                "WDL document `{}` does not have a supported version",
-                r.document().uri()
-            ));
-        }
         if r.document()
-            .parse_diagnostics()
-            .iter()
+            .diagnostics()
             .any(|d| d.severity() == wdl_ast::Severity::Error)
         {
-            return Err(anyhow!(
-                "WDL document `{}` has parse errors",
-                r.document().uri(),
-            ));
+            has_errors = true;
         }
 
         if r.document()
@@ -345,7 +331,12 @@ async fn analyze_workspace(
         return Err(anyhow!(
             "workspace root `{root}` not found in analysis results",
             root = workspace.display(),
-        ));
+        )
+        .into());
+    }
+
+    if has_errors {
+        return Err(DocError::AnalysisFailed(results));
     }
 
     Ok(results)
@@ -464,7 +455,7 @@ impl Config {
 /// workspace directory. This function will overwrite any existing files which
 /// conflict with the generated files, but will not delete any files that
 /// are already present.
-pub async fn document_workspace(config: Config) -> Result<()> {
+pub async fn document_workspace(config: Config) -> Result<(), DocError> {
     let workspace_abs_path = absolute(&config.workspace)
         .with_context(|| {
             format!(
@@ -476,10 +467,11 @@ pub async fn document_workspace(config: Config) -> Result<()> {
     let homepage = config.homepage.and_then(|p| absolute(p).ok());
 
     if !workspace_abs_path.is_dir() {
-        bail!(
+        return Err(anyhow!(
             "workspace path `{}` is not a directory",
             workspace_abs_path.display()
-        );
+        )
+        .into());
     }
 
     let docs_dir = absolute(&config.output_dir)
@@ -499,14 +491,7 @@ pub async fn document_workspace(config: Config) -> Result<()> {
         })?;
     }
 
-    let results = analyze_workspace(&workspace_abs_path, config.analysis_config)
-        .await
-        .with_context(|| {
-            format!(
-                "workspace `{}` has errors and cannot be documented",
-                workspace_abs_path.display()
-            )
-        })?;
+    let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_homepage(homepage)

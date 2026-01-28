@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
   rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
 
+### Changed
+
+* `sprocket dev doc` will now **fail** in the presence of analysis errors ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+  that would produce invalid documentation.
+  * For example: `enum`s in versions < WDL v1.3, multiple workflows in a document, etc.
+
 ## 0.20.1 - 01-12-2026
 
 ### Dependencies
