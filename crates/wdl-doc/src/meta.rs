@@ -55,7 +55,7 @@ pub(crate) fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) ->
         .collect()
 }
 
-/// The source a [`MetaMap`] entry
+/// The source of a [`MetaMap`] entry
 #[derive(Debug, Clone)]
 pub(crate) enum MetaMapValueSource {
     /// The value comes from a `meta`/`parameter_meta` section in the document
@@ -476,7 +476,7 @@ pub(crate) trait DefinitionMeta {
     /// Get the [`MetaMap`] of the item.
     fn meta(&self) -> &MetaMap;
 
-    /// Render the description of the runnable as HTML.
+    /// Render the description of the item as HTML.
     ///
     /// This will always return some text; in the absence of a `description`
     /// key, it will return a default message ("No description provided").
