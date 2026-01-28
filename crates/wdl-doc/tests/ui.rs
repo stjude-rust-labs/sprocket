@@ -240,7 +240,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let args = libtest_mimic::Arguments::from_args();
 
     let mut caps = DesiredCapabilities::chrome();
-    caps.set_headless()?;
+    caps.add_arg("--headless=new")?;
+    caps.add_arg("--no-sandbox")?;
+    caps.add_arg("--disable-dev-shm-usage")?;
+    caps.add_arg("--disable-gpu")?;
     start_webdriver_process_full(
         WebDriverProcessPort::Port(WEB_DRIVER_PORT),
         WebDriverProcessBrowser::<ChromeCapabilities>::Caps(&caps),
