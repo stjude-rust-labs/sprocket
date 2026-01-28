@@ -193,7 +193,7 @@ fn evaluate_outputs(
     outputs: &wdl::engine::Outputs,
 ) -> Result<()> {
     for (name, fns) in assertions {
-        let output = outputs.get(name).expect("output should exist");
+        let output = outputs.get(name).expect("output should have been validated");
         for func in fns {
             func.evaluate(output)
                 .with_context(|| format!("evalutating WDL output with name `{name}`"))?
@@ -208,6 +208,7 @@ enum RunResult {
     Task(Box<Result<EvaluatedTask, EvaluationError>>),
 }
 
+#[derive(Debug)]
 struct TestIteration {
     name: Arc<String>,
     iteration_num: usize,

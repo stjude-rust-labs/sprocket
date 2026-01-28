@@ -215,8 +215,7 @@ pub(crate) struct Assertions {
     #[serde(default)]
     pub outputs: HashMap<String, Vec<OutputAssertion>>,
     /// A custom command to execute.
-    ///
-    /// TODO(Ari): implement this assertion.
+    // TODO(Ari): implement this assertion.
     #[allow(unused)]
     pub custom: Option<String>,
 }
@@ -307,10 +306,73 @@ pub(crate) enum OutputAssertion {
     // TODO(Ari): compile this as an RE?
     Contains(String),
     /// Does the WDL `File` or `Directory` have this basename?
+    // TODO(Ari): should this support glob patterns?
     Name(String),
 }
 
 impl OutputAssertion {
+    /// Ensure this assertion supports the expected [`Type`] of the output.
+    pub fn validate_type_congruence(&self, ty: &Type) -> Result<()> {
+        let (prim_ty, optional) = match ty {
+            Type::Primitive(prim_ty, optional) => (prim_ty, optional),
+            _ => {
+                bail!("only assertions for primitive WDL types are currently supported",);
+            }
+        };
+
+        match self {
+            OutputAssertion::Defined(_) => {
+                if !*optional {
+                    bail!("`Defined` can only be used on an optional WDL type")
+                } else {
+                    Ok(())
+                }
+            }
+            OutputAssertion::BoolEquals(_) => {
+                if matches!(prim_ty, PrimitiveType::Boolean) {
+                    Ok(())
+                } else {
+                    bail!("`BoolEquals` can only be used on `Boolean` WDL type")
+                }
+            }
+            OutputAssertion::StrEquals(_) => {
+                if matches!(prim_ty, PrimitiveType::String) {
+                    Ok(())
+                } else {
+                    bail!("`StrEquals` can only be used on `String` WDL type")
+                }
+            }
+            OutputAssertion::IntEquals(_) => {
+                if matches!(prim_ty, PrimitiveType::Integer) {
+                    Ok(())
+                } else {
+                    bail!("`IntEquals` can only be used on `Integer` WDL type")
+                }
+            }
+            OutputAssertion::FloatEquals(_) => {
+                if matches!(prim_ty, PrimitiveType::Float) {
+                    Ok(())
+                } else {
+                    bail!("`FloatEquals` can only be used on `Float` WDL type")
+                }
+            }
+            OutputAssertion::Contains(_) => {
+                if matches!(prim_ty, PrimitiveType::String) {
+                    Ok(())
+                } else {
+                    bail!("`Contains` can only be used on `String` WDL types")
+                }
+            }
+            OutputAssertion::Name(_) => {
+                if matches!(prim_ty, PrimitiveType::File | PrimitiveType::Directory) {
+                    Ok(())
+                } else {
+                    bail!("`Name` can only be used on `File` and `Directory` WDL types")
+                }
+            }
+        }
+    }
+
     /// Evaluate this assertion for the given WDL engine output.
     ///
     /// # Panics
@@ -381,71 +443,10 @@ impl OutputAssertion {
             }
         }
     }
-
-    /// Ensure this assertion supports the expected [`Type`] of the output.
-    pub fn validate_type_congruence(&self, ty: &Type) -> Result<()> {
-        let (prim_ty, optional) = match ty {
-            Type::Primitive(prim_ty, optional) => (prim_ty, optional),
-            _ => {
-                bail!("only assertions for primitive WDL types are currently supported",);
-            }
-        };
-
-        match self {
-            OutputAssertion::Defined(_) => {
-                if !*optional {
-                    bail!("`Defined` can only be used on an optional WDL type")
-                } else {
-                    Ok(())
-                }
-            }
-            OutputAssertion::BoolEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Boolean) {
-                    Ok(())
-                } else {
-                    bail!("`BoolEquals` can only be used on `Boolean` WDL type")
-                }
-            }
-            OutputAssertion::StrEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::String) {
-                    Ok(())
-                } else {
-                    bail!("`StrEquals` can only be used on `String` WDL type")
-                }
-            }
-            OutputAssertion::IntEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Integer) {
-                    Ok(())
-                } else {
-                    bail!("`IntEquals` can only be used on `Integer` WDL type")
-                }
-            }
-            OutputAssertion::FloatEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Float) {
-                    Ok(())
-                } else {
-                    bail!("`FloatEquals` can only be used on `Float` WDL type")
-                }
-            }
-            OutputAssertion::Contains(_) => {
-                if matches!(prim_ty, PrimitiveType::String) {
-                    Ok(())
-                } else {
-                    bail!("`Contains` can only be used on `String` WDL types")
-                }
-            }
-            OutputAssertion::Name(_) => {
-                if matches!(prim_ty, PrimitiveType::File | PrimitiveType::Directory) {
-                    Ok(())
-                } else {
-                    bail!("`Name` can only be used on `File` and `Directory` WDL types")
-                }
-            }
-        }
-    }
 }
 
 /// Parsed assertions for a test.
+#[derive(Debug)]
 pub(crate) struct ParsedAssertions {
     /// The expected exit code of the task (ignored when testing workflows).
     pub exit_code: i32,
@@ -460,8 +461,7 @@ pub(crate) struct ParsedAssertions {
     /// Assertions about WDL outputs.
     pub outputs: HashMap<String, Vec<OutputAssertion>>,
     /// A custom command to execute.
-    ///
-    /// TODO(Ari): implement this assertion.
+    // TODO(Ari): implement this assertion.
     #[allow(unused)]
     pub custom: Option<String>,
 }
