@@ -113,7 +113,7 @@ pub struct Args {
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: wdl::engine::config::Config,
+    pub engine: wdl::engine::Config,
 }
 
 impl Args {
@@ -311,7 +311,7 @@ async fn launch_tests(
     tests: DocumentTests,
     root: &Path,
     fixtures: &Arc<OriginPaths>,
-    engine: &Arc<wdl::engine::config::Config>,
+    engine: &Arc<wdl::engine::Config>,
     errors: &mut Vec<Arc<anyhow::Error>>,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {

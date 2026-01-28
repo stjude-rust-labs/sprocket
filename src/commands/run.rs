@@ -30,6 +30,7 @@ use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Config as WdlEngineConfig;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
@@ -115,10 +116,10 @@ pub struct Args {
 
     /// The root "runs" directory; defaults to `./runs/`.
     ///
-    /// Individual invocations of `sprocket run` will nest their execution
+    /// Individual sessions of `sprocket run` will nest their execution
     /// directories beneath this root directory at the path
     /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// invocation will be symlinked at `<entrypoint name>/_latest`.
+    /// session will be symlinked at `<entrypoint name>/_latest`.
     #[clap(short, long, value_name = "ROOT_DIR")]
     pub runs_dir: Option<PathBuf>,
 
@@ -192,6 +193,15 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// The engine configuration to use.
+    ///
+    /// This is not exposed via [`clap`] and is not settable by users.
+    /// It will always be overwritten by the engine config provided by the user
+    /// (which will be set with `Default::default()` if the user does not
+    /// explicitly set `run` config values).
+    #[clap(skip)]
+    pub engine: WdlEngineConfig,
 }
 
 impl Args {
@@ -208,7 +218,7 @@ impl Args {
     }
 
     /// Applies the CLI arguments to the given engine configuration.
-    fn apply_engine_config(&self, config: &mut wdl::engine::config::Config) {
+    fn apply_engine_config(&self, config: &mut wdl::engine::Config) {
         // Apply the Azure auth to the engine config
         if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
             let auth = config.storage.azure.auth.get_or_insert_default();

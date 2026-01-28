@@ -42,6 +42,8 @@ mod config;
 mod diagnostics;
 mod eval;
 mod inputs;
+pub mod server;
+pub mod system;
 mod test;
 
 /// The Sprocket ignore file name.
@@ -119,7 +121,7 @@ async fn real_main() -> CommandResult<()> {
         }
         _ => {
             // For all other commands, load config normally
-            let config = Config::new(
+            let mut config = Config::new(
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
             )?;
@@ -151,6 +153,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
+        Commands::Dev(commands::DevCommands::Server(args)) => {
+            commands::server::server(args, config).await
+        }
         Commands::Dev(commands::DevCommands::Test(args)) => {
             commands::test::test(args.apply(config)).await
         }
