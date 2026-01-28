@@ -22,7 +22,8 @@ fn preamble_comment_outside_preamble(span: Span) -> Diagnostic {
     Diagnostic::note("preamble comment after the version statement")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("do not use `##` comments outside the preamble")
+        .with_help("freestanding doc comments (`##`) are assumed to be preamble comments")
+        .with_fix("move the preamble comment before the `version` statement")
 }
 
 /// A lint rule for flagging preamble comments which are outside the preamble.
@@ -33,7 +34,7 @@ pub struct PreambleCommentPlacementRule {
     /// The number of comment tokens to skip.
     ///
     /// This is used when consolidating multiple comments into a single
-    /// diagnositc.
+    /// diagnostic.
     skip_count: usize,
 }
 
@@ -48,7 +49,8 @@ impl Rule for PreambleCommentPlacementRule {
 
     fn explanation(&self) -> &'static str {
         "Preamble comments should only appear in the preamble section of a WDL document. This rule \
-         ensures that double-pound comments (`##`) are not used after the version statement."
+         ensures that freestanding double-pound comments (`##`) are not used after the version \
+         statement."
     }
 
     fn tags(&self) -> TagSet {
@@ -96,6 +98,17 @@ impl Visitor for PreambleCommentPlacementRule {
 
         let mut span = comment.span();
         let mut current = comment.inner().next_sibling_or_token();
+
+        // Floating comments aren't allowed. For example:
+        //
+        // ```
+        // ## I'm not documenting the struct!
+        //
+        // struct Foo {}
+        // ```
+        //
+        // So any floating comments are assumed to be preamble comments
+        let mut floating = false;
         while let Some(sibling) = current {
             match sibling.kind() {
                 SyntaxKind::Comment => {
@@ -118,7 +131,9 @@ impl Visitor for PreambleCommentPlacementRule {
                     )
                 }
                 SyntaxKind::Whitespace => {
-                    // Skip whitespace
+                    if let Some(token) = sibling.as_token() {
+                        floating = token.text().chars().filter(|c| *c == '\n').count() > 1;
+                    };
                 }
                 _ => break,
             }
@@ -126,10 +141,12 @@ impl Visitor for PreambleCommentPlacementRule {
             current = sibling.next_sibling_or_token();
         }
 
-        diagnostics.exceptable_add(
-            preamble_comment_outside_preamble(span),
-            SyntaxElement::from(comment.inner().clone()),
-            &self.exceptable_nodes(),
-        );
+        if floating {
+            diagnostics.exceptable_add(
+                preamble_comment_outside_preamble(span),
+                SyntaxElement::from(comment.inner().clone()),
+                &self.exceptable_nodes(),
+            );
+        }
     }
 }
