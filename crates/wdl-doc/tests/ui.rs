@@ -15,6 +15,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use anyhow::bail;
 use axum::Router;
@@ -33,6 +34,7 @@ use thirtyfour::start_webdriver_process_full;
 use thirtyfour::support::block_on;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use tokio::task::JoinSet;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_doc::Config;
 use wdl_doc::document_workspace;
@@ -112,7 +114,7 @@ impl TestCategoryDirs {
 
 /// Finds all UI tests and sets up libtest `Trials` for each.
 fn find_tests(
-    addresses: &HashMap<String, SocketAddr>,
+    addresses: &ServerAddressMap,
     driver: Arc<Mutex<WebDriver>>,
     primary_window: WindowHandle,
 ) -> anyhow::Result<Vec<Trial>> {
@@ -226,6 +228,45 @@ fn router(category: &str) -> Router {
     ))
 }
 
+/// Map of `test category` -> server address.
+type ServerAddressMap = HashMap<&'static str, SocketAddr>;
+
+/// Setup a web server for each test category.
+async fn setup_web_servers() -> anyhow::Result<Arc<Mutex<ServerAddressMap>>> {
+    let addresses = Arc::new(Mutex::new(HashMap::new()));
+
+    let mut set = JoinSet::new();
+
+    for category in TEST_CATEGORIES.keys().copied() {
+        let addresses = addresses.clone();
+        set.spawn(async move {
+            generate_docs_if_needed(category).await?;
+            let listener = tokio::net::TcpListener::bind("localhost:0").await?;
+            let addr = listener.local_addr()?;
+
+            tracing::info!("Listening on '{addr}' for category '{category}'");
+
+            addresses.lock().await.insert(category, addr);
+
+            tokio::spawn(async move {
+                let _ = axum::serve(listener, router(category)).await;
+            });
+
+            Ok(())
+        });
+    }
+
+    let wait_for_setup = async {
+        let results = set.join_all().await;
+        results.into_iter().collect::<anyhow::Result<_>>()
+    };
+
+    match tokio::time::timeout(Duration::from_secs(10), wait_for_setup).await? {
+        Ok(()) => Ok(addresses),
+        Err(e) => Err(e),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     const WEB_DRIVER_PORT: u16 = 9515;
@@ -251,30 +292,8 @@ async fn main() -> Result<(), anyhow::Error> {
     )
     .expect("failed to start web driver process");
 
-    let addresses = Arc::new(Mutex::new(HashMap::new()));
-    for category in TEST_CATEGORIES.keys() {
-        let addresses = addresses.clone();
-        tokio::spawn(async move {
-            if let Err(e) = generate_docs_if_needed(category).await {
-                tracing::error!("failed to generate docs for category '{category}'");
-                return Err(e);
-            }
-
-            let listener = tokio::net::TcpListener::bind("0.0.0.0:0").await?;
-            let addr = listener.local_addr()?;
-
-            tracing::info!("Listening on '{addr}' for category '{category}'");
-
-            addresses.lock().await.insert(category.to_string(), addr);
-
-            let router = router(category);
-            axum::serve(listener, router).await.unwrap();
-
-            Ok(())
-        });
-    }
-
-    let driver = WebDriver::new(format!("http://127.0.0.1:{WEB_DRIVER_PORT}"), caps).await?;
+    let addresses = setup_web_servers().await?;
+    let driver = WebDriver::new(format!("http://localhost:{WEB_DRIVER_PORT}"), caps).await?;
 
     // The initial blank page
     let primary_window = driver.window().await?;
