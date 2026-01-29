@@ -13,6 +13,7 @@ use wdl_ast::v1::StructDefinition;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
+use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -43,7 +44,7 @@ impl Member {
     pub fn full_description(&self) -> String {
         self.meta
             .full_description()
-            .unwrap_or_else(|| String::from("No description provided"))
+            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
     }
 }
 
