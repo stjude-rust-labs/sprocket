@@ -2,6 +2,8 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Display;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::path::Path;
 
 use maud::Markup;
@@ -103,7 +105,7 @@ pub(crate) type MetaMap = BTreeMap<String, MetaMapValueSource>;
 /// An extension trait for [`MetaMap`] to provide additional functionality
 /// commonly used in WDL documentation generation.
 pub(crate) trait MetaMapExt {
-    /// Returns the "full" description for an item
+    /// Returns the "full" description for an item.
     ///
     /// This is a concatenation of `description` and `help`. If neither is
     /// present, this will return `None`.
@@ -397,19 +399,26 @@ pub(crate) fn summarize_if_needed(
 ///
 /// Internally, this retains the line breaks as they appear in the document.
 /// When rendered, the lines are joined with spaces.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Paragraph(Vec<String>);
-
-impl Paragraph {
-    /// Whether this paragraph contains text
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
 
 impl Display for Paragraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0.join(" "))
+    }
+}
+
+impl Deref for Paragraph {
+    type Target = Vec<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Paragraph {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -421,7 +430,7 @@ impl Display for Paragraph {
 pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap {
     let mut map = MetaMap::new();
 
-    let mut current_paragraph = Paragraph(Vec::new());
+    let mut current_paragraph = Paragraph::default();
     let mut paragraphs = Vec::new();
     for token in token.preceding_trivia() {
         match token.kind() {
@@ -433,11 +442,11 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
                 let comment = comment.trim();
                 if comment.is_empty() {
                     paragraphs.push(current_paragraph);
-                    current_paragraph = Paragraph(Vec::new());
+                    current_paragraph = Paragraph::default();
                     continue;
                 }
 
-                current_paragraph.0.push(comment.to_owned());
+                current_paragraph.push(comment.to_owned());
             }
             SyntaxKind::Whitespace => continue,
             _ => break,
