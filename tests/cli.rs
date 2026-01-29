@@ -23,24 +23,20 @@
 
 use std::env;
 use std::ffi::OsStr;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
-use std::process::exit;
-use std::thread::available_parallelism;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use colored::Colorize;
-use futures::StreamExt;
-use futures::stream;
+use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
 use tempfile::NamedTempFile;
 use tempfile::TempDir;
-use tokio::fs;
 use tracing::debug;
 use walkdir::WalkDir;
 
@@ -80,33 +76,29 @@ struct CommandOutput {
 }
 
 /// Runs a test given the test root directory.
-async fn run_test(test_path: &Path) -> Result<()> {
+fn run_test(test_path: &Path) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
-        .await
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, working_test_directory.path())
-        .await
         .context("failed to run sprocket command")?;
-    compare_test_results(test_path, working_test_directory.path(), &command_output).await
+    compare_test_results(test_path, working_test_directory.path(), &command_output)
 }
 
 /// Sets up the working test directory by copying initial files.
-async fn setup_working_test_directory(test_path: &Path) -> Result<TempDir> {
+fn setup_working_test_directory(test_path: &Path) -> Result<TempDir> {
     let inputs_directory = test_path.join("inputs");
     let working_test_directory = TempDir::new().context("failed to create temp directory")?;
     if inputs_directory.exists() {
         recursive_copy(&inputs_directory, working_test_directory.path())
-            .await
             .context("failed to copy input files to temp directory")?;
     }
     Ok(working_test_directory)
 }
 
 /// Recursively copies the source path to the target path.
-async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
+fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
     if !target.exists() {
         fs::create_dir_all(target)
-            .await
             .with_context(|| format!("failed to create target directory {target:?}"))
             .with_context(|| format!("failed to create base directory at {target:?}"))?;
     }
@@ -119,30 +111,26 @@ async fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
         let to = target.join(normalized_relative_path);
         if entry.file_type().is_dir() {
             fs::create_dir_all(&to)
-                .await
                 .with_context(|| format!("failed to create directory at {:?}", &to))?;
         } else {
-            fs::copy(&from, &to)
-                .await
-                .with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(&from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
         }
     }
     Ok(())
 }
 
 /// Runs sprocket for a test.
-async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
+fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
     debug!(test_path = %test_path.display(), "running Sprocket for test");
     let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
-        .await
         .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
 
-    let env_config = resolve_env_config(test_path).await?;
+    let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
         // If an overridden config has been specified via environment variables,
         // synthesize a Sprocket config with that config.
@@ -182,7 +170,7 @@ async fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result
 /// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized
 ///   [`wdl::engine::config::Config`] that will be substituted in place of the
 ///   default engine config for all of the `run/` tests.
-async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
+fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
     let mut sprocket_config = sprocket::Config::default();
     // For `run` tests, allow overriding the engine config. We restrict the override
@@ -192,7 +180,7 @@ async fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     if test_path.starts_with("tests/cli/run")
         && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
     {
-        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config).await?)?;
+        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config)?)?;
         config_overridden = true;
     }
 
@@ -217,9 +205,8 @@ fn normalize_string(input: &str) -> String {
 }
 
 /// Compares the contents in the expected file with the actual test results.
-async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
+fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let expected = fs::read_to_string(expected_path)
-        .await
         .with_context(|| format!("failed to read result file {expected_path:?}"))?;
 
     let expected = normalize_string(&expected);
@@ -238,11 +225,10 @@ async fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
 }
 
 /// Compares the contents of two text files.
-async fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
+fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
-        .await
         .with_context(|| format!("failed to read actual file {actual_path:?}"))?;
-    compare_results(expected_path, &actual).await
+    compare_results(expected_path, &actual)
 }
 
 /// Builds a list of entry paths in a directory relative to the directory's
@@ -282,7 +268,7 @@ fn get_paths_shared_by_left_and_right_sides(left: &[PathBuf], right: &[PathBuf])
 }
 
 /// Recursively compares the contents of two paths.
-async fn recursive_compare(expected_path: &Path, actual_path: &Path) -> Result<()> {
+fn recursive_compare(expected_path: &Path, actual_path: &Path) -> Result<()> {
     let expected_relative_path_list = build_relative_path_list(expected_path)?;
     let actual_relative_path_list = build_relative_path_list(actual_path)?;
     if expected_relative_path_list != actual_relative_path_list {
@@ -317,7 +303,7 @@ __UNEXPECTED_FILES_FOUND__
         for relative_path in expected_relative_path_list {
             let expected_full_path = expected_path.join(&relative_path);
             let actual_full_path = actual_path.join(&relative_path);
-            if let Err(result) = compare_files(&expected_full_path, &actual_full_path).await {
+            if let Err(result) = compare_files(&expected_full_path, &actual_full_path) {
                 failed_comparisons.push(result);
             }
         }
@@ -336,7 +322,7 @@ __UNEXPECTED_FILES_FOUND__
 }
 
 /// Compares the result of the command output with the expected baseline.
-async fn compare_test_results(
+fn compare_test_results(
     test_path: &Path,
     working_test_directory: &Path,
     command_output: &CommandOutput,
@@ -349,86 +335,54 @@ async fn compare_test_results(
 
     if env::var_os("BLESS").is_some() {
         fs::write(&expected_stderr_file, &command_output.stderr)
-            .await
             .context("failed to write stderr output")?;
         fs::write(&expected_stdout_file, &command_output.stdout)
-            .await
             .context("failed to write stdout output")?;
-        fs::remove_dir_all(&expected_output_dir)
-            .await
-            .unwrap_or_default();
+        fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
             &command_output.exit_code.to_string(),
         )
-        .await
         .context("failed to write exit code")?;
 
         if expects_outputs {
-            recursive_copy(working_test_directory, &expected_output_dir)
-                .await
-                .context(
-                    "failed to copy output files from test results to setup new expected outputs",
-                )?;
+            recursive_copy(working_test_directory, &expected_output_dir).context(
+                "failed to copy output files from test results to setup new expected outputs",
+            )?;
         }
     }
-    compare_results(&expected_stderr_file, &command_output.stderr).await?;
-    compare_results(&expected_stdout_file, &command_output.stdout).await?;
+    compare_results(&expected_stderr_file, &command_output.stderr)?;
+    compare_results(&expected_stdout_file, &command_output.stdout)?;
 
     if expects_outputs {
-        recursive_compare(&expected_output_dir, working_test_directory).await?;
+        recursive_compare(&expected_output_dir, working_test_directory)?;
     }
 
     compare_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
-    )
-    .await?;
+    )?;
     Ok(())
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    let args = libtest_mimic::Arguments::from_args();
+
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
-    let mut futures = Vec::new();
-    let mut errors = Vec::new();
-    for test in &tests {
-        let test_name = get_test_name(test, test_root);
-        futures.push(async { (test_name, run_test(test).await) })
-    }
 
-    let mut stream = stream::iter(futures)
-        .buffer_unordered(available_parallelism().map(Into::into).unwrap_or(1));
-    while let Some((test_name, result)) = stream.next().await {
-        match result {
-            Ok(_) => {
-                println!("test {test_name} ... {ok}", ok = "ok".green());
-            }
-            Err(e) => {
-                println!("test {test_name} ... {failed}", failed = "failed".red());
-                errors.push((test_name, format!("{e:#}")));
-            }
-        }
-    }
+    let trials = tests
+        .into_iter()
+        .map(|test| {
+            Trial::test(get_test_name(&test, test_root), move || {
+                run_test(&test).map_err(Into::into)
+            })
+        })
+        .collect();
 
-    if !errors.is_empty() {
-        eprintln!(
-            "\n{count} test(s) {failed}:",
-            count = errors.len(),
-            failed = "failed".red()
-        );
-
-        for (name, msg) in errors.iter() {
-            eprintln!("{name}: {msg}", msg = msg.red());
-        }
-
-        exit(1);
-    } else {
-        println!("\ntest result: ok. {count} passed\n", count = tests.len());
-    }
+    libtest_mimic::run(&args, trials).exit();
 }
