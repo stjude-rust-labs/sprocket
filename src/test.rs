@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::once;
+use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -16,6 +17,7 @@ use serde_yaml_ng::Mapping;
 use serde_yaml_ng::Value;
 use tracing::warn;
 use wdl::analysis::document::Output;
+use wdl::analysis::types::CompoundType;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
@@ -308,69 +310,113 @@ pub(crate) enum OutputAssertion {
     /// Does the WDL `File` or `Directory` have this basename?
     // TODO(Ari): should this support glob patterns?
     Name(String),
+    /// Unpacks the first element of an `Array` and applies the inner assertion
+    /// on that element.
+    First(Box<OutputAssertion>),
+    /// Unpacks the first element of an `Array` and applies the inner assertion
+    /// on that element.
+    Last(Box<OutputAssertion>),
+    /// Does the WDL `String` or `Array` have this length?
+    Length(usize),
+}
+
+impl std::fmt::Display for OutputAssertion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Defined(_) => write!(f, "Defined")?,
+            Self::BoolEquals(_) => write!(f, "BoolEquals")?,
+            Self::StrEquals(_) => write!(f, "StrEquals")?,
+            Self::IntEquals(_) => write!(f, "IntEquals")?,
+            Self::FloatEquals(_) => write!(f, "FloatEquals")?,
+            Self::Contains(_) => write!(f, "Contains")?,
+            Self::Name(_) => write!(f, "Name")?,
+            Self::First(_) => write!(f, "First")?,
+            Self::Last(_) => write!(f, "Last")?,
+            Self::Length(_) => write!(f, "Length")?,
+        }
+        Ok(())
+    }
 }
 
 impl OutputAssertion {
     /// Ensure this assertion supports the expected [`Type`] of the output.
     pub fn validate_type_congruence(&self, ty: &Type) -> Result<()> {
-        let (prim_ty, optional) = match ty {
-            Type::Primitive(prim_ty, optional) => (prim_ty, optional),
+        match ty {
+            Type::Primitive(prim_ty, optional) => {
+                if matches!(self, Self::Defined(_)) && !*optional {
+                    bail!("`{self}` assertion can only be used on an optional WDL type")
+                }
+                let mut valid = true;
+                match prim_ty {
+                    PrimitiveType::Boolean => {
+                        if !matches!(self, Self::BoolEquals(_)) {
+                            valid = false;
+                        }
+                    }
+                    PrimitiveType::Directory => {
+                        if !matches!(self, Self::Name(_)) {
+                            valid = false;
+                        }
+                    }
+                    PrimitiveType::File => {
+                        if !matches!(self, Self::Name(_)) {
+                            valid = false;
+                        }
+                    }
+                    PrimitiveType::Float => {
+                        if !matches!(self, Self::FloatEquals(_)) {
+                            valid = false;
+                        }
+                    }
+                    PrimitiveType::Integer => {
+                        if !matches!(self, Self::IntEquals(_)) {
+                            valid = false;
+                        }
+                    }
+                    PrimitiveType::String => {
+                        if !matches!(
+                            self,
+                            Self::Contains(_) | Self::StrEquals(_) | Self::Length(_)
+                        ) {
+                            valid = false;
+                        }
+                    }
+                }
+                if !valid {
+                    bail!("`{self}` assertion cannot be used on `{prim_ty}` WDL type")
+                }
+            }
+            Type::Compound(comp_ty, optional) => {
+                if matches!(self, Self::Defined(_)) && !*optional {
+                    bail!("`{self}` assertion can only be used on an optional WDL type")
+                }
+                let mut valid = true;
+                match comp_ty {
+                    CompoundType::Array(arr_ty) => match self {
+                        Self::Length(_) => {}
+                        Self::First(inner) | Self::Last(inner) => {
+                            inner.validate_type_congruence(arr_ty.element_type())?;
+                        }
+                        _ => {
+                            valid = false;
+                        }
+                    },
+                    _ => {
+                        todo!("other compound types")
+                    }
+                }
+                if !valid {
+                    bail!("`{self}` assertion cannot be used on `{comp_ty}` WDL type")
+                }
+            }
+            Type::TypeNameRef(_custom_ty) => {
+                todo!("struct/enum assertions")
+            }
             _ => {
-                bail!("only assertions for primitive WDL types are currently supported",);
-            }
-        };
-
-        match self {
-            OutputAssertion::Defined(_) => {
-                if !*optional {
-                    bail!("`Defined` can only be used on an optional WDL type")
-                } else {
-                    Ok(())
-                }
-            }
-            OutputAssertion::BoolEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Boolean) {
-                    Ok(())
-                } else {
-                    bail!("`BoolEquals` can only be used on `Boolean` WDL type")
-                }
-            }
-            OutputAssertion::StrEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::String) {
-                    Ok(())
-                } else {
-                    bail!("`StrEquals` can only be used on `String` WDL type")
-                }
-            }
-            OutputAssertion::IntEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Integer) {
-                    Ok(())
-                } else {
-                    bail!("`IntEquals` can only be used on `Integer` WDL type")
-                }
-            }
-            OutputAssertion::FloatEquals(_) => {
-                if matches!(prim_ty, PrimitiveType::Float) {
-                    Ok(())
-                } else {
-                    bail!("`FloatEquals` can only be used on `Float` WDL type")
-                }
-            }
-            OutputAssertion::Contains(_) => {
-                if matches!(prim_ty, PrimitiveType::String) {
-                    Ok(())
-                } else {
-                    bail!("`Contains` can only be used on `String` WDL types")
-                }
-            }
-            OutputAssertion::Name(_) => {
-                if matches!(prim_ty, PrimitiveType::File | PrimitiveType::Directory) {
-                    Ok(())
-                } else {
-                    bail!("`Name` can only be used on `File` and `Directory` WDL types")
-                }
+                unreachable!("unexpected type for an output")
             }
         }
+        Ok(())
     }
 
     /// Evaluate this assertion for the given WDL engine output.
@@ -381,69 +427,90 @@ impl OutputAssertion {
     /// variant. See [`validate_type_congruence`].
     pub fn evaluate(&self, output: &wdl::engine::Value) -> Result<()> {
         match self {
-            OutputAssertion::Defined(should_exist) => match (*should_exist, !output.is_none()) {
-                (true, true) => Ok(()),
-                (false, false) => Ok(()),
+            Self::Defined(should_exist) => match (*should_exist, !output.is_none()) {
+                (true, true) => {}
+                (false, false) => {}
                 (true, false) => bail!("output should be defined but is `None`"),
                 (false, true) => bail!("output should be `None` but is defined"),
             },
-            OutputAssertion::BoolEquals(should_equal) => {
+            Self::BoolEquals(should_equal) => {
                 let o = output.as_boolean().expect("type should be validated");
-                if *should_equal == o {
-                    Ok(())
-                } else {
+                if *should_equal != o {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
-            OutputAssertion::StrEquals(should_equal) => {
+            Self::StrEquals(should_equal) => {
                 let o = output.as_string().expect("type should be validated");
-                if *should_equal == **o {
-                    Ok(())
-                } else {
+                if *should_equal != **o {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
-            OutputAssertion::IntEquals(should_equal) => {
+            Self::IntEquals(should_equal) => {
                 let o = output.as_integer().expect("type should be validated");
-                if *should_equal == o {
-                    Ok(())
-                } else {
+                if *should_equal != o {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
-            OutputAssertion::FloatEquals(should_equal) => {
+            Self::FloatEquals(should_equal) => {
                 let o = output.as_float().expect("type should be validated");
-                if *should_equal == o {
-                    Ok(())
-                } else {
+                if *should_equal != o {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
-            OutputAssertion::Contains(should_contain) => {
+            Self::Contains(should_contain) => {
                 let o = output.as_string().expect("type should be validated");
-                if o.contains(should_contain) {
-                    Ok(())
-                } else {
+                if !o.contains(should_contain) {
                     bail!("output `{o}` does not contain `{should_contain}`")
                 }
             }
-            OutputAssertion::Name(expected_name) => {
-                // `HostPath::as_str()` returns the absolute path instead of basename
-                todo!("implement `Name` assertion");
-                let real_name = if let Some(f) = output.as_file() {
+            Self::Name(expected_name) => {
+                let path = if let Some(f) = output.as_file() {
                     f.as_str()
                 } else if let Some(d) = output.as_directory() {
                     d.as_str()
                 } else {
-                    panic!("type should be validated")
+                    unreachable!("type should be validated")
                 };
-                if expected_name == real_name {
-                    Ok(())
-                } else {
+                let Some(real_name) = Path::new(path).file_name() else {
+                    bail!("couldn't resolve filename from `{path}`")
+                };
+                let real_name = real_name.to_string_lossy();
+                if *expected_name != real_name {
                     bail!("output has name `{real_name}`, not `{expected_name}`")
                 }
             }
+            Self::Length(expected_len) => {
+                let real_len = if let Some(a) = output.as_array() {
+                    a.len()
+                } else if let Some(s) = output.as_string() {
+                    s.chars().count()
+                } else {
+                    unreachable!("type should be validated")
+                };
+                if *expected_len != real_len {
+                    bail!("output has length `{real_len}`, not `{expected_len}`")
+                }
+            }
+            Self::First(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                let first = if let Some(f) = o.as_slice().first() {
+                    f
+                } else {
+                    bail!("can't take `{self}` of an empty `Array`")
+                };
+                inner.evaluate(first)?;
+            }
+            Self::Last(inner) => {
+                let o = output.as_array().expect("type should be validated");
+                let last = if let Some(l) = o.as_slice().last() {
+                    l
+                } else {
+                    bail!("can't take `{self}` of an empty `Array`")
+                };
+                inner.evaluate(last)?;
+            }
         }
+        Ok(())
     }
 }
 
