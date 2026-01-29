@@ -61,8 +61,7 @@ pub enum DocErrorKind {
     Analyzer(anyhow::Error),
     /// One or more documents failed analysis.
     ///
-    /// NOTE: This contains *all* analysis results, including those of valid
-    /// documents.
+    /// This contains the analysis results of all failed documents.
     AnalysisFailed(Vec<AnalysisResult>),
     /// Failed to run an `npm` command.
     Npm(NpmError),

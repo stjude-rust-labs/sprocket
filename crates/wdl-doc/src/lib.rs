@@ -321,13 +321,13 @@ async fn analyze_workspace(
         return Err(DocError::new(DocErrorKind::NoDocuments));
     }
     let mut workspace_in_results = false;
-    let mut has_errors = false;
+    let mut failed = Vec::new();
     for r in &results {
         if r.document()
             .diagnostics()
             .any(|d| d.severity() == wdl_ast::Severity::Error)
         {
-            has_errors = true;
+            failed.push(r.clone());
         }
 
         if r.document()
@@ -345,8 +345,8 @@ async fn analyze_workspace(
         )));
     }
 
-    if has_errors {
-        return Err(DocError::new(DocErrorKind::AnalysisFailed(results)));
+    if !failed.is_empty() {
+        return Err(DocError::new(DocErrorKind::AnalysisFailed(failed)));
     }
 
     Ok(results)
