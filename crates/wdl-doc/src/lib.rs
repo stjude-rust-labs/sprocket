@@ -89,7 +89,7 @@ pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
         })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(NpmError::Install(IoError::new(ErrorKind::Other, stderr)).into());
+        return Err(NpmError::Install(IoError::other(stderr)).into());
     }
     Ok(())
 }
@@ -112,7 +112,7 @@ pub fn build_web_components(theme_dir: &Path) -> DocResult<()> {
         })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(NpmError::Build(IoError::new(ErrorKind::Other, stderr)).into());
+        return Err(NpmError::Build(IoError::other(stderr)).into());
     }
     Ok(())
 }
@@ -130,7 +130,7 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
         .output()?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(NpmError::Tailwind(IoError::new(ErrorKind::Other, stderr)).into());
+        return Err(NpmError::Tailwind(IoError::other(stderr)).into());
     }
     let css_path = theme_dir.join("dist/style.css");
     if !css_path.exists() {

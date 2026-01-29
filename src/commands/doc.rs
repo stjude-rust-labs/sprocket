@@ -11,10 +11,10 @@ use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::doc::AdditionalScript;
 use wdl::doc::Config;
-use wdl::doc::DocError;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
+use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
 use crate::IGNORE_FILENAME;
@@ -202,39 +202,40 @@ pub async fn doc(args: Args) -> CommandResult<()> {
         .prefer_full_directory(!args.prioritize_workflows_view);
 
     let mut counts = DiagnosticCounts::default();
-    match document_workspace(config).await {
-        Err(DocError::AnalysisFailed(analysis_results)) => {
-            for result in analysis_results {
-                let path = result.document().path().to_string();
-                let source = result.document().root().text().to_string();
+    if let Err(e) = document_workspace(config).await {
+        match e.kind() {
+            DocErrorKind::AnalysisFailed(analysis_results) => {
+                for result in analysis_results {
+                    let path = result.document().path().to_string();
+                    let source = result.document().root().text().to_string();
 
-                emit_diagnostics(
-                    &path,
-                    source,
-                    result.document().diagnostics().filter(|d| {
-                        if d.severity() == Severity::Error {
-                            counts.errors += 1;
-                            return true;
-                        }
+                    emit_diagnostics(
+                        &path,
+                        source,
+                        result.document().diagnostics().filter(|d| {
+                            if d.severity() == Severity::Error {
+                                counts.errors += 1;
+                                return true;
+                            }
 
-                        false
-                    }),
-                    &[],
-                    args.report_mode.unwrap_or_default(),
-                    args.no_color,
-                )
-                .context("failed to emit diagnostics")?;
+                            false
+                        }),
+                        &[],
+                        args.report_mode.unwrap_or_default(),
+                        args.no_color,
+                    )
+                    .context("failed to emit diagnostics")?;
+                }
+            }
+            _ => {
+                return Err(anyhow::Error::new(e)
+                    .context(format!(
+                        "failed to generate documentation for workspace at `{}`",
+                        workspace.display()
+                    ))
+                    .into());
             }
         }
-        Err(DocError::Other(e)) => {
-            return Err(e
-                .context(format!(
-                    "failed to generate documentation for workspace at `{}`",
-                    workspace.display()
-                ))
-                .into());
-        }
-        Ok(()) => {}
     }
 
     if let Some(e) = counts.verify_no_errors() {
