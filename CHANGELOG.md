@@ -14,9 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* `sprocket dev doc` will now **fail** in the presence of analysis errors ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
-  that would produce invalid documentation.
-  * For example: `enum`s in versions < WDL v1.3, multiple workflows in a document, etc.
+* `sprocket dev doc` will now **fail** in the presence of analysis errors 
+  that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
 
 ## 0.20.1 - 01-12-2026
 

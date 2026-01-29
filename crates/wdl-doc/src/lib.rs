@@ -12,7 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 mod command_section;
 mod docs_tree;
 mod document;
-pub mod error;
+mod error;
 mod meta;
 mod parameter;
 mod runnable;
@@ -34,6 +34,7 @@ use docs_tree::HTMLPage;
 use docs_tree::PageType;
 use document::Document;
 pub use document::parse_preamble_comments;
+pub use error::DocError;
 use maud::DOCTYPE;
 use maud::Markup;
 use maud::PreEscaped;
@@ -45,14 +46,13 @@ use pulldown_cmark::Options;
 use pulldown_cmark::Parser;
 use runnable::task;
 use runnable::workflow;
+use wdl_analysis::AnalysisResult;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::version::V1;
-
-use crate::error::DocError;
 
 /// Start on the "Full Directory" left sidebar view instead of the
 /// "Workflows" view.
@@ -293,7 +293,7 @@ impl VersionBadge {
 async fn analyze_workspace(
     workspace_root: impl AsRef<Path>,
     config: AnalysisConfig,
-) -> Result<Vec<wdl_analysis::AnalysisResult>, DocError> {
+) -> Result<Vec<AnalysisResult>, DocError> {
     let workspace = workspace_root.as_ref();
     let analyzer = Analyzer::new(config, async |_, _, _, _| ());
     analyzer
@@ -306,7 +306,7 @@ async fn analyze_workspace(
         .with_context(|| "failed to analyze workspace".to_string())?;
 
     if results.is_empty() {
-        return Err(anyhow!("no WDL documents found in analysis",).into());
+        return Err(anyhow!("no WDL documents found in analysis").into());
     }
     let mut workspace_in_results = false;
     let mut has_errors = false;

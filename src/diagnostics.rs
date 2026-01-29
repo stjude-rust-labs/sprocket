@@ -49,7 +49,7 @@ pub struct DiagnosticCounts {
 
 impl DiagnosticCounts {
     /// Returns an error if the `errors` count is 1 or more
-    pub fn fail_errors(&self) -> Option<anyhow::Error> {
+    pub fn verify_no_errors(&self) -> Option<anyhow::Error> {
         if self.errors == 0 {
             return None;
         }
@@ -62,7 +62,7 @@ impl DiagnosticCounts {
     }
 
     /// Returns an error if the `warnings` count is 1 or more
-    pub fn fail_warnings(&self) -> Option<anyhow::Error> {
+    pub fn verify_no_warnings(&self) -> Option<anyhow::Error> {
         if self.warnings == 0 {
             return None;
         }
@@ -75,7 +75,7 @@ impl DiagnosticCounts {
     }
 
     /// Returns an error if the `notes` count is 1 or more
-    pub fn fail_notes(&self) -> Option<anyhow::Error> {
+    pub fn verify_no_notes(&self) -> Option<anyhow::Error> {
         if self.notes == 0 {
             return None;
         }

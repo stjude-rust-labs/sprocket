@@ -3,6 +3,8 @@
 use std::error::Error;
 use std::fmt::Display;
 
+use wdl_analysis::AnalysisResult;
+
 /// Errors that can occur while generating documentation.
 #[derive(Debug)]
 pub enum DocError {
@@ -10,7 +12,7 @@ pub enum DocError {
     ///
     /// NOTE: This contains *all* analysis results, including those of valid
     /// documents.
-    AnalysisFailed(Vec<wdl_analysis::AnalysisResult>),
+    AnalysisFailed(Vec<AnalysisResult>),
     /// All other errors (e.g. I/O)
     Other(anyhow::Error),
 }

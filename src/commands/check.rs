@@ -347,14 +347,14 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
         }
     }
 
-    if let Some(e) = counts.fail_errors() {
+    if let Some(e) = counts.verify_no_errors() {
         return Err(e.into());
     } else if args.common.deny_warnings
-        && let Some(e) = counts.fail_warnings()
+        && let Some(e) = counts.verify_no_warnings()
     {
         return Err(e.into());
     } else if args.common.deny_notes
-        && let Some(e) = counts.fail_notes()
+        && let Some(e) = counts.verify_no_notes()
     {
         return Err(e.into());
     }
