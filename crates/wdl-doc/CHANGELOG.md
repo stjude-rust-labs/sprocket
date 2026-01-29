@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
-  * Support is currently limited, with `anyhow` errors still being used in most places.
 
 #### Changed
 

@@ -2,14 +2,13 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;
+use std::io::Error as IoError;
+use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::rc::Rc;
 
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
 use maud::Markup;
 use maud::html;
 use path_clean::PathClean;
@@ -17,9 +16,12 @@ use pathdiff::diff_paths;
 use serde::Serialize;
 
 use crate::AdditionalScript;
+use crate::DocError;
 use crate::Markdown;
 use crate::Render;
 use crate::document::Document;
+use crate::error::DocResult;
+use crate::error::ResultContextExt;
 use crate::full_page;
 use crate::get_assets;
 use crate::r#struct::Struct;
@@ -270,10 +272,11 @@ impl DocsTreeBuilder {
     }
 
     /// Set the custom theme for the docs with an option.
-    pub fn maybe_custom_theme(mut self, theme: Option<impl AsRef<Path>>) -> Result<Self> {
+    pub fn maybe_custom_theme(mut self, theme: Option<impl AsRef<Path>>) -> DocResult<Self> {
         self.custom_theme = if let Some(t) = theme {
             Some(
                 absolute(t.as_ref())
+                    .map_err(Into::<DocError>::into)
                     .with_context(|| {
                         format!(
                             "failed to resolve absolute path for custom theme: `{}`",
@@ -289,7 +292,7 @@ impl DocsTreeBuilder {
     }
 
     /// Set the custom theme for the docs.
-    pub fn custom_theme(self, theme: impl AsRef<Path>) -> Result<Self> {
+    pub fn custom_theme(self, theme: impl AsRef<Path>) -> DocResult<Self> {
         self.maybe_custom_theme(Some(theme))
     }
 
@@ -336,13 +339,8 @@ impl DocsTreeBuilder {
     }
 
     /// Build the docs tree.
-    pub fn build(self) -> Result<DocsTree> {
-        self.write_assets().with_context(|| {
-            format!(
-                "failed to write assets to output directory: `{}`",
-                self.root.display()
-            )
-        })?;
+    pub fn build(self) -> DocResult<DocsTree> {
+        self.write_assets()?;
 
         let node = Node::new(
             self.root
@@ -368,28 +366,35 @@ impl DocsTreeBuilder {
     /// `index.js` files to the root unless a custom theme is
     /// provided, in which case it will copy the `style.css` and `index.js`
     /// files from the custom theme's `dist` directory.
-    fn write_assets(&self) -> Result<()> {
+    fn write_assets(&self) -> DocResult<()> {
         let dir = &self.root;
         let custom_theme = self.custom_theme.as_ref();
         let assets_dir = dir.join("assets");
-        std::fs::create_dir_all(&assets_dir).with_context(|| {
-            format!(
-                "failed to create assets directory: `{}`",
-                assets_dir.display()
-            )
-        })?;
+        std::fs::create_dir_all(&assets_dir)
+            .map_err(Into::<DocError>::into)
+            .with_context(|| {
+                format!(
+                    "failed to create assets directory: `{}`",
+                    assets_dir.display()
+                )
+            })?;
 
         if let Some(custom_theme) = custom_theme {
             if !custom_theme.exists() {
-                bail!(
-                    "custom theme directory does not exist: `{}`",
-                    custom_theme.display()
-                );
+                return Err(IoError::new(
+                    ErrorKind::NotFound,
+                    format!(
+                        "custom theme does not exist at `{}`",
+                        custom_theme.display()
+                    ),
+                )
+                .into());
             }
             std::fs::copy(
                 custom_theme.join("dist").join("style.css"),
                 dir.join("style.css"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to copy stylesheet from `{}` to `{}`",
@@ -401,6 +406,7 @@ impl DocsTreeBuilder {
                 custom_theme.join("dist").join("index.js"),
                 dir.join("index.js"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to copy web components from `{}` to `{}`",
@@ -413,6 +419,7 @@ impl DocsTreeBuilder {
                 dir.join("style.css"),
                 include_str!("../theme/dist/style.css"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to write default stylesheet to `{}`",
@@ -420,6 +427,7 @@ impl DocsTreeBuilder {
                 )
             })?;
             std::fs::write(dir.join("index.js"), include_str!("../theme/dist/index.js"))
+                .map_err(Into::<DocError>::into)
                 .with_context(|| {
                     format!(
                         "failed to write default web components to `{}`",
@@ -431,6 +439,7 @@ impl DocsTreeBuilder {
         for (file_name, bytes) in get_assets() {
             let path = assets_dir.join(file_name);
             std::fs::write(&path, bytes)
+                .map_err(Into::<DocError>::into)
                 .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
         }
         // The above `get_assets()` call will write the default logos; then the
@@ -438,57 +447,69 @@ impl DocsTreeBuilder {
         match (&self.logo, &self.alt_logo) {
             (Some(dark_logo), Some(light_logo)) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(dark_logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy dark theme custom logo from `{}` to `{}`",
-                        dark_logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(dark_logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy dark theme custom logo from `{}` to `{}`",
+                            dark_logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(light_logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy light theme custom logo from `{}` to `{}`",
-                        light_logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(light_logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy light theme custom logo from `{}` to `{}`",
+                            light_logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (Some(logo), None) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (None, Some(logo)) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (None, None) => {}
         }
@@ -1189,7 +1210,7 @@ impl DocsTree {
     }
 
     /// Render every page in the tree.
-    pub fn render_all(&self) -> Result<()> {
+    pub fn render_all(&self) -> DocResult<()> {
         let root = self.root();
 
         for node in root.depth_first_traversal() {
@@ -1201,13 +1222,13 @@ impl DocsTree {
             }
         }
 
-        self.write_homepage()
-            .with_context(|| "failed to write homepage".to_string())?;
+        self.write_homepage()?;
+
         Ok(())
     }
 
     /// Write the homepage to disk.
-    fn write_homepage(&self) -> Result<()> {
+    fn write_homepage(&self) -> DocResult<()> {
         let index_path = self.root_abs_path().join("index.html");
 
         let left_sidebar = self.render_left_sidebar(&index_path);
@@ -1215,7 +1236,7 @@ impl DocsTree {
             @if let Some(homepage) = &self.homepage {
                 div class="main__section" {
                     div class="markdown-body" {
-                        (Markdown(std::fs::read_to_string(homepage).with_context(|| {
+                        (Markdown(std::fs::read_to_string(homepage).map_err(Into::<DocError>::into).with_context(|| {
                             format!("failed to read provided homepage file: `{}`", homepage.display())
                         })?).render())
                     }
@@ -1251,6 +1272,7 @@ impl DocsTree {
             self.init_light_mode,
         );
         std::fs::write(&index_path, html.into_string())
+            .map_err(Into::<DocError>::into)
             .with_context(|| format!("failed to write homepage to `{}`", index_path.display()))?;
         Ok(())
     }
@@ -1353,7 +1375,7 @@ impl DocsTree {
     /// Write a page to disk at the designated path.
     ///
     /// Path is expected to be an absolute path.
-    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> Result<()> {
+    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> DocResult<()> {
         let path = path.into();
         let base = path.parent().expect("path should have a parent");
 
@@ -1382,6 +1404,7 @@ impl DocsTree {
             self.init_light_mode,
         );
         std::fs::write(&path, html.into_string())
+            .map_err(Into::<DocError>::into)
             .with_context(|| format!("failed to write page at `{}`", path.display()))?;
         Ok(())
     }
