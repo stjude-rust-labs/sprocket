@@ -250,7 +250,7 @@ impl OutputAssertion {
                 }
             }
             Type::TypeNameRef(_custom_ty) => {
-                bail!("custom WDL types (structs and enums) are not supported")                        
+                bail!("custom WDL types (structs and enums) are not supported")
             }
             _ => {
                 unreachable!("unexpected type for an output")
