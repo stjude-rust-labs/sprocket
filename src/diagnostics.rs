@@ -62,28 +62,38 @@ impl DiagnosticCounts {
     }
 
     /// Returns an error if the `warnings` count is 1 or more
-    pub fn verify_no_warnings(&self) -> Option<anyhow::Error> {
+    pub fn verify_no_warnings(&self, user_requested: bool) -> Option<anyhow::Error> {
         if self.warnings == 0 {
             return None;
         }
 
         Some(anyhow!(
-            "failing due to {warnings} warning{s} (`--deny-warnings` was specified)",
+            "failing due to {warnings} warning{s}{cli_note}",
             warnings = self.warnings,
-            s = if self.warnings == 1 { "" } else { "s" }
+            s = if self.warnings == 1 { "" } else { "s" },
+            cli_note = if user_requested {
+                " (`--deny-warnings` was specified)"
+            } else {
+                ""
+            },
         ))
     }
 
     /// Returns an error if the `notes` count is 1 or more
-    pub fn verify_no_notes(&self) -> Option<anyhow::Error> {
+    pub fn verify_no_notes(&self, user_requested: bool) -> Option<anyhow::Error> {
         if self.notes == 0 {
             return None;
         }
 
         Some(anyhow!(
-            "failing due to {notes} note{s} (`--deny-notes` was specified)",
+            "failing due to {notes} note{s}{cli_note}",
             notes = self.notes,
-            s = if self.notes == 1 { "" } else { "s" }
+            s = if self.notes == 1 { "" } else { "s" },
+            cli_note = if user_requested {
+                " (`--deny-notes` was specified)"
+            } else {
+                ""
+            },
         ))
     }
 }
