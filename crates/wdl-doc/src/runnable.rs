@@ -303,6 +303,7 @@ mod tests {
     use wdl_ast::Document;
 
     use super::*;
+    use crate::meta::DEFAULT_DESCRIPTION;
     use crate::meta::parse_meta;
     use crate::meta::parse_parameter_meta;
     use crate::parameter::Group;
@@ -467,7 +468,7 @@ mod tests {
         assert_eq!(inputs[1].name(), "b");
         assert_eq!(
             inputs[1].description(false).into_string(),
-            "No description provided"
+            DEFAULT_DESCRIPTION
         );
         assert_eq!(inputs[2].name(), "c");
         assert_eq!(

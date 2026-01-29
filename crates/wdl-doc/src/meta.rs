@@ -32,6 +32,9 @@ const DESCRIPTION_MAX_LENGTH: usize = 140;
 /// The length of a description when summarized.
 const DESCRIPTION_CLIP_LENGTH: usize = 80;
 
+/// The default description used on undocumented items.
+pub(crate) const DEFAULT_DESCRIPTION: &str = "No description provided";
+
 /// Parse a [`MetadataSection`] into a [`MetaMap`].
 pub(crate) fn parse_meta(meta: &MetadataSection) -> MetaMap {
     meta.items()
@@ -55,12 +58,12 @@ pub(crate) fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) ->
         .collect()
 }
 
-/// The source of a [`MetaMap`] entry
+/// The source of a [`MetaMap`] entry.
 #[derive(Debug, Clone)]
 pub(crate) enum MetaMapValueSource {
-    /// The value comes from a `meta`/`parameter_meta` section in the document
+    /// The value comes from a `meta`/`parameter_meta` section in the document.
     MetaValue(MetadataValue),
-    /// The value comes from a doc comment
+    /// The value comes from a doc comment.
     Comment(String),
 }
 
@@ -109,7 +112,7 @@ pub(crate) trait MetaMapExt {
     /// summarizing it.
     ///
     /// This will always return some text; in the absence of a `description`
-    /// key, it will return a default message ("No description provided").
+    /// key, it will return a default message ([`DEFAULT_DESCRIPTION`]).
     fn render_description(&self, summarize: bool) -> Markup;
     /// Returns the rendered [`Markup`] of the remaining metadata keys,
     /// excluding the keys specified in `filter_keys`.
@@ -144,7 +147,7 @@ impl MetaMapExt for MetaMap {
                 MetaMapValueSource::Comment(s) => s.to_string(),
                 _ => "ERROR: description not of type String".to_string(),
             })
-            .unwrap_or_else(|| "No description provided".to_string());
+            .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
 
         if !summarize {
             return Markdown(desc).render();

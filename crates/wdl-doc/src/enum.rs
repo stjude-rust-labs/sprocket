@@ -11,15 +11,16 @@ use wdl_ast::v1::EnumVariant;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
+use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
 
-/// An [`EnumVariant`] with an associated [`MetaMap`]
+/// An [`EnumVariant`] with an associated [`MetaMap`].
 #[derive(Debug)]
-pub struct DocumentedEnumVariant {
+pub(crate) struct DocumentedEnumVariant {
     /// The enum variant's `meta`, derived from its doc comments.
     meta: MetaMap,
     /// The AST definition of the enum variant.
@@ -27,19 +28,19 @@ pub struct DocumentedEnumVariant {
 }
 
 impl DocumentedEnumVariant {
-    /// Get the [full description] of the variant
+    /// Get the [full description] of the variant.
     ///
     /// [full description]: MetaMap::full_description()
     pub fn full_description(&self) -> String {
         self.meta
             .full_description()
-            .unwrap_or_else(|| String::from("No description provided"))
+            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
     }
 }
 
 /// An enum in a WDL document.
 #[derive(Debug)]
-pub struct Enum {
+pub(crate) struct Enum {
     /// The enum's `meta`, derived from its doc comments.
     meta: MetaMap,
     /// The enum's variants.
@@ -136,7 +137,7 @@ impl Enum {
     }
 }
 
-/// Parse the doc comments on the enum definition and its variants
+/// Parse the doc comments on the enum definition and its variants.
 fn parse_meta(
     definition: &EnumDefinition,
     enable_doc_comments: bool,
