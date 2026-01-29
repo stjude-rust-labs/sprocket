@@ -1,4 +1,4 @@
-//! Facilities for making assertions about WDL outputs.
+//! Facilities for making assertions about WDL executions.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -129,14 +129,16 @@ pub(crate) enum OutputAssertion {
     /// Does the WDL `File` or `Directory` have this basename?
     // TODO(Ari): should this support glob patterns?
     Name(String),
-    /// Unpacks the first element of an `Array` and applies the inner assertion
-    /// on that element.
+    /// Unpacks the first element of an `Array` and applies the inner assertion.
     First(Box<OutputAssertion>),
-    /// Unpacks the first element of an `Array` and applies the inner assertion
-    /// on that element.
+    /// Unpacks the last element of an `Array` and applies the inner assertion.
     Last(Box<OutputAssertion>),
-    /// Does the WDL `String` or `Array` have this length?
+    /// Does the WDL `String`, `Array`, or `Map` have this length?
     Length(usize),
+    /// Unpacks the left element of a `Pair` and applies the inner assertion.
+    Left(Box<OutputAssertion>),
+    /// Unpacks the right element of a `Pair` and applies the inner assertion.
+    Right(Box<OutputAssertion>),
 }
 
 impl std::fmt::Display for OutputAssertion {
@@ -152,6 +154,8 @@ impl std::fmt::Display for OutputAssertion {
             Self::First(_) => write!(f, "First")?,
             Self::Last(_) => write!(f, "Last")?,
             Self::Length(_) => write!(f, "Length")?,
+            Self::Left(_) => write!(f, "Left")?,
+            Self::Right(_) => write!(f, "Right")?,
         }
         Ok(())
     }
@@ -220,8 +224,25 @@ impl OutputAssertion {
                             valid = false;
                         }
                     },
-                    _ => {
-                        todo!("other compound types")
+                    CompoundType::Map(_map_ty) => match self {
+                        Self::Length(_) => {}
+                        _ => {
+                            valid = false;
+                        }
+                    },
+                    CompoundType::Pair(pair_ty) => match self {
+                        Self::Left(inner) => {
+                            inner.validate_type_congruence(pair_ty.left_type())?;
+                        }
+                        Self::Right(inner) => {
+                            inner.validate_type_congruence(pair_ty.right_type())?;
+                        }
+                        _ => {
+                            valid = false;
+                        }
+                    },
+                    CompoundType::Custom(_) => {
+                        bail!("custom WDL types (structs and enums) are not supported")
                     }
                 }
                 if !valid {
@@ -229,7 +250,7 @@ impl OutputAssertion {
                 }
             }
             Type::TypeNameRef(_custom_ty) => {
-                todo!("struct/enum assertions")
+                bail!("custom WDL types (structs and enums) are not supported")                        
             }
             _ => {
                 unreachable!("unexpected type for an output")
@@ -303,6 +324,8 @@ impl OutputAssertion {
                     a.len()
                 } else if let Some(s) = output.as_string() {
                     s.chars().count()
+                } else if let Some(m) = output.as_map() {
+                    m.len()
                 } else {
                     unreachable!("type should be validated")
                 };
@@ -327,6 +350,14 @@ impl OutputAssertion {
                     bail!("can't take `{self}` of an empty `Array`")
                 };
                 inner.evaluate(last)?;
+            }
+            Self::Left(inner) => {
+                let o = output.as_pair().expect("type should be validated");
+                inner.evaluate(o.left())?;
+            }
+            Self::Right(inner) => {
+                let o = output.as_pair().expect("type should be validated");
+                inner.evaluate(o.right())?;
             }
         }
         Ok(())
