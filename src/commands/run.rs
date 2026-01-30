@@ -104,29 +104,29 @@ pub struct Args {
     /// This argument is required if trying to run a task or workflow without
     /// any inputs.
     ///
-    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// If `target` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// If `target` is specified, it will be appended with a `.` delimiter
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub entrypoint: Option<String>,
+    pub target: Option<String>,
 
     /// The root "runs" directory; defaults to `./runs/`.
     ///
     /// Individual sessions of `sprocket run` will nest their execution
     /// directories beneath this root directory at the path
-    /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// session will be symlinked at `<entrypoint name>/_latest`.
+    /// `<target name>/<timestamp>/`. On Unix systems, the latest `run`
+    /// session will be symlinked at `<target name>/_latest`.
     #[clap(short, long, value_name = "ROOT_DIR")]
     pub runs_dir: Option<PathBuf>,
 
     /// The execution directory.
     ///
     /// If this argument is supplied, the default output behavior of nesting
-    /// execution directories using the entrypoint and timestamp will be
+    /// execution directories using the target and timestamp will be
     /// disabled.
     #[clap(long, conflicts_with = "runs_dir", value_name = "OUTPUT_DIR")]
     pub output: Option<PathBuf>,
@@ -478,8 +478,8 @@ async fn progress(
 /// the returned path, as that is handled by execution itself.
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
-/// at `<root>/<entrypoint>/_latest`.
-pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
+/// at `<root>/<target>/_latest`.
+pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
     std::fs::create_dir_all(root)
         .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
     let ignore_path = root.join(crate::IGNORE_FILENAME);
@@ -489,17 +489,17 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
         writeln!(&ignorefile, "*")
             .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
     }
-    let entrypoint_root = root.join(entrypoint);
-    std::fs::create_dir_all(&entrypoint_root).with_context(|| {
+    let target_root = root.join(target);
+    std::fs::create_dir_all(&target_root).with_context(|| {
         format!(
-            "failed to create entrypoint directory: `{}`",
-            entrypoint_root.display()
+            "failed to create target directory: `{}`",
+            target_root.display()
         )
     })?;
 
     let timestamp = chrono::Utc::now();
 
-    let output = entrypoint_root.join(timestamp.format("%F_%H%M%S%f").to_string());
+    let output = target_root.join(timestamp.format("%F_%H%M%S%f").to_string());
 
     if output.exists() {
         bail!(
@@ -510,7 +510,7 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
 
     #[cfg(not(target_os = "windows"))]
     {
-        let latest = entrypoint_root.join(LATEST);
+        let latest = target_root.join(LATEST);
         let _ = std::fs::remove_file(&latest);
         if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
             .is_err()
@@ -605,7 +605,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
 
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -615,7 +615,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         })?
         .into_engine_invocation(document)?;
 
-    let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
+    let (target, inputs, origins) = if let Some(inputs) = inputs {
         inputs
     } else {
         // No inputs were provided
@@ -626,7 +626,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                 .into(),
         );
 
-        if let Some(name) = args.entrypoint {
+        if let Some(name) = args.target {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
                 (None, Some(workflow)) if workflow.name() == name => {
@@ -642,7 +642,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
             }
         } else {
             return Err(
-                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
+                anyhow!("the `--target` option is required if no inputs are provided").into(),
             );
         }
     };
@@ -669,7 +669,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
     } else {
         setup_run_dir(
             &args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()),
-            &entrypoint,
+            &target,
         )?
     };
 
@@ -688,7 +688,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
              {name}{{msg}}",
             running = "running".cyan(),
-            name = entrypoint.magenta().bold()
+            name = target.magenta().bold()
         ))
         .unwrap(),
     );
@@ -719,7 +719,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
 
     let evaluator = Evaluator::new(
         document,
-        &entrypoint,
+        &target,
         inputs,
         &origins,
         config.run.engine.into(),
@@ -756,7 +756,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
 
                 return match res {
                     Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint)).context("failed to serialize outputs")?);
+                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&target)).context("failed to serialize outputs")?);
                         Ok(())
                     }
                     Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),

@@ -14,24 +14,24 @@ Arguments:
           An input can be either a local file path or URL to an input file or key-value pairs passed in on the command line.
 
 Options:
-  -e, --entrypoint <NAME>
+  -t, --target <NAME>
           The name of the task or workflow to run.
           
           This argument is required if trying to run a task or workflow without any inputs.
           
-          If `entrypoint` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
+          If `target` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
           
-          If `entrypoint` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
+          If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
 
   -r, --runs-dir <ROOT_DIR>
           The root "runs" directory; defaults to `./runs/`.
           
-          Individual sessions of `sprocket run` will nest their execution directories beneath this root directory at the path `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run` session will be symlinked at `<entrypoint name>/_latest`.
+          Individual sessions of `sprocket run` will nest their execution directories beneath this root directory at the path `<target name>/<timestamp>/`. On Unix systems, the latest `run` session will be symlinked at `<target name>/_latest`.
 
       --output <OUTPUT_DIR>
           The execution directory.
           
-          If this argument is supplied, the default output behavior of nesting execution directories using the entrypoint and timestamp will be disabled.
+          If this argument is supplied, the default output behavior of nesting execution directories using the target and timestamp will be disabled.
 
       --overwrite
           Overwrites the execution directory if it exists
