@@ -199,23 +199,26 @@ impl Database for SqliteDatabase {
         session_id: Uuid,
         name: &str,
         source: &str,
+        target: &str,
         inputs: &str,
         directory: &str,
     ) -> Result<Run> {
         debug_assert!(!name.is_empty(), "`name` cannot be empty for a run");
         debug_assert!(!source.is_empty(), "`source` cannot be empty for a run");
+        debug_assert!(!target.is_empty(), "`target` cannot be empty for a run");
         debug_assert!(
             !directory.is_empty(),
             "`directory` cannot be empty for a run"
         );
 
         sqlx::query(
-            "insert into runs (uuid, session_id, name, source, status, inputs, directory) \
-             select ?, s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ?",
+            "insert into runs (uuid, session_id, name, source, target, status, inputs, directory) \
+             select ?, s.id, ?, ?, ?, ?, ?, ? from sessions s where s.uuid = ?",
         )
         .bind(id.to_string())
         .bind(name)
         .bind(source)
+        .bind(target)
         .bind(RunStatus::Queued)
         .bind(inputs)
         .bind(directory)
@@ -224,9 +227,10 @@ impl Database for SqliteDatabase {
         .await?;
 
         let run: Run = sqlx::query_as(
-            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
-             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
-             r.created_at from runs r join sessions s on r.session_id = s.id where r.uuid = ?",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
+             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+             where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_one(&self.pool)
@@ -305,9 +309,10 @@ impl Database for SqliteDatabase {
 
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>> {
         let run: Option<Run> = sqlx::query_as(
-            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
-             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
-             r.created_at from runs r join sessions s on r.session_id = s.id where r.uuid = ?",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
+             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+             where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -327,10 +332,10 @@ impl Database for SqliteDatabase {
 
         let runs: Vec<Run> = if let Some(status) = status {
             sqlx::query_as(
-                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
-                 r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
-                 r.created_at from runs r join sessions s on r.session_id = s.id where \
-                 r.status = ? order by r.created_at desc limit ? offset ?",
+                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
+                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+                 where r.status = ? order by r.created_at desc limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -339,10 +344,10 @@ impl Database for SqliteDatabase {
             .await?
         } else {
             sqlx::query_as(
-                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
-                 r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
-                 r.created_at from runs r join sessions s on r.session_id = s.id order by \
-                 r.created_at desc limit ? offset ?",
+                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
+                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
+                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+                 order by r.created_at desc limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -370,10 +375,10 @@ impl Database for SqliteDatabase {
 
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>> {
         let runs: Vec<Run> = sqlx::query_as(
-            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
-             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
-             r.created_at from runs r join sessions s on r.session_id = s.id where s.uuid = ? \
-             order by r.created_at",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
+             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
+             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
+             where s.uuid = ? order by r.created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -389,8 +394,8 @@ impl Database for SqliteDatabase {
         target_path: &str,
     ) -> Result<IndexLogEntry> {
         let result = sqlx::query(
-            "insert into index_log (run_id, link_path, target_path) \
-             select r.id, ?, ? from runs r where r.uuid = ?",
+            "insert into index_log (run_id, link_path, target_path) select r.id, ?, ? from runs r \
+             where r.uuid = ?",
         )
         .bind(link_path)
         .bind(target_path)
@@ -401,8 +406,8 @@ impl Database for SqliteDatabase {
         let id = result.last_insert_rowid();
 
         let entry: IndexLogEntry = sqlx::query_as(
-            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
-             from index_log i join runs r on i.run_id = r.id where i.id = ?",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at from \
+             index_log i join runs r on i.run_id = r.id where i.id = ?",
         )
         .bind(id)
         .fetch_one(&self.pool)
@@ -413,9 +418,8 @@ impl Database for SqliteDatabase {
 
     async fn list_index_log_entries_by_run(&self, run_id: Uuid) -> Result<Vec<IndexLogEntry>> {
         let entries: Vec<IndexLogEntry> = sqlx::query_as(
-            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
-             from index_log i join runs r on i.run_id = r.id where r.uuid = ? \
-             order by i.created_at",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at from \
+             index_log i join runs r on i.run_id = r.id where r.uuid = ? order by i.created_at",
         )
         .bind(run_id.to_string())
         .fetch_all(&self.pool)
@@ -426,8 +430,8 @@ impl Database for SqliteDatabase {
 
     async fn list_latest_index_entries(&self) -> Result<Vec<IndexLogEntry>> {
         let entries: Vec<IndexLogEntry> = sqlx::query_as(
-            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
-             from latest_index_entries i join runs r on i.run_id = r.id",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at from \
+             latest_index_entries i join runs r on i.run_id = r.id",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -830,7 +834,15 @@ mod tests {
 
         let run_id = Uuid::new_v4();
         let run = db
-            .create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
+            .create_run(
+                run_id,
+                session_id,
+                "test-run",
+                "test.wdl",
+                "test_task",
+                "{}",
+                "/tmp/run",
+            )
             .await
             .expect("failed to create run");
 
@@ -838,6 +850,7 @@ mod tests {
         assert_eq!(run.session_uuid, session_id);
         assert_eq!(run.name, "test-run");
         assert_eq!(run.source, "test.wdl");
+        assert_eq!(run.target, "test_task");
         assert_eq!(run.status, RunStatus::Queued);
     }
 
@@ -853,9 +866,17 @@ mod tests {
             .expect("failed to create session");
 
         let run_id = Uuid::new_v4();
-        db.create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run_id,
+            session_id,
+            "test-run",
+            "test.wdl",
+            "test_task",
+            "{}",
+            "/tmp/run",
+        )
+        .await
+        .expect("failed to create run");
 
         db.update_run_status(run_id, RunStatus::Running)
             .await
@@ -882,7 +903,15 @@ mod tests {
 
         let run_id = Uuid::new_v4();
         let created_run = db
-            .create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
+            .create_run(
+                run_id,
+                session_id,
+                "test-run",
+                "test.wdl",
+                "test_task",
+                "{}",
+                "/tmp/run",
+            )
             .await
             .expect("failed to create run");
 
@@ -908,19 +937,43 @@ mod tests {
             .expect("failed to create session");
 
         let run1_id = Uuid::new_v4();
-        db.create_run(run1_id, session_id, "run1", "test.wdl", "{}", "/tmp/run1")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run1_id,
+            session_id,
+            "run1",
+            "test.wdl",
+            "task_a",
+            "{}",
+            "/tmp/run1",
+        )
+        .await
+        .expect("failed to create run");
 
         let run2_id = Uuid::new_v4();
-        db.create_run(run2_id, session_id, "run2", "test.wdl", "{}", "/tmp/run2")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run2_id,
+            session_id,
+            "run2",
+            "test.wdl",
+            "task_b",
+            "{}",
+            "/tmp/run2",
+        )
+        .await
+        .expect("failed to create run");
 
         let run3_id = Uuid::new_v4();
-        db.create_run(run3_id, session_id, "run3", "test.wdl", "{}", "/tmp/run3")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run3_id,
+            session_id,
+            "run3",
+            "test.wdl",
+            "task_c",
+            "{}",
+            "/tmp/run3",
+        )
+        .await
+        .expect("failed to create run");
 
         // Update one run to a different status
         db.update_run_status(run2_id, RunStatus::Running)
@@ -975,9 +1028,17 @@ mod tests {
             .expect("failed to create session");
 
         let run_id = Uuid::new_v4();
-        db.create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run_id,
+            session_id,
+            "test-run",
+            "test.wdl",
+            "test_task",
+            "{}",
+            "/tmp/run",
+        )
+        .await
+        .expect("failed to create run");
 
         let task = db
             .create_task("my_task", run_id)
@@ -1001,9 +1062,17 @@ mod tests {
             .expect("failed to create session");
 
         let run_id = Uuid::new_v4();
-        db.create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run_id,
+            session_id,
+            "test-run",
+            "test.wdl",
+            "test_task",
+            "{}",
+            "/tmp/run",
+        )
+        .await
+        .expect("failed to create run");
 
         let created_task = db
             .create_task("my_task", run_id)
@@ -1033,6 +1102,7 @@ mod tests {
             session_id,
             "test-run1",
             "test.wdl",
+            "task_a",
             "{}",
             "/tmp/run1",
         )
@@ -1045,6 +1115,7 @@ mod tests {
             session_id,
             "test-run2",
             "test.wdl",
+            "task_b",
             "{}",
             "/tmp/run2",
         )
@@ -1135,9 +1206,17 @@ mod tests {
             .expect("failed to create session");
 
         let run_id = Uuid::new_v4();
-        db.create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run_id,
+            session_id,
+            "test-run",
+            "test.wdl",
+            "test_task",
+            "{}",
+            "/tmp/run",
+        )
+        .await
+        .expect("failed to create run");
 
         db.create_task("my_task", run_id)
             .await
@@ -1170,9 +1249,17 @@ mod tests {
             .expect("failed to create session");
 
         let run_id = Uuid::new_v4();
-        db.create_run(run_id, session_id, "test-run", "test.wdl", "{}", "/tmp/run")
-            .await
-            .expect("failed to create run");
+        db.create_run(
+            run_id,
+            session_id,
+            "test-run",
+            "test.wdl",
+            "test_task",
+            "{}",
+            "/tmp/run",
+        )
+        .await
+        .expect("failed to create run");
 
         db.create_task("my_task", run_id)
             .await

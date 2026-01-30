@@ -34,6 +34,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
+        "task_a",
         "{}",
         "test-workflow-run1",
     )
@@ -94,6 +95,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
+        "task_b",
         "{}",
         "test-workflow-run2",
     )
@@ -220,6 +222,7 @@ async fn rebuild_index_with_missing_targets(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
+        "test_task",
         "{}",
         "test-workflow",
     )

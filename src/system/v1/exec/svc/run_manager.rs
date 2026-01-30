@@ -363,6 +363,7 @@ async fn submit_run(
         session_id,
         &run_generated_name,
         source.as_str(),
+        target.name(),
         &inputs.to_string(),
         run_dir.relative_path().to_str().expect("path is not UTF-8"),
     )

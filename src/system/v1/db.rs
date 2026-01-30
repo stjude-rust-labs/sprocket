@@ -76,6 +76,7 @@ pub trait Database: Send + Sync {
         session_id: Uuid,
         name: &str,
         source: &str,
+        target: &str,
         inputs: &str,
         directory: &str,
     ) -> Result<Run>;

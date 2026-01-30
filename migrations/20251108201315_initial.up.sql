@@ -45,6 +45,8 @@ create table if not exists runs (
     "name" text not null,
     -- Source WDL file path or URL
     "source" text not null,
+    -- Target task or workflow name being executed
+    "target" text not null,
     -- Current run status
     "status" text not null check("status" in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled')),
     -- JSON-encoded inputs

@@ -202,6 +202,8 @@ pub struct Run {
     pub name: String,
     /// Source WDL file path or URL.
     pub source: String,
+    /// Target task or workflow name being executed.
+    pub target: String,
     /// Current status.
     pub status: RunStatus,
     /// JSON-encoded inputs.
