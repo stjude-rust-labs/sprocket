@@ -7,6 +7,8 @@ on:
   pull_request:
 
 env:
+  RUST_BACKTRACE: full
+  CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
 
 jobs:
@@ -14,8 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
@@ -27,8 +27,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
@@ -44,8 +42,6 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install clippy
@@ -61,8 +57,6 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable
@@ -75,6 +69,40 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: Run tests
+        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
+
+  engine-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
 
       - name: Setup Docker (Mac)
         if: ${{'macos-latest' == matrix.os}}
@@ -114,13 +142,13 @@ jobs:
           docker pull ubuntu:focal
           docker pull ghcr.io/multiqc/multiqc:v1.31
           docker pull alpine:latest
-      - name: Run tests (Docker disabled)
-        if: runner.os != 'Linux'
-        shell: bash
-        run: DISABLE_DOCKER_TESTS=1 cargo --locked test --workspace --all-targets --all-features --no-fail-fast
       - name: Run tests
-        if: runner.os == 'Linux'
-        run: cargo --locked test --workspace --all-targets --all-features --no-fail-fast
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            export DISABLE_DOCKER_TESTS=1
+          fi
+          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench)) and (package(wdl-engine) or package(sprocket))" --locked --all-targets --all-features --no-fail-fast
 
   docs:
     runs-on: ubuntu-latest
@@ -140,8 +168,6 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
@@ -155,8 +181,6 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: ./.github/actions/install-shellcheck
       - run: git config --global core.autocrlf false
       - name: Update Rust
@@ -167,8 +191,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-workspace-lints
@@ -178,8 +200,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-deny
@@ -189,8 +209,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install cargo-binstall
@@ -205,8 +223,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps
