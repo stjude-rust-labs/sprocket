@@ -50,12 +50,12 @@ impl Display for NpmError {
     }
 }
 
-/// The kinds of errors that can occur
+/// The kinds of errors that can occur.
 #[derive(Debug)]
 pub enum DocErrorKind {
     /// The expected workspace was not found.
     WorkspaceNotFound(PathBuf),
-    /// No WDL documents were found in the workspace
+    /// No WDL documents were found in the workspace.
     NoDocuments,
     /// Failed to run analysis on the workspace.
     Analyzer(anyhow::Error),
@@ -87,7 +87,7 @@ impl DocError {
         }
     }
 
-    /// The kind of error that occured.
+    /// The kind of error that occurred.
     pub fn kind(&self) -> &DocErrorKind {
         &self.kind
     }
