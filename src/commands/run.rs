@@ -218,7 +218,7 @@ impl Args {
     }
 
     /// Applies the CLI arguments to the given engine configuration.
-    fn apply_engine_config(&self, config: &mut wdl::engine::Config) {
+    fn apply_engine_config(&self, config: &mut EngineConfig) {
         // Apply the Azure auth to the engine config
         if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
             let auth = config.storage.azure.auth.get_or_insert_default();
