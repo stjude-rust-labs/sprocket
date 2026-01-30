@@ -79,7 +79,7 @@ create index idx_runs_created_at on runs(created_at);
 -- looked like at any point in time.
 create table if not exists index_log (
     -- Primary key
-    id integer primary key autoincrement not null,
+    id integer primary key not null,
     -- Foreign key to the run that created this index entry
     run_id integer not null,
     -- Path to the symlink in the index directory
@@ -141,7 +141,7 @@ create index idx_tasks_created_at on tasks(created_at);
 -- The table keeps track of all stdout and stderr logs from tasks.
 create table if not exists task_logs (
     -- The unique ID for the task log entry
-    id integer primary key autoincrement not null,
+    id integer primary key not null,
     -- A foreign key to the task that created this log
     task_name text not null,
     -- The source of the log (stderr or stdout)
