@@ -21,7 +21,7 @@ fn default_output_directory() -> PathBuf {
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     /// File does not exist.
-    #[error("file does not exist: `{0}`")]
+    #[error("file `{0}` does not exist")]
     FileNotFound(PathBuf),
 
     /// File path not in allowed file paths.
@@ -33,7 +33,7 @@ pub enum ConfigError {
     UrlForbidden(Url),
 
     /// Failed to canonicalize file path.
-    #[error("failed to canonicalize path: `{0}`")]
+    #[error("failed to canonicalize path `{0}`")]
     FailedToCanonicalize(PathBuf),
 }
 
