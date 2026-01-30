@@ -38,6 +38,26 @@ impl Diagnostics {
         self.0.push(diagnostic);
     }
 
+    /// Checks ancestors of a syntax element for except directives for
+    /// a given rule idto see if the diagnostic should be applied or not.
+    pub fn is_rule_excepted_in_ancestors(
+        rule_id: &str,
+        element: SyntaxElement,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) -> bool {
+        for node in element.ancestors().filter(|node| {
+            exceptable_nodes
+                .as_ref()
+                .is_none_or(|nodes| nodes.contains(&node.kind()))
+        }) {
+            if node.is_rule_excepted(rule_id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Adds a diagnostic to the collection, unless the diagnostic is for an
     /// element that has an exception for the given rule.
     ///
@@ -48,17 +68,15 @@ impl Diagnostics {
         element: SyntaxElement,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     ) {
-        if let Some(rule) = diagnostic.rule() {
-            for node in element.ancestors().filter(|node| {
-                exceptable_nodes
-                    .as_ref()
-                    .is_none_or(|nodes| nodes.contains(&node.kind()))
-            }) {
-                if node.is_rule_excepted(rule) {
-                    // Rule is currently excepted, don't add the diagnostic
-                    return;
-                }
-            }
+        if diagnostic
+            .rule()
+            .map(|rule_id| {
+                Diagnostics::is_rule_excepted_in_ancestors(rule_id, element, exceptable_nodes)
+            })
+            .unwrap_or_default()
+        {
+            // Rule is currently excepted, don't add the diagnostic
+            return;
         }
 
         self.add(diagnostic);
