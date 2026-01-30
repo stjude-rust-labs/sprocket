@@ -41,7 +41,7 @@ pub struct Args {
 
 impl Args {
     /// Applies the arguments to the configuration.
-    pub fn apply(mut self, mut config: Config) -> Config {
+    fn apply(mut self, config: &mut Config) {
         if let Some(host) = self.host {
             config.server.host = host;
         }
@@ -67,14 +67,12 @@ impl Args {
             .server
             .allowed_origins
             .append(&mut self.allowed_origins);
-
-        config
     }
 }
 
 /// The main function for the `server` subcommand.
-pub async fn server(args: Args, config: Config) -> CommandResult<()> {
-    let config = args.apply(config);
+pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
+    args.apply(&mut config);
 
     // Validate that at least one source type is allowed
     if config.execution.allowed_file_paths.is_empty() && config.execution.allowed_urls.is_empty() {
