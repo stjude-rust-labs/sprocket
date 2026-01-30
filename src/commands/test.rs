@@ -320,10 +320,7 @@ async fn launch_tests(
     info!("testing WDL document `{}`", wdl_document.path());
     for (target, definitions) in tests.targets {
         let target = Arc::new(target);
-        let is_workflow = match (
-            wdl_document.task_by_name(&target),
-            wdl_document.workflow(),
-        ) {
+        let is_workflow = match (wdl_document.task_by_name(&target), wdl_document.workflow()) {
             (Some(_), _) => false,
             (None, Some(wf)) if wf.name() == *target => true,
             (..) => {
@@ -426,14 +423,8 @@ async fn launch_tests(
                 let assertions = assertions.clone();
                 let document = wdl_document.clone();
                 futures.spawn(async move {
-                    let evaluator = Evaluator::new(
-                        &document,
-                        &target,
-                        wdl_inputs,
-                        &fixtures,
-                        engine,
-                        &run_dir,
-                    );
+                    let evaluator =
+                        Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
                     TestIteration {
                         name,
@@ -506,8 +497,8 @@ async fn process_tests(
                 } else if fail_counter > 0 {
                     let total = fail_counter + success_counter;
                     println!(
-                        "❌ `{document_name}::{target_name}::{test_name}` failed: \
-                         {fail_counter} execution{fail_plural} failed assertions (out of {total} \
+                        "❌ `{document_name}::{target_name}::{test_name}` failed: {fail_counter} \
+                         execution{fail_plural} failed assertions (out of {total} \
                          execution{total_plural})",
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },

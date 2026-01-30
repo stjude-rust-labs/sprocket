@@ -1,10 +1,23 @@
 //! Source validation and security tests.
 
 use anyhow::Result;
+use sprocket::ServerConfig;
 use sprocket::system::v1::exec::AllowedSource;
 use sprocket::system::v1::exec::ConfigError;
-use sprocket::system::v1::exec::ExecutionConfig;
 use tempfile::TempDir;
+
+fn make_config(
+    output_directory: std::path::PathBuf,
+    allowed_file_paths: Vec<std::path::PathBuf>,
+    allowed_urls: Vec<String>,
+) -> ServerConfig {
+    ServerConfig {
+        output_directory,
+        allowed_file_paths,
+        allowed_urls,
+        ..Default::default()
+    }
+}
 
 #[test]
 fn validate_file_in_allowed_directory() -> Result<()> {
@@ -14,11 +27,11 @@ fn validate_file_in_allowed_directory() -> Result<()> {
     let file = temp_path.join("workflow.wdl");
     std::fs::write(&file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![temp_path.to_path_buf()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![temp_path.to_path_buf()],
+        vec![],
+    );
     config.validate()?;
 
     let source = AllowedSource::validate(file.to_str().unwrap(), &config)?;
@@ -39,10 +52,7 @@ fn validate_file_outside_allowed_directory() -> Result<()> {
     let file = outside_dir.join("workflow.wdl");
     std::fs::write(&file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![allowed_dir])
-        .build();
+    let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
     let result = AllowedSource::validate(file.to_str().unwrap(), &config);
@@ -61,10 +71,7 @@ fn validate_file_with_path_traversal() -> Result<()> {
     let outside_file = temp.path().join("secret.wdl");
     std::fs::write(&outside_file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![allowed_dir.clone()])
-        .build();
+    let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir.clone()], vec![]);
     config.validate()?;
 
     // Try to access file outside allowed directory using `..`
@@ -97,10 +104,7 @@ fn validate_file_with_symlink_escape() -> Result<()> {
     #[cfg(windows)]
     std::os::windows::fs::symlink_file(&outside_file, &symlink)?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![allowed_dir])
-        .build();
+    let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
     // Symlink is inside allowed dir, but points outside
@@ -120,10 +124,7 @@ fn validate_file_not_found_inside_allowed() -> Result<()> {
 
     let nonexistent = allowed_dir.join("nonexistent.wdl");
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![allowed_dir])
-        .build();
+    let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
     let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
@@ -145,10 +146,7 @@ fn validate_file_not_found_outside_allowed() -> Result<()> {
 
     let nonexistent = outside_dir.join("nonexistent.wdl");
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![allowed_dir])
-        .build();
+    let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
     let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
@@ -172,10 +170,11 @@ fn validate_file_with_unicode_and_spaces() -> Result<()> {
     let spaces_file = temp_path.join("my workflow file.wdl");
     std::fs::write(&spaces_file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![temp_path.to_path_buf()])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![temp_path.to_path_buf()],
+        vec![],
+    );
     config.validate()?;
 
     // Both should be valid
@@ -190,10 +189,11 @@ fn validate_file_with_unicode_and_spaces() -> Result<()> {
 
 #[test]
 fn validate_url_with_prefix_matching() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate().unwrap();
 
     // Exact prefix match
@@ -213,10 +213,11 @@ fn validate_url_with_prefix_matching() {
 
 #[test]
 fn validate_url_without_allowed_prefix() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate().unwrap();
 
     // Different domain
@@ -226,10 +227,11 @@ fn validate_url_without_allowed_prefix() {
 
 #[test]
 fn validate_url_scheme_must_match() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate().unwrap();
 
     // HTTP vs HTTPS
@@ -239,10 +241,11 @@ fn validate_url_scheme_must_match() {
 
 #[test]
 fn validate_url_subdomain_must_match() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate().unwrap();
 
     // Subdomain should not match
@@ -252,14 +255,15 @@ fn validate_url_subdomain_must_match() {
 
 #[test]
 fn validate_url_with_port_and_special_formats() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec![
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec![
             "http://localhost:8080/".to_string(),
             "http://192.168.1.1/".to_string(),
             "http://[::1]/".to_string(),
-        ])
-        .build();
+        ],
+    );
     config.validate().unwrap();
 
     let source1 = AllowedSource::validate("http://localhost:8080/workflow.wdl", &config).unwrap();
@@ -274,10 +278,11 @@ fn validate_url_with_port_and_special_formats() {
 
 #[test]
 fn validate_url_with_unicode_and_encoding() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate().unwrap();
 
     // URL-encoded characters
@@ -298,11 +303,11 @@ fn allowed_source_accessor_methods() -> Result<()> {
     let file = temp_path.join("workflow.wdl");
     std::fs::write(&file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![temp_path.to_path_buf()])
-        .allowed_urls(vec!["https://example.com/".to_string()])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![temp_path.to_path_buf()],
+        vec!["https://example.com/".to_string()],
+    );
     config.validate()?;
 
     // Test file source accessors
@@ -341,9 +346,7 @@ fn validate_source_with_empty_configuration() -> Result<()> {
     let file = temp_path.join("workflow.wdl");
     std::fs::write(&file, "version 1.2")?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .build();
+    let mut config = make_config(temp_path.to_path_buf(), vec![], vec![]);
     config.validate()?;
 
     // File should be forbidden

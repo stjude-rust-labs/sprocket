@@ -1,8 +1,23 @@
-//! Execution configuration tests.
+//! Server configuration validation tests.
 
 use anyhow::Result;
-use sprocket::system::v1::exec::ExecutionConfig;
+use sprocket::ServerConfig;
 use tempfile::TempDir;
+
+fn make_config(
+    output_directory: std::path::PathBuf,
+    allowed_file_paths: Vec<std::path::PathBuf>,
+    allowed_urls: Vec<String>,
+    max_concurrent_runs: Option<usize>,
+) -> ServerConfig {
+    ServerConfig {
+        output_directory,
+        allowed_file_paths,
+        allowed_urls,
+        max_concurrent_runs,
+        ..Default::default()
+    }
+}
 
 #[test]
 fn validate_canonicalizes_allowed_file_paths() -> Result<()> {
@@ -16,11 +31,12 @@ fn validate_canonicalizes_allowed_file_paths() -> Result<()> {
     // Use a relative path with `..` that resolves to the subdirectory
     let relative_path = subdir.join("..").join("subdir");
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![relative_path.clone()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![relative_path.clone()],
+        vec![],
+        None,
+    );
 
     config.validate()?;
 
@@ -43,11 +59,12 @@ fn validate_deduplicates_file_paths() -> Result<()> {
     std::fs::create_dir(&subdir)?;
 
     // Add the same path twice
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![subdir.clone(), subdir.clone()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![subdir.clone(), subdir.clone()],
+        vec![],
+        None,
+    );
 
     config.validate()?;
 
@@ -71,11 +88,12 @@ fn validate_sorts_file_paths() -> Result<()> {
     std::fs::create_dir(&dir_c)?;
 
     // Add paths in reverse order
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![dir_c.clone(), dir_a.clone(), dir_b.clone()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![dir_c.clone(), dir_a.clone(), dir_b.clone()],
+        vec![],
+        None,
+    );
 
     config.validate()?;
 
@@ -90,14 +108,15 @@ fn validate_sorts_file_paths() -> Result<()> {
 
 #[test]
 fn validate_deduplicates_urls() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec![
             "https://example.com/".to_string(),
             "https://example.com/".to_string(),
-        ])
-        .build();
+        ],
+        None,
+    );
 
     config.validate().unwrap();
 
@@ -107,15 +126,16 @@ fn validate_deduplicates_urls() {
 
 #[test]
 fn validate_sorts_urls() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec![
             "https://zzz.com/".to_string(),
             "https://aaa.com/".to_string(),
             "https://mmm.com/".to_string(),
-        ])
-        .build();
+        ],
+        None,
+    );
 
     config.validate().unwrap();
 
@@ -128,17 +148,18 @@ fn validate_sorts_urls() {
 
 #[test]
 fn default_output_directory_is_out() {
-    let config = ExecutionConfig::default();
+    let config = ServerConfig::default();
     assert_eq!(config.output_directory.to_str().unwrap(), "./out");
 }
 
 #[test]
 fn validate_rejects_invalid_url_no_scheme() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec!["example.com".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["example.com".to_string()],
+        None,
+    );
 
     let result = config.validate();
     assert!(result.is_err());
@@ -148,11 +169,12 @@ fn validate_rejects_invalid_url_no_scheme() {
 
 #[test]
 fn validate_rejects_invalid_url_malformed() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec!["https://[invalid".to_string()])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec!["https://[invalid".to_string()],
+        None,
+    );
 
     let result = config.validate();
     assert!(result.is_err());
@@ -162,13 +184,12 @@ fn validate_rejects_invalid_url_malformed() {
 
 #[test]
 fn validate_rejects_nonexistent_file_path() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![
-            "/this/path/does/not/exist/sprocket-test-nonexistent".into(),
-        ])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        "./out".into(),
+        vec!["/this/path/does/not/exist/sprocket-test-nonexistent".into()],
+        vec![],
+        None,
+    );
 
     let result = config.validate();
     assert!(result.is_err());
@@ -178,11 +199,7 @@ fn validate_rejects_nonexistent_file_path() {
 
 #[test]
 fn validate_with_empty_allowed_paths() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config("./out".into(), vec![], vec![], None);
 
     let result = config.validate();
     assert!(result.is_ok());
@@ -193,11 +210,12 @@ fn validate_with_empty_allowed_urls() -> Result<()> {
     let temp = TempDir::new()?;
     let temp_path = temp.path();
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![temp_path.to_path_buf()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![temp_path.to_path_buf()],
+        vec![],
+        None,
+    );
 
     let result = config.validate();
     assert!(result.is_ok());
@@ -207,14 +225,15 @@ fn validate_with_empty_allowed_urls() -> Result<()> {
 
 #[test]
 fn validate_preserves_url_case_sensitivity() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![
+    let mut config = make_config(
+        "./out".into(),
+        vec![],
+        vec![
             "https://Example.com/".to_string(),
             "https://example.com/".to_string(),
-        ])
-        .build();
+        ],
+        None,
+    );
 
     config.validate().unwrap();
 
@@ -233,11 +252,12 @@ fn validate_handles_overlapping_file_paths() -> Result<()> {
     std::fs::create_dir(&parent)?;
     std::fs::create_dir(&child)?;
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![parent.clone(), child.clone()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(
+        temp_path.to_path_buf(),
+        vec![parent.clone(), child.clone()],
+        vec![],
+        None,
+    );
 
     config.validate()?;
 
@@ -260,11 +280,7 @@ fn validate_deduplicates_equivalent_paths() -> Result<()> {
     let path2 = subdir.join(".").join("..");
     let path2 = path2.join("subdir");
 
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![path1, path2])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(temp_path.to_path_buf(), vec![path1, path2], vec![], None);
 
     config.validate()?;
 
@@ -284,11 +300,7 @@ fn validate_handles_trailing_slash_in_paths() -> Result<()> {
 
     // PathBuf doesn't actually store trailing slashes, so this test just
     // verifies that paths work correctly
-    let mut config = ExecutionConfig::builder()
-        .output_directory(temp_path.to_path_buf())
-        .allowed_file_paths(vec![subdir.clone()])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config(temp_path.to_path_buf(), vec![subdir.clone()], vec![], None);
 
     config.validate()?;
 
@@ -299,11 +311,7 @@ fn validate_handles_trailing_slash_in_paths() -> Result<()> {
 
 #[test]
 fn validate_with_max_concurrent_workflows_none() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![])
-        .build();
+    let mut config = make_config("./out".into(), vec![], vec![], None);
 
     let result = config.validate();
     assert!(result.is_ok());
@@ -312,12 +320,7 @@ fn validate_with_max_concurrent_workflows_none() {
 
 #[test]
 fn validate_rejects_max_concurrent_runs_zero() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![])
-        .max_concurrent_runs(0)
-        .build();
+    let mut config = make_config("./out".into(), vec![], vec![], Some(0));
 
     let result = config.validate();
     assert!(result.is_err());
@@ -327,12 +330,7 @@ fn validate_rejects_max_concurrent_runs_zero() {
 
 #[test]
 fn validate_with_max_concurrent_runs_large() {
-    let mut config = ExecutionConfig::builder()
-        .output_directory("./out".into())
-        .allowed_file_paths(vec![])
-        .allowed_urls(vec![])
-        .max_concurrent_runs(10000)
-        .build();
+    let mut config = make_config("./out".into(), vec![], vec![], Some(10000));
 
     let result = config.validate();
     assert!(result.is_ok());

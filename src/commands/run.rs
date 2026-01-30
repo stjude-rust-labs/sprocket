@@ -667,10 +667,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         }
         supplied_dir
     } else {
-        setup_run_dir(
-            &args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()),
-            &target,
-        )?
+        setup_run_dir(&args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()), &target)?
     };
 
     tracing::info!(

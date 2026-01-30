@@ -17,7 +17,6 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::ServerConfig;
 use crate::system::v1::db::SqliteDatabase;
-use crate::system::v1::exec::ExecutionConfig;
 use crate::system::v1::exec::svc::RunManagerSvc;
 
 mod api;
@@ -57,12 +56,9 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 /// # Errors
 ///
 /// Returns an error if the server fails to start or bind to the address.
-pub async fn run(
-    server_config: ServerConfig,
-    execution_config: ExecutionConfig,
-) -> anyhow::Result<()> {
-    let db_path = server_config.database.url.clone().unwrap_or_else(|| {
-        execution_config
+pub async fn run(config: ServerConfig) -> anyhow::Result<()> {
+    let db_path = config.database.url.clone().unwrap_or_else(|| {
+        config
             .output_directory
             .join(crate::config::DEFAULT_DATABASE_FILENAME)
             .display()
@@ -70,13 +66,12 @@ pub async fn run(
     });
 
     let db = Arc::new(SqliteDatabase::new(&db_path).await?);
-    let (_, run_manager_tx) =
-        RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, execution_config, db);
+    let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
 
     let state = AppState::builder().run_manager_tx(run_manager_tx).build();
 
     let mut cors_layer = CorsLayer::new();
-    for origin in server_config.allowed_origins {
+    for origin in config.allowed_origins {
         let header = origin
             .parse::<HeaderValue>()
             .with_context(|| format!("invalid CORS origin: `{}`", origin))?;
@@ -86,7 +81,7 @@ pub async fn run(
 
     let app = create_router().state(state).cors_layer(cors_layer).call();
 
-    let addr = format!("{}:{}", server_config.host, server_config.port);
+    let addr = format!("{}:{}", config.host, config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
     tracing::info!("server listening on {}", addr);

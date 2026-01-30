@@ -7,13 +7,13 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
+use sprocket::ServerConfig;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SqliteDatabase;
-use sprocket::system::v1::exec::ExecutionConfig;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
 use tempfile::TempDir;
@@ -34,18 +34,19 @@ async fn create_test_server(
     let wdl_dir = temp.path().join("wdl");
     std::fs::create_dir(&wdl_dir).unwrap();
 
-    let mut exec_config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![wdl_dir])
-        .maybe_max_concurrent_runs(max_concurrent_runs)
-        .maybe_engine(engine)
-        .build();
-    exec_config.validate().unwrap();
+    let mut server_config = ServerConfig {
+        output_directory: temp.path().to_path_buf(),
+        allowed_file_paths: vec![wdl_dir],
+        max_concurrent_runs,
+        engine: engine.unwrap_or_default(),
+        ..Default::default()
+    };
+    server_config.validate().unwrap();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
 
-    let (_, run_manager_tx) = RunManagerSvc::spawn(1000, exec_config, db.clone());
+    let (_, run_manager_tx) = RunManagerSvc::spawn(1000, server_config, db.clone());
 
     // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -1344,16 +1345,17 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     let wdl_dir = temp.path().join("wdl");
     std::fs::create_dir(&wdl_dir).unwrap();
 
-    let mut exec_config = ExecutionConfig::builder()
-        .output_directory(temp.path().to_path_buf())
-        .allowed_file_paths(vec![wdl_dir.clone()])
-        .build();
-    exec_config.validate().unwrap();
+    let mut server_config = ServerConfig {
+        output_directory: temp.path().to_path_buf(),
+        allowed_file_paths: vec![wdl_dir.clone()],
+        ..Default::default()
+    };
+    server_config.validate().unwrap();
 
     let db: Arc<dyn Database> = Arc::new(SqliteDatabase::from_pool(pool).await.unwrap());
 
     // Create events and subscribe to crankshaft events
-    let (_, manager) = RunManagerSvc::spawn(1000, exec_config, db.clone());
+    let (_, manager) = RunManagerSvc::spawn(1000, server_config, db.clone());
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");

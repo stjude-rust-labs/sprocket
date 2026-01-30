@@ -18,6 +18,7 @@ use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
+use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::LogSource;
@@ -27,7 +28,6 @@ use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::AllowedSource;
 use crate::system::v1::exec::ConfigError;
-use crate::system::v1::exec::ExecutionConfig;
 use crate::system::v1::exec::RunnableExecutor;
 use crate::system::v1::exec::names::generate_run_name;
 use crate::system::v1::fs::OutputDirectory;
@@ -62,7 +62,7 @@ async fn create_server_session(db: Arc<dyn Database>) -> Result<Session, Databas
 #[allow(missing_debug_implementations)]
 pub struct RunManagerSvc {
     /// The configuration for execution.
-    config: ExecutionConfig,
+    config: ServerConfig,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -88,7 +88,7 @@ pub struct RunManagerSvc {
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(config: ExecutionConfig, db: Arc<dyn Database>, rx: Rx) -> Self {
+    pub fn new(config: ServerConfig, db: Arc<dyn Database>, rx: Rx) -> Self {
         let semaphore = config
             .max_concurrent_runs
             .map(|max| Arc::new(Semaphore::new(max)));
@@ -249,7 +249,7 @@ impl RunManagerSvc {
     /// - the sender channel
     pub fn spawn(
         channel_buffer_size: usize,
-        config: ExecutionConfig,
+        config: ServerConfig,
         db: Arc<dyn Database>,
     ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
         let (tx, rx) = mpsc::channel(channel_buffer_size);

@@ -55,14 +55,14 @@ impl Args {
         }
 
         if let Some(output_directory) = self.output_directory {
-            config.execution.output_directory = output_directory;
+            config.server.output_directory = output_directory;
         }
 
         config
-            .execution
+            .server
             .allowed_file_paths
             .append(&mut self.allowed_file_paths);
-        config.execution.allowed_urls.append(&mut self.allowed_urls);
+        config.server.allowed_urls.append(&mut self.allowed_urls);
         config
             .server
             .allowed_origins
@@ -75,14 +75,12 @@ pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
     args.apply(&mut config);
 
     // Validate that at least one source type is allowed
-    if config.execution.allowed_file_paths.is_empty() && config.execution.allowed_urls.is_empty() {
+    if config.server.allowed_file_paths.is_empty() && config.server.allowed_urls.is_empty() {
         return Err(anyhow::anyhow!(
             "at least one of `allowed_file_paths` or `allowed_urls` must be specified"
         )
         .into());
     }
 
-    crate::server::run(config.server, config.execution)
-        .await
-        .map_err(Into::into)
+    crate::server::run(config.server).await.map_err(Into::into)
 }

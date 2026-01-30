@@ -37,7 +37,6 @@ pub mod svc;
 
 pub use config::ConfigError;
 pub use config::ConfigResult;
-pub use config::ExecutionConfig;
 pub use names::generate_run_name;
 pub use source::AllowedSource;
 

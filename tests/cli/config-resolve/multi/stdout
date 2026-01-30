@@ -55,32 +55,32 @@ cleanup = true
 host = "127.0.0.1"
 port = 8080
 allowed_origins = []
-
-[server.database]
-
-[execution]
 output_directory = "./out"
 allowed_file_paths = []
 allowed_urls = []
+
+[server.database]
+
+[server.engine]
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
 
-[execution.http]
+[server.engine.http]
 
-[execution.workflow.scatter]
+[server.engine.workflow.scatter]
 
-[execution.task]
+[server.engine.task]
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
 digests = "weak"
 
-[execution.storage.azure]
+[server.engine.storage.azure]
 
-[execution.storage.s3]
+[server.engine.storage.s3]
 
-[execution.storage.google]
+[server.engine.storage.google]
 
 [common]
 color = true

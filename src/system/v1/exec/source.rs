@@ -7,7 +7,7 @@ use url::Url;
 
 use super::ConfigError;
 use super::ConfigResult;
-use super::ExecutionConfig;
+use crate::config::ServerConfig;
 
 /// A validated workflow source.
 ///
@@ -38,14 +38,14 @@ pub enum AllowedSource {
 }
 
 impl AllowedSource {
-    /// Validates a source path against the execution configuration.
+    /// Validates a source path against the server configuration.
     ///
     /// # Preconditions
     ///
     /// The configuration must have been validated via
-    /// `ExecutionConfig::validate()` which ensures all allowed paths are
+    /// `ServerConfig::validate()` which ensures all allowed paths are
     /// canonical.
-    pub fn validate(source: &str, config: &ExecutionConfig) -> ConfigResult<Self> {
+    pub fn validate(source: &str, config: &ServerConfig) -> ConfigResult<Self> {
         if let Ok(url) = Url::parse(source) {
             let url_str = url.as_str();
             let is_allowed = config
@@ -177,16 +177,23 @@ impl std::fmt::Display for AllowedSource {
 mod tests {
     use super::*;
 
+    fn make_config(allowed_file_paths: Vec<PathBuf>, allowed_urls: Vec<String>) -> ServerConfig {
+        ServerConfig {
+            allowed_file_paths,
+            allowed_urls,
+            ..Default::default()
+        }
+    }
+
     #[test]
     fn validate_url_allowed() {
-        let mut config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![
+        let mut config = make_config(
+            vec![],
+            vec![
                 String::from("https://example.com/"),
                 String::from("http://localhost/"),
-            ])
-            .build();
+            ],
+        );
         config.validate().unwrap();
 
         let result = AllowedSource::validate("https://example.com/workflow.wdl", &config);
@@ -196,11 +203,7 @@ mod tests {
 
     #[test]
     fn validate_url_forbidden() {
-        let mut config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/")])
-            .build();
+        let mut config = make_config(vec![], vec![String::from("https://example.com/")]);
         config.validate().unwrap();
 
         let result = AllowedSource::validate("https://forbidden.com/workflow.wdl", &config);
@@ -218,11 +221,7 @@ mod tests {
         let file_path = temp_dir.path().join("workflow.wdl");
         File::create(&file_path).unwrap();
 
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
+        let config = make_config(vec![temp_dir.path().canonicalize().unwrap()], vec![]);
 
         let result = AllowedSource::validate(file_path.to_str().unwrap(), &config);
         assert!(result.is_ok());
@@ -245,11 +244,7 @@ mod tests {
         // Also test with non-existent file in forbidden directory
         let nonexistent_file = forbidden_dir.path().join("missing.wdl");
 
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![allowed_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
+        let config = make_config(vec![allowed_dir.path().canonicalize().unwrap()], vec![]);
 
         // Both should return `FilePathForbidden` without leaking existence info
         let result1 = AllowedSource::validate(existing_file.to_str().unwrap(), &config);
@@ -272,11 +267,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent = temp_dir.path().join("missing.wdl");
 
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
+        let config = make_config(vec![temp_dir.path().canonicalize().unwrap()], vec![]);
 
         // Should reveal `FileNotFound` since it's in an allowed directory
         let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
@@ -285,11 +276,7 @@ mod tests {
 
     #[test]
     fn validate_url_scheme_must_match() {
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/")])
-            .build();
+        let config = make_config(vec![], vec![String::from("https://example.com/")]);
 
         // http should not be allowed when only https is configured
         let result = AllowedSource::validate("http://example.com/workflow.wdl", &config);
@@ -309,11 +296,7 @@ mod tests {
         let file_path = subdir.join("workflow.wdl");
         File::create(&file_path).unwrap();
 
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![temp_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
+        let config = make_config(vec![temp_dir.path().canonicalize().unwrap()], vec![]);
 
         let path_with_dotdot = subdir.join("..").join("subdir").join("workflow.wdl");
         let result = AllowedSource::validate(path_with_dotdot.to_str().unwrap(), &config);
@@ -323,11 +306,7 @@ mod tests {
 
     #[test]
     fn url_trailing_slash() {
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![])
-            .allowed_urls(vec![String::from("https://example.com/allowed/")])
-            .build();
+        let config = make_config(vec![], vec![String::from("https://example.com/allowed/")]);
 
         let allowed = AllowedSource::validate("https://example.com/allowed/workflow.wdl", &config);
         assert!(allowed.is_ok());
@@ -358,11 +337,7 @@ mod tests {
         let symlink_path = allowed_dir.path().join("escape.wdl");
         symlink(&forbidden_file, &symlink_path).unwrap();
 
-        let config = ExecutionConfig::builder()
-            .output_directory(PathBuf::from("./out"))
-            .allowed_file_paths(vec![allowed_dir.path().canonicalize().unwrap()])
-            .allowed_urls(vec![])
-            .build();
+        let config = make_config(vec![allowed_dir.path().canonicalize().unwrap()], vec![]);
 
         let result = AllowedSource::validate(symlink_path.to_str().unwrap(), &config);
         assert!(result.is_err());
