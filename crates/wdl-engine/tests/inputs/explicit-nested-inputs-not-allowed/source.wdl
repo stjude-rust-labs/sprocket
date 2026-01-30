@@ -2,7 +2,17 @@
 
 version 1.1
 
+task foo {
+    input {
+        Int bar = 0
+    }
+
+    command <<<>>>
+}
+
 workflow test {
+    call foo
+
     meta {
         allowNestedInputs: false
     }

@@ -33,22 +33,23 @@ use tracing::debug;
 use tracing::trace;
 use tracing::warn;
 
-use super::ApptainerState;
+use super::ApptainerRuntime;
 use super::TaskExecutionBackend;
-use super::TaskSpawnRequest;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskInputs;
 use crate::Value;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
-use crate::v1;
-use crate::v1::ContainerSource;
+use crate::v1::requirements;
+use crate::v1::requirements::ContainerSource;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -70,8 +71,8 @@ pub struct SlurmApptainerBackend {
     events: Events,
     /// The evaluation cancellation context.
     cancellation: CancellationContext,
-    /// Apptainer state.
-    apptainer_state: ApptainerState,
+    /// The underlying Apptainer runtime to use.
+    apptainer: ApptainerRuntime,
 }
 
 impl SlurmApptainerBackend {
@@ -92,7 +93,7 @@ impl SlurmApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer_state: ApptainerState::new(run_root_dir),
+            apptainer: ApptainerRuntime::new(run_root_dir),
         })
     }
 }
@@ -100,11 +101,12 @@ impl SlurmApptainerBackend {
 impl TaskExecutionBackend for SlurmApptainerBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, crate::Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let mut required_cpu = v1::cpu(requirements);
-        let mut required_memory = ByteSize::b(v1::memory(requirements)? as u64);
+        let mut required_cpu = requirements::cpu(inputs, requirements);
+        let mut required_memory = ByteSize::b(requirements::memory(inputs, requirements)? as u64);
 
         let backend_config = self.config.backend()?;
         let backend_config = backend_config
@@ -118,7 +120,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         // the in-WDL `task` values) and below in `spawn` (for the actual
         // resource request)
         if let Some(partition) = backend_config.slurm_partition_for_task(requirements, hints) {
-            if let Some(max_cpu) = partition.max_cpu_per_task()
+            if let Some(max_cpu) = partition.max_cpu_per_task
                 && required_cpu > max_cpu as f64
             {
                 let env_specific = if self.config.suppress_env_specific_output {
@@ -143,7 +145,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     }
                 }
             }
-            if let Some(max_memory) = partition.max_memory_per_task()
+            if let Some(max_memory) = partition.max_memory_per_task
                 && required_memory > max_memory
             {
                 let env_specific = if self.config.suppress_env_specific_output {
@@ -173,7 +175,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let container = v1::container(requirements, self.config.task.container.as_deref());
+        let container =
+            requirements::container(inputs, requirements, self.config.task.container.as_deref());
         if let ContainerSource::Unknown(_) = &container {
             bail!(
                 "Slurm Apptainer backend does not support unknown container source `{container:#}`"
@@ -196,11 +199,11 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
         })
     }
 
-    fn spawn(
-        &self,
-        request: TaskSpawnRequest,
-        _transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    fn execute<'a>(
+        &'a self,
+        _: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
             let backend_config = backend_config
@@ -208,18 +211,16 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 .expect("configured backend is not Slurm Apptainer");
 
             // Truncate the request ID to fit in the Slurm job name length limit.
-            let request_id = request.id();
-            let name = if request_id.len() > SLURM_JOB_NAME_MAX_LENGTH {
-                request_id
+            let name = if request.id.len() > SLURM_JOB_NAME_MAX_LENGTH {
+                request.id
                     .chars()
                     .take(SLURM_JOB_NAME_MAX_LENGTH)
                     .collect::<String>()
             } else {
-                request_id.to_string()
+                request.id.to_string()
             };
 
             let crankshaft_task_id = crankshaft::events::next_task_id();
-            let attempt_dir = request.attempt_dir();
 
             // Create the working directory.
             let work_dir = request.work_dir();
@@ -250,7 +251,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
             // Write the evaluated WDL command section to a host file.
             let command_path = request.command_path();
-            fs::write(&command_path, request.command())
+            fs::write(&command_path, request.command)
                 .await
                 .with_context(|| {
                     format!(
@@ -259,15 +260,10 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     )
                 })?;
 
-            let apptainer_command = self
-                .apptainer_state
-                .prepare_apptainer_command(
-                    request
-                        .constraints()
-                        .container
-                        .as_ref()
-                        .expect("should have container"),
-                    self.cancellation.first(),
+            let Some(apptainer_script) = self
+                .apptainer
+                .generate_script(
+                    &self.config,
                     &request,
                     backend_config
                         .apptainer_config
@@ -276,11 +272,14 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                         .unwrap_or_default()
                         .iter()
                         .map(String::as_str),
+                    self.cancellation.first(),
                 )
-                .await?;
+                .await? else {
+                    return Ok(None);
+                };
 
-            let apptainer_command_path = attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-            fs::write(&apptainer_command_path, apptainer_command)
+            let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
+            fs::write(&apptainer_command_path, apptainer_script)
                 .await
                 .with_context(|| {
                     format!(
@@ -301,22 +300,22 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
             // The path for the Slurm-level stdout and stderr. This primarily contains the
             // job report, as we redirect Apptainer and WDL output separately.
-            let slurm_stdout_path = attempt_dir.join("slurm.stdout");
-            let slurm_stderr_path = attempt_dir.join("slurm.stderr");
+            let slurm_stdout_path = request.attempt_dir.join("slurm.stdout");
+            let slurm_stderr_path = request.attempt_dir.join("slurm.stderr");
 
             let mut sbatch_command = Command::new("sbatch");
 
             // If a Slurm partition has been configured, specify it. Otherwise, the job will
             // end up on the cluster's default partition.
             if let Some(partition) =
-                backend_config.slurm_partition_for_task(request.requirements(), request.hints())
+                backend_config.slurm_partition_for_task(request.requirements, request.hints)
             {
-                sbatch_command.arg("--partition").arg(partition.name());
+                sbatch_command.arg("--partition").arg(&partition.name);
             }
 
             // If GPUs are required, use the gpu helper to determine the count and pass it
             // to `sbatch` via `--gpus-per-task`.
-            if let Some(gpu_count) = v1::gpu(request.requirements(), request.hints()) {
+            if let Some(gpu_count) = requirements::gpu(request.inputs, request.requirements, request.hints) {
                 sbatch_command.arg(format!("--gpus-per-task={gpu_count}"));
             }
 
@@ -350,7 +349,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 // CPU request is rounded up to the nearest whole CPU
                 .arg(format!(
                     "--cpus-per-task={}",
-                    request.constraints().cpu.ceil() as u64
+                    request.constraints.cpu.ceil() as u64
                 ))
                 // Memory request is specified per node in mebibytes; we round the request up to the
                 // next mebibyte.
@@ -364,7 +363,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 // https://wcmscu.atlassian.net/wiki/spaces/WIKI/pages/327731/Using+Slurm
                 .arg(format!(
                     "--mem={}M",
-                    (request.constraints().memory as f64 / bytesize::MIB as f64).ceil() as u64
+                    (request.constraints.memory as f64 / bytesize::MIB as f64).ceil() as u64
                 ))
                 .arg(apptainer_command_path);
 

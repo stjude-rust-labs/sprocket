@@ -38,6 +38,9 @@ pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 /// The default backend name.
 pub(crate) const DEFAULT_BACKEND_NAME: &str = "default";
 
+/// The maximum size, in bytes, for an LSF job name prefix.
+const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
+
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
 
@@ -773,7 +776,16 @@ pub struct TaskConfig {
     ///
     /// <div class="warning">
     /// Warning: the use of a shell other than `bash` may lead to tasks that may
-    /// not be portable to other execution engines.</div>
+    /// not be portable to other execution engines.
+    ///
+    /// The shell must support a `-c` option to run a specific script file (i.e.
+    /// an evaluated task command).
+    ///
+    /// Note that this option affects all task commands, so every container that
+    /// is used must contain the specified shell.
+    ///
+    /// If using this setting causes your tasks to fail, please do not file an
+    /// issue. </div>
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell: Option<String>,
     /// The behavior when a task's `cpu` requirement cannot be met.
@@ -1246,6 +1258,7 @@ impl TesBackendConfig {
 
 /// Configuration for the Apptainer container runtime.
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -1268,57 +1281,29 @@ impl ApptainerConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
     /// <queue_name>`.
-    name: String,
+    pub name: String,
     /// The maximum number of CPUs this queue can provision for a single task.
-    max_cpu_per_task: Option<u64>,
+    pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this queue can provision for a single task.
-    max_memory_per_task: Option<ByteSize>,
+    pub max_memory_per_task: Option<ByteSize>,
 }
 
 impl LsfQueueConfig {
-    /// Create an [`LsfQueueConfig`].
-    pub fn new(
-        name: String,
-        max_cpu_per_task: Option<u64>,
-        max_memory_per_task: Option<ByteSize>,
-    ) -> Self {
-        Self {
-            name,
-            max_cpu_per_task,
-            max_memory_per_task,
-        }
-    }
-
-    /// The name of the queue; this is the string passed to `bsub -q
-    /// <queue_name>`.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The maximum number of CPUs this queue can provision for a single task.
-    pub fn max_cpu_per_task(&self) -> Option<u64> {
-        self.max_cpu_per_task
-    }
-
-    /// The maximum memory this queue can provision for a single task.
-    pub fn max_memory_per_task(&self) -> Option<ByteSize> {
-        self.max_memory_per_task
-    }
-
     /// Validate that this LSF queue exists according to the local `bqueues`.
-    async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
-        let queue = self.name();
+    pub async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
+        let queue = &self.name;
         ensure!(!queue.is_empty(), "{name}_lsf_queue name cannot be empty");
-        if let Some(max_cpu_per_task) = self.max_cpu_per_task() {
+        if let Some(max_cpu_per_task) = self.max_cpu_per_task {
             ensure!(
                 max_cpu_per_task > 0,
                 "{name}_lsf_queue `{queue}` must allow at least 1 CPU to be provisioned"
             );
         }
-        if let Some(max_memory_per_task) = self.max_memory_per_task() {
+        if let Some(max_memory_per_task) = self.max_memory_per_task {
             ensure!(
                 max_memory_per_task.as_u64() > 0,
                 "{name}_lsf_queue `{queue}` must allow at least some memory to be provisioned"
@@ -1354,7 +1339,22 @@ impl LsfQueueConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
+    /// The task monitor polling interval, in seconds.
+    ///
+    /// Defaults to 30 seconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+    /// The maximum number of concurrent LSF operations the backend will
+    /// perform.
+    ///
+    /// This controls the maximum concurrent number of `bsub` processes the
+    /// backend will spawn to queue tasks.
+    ///
+    /// Defaults to 10 concurrent operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrency: Option<u32>,
     /// Which queue, if any, to specify when submitting normal jobs to LSF.
     ///
     /// This may be superseded by
@@ -1380,6 +1380,10 @@ pub struct LsfApptainerBackendConfig {
     /// Additional command-line arguments to pass to `bsub` when submitting jobs
     /// to LSF.
     pub extra_bsub_args: Option<Vec<String>>,
+    /// Prefix to add to every LSF job name before the task identifier. This is
+    /// truncated as needed to satisfy the byte-oriented LSF job name limit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_name_prefix: Option<String>,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where LSF dispatches tasks.
     ///
@@ -1400,6 +1404,7 @@ impl LsfApptainerBackendConfig {
         if cfg!(not(unix)) {
             bail!("LSF + Apptainer backend is not supported on non-unix platforms");
         }
+
         if !engine_config.experimental_features_enabled {
             bail!("LSF + Apptainer backend requires enabling experimental features");
         }
@@ -1409,17 +1414,29 @@ impl LsfApptainerBackendConfig {
         // the external tools changes based on where a job gets dispatched, but
         // querying from the perspective of the current node allows
         // us to get better error messages in circumstances typical to a cluster.
-        if let Some(queue) = self.default_lsf_queue.as_ref() {
+        if let Some(queue) = &self.default_lsf_queue {
             queue.validate("default").await?;
         }
-        if let Some(queue) = self.short_task_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.short_task_lsf_queue {
             queue.validate("short_task").await?;
         }
-        if let Some(queue) = self.gpu_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.gpu_lsf_queue {
             queue.validate("gpu").await?;
         }
-        if let Some(queue) = self.fpga_lsf_queue.as_ref() {
+
+        if let Some(queue) = &self.fpga_lsf_queue {
             queue.validate("fpga").await?;
+        }
+
+        if let Some(prefix) = &self.job_name_prefix
+            && prefix.len() > MAX_LSF_JOB_NAME_PREFIX
+        {
+            bail!(
+                "LSF job name prefix `{prefix}` exceeds the maximum {MAX_LSF_JOB_NAME_PREFIX} \
+                 bytes"
+            );
         }
 
         self.apptainer_config.validate().await?;
@@ -1477,63 +1494,34 @@ impl LsfApptainerBackendConfig {
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
     /// --partition=<partition_name>`.
-    name: String,
+    pub name: String,
     /// The maximum number of CPUs this partition can provision for a single
     /// task.
-    max_cpu_per_task: Option<u64>,
+    pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this partition can provision for a single task.
-    max_memory_per_task: Option<ByteSize>,
+    pub max_memory_per_task: Option<ByteSize>,
 }
 
 impl SlurmPartitionConfig {
-    /// Create a [`SlurmPartitionConfig`].
-    pub fn new(
-        name: String,
-        max_cpu_per_task: Option<u64>,
-        max_memory_per_task: Option<ByteSize>,
-    ) -> Self {
-        Self {
-            name,
-            max_cpu_per_task,
-            max_memory_per_task,
-        }
-    }
-
-    /// The name of the partition; this is the string passed to `sbatch
-    /// --partition=<partition_name>`.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// The maximum number of CPUs this partition can provision for a single
-    /// task.
-    pub fn max_cpu_per_task(&self) -> Option<u64> {
-        self.max_cpu_per_task
-    }
-
-    /// The maximum memory this partition can provision for a single task.
-    pub fn max_memory_per_task(&self) -> Option<ByteSize> {
-        self.max_memory_per_task
-    }
-
     /// Validate that this Slurm partition exists according to the local
     /// `sinfo`.
-    async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
-        let partition = self.name();
+    pub async fn validate(&self, name: &str) -> Result<(), anyhow::Error> {
+        let partition = &self.name;
         ensure!(
             !partition.is_empty(),
             "{name}_slurm_partition name cannot be empty"
         );
-        if let Some(max_cpu_per_task) = self.max_cpu_per_task() {
+        if let Some(max_cpu_per_task) = self.max_cpu_per_task {
             ensure!(
                 max_cpu_per_task > 0,
                 "{name}_slurm_partition `{partition}` must allow at least 1 CPU to be provisioned"
             );
         }
-        if let Some(max_memory_per_task) = self.max_memory_per_task() {
+        if let Some(max_memory_per_task) = self.max_memory_per_task {
             ensure!(
                 max_memory_per_task.as_u64() > 0,
                 "{name}_slurm_partition `{partition}` must allow at least some memory to be \
@@ -1576,6 +1564,7 @@ impl SlurmPartitionConfig {
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// Which partition, if any, to specify when submitting normal jobs to
     /// Slurm.
@@ -2005,5 +1994,26 @@ mod test {
             config.validate().await.is_ok(),
             "should pass for default (None)"
         );
+
+        // Test invalid LSF job name prefix
+        #[cfg(unix)]
+        {
+            let job_name_prefix = "A".repeat(MAX_LSF_JOB_NAME_PREFIX * 2);
+            let mut config = Config {
+                experimental_features_enabled: true,
+                ..Default::default()
+            };
+            config.backends.insert(
+                "default".to_string(),
+                BackendConfig::LsfApptainer(LsfApptainerBackendConfig {
+                    job_name_prefix: Some(job_name_prefix.clone()),
+                    ..Default::default()
+                }),
+            );
+            assert_eq!(
+                config.validate().await.unwrap_err().to_string(),
+                format!("LSF job name prefix `{job_name_prefix}` exceeds the maximum 100 bytes")
+            );
+        }
     }
 }

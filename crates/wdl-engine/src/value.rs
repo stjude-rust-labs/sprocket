@@ -3964,7 +3964,7 @@ mod test {
         // Boolean -> String (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = Value::from(true)
                     .coerce(None, &PrimitiveType::String.into())
                     .unwrap_err()
@@ -4000,7 +4000,7 @@ mod test {
         // Int -> Boolean (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = Value::from(12345)
                     .coerce(None, &PrimitiveType::Boolean.into())
                     .unwrap_err()
@@ -4028,7 +4028,7 @@ mod test {
         // Float -> Int (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = Value::from(12345.0)
                     .coerce(None, &PrimitiveType::Integer.into())
                     .unwrap_err()
@@ -4070,7 +4070,7 @@ mod test {
         // String -> Boolean (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = value
                     .coerce(None, &PrimitiveType::Boolean.into())
                     .unwrap_err()
@@ -4186,7 +4186,7 @@ mod test {
         // File -> Directory (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = value
                     .coerce(None, &PrimitiveType::Directory.into())
                     .unwrap_err()
@@ -4282,7 +4282,7 @@ mod test {
         // Directory -> File (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = value.coerce(None, &PrimitiveType::File.into()).unwrap_err()
             ),
             "cannot coerce type `Directory` to type `File`"
@@ -4368,7 +4368,7 @@ mod test {
         // None -> String (invalid)
         assert_eq!(
             format!(
-                "{e:?}",
+                "{e:#}",
                 e = Value::new_none(Type::None)
                     .coerce(None, &PrimitiveType::String.into())
                     .unwrap_err()
@@ -4400,11 +4400,8 @@ mod test {
         // Array[Int] -> Array[String] (invalid)
         let target_ty: Type = ArrayType::new(PrimitiveType::String).into();
         assert_eq!(
-            format!("{e:?}", e = src.coerce(None, &target_ty).unwrap_err()),
-            r#"failed to coerce array element at index 0
-
-Caused by:
-    cannot coerce type `Int` to type `String`"#
+            format!("{e:#}", e = src.coerce(None, &target_ty).unwrap_err()),
+            "failed to coerce array element at index 0: cannot coerce type `Int` to type `String`"
         );
     }
 
@@ -4425,7 +4422,7 @@ Caused by:
             .expect("should create array")
             .into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(None, &target_ty).unwrap_err()),
+            format!("{e:#}", e = value.coerce(None, &target_ty).unwrap_err()),
             "cannot coerce empty array value to non-empty array type `Array[String]+`"
         );
     }
@@ -4465,21 +4462,17 @@ Caused by:
         // Map[String, File] -> Map[Int, File] (invalid)
         let ty = MapType::new(PrimitiveType::Integer, PrimitiveType::File).into();
         assert_eq!(
-            format!("{e:?}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            r#"failed to coerce map key for element at index 0
-
-Caused by:
-    cannot coerce type `String` to type `Int`"#
+            format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
+            "failed to coerce map key for element at index 0: cannot coerce type `String` to type \
+             `Int`"
         );
 
         // Map[String, File] -> Map[String, Int] (invalid)
         let ty = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
         assert_eq!(
-            format!("{e:?}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            r#"failed to coerce map value for element at index 0
-
-Caused by:
-    cannot coerce type `File` to type `Int`"#
+            format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
+            "failed to coerce map value for element at index 0: cannot coerce type `File` to type \
+             `Int`"
         );
 
         // Map[String, File] -> Struct
@@ -4518,7 +4511,7 @@ Caused by:
         )
         .into();
         assert_eq!(
-            format!("{e:?}", e = string_to_file.coerce(None, &ty).unwrap_err()),
+            format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
             "cannot coerce a map of 2 elements to struct type `Foo` as the struct has 3 members"
         );
 
@@ -4568,11 +4561,8 @@ Caused by:
         // Pair[String, File] -> Pair[Int, Int]
         let ty = PairType::new(PrimitiveType::Integer, PrimitiveType::Integer).into();
         assert_eq!(
-            format!("{e:?}", e = value.coerce(None, &ty).unwrap_err()),
-            r#"failed to coerce pair's left value
-
-Caused by:
-    cannot coerce type `String` to type `Int`"#
+            format!("{e:#}", e = value.coerce(None, &ty).unwrap_err()),
+            "failed to coerce pair's left value: cannot coerce type `String` to type `Int`"
         );
     }
 

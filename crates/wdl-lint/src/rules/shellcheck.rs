@@ -535,7 +535,7 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
 
 /// Sanitize a [CommandSection].
 ///
-/// Removes all trailing whitespace, replaces placeholders
+/// Removes all leading whitespace, replaces placeholders
 /// with dummy bash variables or literals.
 ///
 /// If the section contains mixed indentation, returns None.
@@ -588,6 +588,7 @@ fn map_shellcheck_lines(
     let mut line_map = HashMap::new();
     let mut line_num = 1;
     let mut skip_next_line = false;
+    let mut skipped_first_line = false;
     for part in section.parts() {
         match part {
             CommandPart::Text(ref text) => {
@@ -597,10 +598,15 @@ fn map_shellcheck_lines(
                         skip_next_line = false;
                         continue;
                     }
+
                     // The first line is removed entirely, UNLESS there is content on it.
-                    if line_num == 1 && line.is_empty() {
+                    if !skipped_first_line && line.is_empty() {
+                        skipped_first_line = true;
                         continue;
                     }
+
+                    skipped_first_line = true;
+
                     // Add back the leading whitespace that was stripped.
                     let adjusted_start = text.span().start() + line_start + leading_whitespace;
                     line_map.insert(line_num, Span::new(adjusted_start, line.len()));

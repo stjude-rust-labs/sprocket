@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added a configurable prefix for LSF job names and ensured the byte-length
+  limit matches LSF's behavior ([#362](https://github.com/stjude-rust-labs/sprocket/issues/362)).
+
+#### Fixed
+
+* Fixed the `size` function not performing guest-to-host path translation for
+  `String` arguments ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
+* Fixed an issue where task requirements and hints sources from an inputs file
+  were not being respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed a spec issue where nested task requirements and hints could not be set
+  from inputs unless the the calling workflow allowed nested inputs ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
+* Fixed an issue with call caching not working when a directory being cached
+  contained a broken symlink ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+* Fixed the `glob` function not properly resolving symlinks to files ([#549](https://github.com/stjude-rust-labs/sprocket/pull/549)).
+
+#### Changed
+
+* Refactored LSF backend to more efficiently track LSF jobs ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
+* Refactored how task execution backends are passed data relating to the tasks
+  to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
+
 ## 0.11.1 - 01-12-2026
 
-## Fixed
+#### Fixed
 
 * Fixed an issue with Docker memory and cpu clamping being erroneously excluded ([#536](https://github.com/stjude-rust-labs/sprocket/pull/536)).
 

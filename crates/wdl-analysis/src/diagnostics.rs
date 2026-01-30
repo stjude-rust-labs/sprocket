@@ -45,6 +45,8 @@ impl fmt::Display for Io {
 /// Represents the context for diagnostic reporting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Context {
+    /// The name is a namespace introduced by an imported document.
+    Namespace(Span),
     /// The name is a workflow name.
     Workflow(Span),
     /// The name is a task name.
@@ -65,6 +67,7 @@ impl Context {
     /// Gets the span of the name.
     fn span(&self) -> Span {
         match self {
+            Self::Namespace(s) => *s,
             Self::Workflow(s) => *s,
             Self::Task(s) => *s,
             Self::Struct(s) => *s,
@@ -79,6 +82,7 @@ impl Context {
 impl fmt::Display for Context {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Namespace(_) => write!(f, "namespace"),
             Self::Workflow(_) => write!(f, "workflow"),
             Self::Task(_) => write!(f, "task"),
             Self::Struct(_) => write!(f, "struct"),
@@ -269,7 +273,7 @@ pub fn import_cycle(span: Span) -> Diagnostic {
 
 /// Creates an "import failure" diagnostic.
 pub fn import_failure(uri: &str, error: &anyhow::Error, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("failed to import `{uri}`: {error:?}")).with_highlight(span)
+    Diagnostic::error(format!("failed to import `{uri}`: {error:#}")).with_highlight(span)
 }
 
 /// Creates an "incompatible import" diagnostic.
@@ -299,7 +303,7 @@ pub fn import_missing_version(span: Span) -> Diagnostic {
 
 /// Creates an "invalid relative import" diagnostic.
 pub fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("{error:?}")).with_highlight(span)
+    Diagnostic::error(format!("{error:#}")).with_highlight(span)
 }
 
 /// Creates a "struct not in document" diagnostic.

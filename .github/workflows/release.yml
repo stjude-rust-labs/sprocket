@@ -9,18 +9,6 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable
-    - name: Publish crates
-      run: cargo --locked run -p ci --release --bin ci -- publish
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
   docker-x86:
     runs-on: ubuntu-latest
     steps:

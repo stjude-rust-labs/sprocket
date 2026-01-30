@@ -2,7 +2,6 @@
 
 target/
 .vscode/
-**/Cargo.lock
 
 rustc-ice*
 

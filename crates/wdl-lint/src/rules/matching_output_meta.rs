@@ -220,13 +220,13 @@ fn handle_meta_outputs_and_reset(
     rule: &mut MatchingOutputMetaRule<'_>,
     element: SyntaxElement,
 ) {
-    if rule.current_meta_span.is_some()
+    if let Some(current_meta_span) = rule.current_meta_span
         && rule.current_meta_outputs_span.is_none()
         && !rule.output_keys.is_empty()
     {
         diagnostics.exceptable_add(
             missing_outputs_in_meta(
-                rule.current_meta_span.expect("should have a `meta` span"),
+                current_meta_span,
                 rule.name.as_deref().expect("should have a name"),
                 rule.ty.expect("should have a type"),
             ),

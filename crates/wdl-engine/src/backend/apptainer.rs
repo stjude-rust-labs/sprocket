@@ -1,24 +1,39 @@
-//! Support for using Apptainer (a.k.a. Singularity) as an in-place container
-//! runtime for task execution.
+//! Support for using Apptainer (a.k.a. Singularity) container runtime.
 //!
 //! There are two primary responsibilities of this module: `.sif` image cache
-//! management and command script generation. The entrypoint for both of these
-//! is [`ApptainerConfig::prepare_apptainer_command()`].
+//! management and command script generation.
+//!
+//! The entrypoint for both of these is [`ApptainerRuntime::generate_script`].
 
+use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
+use std::path::PathBuf;
+use std::process::Stdio;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use images::ApptainerImages;
+use anyhow::bail;
+use tokio::process::Command;
+use tokio::sync::OnceCell;
+use tokio_retry2::Retry;
+use tokio_retry2::RetryError;
+use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
+use tracing::info;
+use tracing::warn;
 
-use super::TaskSpawnRequest;
 use crate::Value;
-use crate::v1::ContainerSource;
+use crate::backend::ExecuteTaskRequest;
+use crate::config::Config;
+use crate::config::DEFAULT_TASK_SHELL;
+use crate::v1::requirements::ContainerSource;
 
-mod images;
+/// The name of the images cache directory.
+const IMAGES_CACHE_DIR: &str = "apptainer-images";
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -32,36 +47,27 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
-/// The state of an Apptainer backend for a given top-level execution.
-///
-/// As Apptainer-converted images are shared throughout all task executions of a
-/// given invocation, only one of these state structures should be constructed
-/// per top-level task/workflow execution.
+/// Represents the Apptainer container runtime.
 #[derive(Debug)]
-pub struct ApptainerState {
-    /// The images.
-    images: ApptainerImages,
+pub struct ApptainerRuntime {
+    /// The cache directory for `.sif` images.
+    cache_dir: PathBuf,
+    /// The map of container source to `.sif` path.
+    images: Mutex<HashMap<ContainerSource, Arc<OnceCell<PathBuf>>>>,
 }
 
-impl ApptainerState {
-    /// Create a new [`ApptainerState`].
-    // TODO ACF 2025-11-18: Here's a good example of why we should have separate
-    // config types for user-facing configuration and internal use. The root dir is
-    // really a configuration option, but we want the engine to be able to specify
-    // it based on how it's invoked. We *don't* want it to be something the user of
-    // `sprocket` can put in their `sprocket.toml`. We can and have played games
-    // with hiding certain fields from `serde`, but really we should rearrange these
-    // types so that we have more direct control over what's in the user interface
-    // vs not.
-    pub fn new(run_root_dir: &Path) -> Self {
+impl ApptainerRuntime {
+    /// Creates a new [`ApptainerRuntime`] with the specified root directory.
+    ///
+    /// An images cache directory will be created in the given root.
+    pub fn new(root_dir: &Path) -> Self {
         Self {
-            images: ApptainerImages::new(run_root_dir),
+            cache_dir: root_dir.join(IMAGES_CACHE_DIR),
+            images: Default::default(),
         }
     }
 
-    /// Prepare for an Apptainer execution by ensuring the image cache is
-    /// populated with the necessary container, and return a Bash script
-    /// that invokes the task's `command` in the container context.
+    /// Generates the script to run the given task using the Apptainer runtime.
     ///
     /// # Shared filesystem assumptions
     ///
@@ -70,19 +76,32 @@ impl ApptainerState {
     /// for node-specific mounts like `/tmp` and `/var`. This assumption
     /// typically holds on HPC systems with shared filesystems like Lustre or
     /// GPFS.
-    pub async fn prepare_apptainer_command(
+    pub async fn generate_script(
         &self,
-        container: &ContainerSource,
-        cancellation_token: CancellationToken,
-        spawn_request: &TaskSpawnRequest,
+        config: &Config,
+        request: &ExecuteTaskRequest<'_>,
         extra_args: impl Iterator<Item = &str>,
-    ) -> Result<String> {
-        let container_sif = self
-            .images
-            .sif_for_container(container, cancellation_token)
-            .await?;
-        self.generate_apptainer_script(&container_sif, spawn_request, extra_args)
-            .await
+        token: CancellationToken,
+    ) -> Result<Option<String>> {
+        let path = match self
+            .pull_image(
+                request
+                    .constraints
+                    .container
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("task does not use a container"))?,
+                token,
+            )
+            .await?
+        {
+            Some(path) => path,
+            None => return Ok(None),
+        };
+
+        Ok(Some(
+            self.generate_apptainer_script(config, &path, request, extra_args)
+                .await?,
+        ))
     }
 
     /// Generate the script, given a container path that's already assumed to be
@@ -92,8 +111,9 @@ impl ApptainerState {
     /// be called from outside this module.
     async fn generate_apptainer_script(
         &self,
+        config: &Config,
         container_sif: &Path,
-        spawn_request: &TaskSpawnRequest,
+        request: &ExecuteTaskRequest<'_>,
         extra_args: impl Iterator<Item = &str>,
     ) -> Result<String> {
         // Create a temp dir for the container's execution within the attempt dir
@@ -103,7 +123,7 @@ impl ApptainerState {
         // for other inputs and outputs prevents this from being a capacity problem,
         // though potentially at the expense of execution speed if the
         // non-`/tmp` filesystem is significantly slower.
-        let container_tmp_path = spawn_request.temp_dir().join("container_tmp");
+        let container_tmp_path = request.temp_dir.join("container_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_tmp_path)
@@ -114,7 +134,7 @@ impl ApptainerState {
                     path = container_tmp_path.display()
                 )
             })?;
-        let container_var_tmp_path = spawn_request.temp_dir().join("container_var_tmp");
+        let container_var_tmp_path = request.temp_dir.join("container_var_tmp");
         tokio::fs::DirBuilder::new()
             .recursive(true)
             .create(&container_var_tmp_path)
@@ -128,13 +148,13 @@ impl ApptainerState {
 
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
-        for (k, v) in spawn_request.env().iter() {
+        for (k, v) in request.env.iter() {
             writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
         }
         writeln!(&mut apptainer_command, "apptainer -v exec \\")?;
         writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
         writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
-        for input in spawn_request.inputs() {
+        for input in request.backend_inputs {
             writeln!(
                 &mut apptainer_command,
                 "--mount type=bind,src=\"{host_path}\",dst=\"{guest_path}\",ro \\",
@@ -150,12 +170,12 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_COMMAND_PATH}\",ro \\",
-            spawn_request.command_path().display()
+            request.command_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_WORK_DIR}\" \\",
-            spawn_request.work_dir().display()
+            request.work_dir().display()
         )?;
         writeln!(
             &mut apptainer_command,
@@ -170,16 +190,16 @@ impl ApptainerState {
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDOUT_PATH}\" \\",
-            spawn_request.stdout_path().display()
+            request.stdout_path().display()
         )?;
         writeln!(
             &mut apptainer_command,
             "--mount type=bind,src=\"{}\",dst=\"{GUEST_STDERR_PATH}\" \\",
-            spawn_request.stderr_path().display()
+            request.stderr_path().display()
         )?;
 
-        if let Some(true) = spawn_request
-            .requirements()
+        if let Some(true) = request
+            .requirements
             .get(wdl_ast::v1::TASK_REQUIREMENT_GPU)
             .and_then(Value::as_boolean)
         {
@@ -193,10 +213,11 @@ impl ApptainerState {
         writeln!(&mut apptainer_command, "\"{}\" \\", container_sif.display())?;
         writeln!(
             &mut apptainer_command,
-            "bash -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
-             \\\"{GUEST_STDERR_PATH}\\\"\" \\"
+            "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
+             \\\"{GUEST_STDERR_PATH}\\\"\" \\",
+            shell = config.task.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL)
         )?;
-        let attempt_dir = spawn_request.attempt_dir();
+        let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
         let apptainer_stderr_path = attempt_dir.join("apptainer.stderr");
         writeln!(
@@ -207,83 +228,272 @@ impl ApptainerState {
         )?;
         Ok(apptainer_command)
     }
+
+    /// Pulls the image for the given container source and returns the path to
+    /// the image file (SIF).
+    ///
+    /// If the container source is already a SIF file, the given source path is
+    /// returned.
+    ///
+    /// If the image has already been pulled, the pull is skipped and the path
+    /// to the previous location is returned.
+    pub(crate) async fn pull_image(
+        &self,
+        container: &ContainerSource,
+        token: CancellationToken,
+    ) -> Result<Option<PathBuf>> {
+        // For local SIF files, return the path directly.
+        if let ContainerSource::SifFile(path) = container {
+            return Ok(Some(path.clone()));
+        }
+
+        // For unknown container sources, error early.
+        if let ContainerSource::Unknown(s) = container {
+            bail!("unknown container source `{s}`");
+        }
+
+        // For registry-based images, pull and cache.
+        let once = {
+            let mut map = self.images.lock().unwrap();
+            map.entry(container.clone())
+                .or_insert_with(|| Arc::new(OnceCell::new()))
+                .clone()
+        };
+
+        let pull = once.get_or_try_init(|| async move {
+            // SAFETY: the next two `unwrap` calls are safe because the source can't be a
+            // file or an unknown source at this point
+            let mut path = self.cache_dir.join(container.scheme().unwrap());
+            for part in container.name().unwrap().split("/") {
+                for part in part.split(':') {
+                    path.push(part);
+                }
+            }
+
+            path.set_extension("sif");
+
+            if let Some(parent) = path.parent() {
+                tokio::fs::create_dir_all(parent).await.with_context(|| {
+                    format!(
+                        "failed to create directory `{parent}`",
+                        parent = parent.display()
+                    )
+                })?;
+            }
+
+            let container = format!("{container:#}");
+
+            Retry::spawn_notify(
+                // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
+                // with flakiness of the container registries. This is a
+                // finger-in-the-wind guess at some reasonable parameters that
+                // shouldn't lead to us making our own problems worse by
+                // overwhelming registries with repeated retries.
+                ExponentialBackoff::from_millis(50)
+                    .max_delay_millis(60_000)
+                    .take(10),
+                || Self::try_pull_image(&container, &path),
+                |e, _| {
+                    warn!(e = %e, "`apptainer pull` failed");
+                },
+            )
+            .await
+            .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
+
+            info!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
+            Ok(path)
+        });
+
+        tokio::select! {
+            _ = token.cancelled() => Ok(None),
+            res = pull => res.map(|p| Some(p.clone())),
+        }
+    }
+
+    /// Tries to pull an image.  
+    ///
+    /// The tricky thing about this function is determining whether a failure is
+    /// transient or permanent. When in doubt, choose transient; the downside is
+    /// a permanent failure may take longer to finally bring down an
+    /// execution, but this is better for a long-running task than letting a
+    /// transient failure bring it down before a retry.
+    ///
+    /// `apptainer pull` doesn't have a well-defined interface for us to tell
+    /// whether a failure is transient, but as we gain experience recognizing
+    /// its output patterns, we can enhance the fidelity of the error
+    /// handling.
+    async fn try_pull_image(image: &str, path: &Path) -> Result<(), RetryError<anyhow::Error>> {
+        info!("spawning `apptainer` to pull image `{image}`");
+
+        let child = Command::new("apptainer")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .arg("pull")
+            .arg(path)
+            .arg(image)
+            .spawn()
+            .with_context(|| {
+                format!(
+                    "failed to spawn `apptainer pull '{path}' '{image}'",
+                    path = path.display()
+                )
+            })
+            // If the system can't handle spawning a process, we're better off failing quickly
+            .map_err(RetryError::permanent)?;
+
+        let output = child
+            .wait_with_output()
+            .await
+            .context("failed to wait for `apptainer`")
+            .map_err(RetryError::permanent)?;
+        if !output.status.success() {
+            let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
+                let mut permanent = false;
+                // A collection of strings observed in `apptainer pull` stderr in unrecoverable
+                // conditions. Finding one of these in the output marks the attempt as a
+                // permanent failure.
+                let needles = ["manifest unknown", "403 (Forbidden)"];
+                for needle in needles {
+                    if stderr.contains(needle) {
+                        permanent = true;
+                        break;
+                    }
+                }
+
+                permanent
+            } else {
+                false
+            };
+
+            let e = anyhow!(
+                "`apptainer` failed: {status}: {stderr}",
+                status = output.status,
+                stderr = str::from_utf8(&output.stderr)
+                    .unwrap_or("<output not UTF-8>")
+                    .trim()
+            );
+            return if permanent {
+                Err(RetryError::permanent(e))
+            } else {
+                Err(RetryError::transient(e))
+            };
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::iter::empty;
 
     use indexmap::IndexMap;
     use tempfile::TempDir;
+    use url::Url;
 
     use super::*;
     use crate::ONE_GIBIBYTE;
+    use crate::TaskInputs;
+    use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
-    use crate::backend::TaskSpawnInfo;
-
-    fn mk_example_task() -> (TempDir, ApptainerState, TaskSpawnRequest) {
-        let tmp = tempfile::tempdir().unwrap();
-        let state = ApptainerState::new(tmp.path());
-        let mut env = IndexMap::new();
-        env.insert("FOO".to_string(), "bar".to_string());
-        env.insert("BAZ".to_string(), "\"quux\"".to_string());
-        let info = TaskSpawnInfo::new(
-            "echo hello".to_string(),
-            vec![],
-            HashMap::new().into(),
-            HashMap::new().into(),
-            env.into(),
-        );
-        let spawn_request = TaskSpawnRequest {
-            id: "example_task".to_string(),
-            info,
-            attempt_dir: tmp.path().join("0"),
-            temp_dir: tmp.path().join("tmp"),
-            constraints: TaskExecutionConstraints {
-                container: None,
-                cpu: 1.0,
-                memory: ONE_GIBIBYTE as u64,
-                gpu: Default::default(),
-                fpga: Default::default(),
-                disks: Default::default(),
-            },
-        };
-        (tmp, state, spawn_request)
-    }
 
     #[tokio::test]
     async fn example_task_generates() {
-        let (tmp, state, spawn_request) = mk_example_task();
-        let _ = state
-            .generate_apptainer_script(
-                &tmp.path().join("non-existent.sif"),
-                &spawn_request,
+        let root = TempDir::new().unwrap();
+
+        let mut env = IndexMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("BAZ".to_string(), "\"quux\"".to_string());
+
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let _ = runtime
+            .generate_script(
+                &Default::default(),
+                &ExecuteTaskRequest {
+                    id: "example-task",
+                    command: "echo hello",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Default::default(),
+                    hints: &Default::default(),
+                    env: &env,
+                    constraints: &TaskExecutionConstraints {
+                        container: Some(
+                            String::from(
+                                Url::from_file_path(root.path().join("non-existent.sif")).unwrap(),
+                            )
+                            .parse()
+                            .unwrap(),
+                        ),
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    attempt_dir: &root.path().join("0"),
+                    temp_dir: &root.path().join("temp"),
+                },
                 empty(),
+                CancellationToken::new(),
             )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
             .expect("example task script should generate");
     }
 
-    #[tokio::test]
-    // `shellcheck` works quite differently on Windows, and since we're not going to run Apptainer
-    // on Windows anytime soon, we limit this test to Unixy systems
+    // `shellcheck` works quite differently on Windows, and since we're not going to
+    // run Apptainer on Windows anytime soon, we limit this test to Unixy
+    // systems
     #[cfg(unix)]
+    #[tokio::test]
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
-        let (tmp, state, spawn_request) = mk_example_task();
-        let script = state
-            .generate_apptainer_script(
-                &tmp.path().join("non-existent.sif"),
-                &spawn_request,
+        let root = TempDir::new().unwrap();
+
+        let mut env = IndexMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("BAZ".to_string(), "\"quux\"".to_string());
+
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let script = runtime
+            .generate_script(
+                &Default::default(),
+                &ExecuteTaskRequest {
+                    id: "example-task",
+                    command: "echo hello",
+                    inputs: &TaskInputs::default(),
+                    backend_inputs: &[],
+                    requirements: &Default::default(),
+                    hints: &Default::default(),
+                    env: &env,
+                    constraints: &TaskExecutionConstraints {
+                        container: Some(
+                            String::from(
+                                Url::from_file_path(root.path().join("non-existent.sif")).unwrap(),
+                            )
+                            .parse()
+                            .unwrap(),
+                        ),
+                        cpu: 1.0,
+                        memory: ONE_GIBIBYTE as u64,
+                        gpu: Default::default(),
+                        fpga: Default::default(),
+                        disks: Default::default(),
+                    },
+                    attempt_dir: &root.path().join("0"),
+                    temp_dir: &root.path().join("temp"),
+                },
                 empty(),
+                CancellationToken::new(),
             )
             .await
             .inspect_err(|e| eprintln!("{e:#?}"))
-            .expect("example task script should generate");
-        let script_file = tmp.path().join("apptainer_script");
+            .expect("example task script should generate")
+            .expect("operation should not be canceled");
+        let script_file = root.path().join("apptainer_script");
         tokio::fs::write(&script_file, &script)
             .await
             .expect("can write script to disk");

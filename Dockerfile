@@ -15,7 +15,6 @@ COPY ./Cargo.toml ./Cargo.lock ./
 COPY ./src ./src
 COPY ./benches ./benches
 COPY ./crates ./crates
-COPY ./vendor ./vendor
 COPY ./tests ./tests
 
 # Build the release version of Sprocket

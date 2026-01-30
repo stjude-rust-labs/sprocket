@@ -7,9 +7,7 @@ use std::fs;
 use std::io::BufRead;
 use std::mem;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -25,7 +23,6 @@ use tokio::task::JoinSet;
 use tracing::Level;
 use tracing::debug;
 use tracing::enabled;
-use tracing::error;
 use tracing::info;
 use tracing::warn;
 use wdl_analysis::Document;
@@ -37,7 +34,6 @@ use wdl_analysis::document::Task;
 use wdl_analysis::eval::v1::TaskGraphBuilder;
 use wdl_analysis::eval::v1::TaskGraphNode;
 use wdl_analysis::types::Optional;
-use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
@@ -53,21 +49,6 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::StrippedCommandPart;
-use wdl_ast::v1::TASK_HINT_CACHEABLE;
-use wdl_ast::v1::TASK_HINT_DISKS;
-use wdl_ast::v1::TASK_HINT_GPU;
-use wdl_ast::v1::TASK_HINT_MAX_CPU;
-use wdl_ast::v1::TASK_HINT_MAX_CPU_ALIAS;
-use wdl_ast::v1::TASK_HINT_MAX_MEMORY;
-use wdl_ast::v1::TASK_HINT_MAX_MEMORY_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER;
-use wdl_ast::v1::TASK_REQUIREMENT_CONTAINER_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_CPU;
-use wdl_ast::v1::TASK_REQUIREMENT_DISKS;
-use wdl_ast::v1::TASK_REQUIREMENT_GPU;
-use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES;
-use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
-use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::v1::TaskDefinition;
@@ -75,9 +56,6 @@ use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::version::V1;
 
 use super::Evaluator;
-use super::validators::SettingSource;
-use super::validators::ensure_non_negative_i64;
-use super::validators::invalid_numeric_value_message;
 use crate::CancellationContextState;
 use crate::Coercible;
 use crate::CompoundValue;
@@ -94,23 +72,18 @@ use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::Outputs;
 use crate::PrimitiveValue;
-use crate::StorageUnit;
 use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
 use crate::Value;
-use crate::backend::Input;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
-use crate::backend::TaskSpawnInfo;
-use crate::backend::TaskSpawnRequest;
 use crate::cache::KeyRequest;
 use crate::config::CallCachingMode;
-use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::MAX_RETRIES;
-use crate::convert_unit_string;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
 use crate::diagnostics::task_execution_failed;
@@ -126,11 +99,15 @@ use crate::path::is_file_url;
 use crate::path::is_supported_url;
 use crate::stdlib::download_file;
 use crate::tree::SyntaxNode;
+use crate::units::convert_unit_string;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
+
+pub(crate) mod hints;
+pub(crate) mod requirements;
 
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
@@ -151,21 +128,6 @@ pub(crate) const DEFAULT_DISK_MOUNT_POINT: &str = "/";
 /// provided.
 const DEFAULT_GPU_COUNT: u64 = 1;
 
-/// The Docker registry protocol prefix.
-const DOCKER_PROTOCOL: &str = "docker://";
-
-/// The Sylabs library protocol prefix.
-const LIBRARY_PROTOCOL: &str = "library://";
-
-/// The OCI Registry as Storage protocol prefix.
-const ORAS_PROTOCOL: &str = "oras://";
-
-/// The file protocol prefix for local container files.
-const FILE_PROTOCOL: &str = "file://";
-
-/// The expected extension for local SIF files.
-const SIF_EXTENSION: &str = "sif";
-
 /// The index of a task's root scope.
 const ROOT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(0);
 /// The index of a task's output scope.
@@ -174,86 +136,19 @@ const OUTPUT_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(1);
 /// visible.
 const TASK_SCOPE_INDEX: ScopeIndex = ScopeIndex::new(2);
 
-/// Represents the source of a container image.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ContainerSource {
-    /// A Docker registry image (e.g., `ubuntu:22.04` or
-    /// `docker://ubuntu:22.04`).
-    Docker(String),
-    /// A Sylabs library image (e.g., `library://sylabs/default/alpine`).
-    Library(String),
-    /// An OCI Registry as Storage image (e.g., `oras://ghcr.io/org/image`).
-    Oras(String),
-    /// A local SIF file (e.g., `file:///path/to/image.sif`).
-    SifFile(PathBuf),
-    /// An unknown container source that could not be parsed.
-    Unknown(String),
-}
-
-impl FromStr for ContainerSource {
-    type Err = std::convert::Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Check for `file://` protocol.
-        if let Some(path_str) = s.strip_prefix(FILE_PROTOCOL) {
-            let path = PathBuf::from(path_str);
-            return match path.extension().and_then(|e| e.to_str()) {
-                Some(ext) if ext == SIF_EXTENSION => Ok(Self::SifFile(path)),
-                _ => Ok(Self::Unknown(s.to_string())),
-            };
-        }
-
-        // Check for known registry protocols.
-        if let Some(image) = s.strip_prefix(DOCKER_PROTOCOL) {
-            return Ok(Self::Docker(image.to_string()));
-        }
-        if let Some(image) = s.strip_prefix(LIBRARY_PROTOCOL) {
-            return Ok(Self::Library(image.to_string()));
-        }
-        if let Some(image) = s.strip_prefix(ORAS_PROTOCOL) {
-            return Ok(Self::Oras(image.to_string()));
-        }
-
-        // Check for unknown protocols.
-        if s.contains("://") {
-            return Ok(Self::Unknown(s.to_string()));
-        }
-
-        // No protocol assumes `docker://`.
-        Ok(Self::Docker(s.to_string()))
-    }
-}
-
-impl std::fmt::Display for ContainerSource {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if f.alternate() {
-            // Pretty format includes protocol prefix.
-            match self {
-                Self::Docker(s) => write!(f, "docker://{s}"),
-                Self::Library(s) => write!(f, "library://{s}"),
-                Self::Oras(s) => write!(f, "oras://{s}"),
-                Self::SifFile(p) => write!(f, "file://{}", p.display()),
-                Self::Unknown(s) => write!(f, "{s}"),
-            }
-        } else {
-            // Normal format omits protocol prefix.
-            match self {
-                Self::Docker(s) | Self::Library(s) | Self::Oras(s) | Self::Unknown(s) => {
-                    write!(f, "{s}")
-                }
-                Self::SifFile(p) => write!(f, "{}", p.display()),
-            }
-        }
-    }
-}
-
-/// Returns the first entry in `map` that matches the provided keys.
-fn lookup_entry<'a>(
-    map: &'a HashMap<String, Value>,
-    keys: &[&'static str],
-) -> Option<(&'static str, &'a Value)> {
+/// Finds a key and value from a set of keys and a lookup function.
+///
+/// The lookup function takes the key and returns `Some` if the value was found
+/// or `None` if there was no value for the given key.
+///
+/// Returns the first key found along with the associated value or `None` if
+/// none of the keys is associated with a value.
+fn find_key_value<'a, 'b, F>(keys: &[&'a str], lookup: F) -> Option<(&'a str, &'b Value)>
+where
+    F: Fn(&str) -> Option<&'b Value>,
+{
     keys.iter()
-        .find_map(|key| map.get(*key).map(|value| (*key, value)))
+        .find_map(|key| lookup(key).map(|value| (*key, value)))
 }
 
 /// Parses an integer or byte-unit string into a byte count using the supplied
@@ -274,403 +169,6 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
     }
 
     unreachable!("value should be an integer or string");
-}
-
-/// Gets the `container` requirement from a requirements map.
-///
-/// Returns a [`ContainerSource`] indicating whether the container is a
-/// registry-based image or a local SIF file.
-pub(crate) fn container(
-    requirements: &HashMap<String, Value>,
-    default: Option<&str>,
-) -> ContainerSource {
-    let value: Cow<'_, str> = requirements
-        .get(TASK_REQUIREMENT_CONTAINER)
-        .or_else(|| requirements.get(TASK_REQUIREMENT_CONTAINER_ALIAS))
-        .and_then(|v| -> Option<Cow<'_, str>> {
-            // If the value is an array, use the first element or the default.
-            // NOTE: in the future we should be resolving which element in the array is
-            // usable; this will require some work in Crankshaft to enable.
-            if let Some(array) = v.as_array() {
-                return array.as_slice().first().map(|v| {
-                    v.as_string()
-                        .expect("type should be string")
-                        .as_ref()
-                        .into()
-                });
-            }
-
-            Some(
-                v.coerce(None, &PrimitiveType::String.into())
-                    .expect("type should coerce")
-                    .unwrap_string()
-                    .as_ref()
-                    .clone()
-                    .into(),
-            )
-        })
-        .and_then(|v| {
-            // Treat `*` as the default.
-            if v == "*" { None } else { Some(v) }
-        })
-        .unwrap_or_else(|| {
-            default
-                .map(Into::into)
-                .unwrap_or(DEFAULT_TASK_REQUIREMENT_CONTAINER.into())
-        });
-
-    // SAFETY: `FromStr` for `ContainerSource` is infallible.
-    value.parse().unwrap()
-}
-
-/// Gets the `cpu` requirement from a requirements map.
-pub(crate) fn cpu(requirements: &HashMap<String, Value>) -> f64 {
-    requirements
-        .get(TASK_REQUIREMENT_CPU)
-        .map(|v| {
-            v.coerce(None, &PrimitiveType::Float.into())
-                .expect("type should coerce")
-                .unwrap_float()
-        })
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_CPU)
-}
-
-/// Gets the `max_cpu` hint from a hints map.
-pub(crate) fn max_cpu(hints: &HashMap<String, Value>) -> Option<f64> {
-    hints
-        .get(TASK_HINT_MAX_CPU)
-        .or_else(|| hints.get(TASK_HINT_MAX_CPU_ALIAS))
-        .map(|v| {
-            v.coerce(None, &PrimitiveType::Float.into())
-                .expect("type should coerce")
-                .unwrap_float()
-        })
-}
-
-/// Gets the `memory` requirement from a requirements map.
-pub(crate) fn memory(requirements: &HashMap<String, Value>) -> Result<i64> {
-    if let Some((key, value)) = lookup_entry(requirements, &[TASK_REQUIREMENT_MEMORY]) {
-        let bytes = parse_storage_value(value, |raw| {
-            invalid_numeric_value_message(SettingSource::Requirement, key, raw)
-        })?;
-
-        return ensure_non_negative_i64(SettingSource::Requirement, key, bytes);
-    }
-
-    Ok(DEFAULT_TASK_REQUIREMENT_MEMORY)
-}
-
-/// Gets the `max_memory` hint from a hints map.
-pub(crate) fn max_memory(hints: &HashMap<String, Value>) -> Result<Option<i64>> {
-    match lookup_entry(hints, &[TASK_HINT_MAX_MEMORY, TASK_HINT_MAX_MEMORY_ALIAS]) {
-        Some((key, value)) => {
-            let bytes = parse_storage_value(value, |raw| {
-                invalid_numeric_value_message(SettingSource::Hint, key, raw)
-            })?;
-            ensure_non_negative_i64(SettingSource::Hint, key, bytes).map(Some)
-        }
-        None => Ok(None),
-    }
-}
-
-/// Gets the number of required GPUs from requirements and hints.
-pub(crate) fn gpu(
-    requirements: &HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
-) -> Option<u64> {
-    // If `requirements { gpu: false }` or there is no `gpu` requirement, return
-    // `None`.
-    let Some(true) = requirements
-        .get(TASK_REQUIREMENT_GPU)
-        .and_then(|v| v.as_boolean())
-    else {
-        return None;
-    };
-
-    // If there is no `gpu` hint giving us more detail on the request, use the
-    // default count.
-    let Some(hint) = hints.get(TASK_HINT_GPU) else {
-        return Some(DEFAULT_GPU_COUNT);
-    };
-
-    // A string `gpu` hint is allowed by the spec, but we do not support them yet.
-    // Fall back to the default count.
-    //
-    // TODO(clay): support string hints for GPU specifications.
-    if let Some(hint) = hint.as_string() {
-        warn!(
-            %hint,
-            "string `gpu` hints are not supported; falling back to {DEFAULT_GPU_COUNT} GPU(s)"
-        );
-        return Some(DEFAULT_GPU_COUNT);
-    }
-
-    match hint.as_integer() {
-        Some(count) if count >= 1 => Some(count as u64),
-        // If the hint is zero or negative, it's not clear what the user intends. Maybe they have
-        // tried to disable GPUs by setting the count to zero, or have made a logic error. Emit a
-        // warning, and continue with no GPU request.
-        Some(count) => {
-            warn!(
-                %count,
-                "`gpu` hint specified {count} GPU(s); no GPUs will be requested for execution"
-            );
-            None
-        }
-        None => {
-            // Typechecking should have already validated that the hint is an integer or
-            // a string.
-            unreachable!("`gpu` hint must be an integer or string")
-        }
-    }
-}
-
-/// Represents the type of a disk.
-///
-/// Disk types are specified via hints.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) enum DiskType {
-    /// The disk type is a solid state drive.
-    SSD,
-    /// The disk type is a hard disk drive.
-    HDD,
-}
-
-impl FromStr for DiskType {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "SSD" => Ok(Self::SSD),
-            "HDD" => Ok(Self::HDD),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Represents a task disk requirement.
-pub(crate) struct DiskRequirement {
-    /// The size of the disk, in GiB.
-    pub size: i64,
-
-    /// The disk type as specified by a corresponding task hint.
-    pub ty: Option<DiskType>,
-}
-
-/// Gets the `disks` requirement.
-///
-/// Upon success, returns a mapping of mount point to disk requirement.
-pub(crate) fn disks<'a>(
-    requirements: &'a HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
-) -> Result<HashMap<&'a str, DiskRequirement>> {
-    /// Helper for looking up a disk type from the hints.
-    ///
-    /// If we don't recognize the specification, we ignore it.
-    fn lookup_type(mount_point: Option<&str>, hints: &HashMap<String, Value>) -> Option<DiskType> {
-        hints.get(TASK_HINT_DISKS).and_then(|v| {
-            if let Some(ty) = v.as_string() {
-                return ty.parse().ok();
-            }
-
-            if let Some(map) = v.as_map() {
-                // Find the corresponding key; we have to scan the keys because the map is
-                // storing primitive values
-                if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
-                    (None, None) => true,
-                    (None, Some(_)) | (Some(_), None) => false,
-                    (Some(k), Some(mount_point)) => k
-                        .as_string()
-                        .map(|k| k.as_str() == mount_point)
-                        .unwrap_or(false),
-                }) {
-                    return v.as_string().and_then(|ty| ty.parse().ok());
-                }
-            }
-
-            None
-        })
-    }
-
-    /// Parses a disk specification into a size (in GiB) and optional mount
-    /// point.
-    fn parse_disk_spec(spec: &str) -> Option<(i64, Option<&str>)> {
-        let iter = spec.split_whitespace();
-        let mut first = None;
-        let mut second = None;
-        let mut third = None;
-
-        for part in iter {
-            if first.is_none() {
-                first = Some(part);
-                continue;
-            }
-
-            if second.is_none() {
-                second = Some(part);
-                continue;
-            }
-
-            if third.is_none() {
-                third = Some(part);
-                continue;
-            }
-
-            return None;
-        }
-
-        match (first, second, third) {
-            (None, None, None) => None,
-            (Some(size), None, None) => {
-                // Specification is `<size>` (in GiB)
-                Some((size.parse().ok()?, None))
-            }
-            (Some(first), Some(second), None) => {
-                // Check for `<size> <unit>`; convert from the specified unit to GiB
-                if let Ok(size) = first.parse() {
-                    let unit: StorageUnit = second.parse().ok()?;
-                    let size = unit.bytes(size)? / (ONE_GIBIBYTE as u64);
-                    return Some((size.try_into().ok()?, None));
-                }
-
-                // Specification is `<mount-point> <size>` (where size is already in GiB)
-                // The mount point must be absolute, i.e. start with `/`
-                if !first.starts_with('/') {
-                    return None;
-                }
-
-                Some((second.parse().ok()?, Some(first)))
-            }
-            (Some(mount_point), Some(size), Some(unit)) => {
-                // Specification is `<mount-point> <size> <units>`
-                let unit: StorageUnit = unit.parse().ok()?;
-                let size = unit.bytes(size.parse().ok()?)? / (ONE_GIBIBYTE as u64);
-
-                // Mount point must be absolute
-                if !mount_point.starts_with('/') {
-                    return None;
-                }
-
-                Some((size.try_into().ok()?, Some(mount_point)))
-            }
-            _ => unreachable!("should have one, two, or three values"),
-        }
-    }
-
-    /// Inserts a disk into the disks map.
-    fn insert_disk<'a>(
-        spec: &'a str,
-        hints: &HashMap<String, Value>,
-        disks: &mut HashMap<&'a str, DiskRequirement>,
-    ) -> Result<()> {
-        let (size, mount_point) =
-            parse_disk_spec(spec).with_context(|| format!("invalid disk specification `{spec}"))?;
-
-        let prev = disks.insert(
-            mount_point.unwrap_or(DEFAULT_DISK_MOUNT_POINT),
-            DiskRequirement {
-                size,
-                ty: lookup_type(mount_point, hints),
-            },
-        );
-
-        if prev.is_some() {
-            bail!(
-                "duplicate mount point `{mp}` specified in `disks` requirement",
-                mp = mount_point.unwrap_or(DEFAULT_DISK_MOUNT_POINT)
-            );
-        }
-
-        Ok(())
-    }
-
-    let mut disks = HashMap::new();
-    if let Some(v) = requirements.get(TASK_REQUIREMENT_DISKS) {
-        if let Some(size) = v.as_integer() {
-            // Disk spec is just the size (in GiB)
-            if size < 0 {
-                bail!("task requirement `disks` cannot be less than zero");
-            }
-
-            disks.insert(
-                "/",
-                DiskRequirement {
-                    size,
-                    ty: lookup_type(None, hints),
-                },
-            );
-        } else if let Some(spec) = v.as_string() {
-            insert_disk(spec, hints, &mut disks)?;
-        } else if let Some(v) = v.as_array() {
-            for spec in v.as_slice() {
-                insert_disk(
-                    spec.as_string().expect("spec should be a string"),
-                    hints,
-                    &mut disks,
-                )?;
-            }
-        } else {
-            unreachable!("value should be an integer, string, or array");
-        }
-    }
-
-    Ok(disks)
-}
-
-/// Gets the `preemptible` hint from a hints map.
-///
-/// This hint is not part of the WDL standard but is used for compatibility with
-/// Cromwell where backends can support preemptible retries before using
-/// dedicated instances.
-pub(crate) fn preemptible(hints: &HashMap<String, Value>) -> Result<i64> {
-    const TASK_HINT_PREEMPTIBLE: &str = "preemptible";
-    const DEFAULT_TASK_HINT_PREEMPTIBLE: i64 = 0;
-
-    Ok(hints
-        .get(TASK_HINT_PREEMPTIBLE)
-        .and_then(|v| {
-            v.coerce(None, &PrimitiveType::Integer.into())
-                .ok()
-                .map(|value| value.unwrap_integer())
-        })
-        .map(|value| ensure_non_negative_i64(SettingSource::Hint, TASK_HINT_PREEMPTIBLE, value))
-        .transpose()?
-        .unwrap_or(DEFAULT_TASK_HINT_PREEMPTIBLE))
-}
-
-/// Gets the `max_retries` requirement from a requirements map with config
-/// fallback.
-pub(crate) fn max_retries(requirements: &HashMap<String, Value>, config: &Config) -> Result<u64> {
-    if let Some((key, value)) = lookup_entry(
-        requirements,
-        &[
-            TASK_REQUIREMENT_MAX_RETRIES,
-            TASK_REQUIREMENT_MAX_RETRIES_ALIAS,
-        ],
-    ) {
-        let retries = value
-            .as_integer()
-            .expect("`max_retries` requirement should be an integer");
-        return ensure_non_negative_i64(SettingSource::Requirement, key, retries)
-            .map(|value| value as u64);
-    }
-
-    Ok(config
-        .task
-        .retries
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
-}
-
-/// Gets the `cacheable` hint from a hints map with config fallback.
-pub(crate) fn cacheable(hints: &HashMap<String, Value>, config: &Config) -> bool {
-    hints
-        .get(TASK_HINT_CACHEABLE)
-        .and_then(|v| v.as_boolean())
-        .unwrap_or(match config.task.cache {
-            CallCachingMode::Off | CallCachingMode::Explicit => false,
-            CallCachingMode::On => true,
-        })
 }
 
 /// Used to evaluate expressions in tasks.
@@ -1063,9 +561,9 @@ struct EvaluatedSections {
     /// The evaluated command.
     command: String,
     /// The evaluated requirements.
-    requirements: Arc<HashMap<String, Value>>,
+    requirements: HashMap<String, Value>,
     /// The evaluated hints.
-    hints: Arc<HashMap<String, Value>>,
+    hints: HashMap<String, Value>,
     /// The task's execution constraints.
     constraints: TaskExecutionConstraints,
 }
@@ -1208,9 +706,8 @@ impl Evaluator {
             current += 1;
         }
 
+        // Execute the task in a retry loop
         let mut cached;
-        let env = Arc::new(mem::take(&mut state.env));
-        // Spawn the task in a retry loop
         let mut attempt = 0;
         let mut previous_task_data: Option<Arc<TaskPostEvaluationData>> = None;
         let mut evaluated = loop {
@@ -1235,7 +732,7 @@ impl Evaluator {
 
             // Get the maximum number of retries, either from the task's requirements or
             // from configuration
-            let max_retries = max_retries(&requirements, &self.config)?;
+            let max_retries = requirements::max_retries(&inputs, &requirements, &self.config)?;
 
             if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
@@ -1244,30 +741,33 @@ impl Evaluator {
                 .into());
             }
 
-            let backend_inputs = state.localize_inputs(id).await?;
+            // Localize the inputs now
+            state.localize_inputs(id).await?;
 
             // Calculate the cache key on the first attempt only
             let mut key = if attempt == 0
                 && let Some(cache) = &self.cache
             {
-                if cacheable(&hints, &self.config) {
-                    let container =
-                        container(&requirements, self.config.task.container.as_deref()).to_string();
+                if hints::cacheable(&inputs, &hints, &self.config) {
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
-                        requirements: requirements.as_ref(),
-                        hints: hints.as_ref(),
-                        container: &container,
+                        requirements: &requirements,
+                        hints: &hints,
+                        container: &constraints
+                            .container
+                            .as_ref()
+                            .map(|c| format!("{c:#}"))
+                            .unwrap_or_default(),
                         shell: self
                             .config
                             .task
                             .shell
                             .as_deref()
                             .unwrap_or(DEFAULT_TASK_SHELL),
-                        backend_inputs: &backend_inputs,
+                        backend_inputs: state.backend_inputs.as_slice(),
                     };
 
                     match cache.key(request).await {
@@ -1378,21 +878,26 @@ impl Evaluator {
                     let mut attempt_dir = task_eval_root.clone();
                     attempt_dir.push("attempts");
                     attempt_dir.push(attempt.to_string());
-                    let request = TaskSpawnRequest::new(
-                        id.to_string(),
-                        TaskSpawnInfo::new(
-                            command,
-                            backend_inputs,
-                            requirements.clone(),
-                            hints.clone(),
-                            env.clone(),
-                        ),
-                        constraints,
-                        attempt_dir.clone(),
-                        temp_dir.clone(),
-                    );
 
-                    match self.backend.spawn(request, self.transferer.clone()).await {
+                    match self
+                        .backend
+                        .execute(
+                            &self.transferer,
+                            ExecuteTaskRequest {
+                                id,
+                                command: &command,
+                                inputs: &inputs,
+                                backend_inputs: state.backend_inputs.as_slice(),
+                                requirements: &requirements,
+                                hints: &hints,
+                                env: &state.env,
+                                constraints: &constraints,
+                                attempt_dir: &attempt_dir,
+                                temp_dir: &temp_dir,
+                            },
+                        )
+                        .await
+                    {
                         Ok(None) => return Err(EvaluationError::Canceled),
                         Ok(Some(result)) => result,
                         Err(e) => {
@@ -1465,9 +970,9 @@ impl Evaluator {
                         );
                     }
                     Err(e) => {
-                        error!(
+                        warn!(
                             "failed to update call cache entry for task `{name}` (task id \
-                             `{id}`): cache entry has been discard: {e:#}",
+                             `{id}`): cache entry has been discarded: {e:#}",
                             name = task.name()
                         );
                     }
@@ -2016,7 +1521,7 @@ impl<'a> State<'a> {
         Ok(command)
     }
 
-    /// Evaluates sections prior to spawning the command.
+    /// Evaluates sections prior to executing the task.
     ///
     /// This method evaluates the following sections:
     ///   * runtime
@@ -2098,7 +1603,7 @@ impl<'a> State<'a> {
         let constraints = self
             .evaluator
             .backend
-            .constraints(&requirements, &hints)
+            .constraints(inputs, &requirements, &hints)
             .with_context(|| {
                 format!(
                     "failed to get constraints for task `{task}`",
@@ -2110,7 +1615,8 @@ impl<'a> State<'a> {
         // `task` which includes those calculated requirements before the
         // command/output sections are evaluated.
         if version >= Some(SupportedVersion::V1(V1::Two)) {
-            let max_retries = max_retries(&requirements, &self.evaluator.config)?;
+            let max_retries =
+                requirements::max_retries(inputs, &requirements, &self.evaluator.config)?;
 
             let mut task = TaskPostEvaluationValue::new(
                 self.task.name(),
@@ -2158,8 +1664,8 @@ impl<'a> State<'a> {
 
         Ok(EvaluatedSections {
             command,
-            requirements: Arc::new(requirements),
-            hints: Arc::new(hints),
+            requirements,
+            hints,
             constraints,
         })
     }
@@ -2272,9 +1778,7 @@ impl<'a> State<'a> {
     }
 
     /// Localizes inputs for execution.
-    ///
-    /// Returns the inputs to pass to the backend.
-    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<Vec<Input>> {
+    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
         // If the backend needs local inputs, download them now
         if self.evaluator.backend.needs_local_inputs() {
             let mut downloads = JoinSet::new();
@@ -2370,151 +1874,7 @@ impl<'a> State<'a> {
             }
         }
 
-        Ok(self.backend_inputs.as_slice().into())
-    }
-}
-
-#[cfg(test)]
-mod resource_validation_tests {
-    use std::collections::HashMap;
-
-    use super::*;
-
-    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
-        let mut map = HashMap::new();
-        map.insert(key.to_string(), value);
-        map
-    }
-
-    #[test]
-    fn memory_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
-        let err = memory(&requirements).expect_err("`memory` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task requirement `memory` cannot be less than zero")
-        );
-    }
-
-    #[test]
-    fn max_retries_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
-        let err = max_retries(&requirements, &Config::default())
-            .expect_err("`max_retries` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task requirement `max_retries` cannot be less than zero")
-        );
-    }
-
-    #[test]
-    fn preemptible_disallows_negative_values() {
-        let mut hints = HashMap::new();
-        hints.insert("preemptible".to_string(), Value::from(-3));
-        let err = preemptible(&hints).expect_err("`preemptible` should reject negatives");
-        assert!(
-            err.to_string()
-                .contains("task hint `preemptible` cannot be less than zero")
-        );
-    }
-}
-
-#[cfg(test)]
-mod container_source_tests {
-    use std::path::PathBuf;
-
-    use super::ContainerSource;
-
-    #[test]
-    fn parses_bare_docker_image() {
-        let source: ContainerSource = "ubuntu:22.04".parse().unwrap();
-        assert_eq!(source, ContainerSource::Docker("ubuntu:22.04".to_string()));
-        assert_eq!(source.to_string(), "ubuntu:22.04");
-        assert_eq!(format!("{source:#}"), "docker://ubuntu:22.04");
-    }
-
-    #[test]
-    fn parses_docker_protocol() {
-        let source: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
-        assert_eq!(source, ContainerSource::Docker("ubuntu:latest".to_string()));
-        assert_eq!(source.to_string(), "ubuntu:latest");
-        assert_eq!(format!("{source:#}"), "docker://ubuntu:latest");
-    }
-
-    #[test]
-    fn parses_library_protocol() {
-        let source: ContainerSource = "library://sylabs/default/alpine:3.18".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Library("sylabs/default/alpine:3.18".to_string())
-        );
-        assert_eq!(source.to_string(), "sylabs/default/alpine:3.18");
-        assert_eq!(
-            format!("{source:#}"),
-            "library://sylabs/default/alpine:3.18"
-        );
-    }
-
-    #[test]
-    fn parses_oras_protocol() {
-        let source: ContainerSource = "oras://ghcr.io/org/image:tag".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Oras("ghcr.io/org/image:tag".to_string())
-        );
-        assert_eq!(source.to_string(), "ghcr.io/org/image:tag");
-        assert_eq!(format!("{source:#}"), "oras://ghcr.io/org/image:tag");
-    }
-
-    #[test]
-    fn parses_file_protocol_sif() {
-        let source: ContainerSource = "file:///path/to/image.sif".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::SifFile(PathBuf::from("/path/to/image.sif"))
-        );
-        assert_eq!(source.to_string(), "/path/to/image.sif");
-        assert_eq!(format!("{source:#}"), "file:///path/to/image.sif");
-    }
-
-    #[test]
-    fn parses_file_protocol_unknown_extension() {
-        let source: ContainerSource = "file:///path/to/image.tar".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Unknown("file:///path/to/image.tar".to_string())
-        );
-        assert_eq!(source.to_string(), "file:///path/to/image.tar");
-        assert_eq!(format!("{source:#}"), "file:///path/to/image.tar");
-    }
-
-    #[test]
-    fn parses_unknown_protocol() {
-        let source: ContainerSource = "ftp://example.com/image".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Unknown("ftp://example.com/image".to_string())
-        );
-        assert_eq!(source.to_string(), "ftp://example.com/image");
-        assert_eq!(format!("{source:#}"), "ftp://example.com/image");
-    }
-
-    #[test]
-    fn parses_complex_docker_image() {
-        let source: ContainerSource = "ghcr.io/stjude/sprocket:v1.0.0".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Docker("ghcr.io/stjude/sprocket:v1.0.0".to_string())
-        );
-    }
-
-    #[test]
-    fn parses_docker_image_with_digest() {
-        let source: ContainerSource = "ubuntu@sha256:abcdef1234567890".parse().unwrap();
-        assert_eq!(
-            source,
-            ContainerSource::Docker("ubuntu@sha256:abcdef1234567890".to_string())
-        );
+        Ok(())
     }
 }
 
@@ -2667,7 +2027,10 @@ task test {
             logs_contain("call cache miss"),
             "expected first run to miss the cache"
         );
-        assert!(logs_contain("spawning task"), "expected the task to spawn");
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
 
         let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());
@@ -2858,7 +2221,10 @@ task test {
             logs_contain("call cache miss"),
             "expected first run to miss the cache"
         );
-        assert!(logs_contain("spawning task"), "expected the task to spawn");
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
 
         let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());

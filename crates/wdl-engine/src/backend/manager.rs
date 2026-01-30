@@ -195,16 +195,15 @@ impl TaskManager {
         }
     }
 
-    /// Spawns a task.
+    /// Runs a task.
     ///
     /// The requested memory is specified in bytes.
     ///
     /// If there are not enough local resources available for running the task,
     /// it will be parked until the requested resources become available.
-    pub async fn spawn<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<O>>
+    pub async fn run<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<O>>
     where
-        T: Future<Output = Result<Option<O>>> + Send + 'static,
-        O: Send + 'static,
+        T: Future<Output = Result<Option<O>>>,
     {
         // Ensure the task does not exceed the maximum CPU
         if cpu > self.max_cpu {
@@ -255,12 +254,12 @@ impl TaskManager {
 
                         Some((notify_rx, id))
                     } else {
-                        // Decrement the resource counts now and continue on to spawn the task
+                        // Decrement the resource counts now and continue on to run the task
                         state.cpu -= cpu;
                         state.memory -= memory;
 
                         debug!(
-                            "spawning task with {cpu} CPUs and {memory} bytes of memory remaining",
+                            "running task with {cpu} CPUs and {memory} bytes of memory remaining",
                             cpu = state.cpu,
                             memory = state.memory
                         );
@@ -269,7 +268,7 @@ impl TaskManager {
                     }
                 };
 
-                // Spawn the task (waiting for it to be unparked if neccessary)
+                // Run the task, waiting for it to be unparked if neccessary
                 let res = match &mut parked {
                     Some((notify, _)) => {
                         if let Some(sender) = limits.events.engine() {
@@ -291,13 +290,9 @@ impl TaskManager {
                             let _ = sender.send(EngineEvent::TaskUnparked { canceled });
                         }
 
-                        if canceled {
-                            Ok(None)
-                        } else {
-                            tokio::spawn(task).await?
-                        }
+                        if canceled { Ok(None) } else { task.await }
                     }
-                    None => tokio::spawn(task).await?,
+                    None => task.await,
                 };
 
                 let mut state = limits.state.lock().expect("failed to lock state");
@@ -326,8 +321,8 @@ impl TaskManager {
                 res
             }
             None => {
-                // Task manager is unlimited, just spawn the task
-                tokio::spawn(task).await?
+                // Task manager is unlimited, just await the task
+                task.await
             }
         }
     }

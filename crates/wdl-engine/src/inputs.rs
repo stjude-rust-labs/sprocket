@@ -209,13 +209,16 @@ impl TaskInputs {
     /// [`PrimitiveType::String`] and the `path` is to an input which is of
     /// type [`PrimitiveType::String`], `value` will be converted to a string
     /// and accepted as valid.
+    ///
+    /// Returns `true` if the given path was for an input or `false` if the
+    /// given path was for a requirement or hint.
     fn set_path_value(
         &mut self,
         document: &Document,
         task: &Task,
         path: &str,
         value: Value,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let version = document.version().expect("document should have a version");
 
         match path.split_once('.') {
@@ -255,7 +258,7 @@ impl TaskInputs {
                             } else {
                                 self.hints.insert(remainder.to_string(), value);
                             }
-                            return Ok(());
+                            return Ok(false);
                         }
                     }
 
@@ -267,7 +270,7 @@ impl TaskInputs {
                 } else if must_match {
                     bail!("unsupported {key} key `{remainder}`");
                 } else {
-                    Ok(())
+                    Ok(false)
                 }
             }
             // The path is to an input
@@ -288,12 +291,12 @@ impl TaskInputs {
                 {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
-                    return Ok(());
+                    return Ok(true);
                 }
 
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
-                Ok(())
+                Ok(true)
             }
         }
     }
@@ -341,6 +344,17 @@ pub struct WorkflowInputs {
 }
 
 impl WorkflowInputs {
+    /// Determines if there are any nested inputs in the workflow inputs.
+    ///
+    /// Returns `true` if the inputs contains nested inputs or `false` if it
+    /// does not.
+    pub fn has_nested_inputs(&self) -> bool {
+        self.calls.values().any(|inputs| match inputs {
+            Inputs::Task(task) => !task.inputs.is_empty(),
+            Inputs::Workflow(workflow) => workflow.has_nested_inputs(),
+        })
+    }
+
     /// Iterates the inputs to the workflow.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
         self.inputs.iter().map(|(k, v)| (k.as_str(), v))
@@ -434,7 +448,7 @@ impl WorkflowInputs {
         }
 
         // Check that the workflow allows nested inputs
-        if !self.calls.is_empty() && !workflow.allows_nested_inputs() {
+        if !workflow.allows_nested_inputs() && self.has_nested_inputs() {
             bail!(
                 "cannot specify a nested call input for workflow `{name}` as it does not allow \
                  nested inputs",
@@ -530,24 +544,17 @@ impl WorkflowInputs {
     /// [`PrimitiveType::String`] and the `path` is to an input which is of
     /// type [`PrimitiveType::String`], `value` will be converted to a string
     /// and accepted as valid.
+    ///
+    /// Returns `true` if the path was to an input or `false` if it was not.
     fn set_path_value(
         &mut self,
         document: &Document,
         workflow: &Workflow,
         path: &str,
         value: Value,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         match path.split_once('.') {
             Some((name, remainder)) => {
-                // Check that the workflow allows nested inputs
-                if !workflow.allows_nested_inputs() {
-                    bail!(
-                        "cannot specify a nested call input for workflow `{workflow}` as it does \
-                         not allow nested inputs",
-                        workflow = workflow.name()
-                    );
-                }
-
                 // Resolve the call by name
                 let call = workflow.calls().get(name).with_context(|| {
                     format!(
@@ -589,7 +596,7 @@ impl WorkflowInputs {
                 }
 
                 // Recurse on the call's inputs to set the value
-                match call.kind() {
+                let input = match call.kind() {
                     CallKind::Task => {
                         let task = document
                             .task_by_name(call.name())
@@ -597,7 +604,7 @@ impl WorkflowInputs {
                         inputs
                             .as_task_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(document, task, remainder, value)
+                            .set_path_value(document, task, remainder, value)?
                     }
                     CallKind::Workflow => {
                         let workflow = document.workflow().expect("should have a workflow");
@@ -609,9 +616,19 @@ impl WorkflowInputs {
                         inputs
                             .as_workflow_inputs_mut()
                             .expect("should be a task input")
-                            .set_path_value(document, workflow, remainder, value)
+                            .set_path_value(document, workflow, remainder, value)?
                     }
+                };
+
+                if input && !workflow.allows_nested_inputs() {
+                    bail!(
+                        "cannot specify a nested call input for workflow `{workflow}` as it does \
+                         not allow nested inputs",
+                        workflow = workflow.name()
+                    );
                 }
+
+                Ok(input)
             }
             None => {
                 let input = workflow.inputs().get(path).with_context(|| {
@@ -630,12 +647,12 @@ impl WorkflowInputs {
                 {
                     self.inputs
                         .insert(path.to_string(), value.to_string().into());
-                    return Ok(());
+                    return Ok(true);
                 }
 
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
-                Ok(())
+                Ok(true)
             }
         }
     }

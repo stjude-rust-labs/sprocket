@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed a panic when a workflow contains more than one non-empty `output`
+  section ([#568](https://github.com/stjude-rust-labs/sprocket/pull/568)).
+* Fix name conflict detection to match WDL spec ([#554](https://github.com/stjude-rust-labs/sprocket/pull/554)).
+
 ## 0.16.0 - 01-12-2026
 
 #### Changed

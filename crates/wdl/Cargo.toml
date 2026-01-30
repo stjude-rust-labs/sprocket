@@ -35,25 +35,6 @@ lint = ["dep:wdl-lint"]
 lsp = ["dep:wdl-lsp"]
 
 [dependencies]
-anyhow = { workspace = true, optional = true }
-clap = { workspace = true, optional = true }
-clap-verbosity-flag = { workspace = true, optional = true }
-codespan-reporting = { workspace = true }
-colored = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
-indexmap = { workspace = true, optional = true }
-indicatif = { workspace = true, optional = true }
-notify = { workspace = true, optional = true }
-opener = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
-tokio-util = { workspace = true, optional = true }
-toml = { workspace = true, optional = true }
-tracing = { workspace = true, optional = true }
-tracing-indicatif = { workspace = true, optional = true }
-tracing-log = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
 wdl-analysis = { path = "../wdl-analysis", version = "0.16.0", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.20.0", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.11.0", optional = true }
@@ -66,6 +47,7 @@ wdl-lsp = { path = "../wdl-lsp", version = "0.16.1", optional = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+codespan-reporting = { workspace = true }
 
 [lints]
 workspace = true

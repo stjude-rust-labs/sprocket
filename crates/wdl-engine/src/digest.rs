@@ -3,6 +3,7 @@
 //! This is used by the call cache and for uploading inputs for remote backends.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -205,15 +206,31 @@ fn calculate_directory_digest(
         drop(dir);
         entries.sort_by_key(|e| e.file_name());
 
+        let mut count: u32 = 0;
         let mut hasher = Hasher::new();
         for entry in &entries {
             let entry_path = entry.path();
-            let metadata = entry.metadata().await.with_context(|| {
+            let mut metadata = entry.metadata().await.with_context(|| {
                 format!(
                     "failed to read metadata for path `{path}`",
                     path = entry_path.display()
                 )
             })?;
+
+            // For symlink entries, ensure the link isn't broken by retrieving the target's
+            // metadata; if it is broken, ignore it by not including it
+            if metadata.is_symlink() {
+                match fs::metadata(&entry_path) {
+                    Ok(m) => metadata = m,
+                    Err(_) => continue,
+                }
+            }
+
+            let kind = if metadata.is_file() {
+                ContentKind::File
+            } else {
+                ContentKind::Directory
+            };
 
             // Hash the relative path to the entry
             let entry_rel_path = entry_path
@@ -225,18 +242,13 @@ fn calculate_directory_digest(
                 })?;
             entry_rel_path.hash(&mut hasher);
 
-            let kind = if metadata.is_file() {
-                ContentKind::File
-            } else {
-                ContentKind::Directory
-            };
-
             // Recursively calculate the entry's digest
             let digest = calculate_local_digest(&entry_path, kind, mode).await?;
             digest.hash(&mut hasher);
+            count += 1;
         }
 
-        hasher.update(&(entries.len() as u32).to_le_bytes());
+        hasher.update(&count.to_le_bytes());
         Ok(Digest::Directory(hasher.finalize()))
     }
     .boxed()
@@ -782,5 +794,45 @@ pub(crate) mod test {
             ),
             "URL `http://example.com/missing/baz` does not have a known content digest"
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn ignore_broken_symlink() {
+        use std::os::unix::fs::symlink;
+
+        // Create a temp file as the target of the symlink
+        let target = NamedTempFile::new()
+            .expect("failed to create temporary file")
+            .into_temp_path();
+        fs::write(&target, b"hello world!").expect("failed to write temporary file");
+
+        // Symlink the file
+        let dir = tempdir().expect("failed to create temp directory");
+        let link = dir.path().join("b");
+        symlink(&target, &link).expect("failed to create symlink");
+
+        // Digest the directory with the file
+        let digest = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+
+        // Delete the file to break the link
+        fs::remove_file(&target).expect("failed to delete file");
+
+        // Digest again; the link should be ignored and the digest changed
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+        assert!(digest != modified);
+
+        // Restore the file
+        fs::write(&target, b"hello world!").expect("failed to create temporary file");
+
+        // Digest again; the digest should match the original
+        let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
+            .await
+            .expect("failed to calculate digest");
+        assert_eq!(digest, modified);
     }
 }

@@ -224,8 +224,8 @@ pub struct ServerOptions {
     /// Defaults to the version of the `wdl-lsp` crate.
     pub version: Option<String>,
 
-    /// Whether or not linting is enabled.
-    pub lint: bool,
+    /// The options for linting.
+    pub lint: LintOptions,
 
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
@@ -235,6 +235,15 @@ pub struct ServerOptions {
 
     /// Feature flags for enabling experimental features.
     pub feature_flags: FeatureFlags,
+}
+
+/// Options for the external linter.
+#[derive(Debug, Default, Clone)]
+pub struct LintOptions {
+    /// Whether or not linting is enabled.
+    pub enabled: bool,
+    /// The lint rule configuration.
+    pub config: Arc<wdl_lint::Config>,
 }
 
 /// Represents an LSP server for analyzing WDL documents.
@@ -255,15 +264,15 @@ pub struct Server {
 impl Server {
     /// Creates a new WDL language server.
     pub fn new(client: Client, options: ServerOptions) -> Self {
-        let lint = options.lint;
+        let linting_enabled = options.lint.enabled;
         let exceptions = options.exceptions.clone();
         let ignore_name = options.ignore_filename.clone();
         let analyzer_client = client.clone();
 
-        let mut all_rules: Vec<_> = wdl_analysis::rules()
+        let mut all_rules: Vec<_> = wdl_analysis::ALL_RULE_IDS
             .iter()
-            .map(|r| r.id().to_string())
-            .chain(wdl_lint::rules().iter().map(|r| r.id().to_string()))
+            .chain(wdl_lint::ALL_RULE_IDS.iter())
+            .map(ToString::to_string)
             .collect();
         all_rules.sort_unstable();
         all_rules.dedup();
@@ -281,6 +290,7 @@ impl Server {
             .with_all_rules(all_rules)
             .with_feature_flags(options.feature_flags);
 
+        let wdl_lint_config = options.lint.config.clone();
         Self {
             client,
             options,
@@ -299,9 +309,9 @@ impl Server {
                 },
                 move || {
                     let mut validator = Validator::default();
-                    if lint {
+                    if linting_enabled {
                         validator.add_visitor(Linter::new(
-                            wdl_lint::rules()
+                            wdl_lint::rules(&wdl_lint_config)
                                 .into_iter()
                                 .filter(|r| exceptions.contains(&r.id().into())),
                         ));

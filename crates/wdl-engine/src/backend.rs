@@ -12,10 +12,11 @@ use indexmap::IndexMap;
 use crate::ContentKind;
 use crate::EvaluationPath;
 use crate::GuestPath;
+use crate::TaskInputs;
 use crate::Value;
 use crate::http::Location;
 use crate::http::Transferer;
-use crate::v1::ContainerSource;
+use crate::v1::requirements::ContainerSource;
 
 mod apptainer;
 mod docker;
@@ -152,118 +153,32 @@ pub struct TaskExecutionConstraints {
     pub disks: IndexMap<String, i64>,
 }
 
-/// Represents information for spawning a task.
+/// Represents a request to execute a task.
 #[derive(Debug)]
-pub(crate) struct TaskSpawnInfo {
+pub struct ExecuteTaskRequest<'a> {
+    /// The id of the task being executed.
+    pub id: &'a str,
     /// The command of the task.
-    command: String,
-    /// The inputs for task.
-    inputs: Vec<Input>,
+    pub command: &'a str,
+    /// The original input values to the task.
+    pub inputs: &'a TaskInputs,
+    /// The backend inputs for task.
+    pub backend_inputs: &'a [Input],
     /// The requirements of the task.
-    requirements: Arc<HashMap<String, Value>>,
+    pub requirements: &'a HashMap<String, Value>,
     /// The hints of the task.
-    hints: Arc<HashMap<String, Value>>,
+    pub hints: &'a HashMap<String, Value>,
     /// The environment variables of the task.
-    env: Arc<IndexMap<String, String>>,
-}
-
-impl TaskSpawnInfo {
-    /// Constructs a new task spawn information.
-    pub fn new(
-        command: String,
-        inputs: Vec<Input>,
-        requirements: Arc<HashMap<String, Value>>,
-        hints: Arc<HashMap<String, Value>>,
-        env: Arc<IndexMap<String, String>>,
-    ) -> Self {
-        Self {
-            command,
-            inputs,
-            requirements,
-            hints,
-            env,
-        }
-    }
-}
-
-/// Represents a request to spawn a task.
-#[derive(Debug)]
-pub(crate) struct TaskSpawnRequest {
-    /// The id of the task being spawned.
-    id: String,
-    /// The information for the task to spawn.
-    info: TaskSpawnInfo,
+    pub env: &'a IndexMap<String, String>,
     /// The constraints for the task's execution.
-    constraints: TaskExecutionConstraints,
+    pub constraints: &'a TaskExecutionConstraints,
     /// The attempt directory for the task's execution.
-    attempt_dir: PathBuf,
+    pub attempt_dir: &'a Path,
     /// The temp directory for the evaluation.
-    temp_dir: PathBuf,
+    pub temp_dir: &'a Path,
 }
 
-impl TaskSpawnRequest {
-    /// Creates a new task spawn request.
-    pub fn new(
-        id: String,
-        info: TaskSpawnInfo,
-        constraints: TaskExecutionConstraints,
-        attempt_dir: PathBuf,
-        temp_dir: PathBuf,
-    ) -> Self {
-        Self {
-            id,
-            info,
-            constraints,
-            attempt_dir,
-            temp_dir,
-        }
-    }
-
-    /// The identifier of the task being spawned.
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-
-    /// Gets the command for the task.
-    pub fn command(&self) -> &str {
-        &self.info.command
-    }
-
-    /// Gets the inputs for the task.
-    pub fn inputs(&self) -> &[Input] {
-        &self.info.inputs
-    }
-
-    /// Gets the requirements of the task.
-    pub fn requirements(&self) -> &HashMap<String, Value> {
-        &self.info.requirements
-    }
-
-    /// Gets the hints of the task.
-    pub fn hints(&self) -> &HashMap<String, Value> {
-        &self.info.hints
-    }
-
-    /// Gets the environment variables of the task.
-    pub fn env(&self) -> &IndexMap<String, String> {
-        &self.info.env
-    }
-
-    /// Gets the constraints to apply to the task's execution.
-    pub fn constraints(&self) -> &TaskExecutionConstraints {
-        &self.constraints
-    }
-
-    /// Gets the attempt directory for the task's execution.
-    pub fn attempt_dir(&self) -> &Path {
-        &self.attempt_dir
-    }
-
-    /// The temp directory for the evaluation.
-    pub fn temp_dir(&self) -> &Path {
-        &self.temp_dir
-    }
-
+impl<'a> ExecuteTaskRequest<'a> {
     /// The host path for the command to store the task's evaluated command.
     pub fn command_path(&self) -> PathBuf {
         self.attempt_dir.join(COMMAND_FILE_NAME)
@@ -306,7 +221,8 @@ pub struct TaskExecutionResult {
 
 /// Represents a task execution backend.
 pub(crate) trait TaskExecutionBackend: Send + Sync {
-    /// Gets the execution constraints given a task's requirements and hints.
+    /// Gets the execution constraints given a task's inputs, requirements, and
+    /// hints.
     ///
     /// The returned constraints are used to populate the `task` variable in WDL
     /// 1.2+.
@@ -315,6 +231,7 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
     /// environment or if the task specifies invalid requirements.
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints>;
@@ -335,13 +252,14 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
         true
     }
 
-    /// Spawns a task with the execution backend.
+    /// Execute a task with the execution backend using the provided file
+    /// transferer.
     ///
     /// Returns the result of the task's execution or `None` if the task was
     /// canceled.
-    fn spawn(
-        &self,
-        request: TaskSpawnRequest,
-        transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>>;
+    fn execute<'a>(
+        &'a self,
+        transferer: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>>;
 }

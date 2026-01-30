@@ -24,7 +24,6 @@ use crankshaft::engine::task::input::Type as InputType;
 use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use indexmap::IndexMap;
 use nonempty::NonEmpty;
 use tracing::debug;
 use tracing::info;
@@ -34,32 +33,24 @@ use url::Url;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
-use super::TaskSpawnRequest;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
 use crate::PrimitiveValue;
+use crate::TaskInputs;
 use crate::Value;
-use crate::backend::COMMAND_FILE_NAME;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::INITIAL_EXPECTED_NAMES;
-use crate::backend::STDERR_FILE_NAME;
-use crate::backend::STDOUT_FILE_NAME;
-use crate::backend::WORK_DIR_NAME;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
-use crate::v1::ContainerSource;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
-use crate::v1::container;
-use crate::v1::cpu;
-use crate::v1::disks;
-use crate::v1::gpu;
-use crate::v1::max_cpu;
-use crate::v1::max_memory;
-use crate::v1::memory;
+use crate::v1::hints;
+use crate::v1::requirements;
+use crate::v1::requirements::ContainerSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -82,12 +73,11 @@ const CLEANUP_TASK_CPU: f64 = 0.1;
 const CLEANUP_TASK_MEMORY: u64 = 64 * 1024;
 
 /// Represents a task that runs with a Docker container.
-#[derive(Debug)]
-struct DockerTask {
+struct DockerTask<'a> {
     /// The engine configuration.
     config: Arc<Config>,
-    /// The task spawn request.
-    request: TaskSpawnRequest,
+    /// The task execution request.
+    request: ExecuteTaskRequest<'a>,
     /// The underlying Crankshaft backend.
     backend: Arc<docker::Backend>,
     /// The name of the task.
@@ -102,13 +92,13 @@ struct DockerTask {
     cancellation: CancellationContext,
 }
 
-impl DockerTask {
+impl<'a> DockerTask<'a> {
     /// Runs the docker task.
     ///
     /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
         // Create the working directory
-        let work_dir = self.request.attempt_dir().join(WORK_DIR_NAME);
+        let work_dir = self.request.work_dir();
         fs::create_dir_all(&work_dir).with_context(|| {
             format!(
                 "failed to create directory `{path}`",
@@ -134,8 +124,8 @@ impl DockerTask {
 
         // Write the evaluated command to disk
         // This is done even for remote execution so that a copy exists locally
-        let command_path = self.request.attempt_dir().join(COMMAND_FILE_NAME);
-        fs::write(&command_path, self.request.command()).with_context(|| {
+        let command_path = self.request.command_path();
+        fs::write(&command_path, self.request.command).with_context(|| {
             format!(
                 "failed to write command contents to `{path}`",
                 path = command_path.display()
@@ -144,8 +134,8 @@ impl DockerTask {
 
         // Allocate the inputs, which will always be, at most, the number of inputs plus
         // the working directory and command
-        let mut inputs = Vec::with_capacity(self.request.inputs().len() + 2);
-        for input in self.request.inputs().iter() {
+        let mut inputs = Vec::with_capacity(self.request.backend_inputs.len() + 2);
+        for input in self.request.backend_inputs.iter() {
             let guest_path = input.guest_path().expect("input should have guest path");
             let local_path = input.local_path().expect("input should be localized");
 
@@ -187,8 +177,8 @@ impl DockerTask {
                 .build(),
         );
 
-        let stdout_path = self.request.attempt_dir().join(STDOUT_FILE_NAME);
-        let stderr_path = self.request.attempt_dir().join(STDERR_FILE_NAME);
+        let stdout_path = self.request.stdout_path();
+        let stderr_path = self.request.stderr_path();
 
         let outputs = vec![
             Output::builder()
@@ -205,7 +195,7 @@ impl DockerTask {
 
         let volumes = self
             .request
-            .constraints()
+            .constraints
             .disks
             .keys()
             .filter_map(|mp| {
@@ -233,7 +223,7 @@ impl DockerTask {
                 Execution::builder()
                     .image(
                         self.request
-                            .constraints()
+                            .constraints
                             .container
                             .as_ref()
                             .expect("must have container")
@@ -248,7 +238,7 @@ impl DockerTask {
                     )
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
-                    .env(self.request.env().clone())
+                    .env(self.request.env.clone())
                     .stdout(GUEST_STDOUT_PATH)
                     .stderr(GUEST_STDERR_PATH)
                     .build(),
@@ -257,9 +247,9 @@ impl DockerTask {
             .outputs(outputs)
             .resources(
                 Resources::builder()
-                    .cpu(self.request.constraints().cpu)
+                    .cpu(self.request.constraints.cpu)
                     .maybe_cpu_limit(self.max_cpu)
-                    .ram(self.request.constraints().memory as f64 / ONE_GIBIBYTE)
+                    .ram(self.request.constraints.memory as f64 / ONE_GIBIBYTE)
                     .maybe_ram_limit(self.max_memory.map(|m| m as f64 / ONE_GIBIBYTE))
                     .maybe_gpu(self.gpu)
                     .build(),
@@ -475,11 +465,12 @@ impl DockerBackend {
 impl TaskExecutionBackend for DockerBackend {
     fn constraints(
         &self,
+        inputs: &TaskInputs,
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container: ContainerSource =
-            container(requirements, self.config.task.container.as_deref());
+        let container =
+            requirements::container(inputs, requirements, self.config.task.container.as_deref());
         match &container {
             ContainerSource::Docker(_) => {}
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {
@@ -499,7 +490,7 @@ impl TaskExecutionBackend for DockerBackend {
             }
         };
 
-        let mut cpu = cpu(requirements);
+        let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -527,7 +518,7 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
 
-        let mut memory = memory(requirements)? as u64;
+        let mut memory = requirements::memory(inputs, requirements)? as u64;
         if self.max_memory < memory as u64 {
             let env_specific = if self.config.suppress_env_specific_output {
                 String::new()
@@ -562,14 +553,14 @@ impl TaskExecutionBackend for DockerBackend {
         // (e.g., "nvidia", "amd", "intel") identifies the GPU vendor/driver.
         // This is the first backend to populate the gpu field; other backends should
         // follow this format for consistency.
-        let gpu = gpu(requirements, hints)
+        let gpu = requirements::gpu(inputs, requirements, hints)
             .map(|count| (0..count).map(|i| format!("nvidia-gpu-{i}")).collect())
             .unwrap_or_default();
 
-        let disks = disks(requirements, hints)?
+        let disks = requirements::disks(inputs, requirements, hints)?
             .into_iter()
             .map(|(mount_point, disk)| (mount_point.to_string(), disk.size))
-            .collect::<IndexMap<_, _>>();
+            .collect();
 
         Ok(TaskExecutionConstraints {
             container: Some(container),
@@ -581,24 +572,26 @@ impl TaskExecutionBackend for DockerBackend {
         })
     }
 
-    fn spawn(
-        &self,
-        request: TaskSpawnRequest,
-        _transferer: Arc<dyn Transferer>,
-    ) -> BoxFuture<'_, Result<Option<TaskExecutionResult>>> {
+    fn execute<'a>(
+        &'a self,
+        _: &'a Arc<dyn Transferer>,
+        request: ExecuteTaskRequest<'a>,
+    ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
-            let cpu = request.constraints().cpu;
-            let memory = request.constraints().memory;
+            let cpu = request.constraints.cpu;
+            let memory = request.constraints.memory;
             // NOTE: in the Docker backend, we clamp `max_cpu` and `max_memory`
             // to what is reported by the backend, as the Docker daemon does not
             // respond gracefully to over-subscribing these.
-            let max_cpu = max_cpu(request.hints()).map(|m| m.min(self.max_cpu));
-            let max_memory = max_memory(request.hints())?.map(|i| (i as u64).min(self.max_memory));
-            let gpu = gpu(request.requirements(), request.hints());
+            let max_cpu =
+                hints::max_cpu(request.inputs, request.hints).map(|m| m.min(self.max_cpu));
+            let max_memory = hints::max_memory(request.inputs, request.hints)?
+                .map(|i| (i as u64).min(self.max_memory));
+            let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
             let name = format!(
                 "{id}-{generated}",
-                id = request.id(),
+                id = request.id,
                 generated = self
                     .names
                     .lock()
@@ -618,7 +611,7 @@ impl TaskExecutionBackend for DockerBackend {
                 cancellation: self.cancellation.clone(),
             };
 
-            match self.manager.spawn(cpu, memory, task.run()).await? {
+            match self.manager.run(cpu, memory, task.run()).await? {
                 Some(res) => {
                     // The task completed, perform cleanup on unix platforms
                     #[cfg(unix)]
@@ -642,7 +635,7 @@ impl TaskExecutionBackend for DockerBackend {
 
                         if let Err(e) = self
                             .manager
-                            .spawn(CLEANUP_TASK_CPU, CLEANUP_TASK_MEMORY, task.run())
+                            .run(CLEANUP_TASK_CPU, CLEANUP_TASK_MEMORY, task.run())
                             .await
                         {
                             tracing::error!("Docker backend cleanup failed: {e:#}");

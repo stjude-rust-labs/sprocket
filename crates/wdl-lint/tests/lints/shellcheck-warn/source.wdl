@@ -186,3 +186,23 @@ task test7 {
 
     runtime {}
 }
+
+# https://github.com/stjude-rust-labs/sprocket/issues/146
+task issue_146 {
+    meta {}
+
+    parameter_meta {}
+
+    input {}
+
+    # Multiple leading empty lines
+    command <<<
+
+
+        `true`
+    >>>
+
+    output {}
+
+    runtime {}
+}

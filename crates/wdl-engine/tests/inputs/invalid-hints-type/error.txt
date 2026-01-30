@@ -1,5 +1,1 @@
-failed to parse input file `tests/inputs/invalid-hints-type/inputs.json`
-
-Caused by:
-    0: invalid input key `test.hints.maxCpu`
-    1: expected type `Int` or type `Float` for hints key `maxCpu`, but found type `String`
+failed to parse input file `tests/inputs/invalid-hints-type/inputs.json`: invalid input key `test.hints.maxCpu`: expected type `Int` or type `Float` for hints key `maxCpu`, but found type `String`

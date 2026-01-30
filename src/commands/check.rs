@@ -13,12 +13,12 @@ use strum::VariantArray;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
-use super::explain::ALL_TAG_NAMES;
 use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
@@ -400,15 +400,7 @@ fn report_unknown_rules(
     report_mode: Mode,
     no_color: bool,
 ) -> anyhow::Result<()> {
-    let mut rules = wdl::analysis::rules()
-        .into_iter()
-        .map(|rule| rule.id().to_owned())
-        .collect::<Vec<_>>();
-    rules.extend(
-        wdl::lint::rules()
-            .into_iter()
-            .map(|rule| rule.id().to_owned()),
-    );
+    let rules = ALL_RULE_IDS.clone();
 
     let mut unknown_rules = excepted
         .iter()

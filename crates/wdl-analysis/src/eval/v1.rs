@@ -657,7 +657,7 @@ impl<N: TreeNode> WorkflowGraphBuilder<N> {
                         );
                     }
                 }
-                WorkflowItem::Output(section) => {
+                WorkflowItem::Output(section) if outputs.is_none() => {
                     outputs = Some(section);
                 }
                 WorkflowItem::Conditional(statement) => {
