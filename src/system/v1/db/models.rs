@@ -180,7 +180,7 @@ impl FromStr for LogSource {
 pub struct Session {
     /// Unique identifier.
     #[sqlx(try_from = "String")]
-    pub id: Uuid,
+    pub uuid: Uuid,
     /// The Sprocket subcommand used to create this session.
     pub subcommand: SprocketCommand,
     /// User or system that created this session.
@@ -194,10 +194,10 @@ pub struct Session {
 pub struct Run {
     /// Unique identifier.
     #[sqlx(try_from = "String")]
-    pub id: Uuid,
-    /// Foreign key to the session that submitted this run.
+    pub uuid: Uuid,
+    /// UUID of the session that submitted this run.
     #[sqlx(try_from = "String")]
-    pub session_id: Uuid,
+    pub session_uuid: Uuid,
     /// Name of the run.
     pub name: String,
     /// Source WDL file path or URL.
@@ -227,9 +227,9 @@ pub struct Run {
 pub struct IndexLogEntry {
     /// Unique identifier.
     pub id: i64,
-    /// Foreign key to the run that created this index entry.
+    /// UUID of the run that created this index entry.
     #[sqlx(try_from = "String")]
-    pub run_id: Uuid,
+    pub run_uuid: Uuid,
     /// Path to the symlink in the index directory.
     pub link_path: String,
     /// Path to the actual run output file being symlinked.
@@ -243,9 +243,9 @@ pub struct IndexLogEntry {
 pub struct Task {
     /// Task name from WDL.
     pub name: String,
-    /// Foreign key to the run managing this task.
+    /// UUID of the run managing this task.
     #[sqlx(try_from = "String")]
-    pub run_id: Uuid,
+    pub run_uuid: Uuid,
     /// Current task status.
     pub status: TaskStatus,
     /// Exit status from task completion.

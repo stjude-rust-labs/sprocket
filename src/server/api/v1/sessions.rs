@@ -35,7 +35,7 @@ pub struct ListSessionsQueryParams {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct Session {
     /// Unique identifier.
-    pub id: Uuid,
+    pub uuid: Uuid,
     /// The Sprocket subcommand used to create this session.
     pub subcommand: SprocketCommand,
     /// User or system that created this session.
@@ -47,7 +47,7 @@ pub struct Session {
 impl From<crate::system::v1::db::Session> for Session {
     fn from(session: crate::system::v1::db::Session) -> Self {
         Self {
-            id: session.id,
+            uuid: session.uuid,
             subcommand: session.subcommand,
             created_by: session.created_by,
             created_at: session.created_at,

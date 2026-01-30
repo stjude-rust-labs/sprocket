@@ -152,7 +152,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         "should have one session after workflow submission"
     );
 
-    let session_id = list_json["sessions"][0]["id"].as_str().unwrap();
+    let session_id = list_json["sessions"][0]["uuid"].as_str().unwrap();
 
     // Get the session by ID
     let response = app
@@ -171,7 +171,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let session_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(session_json["id"].as_str().unwrap(), session_id);
+    assert_eq!(session_json["uuid"].as_str().unwrap(), session_id);
     assert_eq!(session_json["subcommand"].as_str().unwrap(), "server");
     assert!(session_json["created_by"].is_string());
     assert!(session_json["created_at"].is_string());

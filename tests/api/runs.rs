@@ -177,7 +177,7 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
     let run_name = submit_response["name"].as_str().unwrap();
 
     // Verify run was created in database
@@ -285,7 +285,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id_1 = submit_response["id"].as_str().unwrap();
+    let run_id_1 = submit_response["uuid"].as_str().unwrap();
 
     // Wait for first run to complete
     let status = poll_for_completion(&db, run_id_1.parse().unwrap(), 10)
@@ -330,7 +330,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id_2 = submit_response["id"].as_str().unwrap();
+    let run_id_2 = submit_response["uuid"].as_str().unwrap();
 
     // Wait for second run to complete
     let status = poll_for_completion(&db, run_id_2.parse().unwrap(), 10)
@@ -414,7 +414,7 @@ task sleep_task {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for workflow to start running
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
@@ -537,7 +537,7 @@ task sleep_task {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for workflow to start running
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
@@ -687,7 +687,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        run_ids.push(submit_response["id"].as_str().unwrap().to_string());
+        run_ids.push(submit_response["uuid"].as_str().unwrap().to_string());
     }
 
     // Wait for all workflows to complete
@@ -808,7 +808,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for completion
     let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
@@ -896,7 +896,7 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for completion
     let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
@@ -1012,7 +1012,7 @@ task slow_task {
 
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        run_ids.push(submit_response["id"].as_str().unwrap().to_string());
+        run_ids.push(submit_response["uuid"].as_str().unwrap().to_string());
     }
 
     // Check that at least one is `queued` while the other is `running`
@@ -1110,7 +1110,7 @@ task my_task {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let run_id = submit_response["id"].as_str().unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for task to complete
     let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)

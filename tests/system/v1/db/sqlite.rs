@@ -18,7 +18,7 @@ async fn create_and_get_session(pool: SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(session.id, id);
+    assert_eq!(session.uuid, id);
     assert_eq!(session.subcommand, SprocketCommand::Run);
     assert_eq!(session.created_by, String::from("test_user"));
     assert!(session.created_at <= Utc::now());
@@ -26,7 +26,7 @@ async fn create_and_get_session(pool: SqlitePool) {
     let retrieved = db.get_session(id).await.unwrap();
     assert!(retrieved.is_some());
     let retrieved = retrieved.unwrap();
-    assert_eq!(retrieved.id, id);
+    assert_eq!(retrieved.uuid, id);
     assert_eq!(retrieved.subcommand, SprocketCommand::Run);
     assert_eq!(retrieved.created_by, String::from("test_user"));
     assert_eq!(retrieved.created_at, session.created_at);
@@ -54,8 +54,8 @@ async fn create_and_get_run(pool: SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(run.id, run_id);
-    assert_eq!(run.session_id, session_id);
+    assert_eq!(run.uuid, run_id);
+    assert_eq!(run.session_uuid, session_id);
     assert_eq!(run.name, "test_workflow");
     assert_eq!(run.source, "/path/to/run.wdl");
     assert_eq!(run.status, RunStatus::Queued);
@@ -70,8 +70,8 @@ async fn create_and_get_run(pool: SqlitePool) {
     let retrieved = db.get_run(run_id).await.unwrap();
     assert!(retrieved.is_some());
     let retrieved = retrieved.unwrap();
-    assert_eq!(retrieved.id, run_id);
-    assert_eq!(retrieved.session_id, session_id);
+    assert_eq!(retrieved.uuid, run_id);
+    assert_eq!(retrieved.session_uuid, session_id);
     assert_eq!(retrieved.name, "test_workflow");
     assert_eq!(retrieved.source, "/path/to/run.wdl");
     assert_eq!(retrieved.status, RunStatus::Queued);
@@ -102,8 +102,8 @@ async fn update_run_status(pool: SqlitePool) {
     db.start_run(run_id, now).await.unwrap();
 
     let run = db.get_run(run_id).await.unwrap().unwrap();
-    assert_eq!(run.id, run_id);
-    assert_eq!(run.session_id, session_id);
+    assert_eq!(run.uuid, run_id);
+    assert_eq!(run.session_uuid, session_id);
     assert_eq!(run.status, RunStatus::Running);
     assert_eq!(run.started_at, Some(now));
     assert_eq!(run.completed_at, None);
@@ -130,8 +130,8 @@ async fn update_run_outputs(pool: SqlitePool) {
         .unwrap();
 
     let run = db.get_run(run_id).await.unwrap().unwrap();
-    assert_eq!(run.id, run_id);
-    assert_eq!(run.session_id, session_id);
+    assert_eq!(run.uuid, run_id);
+    assert_eq!(run.session_uuid, session_id);
     assert_eq!(run.status, RunStatus::Queued);
     assert_eq!(run.outputs, Some(String::from(r#"{"result": "success"}"#)));
     assert_eq!(run.error, None);
@@ -158,8 +158,8 @@ async fn update_run_error(pool: SqlitePool) {
         .unwrap();
 
     let run = db.get_run(run_id).await.unwrap().unwrap();
-    assert_eq!(run.id, run_id);
-    assert_eq!(run.session_id, session_id);
+    assert_eq!(run.uuid, run_id);
+    assert_eq!(run.session_uuid, session_id);
     assert_eq!(run.status, RunStatus::Queued);
     assert_eq!(run.error, Some(String::from("Something went wrong")));
     assert_eq!(run.outputs, None);
@@ -203,8 +203,8 @@ async fn list_runs_by_session(pool: SqlitePool) {
 
     let workflows = db.list_runs_by_session(session_id).await.unwrap();
     assert_eq!(workflows.len(), 2);
-    assert_eq!(workflows[0].id, run_id_1);
-    assert_eq!(workflows[1].id, run_id_2);
+    assert_eq!(workflows[0].uuid, run_id_1);
+    assert_eq!(workflows[1].uuid, run_id_2);
 }
 
 #[sqlx::test]
@@ -226,7 +226,7 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(entry.run_id, run_id);
+    assert_eq!(entry.run_uuid, run_id);
     assert_eq!(entry.link_path, "/index/output.txt");
     assert_eq!(entry.target_path, "/tmp/output.txt");
     assert!(entry.created_at <= Utc::now());
@@ -234,7 +234,7 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
     let entries = db.list_index_log_entries_by_run(run_id).await.unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].id, entry.id);
-    assert_eq!(entries[0].run_id, run_id);
+    assert_eq!(entries[0].run_uuid, run_id);
     assert_eq!(entries[0].link_path, "/index/output.txt");
     assert_eq!(entries[0].target_path, "/tmp/output.txt");
     assert_eq!(entries[0].created_at, entry.created_at);
@@ -321,10 +321,8 @@ async fn create_run_with_invalid_session_id(pool: SqlitePool) {
     assert!(result.is_err());
     let err = result.unwrap_err();
     match err {
-        sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::Database(err)) => {
-            assert!(err.message().contains("FOREIGN KEY constraint failed"));
-        }
-        _ => panic!("expected foreign key constraint error, got: {:?}", err),
+        sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::RowNotFound) => {}
+        _ => panic!("expected `RowNotFound` error, got: {:?}", err),
     }
 }
 
@@ -341,10 +339,8 @@ async fn create_index_log_with_invalid_run_id(pool: SqlitePool) {
     assert!(result.is_err());
     let err = result.unwrap_err();
     match err {
-        sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::Database(err)) => {
-            assert!(err.message().contains("FOREIGN KEY constraint failed"));
-        }
-        _ => panic!("expected foreign key constraint error, got: {:?}", err),
+        sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::RowNotFound) => {}
+        _ => panic!("expected `RowNotFound` error, got: {:?}", err),
     }
 }
 
@@ -376,9 +372,9 @@ async fn list_runs_ordered_by_created_at(pool: SqlitePool) {
     let workflows = db.list_runs_by_session(session_id).await.unwrap();
 
     assert_eq!(workflows.len(), 3);
-    assert_eq!(workflows[0].id, run_id_1);
-    assert_eq!(workflows[1].id, run_id_2);
-    assert_eq!(workflows[2].id, run_id_3);
+    assert_eq!(workflows[0].uuid, run_id_1);
+    assert_eq!(workflows[1].uuid, run_id_2);
+    assert_eq!(workflows[2].uuid, run_id_3);
     assert!(workflows[0].created_at <= workflows[1].created_at);
     assert!(workflows[1].created_at <= workflows[2].created_at);
 }
@@ -432,7 +428,7 @@ async fn session_with_http_method(pool: SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(session.id, id);
+    assert_eq!(session.uuid, id);
     assert_eq!(session.subcommand, SprocketCommand::Server);
     assert_eq!(session.created_by, String::from("api_user"));
 
@@ -568,8 +564,8 @@ async fn complete_run_with_all_fields(pool: SqlitePool) {
     db.complete_run(run_id, completed).await.unwrap();
 
     let final_run = db.get_run(run_id).await.unwrap().unwrap();
-    assert_eq!(final_run.id, run_id);
-    assert_eq!(final_run.session_id, session_id);
+    assert_eq!(final_run.uuid, run_id);
+    assert_eq!(final_run.session_uuid, session_id);
     assert_eq!(final_run.name, "my_workflow");
     assert_eq!(final_run.source, "/workflows/analysis.wdl");
     assert_eq!(final_run.status, RunStatus::Completed);
@@ -739,14 +735,14 @@ async fn list_latest_index_entries(pool: SqlitePool) {
         .iter()
         .find(|e| e.link_path == "./index/yak/output.txt")
         .unwrap();
-    assert_eq!(output_entry.run_id, run_id_2);
+    assert_eq!(output_entry.run_uuid, run_id_2);
     assert_eq!(output_entry.target_path, "./runs/test2/output.txt");
 
     let result_entry = latest_entries
         .iter()
         .find(|e| e.link_path == "./index/yak/result.json")
         .unwrap();
-    assert_eq!(result_entry.run_id, run_id_2);
+    assert_eq!(result_entry.run_uuid, run_id_2);
     assert_eq!(result_entry.target_path, "./runs/test2/result.json");
 }
 
@@ -766,7 +762,7 @@ async fn duplicate_session_id(pool: SqlitePool) {
     assert!(matches!(
         result,
         Err(sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::Database(ref db_err)))
-            if db_err.message() == "UNIQUE constraint failed: sessions.id"
+            if db_err.message() == "UNIQUE constraint failed: sessions.uuid"
     ));
 }
 
@@ -805,7 +801,7 @@ async fn duplicate_run_id(pool: SqlitePool) {
     assert!(matches!(
         result,
         Err(sprocket::system::v1::db::DatabaseError::Sqlx(sqlx::Error::Database(ref db_err)))
-            if db_err.message() == "UNIQUE constraint failed: runs.id"
+            if db_err.message() == "UNIQUE constraint failed: runs.uuid"
     ));
 }
 
@@ -1014,35 +1010,35 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(queued.len(), 1);
-    assert_eq!(queued[0].id, queued_id);
+    assert_eq!(queued[0].uuid, queued_id);
 
     let running = db
         .list_runs(Some(RunStatus::Running), None, None)
         .await
         .unwrap();
     assert_eq!(running.len(), 1);
-    assert_eq!(running[0].id, running_id);
+    assert_eq!(running[0].uuid, running_id);
 
     let completed = db
         .list_runs(Some(RunStatus::Completed), None, None)
         .await
         .unwrap();
     assert_eq!(completed.len(), 1);
-    assert_eq!(completed[0].id, completed_id);
+    assert_eq!(completed[0].uuid, completed_id);
 
     let failed = db
         .list_runs(Some(RunStatus::Failed), None, None)
         .await
         .unwrap();
     assert_eq!(failed.len(), 1);
-    assert_eq!(failed[0].id, failed_id);
+    assert_eq!(failed[0].uuid, failed_id);
 
     let cancelled = db
         .list_runs(Some(RunStatus::Canceled), None, None)
         .await
         .unwrap();
     assert_eq!(cancelled.len(), 1);
-    assert_eq!(cancelled[0].id, cancelled_id);
+    assert_eq!(cancelled[0].uuid, cancelled_id);
 }
 
 #[sqlx::test]

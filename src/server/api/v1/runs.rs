@@ -64,8 +64,8 @@ pub struct ListRunsQueryParams {
 /// The response for a "submit run" request.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SubmitResponse {
-    /// The run ID.
-    pub id: Uuid,
+    /// The run UUID.
+    pub uuid: Uuid,
     /// The generated run name.
     pub name: String,
 }
@@ -73,7 +73,7 @@ pub struct SubmitResponse {
 impl From<commands::SubmitResponse> for SubmitResponse {
     fn from(response: commands::SubmitResponse) -> Self {
         Self {
-            id: response.id,
+            uuid: response.id,
             name: response.name,
         }
     }
@@ -83,9 +83,9 @@ impl From<commands::SubmitResponse> for SubmitResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct Run {
     /// Unique identifier.
-    pub id: Uuid,
-    /// Foreign key to the session that submitted this run.
-    pub session_id: Uuid,
+    pub uuid: Uuid,
+    /// UUID of the session that submitted this run.
+    pub session_uuid: Uuid,
     /// Name of the run.
     pub name: String,
     /// Source WDL file path or URL.
@@ -113,8 +113,8 @@ pub struct Run {
 impl From<crate::system::v1::db::Run> for Run {
     fn from(run: crate::system::v1::db::Run) -> Self {
         Self {
-            id: run.id,
-            session_id: run.session_id,
+            uuid: run.uuid,
+            session_uuid: run.session_uuid,
             name: run.name,
             source: run.source,
             status: run.status,
@@ -167,13 +167,13 @@ impl From<commands::ListRunsResponse> for ListRunsResponse {
 /// The response for a "cancel run" request.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct CancelRunResponse {
-    /// The run ID.
-    pub id: Uuid,
+    /// The run UUID.
+    pub uuid: Uuid,
 }
 
 impl From<commands::CancelRunResponse> for CancelRunResponse {
     fn from(response: commands::CancelRunResponse) -> Self {
-        Self { id: response.id }
+        Self { uuid: response.id }
     }
 }
 

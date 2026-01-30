@@ -19,8 +19,10 @@ create table if not exists metadata (
 -- Sessions are invocations of the Sprocket command line tool by a particular
 -- user. They are tracked for provenance purposes.
 create table if not exists "sessions" (
-    -- Unique identifier for this session
-    id text primary key not null,
+    -- Primary key
+    id integer primary key not null,
+    -- Public unique identifier for this session
+    uuid text unique not null,
     -- The Sprocket subcommand used to create this session
     subcommand text not null check(subcommand in ('run', 'server')),
     -- User or account that started this session
@@ -33,10 +35,12 @@ create table if not exists "sessions" (
 --
 -- A "run" represented a targeted WDL task or workflow to execute.
 create table if not exists runs (
-    -- Unique identifier for this run
-    id text primary key not null,
+    -- Primary key
+    id integer primary key not null,
+    -- Public unique identifier for this run
+    uuid text unique not null,
     -- Foreign key to the session that submitted this run
-    session_id text not null,
+    session_id integer not null,
     -- Name of the run
     "name" text not null,
     -- Source WDL file path or URL
@@ -72,10 +76,10 @@ create index idx_runs_created_at on runs(created_at);
 -- Its primary purpose is providing a mechanism to reconstruct what the index
 -- looked like at any point in time.
 create table if not exists index_log (
-    -- Unique identifier for this index log entry
+    -- Primary key
     id integer primary key autoincrement not null,
     -- Foreign key to the run that created this index entry
-    run_id text not null,
+    run_id integer not null,
     -- Path to the symlink in the index directory
     link_path text not null,
     -- Path to the actual run output file being symlinked
@@ -109,7 +113,7 @@ create table if not exists tasks (
     -- Task name from WDL
     "name" text primary key not null,
     -- Foreign key to the run managing this task
-    run_id text not null,
+    run_id integer not null,
     -- Current task status
     "status" text not null check("status" in ('pending', 'running', 'completed', 'failed', 'canceled', 'preempted')),
     -- Exit status from task completion

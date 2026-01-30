@@ -24,9 +24,9 @@ use crate::system::v1::exec::svc::run_manager::commands;
 /// Query parameters for listing tasks.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct ListTasksQueryParams {
-    /// Filter by run ID.
+    /// Filter by run UUID.
     #[serde(default)]
-    pub run_id: Option<Uuid>,
+    pub run_uuid: Option<Uuid>,
     /// Filter by status.
     #[serde(default)]
     pub status: Option<TaskStatus>,
@@ -57,8 +57,8 @@ pub struct ListTaskLogsQueryParams {
 pub struct Task {
     /// Task name from WDL.
     pub name: String,
-    /// Foreign key to the run managing this task.
-    pub run_id: Uuid,
+    /// UUID of the run managing this task.
+    pub run_uuid: Uuid,
     /// Current task status.
     pub status: TaskStatus,
     /// Exit status from task completion.
@@ -77,7 +77,7 @@ impl From<crate::system::v1::db::Task> for Task {
     fn from(task: crate::system::v1::db::Task) -> Self {
         Self {
             name: task.name,
-            run_id: task.run_id,
+            run_uuid: task.run_uuid,
             status: task.status,
             exit_status: task.exit_status,
             error: task.error,
@@ -189,7 +189,7 @@ pub async fn list_tasks(
     })?;
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
-        run_id: query.run_id,
+        run_id: query.run_uuid,
         status: query.status,
         limit: query.limit,
         offset: query.offset,

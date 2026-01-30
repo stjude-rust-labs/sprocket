@@ -147,7 +147,7 @@ impl RunManagerSvc {
                     } else {
                         match create_server_session(self.db.clone()).await {
                             Ok(session) => {
-                                let id = session.id;
+                                let id = session.uuid;
                                 self.session_id = Some(id);
                                 id
                             }

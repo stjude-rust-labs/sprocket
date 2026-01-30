@@ -106,13 +106,13 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
 
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 3);
-    assert_eq!(entries[0].run_id, run_id);
+    assert_eq!(entries[0].run_uuid, run_id);
     assert_eq!(entries[0].link_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
         entries[0].target_path.as_str(),
         "./runs/test-workflow/outputs.json"
     );
-    assert_eq!(entries[1].run_id, run_id);
+    assert_eq!(entries[1].run_uuid, run_id);
     assert_eq!(
         entries[1].link_path.as_str(),
         "./index/yak/satisfaction_survey.tsv"
@@ -121,7 +121,7 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
         entries[1].target_path.as_str(),
         "./runs/test-workflow/satisfaction_survey.tsv"
     );
-    assert_eq!(entries[2].run_id, run_id);
+    assert_eq!(entries[2].run_uuid, run_id);
     assert_eq!(
         entries[2].link_path.as_str(),
         "./index/yak/styling_metrics.json"
@@ -176,13 +176,13 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
 
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2);
-    assert_eq!(entries[0].run_id, run_id);
+    assert_eq!(entries[0].run_uuid, run_id);
     assert_eq!(entries[0].link_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
         entries[0].target_path.as_str(),
         "./runs/test-workflow/outputs.json"
     );
-    assert_eq!(entries[1].run_id, run_id);
+    assert_eq!(entries[1].run_uuid, run_id);
     assert_eq!(entries[1].link_path.as_str(), "./index/yak/styled_yaks");
     assert_eq!(
         entries[1].target_path.as_str(),
@@ -514,7 +514,7 @@ async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
         .iter()
         .find(|e| e.link_path.contains("result.txt"))
         .unwrap();
-    assert_eq!(result_entry.run_id, run_id_2);
+    assert_eq!(result_entry.run_uuid, run_id_2);
 
     Ok(())
 }

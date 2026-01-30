@@ -149,7 +149,7 @@ impl Database for SqliteDatabase {
             "`created_by` cannot be empty for a session"
         );
 
-        sqlx::query("insert into sessions (id, subcommand, created_by) values (?, ?, ?)")
+        sqlx::query("insert into sessions (uuid, subcommand, created_by) values (?, ?, ?)")
             .bind(id.to_string())
             .bind(subcommand)
             .bind(created_by)
@@ -157,7 +157,7 @@ impl Database for SqliteDatabase {
             .await?;
 
         let session: Session = sqlx::query_as(
-            "select id, subcommand, created_by, created_at from sessions where id = ?",
+            "select uuid, subcommand, created_by, created_at from sessions where uuid = ?",
         )
         .bind(id.to_string())
         .fetch_one(&self.pool)
@@ -168,7 +168,7 @@ impl Database for SqliteDatabase {
 
     async fn get_session(&self, id: Uuid) -> Result<Option<Session>> {
         let session: Option<Session> = sqlx::query_as(
-            "select id, subcommand, created_by, created_at from sessions where id = ?",
+            "select uuid, subcommand, created_by, created_at from sessions where uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -182,8 +182,8 @@ impl Database for SqliteDatabase {
         let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
         let sessions: Vec<Session> = sqlx::query_as(
-            "select id, subcommand, created_by, created_at from sessions order by created_at desc \
-             limit ? offset ?",
+            "select uuid, subcommand, created_by, created_at from sessions order by created_at \
+             desc limit ? offset ?",
         )
         .bind(limit)
         .bind(offset)
@@ -210,22 +210,23 @@ impl Database for SqliteDatabase {
         );
 
         sqlx::query(
-            "insert into runs (id, session_id, name, source, status, inputs, directory) values \
-             (?, ?, ?, ?, ?, ?, ?)",
+            "insert into runs (uuid, session_id, name, source, status, inputs, directory) \
+             select ?, s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ?",
         )
         .bind(id.to_string())
-        .bind(session_id.to_string())
         .bind(name)
         .bind(source)
         .bind(RunStatus::Queued)
         .bind(inputs)
         .bind(directory)
+        .bind(session_id.to_string())
         .execute(&self.pool)
         .await?;
 
         let run: Run = sqlx::query_as(
-            "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-             index_directory, started_at, completed_at, created_at from runs where id = ?",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
+             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
+             r.created_at from runs r join sessions s on r.session_id = s.id where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_one(&self.pool)
@@ -235,7 +236,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn update_run_status(&self, id: Uuid, status: RunStatus) -> Result<()> {
-        sqlx::query("update runs set status = ? where id = ?")
+        sqlx::query("update runs set status = ? where uuid = ?")
             .bind(status)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -249,7 +250,7 @@ impl Database for SqliteDatabase {
         id: Uuid,
         started_at: Option<DateTime<Utc>>,
     ) -> Result<()> {
-        sqlx::query("update runs set started_at = ? where id = ?")
+        sqlx::query("update runs set started_at = ? where uuid = ?")
             .bind(started_at)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -263,7 +264,7 @@ impl Database for SqliteDatabase {
         id: Uuid,
         completed_at: Option<DateTime<Utc>>,
     ) -> Result<()> {
-        sqlx::query("update runs set completed_at = ? where id = ?")
+        sqlx::query("update runs set completed_at = ? where uuid = ?")
             .bind(completed_at)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -273,7 +274,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn update_run_outputs(&self, id: Uuid, outputs: &str) -> Result<()> {
-        sqlx::query("update runs set outputs = ? where id = ?")
+        sqlx::query("update runs set outputs = ? where uuid = ?")
             .bind(outputs)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -283,7 +284,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn update_run_error(&self, id: Uuid, error: &str) -> Result<()> {
-        sqlx::query("update runs set error = ? where id = ?")
+        sqlx::query("update runs set error = ? where uuid = ?")
             .bind(error)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -293,7 +294,7 @@ impl Database for SqliteDatabase {
     }
 
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool> {
-        let result = sqlx::query("update runs set index_directory = ? where id = ?")
+        let result = sqlx::query("update runs set index_directory = ? where uuid = ?")
             .bind(index_directory)
             .bind(id.to_string())
             .execute(&self.pool)
@@ -304,8 +305,9 @@ impl Database for SqliteDatabase {
 
     async fn get_run(&self, id: Uuid) -> Result<Option<Run>> {
         let run: Option<Run> = sqlx::query_as(
-            "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-             index_directory, started_at, completed_at, created_at from runs where id = ?",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
+             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
+             r.created_at from runs r join sessions s on r.session_id = s.id where r.uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -325,9 +327,10 @@ impl Database for SqliteDatabase {
 
         let runs: Vec<Run> = if let Some(status) = status {
             sqlx::query_as(
-                "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-                 index_directory, started_at, completed_at, created_at from runs where status = ? \
-                 order by created_at desc limit ? offset ?",
+                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
+                 r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
+                 r.created_at from runs r join sessions s on r.session_id = s.id where \
+                 r.status = ? order by r.created_at desc limit ? offset ?",
             )
             .bind(status)
             .bind(limit)
@@ -336,9 +339,10 @@ impl Database for SqliteDatabase {
             .await?
         } else {
             sqlx::query_as(
-                "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-                 index_directory, started_at, completed_at, created_at from runs order by \
-                 created_at desc limit ? offset ?",
+                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
+                 r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
+                 r.created_at from runs r join sessions s on r.session_id = s.id order by \
+                 r.created_at desc limit ? offset ?",
             )
             .bind(limit)
             .bind(offset)
@@ -366,9 +370,10 @@ impl Database for SqliteDatabase {
 
     async fn list_runs_by_session(&self, session_id: Uuid) -> Result<Vec<Run>> {
         let runs: Vec<Run> = sqlx::query_as(
-            "select id, session_id, name, source, status, inputs, outputs, error, directory, \
-             index_directory, started_at, completed_at, created_at from runs where session_id = ? \
-             order by created_at",
+            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.status, r.inputs, \
+             r.outputs, r.error, r.directory, r.index_directory, r.started_at, r.completed_at, \
+             r.created_at from runs r join sessions s on r.session_id = s.id where s.uuid = ? \
+             order by r.created_at",
         )
         .bind(session_id.to_string())
         .fetch_all(&self.pool)
@@ -383,20 +388,23 @@ impl Database for SqliteDatabase {
         link_path: &str,
         target_path: &str,
     ) -> Result<IndexLogEntry> {
-        let result =
-            sqlx::query("insert into index_log (run_id, link_path, target_path) values (?, ?, ?)")
-                .bind(run_id.to_string())
-                .bind(link_path)
-                .bind(target_path)
-                .execute(&self.pool)
-                .await?;
+        let result = sqlx::query(
+            "insert into index_log (run_id, link_path, target_path) \
+             select r.id, ?, ? from runs r where r.uuid = ?",
+        )
+        .bind(link_path)
+        .bind(target_path)
+        .bind(run_id.to_string())
+        .execute(&self.pool)
+        .await?;
 
         let id = result.last_insert_rowid();
 
         let entry: IndexLogEntry = sqlx::query_as(
-            "select id, run_id, link_path, target_path, created_at from index_log where id = ?",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
+             from index_log i join runs r on i.run_id = r.id where i.id = ?",
         )
-        .bind(id.to_string())
+        .bind(id)
         .fetch_one(&self.pool)
         .await?;
 
@@ -405,8 +413,9 @@ impl Database for SqliteDatabase {
 
     async fn list_index_log_entries_by_run(&self, run_id: Uuid) -> Result<Vec<IndexLogEntry>> {
         let entries: Vec<IndexLogEntry> = sqlx::query_as(
-            "select id, run_id, link_path, target_path, created_at from index_log where run_id = \
-             ? order by created_at",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
+             from index_log i join runs r on i.run_id = r.id where r.uuid = ? \
+             order by i.created_at",
         )
         .bind(run_id.to_string())
         .fetch_all(&self.pool)
@@ -417,7 +426,8 @@ impl Database for SqliteDatabase {
 
     async fn list_latest_index_entries(&self) -> Result<Vec<IndexLogEntry>> {
         let entries: Vec<IndexLogEntry> = sqlx::query_as(
-            "select id, run_id, link_path, target_path, created_at from latest_index_entries",
+            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at \
+             from latest_index_entries i join runs r on i.run_id = r.id",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -428,11 +438,11 @@ impl Database for SqliteDatabase {
     async fn create_task(&self, name: &str, run_id: Uuid) -> Result<Task> {
         sqlx::query(
             "insert into tasks (name, run_id, status)
-             values (?, ?, ?)",
+             select ?, r.id, ? from runs r where r.uuid = ?",
         )
         .bind(name)
-        .bind(run_id.to_string())
         .bind(TaskStatus::Pending)
+        .bind(run_id.to_string())
         .execute(&self.pool)
         .await?;
 
@@ -528,10 +538,10 @@ impl Database for SqliteDatabase {
 
     async fn get_task(&self, name: &str) -> Result<Task> {
         let task: Option<Task> = sqlx::query_as(
-            "select name, run_id, status, exit_status, error,
-                    created_at, started_at, completed_at
-             from tasks
-             where name = ?",
+            "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
+                    t.created_at, t.started_at, t.completed_at
+             from tasks t join runs r on t.run_id = r.id
+             where t.name = ?",
         )
         .bind(name)
         .fetch_optional(&self.pool)
@@ -551,18 +561,18 @@ impl Database for SqliteDatabase {
         let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
         let mut query = String::from(
-            "select name, run_id, status, exit_status, error,
-                    created_at, started_at, completed_at
-             from tasks where 1=1",
+            "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
+                    t.created_at, t.started_at, t.completed_at
+             from tasks t join runs r on t.run_id = r.id where 1=1",
         );
 
         if run_id.is_some() {
-            query.push_str(" and run_id = ?");
+            query.push_str(" and r.uuid = ?");
         }
         if status.is_some() {
-            query.push_str(" and status = ?");
+            query.push_str(" and t.status = ?");
         }
-        query.push_str(" order by created_at desc limit ? offset ?");
+        query.push_str(" order by t.created_at desc limit ? offset ?");
 
         let mut q = sqlx::query_as(&query);
 
@@ -579,13 +589,14 @@ impl Database for SqliteDatabase {
     }
 
     async fn count_tasks(&self, run_id: Option<Uuid>, status: Option<TaskStatus>) -> Result<i64> {
-        let mut query = String::from("select count(*) from tasks where 1=1");
+        let mut query =
+            String::from("select count(*) from tasks t join runs r on t.run_id = r.id where 1=1");
 
         if run_id.is_some() {
-            query.push_str(" and run_id = ?");
+            query.push_str(" and r.uuid = ?");
         }
         if status.is_some() {
-            query.push_str(" and status = ?");
+            query.push_str(" and t.status = ?");
         }
 
         let mut q = sqlx::query_scalar(&query);
@@ -738,7 +749,7 @@ mod tests {
             .await
             .expect("failed to create session");
 
-        assert_eq!(session.id, id);
+        assert_eq!(session.uuid, id);
         assert_eq!(session.subcommand, subcommand);
         assert_eq!(session.created_by, created_by);
     }
@@ -761,7 +772,7 @@ mod tests {
             .expect("failed to get session")
             .expect("session not found");
 
-        assert_eq!(retrieved.id, session.id);
+        assert_eq!(retrieved.uuid, session.uuid);
         assert_eq!(retrieved.subcommand, session.subcommand);
         assert_eq!(retrieved.created_by, session.created_by);
     }
@@ -823,8 +834,8 @@ mod tests {
             .await
             .expect("failed to create run");
 
-        assert_eq!(run.id, run_id);
-        assert_eq!(run.session_id, session_id);
+        assert_eq!(run.uuid, run_id);
+        assert_eq!(run.session_uuid, session_id);
         assert_eq!(run.name, "test-run");
         assert_eq!(run.source, "test.wdl");
         assert_eq!(run.status, RunStatus::Queued);
@@ -881,7 +892,7 @@ mod tests {
             .expect("failed to get run")
             .expect("run not found");
 
-        assert_eq!(retrieved_run.id, created_run.id);
+        assert_eq!(retrieved_run.uuid, created_run.uuid);
         assert_eq!(retrieved_run.name, created_run.name);
     }
 
@@ -935,7 +946,7 @@ mod tests {
             .await
             .expect("failed to list runs");
         assert_eq!(runs.len(), 1);
-        assert_eq!(runs[0].id, run2_id);
+        assert_eq!(runs[0].uuid, run2_id);
 
         // Test with limit
         let runs = db
@@ -974,7 +985,7 @@ mod tests {
             .expect("failed to create task");
 
         assert_eq!(task.name, "my_task");
-        assert_eq!(task.run_id, run_id);
+        assert_eq!(task.run_uuid, run_id);
         assert_eq!(task.status, TaskStatus::Pending);
     }
 
@@ -1002,7 +1013,7 @@ mod tests {
         let retrieved_task = db.get_task("my_task").await.expect("failed to get task");
 
         assert_eq!(retrieved_task.name, created_task.name);
-        assert_eq!(retrieved_task.run_id, created_task.run_id);
+        assert_eq!(retrieved_task.run_uuid, created_task.run_uuid);
     }
 
     #[sqlx::test]

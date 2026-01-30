@@ -147,7 +147,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     all_entries.sort_by(|a, b| a.link_path.cmp(&b.link_path));
 
     // Verify first entry: `outputs.json` from `run_id2`
-    assert_eq!(all_entries[0].run_id, run_id2);
+    assert_eq!(all_entries[0].run_uuid, run_id2);
     assert_eq!(
         all_entries[0].link_path.as_str(),
         "./index/yak/outputs.json"
@@ -158,7 +158,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     );
 
     // Verify second entry: `satisfaction_survey.tsv` from `run_id2`
-    assert_eq!(all_entries[1].run_id, run_id2);
+    assert_eq!(all_entries[1].run_uuid, run_id2);
     assert_eq!(
         all_entries[1].link_path.as_str(),
         "./index/yak/satisfaction_survey.tsv"
@@ -169,7 +169,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     );
 
     // Verify third entry: `styling_metrics.json` from `run_id2`
-    assert_eq!(all_entries[2].run_id, run_id2);
+    assert_eq!(all_entries[2].run_uuid, run_id2);
     assert_eq!(
         all_entries[2].link_path.as_str(),
         "./index/yak/styling_metrics.json"
