@@ -77,7 +77,7 @@ jobs:
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
-        run: cargo nextest run --profile=ci --workspace && cargo test --workspace --doc
+        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
 
   engine-test:
     runs-on: ${{ matrix.os }}
