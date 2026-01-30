@@ -1,5 +1,7 @@
 //! Execution of runs for provenance tracking in v1.
 
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -8,6 +10,7 @@ use chrono::DateTime;
 use chrono::Utc;
 use serde_json::Value as JsonValue;
 use thiserror::Error;
+use tokio::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
@@ -23,6 +26,8 @@ use wdl::engine::Outputs;
 use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 use crate::system::v1::db::Database;
+use crate::system::v1::exec::svc::TaskMonitorSvc;
+use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
 pub mod config;
@@ -85,7 +90,7 @@ pub enum SelectTargetError {
 /// 2. If no target, use workflow if present
 /// 3. If no target and no workflow, use single task if exactly one exists
 /// 4. Otherwise error
-fn select_target(
+pub fn select_target(
     document: &AnalysisDocument,
     target: Option<&str>,
 ) -> Result<Target, SelectTargetError> {
@@ -130,6 +135,251 @@ pub struct RunContext {
     pub run_generated_name: String,
     /// Run start time.
     pub started_at: DateTime<Utc>,
+}
+
+/// The name for the "latest" symlink.
+const LATEST: &str = "_latest";
+
+/// Context for executing the full run pipeline (analysis → execution).
+///
+/// This struct encapsulates all the state needed to execute a run
+/// asynchronously, from initial WDL document analysis through to final
+/// execution and cleanup. It is designed to be constructed via the builder and
+/// then consumed via the [`execute`](Self::execute) method, which performs all
+/// steps of the pipeline.
+#[derive(bon::Builder)]
+#[allow(missing_debug_implementations)]
+pub struct RunnableExecutor {
+    /// Database handle for persisting run state.
+    db: Arc<dyn Database>,
+    /// Output directory manager.
+    output_dir: OutputDirectory,
+    /// WDL engine configuration.
+    engine_config: WdlConfig,
+    /// Cancellation context for this run.
+    cancellation: CancellationContext,
+    /// Events broadcaster for progress reporting.
+    events: Events,
+    /// Shared mapping of active runs for cleanup on completion.
+    runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
+    /// Unique identifier for this run.
+    run_id: Uuid,
+    /// Human-readable generated name for this run.
+    #[builder(into)]
+    run_name: String,
+    /// Validated source location of the WDL document.
+    source: AllowedSource,
+    /// User-provided target name (workflow or task), if any.
+    target: Option<String>,
+    /// Input values as JSON.
+    inputs: JsonValue,
+    /// Index key for result indexing, if requested.
+    index_on: Option<String>,
+}
+
+impl RunnableExecutor {
+    /// Executes a runnable.
+    ///
+    /// This method performs all steps of execution in order:
+    ///
+    /// 1. Analyze the WDL document
+    /// 2. Validate analysis results
+    /// 3. Select or resolve the target
+    /// 4. Create the run directory
+    /// 5. Execute the target
+    ///
+    /// On any error, the run is marked as failed in the database and the method
+    /// returns early. On completion (success or failure), the run is removed
+    /// from the active runs map.
+    pub async fn execute(self) {
+        let result = match analyze_wdl_document(&self.source).await {
+            Ok(result) => result,
+            Err(e) => {
+                tracing::error!(
+                    "run `{}` ({}) failed during analysis: {}",
+                    &self.run_name,
+                    self.run_id,
+                    e
+                );
+                let _ = self
+                    .db
+                    .fail_run(self.run_id, &e.to_string(), Utc::now())
+                    .await;
+                self.runs.lock().await.remove(&self.run_id);
+                return;
+            }
+        };
+
+        if let Err(e) = validate_analysis_results(&result).await {
+            tracing::error!(
+                "run `{}` ({}) failed during validation: {}",
+                &self.run_name,
+                self.run_id,
+                e
+            );
+            let _ = self
+                .db
+                .fail_run(self.run_id, &e.to_string(), Utc::now())
+                .await;
+            self.runs.lock().await.remove(&self.run_id);
+            return;
+        }
+
+        let document = result.document();
+        let resolved_target = match select_target(document, self.target.as_deref()) {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::error!(
+                    "run `{}` ({}) failed during target selection: {}",
+                    &self.run_name,
+                    self.run_id,
+                    e
+                );
+                let _ = self
+                    .db
+                    .fail_run(self.run_id, &e.to_string(), Utc::now())
+                    .await;
+                self.runs.lock().await.remove(&self.run_id);
+                return;
+            }
+        };
+
+        // Update the target in the database if the user didn't provide one.
+        if self.target.is_none() {
+            match self
+                .db
+                .update_run_target(self.run_id, resolved_target.name())
+                .await
+            {
+                Ok(false) => {
+                    let error = "run not found when updating target";
+                    tracing::error!(
+                        "run `{}` ({}) failed to update target: {}",
+                        &self.run_name,
+                        self.run_id,
+                        error
+                    );
+                    let _ = self.db.fail_run(self.run_id, error, Utc::now()).await;
+                    self.runs.lock().await.remove(&self.run_id);
+                    return;
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "run `{}` ({}) failed to update target: {}",
+                        &self.run_name,
+                        self.run_id,
+                        e
+                    );
+                    let _ = self
+                        .db
+                        .fail_run(self.run_id, &e.to_string(), Utc::now())
+                        .await;
+                    self.runs.lock().await.remove(&self.run_id);
+                    return;
+                }
+                Ok(true) => {}
+            }
+        }
+
+        let run_dir_name = PathBuf::from(resolved_target.name())
+            .join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
+        let run_dir = match self.output_dir.ensure_workflow_run(run_dir_name) {
+            Ok(dir) => dir,
+            Err(e) => {
+                tracing::error!(
+                    "run `{}` ({}) failed to create run directory: {}",
+                    &self.run_name,
+                    self.run_id,
+                    e
+                );
+                let _ = self
+                    .db
+                    .fail_run(self.run_id, &e.to_string(), Utc::now())
+                    .await;
+                self.runs.lock().await.remove(&self.run_id);
+                return;
+            }
+        };
+
+        let run_dir_str = run_dir.relative_path().to_str().expect("path is not UTF-8");
+        if let Err(e) = self.db.update_run_directory(self.run_id, run_dir_str).await {
+            tracing::error!(
+                "run `{}` ({}) failed to update directory: {}",
+                &self.run_name,
+                self.run_id,
+                e
+            );
+            let _ = self
+                .db
+                .fail_run(self.run_id, &e.to_string(), Utc::now())
+                .await;
+            self.runs.lock().await.remove(&self.run_id);
+            return;
+        }
+
+        // Create the `_latest` symlink.
+        // SAFETY: we know that the `runs/` directory should be the parent here.
+        let run_dir_parent = run_dir.root().parent().unwrap();
+        let latest_symlink = run_dir_parent.join(LATEST);
+        let _ = std::fs::remove_file(&latest_symlink);
+
+        if let Some(run_dir_basename) = run_dir.root().file_name() {
+            #[cfg(unix)]
+            let result = std::os::unix::fs::symlink(run_dir_basename, &latest_symlink);
+
+            #[cfg(windows)]
+            let result = std::os::windows::fs::symlink_dir(run_dir_basename, &latest_symlink);
+
+            if let Err(e) = result {
+                tracing::trace!(
+                    "failed to create `_latest` symlink at `{}`: {}",
+                    latest_symlink.display(),
+                    e
+                );
+            }
+        }
+
+        let ctx = RunContext {
+            run_id: self.run_id,
+            run_generated_name: self.run_name.clone(),
+            started_at: Utc::now(),
+        };
+
+        info!(
+            "run `{}` ({}) execution started",
+            &ctx.run_generated_name, self.run_id
+        );
+
+        // SAFETY: because we subscribe to all events above, the Crankshaft
+        // subscriber should always be available to us here.
+        let crankshaft_rx = self.events.subscribe_crankshaft().unwrap();
+        let task_monitor_svc = TaskMonitorSvc::new(self.run_id, self.db.clone(), crankshaft_rx);
+        tokio::spawn(task_monitor_svc.run());
+
+        if let Err(e) = execute_target(
+            self.db.clone(),
+            &ctx,
+            result.document().clone(),
+            self.engine_config,
+            self.cancellation,
+            self.events,
+            resolved_target,
+            &self.inputs,
+            &run_dir,
+            self.index_on.as_deref(),
+        )
+        .await
+        {
+            tracing::error!(
+                "run `{}` ({}) failed: {}",
+                &ctx.run_generated_name,
+                self.run_id,
+                e
+            );
+        }
+
+        self.runs.lock().await.remove(&self.run_id);
+    }
 }
 
 /// Analyzes a WDL document from the given source.

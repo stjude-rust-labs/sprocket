@@ -73,16 +73,25 @@ pub trait Database: Send + Sync {
     async fn count_sessions(&self) -> Result<i64>;
 
     /// Create a new run.
+    ///
+    /// The `target` parameter is `None` when the user did not provide a target.
+    /// The resolved target should be set later via
+    /// [`update_run_target`](Self::update_run_target).
     async fn create_run(
         &self,
         id: Uuid,
         session_id: Uuid,
         name: &str,
         source: &str,
-        target: &str,
+        target: Option<&str>,
         inputs: &str,
-        directory: &str,
     ) -> Result<Run>;
+
+    /// Update run target after resolution.
+    ///
+    /// Returns `true` if a run was updated, `false` if the run was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_target(&self, id: Uuid, target: &str) -> Result<bool>;
 
     /// Update run status.
     async fn update_run_status(&self, id: Uuid, status: RunStatus) -> Result<()>;
@@ -107,10 +116,17 @@ pub trait Database: Send + Sync {
     /// Update run error.
     async fn update_run_error(&self, id: Uuid, error: &str) -> Result<()>;
 
+    /// Update run directory.
+    ///
+    /// Returns `true` if a run was updated, `false` if the run was not found.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn update_run_directory(&self, id: Uuid, directory: &str) -> Result<bool>;
+
     /// Update run index directory.
     ///
     /// Returns `true` if a run was updated, `false` if the run was
     /// not found.
+    #[must_use = "the return value indicates whether a run was updated"]
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool>;
 
     /// Get a run by ID.
@@ -150,11 +166,13 @@ pub trait Database: Send + Sync {
     /// Update task with started timestamp.
     ///
     /// Returns `true` if a task was updated, `false` if not found.
+    #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_started(&self, name: &str, started_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update task with completion data.
     ///
     /// Returns `true` if a task was updated, `false` if not found.
+    #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_completed(
         &self,
         name: &str,
@@ -165,6 +183,7 @@ pub trait Database: Send + Sync {
     /// Update task with failure data.
     ///
     /// Returns `true` if a task was updated, `false` if not found.
+    #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_failed(
         &self,
         name: &str,
@@ -175,11 +194,13 @@ pub trait Database: Send + Sync {
     /// Update task as canceled.
     ///
     /// Returns `true` if a task was updated, `false` if not found.
+    #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_canceled(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update task as preempted.
     ///
     /// Returns `true` if a task was updated, `false` if not found.
+    #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_preempted(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool>;
 
     /// Get task by name.

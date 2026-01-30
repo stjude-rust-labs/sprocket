@@ -48,9 +48,8 @@ async fn create_and_get_run(pool: SqlitePool) {
             session_id,
             "test_workflow",
             "/path/to/run.wdl",
-            "my_task",
+            Some("my_task"),
             "{}",
-            "/tmp/execution",
         )
         .await
         .unwrap();
@@ -59,12 +58,12 @@ async fn create_and_get_run(pool: SqlitePool) {
     assert_eq!(run.session_uuid, session_id);
     assert_eq!(run.name, "test_workflow");
     assert_eq!(run.source, "/path/to/run.wdl");
-    assert_eq!(run.target, "my_task");
+    assert_eq!(run.target, Some(String::from("my_task")));
     assert_eq!(run.status, RunStatus::Queued);
     assert_eq!(run.inputs, "{}");
     assert_eq!(run.outputs, None);
     assert_eq!(run.error, None);
-    assert_eq!(run.directory, "/tmp/execution");
+    assert_eq!(run.directory, None);
     assert!(run.created_at <= Utc::now());
     assert_eq!(run.started_at, None);
     assert_eq!(run.completed_at, None);
@@ -76,12 +75,12 @@ async fn create_and_get_run(pool: SqlitePool) {
     assert_eq!(retrieved.session_uuid, session_id);
     assert_eq!(retrieved.name, "test_workflow");
     assert_eq!(retrieved.source, "/path/to/run.wdl");
-    assert_eq!(retrieved.target, "my_task");
+    assert_eq!(retrieved.target, Some(String::from("my_task")));
     assert_eq!(retrieved.status, RunStatus::Queued);
     assert_eq!(retrieved.inputs, "{}");
     assert_eq!(retrieved.outputs, None);
     assert_eq!(retrieved.error, None);
-    assert_eq!(retrieved.directory, "/tmp/execution");
+    assert_eq!(retrieved.directory, None);
     assert_eq!(retrieved.created_at, run.created_at);
     assert_eq!(retrieved.started_at, None);
     assert_eq!(retrieved.completed_at, None);
@@ -102,9 +101,8 @@ async fn update_run_status(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -137,9 +135,8 @@ async fn update_run_outputs(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -173,9 +170,8 @@ async fn update_run_error(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -211,9 +207,8 @@ async fn list_runs_by_session(pool: SqlitePool) {
         session_id,
         "workflow1",
         "/test1.wdl",
-        "task1",
+        Some("task1"),
         "{}",
-        "/tmp/1",
     )
     .await
     .unwrap();
@@ -223,9 +218,8 @@ async fn list_runs_by_session(pool: SqlitePool) {
         session_id,
         "workflow2",
         "/test2.wdl",
-        "task2",
+        Some("task2"),
         "{}",
-        "/tmp/2",
     )
     .await
     .unwrap();
@@ -251,9 +245,8 @@ async fn create_and_list_index_log_entries(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -332,9 +325,8 @@ async fn list_index_entries_for_run_with_none(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -365,9 +357,8 @@ async fn create_run_with_invalid_session_id(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp",
         )
         .await;
 
@@ -415,9 +406,8 @@ async fn list_runs_ordered_by_created_at(pool: SqlitePool) {
         session_id,
         "first",
         "/test1.wdl",
-        "task1",
+        Some("task1"),
         "{}",
-        "/tmp/1",
     )
     .await
     .unwrap();
@@ -427,9 +417,8 @@ async fn list_runs_ordered_by_created_at(pool: SqlitePool) {
         session_id,
         "second",
         "/test2.wdl",
-        "task2",
+        Some("task2"),
         "{}",
-        "/tmp/2",
     )
     .await
     .unwrap();
@@ -439,9 +428,8 @@ async fn list_runs_ordered_by_created_at(pool: SqlitePool) {
         session_id,
         "third",
         "/test3.wdl",
-        "task3",
+        Some("task3"),
         "{}",
-        "/tmp/3",
     )
     .await
     .unwrap();
@@ -471,9 +459,8 @@ async fn list_index_entries_ordered_by_created_at(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -537,9 +524,8 @@ async fn run_status_transitions(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp",
         )
         .await
         .unwrap();
@@ -578,9 +564,8 @@ async fn run_with_all_nullable_fields_null(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp",
         )
         .await
         .unwrap();
@@ -606,9 +591,8 @@ async fn multiple_index_entries_for_same_run(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "/tmp",
     )
     .await
     .unwrap();
@@ -645,9 +629,8 @@ async fn complete_run_with_all_fields(pool: SqlitePool) {
             session_id,
             "my_workflow",
             "/workflows/analysis.wdl",
-            "analysis_task",
+            Some("analysis_task"),
             r#"{"input_file": "data.txt", "threshold": 0.5}"#,
-            "/scratch/workflows/run_001",
         )
         .await
         .unwrap();
@@ -690,7 +673,7 @@ async fn complete_run_with_all_fields(pool: SqlitePool) {
         ))
     );
     assert_eq!(final_run.error, None);
-    assert_eq!(final_run.directory, "/scratch/workflows/run_001");
+    assert_eq!(final_run.directory, None);
     assert!(final_run.created_at <= started);
     assert_eq!(final_run.started_at, Some(started));
     assert_eq!(final_run.completed_at, Some(completed));
@@ -713,9 +696,8 @@ async fn update_run_index_directory(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "./runs/test/20240115_120000000000",
         )
         .await
         .unwrap();
@@ -765,9 +747,8 @@ async fn run_with_index_directory_null_by_default(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "./runs/test/20240115_120000000000",
         )
         .await
         .unwrap();
@@ -793,9 +774,8 @@ async fn list_latest_index_entries(pool: SqlitePool) {
         session_id,
         "test1",
         "/test1.wdl",
-        "task1",
+        Some("task1"),
         "{}",
-        "./runs/test1/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -806,9 +786,8 @@ async fn list_latest_index_entries(pool: SqlitePool) {
         session_id,
         "test2",
         "/test2.wdl",
-        "task2",
+        Some("task2"),
         "{}",
-        "./runs/test2/20240115_130000000000",
     )
     .await
     .unwrap();
@@ -895,9 +874,8 @@ async fn duplicate_run_id(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "./runs/test/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -908,9 +886,8 @@ async fn duplicate_run_id(pool: SqlitePool) {
             session_id,
             "test2",
             "/test2.wdl",
-            "test_task2",
+            Some("test_task2"),
             "{}",
-            "./runs/test2/20240115_130000000000",
         )
         .await;
 
@@ -929,7 +906,6 @@ async fn very_long_field_values(pool: SqlitePool) {
     let long_workflow_name = "b".repeat(10000);
     let long_source = "c".repeat(10000);
     let long_target = "d".repeat(10000);
-    let long_directory = "e".repeat(10000);
 
     let session_id = Uuid::new_v4();
     let session = db
@@ -945,16 +921,14 @@ async fn very_long_field_values(pool: SqlitePool) {
             session_id,
             &long_workflow_name,
             &long_source,
-            &long_target,
+            Some(long_target.as_str()),
             "{}",
-            &long_directory,
         )
         .await
         .unwrap();
     assert_eq!(run.name, long_workflow_name);
     assert_eq!(run.source, long_source);
-    assert_eq!(run.target, long_target);
-    assert_eq!(run.directory, long_directory);
+    assert_eq!(run.target, Some(long_target));
 
     let long_outputs = "x".repeat(10000);
     db.update_run_outputs(run_id, &long_outputs).await.unwrap();
@@ -1022,9 +996,8 @@ async fn list_runs_pagination(pool: SqlitePool) {
             session_id,
             &format!("workflow_{}", i),
             "/test.wdl",
-            &format!("task_{}", i),
+            Some(format!("task_{}", i).as_str()),
             "{}",
-            &format!("./runs/workflow_{}/20240115_120000000000", i),
         )
         .await
         .unwrap();
@@ -1062,9 +1035,8 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         session_id,
         "queued",
         "/test.wdl",
-        "queued_task",
+        Some("queued_task"),
         "{}",
-        "./runs/queued/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1075,9 +1047,8 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         session_id,
         "running",
         "/test.wdl",
-        "running_task",
+        Some("running_task"),
         "{}",
-        "./runs/running/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1089,9 +1060,8 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         session_id,
         "completed",
         "/test.wdl",
-        "completed_task",
+        Some("completed_task"),
         "{}",
-        "./runs/completed/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1103,9 +1073,8 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         session_id,
         "failed",
         "/test.wdl",
-        "failed_task",
+        Some("failed_task"),
         "{}",
-        "./runs/failed/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1119,9 +1088,8 @@ async fn list_runs_filtered_by_status(pool: SqlitePool) {
         session_id,
         "cancelled",
         "/test.wdl",
-        "cancelled_task",
+        Some("cancelled_task"),
         "{}",
-        "./runs/cancelled/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1185,9 +1153,8 @@ async fn timestamp_ordering_and_accuracy(pool: SqlitePool) {
             session_id,
             "test",
             "/test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "./runs/test/20240115_120000000000",
         )
         .await
         .unwrap();
@@ -1245,9 +1212,8 @@ async fn run_outputs_with_special_characters(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "./runs/test/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1284,9 +1250,8 @@ async fn link_path_with_special_characters(pool: SqlitePool) {
         session_id,
         "test",
         "/test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "./runs/test/20240115_120000000000",
     )
     .await
     .unwrap();
@@ -1333,9 +1298,8 @@ async fn pagination_with_zero_limit(pool: SqlitePool) {
             session_id,
             &format!("workflow_{}", i),
             "/test.wdl",
-            &format!("task_{}", i),
+            Some(format!("task_{}", i).as_str()),
             "{}",
-            &format!("./runs/workflow_{}/20240115_120000000000", i),
         )
         .await
         .unwrap();
@@ -1364,9 +1328,8 @@ async fn pagination_with_large_offset(pool: SqlitePool) {
             session_id,
             &format!("workflow_{}", i),
             "/test.wdl",
-            &format!("task_{}", i),
+            Some(format!("task_{}", i).as_str()),
             "{}",
-            &format!("./runs/workflow_{}/20240115_120000000000", i),
         )
         .await
         .unwrap();

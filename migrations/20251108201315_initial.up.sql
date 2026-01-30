@@ -45,8 +45,9 @@ create table if not exists runs (
     "name" text not null,
     -- Source WDL file path or URL
     "source" text not null,
-    -- Target task or workflow name being executed
-    "target" text not null,
+    -- Target task or workflow name being executed (`null` when user did not
+    -- provide a target and run has not yet resolved the target)
+    "target" text,
     -- Current run status
     "status" text not null check("status" in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled')),
     -- JSON-encoded inputs
@@ -55,8 +56,9 @@ create table if not exists runs (
     outputs text,
     -- Error message (`null` unless the run has failed)
     "error" text,
-    -- Path to the run directory
-    directory text not null,
+    -- Path to the run directory (`null` when the run has not yet been started
+    -- and the directory has not been created)
+    directory text,
     -- Path to the indexed output directory (`null` if not indexed)
     index_directory text,
     -- Timestamp when the run started

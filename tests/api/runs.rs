@@ -570,7 +570,7 @@ task sleep_task {
 
 #[sqlx::test]
 async fn submit_run_with_invalid_wdl(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Write invalid WDL to a file
     let wdl_content = r#"
@@ -599,7 +599,22 @@ this is not valid WDL syntax
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    // Run is now accepted and analysis happens async
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    assert_eq!(
+        status,
+        RunStatus::Failed,
+        "run should fail due to invalid WDL"
+    );
+
+    let run = db.get_run(run_id).await.unwrap().unwrap();
+    assert!(run.error.is_some(), "error message should be set");
 }
 
 #[sqlx::test]
@@ -1152,7 +1167,7 @@ task my_task {
 
 #[sqlx::test]
 async fn ambiguous_document_requires_target(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Create a WDL with multiple tasks and no workflow
     let wdl_content = r#"
@@ -1171,7 +1186,7 @@ task task_two {
     let wdl_file = temp.path().join("wdl").join("ambiguous.wdl");
     std::fs::write(&wdl_file, wdl_content).unwrap();
 
-    // Submit without specifying target - should return error
+    // Submit without specifying target
     let submit_request = json!({
         "source": wdl_file.to_str().unwrap(),
         "inputs": {},
@@ -1189,15 +1204,22 @@ task task_two {
         .await
         .unwrap();
 
-    assert_eq!(
-        response.status(),
-        StatusCode::BAD_REQUEST,
-        "should require target when document is ambiguous"
-    );
+    // Run is accepted and analysis happens async
+    assert_eq!(response.status(), StatusCode::OK, "run should be accepted");
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let error_message = error_json["message"].as_str().unwrap();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    assert_eq!(
+        status,
+        RunStatus::Failed,
+        "run should fail when target is ambiguous"
+    );
+
+    let run = db.get_run(run_id).await.unwrap().unwrap();
+    let error_message = run.error.as_ref().unwrap();
     assert!(
         error_message.contains("target is unable to be inferred"),
         "error message should indicate target is required, got: {}",
@@ -1206,8 +1228,8 @@ task task_two {
 }
 
 #[sqlx::test]
-async fn target_not_found_returns_404(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+async fn target_not_found_fails_run(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     let wdl_file = temp.path().join("wdl").join("test.wdl");
     std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
@@ -1231,33 +1253,37 @@ async fn target_not_found_returns_404(pool: sqlx::SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(
-        response.status(),
-        StatusCode::NOT_FOUND,
-        "should return 404 when target not found"
-    );
+    // Run is accepted and analysis happens async
+    assert_eq!(response.status(), StatusCode::OK, "run should be accepted");
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    assert_eq!(
+        status,
+        RunStatus::Failed,
+        "run should fail when target not found"
+    );
+
+    let run = db.get_run(run_id).await.unwrap().unwrap();
+    let error_message = run.error.as_ref().unwrap();
     assert!(
-        error_json["message"]
-            .as_str()
-            .unwrap()
-            .contains("nonexistent_workflow"),
-        "error message should include target name"
+        error_message.contains("nonexistent_workflow"),
+        "error message should include target name, got: {}",
+        error_message
     );
     assert!(
-        error_json["message"]
-            .as_str()
-            .unwrap()
-            .contains("not found"),
-        "error message should indicate target not found"
+        error_message.contains("not found"),
+        "error message should indicate target not found, got: {}",
+        error_message
     );
 }
 
 #[sqlx::test]
-async fn empty_document_returns_error(pool: sqlx::SqlitePool) {
-    let (app, _, temp) = create_test_server().pool(pool).call().await;
+async fn empty_document_fails_run(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Create a WDL with no workflow and no tasks
     let wdl_content = r#"
@@ -1283,15 +1309,22 @@ version 1.2
         .await
         .unwrap();
 
-    assert_eq!(
-        response.status(),
-        StatusCode::BAD_REQUEST,
-        "should return error when document has no executable target"
-    );
+    // Run is accepted and analysis happens async
+    assert_eq!(response.status(), StatusCode::OK, "run should be accepted");
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let error_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let error_message = error_json["message"].as_str().unwrap();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    assert_eq!(
+        status,
+        RunStatus::Failed,
+        "run should fail when document has no executable target"
+    );
+
+    let run = db.get_run(run_id).await.unwrap().unwrap();
+    let error_message = run.error.as_ref().unwrap();
     assert!(
         error_message
             .contains("there must be at least one task, workflow, struct, or enum definition"),

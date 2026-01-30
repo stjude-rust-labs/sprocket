@@ -203,7 +203,10 @@ pub struct Run {
     /// Source WDL file path or URL.
     pub source: String,
     /// Target task or workflow name being executed.
-    pub target: String,
+    ///
+    /// This field is `None` when the user did not provide a target and the run
+    /// has not yet resolved the target from the WDL document.
+    pub target: Option<String>,
     /// Current status.
     pub status: RunStatus,
     /// JSON-encoded inputs.
@@ -213,7 +216,10 @@ pub struct Run {
     /// Error message if run failed.
     pub error: Option<String>,
     /// Path to the run directory.
-    pub directory: String,
+    ///
+    /// This field is `None` when the run has not yet been started and the
+    /// directory has not been created.
+    pub directory: Option<String>,
     /// Path to the indexed output directory (`null` if not indexed).
     pub index_directory: Option<String>,
     /// Timestamp when the run started.

@@ -203,24 +203,18 @@ impl Database for SqliteDatabase {
         session_id: Uuid,
         name: &str,
         source: &str,
-        target: &str,
+        target: Option<&str>,
         inputs: &str,
-        directory: &str,
     ) -> Result<Run> {
         debug_assert!(!name.is_empty(), "`name` cannot be empty for a run");
         debug_assert!(!source.is_empty(), "`source` cannot be empty for a run");
-        debug_assert!(!target.is_empty(), "`target` cannot be empty for a run");
-        debug_assert!(
-            !directory.is_empty(),
-            "`directory` cannot be empty for a run"
-        );
 
         let run: Run = sqlx::query_as(
-            "insert into runs (uuid, session_id, name, source, target, status, inputs, directory) \
-             select ?, s.id, ?, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, \
-             (select uuid from sessions where id = session_id) as session_uuid, name, source, \
-             target, status, inputs, outputs, error, directory, index_directory, started_at, \
-             completed_at, created_at",
+            "insert into runs (uuid, session_id, name, source, target, status, inputs) select ?, \
+             s.id, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, (select uuid \
+             from sessions where id = session_id) as session_uuid, name, source, target, status, \
+             inputs, outputs, error, directory, index_directory, started_at, completed_at, \
+             created_at",
         )
         .bind(id.to_string())
         .bind(name)
@@ -228,12 +222,21 @@ impl Database for SqliteDatabase {
         .bind(target)
         .bind(RunStatus::Queued)
         .bind(inputs)
-        .bind(directory)
         .bind(session_id.to_string())
         .fetch_one(&self.pool)
         .await?;
 
         Ok(run)
+    }
+
+    async fn update_run_target(&self, id: Uuid, target: &str) -> Result<bool> {
+        let result = sqlx::query("update runs set target = ? where uuid = ?")
+            .bind(target)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     async fn update_run_status(&self, id: Uuid, status: RunStatus) -> Result<()> {
@@ -292,6 +295,16 @@ impl Database for SqliteDatabase {
             .await?;
 
         Ok(())
+    }
+
+    async fn update_run_directory(&self, id: Uuid, directory: &str) -> Result<bool> {
+        let result = sqlx::query("update runs set directory = ? where uuid = ?")
+            .bind(directory)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     async fn update_run_index_directory(&self, id: Uuid, index_directory: &str) -> Result<bool> {
@@ -853,9 +866,8 @@ mod tests {
                 session_id,
                 "test-run",
                 "test.wdl",
-                "test_task",
+                Some("test_task"),
                 "{}",
-                "/tmp/run",
             )
             .await
             .expect("failed to create run");
@@ -864,7 +876,7 @@ mod tests {
         assert_eq!(run.session_uuid, session_id);
         assert_eq!(run.name, "test-run");
         assert_eq!(run.source, "test.wdl");
-        assert_eq!(run.target, "test_task");
+        assert_eq!(run.target, Some(String::from("test_task")));
         assert_eq!(run.status, RunStatus::Queued);
     }
 
@@ -885,9 +897,8 @@ mod tests {
             session_id,
             "test-run",
             "test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp/run",
         )
         .await
         .expect("failed to create run");
@@ -922,9 +933,8 @@ mod tests {
                 session_id,
                 "test-run",
                 "test.wdl",
-                "test_task",
+                Some("test_task"),
                 "{}",
-                "/tmp/run",
             )
             .await
             .expect("failed to create run");
@@ -956,9 +966,8 @@ mod tests {
             session_id,
             "run1",
             "test.wdl",
-            "task_a",
+            Some("task_a"),
             "{}",
-            "/tmp/run1",
         )
         .await
         .expect("failed to create run");
@@ -969,9 +978,8 @@ mod tests {
             session_id,
             "run2",
             "test.wdl",
-            "task_b",
+            Some("task_b"),
             "{}",
-            "/tmp/run2",
         )
         .await
         .expect("failed to create run");
@@ -982,9 +990,8 @@ mod tests {
             session_id,
             "run3",
             "test.wdl",
-            "task_c",
+            Some("task_c"),
             "{}",
-            "/tmp/run3",
         )
         .await
         .expect("failed to create run");
@@ -1047,9 +1054,8 @@ mod tests {
             session_id,
             "test-run",
             "test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp/run",
         )
         .await
         .expect("failed to create run");
@@ -1081,9 +1087,8 @@ mod tests {
             session_id,
             "test-run",
             "test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp/run",
         )
         .await
         .expect("failed to create run");
@@ -1116,9 +1121,8 @@ mod tests {
             session_id,
             "test-run1",
             "test.wdl",
-            "task_a",
+            Some("task_a"),
             "{}",
-            "/tmp/run1",
         )
         .await
         .expect("failed to create run");
@@ -1129,9 +1133,8 @@ mod tests {
             session_id,
             "test-run2",
             "test.wdl",
-            "task_b",
+            Some("task_b"),
             "{}",
-            "/tmp/run2",
         )
         .await
         .expect("failed to create run");
@@ -1225,9 +1228,8 @@ mod tests {
             session_id,
             "test-run",
             "test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp/run",
         )
         .await
         .expect("failed to create run");
@@ -1268,9 +1270,8 @@ mod tests {
             session_id,
             "test-run",
             "test.wdl",
-            "test_task",
+            Some("test_task"),
             "{}",
-            "/tmp/run",
         )
         .await
         .expect("failed to create run");

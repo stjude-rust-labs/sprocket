@@ -66,9 +66,8 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -151,9 +150,8 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -210,9 +208,8 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -280,9 +277,8 @@ async fn create_index_with_missing_files(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -336,9 +332,8 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -395,9 +390,8 @@ async fn create_index_with_nested_directory_structure(pool: SqlitePool) -> Resul
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -452,9 +446,8 @@ async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
         session_id,
         "test1",
         "file://test.wdl",
-        "task_a",
+        Some("task_a"),
         "{}",
-        "test-workflow-1",
     )
     .await?;
 
@@ -486,9 +479,8 @@ async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
         session_id,
         "test2",
         "file://test.wdl",
-        "task_b",
+        Some("task_b"),
         "{}",
-        "test-workflow-2",
     )
     .await?;
 
@@ -543,9 +535,8 @@ async fn create_index_with_empty_outputs(pool: SqlitePool) -> Result<()> {
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -584,9 +575,8 @@ async fn create_index_with_special_characters_in_index_name(pool: SqlitePool) ->
         session_id,
         "test",
         "file://test.wdl",
-        "test_task",
+        Some("test_task"),
         "{}",
-        "test-workflow",
     )
     .await?;
 
@@ -637,9 +627,8 @@ async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
         session_id,
         "test1",
         "file://test.wdl",
-        "task_a",
+        Some("task_a"),
         "{}",
-        "test-workflow-1",
     )
     .await?;
 
@@ -671,9 +660,8 @@ async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
         session_id,
         "test2",
         "file://test.wdl",
-        "task_b",
+        Some("task_b"),
         "{}",
-        "test-workflow-2",
     )
     .await?;
 
