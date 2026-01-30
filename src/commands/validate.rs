@@ -27,15 +27,15 @@ pub struct Args {
     /// This argument is required if trying to validate a task or workflow
     /// without any inputs.
     ///
-    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// If `target` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// If `target` is specified, it will be appended with a `.` delimiter
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub entrypoint: Option<String>,
+    pub target: Option<String>,
 
     /// The inputs for the task or workflow.
     ///
@@ -81,7 +81,7 @@ pub async fn validate(args: Args) -> CommandResult<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
+    let inputs = Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -102,7 +102,7 @@ pub async fn validate(args: Args) -> CommandResult<()> {
                 .into(),
         );
 
-        if let Some(name) = args.entrypoint {
+        if let Some(name) = args.target {
             match (document.task_by_name(&name), document.workflow()) {
                 (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
                 (None, Some(workflow)) => {
@@ -126,7 +126,7 @@ pub async fn validate(args: Args) -> CommandResult<()> {
             }
         } else {
             return Err(
-                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
+                anyhow!("the `--target` option is required if no inputs are provided").into(),
             );
         }
     };
