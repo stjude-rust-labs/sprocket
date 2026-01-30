@@ -12,8 +12,7 @@ use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::MetaMapValueSource;
-use crate::meta::parse_meta;
-use crate::meta::parse_parameter_meta;
+use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.
@@ -53,11 +52,11 @@ impl Workflow {
         wdl_path: Option<PathBuf>,
     ) -> Self {
         let meta = match definition.metadata() {
-            Some(mds) => parse_meta(&mds),
+            Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
         let parameter_meta = match definition.parameter_metadata() {
-            Some(pmds) => parse_parameter_meta(&pmds),
+            Some(pmds) => parse_metadata_items(pmds.items()),
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {

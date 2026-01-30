@@ -20,8 +20,7 @@ use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
-use crate::meta::parse_meta;
-use crate::meta::parse_parameter_meta;
+use crate::meta::parse_metadata_items;
 
 /// A member in a struct.
 #[derive(Debug)]
@@ -74,13 +73,13 @@ impl Struct {
         version: SupportedVersion,
         enable_doc_comments: bool,
     ) -> Self {
-        let mut meta = definition.metadata().map(|meta| parse_meta(&meta)).fold(
-            MetaMap::new(),
-            |mut acc, mut meta| {
+        let mut meta = definition
+            .metadata()
+            .map(|meta| parse_metadata_items(meta.items()))
+            .fold(MetaMap::new(), |mut acc, mut meta| {
                 acc.append(&mut meta);
                 acc
-            },
-        );
+            });
 
         if enable_doc_comments {
             // Doc comments take precedence
@@ -89,7 +88,7 @@ impl Struct {
 
         let parameter_meta = definition
             .parameter_metadata()
-            .map(|meta| parse_parameter_meta(&meta))
+            .map(|meta| parse_metadata_items(meta.items()))
             .fold(MetaMap::new(), |mut acc, mut meta| {
                 acc.append(&mut meta);
                 acc
