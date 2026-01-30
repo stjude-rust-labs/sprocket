@@ -69,6 +69,9 @@ pub trait Database: Send + Sync {
     /// List sessions.
     async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>>;
 
+    /// Count total sessions.
+    async fn count_sessions(&self) -> Result<i64>;
+
     /// Create a new run.
     async fn create_run(
         &self,

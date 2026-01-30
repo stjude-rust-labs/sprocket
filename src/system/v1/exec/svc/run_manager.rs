@@ -595,7 +595,8 @@ async fn list_sessions(
     offset: Option<i64>,
 ) -> Result<ListSessionsResponse, DatabaseError> {
     let sessions = db.list_sessions(limit, offset).await?;
-    Ok(ListSessionsResponse { sessions })
+    let total = db.count_sessions().await?;
+    Ok(ListSessionsResponse { sessions, total })
 }
 
 /// Error type for getting an session.

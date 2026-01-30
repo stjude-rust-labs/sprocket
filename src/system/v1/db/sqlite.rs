@@ -193,6 +193,14 @@ impl Database for SqliteDatabase {
         Ok(sessions)
     }
 
+    async fn count_sessions(&self) -> Result<i64> {
+        let count: (i64,) = sqlx::query_as("select count(*) from sessions")
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(count.0)
+    }
+
     async fn create_run(
         &self,
         id: Uuid,
@@ -819,6 +827,31 @@ mod tests {
             .await
             .expect("failed to list sessions");
         assert_eq!(sessions.len(), 2);
+    }
+
+    #[sqlx::test]
+    async fn count_sessions(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let count = db.count_sessions().await.expect("failed to count sessions");
+        assert_eq!(count, 0);
+
+        db.create_session(Uuid::new_v4(), SprocketCommand::Run, "user1")
+            .await
+            .expect("failed to create session");
+
+        db.create_session(Uuid::new_v4(), SprocketCommand::Server, "user2")
+            .await
+            .expect("failed to create session");
+
+        db.create_session(Uuid::new_v4(), SprocketCommand::Run, "user3")
+            .await
+            .expect("failed to create session");
+
+        let count = db.count_sessions().await.expect("failed to count sessions");
+        assert_eq!(count, 3);
     }
 
     #[sqlx::test]

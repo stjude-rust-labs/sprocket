@@ -76,12 +76,15 @@ impl From<commands::SessionResponse> for SessionResponse {
 pub struct ListSessionsResponse {
     /// The sessions.
     pub sessions: Vec<Session>,
+    /// Total count before pagination.
+    pub total: i64,
 }
 
 impl From<commands::ListSessionsResponse> for ListSessionsResponse {
     fn from(response: commands::ListSessionsResponse) -> Self {
         Self {
             sessions: response.sessions.into_iter().map(Into::into).collect(),
+            total: response.total,
         }
     }
 }

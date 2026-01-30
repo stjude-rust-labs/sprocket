@@ -70,6 +70,8 @@ pub struct SessionResponse {
 pub struct ListSessionsResponse {
     /// The sessions.
     pub sessions: Vec<Session>,
+    /// Total count before pagination.
+    pub total: i64,
 }
 
 /// Response for task list query.
