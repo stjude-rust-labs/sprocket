@@ -68,30 +68,37 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         // If the first argument is a string, we need to check if it's a file or
         // directory and treat it as such.
         let value = match context.arguments[0].value.as_string() {
-            Some(s) => {
-                // If the path is a URL that isn't `file` schemed, treat as a file
-                if !is_file_url(s) && is_supported_url(s) {
-                    PrimitiveValue::File(s.clone().into()).into()
-                } else {
-                    let path = ensure_local_path(context.base_dir(), s).map_err(|e| {
-                        function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
-                    })?;
+            Some(_) => {
+                // Coerce the string to a file to ensure we do any guest-to-host translation
+                let path = context
+                    .coerce_argument(0, PrimitiveType::File)
+                    .unwrap_file();
 
-                    let metadata = fs::metadata(&path)
+                // If the path is a URL that isn't `file` schemed, treat as a file
+                if !is_file_url(&path.0) && is_supported_url(&path.0) {
+                    PrimitiveValue::File(path).into()
+                } else {
+                    let local_path =
+                        ensure_local_path(context.base_dir(), &path.0).map_err(|e| {
+                            function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
+                        })?;
+
+                    let metadata = fs::metadata(&local_path)
                         .await
                         .with_context(|| {
                             format!(
-                                "failed to read metadata for file `{path}`",
-                                path = path.display()
+                                "failed to read metadata for path `{path}`",
+                                path = local_path.display()
                             )
                         })
                         .map_err(|e| {
                             function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
                         })?;
+
                     if metadata.is_dir() {
-                        PrimitiveValue::Directory(s.clone().into()).into()
+                        PrimitiveValue::Directory(path).into()
                     } else {
-                        PrimitiveValue::File(s.clone().into()).into()
+                        PrimitiveValue::File(path).into()
                     }
                 }
             }
@@ -417,7 +424,7 @@ mod test {
         assert!(
             diagnostic
                 .message()
-                .starts_with("call to function `size` failed: failed to read metadata for file")
+                .starts_with("call to function `size` failed: failed to read metadata for path")
         );
 
         let source = format!("size('{path}', 'B')", path = env.base_dir());
