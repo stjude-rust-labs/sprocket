@@ -55,7 +55,7 @@ impl UiTest for ToggleTheme {
             .await?;
 
         if driver.localstorage("theme").await?.as_deref() != Some("light") {
-            bail!("Expected dark theme to be stored in localStorage");
+            bail!("Expected light theme to be stored in localStorage");
         }
 
         let current_color = bg.css_value("background-color").await?;
