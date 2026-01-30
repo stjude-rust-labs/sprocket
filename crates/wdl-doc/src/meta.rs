@@ -13,9 +13,8 @@ use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 use wdl_ast::TreeToken;
-use wdl_ast::v1::MetadataSection;
+use wdl_ast::v1::MetadataObjectItem;
 use wdl_ast::v1::MetadataValue;
-use wdl_ast::v1::ParameterMetadataSection;
 
 use crate::Markdown;
 use crate::Render;
@@ -37,27 +36,14 @@ const DESCRIPTION_CLIP_LENGTH: usize = 80;
 /// The default description used on undocumented items.
 pub(crate) const DEFAULT_DESCRIPTION: &str = "No description provided";
 
-/// Parse a [`MetadataSection`] into a [`MetaMap`].
-pub(crate) fn parse_meta(meta: &MetadataSection) -> MetaMap {
-    meta.items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, MetaMapValueSource::MetaValue(item))
-        })
-        .collect()
-}
-
-/// Parse a [`ParameterMetadataSection`] into a [`MetaMap`].
-pub(crate) fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
-    parameter_meta
-        .items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, MetaMapValueSource::MetaValue(item))
-        })
-        .collect()
+/// Parse [`MetadataObjectItem`]s into a [`MetaMap`].
+pub(crate) fn parse_metadata_items(meta: impl Iterator<Item = MetadataObjectItem>) -> MetaMap {
+    meta.map(|m| {
+        let name = m.name().text().to_owned();
+        let item = m.value();
+        (name, MetaMapValueSource::MetaValue(item))
+    })
+    .collect()
 }
 
 /// The source of a [`MetaMap`] entry.
