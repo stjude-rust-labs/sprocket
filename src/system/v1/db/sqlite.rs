@@ -149,17 +149,13 @@ impl Database for SqliteDatabase {
             "`created_by` cannot be empty for a session"
         );
 
-        sqlx::query("insert into sessions (uuid, subcommand, created_by) values (?, ?, ?)")
-            .bind(id.to_string())
-            .bind(subcommand)
-            .bind(created_by)
-            .execute(&self.pool)
-            .await?;
-
         let session: Session = sqlx::query_as(
-            "select uuid, subcommand, created_by, created_at from sessions where uuid = ?",
+            "insert into sessions (uuid, subcommand, created_by) values (?, ?, ?) returning uuid, \
+             subcommand, created_by, created_at",
         )
         .bind(id.to_string())
+        .bind(subcommand)
+        .bind(created_by)
         .fetch_one(&self.pool)
         .await?;
 
@@ -219,9 +215,12 @@ impl Database for SqliteDatabase {
             "`directory` cannot be empty for a run"
         );
 
-        sqlx::query(
+        let run: Run = sqlx::query_as(
             "insert into runs (uuid, session_id, name, source, target, status, inputs, directory) \
-             select ?, s.id, ?, ?, ?, ?, ?, ? from sessions s where s.uuid = ?",
+             select ?, s.id, ?, ?, ?, ?, ?, ? from sessions s where s.uuid = ? returning uuid, \
+             (select uuid from sessions where id = session_id) as session_uuid, name, source, \
+             target, status, inputs, outputs, error, directory, index_directory, started_at, \
+             completed_at, created_at",
         )
         .bind(id.to_string())
         .bind(name)
@@ -231,16 +230,6 @@ impl Database for SqliteDatabase {
         .bind(inputs)
         .bind(directory)
         .bind(session_id.to_string())
-        .execute(&self.pool)
-        .await?;
-
-        let run: Run = sqlx::query_as(
-            "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-             r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-             r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-             where r.uuid = ?",
-        )
-        .bind(id.to_string())
         .fetch_one(&self.pool)
         .await?;
 
@@ -401,23 +390,14 @@ impl Database for SqliteDatabase {
         link_path: &str,
         target_path: &str,
     ) -> Result<IndexLogEntry> {
-        let result = sqlx::query(
+        let entry: IndexLogEntry = sqlx::query_as(
             "insert into index_log (run_id, link_path, target_path) select r.id, ?, ? from runs r \
-             where r.uuid = ?",
+             where r.uuid = ? returning id, (select uuid from runs where id = run_id) as \
+             run_uuid, link_path, target_path, created_at",
         )
         .bind(link_path)
         .bind(target_path)
         .bind(run_id.to_string())
-        .execute(&self.pool)
-        .await?;
-
-        let id = result.last_insert_rowid();
-
-        let entry: IndexLogEntry = sqlx::query_as(
-            "select i.id, r.uuid as run_uuid, i.link_path, i.target_path, i.created_at from \
-             index_log i join runs r on i.run_id = r.id where i.id = ?",
-        )
-        .bind(id)
         .fetch_one(&self.pool)
         .await?;
 
@@ -448,17 +428,18 @@ impl Database for SqliteDatabase {
     }
 
     async fn create_task(&self, name: &str, run_id: Uuid) -> Result<Task> {
-        sqlx::query(
-            "insert into tasks (name, run_id, status)
-             select ?, r.id, ? from runs r where r.uuid = ?",
+        let task: Task = sqlx::query_as(
+            "insert into tasks (name, run_id, status) select ?, r.id, ? from runs r where r.uuid \
+             = ? returning name, (select uuid from runs where id = run_id) as run_uuid, status, \
+             exit_status, error, created_at, started_at, completed_at",
         )
         .bind(name)
         .bind(TaskStatus::Pending)
         .bind(run_id.to_string())
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
-        self.get_task(name).await
+        Ok(task)
     }
 
     async fn update_task_started(&self, name: &str, started_at: DateTime<Utc>) -> Result<bool> {
