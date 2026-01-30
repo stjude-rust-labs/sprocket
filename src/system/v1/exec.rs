@@ -23,7 +23,7 @@ use wdl::engine::Config as WdlConfig;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::v1::Evaluator as WdlEvaluator;
+use wdl::engine::v1::Evaluator;
 
 use crate::system::v1::db::Database;
 use crate::system::v1::exec::svc::TaskMonitorSvc;
@@ -608,7 +608,7 @@ async fn execute_workflow_target(
 ) -> Result<Outputs> {
     let workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
 
-    let evaluator = WdlEvaluator::new(run_dir.root(), config, cancellation, events)
+    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
         .await
         .context("failed to create workflow evaluator")?;
 
@@ -644,7 +644,7 @@ async fn execute_task_target(
 
     let task_inputs = parse_task_inputs(db, ctx, inputs, document, task, run_dir).await?;
 
-    let evaluator = WdlEvaluator::new(run_dir.root(), config, cancellation, events)
+    let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
         .await
         .context("failed to create task evaluator")?;
 
