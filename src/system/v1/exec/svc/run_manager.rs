@@ -17,7 +17,6 @@ use tracing::trace;
 use uuid::Uuid;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
-use wdl::engine::Config as EngineConfig;
 use wdl::engine::Events;
 
 use crate::system::v1::db::Database;
@@ -158,20 +157,9 @@ impl RunManagerSvc {
                         }
                     };
 
-                    let result = submit_run(
-                        self.db.clone(),
-                        &self.output_dir,
-                        &self.config,
-                        self.semaphore.clone(),
-                        self.runs.clone(),
-                        session_id,
-                        source,
-                        self.config.engine.clone(),
-                        inputs,
-                        target,
-                        index_on,
-                    )
-                    .await;
+                    let result = self
+                        .submit_run(session_id, source, inputs, target, index_on)
+                        .await;
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::GetStatus { id, rx } => {
@@ -274,6 +262,143 @@ impl RunManagerSvc {
         let handle = tokio::spawn(manager.run());
         (handle, tx)
     }
+
+    /// Submits a new run for execution.
+    async fn submit_run(
+        &self,
+        session_id: Uuid,
+        source: String,
+        inputs: JsonValue,
+        target: Option<String>,
+        index_on: Option<String>,
+    ) -> Result<SubmitResponse, SubmitRunError> {
+        let source = AllowedSource::validate(&source, &self.config)?;
+
+        let result = crate::system::v1::exec::analyze_wdl_document(&source)
+            .await
+            .map_err(SubmitRunError::Analysis)?;
+        crate::system::v1::exec::validate_analysis_results(&result)
+            .await
+            .map_err(SubmitRunError::Analysis)?;
+        let document = result.document();
+
+        let target = crate::system::v1::exec::select_target(document, target.as_deref())?;
+
+        let run_id = Uuid::new_v4();
+        let run_generated_name = generate_run_name();
+
+        let run_dir_name =
+            PathBuf::from(target.name()).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
+        let run_dir = self.output_dir.ensure_workflow_run(run_dir_name)?;
+
+        // SAFETY: we know that the `runs/` directory should be the parent here.
+        let run_dir_parent = run_dir.root().parent().unwrap();
+        let latest_symlink = run_dir_parent.join(LATEST);
+        let _ = std::fs::remove_file(&latest_symlink);
+
+        if let Some(run_dir_basename) = run_dir.root().file_name() {
+            #[cfg(unix)]
+            let result = std::os::unix::fs::symlink(run_dir_basename, &latest_symlink);
+
+            #[cfg(windows)]
+            let result = std::os::windows::fs::symlink_dir(run_dir_basename, &latest_symlink);
+
+            if let Err(e) = result {
+                tracing::trace!(
+                    "failed to create `_latest` symlink at `{}`: {}",
+                    latest_symlink.display(),
+                    e
+                );
+            }
+        }
+
+        self.db
+            .create_run(
+                run_id,
+                session_id,
+                &run_generated_name,
+                source.as_str(),
+                target.name(),
+                &inputs.to_string(),
+                run_dir.relative_path().to_str().expect("path is not UTF-8"),
+            )
+            .await?;
+
+        let ctx = RunContext {
+            run_id,
+            run_generated_name: run_generated_name.clone(),
+            started_at: Utc::now(),
+        };
+
+        let engine_config = self.config.engine.clone();
+        let cancellation = CancellationContext::new(engine_config.failure_mode);
+
+        let events = Events::new(EVENTS_CHANNEL_CAPACITY);
+
+        let async_semaphore = self.semaphore.clone();
+        let async_db = self.db.clone();
+        let async_ctx = ctx.clone();
+        let async_target = target.clone();
+        let async_document = result.document().clone();
+        let async_cancellation = cancellation.clone();
+        let async_runs = self.runs.clone();
+        let async_events = events.clone();
+
+        let handle = tokio::spawn(async move {
+            let _ = if let Some(ref sem) = async_semaphore {
+                // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
+                // entire lifetime. It is never explicitly closed. If this fails, it
+                // indicates a catastrophic programming error.
+                Some(sem.acquire().await.expect("semaphore closed"))
+            } else {
+                None
+            };
+
+            info!(
+                "run `{}` ({}) execution started",
+                &async_ctx.run_generated_name, run_id
+            );
+
+            // SAFETY: because we subscribe to all events above, the Crankshaft
+            // subscriber should always be available to us here.
+            let crankshaft_rx = async_events.subscribe_crankshaft().unwrap();
+            let task_monitor_svc = TaskMonitorSvc::new(run_id, async_db.clone(), crankshaft_rx);
+            tokio::spawn(task_monitor_svc.run());
+
+            if let Err(e) = crate::system::v1::exec::execute_target(
+                async_db,
+                &async_ctx,
+                async_document,
+                engine_config,
+                async_cancellation,
+                async_events,
+                async_target,
+                &inputs,
+                &run_dir,
+                index_on.as_deref(),
+            )
+            .await
+            {
+                tracing::error!(
+                    "run `{}` ({}) failed: {}",
+                    &async_ctx.run_generated_name,
+                    run_id,
+                    e
+                );
+            }
+
+            async_runs.lock().await.remove(&run_id);
+        });
+
+        self.runs.lock().await.insert(run_id, cancellation);
+
+        Ok(SubmitResponse {
+            id: run_id,
+            name: run_generated_name,
+            events,
+            handle,
+        })
+    }
 }
 
 /// Error type for submitting a run.
@@ -294,167 +419,6 @@ pub enum SubmitRunError {
     /// I/O error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
-}
-
-/// Submits a new run for execution.
-#[allow(clippy::too_many_arguments)]
-async fn submit_run(
-    db: Arc<dyn Database>,
-    output_dir: &OutputDirectory,
-    execution_config: &ExecutionConfig,
-    semaphore: Option<Arc<Semaphore>>,
-    runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
-    session_id: Uuid,
-    source: String,
-    engine_config: EngineConfig,
-    inputs: JsonValue,
-    target: Option<String>,
-    index_on: Option<String>,
-) -> Result<SubmitResponse, SubmitRunError> {
-    // Ensure the source is allowed
-    let source = AllowedSource::validate(&source, execution_config)?;
-
-    // Analyze the document and validate the result
-    let result = crate::system::v1::exec::analyze_wdl_document(&source)
-        .await
-        .map_err(SubmitRunError::Analysis)?;
-    crate::system::v1::exec::validate_analysis_results(&result)
-        .await
-        .map_err(SubmitRunError::Analysis)?;
-    let document = result.document();
-
-    // Select target workflow or task to execute
-    let target = crate::system::v1::exec::select_target(document, target.as_deref())?;
-
-    // Generate run name and id
-    let run_id = Uuid::new_v4();
-    let run_generated_name = generate_run_name();
-
-    // Create run directory
-    let run_dir_name =
-        PathBuf::from(target.name()).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
-    let run_dir = output_dir.ensure_workflow_run(run_dir_name)?;
-
-    // Create `_latest` symlink
-    // SAFETY: we know that the `runs/` directory should be the parent here.
-    let run_dir_parent = run_dir.root().parent().unwrap();
-    let latest_symlink = run_dir_parent.join(LATEST);
-    let _ = std::fs::remove_file(&latest_symlink);
-
-    if let Some(run_dir_basename) = run_dir.root().file_name() {
-        #[cfg(unix)]
-        let result = std::os::unix::fs::symlink(run_dir_basename, &latest_symlink);
-
-        #[cfg(windows)]
-        let result = std::os::windows::fs::symlink_dir(run_dir_basename, &latest_symlink);
-
-        if let Err(e) = result {
-            tracing::trace!(
-                "failed to create `_latest` symlink at `{}`: {}",
-                latest_symlink.display(),
-                e
-            );
-        }
-    }
-
-    // Create the run database entry
-    db.create_run(
-        run_id,
-        session_id,
-        &run_generated_name,
-        source.as_str(),
-        target.name(),
-        &inputs.to_string(),
-        run_dir.relative_path().to_str().expect("path is not UTF-8"),
-    )
-    .await?;
-
-    // Construct the run context
-    let ctx = RunContext {
-        run_id,
-        run_generated_name: run_generated_name.clone(),
-        // NOTE: this will be used to update the `started_at` field in the
-        // database for this run.
-        started_at: Utc::now(),
-    };
-
-    // Create cancellation context
-    let cancellation = CancellationContext::new(engine_config.failure_mode);
-
-    // Subscribe to all events during evaluation
-    let events = Events::new(EVENTS_CHANNEL_CAPACITY);
-
-    // Spawn run execution task
-    let async_semaphore = semaphore;
-    let async_db = db;
-    let async_ctx = ctx.clone();
-    let async_target = target.clone();
-    let async_document = result.document().clone();
-    let async_cancellation = cancellation.clone();
-    let async_runs = runs.clone();
-    let async_events = events.clone();
-
-    let handle = tokio::spawn(async move {
-        // Acquire semaphore permit if concurrency limit is set
-        let _ = if let Some(ref sem) = async_semaphore {
-            // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
-            // entire lifetime. It is never explicitly closed. If this fails, it
-            // indicates a catastrophic programming error.
-            Some(sem.acquire().await.expect("semaphore closed"))
-        } else {
-            None
-        };
-
-        info!(
-            "run `{}` ({}) execution started",
-            &async_ctx.run_generated_name, run_id
-        );
-
-        // Spawn task monitor if crankshaft events are enabled
-        //
-        // SAFETY: because we subscribe to all events above, the Crankshaft
-        // subscriber should always be available to us here.
-        let crankshaft_rx = async_events.subscribe_crankshaft().unwrap();
-        let task_monitor_svc = TaskMonitorSvc::new(run_id, async_db.clone(), crankshaft_rx);
-        // NOTE: the monitor service closes itself when the events sender is
-        // dropped, so it will clean itself up—no need to keep this handle.
-        tokio::spawn(task_monitor_svc.run());
-
-        // Execute the target
-        if let Err(e) = crate::system::v1::exec::execute_target(
-            async_db,
-            &async_ctx,
-            async_document,
-            engine_config,
-            async_cancellation,
-            async_events,
-            async_target,
-            &inputs,
-            &run_dir,
-            index_on.as_deref(),
-        )
-        .await
-        {
-            tracing::error!(
-                "run `{}` ({}) failed: {}",
-                &async_ctx.run_generated_name,
-                run_id,
-                e
-            );
-        }
-
-        // Remove the run from the run map
-        async_runs.lock().await.remove(&run_id);
-    });
-
-    runs.lock().await.insert(run_id, cancellation);
-
-    Ok(SubmitResponse {
-        id: run_id,
-        name: run_generated_name,
-        events,
-        handle,
-    })
 }
 
 /// Error type for getting a run.
