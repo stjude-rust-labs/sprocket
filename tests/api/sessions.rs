@@ -242,13 +242,17 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["sessions"].as_array().unwrap().len(), 1);
+    assert!(
+        json["next_token"].is_null(),
+        "`next_token` should be `null` when all results fit in one page"
+    );
 
-    // List with offset=1 should return empty
+    // List with next_token=1 should return empty
     let response = app
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions?offset=1")
+                .uri("/api/v1/sessions?next_token=1")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -263,6 +267,6 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
     assert_eq!(
         json["sessions"].as_array().unwrap().len(),
         0,
-        "offset beyond available items should return empty"
+        "`next_token` beyond available items should return empty"
     );
 }

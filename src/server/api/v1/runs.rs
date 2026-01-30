@@ -56,9 +56,10 @@ pub struct ListRunsQueryParams {
     /// Number of results to return (default: `100`).
     #[serde(default)]
     pub limit: Option<i64>,
-    /// Number of results to skip (default: `0`).
+    /// Token for pagination. It is expected that clients pass the value from a
+    /// previous response to retrieve the next page.
     #[serde(default)]
-    pub offset: Option<i64>,
+    pub next_token: Option<String>,
 }
 
 /// The response for a "submit run" request.
@@ -162,15 +163,10 @@ pub struct ListRunsResponse {
     pub runs: Vec<Run>,
     /// Total count before pagination.
     pub total: i64,
-}
-
-impl From<commands::ListRunsResponse> for ListRunsResponse {
-    fn from(response: commands::ListRunsResponse) -> Self {
-        Self {
-            runs: response.runs.into_iter().map(Into::into).collect(),
-            total: response.total,
-        }
-    }
+    /// Next token for pagination. Pass this value as `next_token` in the next
+    /// request to retrieve the next page of results.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_token: Option<String>,
 }
 
 /// The response for a "cancel run" request.
@@ -275,15 +271,34 @@ pub async fn list_runs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
+    let offset = match query.next_token.as_deref() {
+        Some(t) => t
+            .parse::<i64>()
+            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
+        None => 0,
+    };
+    let limit = query.limit.unwrap_or(100);
+
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::List {
         status: query.status,
         limit: query.limit,
-        offset: query.offset,
+        offset: Some(offset),
         rx,
     })
     .await?;
 
-    Ok(Json(response.into()))
+    let next_offset = offset + limit;
+    let next_token = if next_offset < response.total {
+        Some(next_offset.to_string())
+    } else {
+        None
+    };
+
+    Ok(Json(ListRunsResponse {
+        runs: response.runs.into_iter().map(Into::into).collect(),
+        total: response.total,
+        next_token,
+    }))
 }
 
 /// Cancel a running run.

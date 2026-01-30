@@ -770,6 +770,11 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 
     assert_eq!(list_response["total"], 3);
     assert_eq!(list_response["runs"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        list_response["next_token"].as_str().unwrap(),
+        "2",
+        "`next_token` should be the offset of the next item"
+    );
 
     // List with status filter (completed)
     let response = app
@@ -1396,4 +1401,31 @@ workflow test {
         drop(event); // Just count them
     }
     assert!(event_count > 0, "should receive crankshaft events");
+}
+
+#[sqlx::test]
+async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
+    let (app, _db, _temp) = create_test_server().pool(pool).call().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/runs?next_token=not_a_number")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("invalid `next_token`")
+    );
 }
