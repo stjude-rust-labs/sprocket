@@ -1,6 +1,7 @@
 //! V1 AST representation for enum definitions.
 
 use std::fmt;
+use std::fmt::Formatter;
 
 use super::EnumKeyword;
 use super::Expr;
@@ -52,16 +53,16 @@ impl<N: TreeNode> EnumDefinition<N> {
         computed_type: Option<&str>,
     ) -> fmt::Result {
         writeln!(f, "```wdl")?;
-        self.fmt(f, computed_type)?;
+        write!(f, "{}", self.display(computed_type))?;
         write!(f, "```")?;
 
         Ok(())
     }
 
-    /// Writes a formatted definition to a writer.
+    /// Returns an object that implements [`Display`] for printing enums that
+    /// may have a pre-computed type.
     ///
-    /// This is the enum definition stripped of any extra tokens, such as
-    /// comments.
+    /// The printed result will be stripped of any comments.
     ///
     /// For example:
     ///
@@ -80,18 +81,36 @@ impl<N: TreeNode> EnumDefinition<N> {
     ///     Red = "#FF0000",
     /// }
     /// ```
-    pub fn fmt(&self, f: &mut impl fmt::Write, computed_type: Option<&str>) -> fmt::Result {
-        write!(f, "enum {}", self.name().text())?;
+    pub fn display<'a>(&'a self, computed_type: Option<&'a str>) -> EnumDefinitionDisplay<'a, N> {
+        EnumDefinitionDisplay {
+            definition: self,
+            computed_type,
+        }
+    }
+}
 
-        if let Some(ty_param) = self.type_parameter() {
+/// Helper struct for printing [`EnumDefinition`]s.
+#[derive(Debug)]
+pub struct EnumDefinitionDisplay<'a, N: TreeNode> {
+    /// The enum definition to print.
+    definition: &'a EnumDefinition<N>,
+    /// The computed type of the enum, if provided.
+    computed_type: Option<&'a str>,
+}
+
+impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "enum {}", self.definition.name().text())?;
+
+        if let Some(ty_param) = self.definition.type_parameter() {
             write!(f, "[{}]", ty_param.ty().inner().text())?;
-        } else if let Some(computed_ty) = computed_type {
+        } else if let Some(computed_ty) = self.computed_type {
             write!(f, "[{}]", computed_ty)?;
         }
 
         writeln!(f, " {{")?;
 
-        for variant in self.variants() {
+        for variant in self.definition.variants() {
             write!(f, "  {}", variant.name().text())?;
             if let Some(value) = variant.value() {
                 write!(f, " = {}", value.inner().text())?;
