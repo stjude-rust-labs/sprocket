@@ -30,7 +30,7 @@ use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
-use wdl::engine::Config as WdlEngineConfig;
+use wdl::engine::Config as EngineConfig;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::Events;
@@ -201,7 +201,7 @@ pub struct Args {
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: WdlEngineConfig,
+    pub engine: EngineConfig,
 }
 
 impl Args {
