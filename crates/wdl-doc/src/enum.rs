@@ -107,11 +107,7 @@ impl Enum {
             .render_remaining(&[DESCRIPTION_KEY], assets)
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
-        let mut definition = String::new();
-        self.definition
-            .fmt(&mut definition, None)
-            .expect("writing to strings should never fail");
-
+        let definition = self.definition.display(None);
         let markup = html! {
             div class="main__container" {
                 p class="text-brand-yellow-400" { "Enum" }
