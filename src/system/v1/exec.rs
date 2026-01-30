@@ -134,8 +134,9 @@ pub struct RunContext {
 
 /// Analyzes a WDL document from the given source.
 ///
-/// Creates an analyzer, adds the document, runs analysis, and returns the first
-/// result.
+/// Creates an analyzer, adds the document, runs analysis, and returns the
+/// result for the entrypoint document. Checks all analysis results (including
+/// transitive dependencies) for errors before returning.
 pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResult> {
     let analyzer = Analyzer::new(AnalysisConfig::default(), |(), _, _, _| async {});
 
@@ -149,6 +150,24 @@ pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResu
         .analyze(())
         .await
         .context("failed to analyze document")?;
+
+    for result in &results {
+        if let Some(e) = result.error() {
+            anyhow::bail!("parsing failed for `{}`: {:#}", result.document().uri(), e);
+        }
+
+        if let Some(diagnostic) = result
+            .document()
+            .diagnostics()
+            .find(|d| d.severity() == Severity::Error)
+        {
+            anyhow::bail!(
+                "analysis error in `{}`: {:?}",
+                result.document().uri(),
+                diagnostic
+            );
+        }
+    }
 
     results
         .into_iter()
