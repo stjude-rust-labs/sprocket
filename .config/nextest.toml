@@ -1,0 +1,6 @@
+[profile.ci]
+failure-output = "immediate-final"
+fail-fast = false
+slow-timeout = "10m"
+# wdl-engine and sprocket tests are run separately in CI
+default-filter = "not (package(wdl-engine) or package(sprocket))"

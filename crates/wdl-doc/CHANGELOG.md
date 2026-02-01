@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+
+#### Changed
+
+* Documents with analysis errors will now **fail** to prevent invalid documentation (See [#555](https://github.com/stjude-rust-labs/sprocket/issues/555)) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+
 ## 0.11.0 - 01-12-2026
 
 #### Added
