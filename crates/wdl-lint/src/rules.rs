@@ -38,7 +38,7 @@ mod shellcheck;
 mod snake_case;
 mod todo_comment;
 mod trailing_comma;
-
+mod unused_doc_comments;
 pub use call_input_keyword::*;
 pub use call_input_spacing::*;
 pub use command_section_indentation::*;
@@ -77,3 +77,4 @@ pub use shellcheck::*;
 pub use snake_case::*;
 pub use todo_comment::*;
 pub use trailing_comma::*;
+pub use unused_doc_comments::*;
