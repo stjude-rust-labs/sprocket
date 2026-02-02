@@ -1,0 +1,43 @@
+note[PreambleCommentPlacement]: preamble comment after the version statement
+   ┌─ tests/lints/unused-doc-comments/source.wdl:16:1
+   │  
+16 │ ╭ ## This floating doc comment should be ignored by UnusedDocCommentsRule, but
+17 │ │ ## should get a lint by PreambleCommentPlacementRule.
+   │ ╰─────────────────────────────────────────────────────^
+   │  
+   = help: freestanding doc comments (`##`) are assumed to be preamble comments
+   = fix: move the preamble comment before the `version` statement
+
+note[UnusedDocComments]: wdl-doc does not generate documentation for metadata section
+   ┌─ tests/lints/unused-doc-comments/source.wdl:34:5
+   │  
+34 │ ╭     ## This doc comment does nothing and the user should be warned!
+35 │ │     meta {
+   │ ╰────^
+   │  
+   = help: Doc comments must be attached to syntax nodes that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: wdl-doc does not generate documentation for comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:55:5
+   │  
+55 │ ╭     ## You can't doc comment a comment - the user should be warned.
+56 │ │     # Comment about my doc comment
+   │ ╰────^
+   │  
+   = help: Doc comments must be attached to syntax nodes that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: wdl-doc does not generate documentation for command section
+   ┌─ tests/lints/unused-doc-comments/source.wdl:57:5
+   │  
+57 │ ╭     ## Commands don't support doc comments so the user should be warned here.
+58 │ │     ## about this multiline comment with whitespace...
+59 │ │     ##
+60 │ │     ## ... that isn't doing anything!
+61 │ │     command <<<
+   │ ╰────^
+   │  
+   = help: Doc comments must be attached to syntax nodes that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
