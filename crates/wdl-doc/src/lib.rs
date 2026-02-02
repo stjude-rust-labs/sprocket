@@ -468,7 +468,7 @@ impl Config {
     /// major release.
     ///
     /// For more information, see the pre-RFC discussion
-    /// [here](github.com/openwdl/wdl/issues/757).
+    /// [here](https://github.com/openwdl/wdl/issues/757).
     pub fn enable_doc_comments(mut self, enable_doc_comments: bool) -> Self {
         self.enable_doc_comments = enable_doc_comments;
         self
