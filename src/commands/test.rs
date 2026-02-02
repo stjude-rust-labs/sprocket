@@ -254,7 +254,7 @@ impl TestIteration {
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
                             "test iteration #{num} of `{name}` failed but was expected to \
-                             succeed; see `{dir}`: {err}",
+                             succeed: see `{dir}`: {err}",
                             num = self.iteration_num,
                             name = self.name,
                             dir = self.run_dir.display(),
