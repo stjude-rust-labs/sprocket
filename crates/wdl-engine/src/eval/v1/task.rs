@@ -1144,7 +1144,7 @@ impl Evaluator {
             {
                 std::os::unix::fs::symlink(&symlink_host_path, path).with_context(|| {
                     format!(
-                        "failed to create symlink `{path}` to `{symlink_path}",
+                        "failed to create symlink `{path}` to `{symlink_path}`",
                         path = path.display(),
                         symlink_path = symlink_host_path.display()
                     )
