@@ -12,28 +12,25 @@ use maud::PreEscaped;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::v1::InputSection;
-use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
-use wdl_ast::v1::ParameterMetadataSection;
 
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
+use crate::meta::MetaMapValueSource;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
 use crate::parameter::render_non_required_parameters_table;
 
 /// A runnable (workflow or task) in a WDL document.
-pub(crate) trait Runnable {
+pub(crate) trait Runnable: DefinitionMeta {
     /// Get the name of the runnable.
     fn name(&self) -> &str;
-
-    /// Get the [`MetaMap`] of the runnable.
-    fn meta(&self) -> &MetaMap;
 
     /// Get the inputs of the runnable.
     fn inputs(&self) -> &[Parameter];
@@ -96,14 +93,6 @@ pub(crate) trait Runnable {
     /// Render the version of the runnable as a badge.
     fn render_version(&self) -> Markup {
         self.version().render()
-    }
-
-    /// Render the description of the runnable as HTML.
-    ///
-    /// This will always return some text; in the absence of a `description`
-    /// key, it will return a default message ("No description provided").
-    fn render_description(&self, summarize: bool) -> Markup {
-        self.meta().render_description(summarize)
     }
 
     /// Render the "run with" component of the runnable.
@@ -258,29 +247,6 @@ pub(crate) trait Runnable {
     }
 }
 
-/// Parse a [`MetadataSection`] into a [`MetaMap`].
-fn parse_meta(meta: &MetadataSection) -> MetaMap {
-    meta.items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, item)
-        })
-        .collect()
-}
-
-/// Parse a [`ParameterMetadataSection`] into a [`MetaMap`].
-fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
-    parameter_meta
-        .items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, item)
-        })
-        .collect()
-}
-
 /// Parse the [`InputSection`] into a vector of [`Parameter`]s.
 fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<Parameter> {
     input_section
@@ -293,6 +259,7 @@ fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<P
         .collect()
 }
 
+// TODO: Collect doc comments on outputs
 /// Parse the [`OutputSection`] into a vector of [`Parameter`]s.
 fn parse_outputs(
     output_section: &OutputSection,
@@ -302,12 +269,17 @@ fn parse_outputs(
     let output_meta: MetaMap = meta
         .get("outputs")
         .and_then(|v| match v {
-            MetadataValue::Object(o) => Some(o),
+            MetaMapValueSource::MetaValue(MetadataValue::Object(o)) => Some(o),
             _ => None,
         })
         .map(|o| {
             o.items()
-                .map(|i| (i.name().text().to_owned(), i.value().clone()))
+                .map(|i| {
+                    (
+                        i.name().text().to_owned(),
+                        MetaMapValueSource::MetaValue(i.value().clone()),
+                    )
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -331,6 +303,8 @@ mod tests {
     use wdl_ast::Document;
 
     use super::*;
+    use crate::meta::DEFAULT_DESCRIPTION;
+    use crate::meta::parse_metadata_items;
     use crate::parameter::Group;
 
     #[test]
@@ -370,12 +344,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 2);
         assert_eq!(
@@ -383,6 +358,8 @@ mod tests {
                 .get("name")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -394,6 +371,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -421,12 +400,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 1);
         assert_eq!(
@@ -434,6 +414,8 @@ mod tests {
                 .get("a")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_object()
                 .items()
                 .next()
@@ -470,12 +452,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let inputs = parse_inputs(
             &doc_item.as_workflow_definition().unwrap().input().unwrap(),
@@ -487,7 +470,7 @@ mod tests {
         assert_eq!(inputs[1].name(), "b");
         assert_eq!(
             inputs[1].description(false).into_string(),
-            "No description provided"
+            DEFAULT_DESCRIPTION
         );
         assert_eq!(inputs[2].name(), "c");
         assert_eq!(
@@ -523,19 +506,21 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
-        let parameter_meta = parse_parameter_meta(
-            &doc_item
+        let parameter_meta = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let outputs = parse_outputs(
             &doc_item.as_workflow_definition().unwrap().output().unwrap(),

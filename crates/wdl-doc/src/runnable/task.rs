@@ -16,6 +16,7 @@ use crate::command_section::CommandSectionExt;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
 /// A task in a WDL document.
@@ -42,6 +43,12 @@ pub struct Task {
     wdl_path: Option<PathBuf>,
 }
 
+impl DefinitionMeta for Task {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
+}
+
 impl Task {
     /// Create a new task.
     ///
@@ -54,11 +61,11 @@ impl Task {
         wdl_path: Option<PathBuf>,
     ) -> Self {
         let meta = match definition.metadata() {
-            Some(mds) => parse_meta(&mds),
+            Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
         let parameter_meta = match definition.parameter_metadata() {
-            Some(pmds) => parse_parameter_meta(&pmds),
+            Some(pmds) => parse_metadata_items(pmds.items()),
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
@@ -200,10 +207,6 @@ impl Runnable for Task {
         &self.version
     }
 
-    fn meta(&self) -> &MetaMap {
-        &self.meta
-    }
-
     fn inputs(&self) -> &[Parameter] {
         &self.inputs
     }
@@ -263,6 +266,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()

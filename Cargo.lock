@@ -4522,6 +4522,7 @@ dependencies = [
  "indexmap 2.13.0",
  "indicatif",
  "itertools 0.14.0",
+ "libtest-mimic",
  "nonempty",
  "opener",
  "path-clean",

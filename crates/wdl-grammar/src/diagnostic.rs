@@ -142,6 +142,8 @@ pub struct Diagnostic {
     severity: Severity,
     /// The diagnostic message.
     message: String,
+    /// The optional help message.
+    help: Option<String>,
     /// The optional fix suggestion for the diagnostic.
     fix: Option<String>,
     /// The labels for the diagnostic.
@@ -189,6 +191,7 @@ impl Diagnostic {
             rule: None,
             severity: Severity::Error,
             message: message.into(),
+            help: None,
             fix: None,
             labels: Default::default(),
         }
@@ -200,6 +203,7 @@ impl Diagnostic {
             rule: None,
             severity: Severity::Warning,
             message: message.into(),
+            help: None,
             fix: None,
             labels: Default::default(),
         }
@@ -211,6 +215,7 @@ impl Diagnostic {
             rule: None,
             severity: Severity::Note,
             message: message.into(),
+            help: None,
             fix: None,
             labels: Default::default(),
         }
@@ -219,6 +224,15 @@ impl Diagnostic {
     /// Sets the rule for the diagnostic.
     pub fn with_rule(mut self, rule: impl Into<String>) -> Self {
         self.rule = Some(rule.into());
+        self
+    }
+
+    /// Sets the help message for the diagnostic.
+    ///
+    /// This is different from the `fix` message, as it only serves to provide
+    /// more context to the issue, rather than a solution.
+    pub fn with_help(mut self, help: impl Into<String>) -> Self {
+        self.help = Some(help.into());
         self
     }
 
@@ -310,6 +324,10 @@ impl Diagnostic {
         }
 
         diagnostic.message.clone_from(&self.message);
+
+        if let Some(help) = &self.help {
+            diagnostic.notes.push(format!("help: {help}"));
+        }
 
         if let Some(fix) = &self.fix {
             diagnostic.notes.push(format!("fix: {fix}"));
