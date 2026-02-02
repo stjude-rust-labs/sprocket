@@ -46,7 +46,10 @@ impl AllowedSource {
     /// `ServerConfig::validate()` which ensures all allowed paths are
     /// canonical.
     pub fn validate(source: &str, config: &ServerConfig) -> ConfigResult<Self> {
-        if let Ok(url) = Url::parse(source) {
+        // On Windows, paths like `C:\...` are parsed by `Url::parse` as URLs
+        // with scheme `c:`. We distinguish URLs from file paths by checking for
+        // `://` which all hierarchical URLs (http, https, file, etc.) contain.
+        if source.contains("://") && let Ok(url) = Url::parse(source) {
             let url_str = url.as_str();
             let is_allowed = config
                 .allowed_urls

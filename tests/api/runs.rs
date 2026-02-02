@@ -1227,7 +1227,7 @@ task task_two {
     let run = db.get_run(run_id).await.unwrap().unwrap();
     let error_message = run.error.as_ref().unwrap();
     assert!(
-        error_message.contains("target is unable to be inferred"),
+        error_message.contains("a target cannot be inferred"),
         "error message should indicate target is required, got: {}",
         error_message
     );

@@ -74,10 +74,10 @@ pub enum SelectTargetError {
     #[error("target not found: `{0}`")]
     TargetNotFound(String),
     /// No tasks or workflows in document.
-    #[error("no tasks or workflows in document; the target is unable to be inferred")]
+    #[error("a target cannot be inferred because the document contains no tasks and no workflow")]
     NoExecutableTarget,
     /// No workflows and multiple tasks in document.
-    #[error("no workflows and multiple tasks in document; the target is unable to be inferred")]
+    #[error("a target cannot be inferred because the document contains multiple tasks and no workflow")]
     TargetRequired,
 }
 
@@ -208,21 +208,6 @@ impl RunnableExecutor {
                 return;
             }
         };
-
-        if let Err(e) = validate_analysis_results(&result).await {
-            tracing::error!(
-                "run `{}` ({}) failed during validation: {}",
-                &self.run_name,
-                self.run_id,
-                e
-            );
-            let _ = self
-                .db
-                .fail_run(self.run_id, &e.to_string(), Utc::now())
-                .await;
-            self.runs.lock().await.remove(&self.run_id);
-            return;
-        }
 
         let document = result.document();
         let resolved_target = match select_target(document, self.target.as_deref()) {
@@ -422,24 +407,6 @@ pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResu
         .into_iter()
         .find(|result| **result.document().uri() == uri)
         .context("analyzer didn't return analysis results for document")
-}
-
-/// Validates the analysis result for parsing and diagnostic errors.
-///
-/// Returns an error if the analysis failed or contains error-level diagnostics.
-pub async fn validate_analysis_results(result: &AnalysisResult) -> Result<()> {
-    // Check for parsing errors
-    if let Some(e) = result.error() {
-        anyhow::bail!("parsing failed: {:#}", e);
-    }
-
-    // Check for diagnostic errors
-    let diagnostics: Vec<_> = result.document().diagnostics().cloned().collect();
-    if let Some(diagnostic) = diagnostics.iter().find(|d| d.severity() == Severity::Error) {
-        anyhow::bail!("{:?}", diagnostic);
-    }
-
-    Ok(())
 }
 
 /// Parses and validates workflow inputs.
