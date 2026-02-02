@@ -20,15 +20,15 @@ use crate::meta::doc_comments;
 
 /// An [`EnumVariant`] with an associated [`MetaMap`].
 #[derive(Debug)]
-pub(crate) struct DocumentedEnumVariant {
-    /// The enum variant's `meta`, derived from its doc comments.
+pub(crate) struct DocumentedEnumChoice {
+    /// The enum choice's `meta`, derived from its doc comments.
     meta: MetaMap,
-    /// The AST definition of the enum variant.
-    variant: EnumVariant,
+    /// The AST definition of the enum choice.
+    choice: EnumVariant,
 }
 
-impl DocumentedEnumVariant {
-    /// Get the [full description] of the variant.
+impl DocumentedEnumChoice {
+    /// Get the [full description] of the choice.
     ///
     /// [full description]: MetaMap::full_description()
     pub fn full_description(&self) -> String {
@@ -43,8 +43,8 @@ impl DocumentedEnumVariant {
 pub(crate) struct Enum {
     /// The enum's `meta`, derived from its doc comments.
     meta: MetaMap,
-    /// The enum's variants.
-    variants: Vec<DocumentedEnumVariant>,
+    /// The enum's choices (variants).
+    choices: Vec<DocumentedEnumChoice>,
     /// The AST definition of the enum.
     definition: EnumDefinition,
     /// The version of WDL this enum is defined in.
@@ -64,11 +64,11 @@ impl Enum {
         version: SupportedVersion,
         enable_doc_comments: bool,
     ) -> Self {
-        let (meta, variants) = parse_meta(&definition, enable_doc_comments);
+        let (meta, choices) = parse_meta(&definition, enable_doc_comments);
 
         Self {
             meta,
-            variants,
+            choices,
             definition,
             version: VersionBadge::new(version),
         }
@@ -79,21 +79,21 @@ impl Enum {
         let name = self.definition.name();
         let name = name.text();
 
-        let variants = html! {
+        let choices = html! {
             div class="main__section" {
-                h2 id="variants" class="main__section-header" { "Variants" }
-                @for variant in self.variants.iter() {
-                    @let variant_name = variant.variant.name();
-                    @let variant_id = format!("variant.{}", variant_name.text());
-                    @let variant_anchor = format!("#{variant_id}");
-                    section id=(variant_id) {
+                h2 id="choices" class="main__section-header" { "Choices" }
+                @for choice in self.choices.iter() {
+                    @let choice_name = choice.choice.name();
+                    @let choice_id = format!("choice.{}", choice_name.text());
+                    @let choice_anchor = format!("#{choice_id}");
+                    section id=(choice_id) {
                         div class="main__meta-item-member" {
-                            a href=(variant_anchor) {}
-                            h3 class="main__section-subheader" { (variant_name.text()) }
+                            a href=(choice_anchor) {}
+                            h3 class="main__section-subheader" { (choice_name.text()) }
                         }
 
                         div class="main__meta-item-member-description" {
-                            @for paragraph in variant.full_description().split('\n') {
+                            @for paragraph in choice.full_description().split('\n') {
                                 p class="main__meta-item-member-description-para" { (paragraph) }
                             }
                         }
@@ -126,37 +126,37 @@ impl Enum {
                 div class="main__section" {
                     (meta_markup)
                 }
-                (variants)
+                (choices)
             }
         };
         (markup, PageSections::default())
     }
 }
 
-/// Parse the doc comments on the enum definition and its variants.
+/// Parse the doc comments on the enum definition and its choices.
 fn parse_meta(
     definition: &EnumDefinition,
     enable_doc_comments: bool,
-) -> (MetaMap, Vec<DocumentedEnumVariant>) {
+) -> (MetaMap, Vec<DocumentedEnumChoice>) {
     let enum_docs = if enable_doc_comments {
         doc_comments(definition.keyword().inner())
     } else {
         MetaMap::new()
     };
 
-    let mut variant_docs = Vec::new();
-    for variant in definition.variants() {
+    let mut choice_docs = Vec::new();
+    for choice in definition.variants() {
         let meta = if enable_doc_comments {
-            doc_comments(variant.name().inner())
+            doc_comments(choice.name().inner())
         } else {
             MetaMap::new()
         };
 
-        variant_docs.push(DocumentedEnumVariant {
+        choice_docs.push(DocumentedEnumChoice {
             meta,
-            variant: variant.clone(),
+            choice: choice.clone(),
         });
     }
 
-    (enum_docs, variant_docs)
+    (enum_docs, choice_docs)
 }
