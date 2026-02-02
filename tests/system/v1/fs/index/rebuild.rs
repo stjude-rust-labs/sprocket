@@ -2,7 +2,6 @@
 
 use std::fs;
 
-use super::normalize_path;
 use anyhow::Result;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
@@ -17,6 +16,8 @@ use wdl::engine::HostPath;
 use wdl::engine::Outputs;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
+
+use super::normalize_path;
 
 #[sqlx::test]
 async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {

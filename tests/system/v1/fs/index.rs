@@ -25,7 +25,8 @@ use wdl::engine::Value;
 #[path = "index/rebuild.rs"]
 mod rebuild;
 
-/// Normalize path separators to forward slashes for cross-platform test assertions.
+/// Normalize path separators to forward slashes for cross-platform test
+/// assertions.
 fn normalize_path(path: &str) -> String {
     path.replace('\\', "/")
 }

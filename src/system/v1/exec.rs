@@ -77,7 +77,9 @@ pub enum SelectTargetError {
     #[error("a target cannot be inferred because the document contains no tasks and no workflow")]
     NoExecutableTarget,
     /// No workflows and multiple tasks in document.
-    #[error("a target cannot be inferred because the document contains multiple tasks and no workflow")]
+    #[error(
+        "a target cannot be inferred because the document contains multiple tasks and no workflow"
+    )]
     TargetRequired,
 }
 
