@@ -198,7 +198,7 @@ fn evaluate_outputs(
             .expect("output should have been validated");
         for func in fns {
             func.evaluate(output)
-                .with_context(|| format!("evalutating WDL output with name `{name}`"))?
+                .with_context(|| format!("evaluating WDL output with name `{name}`"))?
         }
     }
     Ok(())

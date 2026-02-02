@@ -71,7 +71,7 @@ impl Assertions {
                 .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
                 .collect::<Result<Vec<_>>>()?;
             let stderr_regexs = self
-                .stdout
+                .stderr
                 .iter()
                 .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
                 .collect::<Result<Vec<_>>>()?;
@@ -122,7 +122,7 @@ pub(crate) enum OutputAssertion {
     IntEquals(i64),
     /// Is the WDL `Float` equal to this?
     FloatEquals(f64),
-    /// Does the WDL `String` contiain this substring?
+    /// Does the WDL `String` contain this substring?
     // TODO(Ari): add `File` support
     // TODO(Ari): compile this as an RE?
     Contains(String),
@@ -309,7 +309,7 @@ impl OutputAssertion {
             }
             Self::FloatEquals(should_equal) => {
                 let o = output.as_float().expect("type should be validated");
-                if *should_equal != o {
+                if (*should_equal - o).abs() > f64::EPSILON * 100.0 {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
