@@ -395,3 +395,212 @@ pub(crate) struct ParsedAssertions {
     #[allow(unused)]
     pub custom: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use wdl::analysis::types::ArrayType;
+
+    use super::*;
+
+    /// This struct is necessary to get `enum OutputAssertion` to parse
+    /// consistently between tests and prod code. There is an upstream bug
+    /// in the `serde` crates; using `serde(flatten)` in a parent struct
+    /// changes which syntax is expected from nested externally tagged enums.
+    /// Without `FlattenedWrapper`, `serde_yaml_ng` would expect
+    /// OutputAssertions to be defined with YAML tag syntax instead of the map
+    /// syntax used in these tests. See https://github.com/acatton/serde-yaml-ng/issues/14
+    #[derive(Debug, serde::Deserialize)]
+    struct FlattenedWrapper {
+        #[serde(flatten)]
+        inner: OutputAssertion,
+    }
+
+    #[test]
+    fn defined_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: true }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::Boolean, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Boolean, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Boolean,
+                false,
+            ))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Boolean,
+                false,
+            ))),
+            false,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn bool_equals_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: true }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::Boolean, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Boolean, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Directory, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Boolean,
+                false,
+            ))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn str_equals_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ StrEquals: foo }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::String, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Integer, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Primitive(PrimitiveType::File, true);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::String,
+                false,
+            ))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn int_equals_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ IntEquals: 42 }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::Integer, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Integer, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Primitive(PrimitiveType::Float, true);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Integer,
+                false,
+            ))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn float_equals_type_congruence() {
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ FloatEquals: 42.42 }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::Float, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Float, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Integer, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Primitive(PrimitiveType::File, true);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::Float, false))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn contains_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Contains: foobar }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::String, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Integer, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Primitive(PrimitiveType::File, true);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::String,
+                false,
+            ))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn name_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Name: foobar }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Primitive(PrimitiveType::File, true);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::Directory, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Primitive(PrimitiveType::Integer, true);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::File, false))),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn first_last_type_congruence() {
+        let first: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ First: { StrEquals: foobar } }").unwrap();
+        let first = first.inner;
+        let last: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Last: { Contains: bar } }").unwrap();
+        let last = last.inner;
+
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::String,
+                false,
+            ))),
+            false,
+        );
+        assert!(first.validate_type_congruence(&ty).is_ok());
+        assert!(last.validate_type_congruence(&ty).is_ok());
+
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::Float, true))),
+            true,
+        );
+        assert!(first.validate_type_congruence(&ty).is_err());
+        assert!(last.validate_type_congruence(&ty).is_err());
+
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(first.validate_type_congruence(&ty).is_err());
+        assert!(last.validate_type_congruence(&ty).is_err());
+    }
+}
