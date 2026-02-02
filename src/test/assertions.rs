@@ -166,8 +166,12 @@ impl OutputAssertion {
     pub fn validate_type_congruence(&self, ty: &Type) -> Result<()> {
         match ty {
             Type::Primitive(prim_ty, optional) => {
-                if matches!(self, Self::Defined(_)) && !*optional {
-                    bail!("`{self}` assertion can only be used on an optional WDL type")
+                if matches!(self, Self::Defined(_)) {
+                    if !*optional {
+                        bail!("`{self}` assertion can only be used on an optional WDL type")
+                    } else {
+                        return Ok(());
+                    }
                 }
                 let mut valid = true;
                 match prim_ty {
@@ -207,11 +211,17 @@ impl OutputAssertion {
                 }
                 if !valid {
                     bail!("`{self}` assertion cannot be used on `{prim_ty}` WDL type")
+                } else {
+                    Ok(())
                 }
             }
             Type::Compound(comp_ty, optional) => {
-                if matches!(self, Self::Defined(_)) && !*optional {
-                    bail!("`{self}` assertion can only be used on an optional WDL type")
+                if matches!(self, Self::Defined(_)) {
+                    if !*optional {
+                        bail!("`{self}` assertion can only be used on an optional WDL type")
+                    } else {
+                        return Ok(());
+                    }
                 }
                 let mut valid = true;
                 match comp_ty {
@@ -242,21 +252,22 @@ impl OutputAssertion {
                         }
                     },
                     CompoundType::Custom(_) => {
-                        bail!("custom WDL types (structs and enums) are not supported")
+                        bail!("custom WDL types (structs and enums) are not currently supported")
                     }
                 }
                 if !valid {
                     bail!("`{self}` assertion cannot be used on `{comp_ty}` WDL type")
+                } else {
+                    Ok(())
                 }
             }
             Type::TypeNameRef(_custom_ty) => {
-                bail!("custom WDL types (structs and enums) are not supported")
+                bail!("custom WDL types (structs and enums) are not currently supported")
             }
             _ => {
                 unreachable!("unexpected type for an output")
             }
         }
-        Ok(())
     }
 
     /// Evaluate this assertion for the given WDL engine output.
