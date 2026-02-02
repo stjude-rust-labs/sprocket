@@ -173,39 +173,39 @@ impl OutputAssertion {
                         return Ok(());
                     }
                 }
-                let mut valid = true;
+                let mut valid = false;
                 match prim_ty {
                     PrimitiveType::Boolean => {
-                        if !matches!(self, Self::BoolEquals(_)) {
-                            valid = false;
+                        if matches!(self, Self::BoolEquals(_)) {
+                            valid = true;
                         }
                     }
                     PrimitiveType::Directory => {
-                        if !matches!(self, Self::Name(_)) {
-                            valid = false;
+                        if matches!(self, Self::Name(_)) {
+                            valid = true;
                         }
                     }
                     PrimitiveType::File => {
-                        if !matches!(self, Self::Name(_)) {
-                            valid = false;
+                        if matches!(self, Self::Name(_)) {
+                            valid = true;
                         }
                     }
                     PrimitiveType::Float => {
-                        if !matches!(self, Self::FloatEquals(_)) {
-                            valid = false;
+                        if matches!(self, Self::FloatEquals(_)) {
+                            valid = true;
                         }
                     }
                     PrimitiveType::Integer => {
-                        if !matches!(self, Self::IntEquals(_)) {
-                            valid = false;
+                        if matches!(self, Self::IntEquals(_)) {
+                            valid = true;
                         }
                     }
                     PrimitiveType::String => {
-                        if !matches!(
+                        if matches!(
                             self,
                             Self::Contains(_) | Self::StrEquals(_) | Self::Length(_)
                         ) {
-                            valid = false;
+                            valid = true;
                         }
                     }
                 }
@@ -223,33 +223,35 @@ impl OutputAssertion {
                         return Ok(());
                     }
                 }
-                let mut valid = true;
+                let mut valid = false;
                 match comp_ty {
                     CompoundType::Array(arr_ty) => match self {
-                        Self::Length(_) => {}
+                        Self::Length(_) => {
+                            valid = true;
+                        }
                         Self::First(inner) | Self::Last(inner) => {
                             inner.validate_type_congruence(arr_ty.element_type())?;
+                            valid = true;
                         }
-                        _ => {
-                            valid = false;
-                        }
+                        _ => {}
                     },
+                    #[allow(clippy::single_match)]
                     CompoundType::Map(_map_ty) => match self {
-                        Self::Length(_) => {}
-                        _ => {
-                            valid = false;
+                        Self::Length(_) => {
+                            valid = true;
                         }
+                        _ => {}
                     },
                     CompoundType::Pair(pair_ty) => match self {
                         Self::Left(inner) => {
                             inner.validate_type_congruence(pair_ty.left_type())?;
+                            valid = true;
                         }
                         Self::Right(inner) => {
                             inner.validate_type_congruence(pair_ty.right_type())?;
+                            valid = true;
                         }
-                        _ => {
-                            valid = false;
-                        }
+                        _ => {}
                     },
                     CompoundType::Custom(_) => {
                         bail!("custom WDL types (structs and enums) are not currently supported")
