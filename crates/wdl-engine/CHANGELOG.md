@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Automatically remap symbolic links created by tasks that use guest paths to
+  their corresponding host paths ([#585](https://github.com/stjude-rust-labs/sprocket/pull/585)).
 * Fixed the `size` function not performing guest-to-host path translation for
   `String` arguments ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
 * Fixed an issue where task requirements and hints sources from an inputs file
