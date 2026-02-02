@@ -17,6 +17,8 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use std::time::Duration;
 
+use anyhow::Context;
+use anyhow::anyhow;
 use anyhow::bail;
 use axum::Router;
 use axum::routing::get_service;
@@ -29,11 +31,11 @@ use thirtyfour::WebDriver;
 use thirtyfour::WebDriverProcessBrowser;
 use thirtyfour::WebDriverProcessPort;
 use thirtyfour::WindowHandle;
+use thirtyfour::prelude::ElementQueryable;
 use thirtyfour::prelude::WebDriverResult;
 use thirtyfour::start_webdriver_process_full;
 use thirtyfour::support::block_on;
 use tokio::sync::Mutex;
-use tokio::task::JoinHandle;
 use tokio::task::JoinSet;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_doc::Config;
@@ -66,7 +68,11 @@ impl WebDriverExt for WebDriver {
     }
 
     async fn search(&self, input: impl AsRef<str> + Send) -> WebDriverResult<()> {
-        let searchbox = self.find(By::Id("searchbox")).await?;
+        let searchbox = self
+            .query(By::Id("searchbox"))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
+            .first()
+            .await?;
         searchbox.send_keys(input.as_ref()).await?;
         Ok(())
     }
@@ -122,7 +128,7 @@ fn find_tests(
 
     let mut trials = Vec::new();
     for entry in ui_tests_dir.read_dir()? {
-        let entry = entry.expect("failed to read directory");
+        let entry = entry.context("failed to read directory")?;
         let category_path = entry.path();
         if !category_path.is_dir() {
             continue;
@@ -136,7 +142,7 @@ fn find_tests(
 
         let Some(category) = TEST_CATEGORIES.get(&*category_name) else {
             bail!(
-                "No category found for directory '{}'. Was it added to `all_tests()`?",
+                "no category found for directory '{}'. Was it added to `all_tests()`?",
                 category_path.display()
             );
         };
@@ -164,7 +170,7 @@ fn find_tests(
 
             let Some(test) = category.get(&*test_name).cloned() else {
                 bail!(
-                    "No test found for file {}. Was it added to `all_tests()`?",
+                    "no test found for file {}. Was it added to `all_tests()`?",
                     test_path.display()
                 );
             };
@@ -172,23 +178,23 @@ fn find_tests(
             let driver = driver.clone();
             let category_url = category_url.clone();
             let primary_window = primary_window.clone();
-            let task: JoinHandle<anyhow::Result<()>> = tokio::task::spawn(async move {
-                let mut driver = driver.lock().await;
-                let handle = driver.new_tab().await?;
-                driver.switch_to_window(handle).await?;
-                driver.goto(&category_url).await?;
-                test.run(&mut driver).await?;
 
-                // Cleanup
-                driver.close_window().await?;
-                driver.switch_to_window(primary_window).await?;
+            trials.push(Trial::test(test_name, move || {
+                let task = async move {
+                    let mut driver = driver.lock().await;
+                    let handle = driver.new_tab().await?;
+                    driver.switch_to_window(handle).await?;
+                    driver.goto(&category_url).await?;
+                    test.run(&mut driver).await?;
 
-                Ok(())
-            });
+                    // Cleanup
+                    driver.close_window().await?;
+                    driver.switch_to_window(primary_window).await?;
 
-            trials.push(Trial::test(test_name, move || match block_on(task) {
-                Ok(result) => result.map_err(Into::into),
-                Err(e) => Err(e.into()),
+                    Ok(())
+                };
+
+                block_on(task)
             }));
         }
     }
@@ -214,7 +220,7 @@ async fn generate_docs_if_needed(category: &str) -> anyhow::Result<()> {
     tracing::info!("Generating docs for workspace '{}'", paths.assets.display());
     if let Err(e) = document_workspace(config).await {
         let _ = std::fs::remove_dir_all(&paths.docs);
-        panic!("failed to generate docs for {category}: {e}")
+        bail!("failed to generate docs for {category}: {e}");
     }
 
     Ok(())
@@ -267,18 +273,9 @@ async fn setup_web_servers() -> anyhow::Result<Arc<Mutex<ServerAddressMap>>> {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+/// Configure and run the webdriver process.
+async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     const WEB_DRIVER_PORT: u16 = 9515;
-
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
-
-    let args = libtest_mimic::Arguments::from_args();
 
     let mut caps = DesiredCapabilities::chrome();
     caps.add_arg("--headless=new")?;
@@ -290,24 +287,82 @@ async fn main() -> Result<(), anyhow::Error> {
         WebDriverProcessBrowser::<ChromeCapabilities>::Caps(&caps),
         true,
     )
-    .expect("failed to start web driver process");
+    .context("failed to start web driver process")?;
 
-    let addresses = setup_web_servers().await?;
+    // `start_webdriver_process_full()` only waits 1 second. It may take longer for
+    // the process to spawn in CI.
+    tracing::info!("Waiting for webdriver process to start...");
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
     let driver = WebDriver::new(format!("http://localhost:{WEB_DRIVER_PORT}"), caps).await?;
+    Ok(driver)
+}
+
+/// The fallible main logic.
+async fn real_main() -> Result<WebDriver, (anyhow::Error, Option<WebDriver>)> {
+    let unwrap_driver = |driver| {
+        Arc::try_unwrap(driver)
+            .map(Mutex::into_inner)
+            .expect("should be able to unwrap driver")
+    };
+
+    let args = libtest_mimic::Arguments::from_args();
+
+    let addresses = setup_web_servers().await.map_err(|e| (e, None))?;
+    let driver = setup_webdriver().await.map_err(|e| (e, None))?;
 
     // The initial blank page
-    let primary_window = driver.window().await?;
+    let primary_window = match driver.window().await {
+        Ok(window) => window,
+        Err(e) => return Err((e.into(), Some(driver))),
+    };
 
     let driver = Arc::new(Mutex::new(driver));
 
-    let tests = find_tests(&*addresses.lock().await, driver.clone(), primary_window)?;
-    let result = libtest_mimic::run(&args, tests);
+    let tests = match find_tests(&*addresses.lock().await, driver.clone(), primary_window) {
+        Ok(tests) => tests,
+        Err(e) => {
+            return Err((e, Some(unwrap_driver(driver))));
+        }
+    };
 
-    if let Ok(driver) = Arc::try_unwrap(driver)
-        && let Err(e) = driver.into_inner().quit().await
+    if libtest_mimic::run(&args, tests).has_failed() {
+        return Err((
+            anyhow!("one or more tests failed"),
+            Some(unwrap_driver(driver)),
+        ));
+    }
+
+    Ok(unwrap_driver(driver))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    let result = real_main().await;
+    let exit;
+    let driver = match result {
+        Ok(driver) => {
+            exit = Ok(());
+            Some(driver)
+        }
+        Err((e, driver)) => {
+            exit = Err(e);
+            driver
+        }
+    };
+
+    if let Some(driver) = driver
+        && let Err(e) = driver.quit().await
     {
         tracing::error!("Failed to quit web driver: {e}");
     }
 
-    result.exit()
+    exit
 }

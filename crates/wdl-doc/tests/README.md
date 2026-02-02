@@ -5,6 +5,14 @@ The `wdl-doc` UI tests are used to test the HTML/CSS/JS as rendered in a browser
 The tests are broken into categories, with each directory under [./ui](./ui) being a category. Within a category,
 a single WDL workspace is documented and all tests operate on it.
 
+### Running UI tests
+
+The UI tests are run as a normal part of the `wdl-doc` process, but can also be run exclusively with:
+
+```bash
+cargo test -p wdl-doc --test ui
+```
+
 ### Adding a Test
 
 To add a test, create a new file under a category (e.g. [base](./ui/base))

@@ -38,7 +38,7 @@ impl UiTest for SearchInvalid {
             .exists()
             .await?;
         if !no_results_text {
-            bail!("Expected \"No results found\" text");
+            bail!("expected \"No results found\" text");
         }
 
         Ok(())

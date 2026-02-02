@@ -3,7 +3,7 @@ failure-output = "immediate-final"
 fail-fast = false
 # Terminate individual tests after 30 minutes
 slow-timeout = { period = "10m", terminate-after = 3 }
-# wdl-engine and sprocket tests are run separately in CI
+# wdl-engine and sprocket tests are run separately in CI, as they have extra setup.
 default-filter = "not (package(wdl-engine) or package(sprocket))"
 
 [test-groups]

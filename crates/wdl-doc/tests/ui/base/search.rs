@@ -28,7 +28,7 @@ impl UiTest for Search {
             .exists()
             .await?;
         if !has_results {
-            bail!("Expected search results");
+            bail!("expected search results");
         }
 
         let search_result = driver
@@ -42,7 +42,7 @@ impl UiTest for Search {
         let icon_path = search_result_icon.attr("src").await?;
         if icon_path.as_deref() != Some("assets/wdl-dir-unselected.svg") {
             bail!(
-                "Wrong icon shown. Expected 'assets/wdl-dir-unselected.svg', found: {icon_path:?}"
+                "wrong icon shown—expected 'assets/wdl-dir-unselected.svg', found: {icon_path:?}"
             );
         }
 
