@@ -1166,7 +1166,7 @@ impl Evaluator {
                     std::os::windows::fs::symlink_file(&symlink_host_path, path).with_context(
                         || {
                             format!(
-                                "failed to create file symlink `{path}` to `{symlink_path}",
+                                "failed to create file symlink `{path}` to `{symlink_path}`",
                                 path = path.display(),
                                 symlink_path = symlink_host_path.display()
                             )
