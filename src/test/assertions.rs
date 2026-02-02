@@ -401,6 +401,8 @@ pub(crate) struct ParsedAssertions {
 #[cfg(test)]
 mod tests {
     use wdl::analysis::types::ArrayType;
+    use wdl::analysis::types::MapType;
+    use wdl::analysis::types::PairType;
 
     use super::*;
 
@@ -601,8 +603,92 @@ mod tests {
         assert!(first.validate_type_congruence(&ty).is_err());
         assert!(last.validate_type_congruence(&ty).is_err());
 
+        let ty = Type::Compound(
+            CompoundType::Map(MapType::new(
+                Type::Primitive(PrimitiveType::Integer, true),
+                Type::Primitive(PrimitiveType::Boolean, false),
+            )),
+            true,
+        );
+        assert!(first.validate_type_congruence(&ty).is_err());
+        assert!(last.validate_type_congruence(&ty).is_err());
+
         let ty = Type::Primitive(PrimitiveType::String, false);
         assert!(first.validate_type_congruence(&ty).is_err());
         assert!(last.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn length_type_congruence() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Length: 7 }").unwrap();
+        let assertion = assertion.inner;
+
+        let ty = Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Directory,
+                true,
+            ))),
+            false,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+
+        let ty = Type::Compound(
+            CompoundType::Map(MapType::new(
+                Type::Primitive(PrimitiveType::Integer, true),
+                Type::Primitive(PrimitiveType::Boolean, false),
+            )),
+            true,
+        );
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(assertion.validate_type_congruence(&ty).is_ok());
+
+        let ty = Type::Primitive(PrimitiveType::Float, false);
+        assert!(assertion.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn left_right_type_congruence() {
+        let left: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Left: { StrEquals: foobar } }").unwrap();
+        let left = left.inner;
+        let right: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Right: { Contains: bar } }").unwrap();
+        let right = right.inner;
+
+        let ty = Type::Compound(
+            CompoundType::Pair(PairType::new(
+                Type::Primitive(PrimitiveType::String, false),
+                Type::Primitive(PrimitiveType::String, true),
+            )),
+            true,
+        );
+        assert!(left.validate_type_congruence(&ty).is_ok());
+        assert!(right.validate_type_congruence(&ty).is_ok());
+
+        let ty = Type::Compound(
+            CompoundType::Pair(PairType::new(
+                Type::Primitive(PrimitiveType::Float, true),
+                Type::Primitive(PrimitiveType::Integer, false),
+            )),
+            false,
+        );
+        assert!(left.validate_type_congruence(&ty).is_err());
+        assert!(right.validate_type_congruence(&ty).is_err());
+
+        let ty = Type::Compound(
+            CompoundType::Map(MapType::new(
+                Type::Primitive(PrimitiveType::Integer, true),
+                Type::Primitive(PrimitiveType::Boolean, false),
+            )),
+            true,
+        );
+        assert!(left.validate_type_congruence(&ty).is_err());
+        assert!(right.validate_type_congruence(&ty).is_err());
+
+        let ty = Type::Primitive(PrimitiveType::String, false);
+        assert!(left.validate_type_congruence(&ty).is_err());
+        assert!(right.validate_type_congruence(&ty).is_err());
     }
 }
