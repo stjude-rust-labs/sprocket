@@ -16,13 +16,15 @@ note[PreambleCommentPlacement]: preamble comment after the version statement
 10 │ │ ## And this one is bad too!
    │ ╰───────────────────────────^
    │  
-   = fix: do not use `##` comments outside the preamble
+   = help: freestanding doc comments (`##`) are assumed to be preamble comments
+   = fix: move the preamble comment before the `version` statement
 
 note[PreambleCommentPlacement]: preamble comment after the version statement
-   ┌─ tests/lints/preamble-comment-after-version/source.wdl:19:5
+   ┌─ tests/lints/preamble-comment-after-version/source.wdl:18:1
    │
-19 │     ## This one is bad!
-   │     ^^^^^^^^^^^^^^^^^^^
+18 │ ## I'm not documenting the struct!
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = fix: do not use `##` comments outside the preamble
+   = help: freestanding doc comments (`##`) are assumed to be preamble comments
+   = fix: move the preamble comment before the `version` statement
 

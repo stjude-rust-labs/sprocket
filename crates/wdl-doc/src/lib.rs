@@ -12,6 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 mod command_section;
 mod docs_tree;
 mod document;
+mod r#enum;
 pub mod error;
 mod meta;
 mod parameter;
@@ -393,6 +394,8 @@ pub struct Config {
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
     /// view of the left sidebar.
     init_on_full_directory: bool,
+    /// (**EXPERIMENTAL**) Enable support for documentation comments.
+    enable_doc_comments: bool,
 }
 
 impl Config {
@@ -413,6 +416,7 @@ impl Config {
             alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: PREFER_FULL_DIRECTORY,
+            enable_doc_comments: false,
         }
     }
 
@@ -455,6 +459,18 @@ impl Config {
     /// Overwrite the config's init_on_full_directory with the new value.
     pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
         self.init_on_full_directory = prefer_full_directory;
+        self
+    }
+
+    /// Enable support for documentation comments.
+    ///
+    /// NOTE: This is an experimental option, and will be removed in a future
+    /// major release.
+    ///
+    /// For more information, see the pre-RFC discussion
+    /// [here](https://github.com/openwdl/wdl/issues/757).
+    pub fn enable_doc_comments(mut self, enable_doc_comments: bool) -> Self {
+        self.enable_doc_comments = enable_doc_comments;
         self
     }
 }
@@ -560,8 +576,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-struct.html"));
 
-                    // TODO: handle >=v1.2 structs
-                    let r#struct = r#struct::Struct::new(s.clone(), version);
+                    let r#struct =
+                        r#struct::Struct::new(s.clone(), version, config.enable_doc_comments);
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -612,7 +628,17 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
                 }
                 DocumentItem::Import(_) => {}
-                DocumentItem::Enum(_) => todo!("enum documentation support"),
+                DocumentItem::Enum(e) => {
+                    let name = e.name().text().to_owned();
+                    let path = cur_dir.join(format!("{name}-enum.html"));
+
+                    let r#enum = r#enum::Enum::new(e, version, config.enable_doc_comments);
+
+                    let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages
+                        .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
+                }
             }
         }
         let document_name = root_to_wdl
@@ -658,7 +684,7 @@ mod tests {
     use wdl_ast::Document as AstDocument;
 
     use super::*;
-    use crate::runnable::Runnable;
+    use crate::meta::DefinitionMeta;
 
     #[test]
     fn test_parse_preamble_comments() {
