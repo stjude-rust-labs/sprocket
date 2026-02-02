@@ -279,6 +279,9 @@ impl OutputAssertion {
     /// Panics if the output's type is not supported by this assertion's
     /// variant. See [`validate_type_congruence`].
     pub fn evaluate(&self, output: &wdl::engine::Value) -> Result<()> {
+        if output.is_none() && !matches!(self, Self::Defined(_)) {
+            bail!("output is `None` but `{self}` assertion expects a defined WDL value");
+        }
         match self {
             Self::Defined(should_exist) => match (*should_exist, !output.is_none()) {
                 (true, true) => {}
@@ -403,6 +406,12 @@ mod tests {
     use wdl::analysis::types::ArrayType;
     use wdl::analysis::types::MapType;
     use wdl::analysis::types::PairType;
+    use wdl::engine::Array;
+    use wdl::engine::HostPath;
+    use wdl::engine::Map;
+    use wdl::engine::Pair;
+    use wdl::engine::PrimitiveValue;
+    use wdl::engine::Value as EngineValue;
 
     use super::*;
 
@@ -690,5 +699,278 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::String, false);
         assert!(left.validate_type_congruence(&ty).is_err());
         assert!(right.validate_type_congruence(&ty).is_err());
+    }
+
+    #[test]
+    fn evaluate_defined() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: false }").unwrap();
+        let is_none = assertion.inner;
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: true }").unwrap();
+        let is_defined = assertion.inner;
+
+        let o = EngineValue::new_none(Type::Primitive(PrimitiveType::Boolean, true));
+        assert!(is_none.evaluate(&o).is_ok());
+        assert!(is_defined.evaluate(&o).is_err());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true));
+        assert!(is_none.evaluate(&o).is_err());
+        assert!(is_defined.evaluate(&o).is_ok());
+        let o = EngineValue::new_none(Type::Compound(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
+                PrimitiveType::Boolean,
+                false,
+            ))),
+            true,
+        ));
+        assert!(is_none.evaluate(&o).is_ok());
+        assert!(is_defined.evaluate(&o).is_err());
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
+                vec![EngineValue::Primitive(
+                    wdl::engine::PrimitiveValue::Boolean(true),
+                )],
+            )
+            .unwrap(),
+        ));
+        assert!(is_none.evaluate(&o).is_err());
+        assert!(is_defined.evaluate(&o).is_ok());
+    }
+
+    #[test]
+    fn evaluate_bool_equals() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: true }").unwrap();
+        let is_true = assertion.inner;
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: false }").unwrap();
+        let is_false = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true));
+        assert!(is_true.evaluate(&o).is_ok());
+        assert!(is_false.evaluate(&o).is_err());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(false));
+        assert!(is_true.evaluate(&o).is_err());
+        assert!(is_false.evaluate(&o).is_ok());
+
+        let o = EngineValue::new_none(Type::Primitive(PrimitiveType::Boolean, true));
+        assert!(is_true.evaluate(&o).is_err());
+        assert!(is_false.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_str_equals() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ StrEquals: foo }").unwrap();
+        let is_foo = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("foo"));
+        assert!(is_foo.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("not foo"));
+        assert!(is_foo.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_int_equals() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ IntEquals: 42 }").unwrap();
+        let assertion = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(42));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0));
+        assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_float_equals() {
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ FloatEquals: 42.42 }").unwrap();
+        let assertion = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Float(42.42.into()));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Float(0.into()));
+        assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_contains() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Contains: foo }").unwrap();
+        let assertion = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("foo"));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("has foo"));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("bar"));
+        assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_name() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Name: foobar }").unwrap();
+        let assertion = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::File(HostPath::new("foobar")));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Directory(HostPath::new(
+            "foobar",
+        )));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::File(HostPath::new(
+            "not_foobar",
+        )));
+        assert!(assertion.evaluate(&o).is_err());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Directory(HostPath::new(
+            "not_foobar",
+        )));
+        assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_length() {
+        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Length: 2 }").unwrap();
+        let assertion = assertion.inner;
+
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("sh"));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("too long"));
+        assert!(assertion.evaluate(&o).is_err());
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
+                vec![
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                ],
+            )
+            .unwrap(),
+        ));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
+                vec![EngineValue::Primitive(
+                    wdl::engine::PrimitiveValue::Boolean(true),
+                )],
+            )
+            .unwrap(),
+        ));
+        assert!(assertion.evaluate(&o).is_err());
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+            Map::new(
+                MapType::new(
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Type::Primitive(PrimitiveType::Boolean, false),
+                ),
+                vec![
+                    (
+                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0)),
+                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                    ),
+                    (
+                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(1)),
+                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(false)),
+                    ),
+                ],
+            )
+            .unwrap(),
+        ));
+        assert!(assertion.evaluate(&o).is_ok());
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+            Map::new(
+                MapType::new(
+                    Type::Primitive(PrimitiveType::Integer, false),
+                    Type::Primitive(PrimitiveType::Boolean, false),
+                ),
+                vec![(
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0)),
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                )],
+            )
+            .unwrap(),
+        ));
+        assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_first_last() {
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ First: { IntEquals: 42 } }").unwrap();
+        let first = assertion.inner;
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Last: { IntEquals: 2 } }").unwrap();
+        let last = assertion.inner;
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(2)),
+                ],
+            )
+            .unwrap(),
+        ));
+        assert!(first.evaluate(&o).is_ok());
+        assert!(last.evaluate(&o).is_ok());
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                vec![EngineValue::Primitive(
+                    wdl::engine::PrimitiveValue::Integer(42),
+                )],
+            )
+            .unwrap(),
+        ));
+        assert!(first.evaluate(&o).is_ok());
+        assert!(last.evaluate(&o).is_err());
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+            Array::new(
+                ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
+                None::<EngineValue>,
+            )
+            .unwrap(),
+        ));
+        assert!(first.evaluate(&o).is_err());
+        assert!(last.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn evaluate_left_right() {
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Left: { Contains: foo } }").unwrap();
+        let left = assertion.inner;
+        let assertion: FlattenedWrapper =
+            serde_yaml_ng::from_str("{ Right: { Length: 6 } }").unwrap();
+        let right = assertion.inner;
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Pair(
+            Pair::new(
+                PairType::new(
+                    Type::Primitive(PrimitiveType::String, true),
+                    Type::Primitive(PrimitiveType::String, true),
+                ),
+                PrimitiveValue::new_string("foobar quzwack"),
+                PrimitiveValue::new_string("foobar"),
+            )
+            .unwrap(),
+        ));
+        assert!(left.evaluate(&o).is_ok());
+        assert!(right.evaluate(&o).is_ok());
+
+        let o = EngineValue::Compound(wdl::engine::CompoundValue::Pair(
+            Pair::new(
+                PairType::new(
+                    Type::Primitive(PrimitiveType::String, true),
+                    Type::Primitive(PrimitiveType::String, true),
+                ),
+                None,
+                None,
+            )
+            .unwrap(),
+        ));
+        assert!(left.evaluate(&o).is_err());
+        assert!(right.evaluate(&o).is_err());
     }
 }
