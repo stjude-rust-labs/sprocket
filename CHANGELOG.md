@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `outputs` blocks to `sprocket dev test` YAML definitions
+  for asserting on WDL values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
 * Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
   rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
 * Added the `--with-doc-comments` CLI option to `sprocket dev doc` to enable
