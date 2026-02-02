@@ -121,7 +121,7 @@ impl Document {
                         }
                         PageType::Enum(e) => {
                             div class="main__grid-cell" {
-                                a class="text-brand-yellow-400 hover:text-yellow-200" href=(page.0.to_string_lossy()) {
+                                a class="text-brand-lime-300 hover:text-lime-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }

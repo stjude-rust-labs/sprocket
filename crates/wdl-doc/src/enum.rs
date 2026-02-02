@@ -110,7 +110,7 @@ impl Enum {
         let definition = self.definition.display(None);
         let markup = html! {
             div class="main__container" {
-                p class="text-brand-yellow-400" { "Enum" }
+                p class="text-brand-lime-300" { "Enum" }
                 h1 id="title" class="main__title" { code { (name) } }
                 div class="markdown-body mb-4" {
                     (self.meta.render_description(false))

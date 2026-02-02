@@ -304,8 +304,7 @@ mod tests {
 
     use super::*;
     use crate::meta::DEFAULT_DESCRIPTION;
-    use crate::meta::parse_meta;
-    use crate::meta::parse_parameter_meta;
+    use crate::meta::parse_metadata_items;
     use crate::parameter::Group;
 
     #[test]
@@ -345,12 +344,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 2);
         assert_eq!(
@@ -400,12 +400,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 1);
         assert_eq!(
@@ -451,12 +452,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let inputs = parse_inputs(
             &doc_item.as_workflow_definition().unwrap().input().unwrap(),
@@ -504,19 +506,21 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
-        let parameter_meta = parse_parameter_meta(
-            &doc_item
+        let parameter_meta = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let outputs = parse_outputs(
             &doc_item.as_workflow_definition().unwrap().output().unwrap(),

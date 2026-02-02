@@ -249,6 +249,7 @@
   --color-brand-violet-400: #a78bfa;
   --color-brand-pink-400: #f472b6;
   --color-brand-cyan-400: #4bd8fa;
+  --color-brand-lime-300: #BEF264;
   --color-brand-red-400: #f87171;
   --color-brand-yellow-50: #fefce8;
   --color-brand-yellow-400: #facc15;
@@ -510,6 +511,7 @@
   --color-brand-violet-400: #8b5cf6;
   --color-brand-pink-400: #ec4899;
   --color-brand-cyan-400: #06b6d4;
+  --color-brand-lime-300: #84CC16;
   --color-brand-red-400: #dc2626;
   --color-brand-yellow-50: #291404;
   --color-brand-yellow-400: #ca8a04;
@@ -1333,6 +1335,7 @@
     --color-orange-950: oklch(26.6% 0.079 36.259);
     --color-yellow-200: oklch(94.5% 0.129 101.54);
     --color-yellow-800: oklch(47.6% 0.114 61.907);
+    --color-lime-200: oklch(93.8% 0.127 124.321);
     --color-green-200: oklch(92.5% 0.084 155.995);
     --color-green-600: oklch(62.7% 0.194 149.214);
     --color-green-950: oklch(26.6% 0.065 152.934);
@@ -1397,6 +1400,7 @@
     --color-brand-violet-400: var(--color-brand-violet-400);
     --color-brand-pink-400: var(--color-brand-pink-400);
     --color-brand-cyan-400: var(--color-brand-cyan-400);
+    --color-brand-lime-300: var(--color-brand-lime-300);
     --color-brand-red-400: var(--color-brand-red-400);
     --color-brand-yellow-50: var(--color-brand-yellow-50);
     --color-brand-yellow-400: var(--color-brand-yellow-400);
@@ -1752,14 +1756,14 @@
   .text-brand-emerald-400 {
     color: var(--color-brand-emerald-400);
   }
+  .text-brand-lime-300 {
+    color: var(--color-brand-lime-300);
+  }
   .text-brand-pink-400 {
     color: var(--color-brand-pink-400);
   }
   .text-brand-violet-400 {
     color: var(--color-brand-violet-400);
-  }
-  .text-brand-yellow-400 {
-    color: var(--color-brand-yellow-400);
   }
   .text-slate-50 {
     color: var(--color-slate-50);
@@ -1845,6 +1849,13 @@
       }
     }
   }
+  .hover\:text-lime-200 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-lime-200);
+      }
+    }
+  }
   .hover\:text-pink-200 {
     &:hover {
       @media (hover: hover) {
@@ -1856,13 +1867,6 @@
     &:hover {
       @media (hover: hover) {
         color: var(--color-violet-200);
-      }
-    }
-  }
-  .hover\:text-yellow-200 {
-    &:hover {
-      @media (hover: hover) {
-        color: var(--color-yellow-200);
       }
     }
   }
