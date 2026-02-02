@@ -113,7 +113,7 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
             fs::create_dir_all(&to)
                 .with_context(|| format!("failed to create directory at {:?}", &to))?;
         } else {
-            fs::copy(&from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
         }
     }
     Ok(())
@@ -341,7 +341,7 @@ fn compare_test_results(
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
-            &command_output.exit_code.to_string(),
+            command_output.exit_code.to_string(),
         )
         .context("failed to write exit code")?;
 
