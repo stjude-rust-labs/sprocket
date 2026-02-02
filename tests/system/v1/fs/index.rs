@@ -25,6 +25,11 @@ use wdl::engine::Value;
 #[path = "index/rebuild.rs"]
 mod rebuild;
 
+/// Normalize path separators to forward slashes for cross-platform test assertions.
+fn normalize_path(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 /// Helper to create a file output value and write the file.
 fn make_file_output(
     exec_dir: &Path,
@@ -107,27 +112,30 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 3);
     assert_eq!(entries[0].run_uuid, run_id);
-    assert_eq!(entries[0].link_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
-        entries[0].target_path.as_str(),
+        normalize_path(&entries[0].link_path),
+        "./index/yak/outputs.json"
+    );
+    assert_eq!(
+        normalize_path(&entries[0].target_path),
         "./runs/test-workflow/outputs.json"
     );
     assert_eq!(entries[1].run_uuid, run_id);
     assert_eq!(
-        entries[1].link_path.as_str(),
+        normalize_path(&entries[1].link_path),
         "./index/yak/satisfaction_survey.tsv"
     );
     assert_eq!(
-        entries[1].target_path.as_str(),
+        normalize_path(&entries[1].target_path),
         "./runs/test-workflow/satisfaction_survey.tsv"
     );
     assert_eq!(entries[2].run_uuid, run_id);
     assert_eq!(
-        entries[2].link_path.as_str(),
+        normalize_path(&entries[2].link_path),
         "./index/yak/styling_metrics.json"
     );
     assert_eq!(
-        entries[2].target_path.as_str(),
+        normalize_path(&entries[2].target_path),
         "./runs/test-workflow/styling_metrics.json"
     );
 
@@ -177,15 +185,21 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[0].run_uuid, run_id);
-    assert_eq!(entries[0].link_path.as_str(), "./index/yak/outputs.json");
     assert_eq!(
-        entries[0].target_path.as_str(),
+        normalize_path(&entries[0].link_path),
+        "./index/yak/outputs.json"
+    );
+    assert_eq!(
+        normalize_path(&entries[0].target_path),
         "./runs/test-workflow/outputs.json"
     );
     assert_eq!(entries[1].run_uuid, run_id);
-    assert_eq!(entries[1].link_path.as_str(), "./index/yak/styled_yaks");
     assert_eq!(
-        entries[1].target_path.as_str(),
+        normalize_path(&entries[1].link_path),
+        "./index/yak/styled_yaks"
+    );
+    assert_eq!(
+        normalize_path(&entries[1].target_path),
         "./runs/test-workflow/styled_yaks"
     );
 
@@ -253,10 +267,22 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
 
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 4);
-    assert_eq!(entries[0].link_path.as_str(), "./index/yak/outputs.json");
-    assert_eq!(entries[1].link_path.as_str(), "./index/yak/result1.txt");
-    assert_eq!(entries[2].link_path.as_str(), "./index/yak/result2.txt");
-    assert_eq!(entries[3].link_path.as_str(), "./index/yak/result3.txt");
+    assert_eq!(
+        normalize_path(&entries[0].link_path),
+        "./index/yak/outputs.json"
+    );
+    assert_eq!(
+        normalize_path(&entries[1].link_path),
+        "./index/yak/result1.txt"
+    );
+    assert_eq!(
+        normalize_path(&entries[2].link_path),
+        "./index/yak/result2.txt"
+    );
+    assert_eq!(
+        normalize_path(&entries[3].link_path),
+        "./index/yak/result3.txt"
+    );
 
     Ok(())
 }

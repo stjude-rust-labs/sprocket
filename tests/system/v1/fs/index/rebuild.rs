@@ -2,6 +2,7 @@
 
 use std::fs;
 
+use super::normalize_path;
 use anyhow::Result;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
@@ -149,33 +150,33 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     // Verify first entry: `outputs.json` from `run_id2`
     assert_eq!(all_entries[0].run_uuid, run_id2);
     assert_eq!(
-        all_entries[0].link_path.as_str(),
+        normalize_path(&all_entries[0].link_path),
         "./index/yak/outputs.json"
     );
     assert_eq!(
-        all_entries[0].target_path.as_str(),
+        normalize_path(&all_entries[0].target_path),
         "./runs/test-workflow-run2/outputs.json"
     );
 
     // Verify second entry: `satisfaction_survey.tsv` from `run_id2`
     assert_eq!(all_entries[1].run_uuid, run_id2);
     assert_eq!(
-        all_entries[1].link_path.as_str(),
+        normalize_path(&all_entries[1].link_path),
         "./index/yak/satisfaction_survey.tsv"
     );
     assert_eq!(
-        all_entries[1].target_path.as_str(),
+        normalize_path(&all_entries[1].target_path),
         "./runs/test-workflow-run2/satisfaction_survey.tsv"
     );
 
     // Verify third entry: `styling_metrics.json` from `run_id2`
     assert_eq!(all_entries[2].run_uuid, run_id2);
     assert_eq!(
-        all_entries[2].link_path.as_str(),
+        normalize_path(&all_entries[2].link_path),
         "./index/yak/styling_metrics.json"
     );
     assert_eq!(
-        all_entries[2].target_path.as_str(),
+        normalize_path(&all_entries[2].target_path),
         "./runs/test-workflow-run2/styling_metrics.json"
     );
 

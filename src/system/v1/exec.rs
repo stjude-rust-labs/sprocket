@@ -305,7 +305,12 @@ impl RunnableExecutor {
         // SAFETY: we know that the `runs/` directory should be the parent here.
         let run_dir_parent = run_dir.root().parent().unwrap();
         let latest_symlink = run_dir_parent.join(LATEST);
+
+        #[cfg(unix)]
         let _ = std::fs::remove_file(&latest_symlink);
+
+        #[cfg(windows)]
+        let _ = std::fs::remove_dir(&latest_symlink);
 
         if let Some(run_dir_basename) = run_dir.root().file_name() {
             #[cfg(unix)]
