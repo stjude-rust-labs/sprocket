@@ -117,7 +117,7 @@ pub(crate) trait Runnable: DefinitionMeta {
                     }
                     div class="main__run-with-content" {
                         p class="main__run-with-content-text" {
-                            "sprocket run --entrypoint "
+                            "sprocket run --target "
                             (self.name())
                             " "
                             span x-show="unix" {

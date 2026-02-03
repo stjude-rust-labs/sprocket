@@ -6,13 +6,13 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use wdl::analysis::Document;
 use wdl::engine::CancellationContext;
+use wdl::engine::Config;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationResult;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::config::Config;
 use wdl::engine::v1::Evaluator as WdlEvaluator;
 
 use crate::inputs::OriginPaths;

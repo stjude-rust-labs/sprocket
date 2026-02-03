@@ -899,9 +899,9 @@ impl Inputs {
             return Ok(None);
         }
 
-        // Otherwise, build a set of candidate entrypoints from the prefixes of each
-        // input key.
-        let mut entrypoint_candidates = BTreeSet::new();
+        // Otherwise, build a set of candidate targets from the prefixes of each input
+        // key.
+        let mut target_candidates = BTreeSet::new();
         for key in object.keys() {
             let Some((prefix, _)) = key.split_once('.') else {
                 bail!(
@@ -909,36 +909,36 @@ impl Inputs {
                      or task name",
                 )
             };
-            entrypoint_candidates.insert(prefix);
+            target_candidates.insert(prefix);
         }
 
         // If every prefix is the same, there will be only one candidate. If not, report
         // an error.
-        let entrypoint_name = match entrypoint_candidates
+        let target_name = match target_candidates
             .iter()
             .take(2)
             .collect::<Vec<_>>()
             .as_slice()
         {
-            [] => panic!("no entrypoint candidates for inputs; report this as a bug"),
-            [entrypoint_name] => entrypoint_name.to_string(),
+            [] => panic!("no target candidates for inputs; report this as a bug"),
+            [target_name] => target_name.to_string(),
             _ => bail!(
                 "invalid inputs: expected each input key to be prefixed with the same workflow or \
-                 task name, but found multiple prefixes: {entrypoint_candidates:?}",
+                 task name, but found multiple prefixes: {target_candidates:?}",
             ),
         };
 
-        let inputs = match (document.task_by_name(&entrypoint_name), document.workflow()) {
+        let inputs = match (document.task_by_name(&target_name), document.workflow()) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
-            (None, Some(workflow)) if workflow.name() == entrypoint_name => {
+            (None, Some(workflow)) if workflow.name() == target_name => {
                 Self::parse_workflow_inputs(document, workflow, object)?
             }
             _ => bail!(
-                "invalid inputs: a task or workflow named `{entrypoint_name}` does not exist in \
-                 the document"
+                "invalid inputs: a task or workflow named `{target_name}` does not exist in the \
+                 document"
             ),
         };
-        Ok(Some((entrypoint_name, inputs)))
+        Ok(Some((target_name, inputs)))
     }
 
     /// Parses the inputs for a task.

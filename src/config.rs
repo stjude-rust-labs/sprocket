@@ -15,9 +15,27 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::trace;
 use tracing::warn;
-use wdl::engine;
+use url::Url;
+use wdl::engine::Config as EngineConfig;
 
 use crate::diagnostics::Mode;
+
+/// Default host.
+const DEFAULT_HOST: &str = "127.0.0.1";
+
+/// Default port.
+const DEFAULT_PORT: u16 = 8080;
+
+/// Default database filename.
+pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
+
+/// Default output directory.
+const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
+
+/// Default output directory function for serde.
+fn default_output_directory() -> PathBuf {
+    PathBuf::from(DEFAULT_OUTPUT_DIRECTORY)
+}
 
 /// Represents the configuration for the Sprocket CLI tool.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -31,6 +49,8 @@ pub struct Config {
     pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
     pub run: RunConfig,
+    /// Configuration for the `server` command.
+    pub server: ServerConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
 }
@@ -120,9 +140,9 @@ pub struct AnalyzerConfig {
 pub struct RunConfig {
     /// The engine configuration.
     #[serde(flatten)]
-    pub engine: engine::config::Config,
+    pub engine: EngineConfig,
 
-    /// The "runs" directory under which new `run` invocations' execution
+    /// The "runs" directory under which new `run` sessions' execution
     /// directories will be placed.
     pub runs_dir: PathBuf,
 
@@ -144,10 +164,124 @@ pub struct RunConfig {
 impl Default for RunConfig {
     fn default() -> Self {
         Self {
-            engine: engine::config::Config::default(),
+            engine: EngineConfig::default(),
             runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
             events_capacity: None,
         }
+    }
+}
+
+/// Server database configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ServerDatabaseConfig {
+    /// Database URL (e.g., `sqlite://sprocket.db`).
+    /// If not provided, defaults to `sprocket.db` in the output directory.
+    #[serde(default)]
+    pub url: Option<String>,
+}
+
+/// Server configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ServerConfig {
+    /// Host to bind to (default: `127.0.0.1`).
+    #[serde(default)]
+    pub host: String,
+    /// Port to bind to (default: `8080`).
+    #[serde(default)]
+    pub port: u16,
+    /// Allowed CORS origins.
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+    /// Database configuration.
+    #[serde(default)]
+    pub database: ServerDatabaseConfig,
+    /// Directory for workflow outputs (default: `./out`).
+    #[serde(default = "default_output_directory")]
+    pub output_directory: PathBuf,
+    /// Allowed file paths for file-based workflows.
+    #[serde(default)]
+    pub allowed_file_paths: Vec<PathBuf>,
+    /// Allowed URL prefixes for URL-based workflows.
+    #[serde(default)]
+    pub allowed_urls: Vec<String>,
+    /// Maximum concurrent workflows (default: `None`).
+    ///
+    /// `None` means there is no limit on the number of executions.
+    #[serde(default)]
+    pub max_concurrent_runs: Option<usize>,
+    /// The engine configuration to use during execution.
+    #[serde(default)]
+    pub engine: EngineConfig,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            host: String::from(DEFAULT_HOST),
+            port: DEFAULT_PORT,
+            allowed_origins: Vec::new(),
+            database: ServerDatabaseConfig::default(),
+            output_directory: default_output_directory(),
+            allowed_file_paths: Vec::new(),
+            allowed_urls: Vec::new(),
+            max_concurrent_runs: None,
+            engine: EngineConfig::default(),
+        }
+    }
+}
+
+impl ServerConfig {
+    /// Validates and normalizes the server configuration.
+    ///
+    /// This method:
+    ///
+    /// - Validates that all allowed URLs can be parsed as URLs
+    /// - Canonicalizes all allowed file paths
+    /// - Deduplicates and sorts allowed file paths
+    /// - Deduplicates and sorts allowed URL prefixes
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any URL cannot be parsed or any path cannot be
+    /// canonicalized.
+    pub fn validate(&mut self) -> anyhow::Result<()> {
+        // Validate max concurrent workflows is at least 1
+        if let Some(max) = self.max_concurrent_runs
+            && max == 0
+        {
+            anyhow::bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate that all allowed URLs can be parsed
+        for url in &self.allowed_urls {
+            Url::parse(url).with_context(|| format!("invalid URL in `allowed_urls`: `{}`", url))?;
+        }
+
+        // Canonicalize file paths
+        self.allowed_file_paths = self
+            .allowed_file_paths
+            .iter()
+            .map(|p| {
+                p.canonicalize().with_context(|| {
+                    format!(
+                        "failed to canonicalize path in `allowed_file_paths`: `{}`",
+                        p.display()
+                    )
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Deduplicate and sort file paths
+        self.allowed_file_paths.sort();
+        self.allowed_file_paths.dedup();
+
+        // Deduplicate and sort URLs
+        self.allowed_urls.sort();
+        self.allowed_urls.dedup();
+
+        Ok(())
     }
 }
 
@@ -225,11 +359,15 @@ impl Config {
         figment.extract().context("failed to merge configuration")
     }
 
-    /// Validate a configuration
-    pub fn validate(&self) -> Result<()> {
+    /// Validate a configuration.
+    pub fn validate(&mut self) -> Result<()> {
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
+
+        // Validate server config
+        self.server.validate()?;
+
         Ok(())
     }
 
