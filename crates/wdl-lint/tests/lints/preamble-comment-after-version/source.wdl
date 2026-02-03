@@ -15,6 +15,17 @@ version 1.1
 
 ##### And this comment too!
 
+## I'm not documenting the struct!
+
+struct DetachedComment {
+    String foo
+}
+
+## But I am!
+struct AttachedComment {
+    String foo
+}
+
 workflow test {
     ## This one is bad!
     #@ except: MetaDescription

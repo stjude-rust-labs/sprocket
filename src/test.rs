@@ -104,7 +104,7 @@ pub(crate) struct DocumentTests {
     ///
     /// Each task or workflow may have one or more test definitions.
     #[serde(flatten)]
-    pub entrypoints: IndexMap<String, Vec<TestDefinition>>,
+    pub targets: IndexMap<String, Vec<TestDefinition>>,
 }
 
 /// A test definition. Defines at least a single execution, but may define many

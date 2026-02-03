@@ -30,6 +30,7 @@ mod tree;
 mod units;
 mod value;
 
+pub use config::Config;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;
