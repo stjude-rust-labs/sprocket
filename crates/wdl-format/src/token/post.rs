@@ -181,24 +181,26 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     }
 }
 
-/// Split a normalized `#@ except:` directive into multiple lines when needed.
+/// Attempts to split a `#@ except:` directive into multiple lines when it
+/// exceeds `max_len`.
 ///
-/// Splits at comma boundaries when the line exceeds `max_len`. Each line
-/// gets the `#@ except:` prefix and contains at least one rule.
-fn split_except_directive_lines(normalized: &str, max_len: usize) -> Vec<String> {
+/// Returns `None` if the input is not a `#@ except:` directive or if no
+/// splitting is required. Splitting occurs only at comma boundaries and
+/// ensures at least one rule per line.
+fn split_except_directive_lines(value: &str, max_len: usize) -> Option<Vec<String>> {
     // Check if this is an except directive
-    let Some(remainder) = normalized.trim_start().strip_prefix("#@") else {
-        return vec![normalized.to_owned()];
+    let Some(remainder) = value.strip_prefix("#@") else {
+        return None;
     };
 
     let Some(rules_text) = remainder.trim_start().strip_prefix("except:") else {
-        return vec![normalized.to_owned()];
+        return None;
     };
 
-    // If the whole line fits, return as-is
-    if normalized.len() <= max_len {
-        return vec![normalized.to_owned()];
-    }
+    // If the whole line fits, no splitting needed
+    if value.len() <= max_len {
+        return None;
+    };
 
     // Split into individual rules
     let rules: Vec<&str> = rules_text
@@ -208,7 +210,7 @@ fn split_except_directive_lines(normalized: &str, max_len: usize) -> Vec<String>
         .collect();
 
     if rules.is_empty() {
-        return vec![normalized.to_owned()];
+        return None;
     }
 
     let prefix = "#@ except: ";
@@ -244,7 +246,7 @@ fn split_except_directive_lines(normalized: &str, max_len: usize) -> Vec<String>
         lines.push(format!("{}{}", prefix, current_rules.join(", ")));
     }
 
-    lines
+    Some(lines)
 }
 
 /// Current position in a line.
@@ -458,22 +460,21 @@ impl Postprocessor {
         let mut expanded_stream = TokenStream::<PreToken>::default();
         let in_stream = if let Some(max_len) = config.max_line_length() {
             for token in in_stream.iter() {
-                if let PreToken::Trivia(Trivia::Comment(Comment::Preceding(value))) = token {
-                    if value.trim_start().starts_with("#@") {
-                        let lines = split_except_directive_lines(value, max_len);
-                        if lines.len() > 1 {
-                            // Split occurred, emit multiple comment tokens
-                            for line in lines {
-                                expanded_stream.push(PreToken::Trivia(Trivia::Comment(
-                                    Comment::Preceding(Rc::new(line)),
-                                )));
-                            }
-                        } else {
-                            // No split needed, pass through unchanged
-                            expanded_stream.push(token.clone());
-                        }
-                    } else {
-                        expanded_stream.push(token.clone());
+                let PreToken::Trivia(Trivia::Comment(Comment::Preceding(value))) = token else {
+                    expanded_stream.push(token.clone());
+                    continue;
+                };
+
+                if !value.starts_with("#@") {
+                    expanded_stream.push(token.clone());
+                    continue;
+                }
+
+                if let Some(lines) = split_except_directive_lines(value, max_len) {
+                    for line in lines {
+                        expanded_stream.push(PreToken::Trivia(Trivia::Comment(
+                            Comment::Preceding(Rc::new(line)),
+                        )));
                     }
                 } else {
                     expanded_stream.push(token.clone());
