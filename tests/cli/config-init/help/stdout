@@ -1,6 +1,6 @@
 Generates a default configuration file
 
-Usage: sprocket config init [OPTIONS]
+Usage: sprocket.exe config init [OPTIONS]
 
 Options:
   -v, --verbose...

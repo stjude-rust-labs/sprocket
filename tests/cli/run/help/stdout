@@ -1,6 +1,6 @@
 Runs a task or workflow
 
-Usage: sprocket run [OPTIONS] <SOURCE> [INPUTS]...
+Usage: sprocket.exe run [OPTIONS] <SOURCE> [INPUTS]...
 
 Arguments:
   <SOURCE>

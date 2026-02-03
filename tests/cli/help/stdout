@@ -1,6 +1,6 @@
 A command line tool for working with Workflow Description Language (WDL) documents
 
-Usage: sprocket [OPTIONS] <COMMAND>
+Usage: sprocket.exe [OPTIONS] <COMMAND>
 
 Commands:
   analyzer     Runs the Language Server Protocol (LSP) server

@@ -1,6 +1,6 @@
 Displays the current configuration
 
-Usage: sprocket config resolve [OPTIONS]
+Usage: sprocket.exe config resolve [OPTIONS]
 
 Options:
       --unredact

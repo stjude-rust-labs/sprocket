@@ -1,6 +1,6 @@
 Writes the inputs schema for a WDL document
 
-Usage: sprocket inputs [OPTIONS] <SOURCE>
+Usage: sprocket.exe inputs [OPTIONS] <SOURCE>
 
 Arguments:
   <SOURCE>
