@@ -20,7 +20,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::TokenText;
 use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::TASK_HINT_INPUTS;
@@ -37,7 +36,6 @@ use wdl_ast::v1::TASK_REQUIREMENT_GPU;
 use wdl_ast::v1::TASK_REQUIREMENT_MAX_RETRIES_ALIAS;
 use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
-use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
 
 use crate::Config;
@@ -143,80 +141,18 @@ fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
     ))
 }
 
-/// Creates a "non-reserved runtime key" diagnostic.
-///
-/// Returns `None` if every given key is allowed.
-fn report_non_reserved_runtime_keys(
-    keys: &HashSet<TokenText>,
-    allowed_runtime_keys: &HashSet<String>,
-    runtime_span: Span,
-    specification: &str,
-) -> Option<Diagnostic> {
-    assert!(!keys.is_empty());
-
-    let mut key_names = keys
-        .iter()
-        .map(|key| key.text())
-        .filter(|text| !allowed_runtime_keys.contains(*text))
-        .collect::<Vec<_>>();
-    if key_names.is_empty() {
-        return None;
-    }
-
-    key_names.sort();
-
-    let (message, fix) = if key_names.len() == 1 {
-        // SAFETY: we just checked to make sure there is exactly one element in
-        // `keys`, so this will always unwrap.
-        let key = key_names.into_iter().next().unwrap();
-
-        (
-            format!(
-                "the following runtime key is not reserved in {specification}: `{key}`; \
-                 therefore, its inclusion in the `runtime` section is deprecated"
-            ),
-            format!(
-                "if a reserved key name was intended, correct the spelling; otherwise, remove the \
-                 `{key}` key"
-            ),
-        )
-    } else {
-        // SAFETY: we know that this has more than one element because we
-        // asserted the input `Vec` not be empty above. As such, this will
-        // always produce a result.
-        let keys = serialize_oxford_comma(
-            &key_names
-                .into_iter()
-                .map(|key| format!("`{key}`"))
-                .collect::<Vec<_>>(),
-        )
-        .unwrap();
-
-        (
-            format!(
-                "the following runtime keys are not reserved in {specification}: {keys}; \
-                 therefore, their inclusion in the `runtime` section is deprecated"
-            ),
-            format!(
-                "if reserved key names were intended, correct the spelling of each key; \
-                 otherwise, remove the {keys} keys"
-            ),
-        )
-    };
-
-    let mut diagnostic = Diagnostic::warning(message)
-        .with_rule(ID)
-        .with_highlight(runtime_span)
-        .with_fix(fix);
-
-    for key in keys.iter() {
-        diagnostic = diagnostic.with_label(
-            format!("the `{key}` key should be removed", key = key.text()),
-            key.span(),
-        );
-    }
-
-    Some(diagnostic)
+/// Creates a "non-reserved runtime key" diagnostic for a specific `key`
+fn report_non_reserved_runtime_key(key: &str, span: Span, specification: &str) -> Diagnostic {
+    Diagnostic::warning(format!(
+        "the runtime key `{key}` is not reserved in {specification}; therefore, its inclusion in \
+         the `runtime` section is deprecated"
+    ))
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix(format!(
+        "if a reserved key name was intended, correct the spelling; otherwise, remove the `{key}` \
+         key"
+    ))
 }
 
 /// Creates a "missing recommended runtime key" diagnostic.
@@ -266,16 +202,8 @@ fn report_missing_recommended_keys(
 pub struct ExpectedRuntimeKeysRule {
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
-    /// The span of the first `runtime` section encountered within the current
-    /// task.
-    runtime_span: Option<Span>,
-    /// Whether or not we've already processed a `runtime` section within the
-    /// current task.
-    runtime_processed_for_task: bool,
     /// All keys encountered in the current runtime section.
     encountered_keys: Vec<Ident>,
-    /// All non-reserved keys encountered in the current runtime section.
-    non_reserved_keys: HashSet<TokenText>,
     /// Allowed keys from the config.
     allowed_runtime_keys: HashSet<String>,
 }
@@ -285,10 +213,7 @@ impl ExpectedRuntimeKeysRule {
     pub fn new(config: &Config) -> Self {
         Self {
             version: None,
-            runtime_span: None,
-            runtime_processed_for_task: false,
             encountered_keys: Vec::new(),
-            non_reserved_keys: HashSet::new(),
             allowed_runtime_keys: config.allowed_runtime_keys.clone(),
         }
     }
@@ -331,6 +256,7 @@ impl Rule for ExpectedRuntimeKeysRule {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::RuntimeSectionNode,
+            SyntaxKind::RuntimeItemNode,
         ])
     }
 
@@ -352,10 +278,7 @@ fn recommended_keys<'a, 'k>(
 impl Visitor for ExpectedRuntimeKeysRule {
     fn reset(&mut self) {
         self.version = None;
-        self.runtime_span = None;
-        self.runtime_processed_for_task = false;
         self.encountered_keys.clear();
-        self.non_reserved_keys.clear();
     }
 
     fn document(
@@ -372,51 +295,19 @@ impl Visitor for ExpectedRuntimeKeysRule {
         self.version = Some(version);
     }
 
-    fn task_definition(
+    fn runtime_section(
         &mut self,
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
-        def: &TaskDefinition,
+        section: &RuntimeSection,
     ) {
         match reason {
-            VisitReason::Enter => {
-                self.runtime_processed_for_task = false;
-                self.runtime_span = None;
-                self.encountered_keys.clear();
-                self.non_reserved_keys.clear();
-            }
+            VisitReason::Enter => {}
             VisitReason::Exit => {
-                // If a runtime section span has not been encountered, then
-                // there won't be any keys to report and we can return early.
-                let runtime_span = match self.runtime_span {
-                    Some(span) => span,
-                    None => return,
-                };
-                let runtime_node = def
-                    .runtime()
-                    .expect("runtime section should exist")
-                    .inner()
-                    .clone();
-
                 // SAFETY: the version must always be set before we get to this
                 // point, as document is the root node of the tree.
                 if let SupportedVersion::V1(minor_version) = self.version.unwrap() {
                     let specification = format!("the WDL {minor_version} specification");
-
-                    if !self.non_reserved_keys.is_empty()
-                        && let Some(diagnostic) = report_non_reserved_runtime_keys(
-                            &self.non_reserved_keys,
-                            &self.allowed_runtime_keys,
-                            runtime_span,
-                            &specification,
-                        )
-                    {
-                        diagnostics.exceptable_add(
-                            diagnostic,
-                            SyntaxElement::from(runtime_node.clone()),
-                            &self.exceptable_nodes(),
-                        );
-                    }
 
                     let recommended_keys = match minor_version {
                         V1::Zero => recommended_keys(keys_v1_0()),
@@ -433,51 +324,30 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         diagnostics.exceptable_add(
                             report_missing_recommended_keys(
                                 missing_keys,
-                                runtime_span,
+                                // Note that we don't use `section.span()`, as this would be a
+                                // breaking change in `wdl-lint`'s
+                                // behavior.
+                                //
+                                // TODO: Use section.span(), assuming that's an acceptable public
+                                // API change.
+                                section
+                                    .inner()
+                                    .first_token()
+                                    .expect("runtime section should have tokens")
+                                    .text_range()
+                                    .into(),
                                 &specification,
                             ),
-                            SyntaxElement::from(runtime_node),
+                            SyntaxElement::from(section.inner().clone()),
                             &self.exceptable_nodes(),
                         );
                     }
+
+                    // Now that we've emitted the necessary diagnostics for this runtime section,
+                    // clear our tracking container of encountered keys to prepare for the next
+                    // runtime section.
+                    self.encountered_keys.clear();
                 }
-            }
-        }
-    }
-
-    fn runtime_section(
-        &mut self,
-        _: &mut Diagnostics,
-        reason: VisitReason,
-        section: &RuntimeSection,
-    ) {
-        // NOTE: if we've already processed a `runtime` section for this task
-        // and we hit this again, that means there are multiple `runtime`
-        // sections in the task. In that case, validation should report that
-        // this cannot occur, and the runtime section should be ignored.
-        if self.runtime_processed_for_task {
-            return;
-        }
-
-        match reason {
-            VisitReason::Enter => {
-                self.runtime_span = match self.runtime_span {
-                    // SAFETY: we should never encounter a case where a
-                    // `runtime` section is entered before a previous `runtime`
-                    // section is exited.
-                    Some(_) => unreachable!(),
-                    None => Some(
-                        section
-                            .inner()
-                            .first_token()
-                            .expect("runtime section should have tokens")
-                            .text_range()
-                            .into(),
-                    ),
-                };
-            }
-            VisitReason::Exit => {
-                self.runtime_processed_for_task = true;
             }
         }
     }
@@ -488,11 +358,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
         reason: VisitReason,
         item: &RuntimeItem,
     ) {
-        // NOTE: if we've already processed a `runtime` section for this task
-        // and we hit this again, that means there are multiple `runtime`
-        // sections in the task. In that case, validation should report that
-        // this cannot occur, and the runtime items should be ignored.
-        if self.runtime_processed_for_task || reason == VisitReason::Exit {
+        if reason == VisitReason::Exit {
             return;
         }
 
@@ -525,9 +391,24 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         }
                     }
                     None => {
+                        let specification = format!("the WDL {minor_version} specification");
+                        let key_text = key_name.text();
                         // If the key was _not_ found in the map, that means the
                         // key was not one of the permitted values for WDL v1.1.
-                        self.non_reserved_keys.insert(key_name.hashable());
+                        //
+                        // If it's also not in the explicitly allowed configuration,
+                        // add a diagnostic for it.
+                        if !self.allowed_runtime_keys.contains(key_text) {
+                            diagnostics.exceptable_add(
+                                report_non_reserved_runtime_key(
+                                    key_text,
+                                    item.span(),
+                                    &specification,
+                                ),
+                                SyntaxElement::from(item.inner().clone()),
+                                &self.exceptable_nodes(),
+                            );
+                        }
                     }
                 }
             }
