@@ -13,7 +13,7 @@ use figment::providers::Serialized;
 use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::trace;
+use tracing::debug;
 use tracing::warn;
 use url::Url;
 use wdl::engine::Config as EngineConfig;
@@ -31,6 +31,9 @@ pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Default output directory.
 const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
+
+/// The name of the Sprocket configuration file.
+const CONFIG_FILE_NAME: &str = "sprocket.toml";
 
 /// Default output directory function for serde.
 fn default_output_directory() -> PathBuf {
@@ -296,6 +299,17 @@ impl Config {
         let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
 
         if !skip_config_search {
+            // Start with a configuration file next to the `sprocket` executable
+            if let Ok(path) = std::env::current_exe()
+                && let Some(parent) = path.parent()
+            {
+                let path = parent.join(CONFIG_FILE_NAME);
+                if path.exists() {
+                    debug!("reading configuration from `{path}`", path = path.display());
+                    figment = figment.admerge(Toml::file_exact(path));
+                }
+            }
+
             // Check XDG_CONFIG_HOME for a config file
             // On MacOS, check HOME for a config file
             #[cfg(target_os = "macos")]
@@ -304,17 +318,17 @@ impl Config {
             let dir = dirs::config_dir();
 
             if let Some(dir) = dir {
-                let path = dir.join("sprocket").join("sprocket.toml");
+                let path = dir.join("sprocket").join(CONFIG_FILE_NAME);
                 if path.exists() {
-                    trace!("reading configuration from `{path}`", path = path.display());
+                    debug!("reading configuration from `{path}`", path = path.display());
                     figment = figment.admerge(Toml::file_exact(path));
                 }
             }
 
             // Check PWD for a config file
-            let path = Path::new("sprocket.toml");
+            let path = Path::new(CONFIG_FILE_NAME);
             if path.exists() {
-                trace!("reading configuration from `{path}`", path = path.display());
+                debug!("reading configuration from `{path}`", path = path.display());
                 figment = figment.admerge(Toml::file_exact(path));
             }
 
@@ -330,7 +344,7 @@ impl Config {
                         path = path.display()
                     );
                 } else {
-                    trace!(
+                    debug!(
                         "reading configuration from `{path}` via `SPROCKET_CONFIG`",
                         path = path.display()
                     );
@@ -348,7 +362,7 @@ impl Config {
                 );
             }
 
-            trace!(
+            debug!(
                 "reading configuration from `{path}` via CLI option",
                 path = path.display()
             );
