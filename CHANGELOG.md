@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
   rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
 
+#### Fixed
+
+* Allow excepting specific runtime items with `#@ except: ExpectedRuntimeKeys`
+  ([#563](https://github.com/stjude-rust-labs/sprocket/pull/563)).
+
 ## 0.20.1 - 01-12-2026
 
 ### Dependencies

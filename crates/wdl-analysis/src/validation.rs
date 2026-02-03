@@ -39,7 +39,7 @@ impl Diagnostics {
     }
 
     /// Checks ancestors of a syntax element for except directives for
-    /// a given rule idto see if the diagnostic should be applied or not.
+    /// a given rule id to see if the diagnostic should be applied or not.
     pub fn is_rule_excepted_in_ancestors(
         rule_id: &str,
         element: SyntaxElement,
