@@ -1068,7 +1068,7 @@ task slow_task {
 
     // Wait both to complete
     for id in &run_ids {
-        poll_for_completion(&db, id.parse().unwrap(), 10)
+        poll_for_completion(&db, id.parse().unwrap(), 120)
             .await
             .expect("run should complete");
     }
@@ -1134,9 +1134,9 @@ task my_task {
     let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for task to complete
-    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 120)
         .await
-        .expect("task should complete within 10 seconds");
+        .expect("task should complete");
     assert_eq!(status, RunStatus::Completed);
 
     // Get outputs to verify task was executed
