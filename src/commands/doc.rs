@@ -128,7 +128,9 @@ const DEFAULT_OUTPUT_DIR: &str = "docs";
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args) -> CommandResult<()> {
     if args.with_doc_comments {
-        tracing::warn!("the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757");
+        tracing::warn!(
+            "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
+        );
     }
 
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {

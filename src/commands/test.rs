@@ -115,7 +115,7 @@ pub struct Args {
     /// (which will be set with `Default::default()` if the user does not
     /// explicitly set `run` config values).
     #[clap(skip)]
-    pub engine: wdl::engine::config::Config,
+    pub engine: wdl::engine::Config,
 }
 
 impl Args {
@@ -363,31 +363,31 @@ async fn launch_tests(
     tests: DocumentTests,
     root: &Path,
     fixtures: &Arc<OriginPaths>,
-    engine: &Arc<wdl::engine::config::Config>,
+    engine: &Arc<wdl::engine::Config>,
     errors: &mut Vec<Arc<anyhow::Error>>,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {
     let mut results = IndexMap::new();
     let wdl_document = analysis.document();
     info!("testing WDL document `{}`", wdl_document.path());
-    for (entrypoint, definitions) in tests.entrypoints {
-        let entrypoint = Arc::new(entrypoint);
+    for (target, definitions) in tests.targets {
+        let target = Arc::new(target);
         let (is_workflow, outputs) = match (
-            wdl_document.task_by_name(&entrypoint),
+            wdl_document.task_by_name(&target),
             wdl_document.workflow(),
         ) {
             (Some(task), _) => (false, task.outputs()),
-            (None, Some(wf)) if wf.name() == *entrypoint => (true, wf.outputs()),
+            (None, Some(wf)) if wf.name() == *target => (true, wf.outputs()),
             (..) => {
                 errors.push(Arc::new(anyhow!(
-                    "no entrypoint named `{}` in `{}`",
-                    entrypoint,
+                    "no target named `{}` in `{}`",
+                    target,
                     wdl_document.path()
                 )));
                 continue;
             }
         };
-        info!("testing entrypoint `{}`", entrypoint);
+        info!("testing target `{}`", target);
         let mut tests = IndexMap::new();
         for test in definitions {
             if should_filter(&test) {
@@ -414,7 +414,7 @@ async fn launch_tests(
             info!("running `{}`", test.name);
             let run_root = root
                 .join(DEFAULT_RUNS_DIR)
-                .join(entrypoint.as_ref())
+                .join(target.as_ref())
                 .join(&test.name);
             if run_root.exists() {
                 remove_dir_all(&run_root).await.with_context(|| {
@@ -446,7 +446,7 @@ async fn launch_tests(
             for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
                 let inputs = match run_inputs
                     .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
-                        Ok(json_val) => Ok((format!("{entrypoint}.{key}"), json_val)),
+                        Ok(json_val) => Ok((format!("{target}.{key}"), json_val)),
                         Err(e) => Err(anyhow!(e)),
                     })
                     .collect::<Result<serde_json::Map<String, JsonValue>>>()
@@ -504,18 +504,12 @@ async fn launch_tests(
                 let name = test_name.clone();
                 let fixtures = fixtures.clone();
                 let engine = engine.clone();
-                let entrypoint = entrypoint.clone();
+                let target = target.clone();
                 let assertions = assertions.clone();
                 let document = wdl_document.clone();
                 futures.spawn(async move {
-                    let evaluator = Evaluator::new(
-                        &document,
-                        &entrypoint,
-                        wdl_inputs,
-                        &fixtures,
-                        engine,
-                        &run_dir,
-                    );
+                    let evaluator =
+                        Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
                     TestIteration {
                         name,
@@ -534,7 +528,7 @@ async fn launch_tests(
             }
             tests.insert(test_name.to_string(), futures);
         }
-        results.insert(entrypoint.to_string(), tests);
+        results.insert(target.to_string(), tests);
     }
 
     Ok(results)
@@ -546,11 +540,11 @@ async fn process_tests(
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
 ) -> Result<()> {
-    for (document_name, entrypoint_results) in tests {
+    for (document_name, target_results) in tests {
         info!("evaluating document: `{document_name}`");
-        for (entrypoint_name, results) in entrypoint_results {
-            info!("evaluating entrypoint: `{entrypoint_name}`");
-            let entrypoint_dir = root.join(&entrypoint_name);
+        for (target_name, results) in target_results {
+            info!("evaluating target: `{target_name}`");
+            let target_dir = root.join(&target_name);
             for (test_name, mut test_results) in results {
                 info!("evaluating test: `{test_name}`");
                 let mut success_counter = 0usize;
@@ -580,7 +574,7 @@ async fn process_tests(
                 if err_counter > 0 {
                     let total = err_counter + fail_counter + success_counter;
                     println!(
-                        "☠️ `{document_name}::{entrypoint_name}::{test_name}` had errors: \
+                        "☠️ `{document_name}::{target_name}::{test_name}` had errors: \
                          {err_counter} execution{err_plural} errored (out of {total} test \
                          execution{total_plural})",
                         err_plural = if err_counter > 1 { "s" } else { "" },
@@ -589,26 +583,26 @@ async fn process_tests(
                 } else if fail_counter > 0 {
                     let total = fail_counter + success_counter;
                     println!(
-                        "❌ `{document_name}::{entrypoint_name}::{test_name}` failed: \
-                         {fail_counter} execution{fail_plural} failed assertions (out of {total} \
+                        "❌ `{document_name}::{target_name}::{test_name}` failed: {fail_counter} \
+                         execution{fail_plural} failed assertions (out of {total} \
                          execution{total_plural})",
                         fail_plural = if fail_counter > 1 { "s" } else { "" },
                         total_plural = if total > 1 { "s" } else { "" },
                     )
                 } else {
                     println!(
-                        "✅ `{document_name}::{entrypoint_name}::{test_name}` success! \
+                        "✅ `{document_name}::{target_name}::{test_name}` success! \
                          ({success_counter} successful test execution{plural})",
                         plural = if success_counter > 1 { "s" } else { "" }
                     );
                     if clean {
-                        let test_dir = entrypoint_dir.join(test_name);
+                        let test_dir = target_dir.join(test_name);
                         let _ = remove_dir_all(&test_dir).await;
                     }
                 }
             }
-            // If the entrypoint directory is empty, remove it; otherwise leave it.
-            let _ = remove_dir(root.join(&entrypoint_name));
+            // If the target directory is empty, remove it; otherwise leave it.
+            let _ = remove_dir(root.join(&target_name));
         }
     }
     Ok(())

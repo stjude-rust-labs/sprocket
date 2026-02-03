@@ -113,7 +113,7 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
             fs::create_dir_all(&to)
                 .with_context(|| format!("failed to create directory at {:?}", &to))?;
         } else {
-            fs::copy(&from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
         }
     }
     Ok(())
@@ -167,9 +167,9 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
 ///
 /// The current environment variables supported are:
 ///
-/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized
-///   [`wdl::engine::config::Config`] that will be substituted in place of the
-///   default engine config for all of the `run/` tests.
+/// - `SPROCKET_TEST_ENGINE_CONFIG`: a TOML-serialized [`wdl::engine::Config`]
+///   that will be substituted in place of the default engine config for all of
+///   the `run/` tests.
 fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     let mut config_overridden = false;
     let mut sprocket_config = sprocket::Config::default();
@@ -341,7 +341,7 @@ fn compare_test_results(
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
-            &command_output.exit_code.to_string(),
+            command_output.exit_code.to_string(),
         )
         .context("failed to write exit code")?;
 
