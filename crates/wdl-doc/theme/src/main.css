@@ -11,6 +11,7 @@
   --color-brand-violet-400: var(--color-brand-violet-400);
   --color-brand-pink-400: var(--color-brand-pink-400);
   --color-brand-cyan-400: var(--color-brand-cyan-400);
+  --color-brand-lime-300: var(--color-brand-lime-300);
   --color-brand-red-400: var(--color-brand-red-400);
   --color-brand-yellow-50: var(--color-brand-yellow-50);
   --color-brand-yellow-400: var(--color-brand-yellow-400);
@@ -299,6 +300,15 @@
   }
   .main__summary-container {
     @apply inline;
+  }
+  .main__meta-item-member {
+    @apply mb-[0.75em];
+  }
+  .main__meta-item-member-description {
+    @apply ml-[1.5em];
+  }
+  .main__meta-item-member-description-para {
+    @apply mb-[0.75em];
   }
   /**
    * Left sidebar

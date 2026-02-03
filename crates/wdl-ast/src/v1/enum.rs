@@ -1,6 +1,7 @@
 //! V1 AST representation for enum definitions.
 
 use std::fmt;
+use std::fmt::Formatter;
 
 use super::EnumKeyword;
 use super::Expr;
@@ -51,17 +52,65 @@ impl<N: TreeNode> EnumDefinition<N> {
         f: &mut impl fmt::Write,
         computed_type: Option<&str>,
     ) -> fmt::Result {
-        write!(f, "```wdl\nenum {}", self.name().text())?;
+        writeln!(f, "```wdl")?;
+        write!(f, "{}", self.display(computed_type))?;
+        write!(f, "```")?;
 
-        if let Some(ty_param) = self.type_parameter() {
+        Ok(())
+    }
+
+    /// Returns an object that implements [`Display`] for printing enums that
+    /// may have a pre-computed type.
+    ///
+    /// The printed result will be stripped of any comments.
+    ///
+    /// For example:
+    ///
+    /// ```wdl
+    /// ## An RGB24 color enum
+    /// enum Color[String] {
+    ///     ## Pure red
+    ///     Red = "#FF0000",
+    /// }
+    /// ```
+    ///
+    /// Will produce:
+    ///
+    /// ```wdl
+    /// enum Color[String] {
+    ///     Red = "#FF0000",
+    /// }
+    /// ```
+    pub fn display<'a>(&'a self, computed_type: Option<&'a str>) -> EnumDefinitionDisplay<'a, N> {
+        EnumDefinitionDisplay {
+            definition: self,
+            computed_type,
+        }
+    }
+}
+
+/// Helper struct for printing [`EnumDefinition`]s.
+#[derive(Debug)]
+pub struct EnumDefinitionDisplay<'a, N: TreeNode> {
+    /// The enum definition to print.
+    definition: &'a EnumDefinition<N>,
+    /// The computed type of the enum, if provided.
+    computed_type: Option<&'a str>,
+}
+
+impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "enum {}", self.definition.name().text())?;
+
+        if let Some(ty_param) = self.definition.type_parameter() {
             write!(f, "[{}]", ty_param.ty().inner().text())?;
-        } else if let Some(computed_ty) = computed_type {
+        } else if let Some(computed_ty) = self.computed_type {
             write!(f, "[{}]", computed_ty)?;
         }
 
         writeln!(f, " {{")?;
 
-        for variant in self.variants() {
+        for variant in self.definition.variants() {
             write!(f, "  {}", variant.name().text())?;
             if let Some(value) = variant.value() {
                 write!(f, " = {}", value.inner().text())?;
@@ -69,7 +118,7 @@ impl<N: TreeNode> EnumDefinition<N> {
             writeln!(f, ",")?;
         }
 
-        writeln!(f, "}}\n```")?;
+        writeln!(f, "}}")?;
         Ok(())
     }
 }

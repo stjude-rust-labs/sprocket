@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Automatically remap symbolic links created by tasks that use guest paths to
+  their corresponding host paths ([#585](https://github.com/stjude-rust-labs/sprocket/pull/585)).
+* Fixed the `size` function not performing guest-to-host path translation for
+  `String` arguments ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
 * Fixed an issue where task requirements and hints sources from an inputs file
   were not being respected ([#543](https://github.com/stjude-rust-labs/sprocket/pull/543)).
 * Fixed a spec issue where nested task requirements and hints could not be set
@@ -24,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Refactored LSF backend to more efficiently track LSF jobs ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
 * Refactored how task execution backends are passed data relating to the tasks
   to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
 

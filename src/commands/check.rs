@@ -24,6 +24,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::diagnostics::DiagnosticCounts;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::diagnostics::get_diagnostics_display_config;
@@ -284,17 +285,7 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
         .await
         .map_err(CommandError::from)?;
 
-    #[derive(Default)]
-    struct Counts {
-        /// The number of errors encountered.
-        pub errors: usize,
-        /// The number of warnings encountered.
-        pub warnings: usize,
-        /// The number of notes encountered.
-        pub notes: usize,
-    }
-
-    let mut counts = Counts::default();
+    let mut counts = DiagnosticCounts::default();
 
     for result in results {
         let uri = &result.document().uri();
@@ -356,27 +347,16 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
         }
     }
 
-    if counts.errors > 0 {
-        return Err(anyhow!(
-            "failing due to {errors} error{s}",
-            errors = counts.errors,
-            s = if counts.errors == 1 { "" } else { "s" }
-        )
-        .into());
-    } else if args.common.deny_warnings && counts.warnings > 0 {
-        return Err(anyhow!(
-            "failing due to {warnings} warning{s} (`--deny-warnings` was specified)",
-            warnings = counts.warnings,
-            s = if counts.warnings == 1 { "" } else { "s" }
-        )
-        .into());
-    } else if args.common.deny_notes && counts.notes > 0 {
-        return Err(anyhow!(
-            "failing due to {notes} note{s} (`--deny-notes` was specified)",
-            notes = counts.notes,
-            s = if counts.notes == 1 { "" } else { "s" }
-        )
-        .into());
+    if let Some(e) = counts.verify_no_errors() {
+        return Err(e.into());
+    } else if args.common.deny_warnings
+        && let Some(e) = counts.verify_no_warnings(true)
+    {
+        return Err(e.into());
+    } else if args.common.deny_notes
+        && let Some(e) = counts.verify_no_notes(true)
+    {
+        return Err(e.into());
     }
 
     Ok(())

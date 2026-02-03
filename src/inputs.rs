@@ -1,4 +1,4 @@
-//! Invocations (inputs and entrypoints) parsed in from the command line.
+//! Invocations (inputs and targets) parsed in from the command line.
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -133,13 +133,13 @@ type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 /// A command-line invocation of a WDL workflow or task.
 ///
 /// An invocation is set of inputs parsed from the command line and/or read from
-/// files, along with an optional explicit specification of a named entrypoint.
+/// files, along with an optional explicit specification of a named target.
 #[derive(Clone, Debug, Default)]
 pub struct Invocation {
     /// The actual inputs map.
     inputs: JsonInputMap,
     /// The name of the task or workflow these inputs are provided for.
-    entrypoint: Option<String>,
+    target: Option<String>,
 }
 
 impl Invocation {
@@ -154,7 +154,7 @@ impl Invocation {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = if let Some(prefix) = &self.entrypoint {
+                let key = if let Some(prefix) = &self.target {
                     format!("{prefix}.{key}")
                 } else {
                     key
@@ -174,24 +174,24 @@ impl Invocation {
 
     /// Attempts to coalesce a set of inputs into an [`Inputs`].
     ///
-    /// `entrypoint` is the task or workflow the inputs are for.
-    /// If `entrypoint` is `Some(_)` then it will be prefixed to each
+    /// `target` is the task or workflow the inputs are for.
+    /// If `target` is `Some(_)` then it will be prefixed to each
     /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
-    /// common prefix specified. If `entrypoint` is `None` then all of the
+    /// common prefix specified. If `target` is `None` then all of the
     /// inputs in `iter` must be prefixed with the task or workflow name.
-    pub async fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
+    pub async fn coalesce<T, V>(iter: T, target: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
     {
-        if let Some(ep) = &entrypoint
-            && ep.contains('.')
+        if let Some(t) = &target
+            && t.contains('.')
         {
-            bail!("invalid entrypoint `{ep}`");
+            bail!("invalid target `{t}`");
         }
 
         let mut inputs = Invocation {
-            entrypoint,
+            target,
             ..Default::default()
         };
 
@@ -230,11 +230,11 @@ impl Invocation {
         let result = EngineInputs::parse_json_object(document, values)?;
 
         if let Some((derived, _)) = &result
-            && let Some(ep) = &self.entrypoint
-            && derived != ep
+            && let Some(t) = &self.target
+            && derived != t
         {
             bail!(format!(
-                "supplied entrypoint `{ep}` does not match derived entrypoint `{derived}`"
+                "supplied target `{t}` does not match derived target `{derived}`"
             ))
         }
 

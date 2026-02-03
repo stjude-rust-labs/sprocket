@@ -4,6 +4,8 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fs;
+use std::fs::read_link;
+use std::fs::remove_file;
 use std::io::BufRead;
 use std::mem;
 use std::path::Path;
@@ -17,6 +19,7 @@ use anyhow::bail;
 use bimap::BiHashMap;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use path_clean::clean;
 use petgraph::algo::toposort;
 use rev_buf_reader::RevBufReader;
 use tokio::task::JoinSet;
@@ -25,6 +28,7 @@ use tracing::debug;
 use tracing::enabled;
 use tracing::info;
 use tracing::warn;
+use walkdir::WalkDir;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::multiple_type_mismatch;
@@ -986,6 +990,14 @@ impl Evaluator {
         // Evaluate the remaining inputs (unused), private decls, and outputs if the
         // task executed successfully
         if !evaluated.failed() {
+            // Remap any guest symbolic links to the corresponding host paths
+            if let Err(e) = self.remap_links(&state, &evaluated) {
+                return Err(EvaluationError::new(
+                    state.document.clone(),
+                    task_execution_failed(&e, state.task.name(), id, state.task.name_span()),
+                ));
+            }
+
             for index in &nodes[current..] {
                 match &graph[*index] {
                     TaskGraphNode::Decl(decl) => {
@@ -1050,6 +1062,121 @@ impl Evaluator {
         } else {
             exit_code != 0
         }
+    }
+
+    /// Remaps any symbolic links in a local working directory that may
+    /// reference guest paths to the corresponding host paths.
+    ///
+    /// The link must be to a known input or an entry in the work directory
+    /// tree, otherwise an error is returned.
+    fn remap_links(&self, state: &State<'_>, evaluated: &EvaluatedTask) -> Result<()> {
+        // Don't remap links for backends that don't use guest paths
+        if self.backend.guest_inputs_dir().is_none() {
+            return Ok(());
+        }
+
+        // Only remap for local work directories
+        let Some(work_dir) = evaluated.work_dir().as_local() else {
+            return Ok(());
+        };
+
+        // Recursively walk the work directory and remap any symbolic links
+        for entry in WalkDir::new(work_dir).follow_links(false) {
+            let entry = entry.with_context(|| {
+                format!("failed to read directory `{dir}`", dir = work_dir.display())
+            })?;
+
+            // Ignore non-links
+            if !entry.path_is_symlink() {
+                continue;
+            }
+
+            // Get the link's path
+            let path = entry.path();
+            let link_path = read_link(path)
+                .with_context(|| format!("failed to read link `{path}`", path = path.display()))?;
+
+            let symlink_guest_path = clean(work_dir.join(&link_path));
+
+            // If the link's path is relative to the work directory, skip it
+            if symlink_guest_path.starts_with(work_dir) {
+                continue;
+            }
+
+            // Find a known guest path that starts the given guest path
+            // If there isn't one, it's an error
+            let Some(guest) = state
+                .path_map
+                .right_values()
+                .find(|p| symlink_guest_path.starts_with(p.0.as_str()))
+            else {
+                bail!(
+                    "`{path}` links to guest path `{link_path}` but it is not to a task input or \
+                     inside of the task's work directory",
+                    path = path.display(),
+                    link_path = link_path.display()
+                );
+            };
+
+            // Get the corresponding host path (lookup can't fail)
+            let host = state.path_map.get_by_right(guest).unwrap();
+
+            // Translate the guest path to the corresponding host path
+            let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
+                symlink_guest_path.strip_prefix(guest.0.as_str())
+                && !stripped.as_os_str().is_empty()
+            {
+                Cow::Owned(Path::new(host.0.as_str()).join(stripped))
+            } else {
+                Cow::Borrowed(Path::new(host.0.as_str()))
+            };
+
+            // Remove the existing link
+            remove_file(path).with_context(|| {
+                format!(
+                    "failed to remove symbolic link `{path}`",
+                    path = path.display()
+                )
+            })?;
+
+            // Recreate the link using the host path
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&symlink_host_path, path).with_context(|| {
+                    format!(
+                        "failed to create symlink `{path}` to `{symlink_path}`",
+                        path = path.display(),
+                        symlink_path = symlink_host_path.display()
+                    )
+                })?;
+            }
+            #[cfg(windows)]
+            {
+                if symlink_host_path.is_dir() {
+                    std::os::windows::fs::symlink_dir(&symlink_host_path, path).with_context(
+                        || {
+                            format!(
+                                "failed to create directory symlink `{path}` to `{symlink_path}`",
+                                path = path.display(),
+                                symlink_path = symlink_host_path.display()
+                            )
+                        },
+                    )?;
+                } else {
+                    std::os::windows::fs::symlink_file(&symlink_host_path, path).with_context(
+                        || {
+                            format!(
+                                "failed to create file symlink `{path}` to `{symlink_path}`",
+                                path = path.display(),
+                                symlink_path = symlink_host_path.display()
+                            )
+                        },
+                    )?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Creates a task failure error for the given execution result.

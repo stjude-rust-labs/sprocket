@@ -52,7 +52,7 @@ const FILE_PROTOCOL: &str = "file://";
 const SIF_EXTENSION: &str = "sif";
 
 /// Represents the source of a container image.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ContainerSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
@@ -64,6 +64,31 @@ pub enum ContainerSource {
     SifFile(PathBuf),
     /// An unknown container source that could not be parsed.
     Unknown(String),
+}
+
+impl ContainerSource {
+    /// Gets the scheme of the container source.
+    ///
+    /// Returns `None` for unknown container sources.
+    pub fn scheme(&self) -> Option<&'static str> {
+        match self {
+            Self::Docker(_) => Some("docker"),
+            Self::Library(_) => Some("library"),
+            Self::Oras(_) => Some("oras"),
+            Self::SifFile(_) => Some("file"),
+            Self::Unknown(_) => None,
+        }
+    }
+
+    /// Gets the display name of the container source.
+    ///
+    /// Returns `None` if the source is a file or an unknown source.
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Self::Docker(name) | Self::Library(name) | Self::Oras(name) => Some(name),
+            Self::SifFile(_) | Self::Unknown(_) => None,
+        }
+    }
 }
 
 impl FromStr for ContainerSource {

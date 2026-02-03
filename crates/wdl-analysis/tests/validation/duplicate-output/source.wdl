@@ -4,11 +4,11 @@ version 1.1
 
 task t {
     output {
-
+        String a = ""
     }
 
     output {
-
+        String b = ""
     }
 
     command <<<>>>
@@ -17,11 +17,11 @@ task t {
 # A duplicate task should trigger a single error and then be ignored.
 task t {
     output {
-
+        String a = ""
     }
 
     output {
-
+        String b = ""
     }
 
     command <<<>>>
@@ -29,10 +29,10 @@ task t {
 
 workflow w {
     output {
-
+        String a = ""
     }
 
     output {
-
+        String b = ""
     }
 }
