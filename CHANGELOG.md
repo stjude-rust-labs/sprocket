@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `sprocket dev server` command for running an HTTP API server for
+  workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added SQLite-backed database layer for tracking sessions, runs, and tasks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added index system for organizing run outputs via symlinks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
   rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
 * Added the `--with-doc-comments` CLI option to `sprocket dev doc` to enable
@@ -17,7 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* `sprocket dev doc` will now **fail** in the presence of analysis errors 
+* Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* `sprocket dev doc` will now **fail** in the presence of analysis errors
   that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
 
 ## 0.20.1 - 01-12-2026
