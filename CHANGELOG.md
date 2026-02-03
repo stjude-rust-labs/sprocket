@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added reading configuration from a `sprocket.toml` next to the sprocket
+  executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
   workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * Added SQLite-backed database layer for tracking sessions, runs, and tasks
