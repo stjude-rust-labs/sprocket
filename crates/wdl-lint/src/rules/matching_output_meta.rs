@@ -179,21 +179,21 @@ fn check_matching(
     }
 
     // Check for extra entries in `meta.outputs`.
+    // This should flag any meta.outputs entry that doesn't have a corresponding
+    // declared output, even if the output section is entirely missing.
     for (name, span) in &rule.meta_outputs_keys {
         if !rule.output_keys.contains_key(name) {
             exact_match = false;
-            if rule.current_output_span.is_some() {
-                diagnostics.exceptable_add(
-                    extra_output_in_meta(
-                        *span,
-                        name,
-                        rule.name.as_deref().expect("should have a name"),
-                        rule.ty.expect("should have a type"),
-                    ),
-                    element.clone(),
-                    &rule.exceptable_nodes(),
-                );
-            }
+            diagnostics.exceptable_add(
+                extra_output_in_meta(
+                    *span,
+                    name,
+                    rule.name.as_deref().expect("should have a name"),
+                    rule.ty.expect("should have a type"),
+                ),
+                element.clone(),
+                &rule.exceptable_nodes(),
+            );
         }
     }
 

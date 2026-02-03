@@ -213,3 +213,16 @@ task quuuux {
         String s = "string"
     }
 }
+
+# This task has meta.outputs but NO output section at all.
+# All entries in meta.outputs should be flagged as extra.
+task no_output_section {
+    meta {
+        outputs: {
+            nonexistent: "This output does not exist",
+            also_nonexistent: "Neither does this one",
+        }
+    }
+
+    command <<< >>>
+}
