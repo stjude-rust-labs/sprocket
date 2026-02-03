@@ -456,30 +456,34 @@ impl Postprocessor {
         assert!(self.position == LinePosition::StartOfLine);
         // Preprocess the input stream to split long except directives if needed
         let mut expanded_stream = TokenStream::<PreToken>::default();
-        if let Some(max_len) = config.max_line_length() {
+        let in_stream = if let Some(max_len) = config.max_line_length() {
             for token in in_stream.iter() {
                 if let PreToken::Trivia(Trivia::Comment(Comment::Preceding(value))) = token {
-                    let lines = split_except_directive_lines(value, max_len);
-                    if lines.len() > 1 {
-                        // Split occurred, emit multiple comment tokens
-                        for line in lines {
-                            expanded_stream.push(PreToken::Trivia(Trivia::Comment(
-                                Comment::Preceding(Rc::new(line)),
-                            )));
+                    if value.trim_start().starts_with("#@") {
+                        let lines = split_except_directive_lines(value, max_len);
+                        if lines.len() > 1 {
+                            // Split occurred, emit multiple comment tokens
+                            for line in lines {
+                                expanded_stream.push(PreToken::Trivia(Trivia::Comment(
+                                    Comment::Preceding(Rc::new(line)),
+                                )));
+                            }
+                        } else {
+                            // No split needed, pass through unchanged
+                            expanded_stream.push(token.clone());
                         }
                     } else {
-                        // No split needed, pass through unchanged
                         expanded_stream.push(token.clone());
                     }
                 } else {
                     expanded_stream.push(token.clone());
                 }
             }
+            &expanded_stream
         } else {
             // No max line length configured, use original stream
-            expanded_stream = in_stream.clone();
-        }
-        let in_stream = &expanded_stream;
+            in_stream
+        };
         let mut post_buffer = TokenStream::<PostToken>::default();
         let mut pre_buffer = in_stream.iter().peekable();
         let starting_indent = self.indent_level;
