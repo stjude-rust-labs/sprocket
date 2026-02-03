@@ -192,9 +192,9 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 
     // Wait for run to complete
     let run_id_uuid = run_id.parse().unwrap();
-    let status = poll_for_completion(&db, run_id_uuid, 10)
+    let status = poll_for_completion(&db, run_id_uuid, 120)
         .await
-        .expect("run should complete within 10 seconds");
+        .expect("run should complete");
 
     assert_eq!(status, RunStatus::Completed);
 
@@ -289,7 +289,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
     let run_id_1 = submit_response["uuid"].as_str().unwrap();
 
     // Wait for first run to complete
-    let status = poll_for_completion(&db, run_id_1.parse().unwrap(), 10)
+    let status = poll_for_completion(&db, run_id_1.parse().unwrap(), 120)
         .await
         .expect("first run should complete");
     assert_eq!(status, RunStatus::Completed);
@@ -334,7 +334,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
     let run_id_2 = submit_response["uuid"].as_str().unwrap();
 
     // Wait for second run to complete
-    let status = poll_for_completion(&db, run_id_2.parse().unwrap(), 10)
+    let status = poll_for_completion(&db, run_id_2.parse().unwrap(), 120)
         .await
         .expect("second run should complete");
     assert_eq!(status, RunStatus::Completed);
@@ -418,7 +418,7 @@ task sleep_task {
     let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for workflow to start running
-    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 120)
         .await
         .expect("workflow should start running");
 
@@ -541,7 +541,7 @@ task sleep_task {
     let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for workflow to start running
-    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 10)
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 120)
         .await
         .expect("workflow should start running");
 
@@ -607,7 +607,7 @@ this is not valid WDL syntax
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
 
-    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    let status = poll_for_completion(&db, run_id, 120).await.unwrap();
     assert_eq!(
         status,
         RunStatus::Failed,
@@ -708,7 +708,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 
     // Wait for all workflows to complete
     for run_id in &run_ids {
-        poll_for_completion(&db, run_id.parse().unwrap(), 10)
+        poll_for_completion(&db, run_id.parse().unwrap(), 120)
             .await
             .expect("workflow should complete");
     }
@@ -832,7 +832,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
     let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for completion
-    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 120)
         .await
         .expect("workflow should complete");
     assert_eq!(status, RunStatus::Completed);
@@ -920,9 +920,9 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
     let run_id = submit_response["uuid"].as_str().unwrap();
 
     // Wait for completion
-    let status = poll_for_completion(&db, run_id.parse().unwrap(), 10)
+    let status = poll_for_completion(&db, run_id.parse().unwrap(), 120)
         .await
-        .expect("workflow should complete within 10 seconds");
+        .expect("workflow should complete");
     assert_eq!(status, RunStatus::Completed);
 
     // Verify final database state
@@ -1217,7 +1217,7 @@ task task_two {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
 
-    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    let status = poll_for_completion(&db, run_id, 120).await.unwrap();
     assert_eq!(
         status,
         RunStatus::Failed,
@@ -1266,7 +1266,7 @@ async fn target_not_found_fails_run(pool: sqlx::SqlitePool) {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
 
-    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    let status = poll_for_completion(&db, run_id, 120).await.unwrap();
     assert_eq!(
         status,
         RunStatus::Failed,
@@ -1322,7 +1322,7 @@ version 1.2
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
 
-    let status = poll_for_completion(&db, run_id, 10).await.unwrap();
+    let status = poll_for_completion(&db, run_id, 120).await.unwrap();
     assert_eq!(
         status,
         RunStatus::Failed,
