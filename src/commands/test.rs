@@ -372,21 +372,19 @@ async fn launch_tests(
     info!("testing WDL document `{}`", wdl_document.path());
     for (target, definitions) in tests.targets {
         let target = Arc::new(target);
-        let (is_workflow, outputs) = match (
-            wdl_document.task_by_name(&target),
-            wdl_document.workflow(),
-        ) {
-            (Some(task), _) => (false, task.outputs()),
-            (None, Some(wf)) if wf.name() == *target => (true, wf.outputs()),
-            (..) => {
-                errors.push(Arc::new(anyhow!(
-                    "no target named `{}` in `{}`",
-                    target,
-                    wdl_document.path()
-                )));
-                continue;
-            }
-        };
+        let (is_workflow, outputs) =
+            match (wdl_document.task_by_name(&target), wdl_document.workflow()) {
+                (Some(task), _) => (false, task.outputs()),
+                (None, Some(wf)) if wf.name() == *target => (true, wf.outputs()),
+                (..) => {
+                    errors.push(Arc::new(anyhow!(
+                        "no target named `{}` in `{}`",
+                        target,
+                        wdl_document.path()
+                    )));
+                    continue;
+                }
+            };
         info!("testing target `{}`", target);
         let mut tests = IndexMap::new();
         for test in definitions {
