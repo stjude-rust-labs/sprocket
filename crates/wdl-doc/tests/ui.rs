@@ -36,6 +36,7 @@ use thirtyfour::prelude::WebDriverResult;
 use thirtyfour::start_webdriver_process_full;
 use thirtyfour::support::block_on;
 use tokio::sync::Mutex;
+use tokio::sync::OnceCell;
 use tokio::task::JoinSet;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_doc::Config;
@@ -119,11 +120,7 @@ impl TestCategoryDirs {
 }
 
 /// Finds all UI tests and sets up libtest `Trials` for each.
-fn find_tests(
-    addresses: &ServerAddressMap,
-    driver: Arc<Mutex<WebDriver>>,
-    primary_window: WindowHandle,
-) -> anyhow::Result<Vec<Trial>> {
+async fn find_tests() -> anyhow::Result<Vec<Trial>> {
     let ui_tests_dir = Path::new("tests").join("ui");
 
     let mut trials = Vec::new();
@@ -147,9 +144,6 @@ fn find_tests(
             );
         };
 
-        let server_addr = addresses.get(&*category_name).expect("should exist");
-
-        let category_url = format!("http://{server_addr}");
         for category_entry in category_path.read_dir()? {
             let entry = category_entry.expect("failed to read directory");
             let test_path = entry.path();
@@ -175,13 +169,23 @@ fn find_tests(
                 );
             };
 
-            let driver = driver.clone();
-            let category_url = category_url.clone();
-            let primary_window = primary_window.clone();
-
+            let category_name = category_name.clone();
             trials.push(Trial::test(test_name, move || {
                 let task = async move {
-                    let mut driver = driver.lock().await;
+                    let ctx = match global_state().await {
+                        GlobalState::Ready(ctx) => ctx,
+                        GlobalState::Failed(e, _) => {
+                            return Err(anyhow!("failed to get global state: {e}").into());
+                        }
+                    };
+
+                    let server_addr = ctx
+                        .server_addresses
+                        .get(&*category_name)
+                        .expect("should exist");
+                    let category_url = format!("http://{server_addr}");
+
+                    let mut driver = ctx.driver.lock().await;
                     let handle = driver.new_tab().await?;
                     driver.switch_to_window(handle).await?;
                     driver.goto(&category_url).await?;
@@ -189,7 +193,7 @@ fn find_tests(
 
                     // Cleanup
                     driver.close_window().await?;
-                    driver.switch_to_window(primary_window).await?;
+                    driver.switch_to_window(ctx.primary_window.clone()).await?;
 
                     Ok(())
                 };
@@ -238,7 +242,7 @@ fn router(category: &str) -> Router {
 type ServerAddressMap = HashMap<&'static str, SocketAddr>;
 
 /// Setup a web server for each test category.
-async fn setup_web_servers() -> anyhow::Result<Arc<Mutex<ServerAddressMap>>> {
+async fn setup_web_servers() -> anyhow::Result<ServerAddressMap> {
     let addresses = Arc::new(Mutex::new(HashMap::new()));
 
     let mut set = JoinSet::new();
@@ -268,14 +272,22 @@ async fn setup_web_servers() -> anyhow::Result<Arc<Mutex<ServerAddressMap>>> {
     };
 
     match tokio::time::timeout(Duration::from_secs(10), wait_for_setup).await? {
-        Ok(()) => Ok(addresses),
+        Ok(()) => Ok(Arc::try_unwrap(addresses)
+            .expect("should be exclusive")
+            .into_inner()),
         Err(e) => Err(e),
     }
 }
 
+/// Get a random unused port.
+async fn random_port() -> anyhow::Result<u16> {
+    let addr = tokio::net::TcpListener::bind("localhost:0").await?;
+    Ok(addr.local_addr()?.port())
+}
+
 /// Configure and run the webdriver process.
 async fn setup_webdriver() -> anyhow::Result<WebDriver> {
-    const WEB_DRIVER_PORT: u16 = 9515;
+    let port = random_port().await?;
 
     let mut caps = DesiredCapabilities::chrome();
     caps.add_arg("--headless=new")?;
@@ -283,7 +295,7 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     caps.add_arg("--disable-dev-shm-usage")?;
     caps.add_arg("--disable-gpu")?;
     start_webdriver_process_full(
-        WebDriverProcessPort::Port(WEB_DRIVER_PORT),
+        WebDriverProcessPort::Port(port),
         WebDriverProcessBrowser::<ChromeCapabilities>::Caps(&caps),
         true,
     )
@@ -294,46 +306,56 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     tracing::info!("Waiting for webdriver process to start...");
     tokio::time::sleep(Duration::from_secs(5)).await;
 
-    let driver = WebDriver::new(format!("http://localhost:{WEB_DRIVER_PORT}"), caps).await?;
+    let driver = WebDriver::new(format!("http://localhost:{port}"), caps).await?;
     Ok(driver)
 }
 
-/// The fallible main logic.
-async fn real_main() -> Result<WebDriver, (anyhow::Error, Option<WebDriver>)> {
-    let unwrap_driver = |driver| {
-        Arc::try_unwrap(driver)
-            .map(Mutex::into_inner)
-            .expect("should be able to unwrap driver")
-    };
+/// Global state shared between all UI tests.
+#[derive(Clone)]
+enum GlobalState {
+    /// The state was initialized successfully.
+    Ready(Arc<DriverContext>),
+    /// The state failed initialization.
+    Failed(Arc<anyhow::Error>, Option<Arc<Mutex<WebDriver>>>),
+}
 
-    let args = libtest_mimic::Arguments::from_args();
+/// The webdriver handle and its surrounding context.
+struct DriverContext {
+    /// A handle to the webdriver.
+    driver: Arc<Mutex<WebDriver>>,
+    /// A map of test categories to their server addresses.
+    server_addresses: ServerAddressMap,
+    /// The initial blank window of the webdriver.
+    primary_window: WindowHandle,
+}
 
-    let addresses = setup_web_servers().await.map_err(|e| (e, None))?;
-    let driver = setup_webdriver().await.map_err(|e| (e, None))?;
+/// Global state shared between all UI tests.
+static GLOBAL_STATE: OnceCell<Mutex<Option<GlobalState>>> = OnceCell::const_new();
 
-    // The initial blank page
-    let primary_window = match driver.window().await {
-        Ok(window) => window,
-        Err(e) => return Err((e.into(), Some(driver))),
-    };
+/// Initialize and get the [`GLOBAL_STATE`].
+async fn global_state() -> GlobalState {
+    let mutex = GLOBAL_STATE
+        .get_or_init(|| async {
+            let state = match setup_webdriver().await {
+                Ok(driver) => {
+                    let driver_arc = Arc::new(Mutex::new(driver));
+                    match setup_web_servers().await {
+                        Ok(addresses) => GlobalState::Ready(Arc::new(DriverContext {
+                            driver: driver_arc.clone(),
+                            server_addresses: addresses,
+                            primary_window: driver_arc.lock().await.window().await.unwrap(),
+                        })),
+                        Err(e) => GlobalState::Failed(Arc::new(e), Some(driver_arc)),
+                    }
+                }
+                Err(e) => GlobalState::Failed(Arc::new(e), None),
+            };
+            Mutex::new(Some(state))
+        })
+        .await;
 
-    let driver = Arc::new(Mutex::new(driver));
-
-    let tests = match find_tests(&*addresses.lock().await, driver.clone(), primary_window) {
-        Ok(tests) => tests,
-        Err(e) => {
-            return Err((e, Some(unwrap_driver(driver))));
-        }
-    };
-
-    if libtest_mimic::run(&args, tests).has_failed() {
-        return Err((
-            anyhow!("one or more tests failed"),
-            Some(unwrap_driver(driver)),
-        ));
-    }
-
-    Ok(unwrap_driver(driver))
+    let guard = mutex.lock().await;
+    guard.as_ref().expect("taken").clone()
 }
 
 #[tokio::main]
@@ -345,24 +367,34 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .init();
 
-    let result = real_main().await;
-    let exit;
-    let driver = match result {
-        Ok(driver) => {
-            exit = Ok(());
-            Some(driver)
-        }
-        Err((e, driver)) => {
-            exit = Err(e);
-            driver
-        }
+    let args = libtest_mimic::Arguments::from_args();
+    let tests = find_tests().await?;
+
+    let conclusion = libtest_mimic::run(&args, tests);
+
+    let Some(global_state) = GLOBAL_STATE.get() else {
+        return Ok(());
     };
 
-    if let Some(driver) = driver
-        && let Err(e) = driver.quit().await
-    {
-        tracing::error!("Failed to quit web driver: {e}");
+    let mut guard = global_state.lock().await;
+    if let Some(state) = guard.take() {
+        let driver_arc = match state {
+            GlobalState::Ready(ctx) => Some(ctx.driver.clone()),
+            GlobalState::Failed(e, d) => {
+                tracing::error!("Failed to initialize webdriver: {e}");
+                d
+            }
+        };
+
+        if let Some(driver) = driver_arc {
+            let driver_mutex = Arc::try_unwrap(driver).expect("should be exclusive");
+            let driver = driver_mutex.into_inner();
+
+            if let Err(e) = driver.quit().await {
+                tracing::error!("Failed to quit webdriver: {e}");
+            }
+        }
     }
 
-    exit
+    conclusion.exit()
 }
