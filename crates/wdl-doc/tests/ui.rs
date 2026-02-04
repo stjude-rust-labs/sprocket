@@ -23,6 +23,7 @@ use anyhow::bail;
 use axum::Router;
 use axum::routing::get_service;
 use libtest_mimic::Trial;
+use tempfile::TempDir;
 use thirtyfour::By;
 use thirtyfour::ChromeCapabilities;
 use thirtyfour::ChromiumLikeCapabilities;
@@ -110,17 +111,18 @@ struct TestCategoryDirs {
 
 impl TestCategoryDirs {
     /// Get the directories for the given test category.
-    fn for_category(category: &str) -> Self {
-        let base = Path::new("tests").join("ui").join(category);
+    fn for_category(tmp: &Path, category: &str) -> Self {
+        let project_base = Path::new("tests").join("ui").join(category);
+        let base = tmp.join(category);
         Self {
             docs: base.join("docs"),
-            assets: base.join("assets"),
+            assets: project_base.join("assets"),
         }
     }
 }
 
 /// Finds all UI tests and sets up libtest `Trials` for each.
-async fn find_tests() -> anyhow::Result<Vec<Trial>> {
+async fn find_tests(tmp_dir: PathBuf) -> anyhow::Result<Vec<Trial>> {
     let ui_tests_dir = Path::new("tests").join("ui");
 
     let mut trials = Vec::new();
@@ -170,9 +172,10 @@ async fn find_tests() -> anyhow::Result<Vec<Trial>> {
             };
 
             let category_name = category_name.clone();
+            let tmp_dir = tmp_dir.clone();
             trials.push(Trial::test(test_name, move || {
                 let task = async move {
-                    let ctx = match global_state().await {
+                    let ctx = match global_state(tmp_dir).await {
                         GlobalState::Ready(ctx) => ctx,
                         GlobalState::Failed(e, _) => {
                             return Err(anyhow!("failed to get global state: {e}").into());
@@ -207,18 +210,9 @@ async fn find_tests() -> anyhow::Result<Vec<Trial>> {
 }
 
 /// Generates the documentation for the workspace under
-/// `./ui/<category>/assets`, if it doesn't already exist, or it needs to be
-/// blessed.
-async fn generate_docs_if_needed(category: &str) -> anyhow::Result<()> {
-    let paths = TestCategoryDirs::for_category(category);
-    if paths.docs.exists() {
-        if std::env::var_os("BLESS").is_some() {
-            std::fs::remove_dir_all(&paths.docs)?;
-        } else {
-            return Ok(());
-        }
-    }
-
+/// `<tmp_dir>/<category>/assets`.
+async fn generate_docs(tmp_dir: &Path, category: &str) -> anyhow::Result<()> {
+    let paths = TestCategoryDirs::for_category(tmp_dir, category);
     let config = Config::new(AnalysisConfig::default(), &paths.assets, &paths.docs);
 
     tracing::info!("Generating docs for workspace '{}'", paths.assets.display());
@@ -230,11 +224,10 @@ async fn generate_docs_if_needed(category: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Create a router for the given `category`.
-fn router(category: &str) -> Router {
-    let paths = TestCategoryDirs::for_category(category);
+/// Create a router that serves `docs_path`.
+fn router(docs_path: &Path) -> Router {
     Router::new().fallback_service(get_service(
-        tower_http::services::ServeDir::new(paths.docs).append_index_html_on_directories(true),
+        tower_http::services::ServeDir::new(docs_path).append_index_html_on_directories(true),
     ))
 }
 
@@ -242,15 +235,18 @@ fn router(category: &str) -> Router {
 type ServerAddressMap = HashMap<&'static str, SocketAddr>;
 
 /// Setup a web server for each test category.
-async fn setup_web_servers() -> anyhow::Result<ServerAddressMap> {
+async fn setup_web_servers(tmp_dir: PathBuf) -> anyhow::Result<ServerAddressMap> {
     let addresses = Arc::new(Mutex::new(HashMap::new()));
 
     let mut set = JoinSet::new();
 
     for category in TEST_CATEGORIES.keys().copied() {
+        let paths = TestCategoryDirs::for_category(&tmp_dir, category);
         let addresses = addresses.clone();
+
+        let tmp = tmp_dir.clone();
         set.spawn(async move {
-            generate_docs_if_needed(category).await?;
+            generate_docs(&tmp, category).await?;
             let listener = tokio::net::TcpListener::bind("localhost:0").await?;
             let addr = listener.local_addr()?;
 
@@ -259,7 +255,7 @@ async fn setup_web_servers() -> anyhow::Result<ServerAddressMap> {
             addresses.lock().await.insert(category, addr);
 
             tokio::spawn(async move {
-                let _ = axum::serve(listener, router(category)).await;
+                let _ = axum::serve(listener, router(&paths.docs)).await;
             });
 
             Ok(())
@@ -333,13 +329,13 @@ struct DriverContext {
 static GLOBAL_STATE: OnceCell<Mutex<Option<GlobalState>>> = OnceCell::const_new();
 
 /// Initialize and get the [`GLOBAL_STATE`].
-async fn global_state() -> GlobalState {
+async fn global_state(tmp_dir: PathBuf) -> GlobalState {
     let mutex = GLOBAL_STATE
         .get_or_init(|| async {
             let state = match setup_webdriver().await {
                 Ok(driver) => {
                     let driver_arc = Arc::new(Mutex::new(driver));
-                    match setup_web_servers().await {
+                    match setup_web_servers(tmp_dir).await {
                         Ok(addresses) => GlobalState::Ready(Arc::new(DriverContext {
                             driver: driver_arc.clone(),
                             server_addresses: addresses,
@@ -367,8 +363,10 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .init();
 
+    let tmp = TempDir::with_prefix("wdl-doc-ui")?;
+
     let args = libtest_mimic::Arguments::from_args();
-    let tests = find_tests().await?;
+    let tests = find_tests(tmp.path().to_path_buf()).await?;
 
     let conclusion = libtest_mimic::run(&args, tests);
 
