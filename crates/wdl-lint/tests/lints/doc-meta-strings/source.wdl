@@ -1,5 +1,5 @@
 #@ except: MatchingOutputMeta, MetaKeyValueFormatting, ExpectedRuntimeKeys
-#@ except: ParameterMetaMatched, RuntimeSection, ParameterDescription
+#@ except: ParameterMetaMatched, RuntimeSection
 
 version 1.1
 
