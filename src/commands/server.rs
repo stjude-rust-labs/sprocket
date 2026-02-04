@@ -77,7 +77,7 @@ pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
     // Validate that at least one source type is allowed
     if config.server.allowed_file_paths.is_empty() && config.server.allowed_urls.is_empty() {
         return Err(anyhow::anyhow!(
-            "at least one of `allowed_file_paths` or `allowed_urls` must be specified"
+            "at least one of `allowed-file-paths` or `allowed-urls` must be specified"
         )
         .into());
     }
