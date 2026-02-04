@@ -21,6 +21,8 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 
+use crate::docker_tests_enabled;
+
 /// Create a test server with real database and filesystem.
 #[bon::builder]
 async fn create_test_server(
@@ -148,6 +150,10 @@ workflow test {
 
 #[sqlx::test]
 async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Write WDL to a file in the allowed directory
@@ -260,6 +266,10 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     let wdl_file = temp.path().join("wdl").join("test.wdl");
@@ -369,6 +379,10 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn cancel_running_run(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Write long-running WDL to a file
@@ -482,6 +496,10 @@ task sleep_task {
 
 #[sqlx::test]
 async fn cancel_running_run_fast_mode(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     // Create execution config with fast failure mode
     let engine_config = wdl::engine::Config {
         failure_mode: wdl::engine::config::FailureMode::Fast,
@@ -672,6 +690,10 @@ async fn get_run_not_found(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Submit multiple workflows
@@ -803,6 +825,10 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Submit and wait for completion
@@ -884,6 +910,10 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn run_with_indexing(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Create an index directory
@@ -981,6 +1011,10 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 async fn max_concurrent_runs_limit(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server()
         .pool(pool)
         .max_concurrent_runs(1)
@@ -1082,6 +1116,10 @@ task slow_task {
 
 #[sqlx::test]
 async fn execute_task_with_explicit_target(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
     // Create a WDL with both a workflow and a task
@@ -1341,6 +1379,10 @@ version 1.2
 
 #[sqlx::test]
 async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
+    if !docker_tests_enabled() {
+        return;
+    }
+
     let temp = TempDir::new().unwrap();
     let wdl_dir = temp.path().join("wdl");
     std::fs::create_dir(&wdl_dir).unwrap();
