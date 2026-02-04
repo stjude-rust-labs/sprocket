@@ -51,11 +51,10 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
         }
         if path.is_dir() {
             // The following tests require Docker, so skip if the Docker tests are disabled
-            if std::env::var("DISABLE_DOCKER_TESTS").is_ok() {
-                match path.file_name().and_then(|n| n.to_str()) {
-                    Some("run") | Some("test") => continue,
-                    _ => {}
-                }
+            #[cfg(docker_tests_disabled)]
+            match path.file_name().and_then(|n| n.to_str()) {
+                Some("run") | Some("test") => continue,
+                _ => {}
             }
 
             tests.append(&mut find_tests(path.as_path()));

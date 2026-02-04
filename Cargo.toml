@@ -131,6 +131,7 @@ nonstandard-style = "warn"
 rust-2018-idioms = "warn"
 rust-2021-compatibility = "warn"
 rust-2024-compatibility = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docker_tests_disabled)'] }
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

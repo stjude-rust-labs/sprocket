@@ -118,6 +118,7 @@ pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
         return Ok(HashMap::from([("env_config".to_string(), config)]));
     }
 
+    #[allow(unused_mut)]
     let mut configs = HashMap::from([(
         "local".to_string(),
         TestConfig {
@@ -136,22 +137,22 @@ pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
     // Currently we limit running the Docker backend to Linux as GitHub does not
     // have Docker installed on macOS hosted runners and the Windows hosted
     // runners are configured to use Windows containers
-    if std::env::var("DISABLE_DOCKER_TESTS").is_err() {
-        configs.insert(
-            "docker".to_string(),
-            TestConfig {
-                engine: EngineConfig {
-                    backends: [(
-                        "default".to_string(),
-                        BackendConfig::Docker(Default::default()),
-                    )]
-                    .into(),
-                    ..Default::default()
-                },
-                ..TestConfig::default()
+    #[cfg(not(docker_tests_disabled))]
+    configs.insert(
+        "docker".to_string(),
+        TestConfig {
+            engine: EngineConfig {
+                backends: [(
+                    "default".to_string(),
+                    BackendConfig::Docker(Default::default()),
+                )]
+                .into(),
+                ..Default::default()
             },
-        );
-    }
+            ..TestConfig::default()
+        },
+    );
+
     Ok(configs)
 }
 

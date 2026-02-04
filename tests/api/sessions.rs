@@ -19,8 +19,6 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 
-use crate::docker_tests_enabled;
-
 /// Create a test server with real database and filesystem.
 #[bon::builder]
 async fn create_test_server(
@@ -103,11 +101,8 @@ async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
-    if !docker_tests_enabled() {
-        return;
-    }
-
     let (app, _, temp) = create_test_server().pool(pool).call().await;
 
     // Write WDL to a file
@@ -205,11 +200,8 @@ async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
-    if !docker_tests_enabled() {
-        return;
-    }
-
     let (app, _, temp) = create_test_server().pool(pool).call().await;
 
     // Write WDL to a file
