@@ -8,36 +8,78 @@ note[PreambleCommentPlacement]: preamble comment after the version statement
    = help: freestanding doc comments (`##`) are assumed to be preamble comments
    = fix: move the preamble comment before the `version` statement
 
-note[UnusedDocComments]: wdl-doc does not generate documentation for metadata section
-   ┌─ tests/lints/unused-doc-comments/source.wdl:34:5
-   │  
-34 │ ╭     ## This doc comment does nothing and the user should be warned!
-35 │ │     meta {
-   │ ╰────^
-   │  
-   = help: Doc comments must be attached to syntax nodes that support doc comments
+note[UnusedDocComments]: Doc comments aren't supported on comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:38:5
+   │
+38 │     ## You can't doc comment a comment - the user should be warned.
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
-note[UnusedDocComments]: wdl-doc does not generate documentation for comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:55:5
+note[UnusedDocComments]: Doc comments aren't supported on command section
+   ┌─ tests/lints/unused-doc-comments/source.wdl:40:5
    │  
-55 │ ╭     ## You can't doc comment a comment - the user should be warned.
-56 │ │     # Comment about my doc comment
-   │ ╰────^
+40 │ ╭     ## Commands don't support doc comments so the user should be warned here.
+41 │ │     ## about this multiline comment with whitespace...
+42 │ │     ##
+43 │ │     ## ... that isn't doing anything!
+   │ ╰─────────────────────────────────────^
    │  
-   = help: Doc comments must be attached to syntax nodes that support doc comments
+   = help: Doc comments must be attached to WDL items that support doc comments
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
-note[UnusedDocComments]: wdl-doc does not generate documentation for command section
-   ┌─ tests/lints/unused-doc-comments/source.wdl:57:5
-   │  
-57 │ ╭     ## Commands don't support doc comments so the user should be warned here.
-58 │ │     ## about this multiline comment with whitespace...
-59 │ │     ##
-60 │ │     ## ... that isn't doing anything!
-61 │ │     command <<<
-   │ ╰────^
-   │  
-   = help: Doc comments must be attached to syntax nodes that support doc comments
+note[UnusedDocComments]: Doc comments aren't supported on metadata section
+   ┌─ tests/lints/unused-doc-comments/source.wdl:53:5
+   │
+53 │     ## This doc comment does nothing and the user should be warned!
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Doc comments aren't supported on call statement
+   ┌─ tests/lints/unused-doc-comments/source.wdl:66:5
+   │
+66 │     ## I am not allowed to be doc commented
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Doc comments aren't supported on conditional statement clause
+   ┌─ tests/lints/unused-doc-comments/source.wdl:70:5
+   │
+70 │     ## But doc comments are not!
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Doc comments aren't supported on conditional statement clause
+   ┌─ tests/lints/unused-doc-comments/source.wdl:75:9
+   │
+75 │         ## But doc comments probably shouldn't be?
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Doc comments aren't supported on conditional statement clause
+   ┌─ tests/lints/unused-doc-comments/source.wdl:80:9
+   │
+80 │         ## but we don't want doc comments here.
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Doc comments aren't supported on declaration with assignment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:83:13
+   │
+83 │             ## Doc comments shouldn't be allowed on variable assignment!
+   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Doc comments must be attached to WDL items that support doc comments
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 

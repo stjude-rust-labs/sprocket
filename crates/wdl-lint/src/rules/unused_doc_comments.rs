@@ -1,15 +1,21 @@
-use std::collections::HashSet;
-
 use wdl_analysis::Diagnostics;
+use wdl_analysis::EXCEPT_COMMENT_PREFIX;
+use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::TreeNode;
+use wdl_ast::SyntaxToken;
+use wdl_ast::SyntaxTokenExt;
 use wdl_ast::TreeToken;
+use wdl_ast::v1;
+use wdl_ast::v1::CommandKeyword;
+use wdl_ast::v1::MetaKeyword;
+use wdl_ast::v1::ParameterMetaKeyword;
 
 use crate::Rule;
 use crate::Tag;
@@ -20,15 +26,15 @@ const CONTINUED_DOC_COMMENT_PREFIX: &str = "##";
 
 const ID: &str = "UnusedDocComments";
 
-/// Creates a diagnostic for a comment outside the preamble.
+/// Creates a diagnostic for a misplaced doc comment
 fn unused_doc_comment_diagnostic(span: Span, syntax_kind: SyntaxKind) -> Diagnostic {
     Diagnostic::note(format!(
-        "wdl-doc does not generate documentation for {}",
+        "Doc comments aren't supported on {}",
         syntax_kind.describe()
     ))
     .with_rule(ID)
     .with_highlight(span)
-    .with_help("Doc comments must be attached to syntax nodes that support doc comments")
+    .with_help("Doc comments must be attached to WDL items that support doc comments")
     .with_fix("If you're intending to use a regular comment here, replace the `##` with `#`")
 }
 
@@ -36,35 +42,61 @@ fn unused_doc_comment_diagnostic(span: Span, syntax_kind: SyntaxKind) -> Diagnos
 /// generate documentation for.
 #[derive(Default, Debug, Clone)]
 pub struct UnusedDocCommentsRule {
-    // TODO: This seems wasteful? Is there a better unique identifier to use
-    // associated with a comment token in the AST so I can ensure that I don't
-    // revisit?
-    /// Because each individual doc comment is visited as a single token,
-    /// we need to track multiline comments so we don't visit them again.
-    comments_seen: HashSet<Comment>,
     version_statement_processed: bool,
 }
 
 impl UnusedDocCommentsRule {
-    /// Valid syntax kinds for doc comments. Used to decide if a doc comment
-    /// is in a valid position.
-    ///
-    /// Note that UnboundDeclNode is not included. We handle struct
-    /// items inline since the UnboundDeclNode used to represent
-    /// them isn't specific enough for us to know if the context is
-    /// within a struct or not.
-    const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
-        SyntaxKind::WorkflowDefinitionNode,
-        SyntaxKind::StructDefinitionNode,
-        SyntaxKind::InputSectionNode,
-        SyntaxKind::OutputSectionNode,
-        SyntaxKind::EnumDefinitionNode,
-        SyntaxKind::TaskDefinitionNode,
-        SyntaxKind::EnumVariantNode,
-    ];
+    /// Walk up the preceding trivia from closest to the visited syntax node and
+    /// check to see if there are doc comments present. If there are, lint
+    /// on them.
+    fn lint_doc_comments(
+        &self,
+        diagnostics: &mut Diagnostics,
+        kind: SyntaxKind,
+        preceding_trivia: &mut impl Iterator<Item = SyntaxToken>,
+    ) {
+        let mut span: Option<Span> = None;
+        let mut last_comment = None;
 
-    fn valid_node_for_doc_comment(kind: SyntaxKind) -> bool {
-        Self::VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS.contains(&kind)
+        let reversed_trivia = preceding_trivia.collect::<Vec<_>>().into_iter().rev();
+
+        for token in reversed_trivia {
+            match token.kind() {
+                SyntaxKind::Comment => {
+                    if !(token.text().starts_with(DOC_COMMENT_PREFIX)
+                        || (token.text() == CONTINUED_DOC_COMMENT_PREFIX))
+                    {
+                        break;
+                    }
+
+                    if last_comment.is_none() && token.text().starts_with(EXCEPT_COMMENT_PREFIX) {
+                        continue;
+                    }
+
+                    span = span.map_or(Some(token.span()), |prev_span| {
+                        Some(Span::new(
+                            token.span().start(),
+                            prev_span.end() - token.span().start(),
+                        ))
+                    });
+
+                    if token.text().starts_with(EXCEPT_COMMENT_PREFIX) {
+                        continue;
+                    }
+
+                    last_comment = Some(token);
+                }
+                _ => break,
+            }
+        }
+
+        if let (Some(span), Some(last_comment)) = (span, last_comment) {
+            diagnostics.exceptable_add(
+                unused_doc_comment_diagnostic(span, kind),
+                SyntaxElement::from(last_comment),
+                &self.exceptable_nodes(),
+            );
+        }
     }
 }
 
@@ -74,12 +106,13 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Reports doc comments that are attached to syntax elements that don't support them."
+        "Reports doc comments that are attached to WDL sections that don't support them."
     }
 
     fn explanation(&self) -> &'static str {
-        "Some syntax nodes are not supported by doc comments (`##`). This lint reports if a doc \
-         comment is attached to syntax elements that aren't supported.
+        "Some Workflow Definition Language items and sections do not supported doc comments \
+         (`##`). This lint reports if a doc comment is attached to some section or item that isn't \
+         supported.
 
         Doc comments (`##`) are supported on:
 
@@ -108,10 +141,11 @@ impl Rule for UnusedDocCommentsRule {
 
 impl Visitor for UnusedDocCommentsRule {
     fn reset(&mut self) {
-        self.comments_seen.clear();
         self.version_statement_processed = false;
     }
 
+    // Doc Comments before the version statement are assumed to be a "preamble" for
+    // now.
     fn version_statement(
         &mut self,
         _diagnostics: &mut Diagnostics,
@@ -121,74 +155,220 @@ impl Visitor for UnusedDocCommentsRule {
         self.version_statement_processed = true;
     }
 
-    fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        // Don't lint on the preamble
-        if !self.version_statement_processed {
+    fn metadata_section(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        section: &v1::MetadataSection,
+    ) {
+        if reason == VisitReason::Exit {
             return;
         }
 
-        // If the visited comment isn't a doc comment, or we've already seen it, then
-        // there's no need to process it!
-        if !comment.text().starts_with(DOC_COMMENT_PREFIX) || self.comments_seen.contains(&comment)
+        let keyword = section
+            .token::<MetaKeyword>()
+            .expect("MetadataSection must have MetaKeyword");
+
+        self.lint_doc_comments(
+            diagnostics,
+            section.kind(),
+            &mut keyword.inner().preceding_trivia(),
+        );
+    }
+
+    fn command_section(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        section: &v1::CommandSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let keyword = section
+            .token::<CommandKeyword>()
+            .expect("CommandSection must have CommandKeyword");
+
+        self.lint_doc_comments(
+            diagnostics,
+            section.kind(),
+            &mut keyword.inner().preceding_trivia(),
+        );
+    }
+
+    fn parameter_metadata_section(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        section: &v1::ParameterMetadataSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let keyword = section
+            .token::<ParameterMetaKeyword>()
+            .expect("ParameterMetadataSection must have ParameterMetaKeyword");
+
+        self.lint_doc_comments(
+            diagnostics,
+            section.kind(),
+            &mut keyword.inner().preceding_trivia(),
+        );
+    }
+
+    fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        if comment.text().starts_with(EXCEPT_COMMENT_PREFIX)
+            || comment.text() == CONTINUED_DOC_COMMENT_PREFIX
+            || comment.text().starts_with(DOC_COMMENT_PREFIX)
+            || !self.version_statement_processed
         {
             return;
         }
 
-        let mut span = comment.span();
-        let mut current = comment.inner().next_sibling_or_token();
+        self.lint_doc_comments(
+            diagnostics,
+            comment.kind(),
+            &mut comment.inner().preceding_trivia(),
+        );
+    }
 
-        while let Some(sibling) = current {
-            current = sibling.next_sibling_or_token();
-            // Given PreambleCommentPlacementRule currently handles "floating comments", we
-            // check for them here as well and don't lint on them (as they are
-            // assumed to be misplaced preambles).
-            if sibling.kind() == SyntaxKind::Whitespace {
-                if let Some(token) = sibling.as_token() {
-                    let comment_is_floating =
-                        token.text().chars().filter(|c| *c == '\n').count() > 1;
-                    if comment_is_floating {
-                        return;
-                    }
-                };
-                continue;
-            }
-
-            // If we are still looking at a doc comment, then continue, but add the
-            // sibling to the list of comments_seen so we skip it when we come to visit the
-            // comment itself.
-            if let Some(comment) = sibling
-                .as_token()
-                .map(|t| Comment::cast(t.clone()))
-                .flatten()
-                && comment.text().starts_with(CONTINUED_DOC_COMMENT_PREFIX)
-            {
-                self.comments_seen.insert(comment.clone());
-                continue;
-            }
-
-            // TODO: This feels pretty jank. Is there a better way to target a field of a
-            // struct?
-            let struct_definition_element = sibling.kind() == SyntaxKind::UnboundDeclNode
-                && sibling
-                    .parent()
-                    .map(|t| t.kind() == SyntaxKind::StructDefinitionNode)
-                    .unwrap_or_default();
-
-            if !Self::valid_node_for_doc_comment(sibling.kind()) && !struct_definition_element {
-                let sibling_span = match &sibling {
-                    rowan::NodeOrToken::Node(node) => node.span(),
-                    rowan::NodeOrToken::Token(token) => token.span(),
-                };
-
-                span = Span::new(span.start(), sibling_span.start() - span.start());
-
-                diagnostics.exceptable_add(
-                    unused_doc_comment_diagnostic(span, sibling.kind()),
-                    SyntaxElement::from(comment.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
-            }
-            break;
+    fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &v1::Expr) {
+        if reason == VisitReason::Exit {
+            return;
         }
+
+        let first = expr
+            .inner()
+            .first_token()
+            .expect("Expression must have one token");
+
+        self.lint_doc_comments(diagnostics, expr.kind(), &mut first.preceding_trivia());
+    }
+
+    fn import_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::ImportStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+        self.lint_doc_comments(
+            diagnostics,
+            stmt.kind(),
+            &mut stmt.keyword().inner().preceding_trivia(),
+        );
+    }
+
+    fn conditional_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::ConditionalStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        for clause in stmt.clauses() {
+            let token = clause
+                .inner()
+                .first_token()
+                .expect("ConditionalStatementClause must have some token");
+
+            self.lint_doc_comments(
+                diagnostics,
+                clause.inner().kind(),
+                &mut token.preceding_trivia(),
+            );
+        }
+    }
+
+    fn bound_decl(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        decl: &v1::BoundDecl,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(parent) = decl.inner().parent()
+            && (parent.kind() == SyntaxKind::OutputSectionNode
+                || parent.kind() == SyntaxKind::InputSectionNode)
+        {
+            return;
+        }
+
+        self.lint_doc_comments(
+            diagnostics,
+            decl.kind(),
+            &mut decl
+                .inner()
+                .first_token()
+                .expect("Must have at least one token")
+                .preceding_trivia(),
+        );
+    }
+
+    fn call_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::CallStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        self.lint_doc_comments(
+            diagnostics,
+            stmt.kind(),
+            &mut stmt
+                .inner()
+                .first_token()
+                .expect("Call statement must have at least one token")
+                .preceding_trivia(),
+        );
+    }
+
+    fn requirements_section(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        section: &v1::RequirementsSection,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let token = section
+            .inner()
+            .first_token()
+            .expect("RequirementsSection must have at least one token");
+
+        self.lint_doc_comments(diagnostics, section.kind(), &mut token.preceding_trivia());
+    }
+
+    fn scatter_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::ScatterStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let token = stmt
+            .inner()
+            .first_token()
+            .expect("Scatter statement must contain at least one token");
+
+        self.lint_doc_comments(diagnostics, stmt.kind(), &mut token.preceding_trivia());
     }
 }

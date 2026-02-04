@@ -28,23 +28,6 @@ struct Person {
     String name
 }
 
-#@ except: MetaSections
-## This doc comment should be allowed
-workflow test_workflow {
-    ## This doc comment does nothing and the user should be warned!
-    meta {
-        description: "Show doc comments on bad placement of elements"
-    }
-
-    ## This input section can have a doc comment.
-    input {
-        Person person
-    }
-
-    ## As can the output
-    output {}
-}
-
 #@ except: RequirementsSection
 ## This doc comment should be allowed
 task test_task {
@@ -62,4 +45,49 @@ task test_task {
         ## I'm a shell comment and shouldn't be picked up.
         printf "Hello World"
     >>>
+}
+
+#@ except: MetaSections, MatchingOutputMeta
+## This doc comment should be allowed
+workflow test_workflow {
+    ## This doc comment does nothing and the user should be warned!
+    meta {
+        description: "Show doc comments on bad placement of elements"
+    }
+
+    ## This input section can have a doc comment.
+    input {
+        ## And so can it's elements
+        Person person
+        Boolean apple
+        Boolean banana
+    }
+
+    ## I am not allowed to be doc commented
+    call test_task {}
+
+    # Comments are definitely valid here
+    ## But doc comments are not!
+    if (apple) {
+        String favorite_fruit = "Apple"
+    }
+        # Comments seem fine here (although maybe a weird choice)
+        ## But doc comments probably shouldn't be?
+    else if (banana) {
+        String favorite_fruit = "Banana"
+    }
+        # Seemingly, you can also put comments here,
+        ## but we don't want doc comments here.
+    else {
+            # Weirdly, wdl-lint seems to suggest my comment whitespace is incorrect
+            ## Doc comments shouldn't be allowed on variable assignment!
+        String favorite_fruit = "Chocolate"
+    }
+
+    ## The output section can have a doc comment!
+    output {
+        ## An element of an output should be doc commentable probably if I want to say
+        ## what this specific thing is doing?
+        Boolean my_output = banana
+    }
 }
