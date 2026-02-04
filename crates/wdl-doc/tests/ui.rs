@@ -22,6 +22,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use axum::Router;
 use axum::routing::get_service;
+use colored::Colorize;
 use libtest_mimic::Trial;
 use tempfile::TempDir;
 use thirtyfour::By;
@@ -281,15 +282,24 @@ async fn random_port() -> anyhow::Result<u16> {
     Ok(addr.local_addr()?.port())
 }
 
+// TODO: Figure out why tests fail on platforms other than Linux
+/// Whether the browser should be run in headless mode.
+fn should_run_headless() -> bool {
+    std::env::var("IN_CI").is_ok() || cfg!(target_os = "linux")
+}
+
 /// Configure and run the webdriver process.
 async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     let port = random_port().await?;
 
     let mut caps = DesiredCapabilities::chrome();
-    caps.add_arg("--headless=new")?;
-    caps.add_arg("--no-sandbox")?;
-    caps.add_arg("--disable-dev-shm-usage")?;
-    caps.add_arg("--disable-gpu")?;
+    if should_run_headless() {
+        caps.add_arg("--headless=new")?;
+        caps.add_arg("--no-sandbox")?;
+        caps.add_arg("--disable-dev-shm-usage")?;
+        caps.add_arg("--disable-gpu")?;
+    }
+
     start_webdriver_process_full(
         WebDriverProcessPort::Port(port),
         WebDriverProcessBrowser::<ChromeCapabilities>::Caps(&caps),
@@ -303,6 +313,7 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     tokio::time::sleep(Duration::from_secs(5)).await;
 
     let driver = WebDriver::new(format!("http://localhost:{port}"), caps).await?;
+    driver.fullscreen_window().await?;
     Ok(driver)
 }
 
@@ -362,6 +373,25 @@ async fn main() -> Result<(), anyhow::Error> {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+
+    if !should_run_headless() {
+        let warning = r#"+------------------------------------+
+|                                    |
+|                                    |
+|  !!! PHOTOSENSITIVITY WARNING !!!  |
+|                                    |
+|  The UI test suite contains rapid  |
+|  window transitions and flashing   |
+|  content.                          |
+|                                    |
+|                                    |
++------------------------------------+"#;
+        println!("{}\n", warning.red());
+        for i in (1..6).rev() {
+            println!("The tests will start in {i} seconds.");
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
 
     let tmp = TempDir::with_prefix("wdl-doc-ui")?;
 
