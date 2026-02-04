@@ -144,15 +144,12 @@ fn deprecated_runtime_key(key: &Ident, replacement: &str) -> Diagnostic {
 /// Creates a "non-reserved runtime key" diagnostic for a specific `key`
 fn report_non_reserved_runtime_key(key: &str, span: Span, specification: &str) -> Diagnostic {
     Diagnostic::warning(format!(
-        "the runtime key `{key}` is not reserved in {specification}; therefore, its inclusion in \
-         the `runtime` section is deprecated"
+        "the runtime key `{key}` is not reserved in {specification}; arbitrary runtime keys are \
+         deprecated"
     ))
     .with_rule(ID)
     .with_highlight(span)
-    .with_fix(format!(
-        "if a reserved key name was intended, correct the spelling; otherwise, remove the `{key}` \
-         key"
-    ))
+    .with_fix(format!("remove the `{key}` key"))
 }
 
 /// Creates a "missing recommended runtime key" diagnostic.
@@ -324,12 +321,9 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         diagnostics.exceptable_add(
                             report_missing_recommended_keys(
                                 missing_keys,
-                                // Note that we don't use `section.span()`, as this would be a
-                                // breaking change in `wdl-lint`'s
-                                // behavior.
-                                //
-                                // TODO: Use section.span(), assuming that's an acceptable public
-                                // API change.
+                                // Note that we don't use `section.span()` to avoid highlighting
+                                // the entire runtime_section
+                                // (instead, we highlight just the key "runtime")
                                 section
                                     .inner()
                                     .first_token()
@@ -399,10 +393,18 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         // If it's also not in the explicitly allowed configuration,
                         // add a diagnostic for it.
                         if !self.allowed_runtime_keys.contains(key_text) {
+                            // Note we don't use `item.span()` here to avoid highlighting the whole
+                            // runtime object.
+                            let text_for_key_span = item
+                                .inner()
+                                .first_token()
+                                .expect("RuntimeItem must have text in first token")
+                                .text_range()
+                                .into();
                             diagnostics.exceptable_add(
                                 report_non_reserved_runtime_key(
                                     key_text,
-                                    item.span(),
+                                    text_for_key_span,
                                     &specification,
                                 ),
                                 SyntaxElement::from(item.inner().clone()),
