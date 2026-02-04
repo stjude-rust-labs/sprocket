@@ -199,6 +199,9 @@ fn report_missing_recommended_keys(
 pub struct ExpectedRuntimeKeysRule {
     /// The detected version of the current document.
     version: Option<SupportedVersion>,
+    /// Whether or not we've already processed a `runtime` section within the
+    /// current task.
+    runtime_processed_for_task: bool,
     /// All keys encountered in the current runtime section.
     encountered_keys: Vec<Ident>,
     /// Allowed keys from the config.
@@ -210,6 +213,7 @@ impl ExpectedRuntimeKeysRule {
     pub fn new(config: &Config) -> Self {
         Self {
             version: None,
+            runtime_processed_for_task: false,
             encountered_keys: Vec::new(),
             allowed_runtime_keys: config.allowed_runtime_keys.clone(),
         }
@@ -292,12 +296,31 @@ impl Visitor for ExpectedRuntimeKeysRule {
         self.version = Some(version);
     }
 
+    fn task_definition(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &wdl_ast::v1::TaskDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            self.runtime_processed_for_task = false;
+        }
+    }
+
     fn runtime_section(
         &mut self,
         diagnostics: &mut Diagnostics,
         reason: VisitReason,
         section: &RuntimeSection,
     ) {
+        // NOTE: if we've already processed a `runtime` section for this task
+        // and we hit this again, that means there are multiple `runtime`
+        // sections in the task. In that case, validation should report that
+        // this cannot occur, and the runtime section should be ignored.
+        if self.runtime_processed_for_task {
+            return;
+        }
+
         match reason {
             VisitReason::Enter => {}
             VisitReason::Exit => {
@@ -341,6 +364,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                     // clear our tracking container of encountered keys to prepare for the next
                     // runtime section.
                     self.encountered_keys.clear();
+                    self.runtime_processed_for_task = true;
                 }
             }
         }
@@ -352,7 +376,11 @@ impl Visitor for ExpectedRuntimeKeysRule {
         reason: VisitReason,
         item: &RuntimeItem,
     ) {
-        if reason == VisitReason::Exit {
+        // NOTE: if we've already processed a `runtime` section for this task
+        // and we hit this again, that means there are multiple `runtime`
+        // sections in the task. In that case, validation should report that
+        // this cannot occur, and the runtime items should be ignored.
+        if self.runtime_processed_for_task || reason == VisitReason::Exit {
             return;
         }
 
