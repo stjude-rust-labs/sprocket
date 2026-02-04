@@ -28,13 +28,3 @@ note[PreambleCommentPlacement]: preamble comment after the version statement
    = help: freestanding doc comments (`##`) are assumed to be preamble comments
    = fix: move the preamble comment before the `version` statement
 
-note[UnusedDocComments]: wdl-doc does not generate documentation for comment
-   ┌─ tests/lints/preamble-comment-after-version/source.wdl:30:5
-   │  
-30 │ ╭     ## This one is bad!
-31 │ │     #@ except: MetaDescription
-   │ ╰────^
-   │  
-   = help: Doc comments must be attached to syntax nodes that support doc comments
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
-
