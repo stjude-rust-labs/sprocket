@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
+
 ## 0.14.0 - 01-12-2026
 
 #### Added

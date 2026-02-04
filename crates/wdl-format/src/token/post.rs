@@ -181,6 +181,68 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     }
 }
 
+/// Attempts to split a `#@ except:` directive into multiple lines when it
+/// exceeds `max_len`.
+///
+/// Returns `None` if the input is not a `#@ except:` directive or if no
+/// splitting is required. Splitting occurs only at comma boundaries and
+/// ensures at least one rule per line.
+fn split_except_directive_lines(value: &str, max_len: usize) -> Option<Vec<String>> {
+    let remainder = value.strip_prefix("#@")?;
+    let rules_text = remainder.trim_start().strip_prefix("except:")?;
+
+    // If the whole line fits, no splitting needed
+    if value.len() <= max_len {
+        return None;
+    };
+
+    // Split into individual rules
+    let rules: Vec<&str> = rules_text
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if rules.is_empty() {
+        return None;
+    }
+
+    let prefix = "#@ except: ";
+    let mut lines = Vec::new();
+    let mut current_rules = Vec::new();
+
+    for rule in rules {
+        // Build what the line would look like with this rule added
+        let mut test_rules = current_rules.clone();
+        test_rules.push(rule);
+        let test_line = format!("{}{}", prefix, test_rules.join(", "));
+
+        if test_line.len() <= max_len {
+            // Rule fits, add it to current line
+            current_rules.push(rule);
+        } else {
+            // Rule doesn't fit
+            if current_rules.is_empty() {
+                // This is the first rule and it's already too long
+                // Add it anyway (minimum 1 rule per line)
+                current_rules.push(rule);
+            } else {
+                // Finalize current line and start a new one
+                lines.push(format!("{}{}", prefix, current_rules.join(", ")));
+                current_rules.clear();
+                current_rules.push(rule);
+            }
+        }
+    }
+
+    // Add the last line if there are remaining rules
+    if !current_rules.is_empty() {
+        lines.push(format!("{}{}", prefix, current_rules.join(", ")));
+    }
+
+    Some(lines)
+}
+
 /// Current position in a line.
 #[derive(Default, Eq, PartialEq)]
 enum LinePosition {
@@ -388,6 +450,35 @@ impl Postprocessor {
     ) {
         assert!(!self.interrupted);
         assert!(self.position == LinePosition::StartOfLine);
+        // Preprocess the input stream to split long except directives if needed
+        let mut expanded_stream = TokenStream::<PreToken>::default();
+        let in_stream = if let Some(max_len) = config.max_line_length() {
+            for token in in_stream.iter() {
+                let PreToken::Trivia(Trivia::Comment(Comment::Preceding(value))) = token else {
+                    expanded_stream.push(token.clone());
+                    continue;
+                };
+
+                if !value.starts_with("#@") {
+                    expanded_stream.push(token.clone());
+                    continue;
+                }
+
+                if let Some(lines) = split_except_directive_lines(value, max_len) {
+                    for line in lines {
+                        expanded_stream.push(PreToken::Trivia(Trivia::Comment(
+                            Comment::Preceding(Rc::new(line)),
+                        )));
+                    }
+                } else {
+                    expanded_stream.push(token.clone());
+                }
+            }
+            &expanded_stream
+        } else {
+            // No max line length configured, use original stream
+            in_stream
+        };
         let mut post_buffer = TokenStream::<PostToken>::default();
         let mut pre_buffer = in_stream.iter().peekable();
         let starting_indent = self.indent_level;
