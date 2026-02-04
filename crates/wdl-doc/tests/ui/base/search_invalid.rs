@@ -24,7 +24,7 @@ impl UiTest for SearchInvalid {
 
         let no_results = driver
             .query(By::ClassName("left-sidebar__search-result-item"))
-            .wait(Duration::from_millis(500), Duration::from_millis(100))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
             .not_exists()
             .await?;
         if !no_results {
@@ -35,6 +35,7 @@ impl UiTest for SearchInvalid {
             .query(By::XPath(
                 "//li/span[contains(@x-text, \"No results found\")]",
             ))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
             .exists()
             .await?;
         if !no_results_text {

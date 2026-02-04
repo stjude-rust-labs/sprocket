@@ -24,7 +24,7 @@ impl UiTest for Search {
 
         let has_results = driver
             .query(By::ClassName("left-sidebar__search-result-item"))
-            .wait(Duration::from_millis(500), Duration::from_millis(100))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
             .exists()
             .await?;
         if !has_results {
@@ -32,11 +32,15 @@ impl UiTest for Search {
         }
 
         let search_result = driver
-            .find(By::XPath("//sprocket-tooltip[@content=\"flag_filter\"]"))
+            .query(By::XPath("//sprocket-tooltip[@content=\"flag_filter\"]"))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
+            .first()
             .await?;
         let search_result_container = search_result.parent().await?;
         let search_result_icon = search_result_container
-            .find(By::ClassName("left-sidebar__icon"))
+            .query(By::ClassName("left-sidebar__icon"))
+            .wait(Duration::from_secs(5), Duration::from_millis(100))
+            .first()
             .await?;
 
         let icon_path = search_result_icon.attr("src").await?;

@@ -72,7 +72,7 @@ impl WebDriverExt for WebDriver {
     async fn search(&self, input: impl AsRef<str> + Send) -> WebDriverResult<()> {
         let searchbox = self
             .query(By::Id("searchbox"))
-            .wait(Duration::from_secs(5), Duration::from_millis(100))
+            .wait(Duration::from_secs(10), Duration::from_millis(100))
             .first()
             .await?;
         searchbox.send_keys(input.as_ref()).await?;
