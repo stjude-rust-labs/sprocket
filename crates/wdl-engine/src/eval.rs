@@ -449,7 +449,7 @@ impl EvaluationError {
 
                 String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
             }
-            Self::Other(e) => format!("{e:?}"),
+            Self::Other(e) => format!("{e:#}"),
         }
     }
 }
