@@ -188,14 +188,8 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
 /// splitting is required. Splitting occurs only at comma boundaries and
 /// ensures at least one rule per line.
 fn split_except_directive_lines(value: &str, max_len: usize) -> Option<Vec<String>> {
-    // Check if this is an except directive
-    let Some(remainder) = value.strip_prefix("#@") else {
-        return None;
-    };
-
-    let Some(rules_text) = remainder.trim_start().strip_prefix("except:") else {
-        return None;
-    };
+    let remainder = value.strip_prefix("#@")?;
+    let rules_text = remainder.trim_start().strip_prefix("except:")?
 
     // If the whole line fits, no splitting needed
     if value.len() <= max_len {
