@@ -670,7 +670,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         db.clone(),
         &ctx,
         document.clone(),
-        config.run.engine.into(),
+        config.run.engine,
         cancellation.clone(),
         events,
         target,
