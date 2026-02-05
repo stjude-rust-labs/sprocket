@@ -21,6 +21,7 @@ use path_clean::PathClean;
 use regex::Regex;
 use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
+use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
@@ -108,6 +109,9 @@ pub struct Args {
     /// Clean all exectuion directories, even for tests that failed or errored.
     #[clap(long)]
     pub clean_all: bool,
+    /// The number of test executions to run in parallel.
+    #[clap(short, long)]
+    pub parallelism: Option<usize>,
     /// The engine configuration to use.
     ///
     /// This is not exposed via [`clap`] and is not settable by users.
@@ -120,6 +124,9 @@ pub struct Args {
 
 impl Args {
     pub fn apply(mut self, config: crate::config::Config) -> Self {
+        if self.parallelism.is_none() {
+            self.parallelism = Some(config.test.parallelism);
+        }
         self.engine = config.run.engine;
         self.engine.task.cache = CallCachingMode::Off;
         self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
@@ -358,12 +365,15 @@ enum IterationResult {
     Fail(anyhow::Error),
 }
 
+// TODO(Ari): refactor to reduce argument number
+#[allow(clippy::too_many_arguments)]
 async fn launch_tests(
     analysis: &AnalysisResult,
     tests: DocumentTests,
     root: &Path,
     fixtures: &Arc<OriginPaths>,
     engine: &Arc<wdl::engine::Config>,
+    permits: &Arc<Semaphore>,
     errors: &mut Vec<Arc<anyhow::Error>>,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {
@@ -505,11 +515,12 @@ async fn launch_tests(
                 let target = target.clone();
                 let assertions = assertions.clone();
                 let document = wdl_document.clone();
+                let permit = permits.clone().acquire_owned().await.unwrap();
                 futures.spawn(async move {
                     let evaluator =
                         Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
-                    TestIteration {
+                    let res = TestIteration {
                         name,
                         iteration_num: test_num,
                         result: if is_workflow {
@@ -521,7 +532,9 @@ async fn launch_tests(
                         },
                         assertions,
                         run_dir,
-                    }
+                    };
+                    drop(permit);
+                    res
                 });
             }
             tests.insert(test_name.to_string(), futures);
@@ -672,6 +685,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
         test_dir.join(FIXTURES_DIR).as_path(),
     )));
     let engine = Arc::new(args.engine);
+    let permits = Arc::new(Semaphore::new(args.parallelism.unwrap()));
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
@@ -685,6 +699,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
             &test_dir,
             &fixture_origins,
             &engine,
+            &permits,
             &mut errors,
             should_filter,
         )

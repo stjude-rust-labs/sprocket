@@ -54,6 +54,8 @@ pub struct Config {
     pub run: RunConfig,
     /// Configuration for the `server` command.
     pub server: ServerConfig,
+    /// Configuration for the `test` command.
+    pub test: TestConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
 }
@@ -285,6 +287,23 @@ impl ServerConfig {
         self.allowed_urls.dedup();
 
         Ok(())
+    }
+}
+
+/// `test` command configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct TestConfig {
+    /// Number of test executions to run in parallel
+    #[serde(default)]
+    pub parallelism: usize,
+}
+
+impl Default for TestConfig {
+    fn default() -> Self {
+        Self {
+            parallelism: 20, // TODO play with this number
+        }
     }
 }
 
