@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `--index-on` flag to `sprocket run` for output indexing via symlinks
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added `--output-dir` flag to `sprocket run`, replacing `--runs-dir` and
+  `--output` with a unified output directory structure matching the server
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added SQLite database tracking to `sprocket run` with full provenance
+  including session, run records, and task execution details
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * Added reading configuration from a `sprocket.toml` next to the sprocket
   executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
@@ -25,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* The `sprocket run` command now uses the same execution infrastructure as the
+  server ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Replaced `--runs-dir` and `--output` flags with `--output-dir` in `sprocket run`
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Unified `AllowedSource` and `Source` types into a single `Source` type
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
   ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * `sprocket dev doc` will now **fail** in the presence of analysis errors
