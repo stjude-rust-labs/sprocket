@@ -293,7 +293,7 @@ impl ApptainerRuntime {
                     .max_delay_millis(60_000)
                     .take(10),
                 || Self::try_pull_image(&container, &path),
-                |e, _| {
+                |e: &anyhow::Error, _| {
                     warn!(e = %e, "`apptainer pull` failed");
                 },
             )

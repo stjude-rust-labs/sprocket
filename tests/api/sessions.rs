@@ -101,6 +101,7 @@ async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
     let (app, _, temp) = create_test_server().pool(pool).call().await;
 
@@ -199,6 +200,7 @@ async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
     let (app, _, temp) = create_test_server().pool(pool).call().await;
 

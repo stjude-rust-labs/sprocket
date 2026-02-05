@@ -79,7 +79,7 @@ fn check_name(
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     let converter = Converter::new()
-        .remove_boundaries(&[Boundary::DIGIT_LOWER, Boundary::LOWER_DIGIT])
+        .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
         .to_case(Case::Snake);
     let properly_cased_name = converter.convert(name);
     if name != properly_cased_name {
