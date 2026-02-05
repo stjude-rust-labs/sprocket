@@ -87,6 +87,7 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - uses: actions/cache@v4
