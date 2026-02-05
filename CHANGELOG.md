@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added reading configuration from a `sprocket.toml` next to the sprocket
+  executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
   workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * Added SQLite-backed database layer for tracking sessions, runs, and tasks
@@ -32,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed a race condition where canceled workflows would be marked as `Failed`
   instead of `Canceled` ([#601](https://github.com/stjude-rust-labs/sprocket/pull/601)).
+
+### Dependencies
+
+* Dependencies updated to latest ([#594](https://github.com/stjude-rust-labs/sprocket/pull/594)).
 
 ## 0.20.1 - 01-12-2026
 

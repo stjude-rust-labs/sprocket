@@ -50,6 +50,13 @@ fn find_tests(starting_dir: &Path) -> Vec<PathBuf> {
             continue;
         }
         if path.is_dir() {
+            // The following tests require Docker, so skip if the Docker tests are disabled
+            #[cfg(docker_tests_disabled)]
+            match path.file_name().and_then(|n| n.to_str()) {
+                Some("run") | Some("test") => continue,
+                _ => {}
+            }
+
             tests.append(&mut find_tests(path.as_path()));
         } else if path.file_name().unwrap() == "args" {
             tests.push(path.parent().unwrap().to_path_buf());
@@ -113,7 +120,7 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
             fs::create_dir_all(&to)
                 .with_context(|| format!("failed to create directory at {:?}", &to))?;
         } else {
-            fs::copy(&from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
         }
     }
     Ok(())
@@ -341,7 +348,7 @@ fn compare_test_results(
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
-            &command_output.exit_code.to_string(),
+            command_output.exit_code.to_string(),
         )
         .context("failed to write exit code")?;
 

@@ -134,7 +134,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
             let source = result.document().root().text().to_string();
             let file = SimpleFile::new(path, &source);
             for diagnostic in diagnostics {
-                term::emit(
+                term::emit_to_io_write(
                     &mut buffer,
                     &CodespanConfig::default(),
                     &file,

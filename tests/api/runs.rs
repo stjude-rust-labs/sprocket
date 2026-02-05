@@ -147,6 +147,7 @@ workflow test {
 "#;
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -259,6 +260,7 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -368,6 +370,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn cancel_running_run(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -481,6 +484,7 @@ task sleep_task {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn cancel_running_run_fast_mode(pool: sqlx::SqlitePool) {
     // Create execution config with fast failure mode
     let engine_config = wdl::engine::Config {
@@ -671,6 +675,7 @@ async fn get_run_not_found(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -802,6 +807,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -883,6 +889,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn run_with_indexing(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -980,6 +987,7 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn max_concurrent_runs_limit(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server()
         .pool(pool)
@@ -1081,6 +1089,7 @@ task slow_task {
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn execute_task_with_explicit_target(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
@@ -1340,6 +1349,7 @@ version 1.2
 }
 
 #[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     let temp = TempDir::new().unwrap();
     let wdl_dir = temp.path().join("wdl");
