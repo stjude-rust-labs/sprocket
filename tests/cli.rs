@@ -247,8 +247,8 @@ fn normalize_string(input: &str) -> String {
         .replace("\\", "/")
         .replace("//", "/");
 
-    let normalized = UUID_PATTERN.replace_all(&normalized, "<UUID>");
-    let normalized = TIMESTAMP_PATTERN.replace_all(&normalized, "<TIMESTAMP>");
+    let normalized = UUID_PATTERN.replace_all(&normalized, "_UUID_");
+    let normalized = TIMESTAMP_PATTERN.replace_all(&normalized, "_TIMESTAMP_");
     normalized.to_string()
 }
 
@@ -256,7 +256,7 @@ fn normalize_string(input: &str) -> String {
 /// placeholders.
 fn normalize_path(path: &Path) -> PathBuf {
     let path_str = path.to_string_lossy();
-    let normalized = TIMESTAMP_PATTERN.replace_all(&path_str, "<TIMESTAMP>");
+    let normalized = TIMESTAMP_PATTERN.replace_all(&path_str, "_TIMESTAMP_");
     PathBuf::from(normalized.as_ref())
 }
 
@@ -280,8 +280,8 @@ fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
 ///
 /// 1. Removes transient files (e.g., SQLite `-shm`, `-wal` files)
 /// 2. Zeroes out binary files so they exist but have no content to compare
-/// 3. Updates symlink targets to replace timestamps with `<TIMESTAMP>`
-/// 4. Renames timestamp directories to `<TIMESTAMP>`
+/// 3. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
+/// 4. Renames timestamp directories to `_TIMESTAMP_`
 fn normalize_expected_outputs(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
@@ -312,7 +312,7 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
             let target = fs::read_link(link_path)?;
             let target_str = target.to_string_lossy();
             if TIMESTAMP_PATTERN.is_match(&target_str) {
-                let normalized_target = TIMESTAMP_PATTERN.replace_all(&target_str, "<TIMESTAMP>");
+                let normalized_target = TIMESTAMP_PATTERN.replace_all(&target_str, "_TIMESTAMP_");
                 fs::remove_file(link_path)?;
                 #[cfg(unix)]
                 std::os::unix::fs::symlink(normalized_target.as_ref(), link_path)?;
@@ -344,7 +344,7 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
     // Rename directories
     for dir in dirs_to_rename {
         let parent = dir.parent().context("directory should have parent")?;
-        let new_path = parent.join("<TIMESTAMP>");
+        let new_path = parent.join("_TIMESTAMP_");
         if new_path.exists() {
             fs::remove_dir_all(&new_path)?;
         }
@@ -383,7 +383,7 @@ fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
 
 /// Builds a list of entry paths in a directory relative to the directory's
 /// path. Paths are normalized to replace dynamic components (e.g., timestamps)
-/// with placeholders like `<TIMESTAMP>` for stable comparison.
+/// with placeholders like `_TIMESTAMP_` for stable comparison.
 ///
 /// Symlinks are included for existence checking but their content is not
 /// compared. Binary files are similarly included for existence but skipped for
@@ -423,7 +423,7 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
 /// Recursively compares the contents of two paths.
 ///
 /// Paths are normalized before comparison so that dynamic components like
-/// timestamps match their `<TIMESTAMP>` placeholders in expected outputs.
+/// timestamps match their `_TIMESTAMP_` placeholders in expected outputs.
 /// Binary files (e.g., `.db`) are only checked for existence, not content.
 fn recursive_compare(expected_path: &Path, actual_path: &Path) -> Result<()> {
     use std::collections::HashMap;
