@@ -81,7 +81,7 @@ fn format_diagnostics<'a>(
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
     for diagnostic in diagnostics {
-        term::emit_to_io_write(
+        term::emit_to_write_style(
             &mut buffer,
             &CodespanConfig::default(),
             &file,

@@ -416,7 +416,7 @@ fn report_unknown_rules(
                 ))
                 .with_notes(notes);
 
-            codespan_reporting::term::emit_to_io_write(&mut writer, config, &files, &warning)
+            codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
                 .expect("failed to emit unknown rule warning");
         }
     }
