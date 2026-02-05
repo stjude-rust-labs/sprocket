@@ -267,7 +267,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         continue;
                     }
                     let mut buffer = Buffer::no_color();
-                    term::emit_to_io_write(
+                    term::emit_to_write_style(
                         &mut buffer,
                         &config,
                         &file,
