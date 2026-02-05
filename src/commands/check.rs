@@ -124,10 +124,6 @@ pub struct Common {
     #[arg(long)]
     pub hide_notes: bool,
 
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -158,8 +154,6 @@ impl CheckArgs {
         self.common.deny_warnings |= config.check.deny_warnings || self.common.deny_notes;
 
         self.common.hide_notes |= config.check.hide_notes;
-
-        self.common.no_color |= !config.common.color;
 
         if self.common.report_mode.is_none() {
             self.common.report_mode = Some(config.common.report_mode);
@@ -196,7 +190,7 @@ pub struct LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
+pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
     args.apply(&config);
 
     let mut sources = args.common.sources;
@@ -234,7 +228,7 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
     report_unknown_rules(
         &args.common.except,
         args.common.report_mode.unwrap_or_default(),
-        args.common.no_color,
+        colorize,
     )?;
 
     let provided_source_uris = sources
@@ -341,7 +335,7 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
                 }),
                 &[],
                 args.common.report_mode.unwrap_or_default(),
-                args.common.no_color,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
@@ -363,13 +357,14 @@ pub async fn check(mut args: CheckArgs, config: Config) -> CommandResult<()> {
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs, config: Config) -> CommandResult<()> {
+pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResult<()> {
     check(
         CheckArgs {
             common: args.common,
             lint: true,
         },
         config,
+        colorize,
     )
     .await
 }
@@ -378,7 +373,7 @@ pub async fn lint(args: LintArgs, config: Config) -> CommandResult<()> {
 fn report_unknown_rules(
     excepted: &[String],
     report_mode: Mode,
-    no_color: bool,
+    colorize: bool,
 ) -> anyhow::Result<()> {
     let rules = ALL_RULE_IDS.clone();
 
@@ -395,7 +390,7 @@ fn report_unknown_rules(
     if !unknown_rules.is_empty() {
         unknown_rules.sort();
 
-        let (config, writer) = get_diagnostics_display_config(report_mode, no_color);
+        let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
         let mut writer = writer.lock();
         let files = SimpleFiles::<String, String>::new();
 

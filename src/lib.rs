@@ -21,6 +21,7 @@ use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::WarnLevel;
 use commands::Commands;
+pub use config::ColorMode;
 pub use config::Config;
 pub use config::ServerConfig;
 use git_testament::git_testament;
@@ -58,11 +59,15 @@ git_testament!(TESTAMENT);
 struct Cli {
     /// The command to execute.
     #[command(subcommand)]
-    pub command: Commands,
+    command: Commands,
 
     /// The verbosity for log messages.
     #[command(flatten)]
     verbosity: Verbosity<WarnLevel>,
+
+    /// Controls output colorization.
+    #[arg(long, default_value = "auto", global = true)]
+    color: ColorMode,
 
     /// Path to the configuration file.
     #[arg(long, short, global = true)]
@@ -79,41 +84,6 @@ struct Cli {
 /// Logic for [`sprocket_main()`].
 async fn real_main() -> CommandResult<()> {
     let cli = Cli::parse();
-
-    match std::env::var("RUST_LOG") {
-        Ok(_) => {
-            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
-
-            let subscriber = tracing_subscriber::fmt::Subscriber::builder()
-                .with_env_filter(EnvFilter::from_default_env())
-                .with_writer(indicatif_layer.get_stderr_writer())
-                .with_ansi(stderr().is_terminal())
-                .finish()
-                .with(indicatif_layer);
-
-            tracing::subscriber::set_global_default(subscriber)
-                .context("failed to set tracing subscriber")?;
-        }
-        Err(_) => {
-            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
-
-            let subscriber = tracing_subscriber::fmt()
-                .with_max_level(cli.verbosity)
-                .with_writer(indicatif_layer.get_stderr_writer())
-                .with_ansi(stderr().is_terminal())
-                .finish()
-                .with(
-                    Targets::new()
-                        .with_default(cli.verbosity)
-                        // Filter out hyper log messages by default
-                        .with_targets([("hyper_util", None)]),
-                )
-                .with(indicatif_layer);
-
-            tracing::subscriber::set_global_default(subscriber)
-                .context("failed to set tracing subscriber")?;
-        }
-    };
 
     let config = match &cli.command {
         Commands::Config(config_args) if config_args.is_init() => {
@@ -132,27 +102,73 @@ async fn real_main() -> CommandResult<()> {
             config
         }
     };
+
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
         toml::to_string_pretty(&config).unwrap_or_default()
     );
 
+    let colorize = match (cli.color, config.common.color) {
+        (ColorMode::Auto, ColorMode::Auto) => stderr().is_terminal(),
+        (ColorMode::Auto, ColorMode::Always) => true,
+        (ColorMode::Auto, ColorMode::Never) => false,
+        (ColorMode::Always, _) => true,
+        (ColorMode::Never, _) => false,
+    };
+
+    colored::control::set_override(colorize);
+
+    match std::env::var("RUST_LOG") {
+        Ok(_) => {
+            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
+
+            let subscriber = tracing_subscriber::fmt::Subscriber::builder()
+                .with_env_filter(EnvFilter::from_default_env())
+                .with_writer(indicatif_layer.get_stderr_writer())
+                .with_ansi(colorize)
+                .finish()
+                .with(indicatif_layer);
+
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
+        }
+        Err(_) => {
+            let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
+
+            let subscriber = tracing_subscriber::fmt()
+                .with_max_level(cli.verbosity)
+                .with_writer(indicatif_layer.get_stderr_writer())
+                .with_ansi(colorize)
+                .finish()
+                .with(
+                    Targets::new()
+                        .with_default(cli.verbosity)
+                        // Filter out hyper log messages by default
+                        .with_targets([("hyper_util", None)]),
+                )
+                .with(indicatif_layer);
+
+            tracing::subscriber::set_global_default(subscriber)
+                .context("failed to set tracing subscriber")?;
+        }
+    };
+
     match cli.command {
         Commands::Analyzer(args) => commands::analyzer::analyzer(args, config).await,
-        Commands::Check(args) => commands::check::check(args, config).await,
+        Commands::Check(args) => commands::check::check(args, config, colorize).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();
             commands::completions::completions(args, &mut cmd).await
         }
         Commands::Config(args) => commands::config::config(args, config),
         Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args.apply(config)).await,
+        Commands::Format(args) => commands::format::format(args.apply(config), colorize).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
-        Commands::Lint(args) => commands::check::lint(args, config).await,
-        Commands::Run(args) => commands::run::run(args, config).await,
+        Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
+        Commands::Run(args) => commands::run::run(args, config, colorize).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
-        Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args).await,
+        Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args, colorize).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
         Commands::Dev(commands::DevCommands::Server(args)) => {
             commands::server::server(args, config).await

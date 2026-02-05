@@ -2,8 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::fs::File;
-use std::io::Write;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -135,10 +134,6 @@ pub struct Args {
     #[clap(long, conflicts_with = "runs_dir")]
     pub overwrite: bool,
 
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -211,7 +206,6 @@ impl Args {
             self.runs_dir = Some(config.run.runs_dir.clone());
         }
 
-        self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
@@ -480,27 +474,29 @@ async fn progress(
 /// If running on a Unix system, a symlink to the returned path will be created
 /// at `<root>/<target>/_latest`.
 pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
-    std::fs::create_dir_all(root)
-        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
-    let ignore_path = root.join(crate::IGNORE_FILENAME);
-    if !ignore_path.exists() {
-        let ignorefile = File::create(&ignore_path)
-            .with_context(|| format!("creating ignorefile: `{}`", ignore_path.display()))?;
-        writeln!(&ignorefile, "*")
-            .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
-    }
+    // Create the target root directory
     let target_root = root.join(target);
-    std::fs::create_dir_all(&target_root).with_context(|| {
+    fs::create_dir_all(&target_root).with_context(|| {
         format!(
-            "failed to create target directory: `{}`",
-            target_root.display()
+            "failed to create target directory `{path}`",
+            path = target_root.display()
         )
     })?;
 
-    let timestamp = chrono::Utc::now();
+    // Create an ignore file at the root if one doesn't exist
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        fs::write(&ignore_path, "*").with_context(|| {
+            format!(
+                "failed to write ignorefile `{path}`",
+                path = ignore_path.display()
+            )
+        })?;
+    }
 
-    let output = target_root.join(timestamp.format("%F_%H%M%S%f").to_string());
-
+    // Format an output directory path
+    let timestamp = chrono::Utc::now().format("%F_%H%M%S%f").to_string();
+    let output = target_root.join(&timestamp);
     if output.exists() {
         bail!(
             "timestamped execution directory `{dir}` existed before execution began",
@@ -508,22 +504,21 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
         );
     }
 
+    // Replace the latest symlink to the new output path
     #[cfg(not(target_os = "windows"))]
     {
         let latest = target_root.join(LATEST);
-        let _ = std::fs::remove_file(&latest);
-        if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
-            .is_err()
-        {
-            tracing::warn!("failed to create latest symlink: continuing with run")
-        };
+        let _ = fs::remove_file(&latest);
+        if let Err(e) = std::os::unix::fs::symlink(&timestamp, &latest) {
+            tracing::warn!("failed to create latest run symlink: {e}")
+        }
     }
 
     Ok(output)
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
+pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
@@ -531,10 +526,13 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
     args.apply(&config);
     args.apply_engine_config(&mut config.run.engine);
 
-    let style = ProgressStyle::with_template(
-        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
-    )
-    .unwrap();
+    let template = if colorize {
+        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
+    } else {
+        "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
+    };
+
+    let style = ProgressStyle::with_template(template).unwrap();
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
@@ -589,7 +587,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                 result.document().diagnostics(),
                 &[],
                 args.report_mode.unwrap_or_default(),
-                args.no_color,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
@@ -680,15 +678,18 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         EngineInputs::Workflow(_) => "workflow",
     };
 
-    progress_bar.pb_set_style(
-        &ProgressStyle::with_template(&format!(
+    let template = if colorize {
+        format!(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
-             {name}{{msg}}",
+             {target}{{msg}}",
             running = "running".cyan(),
-            name = target.magenta().bold()
-        ))
-        .unwrap(),
-    );
+            target = target.magenta().bold()
+        )
+    } else {
+        format!("[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",)
+    };
+
+    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(
@@ -764,7 +765,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                             &[e.diagnostic],
                             &e.backtrace,
                             args.report_mode.unwrap_or_default(),
-                            args.no_color
+                            colorize
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
