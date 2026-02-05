@@ -49,6 +49,19 @@ impl Source {
         }
     }
 
+    /// Converts the source to a URL.
+    ///
+    /// For [`Source::File`], this clones the URL. For [`Source::Directory`],
+    /// this converts the path to a `file://` URL.
+    pub fn to_url(&self) -> Url {
+        match self {
+            Source::File(url) => url.clone(),
+            Source::Directory(path) => {
+                Url::from_directory_path(path).expect("directory path should convert to URL")
+            }
+        }
+    }
+
     /// Registers the source within an [`Analyzer`].
     pub async fn register<T: Send + Clone + 'static>(
         self,

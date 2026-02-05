@@ -255,6 +255,84 @@ impl Invocation {
             (callee_name, inputs, OriginPaths::Map(origins))
         }))
     }
+
+    /// Resolves all relative paths in inputs and converts to JSON ready for
+    /// [`execute_target`](crate::system::v1::exec::execute_target).
+    ///
+    /// Each input tracks where it came from (its origin path). For inputs from
+    /// files, the origin is the file's parent directory. For key-value pairs on
+    /// the command line, the origin is the current working directory. The
+    /// `join_paths` call resolves relative `File` and `Directory` values by
+    /// joining them with their respective origin paths, producing absolute
+    /// paths.
+    ///
+    /// This method:
+    ///
+    /// 1. Parses inputs into typed engine inputs
+    /// 2. Resolves relative paths using per-input origins via `join_paths`
+    /// 3. Serializes back to JSON with the target prefix
+    ///
+    /// Returns `Ok(None)` if there are no inputs. Otherwise returns the target
+    /// name and the resolved JSON inputs.
+    pub async fn into_resolved_json(
+        self,
+        document: &Document,
+    ) -> anyhow::Result<Option<(String, JsonValue)>> {
+        let Some((target_name, mut inputs, origins)) = self.into_engine_invocation(document)?
+        else {
+            return Ok(None);
+        };
+
+        // Resolve relative paths using per-input origins
+        match &mut inputs {
+            EngineInputs::Task(task_inputs) => {
+                let task = document
+                    .task_by_name(&target_name)
+                    .context("task not found")?;
+                task_inputs
+                    .join_paths(task, |key| {
+                        origins
+                            .get(key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+            EngineInputs::Workflow(workflow_inputs) => {
+                let workflow = document.workflow().context("workflow not found")?;
+                workflow_inputs
+                    .join_paths(workflow, |key| {
+                        origins
+                            .get(key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+        }
+
+        // Serialize to JSON with target prefix
+        let json = inputs_to_json_with_prefix(&target_name, &inputs)?;
+
+        Ok(Some((target_name, json)))
+    }
+}
+
+/// Serializes engine inputs to JSON with the target name prefix on each key.
+fn inputs_to_json_with_prefix(target_name: &str, inputs: &EngineInputs) -> anyhow::Result<JsonValue> {
+    let serialized = match inputs {
+        EngineInputs::Task(task_inputs) => serde_json::to_value(task_inputs)?,
+        EngineInputs::Workflow(workflow_inputs) => serde_json::to_value(workflow_inputs)?,
+    };
+
+    let mut map = serde_json::Map::new();
+    if let JsonValue::Object(obj) = serialized {
+        for (key, value) in obj {
+            map.insert(format!("{target_name}.{key}"), value);
+        }
+    }
+
+    Ok(JsonValue::Object(map))
 }
 
 #[cfg(test)]

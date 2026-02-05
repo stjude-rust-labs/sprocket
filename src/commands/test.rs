@@ -39,8 +39,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::run::DEFAULT_RUNS_DIR;
 use crate::eval::Evaluator;
+use crate::system::v1::fs::RUNS_DIR;
 use crate::inputs::OriginPaths;
 use crate::test::DocumentTests;
 use crate::test::ParsedAssertions;
@@ -360,7 +360,7 @@ async fn launch_tests(
             };
             info!("running `{}`", test.name);
             let run_root = root
-                .join(DEFAULT_RUNS_DIR)
+                .join(RUNS_DIR)
                 .join(target.as_ref())
                 .join(test_name.as_ref());
             if run_root.exists() {
@@ -611,7 +611,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
     process_tests(all_results, &test_dir, !args.no_clean, &mut errors).await?;
 
     if args.clean_all {
-        remove_dir_all(test_dir.join(DEFAULT_RUNS_DIR))
+        remove_dir_all(test_dir.join(RUNS_DIR))
             .await
             .with_context(|| "cleaning the file system of all test exections")?;
     }
