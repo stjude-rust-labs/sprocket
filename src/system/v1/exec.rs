@@ -120,8 +120,7 @@ pub async fn create_session(
 ///
 /// Returns the [`RunDirectory`] handle for the created directory.
 pub fn create_run_directory(output_dir: &OutputDirectory, target: &str) -> Result<RunDirectory> {
-    let run_dir_name =
-        PathBuf::from(target).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
+    let run_dir_name = PathBuf::from(target).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
 
     let run_dir = output_dir
         .ensure_workflow_run(run_dir_name)

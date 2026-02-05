@@ -319,7 +319,10 @@ impl Invocation {
 }
 
 /// Serializes engine inputs to JSON with the target name prefix on each key.
-fn inputs_to_json_with_prefix(target_name: &str, inputs: &EngineInputs) -> anyhow::Result<JsonValue> {
+fn inputs_to_json_with_prefix(
+    target_name: &str,
+    inputs: &EngineInputs,
+) -> anyhow::Result<JsonValue> {
     let serialized = match inputs {
         EngineInputs::Task(task_inputs) => serde_json::to_value(task_inputs)?,
         EngineInputs::Workflow(workflow_inputs) => serde_json::to_value(workflow_inputs)?,

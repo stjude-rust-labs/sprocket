@@ -252,14 +252,16 @@ fn normalize_string(input: &str) -> String {
     normalized.to_string()
 }
 
-/// Normalizes a path by replacing dynamic components (timestamps) with placeholders.
+/// Normalizes a path by replacing dynamic components (timestamps) with
+/// placeholders.
 fn normalize_path(path: &Path) -> PathBuf {
     let path_str = path.to_string_lossy();
     let normalized = TIMESTAMP_PATTERN.replace_all(&path_str, "<TIMESTAMP>");
     PathBuf::from(normalized.as_ref())
 }
 
-/// Returns true if the file is a binary file that should only be checked for existence.
+/// Returns true if the file is a binary file that should only be checked for
+/// existence.
 fn is_binary_file(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
@@ -291,7 +293,10 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
         if entry.file_type().is_file() {
             let name = entry.file_name().to_string_lossy();
 
-            if TRANSIENT_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)) {
+            if TRANSIENT_SUFFIXES
+                .iter()
+                .any(|suffix| name.ends_with(suffix))
+            {
                 fs::remove_file(entry.path())?;
             } else if is_binary_file(entry.path()) {
                 fs::write(entry.path(), b"")?;
@@ -392,7 +397,11 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
         return Ok(Vec::new());
     }
 
-    let is_transient = |name: &str| TRANSIENT_SUFFIXES.iter().any(|suffix| name.ends_with(suffix));
+    let is_transient = |name: &str| {
+        TRANSIENT_SUFFIXES
+            .iter()
+            .any(|suffix| name.ends_with(suffix))
+    };
 
     let mut path_list = WalkDir::new(path)
         .follow_links(false)

@@ -261,9 +261,14 @@ impl RunManagerSvc {
     ) -> Result<SubmitResponse, SubmitRunError> {
         let source = validate_source(&source, &self.config)?;
 
-        let (run_id, run_generated_name, _) =
-            create_run_record(self.db.as_ref(), session_id, &source, target.as_deref(), &inputs)
-                .await?;
+        let (run_id, run_generated_name, _) = create_run_record(
+            self.db.as_ref(),
+            session_id,
+            &source,
+            target.as_deref(),
+            &inputs,
+        )
+        .await?;
 
         let engine_config = self.config.engine.clone();
         let cancellation = CancellationContext::new(engine_config.failure_mode);

@@ -611,10 +611,15 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         .await
         .context("failed to create session")?;
 
-    let (run_id, run_name, _run) =
-        create_run_record(db.as_ref(), session.uuid, &args.source, Some(target.name()), &inputs)
-            .await
-            .context("failed to create run record")?;
+    let (run_id, run_name, _run) = create_run_record(
+        db.as_ref(),
+        session.uuid,
+        &args.source,
+        Some(target.name()),
+        &inputs,
+    )
+    .await
+    .context("failed to create run record")?;
 
     // Update the run directory in the database
     let run_dir_str = run_dir
