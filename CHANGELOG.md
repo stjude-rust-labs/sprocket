@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket dev doc` will now **fail** in the presence of analysis errors
   that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
 
+### Fixed
+
+* Fixed a race condition where canceled workflows would be marked as `Failed`
+  instead of `Canceled` ([#601](https://github.com/stjude-rust-labs/sprocket/pull/601)).
+
 ## 0.20.1 - 01-12-2026
 
 ### Dependencies
