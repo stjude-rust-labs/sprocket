@@ -48,7 +48,7 @@ pub fn validate(source: &str, config: &ServerConfig) -> ConfigResult<Source> {
             return Err(ConfigError::UrlForbidden(url));
         }
 
-        Ok(Source::File(url))
+        Ok(Source::Url(url))
     } else {
         let expanded = shellexpand::tilde(source);
         let path = Path::new(expanded.as_ref());
@@ -122,7 +122,7 @@ mod tests {
 
         let result = validate("https://example.com/workflow.wdl", &config);
         assert!(result.is_ok());
-        assert!(matches!(result.unwrap(), Source::File(_)));
+        assert!(matches!(result.unwrap(), Source::Url(_)));
     }
 
     #[test]

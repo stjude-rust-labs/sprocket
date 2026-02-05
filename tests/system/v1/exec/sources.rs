@@ -199,15 +199,15 @@ fn validate_url_with_prefix_matching() {
 
     // Exact prefix match
     let source1 = validate_source("https://example.com/workflow.wdl", &config).unwrap();
-    assert!(matches!(source1, Source::File(_)));
+    assert!(matches!(source1, Source::Url(_)));
 
     // Extended path
     let source2 = validate_source("https://example.com/path/to/workflow.wdl", &config).unwrap();
-    assert!(matches!(source2, Source::File(_)));
+    assert!(matches!(source2, Source::Url(_)));
 
     // Query parameters
     let source3 = validate_source("https://example.com/workflow.wdl?version=1", &config).unwrap();
-    assert!(matches!(source3, Source::File(_)));
+    assert!(matches!(source3, Source::Url(_)));
 }
 
 #[test]
@@ -266,13 +266,13 @@ fn validate_url_with_port_and_special_formats() {
     config.validate().unwrap();
 
     let source1 = validate_source("http://localhost:8080/workflow.wdl", &config).unwrap();
-    assert!(matches!(source1, Source::File(_)));
+    assert!(matches!(source1, Source::Url(_)));
 
     let source2 = validate_source("http://192.168.1.1/workflow.wdl", &config).unwrap();
-    assert!(matches!(source2, Source::File(_)));
+    assert!(matches!(source2, Source::Url(_)));
 
     let source3 = validate_source("http://[::1]/workflow.wdl", &config).unwrap();
-    assert!(matches!(source3, Source::File(_)));
+    assert!(matches!(source3, Source::Url(_)));
 }
 
 #[test]
@@ -286,11 +286,11 @@ fn validate_url_with_unicode_and_encoding() {
 
     // URL-encoded characters
     let source1 = validate_source("https://example.com/my%20workflow.wdl", &config).unwrap();
-    assert!(matches!(source1, Source::File(_)));
+    assert!(matches!(source1, Source::Url(_)));
 
     // Emoji in path (gets automatically encoded by Url::parse)
     let source2 = validate_source("https://example.com/🚀workflow.wdl", &config).unwrap();
-    assert!(matches!(source2, Source::File(_)));
+    assert!(matches!(source2, Source::Url(_)));
 }
 
 #[test]

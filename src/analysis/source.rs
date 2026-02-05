@@ -11,8 +11,11 @@ use path_clean::PathClean;
 use url::Url;
 use wdl::analysis::Analyzer;
 
-/// The supported source schemes for both WDL source files and JSON input files.
-const SUPPORTED_SOURCE_SCHEMES: &[&str] = &["https://", "http://", "file://"];
+/// Remote URL schemes that are parsed as `Source::Url`.
+const REMOTE_URL_SCHEMES: &[&str] = &["https://", "http://", "ftp://"];
+
+/// File URL schemes that are parsed as `Source::File`.
+const FILE_URL_SCHEMES: &[&str] = &["file://"];
 
 /// Helper to check if a given string starts with the given prefix, ignoring
 /// ASCII case.
@@ -22,19 +25,34 @@ fn starts_with_ignore_ascii_case(s: &str, prefix: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Determines if the given string is a remote URL.
+fn is_remote_url(s: &str) -> bool {
+    REMOTE_URL_SCHEMES
+        .iter()
+        .any(|scheme| starts_with_ignore_ascii_case(s, scheme))
+}
+
+/// Determines if the given string is a `file://` URL.
+fn is_file_url(s: &str) -> bool {
+    FILE_URL_SCHEMES
+        .iter()
+        .any(|scheme| starts_with_ignore_ascii_case(s, scheme))
+}
+
 /// Determines if the given string is prefixed with a supported URL scheme for
 /// source files.
 pub(crate) fn is_supported_source_url(s: &str) -> bool {
-    SUPPORTED_SOURCE_SCHEMES
-        .iter()
-        .any(|scheme| starts_with_ignore_ascii_case(s, scheme))
+    is_remote_url(s) || is_file_url(s)
 }
 
 /// A source for an analysis.
 #[derive(Clone, Debug)]
 pub enum Source {
-    /// The source is a local or remote file.
+    /// The source is a local file.
     File(Url),
+
+    /// The source is a remote URL.
+    Url(Url),
 
     /// The source is a local directory.
     Directory(PathBuf),
@@ -44,18 +62,18 @@ impl Source {
     /// Attempts to reference the source as a URL.
     pub fn as_url(&self) -> Option<&Url> {
         match self {
-            Source::File(url) => Some(url),
+            Source::File(url) | Source::Url(url) => Some(url),
             Source::Directory(_) => None,
         }
     }
 
     /// Converts the source to a URL.
     ///
-    /// For [`Source::File`], this clones the URL. For [`Source::Directory`],
-    /// this converts the path to a `file://` URL.
+    /// For [`Source::File`] and [`Source::Url`], this clones the URL. For
+    /// [`Source::Directory`], this converts the path to a `file://` URL.
     pub fn to_url(&self) -> Url {
         match self {
-            Source::File(url) => url.clone(),
+            Source::File(url) | Source::Url(url) => url.clone(),
             Source::Directory(path) => {
                 Url::from_directory_path(path).expect("directory path should convert to URL")
             }
@@ -68,7 +86,7 @@ impl Source {
         analyzer: &mut Analyzer<T>,
     ) -> Result<()> {
         match self {
-            Source::File(url) => analyzer.add_document(url).await,
+            Source::File(url) | Source::Url(url) => analyzer.add_document(url).await,
             Source::Directory(path) => analyzer.add_directory(path).await,
         }
     }
@@ -77,7 +95,7 @@ impl Source {
 impl std::fmt::Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Source::File(url) => write!(f, "{url}"),
+            Source::File(url) | Source::Url(url) => write!(f, "{url}"),
             Source::Directory(path) => write!(f, "{path}", path = path.display()),
         }
     }
@@ -87,8 +105,13 @@ impl std::str::FromStr for Source {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Only HTTP(S) and local files are supported for analysis.
-        if is_supported_source_url(s) {
+        if is_remote_url(s) {
+            return Ok(Self::Url(
+                s.parse().with_context(|| format!("invalid URL `{s}`"))?,
+            ));
+        }
+
+        if is_file_url(s) {
             return Ok(Self::File(
                 s.parse().with_context(|| format!("invalid URL `{s}`"))?,
             ));
@@ -156,7 +179,7 @@ mod tests {
     fn url() {
         const EXAMPLE: &str = "https://example.com/";
         assert!(matches!(EXAMPLE.parse().unwrap(),
-            Source::File(url)
+            Source::Url(url)
             if url.as_str()
                 == EXAMPLE
         ));

@@ -526,7 +526,7 @@ async fn process_tests(
 pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
-        (Source::File(url), _) if url.scheme() != "file" => {
+        (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
         (Source::Directory(_), Some(workspace)) => (source, workspace),
