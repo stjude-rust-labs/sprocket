@@ -10,7 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::Config;
-use codespan_reporting::term::emit;
+use codespan_reporting::term::emit_to_io_write;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use wdl::ast::Diagnostic;
@@ -33,7 +33,7 @@ fn emit_diagnostics(path: &Path, source: &str, diagnostics: &[Diagnostic]) -> Re
         ColorChoice::Never
     });
     for diagnostic in diagnostics.iter() {
-        emit(
+        emit_to_io_write(
             &mut stream,
             &Config::default(),
             &file,

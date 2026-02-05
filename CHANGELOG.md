@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `outputs` blocks to `sprocket dev test` YAML definitions
-  for asserting on WDL values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
+* Added "output assertions" `sprocket dev test` for asserting on WDL
+  values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
+* Added reading configuration from a `sprocket.toml` next to the sprocket
+  executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
   workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * Added SQLite-backed database layer for tracking sessions, runs, and tasks
@@ -29,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * `sprocket dev doc` will now **fail** in the presence of analysis errors
   that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
+
+### Dependencies
+
+* Dependencies updated to latest ([#594](https://github.com/stjude-rust-labs/sprocket/pull/594)).
 
 ## 0.20.1 - 01-12-2026
 

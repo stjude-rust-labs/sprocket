@@ -48,7 +48,7 @@ type Rx = mpsc::Receiver<RunManagerCmd>;
 /// Creates an session entry in the database for a server.
 async fn create_server_session(db: Arc<dyn Database>) -> Result<Session, DatabaseError> {
     let id = Uuid::new_v4();
-    let username = whoami::username();
+    let username = whoami::username()?;
     db.create_session(id, SprocketCommand::Server, &username)
         .await
 }

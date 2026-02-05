@@ -444,12 +444,12 @@ impl EvaluationError {
                         }));
 
                 let mut buffer = Buffer::no_color();
-                term::emit(&mut buffer, &Config::default(), &files, &diagnostic)
+                term::emit_to_io_write(&mut buffer, &Config::default(), &files, &diagnostic)
                     .expect("failed to emit diagnostic");
 
                 String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
             }
-            Self::Other(e) => format!("{e:?}"),
+            Self::Other(e) => format!("{e:#}"),
         }
     }
 }

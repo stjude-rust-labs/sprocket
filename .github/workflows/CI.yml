@@ -87,6 +87,7 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - uses: actions/cache@v4
@@ -103,38 +104,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: nextest
-
-      - name: Setup Docker (Mac)
-        if: ${{'macos-latest' == matrix.os}}
-        run: |
-          brew update
-          brew install docker
-          brew install qemu
-          brew install colima
-          brew install lima-additional-guestagents
-          # M1 and M2 Macs that the Github Actions supplies don't support nested virtualization. This forces x86 emulation to get around this
-          #--mount /private is necessary here in order to give docker access to mac's temp directory for tests
-          colima start --mount /private --memory 4 --network-address --arch x86_64
-          echo "DOCKER_HOST=unix:///Users/runner/.colima/docker.sock" >> $GITHUB_ENV
-      - name: Setup WSL (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        uses: Vampire/setup-wsl@v5
-      - name: Install Podman (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        run: |
-          curl -L --url "https://github.com/containers/podman/releases/download/v5.5.1/podman-5.5.1-setup.exe" -o Podman.exe
-          Start-Process Podman.exe -Wait -ArgumentList "/norestart /passive" -Verb runAs;
-          Add-Content $env:GITHUB_PATH "C:\Program Files\RedHat\Podman\"
-      - name: Startup Docker (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        run: |
-          podman machine init
-          podman machine set --rootful
-          podman machine start
-          Add-Content $env:GITHUB_ENV "DOCKER_HOST=npipe:////./pipe/podman-machine-default"
-      # TODO ACF 2025-09-18: these pulls are absorbed from the `wdl` repo's CI script. Since the
-      # Sprocket CI is already setting up container runtimes on Mac and Windows, should we revisit
-      # whether these steps are Linux-only?
       - name: Pull test images
         if: runner.os == 'Linux'
         run: |
@@ -146,9 +115,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" != "Linux" ]]; then
-            export DISABLE_DOCKER_TESTS=1
+            export RUSTFLAGS="--cfg docker_tests_disabled"
           fi
-          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench)) and (package(wdl-engine) or package(sprocket))" --locked --all-targets --all-features --no-fail-fast
+          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast
 
   docs:
     runs-on: ubuntu-latest

@@ -152,7 +152,7 @@ async fn run_test(test: &Path) -> Result<()> {
         let source = result.document().root().text().to_string();
         let file = SimpleFile::new(&path, &source);
 
-        term::emit(
+        term::emit_to_io_write(
             &mut buffer,
             &Config::default(),
             &file,

@@ -27,6 +27,10 @@ pub enum DatabaseError {
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
 
+    /// A whoami error.
+    #[error(transparent)]
+    WhoAmI(#[from] whoami::Error),
+
     /// A migration error.
     #[error(transparent)]
     Migration(#[from] sqlx::migrate::MigrateError),
