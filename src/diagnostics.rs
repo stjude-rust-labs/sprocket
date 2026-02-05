@@ -12,7 +12,7 @@ use codespan_reporting::diagnostic::LabelStyle;
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::Config as TermConfig;
 use codespan_reporting::term::DisplayStyle;
-use codespan_reporting::term::emit_to_io_write;
+use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use serde::Deserialize;
@@ -174,7 +174,7 @@ pub fn emit_diagnostics<'a>(
             }),
         );
 
-        emit_to_io_write(&mut stream, config, &files, &diagnostic)
+        emit_to_write_style(&mut stream, config, &files, &diagnostic)
             .context("failed to emit diagnostic")?;
 
         if backtrace.len() > MAX_CALL_LOCATIONS {
