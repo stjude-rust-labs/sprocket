@@ -1,18 +1,18 @@
 {
-  "name": "wdl-doc",
+  "name": "sprocket-web-common",
   "version": "1.0.0",
-  "description": "A bundled wdl-doc theme and web components.",
-  "private": true,
+  "description": "Common web components shared between static sites in the sprocket repo.",
   "main": "dist/bundle.js",
   "module": "dist/bundle.js",
   "type": "module",
   "scripts": {
-    "dist": "npx @tailwindcss/cli -i src/main.css -o dist/style.css",
-    "build": "node ./build.mjs"
+    "build": "./node_modules/.bin/esbuild js/index.js --bundle --format=esm --outfile=dist/common.js"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.2",
-    "@tailwindcss/cli": "^4.1.11"
+    "@tailwindcss/cli": "^4.1.11",
+    "shiki": "^3.7.0",
+    "tippy.js": "^6.3.7"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
