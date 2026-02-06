@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added "output assertions" `sprocket dev test` for asserting on WDL
+* Added "output assertions" to `sprocket dev test` for asserting on WDL
   values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
 * Added reading configuration from a `sprocket.toml` next to the sprocket
   executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
