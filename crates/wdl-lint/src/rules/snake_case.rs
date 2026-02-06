@@ -149,7 +149,8 @@ workflow process_data {
 
     output {}
 }
-```"#,]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

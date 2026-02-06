@@ -105,7 +105,8 @@ workflow formatting {
 
     output {}
 }
-```"#]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

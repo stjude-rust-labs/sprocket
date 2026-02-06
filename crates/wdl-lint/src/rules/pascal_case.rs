@@ -66,7 +66,8 @@ version 1.2
 struct RegisteredUser {
     String name
 }
-```"#,]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

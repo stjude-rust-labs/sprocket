@@ -83,7 +83,8 @@ workflow example {
 
     output {}
 }
-```"#]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

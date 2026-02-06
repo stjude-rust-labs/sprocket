@@ -71,7 +71,8 @@ workflow test {
 
     output {}
 }
-```"#]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

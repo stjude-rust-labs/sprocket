@@ -85,7 +85,8 @@ task say_hello {
 
     runtime {}
 }
-```"#]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

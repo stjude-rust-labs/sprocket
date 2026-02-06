@@ -98,7 +98,8 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,]
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {
