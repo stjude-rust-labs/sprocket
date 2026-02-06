@@ -85,6 +85,29 @@ impl Rule for VersionStatementFormattedRule {
          comments, there should be no whitespace before the version statement."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version    1.2
+workflow formatting {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow formatting {
+    meta {}
+
+    output {}
+}
+```"#]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }

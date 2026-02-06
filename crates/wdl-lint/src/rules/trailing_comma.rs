@@ -59,6 +59,40 @@ impl Rule for TrailingCommaRule {
          `call` input blocks as well as `Array`, `Map`, `Object`, and `Struct` literals."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Map[String, Int] ages = {
+        "James": 34,
+        "Jimmy": 55 # No trailing comma
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Map[String, Int] ages = {
+        "James": 34,
+        "Jimmy": 55,
+    }
+
+    output {}
+}
+```"#]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style])
     }
