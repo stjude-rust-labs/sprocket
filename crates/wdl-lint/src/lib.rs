@@ -37,6 +37,8 @@ mod tags;
 pub(crate) mod util;
 
 pub use config::Config;
+#[doc(hidden)]
+pub use config::ConfigField;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
