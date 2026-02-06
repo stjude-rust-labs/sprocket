@@ -59,6 +59,43 @@ impl Rule for RequirementsSectionRule {
          instead, the `runtime` section is flagged as deprecated."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability, Tag::Deprecated])
     }

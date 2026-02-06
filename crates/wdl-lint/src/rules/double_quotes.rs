@@ -46,6 +46,35 @@ impl Rule for DoubleQuotesRule {
          ensure consistency and avoid any confusion."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow test {
+    meta {}
+
+    String name = 'Jimmy'
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow test {
+    meta {}
+
+    String name = "Jimmy"
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Style])
     }

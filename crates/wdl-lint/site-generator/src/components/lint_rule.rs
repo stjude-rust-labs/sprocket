@@ -1,3 +1,5 @@
+//! Generic handling of lint rules from all sources.
+
 use std::fmt::Write;
 
 use maud::PreEscaped;
@@ -10,17 +12,24 @@ use wdl_lint::Config;
 use wdl_lint::ConfigField;
 use wdl_lint::Rule;
 
+/// The source of a lint rule.
 pub enum LintRuleSource {
+    /// A lint rule from `wdl-lint`.
     WdlLint,
+    /// A lint rule from `wdl-analysis`.
     WdlAnalysis,
 }
 
+/// A lint rule from any supported source.
 pub enum LintRule {
+    /// A lint rule from `wdl-lint`.
     WdlLint(Box<dyn Rule>),
+    /// A lint rule from `wdl-analysis`.
     WdlAnalysis(Box<dyn wdl_analysis::Rule>),
 }
 
 impl LintRule {
+    /// Render the rule's Markdown documentation as HTML.
     fn render(&self) -> PreEscaped<String> {
         let mut markdown = format!(
             r#"### What it Does
@@ -63,6 +72,7 @@ impl LintRule {
         PreEscaped(html)
     }
 
+    /// Get the lint's ID.
     pub fn id(&self) -> &'static str {
         match self {
             LintRule::WdlLint(rule) => rule.id(),
@@ -70,6 +80,7 @@ impl LintRule {
         }
     }
 
+    /// Get the rule's short description.
     pub fn description(&self) -> &'static str {
         match self {
             LintRule::WdlLint(rule) => rule.description(),
@@ -77,6 +88,7 @@ impl LintRule {
         }
     }
 
+    /// Get the rule's extended description.
     pub fn explanation(&self) -> &'static str {
         match self {
             LintRule::WdlLint(rule) => rule.explanation(),
@@ -84,6 +96,7 @@ impl LintRule {
         }
     }
 
+    /// Get the rule's examples.
     pub fn examples(&self) -> &'static [&'static str] {
         match self {
             LintRule::WdlLint(rule) => rule.examples(),
@@ -91,6 +104,7 @@ impl LintRule {
         }
     }
 
+    /// Encode the rule to JSON.
     pub fn to_json(&self) -> Value {
         let tags = match self {
             LintRule::WdlLint(rule) => rule.tags().iter().map(|tag| tag.to_string()).collect(),
@@ -105,6 +119,7 @@ impl LintRule {
         })
     }
 
+    /// All config fields that apply to this lint rule.
     pub fn applicable_config_fields(&self) -> Option<Vec<&'static ConfigField>> {
         // `wdl-analysis` rules have no configuration
         let Self::WdlLint(rule) = self else {
@@ -124,6 +139,7 @@ impl LintRule {
     }
 }
 
+/// A list of lint rules.
 pub fn lint_rule_list(source: LintRuleSource) -> PreEscaped<String> {
     let list_name = match source {
         LintRuleSource::WdlLint => "allLints",
