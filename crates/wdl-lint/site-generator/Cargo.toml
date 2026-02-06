@@ -22,5 +22,8 @@ wdl-analysis = { path = "../../wdl-analysis" }
 wdl-lint = { path = ".." }
 walkdir.workspace = true
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "wdl-lint-site-generator"
