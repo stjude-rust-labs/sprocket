@@ -87,6 +87,37 @@ impl Rule for DeprecatedPlaceholderRule {
          was the version where the deprecation was introduced."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep="," names}"
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep(",", names)}"
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
         Some(&[
             SyntaxKind::VersionStatementNode,

@@ -1,3 +1,5 @@
+//! Static site generator for `wdl-lint`/`wdl-analysis` lints.
+
 mod components;
 
 use std::ffi::OsStr;
@@ -41,16 +43,21 @@ fn default_tags() -> String {
     format!("[{}]", tags_str.join(", "))
 }
 
+/// The CLI arguments of the generator.
 #[derive(clap::Parser)]
 struct Args {
+    /// Open the `index.html` after generation.
     #[arg(long)]
     open: bool,
+    /// The current release tag of `wdl-lint`.
     #[clap(long)]
     wdl_lint_tag: Option<String>,
+    /// The current release tag of `wdl-analysis`.
     #[clap(long)]
     wdl_analysis_tag: Option<String>,
 }
 
+/// The main program logic.
 fn real_main() -> anyhow::Result<()> {
     let args = Args::parse();
 
@@ -166,6 +173,7 @@ fn web_common_dir() -> PathBuf {
     web_common_dir
 }
 
+/// Gets the `static` dir
 fn static_dir() -> std::io::Result<PathBuf> {
     let static_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("static");
     if !static_dir.is_dir() {
@@ -182,6 +190,8 @@ fn static_dir() -> std::io::Result<PathBuf> {
     Ok(static_dir)
 }
 
+/// Generates the default state (all lints, the current version, etc.), and
+/// dumps it into [`static_dir()`].
 fn dump_default_state_json(
     args: &Args,
     wdl_lint_rules: &[LintRule],

@@ -69,6 +69,43 @@ impl Rule for InputNameRule {
          content of an input. Input names should be at least 3 characters long."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String input_name
+    }
+
+    command <<<
+        echo "Hello, ~{input_name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {
+        description: "Says hello for the given name"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style])
     }

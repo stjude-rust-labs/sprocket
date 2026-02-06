@@ -1,6 +1,9 @@
+//! Defines the dropdown component.
+
 use maud::PreEscaped;
 use maud::html;
 
+/// A dropdown menu.
 pub fn dropdown(id: &str, title: &str, menu_children: PreEscaped<String>) -> PreEscaped<String> {
     html! {
         div id=(id) class="dropdown" x-data="{ open: false }" "@focusout"="if (!$el.contains($event.relatedTarget)) open = false" {

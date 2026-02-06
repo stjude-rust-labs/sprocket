@@ -83,6 +83,79 @@ impl Rule for SectionOrderingRule {
          parameter_meta, members."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow hello {
+    input {
+        String name
+    }
+
+    meta {
+        description: "Says hello"
+    }
+
+    parameter_meta {
+        name: "The name of the target"
+    }
+
+    call say_hello {
+        name
+    }
+
+    output {}
+}
+
+task say_hello {
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    input {
+        String name
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow hello {
+    meta {
+        description: "Says hello"
+    }
+
+    parameter_meta {
+        name: "The name of the target"
+    }
+
+    input {
+        String name
+    }
+
+    call say_hello {
+        name
+    }
+
+    output {}
+}
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Sorting])
     }

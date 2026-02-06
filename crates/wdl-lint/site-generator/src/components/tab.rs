@@ -1,6 +1,9 @@
+//! Defines the tab switcher component.
+
 use maud::PreEscaped;
 use maud::html;
 
+/// A tab switcher button.
 pub fn tab(name: &'static str) -> PreEscaped<String> {
     html! {
         button

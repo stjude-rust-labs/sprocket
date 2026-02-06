@@ -118,6 +118,76 @@ impl Rule for ContainerUriRule {
          value."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    # No tag
+    requirements {
+        container: "ubuntu"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    requirements {
+        container: ["ubuntu:latest"]
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         // NOTE: these are the justification for these tags:
         //

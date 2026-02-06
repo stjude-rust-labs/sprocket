@@ -69,6 +69,43 @@ impl Rule for OutputNameRule {
          content of an output. Output names should be at least 3 characters long."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String output_greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style])
     }

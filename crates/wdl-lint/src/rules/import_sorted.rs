@@ -55,6 +55,37 @@ impl Rule for ImportSortedRule {
          are permitted within an import statement."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+import "orange.wdl"
+import "apple.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+import "apple.wdl"
+import "orange.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+    
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Sorting])
     }

@@ -47,6 +47,61 @@ impl Rule for ConciseInputRule {
          binding. For example, `{ input: a = a }` can be shortened to `{ input: a }`."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow hello {
+    input {
+        String name
+    }
+
+    # Since WDL v1.1, these explicit bindings can be shortened.
+    call say_hello {
+        name = name,
+    }
+}
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow hello {
+    input {
+        String name
+    }
+
+    # `name` can be passed in directly
+    call say_hello {
+        name,
+    }
+}
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style])
     }
