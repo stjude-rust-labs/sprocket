@@ -69,8 +69,10 @@ const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 const CLEANUP_TASK_CPU: f64 = 0.1;
 
 /// Amount of memory to request for the cleanup task, in bytes.
+///
+/// The Docker daemon requires memory values to be at least 4MiB.
 #[cfg(unix)]
-const CLEANUP_TASK_MEMORY: u64 = 64 * 1024;
+const CLEANUP_TASK_MEMORY: u64 = 4096 * 1024;
 
 /// Represents a task that runs with a Docker container.
 struct DockerTask<'a> {
