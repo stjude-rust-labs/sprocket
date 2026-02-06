@@ -20,6 +20,7 @@ use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
 use wdl::engine::Config as WdlConfig;
+use wdl::engine::EvaluationError;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
@@ -569,6 +570,8 @@ async fn set_run_success(
 /// provided configuration, cancellation context, and events handler, then
 /// evaluates the workflow and returns the outputs. The workflow is executed in
 /// the provided run directory.
+///
+/// Returns `Ok(None)` if the workflow was canceled.
 #[allow(clippy::too_many_arguments)]
 async fn execute_workflow_target(
     db: &dyn Database,
@@ -579,17 +582,21 @@ async fn execute_workflow_target(
     events: Events,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
-) -> Result<Outputs> {
+) -> Result<Option<Outputs>> {
     let workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
 
     let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
         .await
         .context("failed to create workflow evaluator")?;
 
-    evaluator
+    match evaluator
         .evaluate_workflow(document, workflow_inputs, run_dir.root())
         .await
-        .map_err(|e| anyhow::anyhow!("workflow evaluation failed: {:#?}", e))
+    {
+        Ok(outputs) => Ok(Some(outputs)),
+        Err(EvaluationError::Canceled) => Ok(None),
+        Err(e) => Err(anyhow::anyhow!("workflow evaluation failed: {:#?}", e)),
+    }
 }
 
 /// Execute a task target.
@@ -598,6 +605,8 @@ async fn execute_workflow_target(
 /// JSON, creates a task evaluator with the provided configuration, cancellation
 /// context, and events handler, then evaluates the task and returns the
 /// outputs. The task is executed in the provided run directory.
+///
+/// Returns `Ok(None)` if the task was canceled.
 #[allow(clippy::too_many_arguments)]
 async fn execute_task_target(
     db: &dyn Database,
@@ -609,7 +618,7 @@ async fn execute_task_target(
     target: &Target,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
-) -> Result<Outputs> {
+) -> Result<Option<Outputs>> {
     let task = document
         .task_by_name(target.name())
         // SAFETY: we should never get to this point with a task target without
@@ -622,13 +631,18 @@ async fn execute_task_target(
         .await
         .context("failed to create task evaluator")?;
 
-    let evaluated_task = evaluator
+    let evaluated_task = match evaluator
         .evaluate_task(document, task, task_inputs, run_dir.root())
         .await
-        .map_err(|e| anyhow::anyhow!("task evaluation failed: {:#?}", e))?;
+    {
+        Ok(task) => task,
+        Err(EvaluationError::Canceled) => return Ok(None),
+        Err(e) => return Err(anyhow::anyhow!("task evaluation failed: {:#?}", e)),
+    };
 
     evaluated_task
         .into_outputs()
+        .map(Some)
         .map_err(|e| anyhow::anyhow!("task outputs evaluation failed: {:#?}", e))
 }
 
@@ -669,8 +683,8 @@ pub async fn execute_target(
     let config = Arc::new(config);
     db.start_run(ctx.run_id, ctx.started_at).await?;
 
-    let result: Result<()> = async {
-        let outputs = match &target {
+    let result: Result<Option<Outputs>> = async {
+        match &target {
             Target::Task(_) => {
                 execute_task_target(
                     db.as_ref(),
@@ -683,7 +697,7 @@ pub async fn execute_target(
                     inputs,
                     run_dir,
                 )
-                .await?
+                .await
             }
             Target::Workflow(_) => {
                 execute_workflow_target(
@@ -696,19 +710,23 @@ pub async fn execute_target(
                     inputs,
                     run_dir,
                 )
-                .await?
+                .await
             }
-        };
-
-        set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await
+        }
     }
     .await;
 
-    if let Err(e) = result {
-        let error = format!("{:#}", e);
-        db.fail_run(ctx.run_id, &error, Utc::now()).await?;
-        anyhow::bail!(error);
+    match result {
+        Ok(Some(outputs)) => {
+            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await
+        }
+        // NOTE: `Ok(None)` means the execution was canceled. The run manager
+        // handles transitioning the run status from `Canceling` to `Canceled`.
+        Ok(None) => Ok(()),
+        Err(e) => {
+            let error = format!("{:#}", e);
+            db.fail_run(ctx.run_id, &error, Utc::now()).await?;
+            anyhow::bail!(error);
+        }
     }
-
-    Ok(())
 }
