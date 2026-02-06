@@ -68,6 +68,33 @@ impl Rule for KnownRulesRule {
          mistakes."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@ except: LintThatDoesNotExit
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Correctness, Tag::SprocketCompatibility])
     }

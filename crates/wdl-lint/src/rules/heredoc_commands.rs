@@ -48,6 +48,47 @@ impl Rule for HereDocCommandsRule {
          with Bash syntax."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    parameter_meta {}
+
+    command {
+        echo "Hello, World!"
+    }
+
+    output {}
+
+    runtime {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    parameter_meta {}
+
+    command <<<
+        echo "Hello, World!"
+    >>>
+
+    output {}
+
+    runtime {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Correctness])
     }

@@ -49,6 +49,46 @@ impl Rule for DeprecatedObjectRule {
          See this issue for more details: https://github.com/openwdl/wdl/pull/228."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Object person = object {
+        name: "Jimmy",
+        age: 55,
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+struct Person {
+    String name
+    Int age
+}
+
+workflow example {
+    meta {}
+
+    Person person = Person {
+        name: "Jimmy",
+        age: 55,
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Deprecated])
     }

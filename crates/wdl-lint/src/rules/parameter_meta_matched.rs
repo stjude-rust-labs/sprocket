@@ -114,6 +114,48 @@ impl Rule for ParameterMetaMatchedRule {
          the `parameter_meta` block."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    parameter_meta {
+        name: "The name of the person to greet"
+        does_not_exist: "This is not a real parameter"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    parameter_meta {
+        name: "The name of the person to greet"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[
             Tag::Completeness,
