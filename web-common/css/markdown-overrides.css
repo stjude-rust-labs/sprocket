@@ -1,0 +1,25 @@
+@import "./colors.css";
+
+.markdown-body, .markdown-body a {
+    @apply text-slate-300;
+}
+
+.markdown-body a {
+    @apply underline;
+}
+
+.markdown-body a:hover {
+    @apply text-slate-400;
+}
+
+.markdown-body code {
+    @apply inline border border-slate-700 bg-slate-800 text-slate-200 rounded-md font-mono text-[0.8em] p-[0.2em];
+}
+
+.markdown-body pre {
+    @apply bg-slate-900 text-slate-200 border-slate-700 rounded-md font-mono border;
+}
+
+.main__container .markdown-body {
+    @apply max-w-4xl;
+}
