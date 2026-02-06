@@ -2,8 +2,9 @@
 
 use anyhow::Result;
 use sprocket::ServerConfig;
-use sprocket::system::v1::exec::AllowedSource;
+use sprocket::analysis::Source;
 use sprocket::system::v1::exec::ConfigError;
+use sprocket::system::v1::exec::validate_source;
 use tempfile::TempDir;
 
 fn make_config(
@@ -34,8 +35,8 @@ fn validate_file_in_allowed_directory() -> Result<()> {
     );
     config.validate()?;
 
-    let source = AllowedSource::validate(file.to_str().unwrap(), &config)?;
-    assert!(source.as_file_path().is_some());
+    let source = validate_source(file.to_str().unwrap(), &config)?;
+    assert!(matches!(source, Source::File(_)));
 
     Ok(())
 }
@@ -55,7 +56,7 @@ fn validate_file_outside_allowed_directory() -> Result<()> {
     let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
-    let result = AllowedSource::validate(file.to_str().unwrap(), &config);
+    let result = validate_source(file.to_str().unwrap(), &config);
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
 
     Ok(())
@@ -76,7 +77,7 @@ fn validate_file_with_path_traversal() -> Result<()> {
 
     // Try to access file outside allowed directory using `..`
     let traversal_path = allowed_dir.join("..").join("secret.wdl");
-    let result = AllowedSource::validate(traversal_path.to_str().unwrap(), &config);
+    let result = validate_source(traversal_path.to_str().unwrap(), &config);
 
     // Should be rejected as forbidden (canonicalization resolves `..` and checks)
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
@@ -108,7 +109,7 @@ fn validate_file_with_symlink_escape() -> Result<()> {
     config.validate()?;
 
     // Symlink is inside allowed dir, but points outside
-    let result = AllowedSource::validate(symlink.to_str().unwrap(), &config);
+    let result = validate_source(symlink.to_str().unwrap(), &config);
 
     // Should be rejected because canonical path is outside allowed
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
@@ -127,7 +128,7 @@ fn validate_file_not_found_inside_allowed() -> Result<()> {
     let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
-    let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
+    let result = validate_source(nonexistent.to_str().unwrap(), &config);
 
     // Should report as not found (not forbidden) because parent is allowed
     assert!(matches!(result, Err(ConfigError::FileNotFound(_))));
@@ -149,7 +150,7 @@ fn validate_file_not_found_outside_allowed() -> Result<()> {
     let mut config = make_config(temp.path().to_path_buf(), vec![allowed_dir], vec![]);
     config.validate()?;
 
-    let result = AllowedSource::validate(nonexistent.to_str().unwrap(), &config);
+    let result = validate_source(nonexistent.to_str().unwrap(), &config);
 
     // Should report as forbidden (not reveal file existence outside allowed)
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
@@ -178,11 +179,11 @@ fn validate_file_with_unicode_and_spaces() -> Result<()> {
     config.validate()?;
 
     // Both should be valid
-    let source1 = AllowedSource::validate(emoji_file.to_str().unwrap(), &config)?;
-    assert!(source1.as_file_path().is_some());
+    let source1 = validate_source(emoji_file.to_str().unwrap(), &config)?;
+    assert!(matches!(source1, Source::File(_)));
 
-    let source2 = AllowedSource::validate(spaces_file.to_str().unwrap(), &config)?;
-    assert!(source2.as_file_path().is_some());
+    let source2 = validate_source(spaces_file.to_str().unwrap(), &config)?;
+    assert!(matches!(source2, Source::File(_)));
 
     Ok(())
 }
@@ -197,18 +198,16 @@ fn validate_url_with_prefix_matching() {
     config.validate().unwrap();
 
     // Exact prefix match
-    let source1 = AllowedSource::validate("https://example.com/workflow.wdl", &config).unwrap();
-    assert!(source1.as_url().is_some());
+    let source1 = validate_source("https://example.com/workflow.wdl", &config).unwrap();
+    assert!(matches!(source1, Source::Url(_)));
 
     // Extended path
-    let source2 =
-        AllowedSource::validate("https://example.com/path/to/workflow.wdl", &config).unwrap();
-    assert!(source2.as_url().is_some());
+    let source2 = validate_source("https://example.com/path/to/workflow.wdl", &config).unwrap();
+    assert!(matches!(source2, Source::Url(_)));
 
     // Query parameters
-    let source3 =
-        AllowedSource::validate("https://example.com/workflow.wdl?version=1", &config).unwrap();
-    assert!(source3.as_url().is_some());
+    let source3 = validate_source("https://example.com/workflow.wdl?version=1", &config).unwrap();
+    assert!(matches!(source3, Source::Url(_)));
 }
 
 #[test]
@@ -221,7 +220,7 @@ fn validate_url_without_allowed_prefix() {
     config.validate().unwrap();
 
     // Different domain
-    let result = AllowedSource::validate("https://different.com/workflow.wdl", &config);
+    let result = validate_source("https://different.com/workflow.wdl", &config);
     assert!(matches!(result, Err(ConfigError::UrlForbidden(_))));
 }
 
@@ -235,7 +234,7 @@ fn validate_url_scheme_must_match() {
     config.validate().unwrap();
 
     // HTTP vs HTTPS
-    let result = AllowedSource::validate("http://example.com/workflow.wdl", &config);
+    let result = validate_source("http://example.com/workflow.wdl", &config);
     assert!(matches!(result, Err(ConfigError::UrlForbidden(_))));
 }
 
@@ -249,7 +248,7 @@ fn validate_url_subdomain_must_match() {
     config.validate().unwrap();
 
     // Subdomain should not match
-    let result = AllowedSource::validate("https://sub.example.com/workflow.wdl", &config);
+    let result = validate_source("https://sub.example.com/workflow.wdl", &config);
     assert!(matches!(result, Err(ConfigError::UrlForbidden(_))));
 }
 
@@ -266,14 +265,14 @@ fn validate_url_with_port_and_special_formats() {
     );
     config.validate().unwrap();
 
-    let source1 = AllowedSource::validate("http://localhost:8080/workflow.wdl", &config).unwrap();
-    assert!(source1.as_url().is_some());
+    let source1 = validate_source("http://localhost:8080/workflow.wdl", &config).unwrap();
+    assert!(matches!(source1, Source::Url(_)));
 
-    let source2 = AllowedSource::validate("http://192.168.1.1/workflow.wdl", &config).unwrap();
-    assert!(source2.as_url().is_some());
+    let source2 = validate_source("http://192.168.1.1/workflow.wdl", &config).unwrap();
+    assert!(matches!(source2, Source::Url(_)));
 
-    let source3 = AllowedSource::validate("http://[::1]/workflow.wdl", &config).unwrap();
-    assert!(source3.as_url().is_some());
+    let source3 = validate_source("http://[::1]/workflow.wdl", &config).unwrap();
+    assert!(matches!(source3, Source::Url(_)));
 }
 
 #[test]
@@ -286,17 +285,16 @@ fn validate_url_with_unicode_and_encoding() {
     config.validate().unwrap();
 
     // URL-encoded characters
-    let source1 =
-        AllowedSource::validate("https://example.com/my%20workflow.wdl", &config).unwrap();
-    assert!(source1.as_url().is_some());
+    let source1 = validate_source("https://example.com/my%20workflow.wdl", &config).unwrap();
+    assert!(matches!(source1, Source::Url(_)));
 
     // Emoji in path (gets automatically encoded by Url::parse)
-    let source2 = AllowedSource::validate("https://example.com/🚀workflow.wdl", &config).unwrap();
-    assert!(source2.as_url().is_some());
+    let source2 = validate_source("https://example.com/🚀workflow.wdl", &config).unwrap();
+    assert!(matches!(source2, Source::Url(_)));
 }
 
 #[test]
-fn allowed_source_accessor_methods() -> Result<()> {
+fn source_to_url_and_display() -> Result<()> {
     let temp = TempDir::new()?;
     let temp_path = temp.path();
 
@@ -310,23 +308,15 @@ fn allowed_source_accessor_methods() -> Result<()> {
     );
     config.validate()?;
 
-    // Test file source accessors
-    let file_source = AllowedSource::validate(file.to_str().unwrap(), &config)?;
-    assert!(file_source.as_url().is_none());
-    assert!(file_source.as_file_path().is_some());
-    assert!(file_source.as_str().contains("workflow.wdl"));
-
+    // Test file source
+    let file_source = validate_source(file.to_str().unwrap(), &config)?;
     let file_url = file_source.to_url();
     assert_eq!(file_url.scheme(), "file");
 
-    // Test URL source accessors
-    let url_source = AllowedSource::validate("https://example.com/workflow.wdl", &config)?;
-    assert!(url_source.as_url().is_some());
-    assert!(url_source.as_file_path().is_none());
-    assert_eq!(url_source.as_str(), "https://example.com/workflow.wdl");
-
-    let url_clone = url_source.to_url();
-    assert_eq!(url_clone.as_str(), "https://example.com/workflow.wdl");
+    // Test URL source
+    let url_source = validate_source("https://example.com/workflow.wdl", &config)?;
+    let url = url_source.to_url();
+    assert_eq!(url.as_str(), "https://example.com/workflow.wdl");
 
     // Test Display trait
     assert!(format!("{}", file_source).contains("workflow.wdl"));
@@ -350,11 +340,11 @@ fn validate_source_with_empty_configuration() -> Result<()> {
     config.validate()?;
 
     // File should be forbidden
-    let result = AllowedSource::validate(file.to_str().unwrap(), &config);
+    let result = validate_source(file.to_str().unwrap(), &config);
     assert!(matches!(result, Err(ConfigError::FilePathForbidden(_))));
 
     // URL should be forbidden
-    let result = AllowedSource::validate("https://example.com/workflow.wdl", &config);
+    let result = validate_source("https://example.com/workflow.wdl", &config);
     assert!(matches!(result, Err(ConfigError::UrlForbidden(_))));
 
     Ok(())

@@ -10,7 +10,7 @@ pub use index::create_index_entries;
 pub use index::rebuild_index;
 
 /// Subdirectory name for workflow execution runs.
-const RUNS_DIR: &str = "runs";
+pub(crate) const RUNS_DIR: &str = "runs";
 
 /// Subdirectory name for the provenance index.
 const INDEX_DIR: &str = "index";
@@ -86,7 +86,9 @@ impl OutputDirectory {
 pub struct RunDirectory(OutputDirectory, PathBuf);
 
 impl RunDirectory {
-    /// Creates a new run directory.
+    /// Creates a new run directory within the standard `runs/` subdirectory.
+    ///
+    /// The run directory is created at `<output_dir>/runs/<name>`.
     pub fn new(output_dir: OutputDirectory, name: impl Into<PathBuf>) -> Self {
         let path = PathBuf::from(output_dir.root())
             .join(RUNS_DIR)
