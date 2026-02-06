@@ -13,9 +13,6 @@ use wdl_ast::SyntaxToken;
 use wdl_ast::SyntaxTokenExt;
 use wdl_ast::TreeToken;
 use wdl_ast::v1;
-use wdl_ast::v1::CommandKeyword;
-use wdl_ast::v1::MetaKeyword;
-use wdl_ast::v1::ParameterMetaKeyword;
 
 use crate::Rule;
 use crate::Tag;
@@ -165,14 +162,10 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let keyword = section
-            .token::<MetaKeyword>()
-            .expect("MetadataSection must have MetaKeyword");
-
         self.lint_doc_comments(
             diagnostics,
             section.kind(),
-            &mut keyword.inner().preceding_trivia(),
+            &mut section.keyword().inner().preceding_trivia(),
         );
     }
 
@@ -186,14 +179,10 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let keyword = section
-            .token::<CommandKeyword>()
-            .expect("CommandSection must have CommandKeyword");
-
         self.lint_doc_comments(
             diagnostics,
             section.kind(),
-            &mut keyword.inner().preceding_trivia(),
+            &mut section.keyword().inner().preceding_trivia(),
         );
     }
 
@@ -207,14 +196,10 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let keyword = section
-            .token::<ParameterMetaKeyword>()
-            .expect("ParameterMetadataSection must have ParameterMetaKeyword");
-
         self.lint_doc_comments(
             diagnostics,
             section.kind(),
-            &mut keyword.inner().preceding_trivia(),
+            &mut section.keyword().inner().preceding_trivia(),
         );
     }
 
@@ -310,7 +295,7 @@ impl Visitor for UnusedDocCommentsRule {
             &mut decl
                 .inner()
                 .first_token()
-                .expect("Must have at least one token")
+                .expect("BoundDecl must have at least one token")
                 .preceding_trivia(),
         );
     }
@@ -328,11 +313,7 @@ impl Visitor for UnusedDocCommentsRule {
         self.lint_doc_comments(
             diagnostics,
             stmt.kind(),
-            &mut stmt
-                .inner()
-                .first_token()
-                .expect("Call statement must have at least one token")
-                .preceding_trivia(),
+            &mut stmt.keyword().inner().preceding_trivia(),
         );
     }
 
@@ -346,12 +327,11 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let token = section
-            .inner()
-            .first_token()
-            .expect("RequirementsSection must have at least one token");
-
-        self.lint_doc_comments(diagnostics, section.kind(), &mut token.preceding_trivia());
+        self.lint_doc_comments(
+            diagnostics,
+            section.kind(),
+            &mut section.keyword().inner().preceding_trivia(),
+        );
     }
 
     fn scatter_statement(
@@ -364,11 +344,10 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let token = stmt
-            .inner()
-            .first_token()
-            .expect("Scatter statement must contain at least one token");
-
-        self.lint_doc_comments(diagnostics, stmt.kind(), &mut token.preceding_trivia());
+        self.lint_doc_comments(
+            diagnostics,
+            stmt.kind(),
+            &mut stmt.keyword().inner().preceding_trivia(),
+        );
     }
 }
