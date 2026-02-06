@@ -1,0 +1,129 @@
+@import "tailwindcss";
+@import "../../../../web-common/css/main.css";
+
+@source "./index.html.template";
+
+@layer base {
+    input:checked + label .chevron {
+        transform: rotate(180deg);
+    }
+
+    .accordion-check {
+        display: none;
+    }
+    .accordion-content {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.2s ease-out;
+    }
+    input:checked + label + .accordion-content {
+        grid-template-rows: 1fr;
+    }
+    .min-h-0 {
+        min-height: 0;
+    }
+
+    .main__container {
+        width: 60%;
+        margin: auto;
+    }
+
+    .dropdown {
+        position: relative;
+        border: 1px solid var(--color-slate-700);
+        border-radius: 4px;
+    }
+
+    .dropdown button {
+        padding: 6px 12px;
+    }
+
+    .dropdown-menu {
+        color: var(--color-slate-300);
+        background: var(--color-slate-950);
+        border: 1px solid var(--color-neutral-600);
+        border-radius: 4px;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: 1000;
+        float: left;
+        min-width: 160px;
+        padding: 5px 0;
+        margin: 2px 0 0;
+        font-size: 14px;
+        text-align: left;
+        list-style: none;
+        box-shadow: 0 6px 12px rgba(0,0,0,.175);
+    }
+
+    .dropdown-menu .divider {
+        background-color: var(--color-neutral-600);
+        height: 1px;
+        margin: 9px 0;
+        overflow: hidden;
+    }
+
+    .dropdown-menu .checkbox {
+        display: block;
+        white-space: nowrap;
+        margin: 0;
+    }
+    .dropdown-menu .checkbox label {
+        padding: 3px 20px;
+        width: 100%;
+    }
+
+    .dropdown-menu .checkbox input {
+        position: relative;
+        margin: 0 0.5rem 0;
+        padding: 0;
+    }
+
+    .rule-description {
+        position: relative;
+        display: block;
+        margin-bottom: -1px;
+        background: 0%;
+    }
+    .rule-description > h3 {
+        border-top: 1px solid var(--color-slate-800);
+        padding: calc(var(--spacing) * 4) 15px;
+        margin: 0 -15px;
+        font-size: 18px;
+        @apply py-4 px-3.75;
+    }
+    .rule-description > h3:first-child {
+        border-top: none;
+        padding-top: 0px;
+    }
+    .rule-description > ul {
+        list-style: initial;
+    }
+    .rule-description p {
+        margin-top: revert;
+        margin-bottom: revert;
+    }
+    .rule-description ul {
+        margin-block-start: revert;
+        margin-block-end: revert;
+        margin-top: revert;
+        margin-bottom: revert;
+        padding-inline-start: revert;
+        padding-left: revert;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        background: var(--color-slate-950);
+        color: var(--color-slate-300);
+        font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+        font-size: 14px;
+        line-height: 1.42857143;
+        margin: 0;
+    }
+
+}

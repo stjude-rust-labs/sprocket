@@ -9,6 +9,7 @@ members = [
     "crates/wdl-format",
     "crates/wdl-grammar",
     "crates/wdl-lint",
+    "crates/wdl-lint/site-generator",
     "crates/wdl-lsp",
 ]
 resolver = "2"

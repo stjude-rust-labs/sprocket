@@ -6436,6 +6436,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "wdl-lint-site-generator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "maud",
+ "opener",
+ "pulldown-cmark",
+ "serde_json",
+ "strum",
+ "tracing",
+ "tracing-subscriber",
+ "walkdir",
+ "wdl-analysis",
+ "wdl-lint",
+]
+
+[[package]]
 name = "wdl-lsp"
 version = "0.17.1"
 dependencies = [

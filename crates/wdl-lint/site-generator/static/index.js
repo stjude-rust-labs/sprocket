@@ -1,0 +1,56 @@
+import state from "./default-state.json";
+import Alpine from 'alpinejs';
+import persist from '@alpinejs/persist';
+import * as common from '../../../../web-common/dist/common.js';
+
+Alpine.plugin(persist)
+
+Alpine.store('allLints', state.allLints);
+Alpine.store('allAnalysisLints', state.allAnalysisLints);
+
+const urlParams = new URLSearchParams(window.location.search);
+
+Alpine.data('App', () => ({
+    tab: urlParams.get('tab') || state.defaultTab,
+    search: Alpine.$persist('').using(sessionStorage),
+    activeTags: state.defaultTags,
+    lintVersion: state.lintVersion,
+    analysisVersion: state.analysisVersion,
+
+    switchTab(tab) {
+        this.tab = tab;
+
+        const url = new URL(window.location.href);
+        const params = new URLSearchParams(url.search);
+
+        params.set('tab', tab);
+        url.search = params.toString();
+        window.history.pushState({}, '', url);
+    },
+
+    toggleTag(tag) {
+        if (this.activeTags.includes(tag)) {
+            this.activeTags = this.activeTags.filter(t => t !== tag);
+        } else {
+            this.activeTags.push(tag);
+        }
+    },
+
+    isVisible(lint) {
+        const tagMatch = lint.tags.length === 0 ||
+            this.activeTags.some(tag => lint.tags.includes(tag));
+        if (!tagMatch) return false;
+
+        if (!this.search) return true;
+        const query = this.search.toLowerCase();
+
+        if (lint.id.toLowerCase().includes(query)) return true;
+
+        const lintDocs = (lint.docs || "").toLowerCase();
+        return query.split(" ").every(term => lintDocs.includes(term));
+    }
+}));
+
+Alpine.start();
+
+await common.initManualHighlighting();
