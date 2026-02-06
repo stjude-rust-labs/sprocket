@@ -32,7 +32,7 @@ const EMPTY_DOC_COMMENT_TEXT: &str = "##";
 /// The ID for the UnusedDocComments lint.
 const ID: &str = "UnusedDocComments";
 
-/// Creates a diagnostic for a misplaced doc comment
+/// Creates a diagnostic for a misplaced doc comment.
 fn unused_doc_comment_diagnostic(span: Span, syntax_kind: SyntaxKind) -> Diagnostic {
     Diagnostic::note(format!(
         "Doc comments aren't supported on {}",
@@ -119,11 +119,11 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Some Workflow Definition Language items and sections do not supported doc comments \
-         (`##`). This lint reports if a doc comment is attached to some section or item that isn't \
+        "Some Workflow Definition Language items and sections do not support doc comments (`##`). \
+         This lint reports if a doc comment is attached to some section or item that isn't \
          supported.
 
-        Doc comments (`##`) are supported on:
+        Doc comments are supported on:
 
         - Workflow Definitions
         - Task Definitions
