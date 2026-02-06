@@ -190,16 +190,22 @@ async fn find_tests(tmp_dir: PathBuf) -> anyhow::Result<Vec<Trial>> {
                     let category_url = format!("http://{server_addr}");
 
                     let mut driver = ctx.driver.lock().await;
-                    let handle = driver.new_tab().await?;
-                    driver.switch_to_window(handle).await?;
-                    driver.goto(&category_url).await?;
-                    test.run(&mut driver).await?;
+                    let tab = driver.new_tab().await?;
+
+                    let do_test = async |driver: &mut WebDriver, tab, category_url| {
+                        driver.switch_to_window(tab).await?;
+                        driver.goto(&category_url).await?;
+                        test.run(driver).await?;
+                        Ok(())
+                    };
+
+                    let result = do_test(&mut driver, tab, category_url).await;
 
                     // Cleanup
                     driver.close_window().await?;
                     driver.switch_to_window(ctx.primary_window.clone()).await?;
 
-                    Ok(())
+                    result
                 };
 
                 block_on(task)
