@@ -642,6 +642,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
             )
         })?
         .clean();
+    let mut workspace_str = workspace.to_string_lossy().to_string();
+    workspace_str.push('/');
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
@@ -704,7 +706,15 @@ pub async fn test(args: Args) -> CommandResult<()> {
             should_filter,
         )
         .await?;
-        all_results.insert(analysis.document().path().to_string(), tests);
+        all_results.insert(
+            analysis
+                .document()
+                .path()
+                .strip_prefix(&workspace_str)
+                .expect("document within workspace")
+                .to_string(),
+            tests,
+        );
     }
 
     process_tests(all_results, &test_dir, !args.no_clean, &mut errors).await?;
