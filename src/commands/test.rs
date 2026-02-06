@@ -233,8 +233,8 @@ impl TestIteration {
                 Ok(outputs) => {
                     if self.assertions.should_fail {
                         Ok(IterationResult::Fail(anyhow!(
-                            "test iteration #{num} of `{name}` succeeded but was expected to \
-                             fail: see `{dir}`",
+                            "test `{name}` (iteration {num}) succeeded but was expected to fail: \
+                             see `{dir}`",
                             num = self.iteration_num,
                             name = self.name,
                             dir = self.run_dir.display(),
@@ -260,8 +260,8 @@ impl TestIteration {
                         Ok(IterationResult::Success)
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
-                            "test iteration #{num} of `{name}` failed but was expected to \
-                             succeed: see `{dir}`: {err}",
+                            "test `{name}` (iteration {num}) failed but was expected to succeed: \
+                             see `{dir}`: {err}",
                             num = self.iteration_num,
                             name = self.name,
                             dir = self.run_dir.display(),
@@ -282,8 +282,8 @@ impl TestIteration {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
-                                        "test iteration #{num} of `{name}`'s stdout did not \
-                                         contain `{re}`: see `{dir}`",
+                                        "test `{name}` (iteration {num}) stdout did not contain \
+                                         `{re}`: see `{dir}`",
                                         num = self.iteration_num,
                                         name = self.name,
                                         dir = self.run_dir.display(),
@@ -301,8 +301,8 @@ impl TestIteration {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
-                                        "test iteration #{num} of `{name}`'s stderr did not \
-                                         contain `{re}`: see `{dir}`",
+                                        "test `{name}` (iteration {num}) stderr did not contain \
+                                         `{re}`: see `{dir}`",
                                         num = self.iteration_num,
                                         name = self.name,
                                         dir = self.run_dir.display(),
@@ -327,7 +327,7 @@ impl TestIteration {
                         if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
                             .with_context(|| {
                                 format!(
-                                    "test iteration #{num} of `{name}` failed output assertions: \
+                                    "test `{name}` (iteration {num}) failed output assertions: \
                                      see `{dir}`",
                                     num = self.iteration_num,
                                     name = self.name,
@@ -341,8 +341,8 @@ impl TestIteration {
                         }
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
-                            "test iteration #{num} of `{name}` exited with code `{actual}` but \
-                             test expected exit code `{expected}`: see `{dir}`",
+                            "test `{name}` (iteration {num}) exited with code `{actual}` but test \
+                             expected exit code `{expected}`: see `{dir}`",
                             num = self.iteration_num,
                             name = self.name,
                             actual = evaled_task.exit_code(),
