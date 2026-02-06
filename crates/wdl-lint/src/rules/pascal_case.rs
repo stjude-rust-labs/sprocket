@@ -47,6 +47,29 @@ impl Rule for PascalCaseRule {
          the code easier to read and understand."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"Struct names should be in PascalCase:
+
+```wdl
+version 1.2
+
+struct registered_user {
+    String name
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+struct RegisteredUser {
+    String name
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
     }

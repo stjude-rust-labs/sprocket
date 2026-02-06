@@ -87,6 +87,40 @@ impl Rule for MetaKeyValueFormattingRule {
          the closing bracket on its own line at the same indentation level of the key."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        names: ["James",
+        "Jimmy", "John"]
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        names: [
+            "James",
+            "Jimmy",
+            "John"
+        ]
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }

@@ -236,6 +236,10 @@ impl Rule for ShellCheckRule {
          Following its recommendations will increase the robustness of your command sections."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Correctness])
     }

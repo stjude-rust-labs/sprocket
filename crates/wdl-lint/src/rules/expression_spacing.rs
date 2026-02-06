@@ -193,6 +193,45 @@ impl Rule for ExpressionSpacingRule {
          choose a more compact or a more spaced out expression."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task older_than_jimmy {
+    input {
+        Int age
+    }
+
+    Int jimmy_age = 55
+    command <<>>
+
+    output {
+        Boolean older = age>jimmy_age
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task older_than_jimmy {
+    input {
+        Int age
+    }
+
+    Int jimmy_age = 55
+    command <<>>
+
+    output {
+        Boolean older = age > jimmy_age
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }

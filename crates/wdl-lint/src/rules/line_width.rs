@@ -109,6 +109,10 @@ impl Rule for LineWidthRule {
          are included in the line width check. The current maximum width is 90 characters."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }

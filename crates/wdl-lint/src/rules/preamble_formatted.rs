@@ -144,6 +144,42 @@ impl Rule for PreambleFormattedRule {
          there should be no comments or whitespace before the version declaration."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@ except: LineWidth
+##This is a preamble comment!
+##
+##This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+#@ except: LineWidth
+
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style, Tag::SprocketCompatibility])
     }

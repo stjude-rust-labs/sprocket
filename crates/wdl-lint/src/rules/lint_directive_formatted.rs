@@ -87,6 +87,36 @@ impl Rule for LintDirectiveFormattedRule {
          For example, `#@ except: LintDirectiveFormatted`."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@except: SnakeCase
+#@ ecept: LineWidth
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+#@ except: SnakeCase
+#@ except: LineWidth
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+    
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Correctness, Tag::SprocketCompatibility])
     }

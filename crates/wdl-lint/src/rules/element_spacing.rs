@@ -98,6 +98,50 @@ impl Rule for ElementSpacingRule {
          individual elements may optionally be separated by a blank line."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow determine_jimmy_age {
+
+    meta {
+
+        description: "Determines the current age of Jimmy."
+
+        outputs: {
+            age: "The age of Jimmy."
+
+        }
+
+    }
+
+    output {
+        Int age = 55
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow determine_jimmy_age {
+    meta {
+        description: "Determines the current age of Jimmy."
+        outputs: {
+            age: "The age of Jimmy."
+        }
+    }
+
+    output {
+        Int age = 55
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Spacing, Tag::Style])
     }

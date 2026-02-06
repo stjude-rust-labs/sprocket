@@ -72,6 +72,40 @@ impl Rule for CallInputSpacingRule {
          it is permissable to keep the input on the same line as the call."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    call add {
+        input: lhs=10,rhs=20
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    call add { input:
+        lhs = 10,
+        rhs = 20,
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Spacing])
     }

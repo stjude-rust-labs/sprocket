@@ -53,6 +53,39 @@ impl Rule for PreambleCommentPlacementRule {
          statement."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Style, Tag::SprocketCompatibility])
     }

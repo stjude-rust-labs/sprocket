@@ -1,6 +1,9 @@
+//! Defines the search box component.
+
 use maud::PreEscaped;
 use maud::html;
 
+/// The global search box.
 pub fn searchbox() -> PreEscaped<String> {
     html! {
         div class="relative flex-1 max-w-md" {
