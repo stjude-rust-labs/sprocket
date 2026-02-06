@@ -1,3 +1,5 @@
+//! A lint rule for misplaced doc comments that will not generate documentation.
+
 use wdl_analysis::Diagnostics;
 use wdl_analysis::EXCEPT_COMMENT_PREFIX;
 use wdl_analysis::VisitReason;
@@ -18,9 +20,16 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
+/// Prefix for defining the start of a doc comment.
 const DOC_COMMENT_PREFIX: &str = "## ";
-const CONTINUED_DOC_COMMENT_PREFIX: &str = "##";
 
+/// An "empty doc comment" should have this text.
+///
+/// Used to ensure that if we are parsing a doc comment and we don't see
+/// `DOC_COMMENT_PREFIX`, but we see this text we continue parsing.
+const EMPTY_DOC_COMMENT_TEXT: &str = "##";
+
+/// The ID for the UnusedDocComments lint.
 const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment
@@ -39,6 +48,9 @@ fn unused_doc_comment_diagnostic(span: Span, syntax_kind: SyntaxKind) -> Diagnos
 /// generate documentation for.
 #[derive(Default, Debug, Clone)]
 pub struct UnusedDocCommentsRule {
+    /// Tracks whether the `version_statement` has been processed or not. At the
+    /// moment, any comment with a doc comment prefix before the
+    /// `version_statement` is assumed to be a part of the WDL preamble.
     version_statement_processed: bool,
 }
 
@@ -61,7 +73,7 @@ impl UnusedDocCommentsRule {
             match token.kind() {
                 SyntaxKind::Comment => {
                     if !(token.text().starts_with(DOC_COMMENT_PREFIX)
-                        || (token.text() == CONTINUED_DOC_COMMENT_PREFIX))
+                        || (token.text() == EMPTY_DOC_COMMENT_TEXT))
                     {
                         break;
                     }
@@ -205,7 +217,7 @@ impl Visitor for UnusedDocCommentsRule {
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
         if comment.text().starts_with(EXCEPT_COMMENT_PREFIX)
-            || comment.text() == CONTINUED_DOC_COMMENT_PREFIX
+            || comment.text() == EMPTY_DOC_COMMENT_TEXT
             || comment.text().starts_with(DOC_COMMENT_PREFIX)
             || !self.version_statement_processed
         {
