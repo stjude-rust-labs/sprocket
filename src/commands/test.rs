@@ -242,7 +242,7 @@ impl TestIteration {
                     } else if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
                         .with_context(|| {
                             format!(
-                                "test iteration #{num} of `{name}` failed output assertions: see \
+                                "test `{name}` (iteration {num}) failed output assertions: see \
                                  `{dir}`",
                                 num = self.iteration_num,
                                 name = self.name,
