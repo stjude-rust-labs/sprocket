@@ -124,6 +124,49 @@ impl Rule for MatchingOutputMetaRule<'_> {
          is up to the developer to decide). No extraneous `meta.outputs` entries are allowed."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task generate_greeting {
+    meta {
+        outputs: {
+            greeting: "The generated greeting for the provided name"
+        }
+    }
+
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[
             Tag::Completeness,

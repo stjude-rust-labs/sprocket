@@ -208,6 +208,39 @@ impl Rule for InputSortedRule {
          the developer for final order of inputs of the same type."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task describe_person {
+    input {
+        ?File target = stdout()
+        ?Int age
+        String name
+    }
+
+    command <<<>>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task describe_person {
+    input {
+        String name
+        ?Int age
+        ?File target = stdout()
+    }
+
+    command <<<>>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Sorting])
     }

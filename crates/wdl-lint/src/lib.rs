@@ -87,11 +87,8 @@ pub trait Rule: Visitor {
     /// Get the long-form explanation of the lint rule.
     fn explanation(&self) -> &'static str;
 
-    // TODO: Write examples for each rule, make this a mandatory impl
     /// Get a list of examples that would trigger this lint rule.
-    fn examples(&self) -> &'static [&'static str] {
-        &[]
-    }
+    fn examples(&self) -> &'static [&'static str];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;
