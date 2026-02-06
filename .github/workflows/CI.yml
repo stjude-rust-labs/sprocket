@@ -10,6 +10,7 @@ env:
   RUST_BACKTRACE: full
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
+  IN_CI: 1
 
 jobs:
   format:
