@@ -44,6 +44,7 @@ mod shellcheck;
 mod snake_case;
 mod todo_comment;
 mod trailing_comma;
+mod unused_doc_comments;
 mod version_statement_formatted;
 mod whitespace;
 
@@ -91,5 +92,6 @@ pub use shellcheck::*;
 pub use snake_case::*;
 pub use todo_comment::*;
 pub use trailing_comma::*;
+pub use unused_doc_comments::*;
 pub use version_statement_formatted::*;
 pub use whitespace::*;
