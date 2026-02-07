@@ -33,15 +33,12 @@ const EMPTY_DOC_COMMENT_TEXT: &str = "##";
 const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
-fn unused_doc_comment_diagnostic(span: Span, syntax_kind: SyntaxKind) -> Diagnostic {
-    Diagnostic::note(format!(
-        "Doc comments aren't supported on {}",
-        syntax_kind.describe()
-    ))
-    .with_rule(ID)
-    .with_highlight(span)
-    .with_help("Doc comments must be attached to WDL items that support doc comments")
-    .with_fix("If you're intending to use a regular comment here, replace the `##` with `#`")
+fn unused_doc_comment_diagnostic(span: Span) -> Diagnostic {
+    Diagnostic::note("Unused doc comment")
+        .with_rule(ID)
+        .with_highlight(span)
+        .with_help("Documentation will not be generated for this item")
+        .with_fix("If you're intending to use a regular comment here, replace the `##` with `#`")
 }
 
 /// Detects whether a doc comment has been placed atop a Node that we do not
@@ -61,7 +58,6 @@ impl UnusedDocCommentsRule {
     fn lint_doc_comments(
         &self,
         diagnostics: &mut Diagnostics,
-        kind: SyntaxKind,
         preceding_trivia: &mut impl Iterator<Item = SyntaxToken>,
     ) {
         let mut span: Option<Span> = None;
@@ -101,7 +97,7 @@ impl UnusedDocCommentsRule {
 
         if let (Some(span), Some(last_comment)) = (span, last_comment) {
             diagnostics.exceptable_add(
-                unused_doc_comment_diagnostic(span, kind),
+                unused_doc_comment_diagnostic(span),
                 SyntaxElement::from(last_comment),
                 &self.exceptable_nodes(),
             );
@@ -176,7 +172,6 @@ impl Visitor for UnusedDocCommentsRule {
 
         self.lint_doc_comments(
             diagnostics,
-            section.kind(),
             &mut section.keyword().inner().preceding_trivia(),
         );
     }
@@ -193,7 +188,6 @@ impl Visitor for UnusedDocCommentsRule {
 
         self.lint_doc_comments(
             diagnostics,
-            section.kind(),
             &mut section.keyword().inner().preceding_trivia(),
         );
     }
@@ -210,7 +204,6 @@ impl Visitor for UnusedDocCommentsRule {
 
         self.lint_doc_comments(
             diagnostics,
-            section.kind(),
             &mut section.keyword().inner().preceding_trivia(),
         );
     }
@@ -224,11 +217,7 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        self.lint_doc_comments(
-            diagnostics,
-            comment.kind(),
-            &mut comment.inner().preceding_trivia(),
-        );
+        self.lint_doc_comments(diagnostics, &mut comment.inner().preceding_trivia());
     }
 
     fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &v1::Expr) {
@@ -241,7 +230,7 @@ impl Visitor for UnusedDocCommentsRule {
             .first_token()
             .expect("Expression must have one token");
 
-        self.lint_doc_comments(diagnostics, expr.kind(), &mut first.preceding_trivia());
+        self.lint_doc_comments(diagnostics, &mut first.preceding_trivia());
     }
 
     fn import_statement(
@@ -253,11 +242,7 @@ impl Visitor for UnusedDocCommentsRule {
         if reason == VisitReason::Exit {
             return;
         }
-        self.lint_doc_comments(
-            diagnostics,
-            stmt.kind(),
-            &mut stmt.keyword().inner().preceding_trivia(),
-        );
+        self.lint_doc_comments(diagnostics, &mut stmt.keyword().inner().preceding_trivia());
     }
 
     fn conditional_statement(
@@ -276,11 +261,7 @@ impl Visitor for UnusedDocCommentsRule {
                 .first_token()
                 .expect("ConditionalStatementClause must have some token");
 
-            self.lint_doc_comments(
-                diagnostics,
-                clause.inner().kind(),
-                &mut token.preceding_trivia(),
-            );
+            self.lint_doc_comments(diagnostics, &mut token.preceding_trivia());
         }
     }
 
@@ -303,7 +284,6 @@ impl Visitor for UnusedDocCommentsRule {
 
         self.lint_doc_comments(
             diagnostics,
-            decl.kind(),
             &mut decl
                 .inner()
                 .first_token()
@@ -322,11 +302,7 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        self.lint_doc_comments(
-            diagnostics,
-            stmt.kind(),
-            &mut stmt.keyword().inner().preceding_trivia(),
-        );
+        self.lint_doc_comments(diagnostics, &mut stmt.keyword().inner().preceding_trivia());
     }
 
     fn requirements_section(
@@ -341,7 +317,6 @@ impl Visitor for UnusedDocCommentsRule {
 
         self.lint_doc_comments(
             diagnostics,
-            section.kind(),
             &mut section.keyword().inner().preceding_trivia(),
         );
     }
@@ -356,10 +331,6 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        self.lint_doc_comments(
-            diagnostics,
-            stmt.kind(),
-            &mut stmt.keyword().inner().preceding_trivia(),
-        );
+        self.lint_doc_comments(diagnostics, &mut stmt.keyword().inner().preceding_trivia());
     }
 }
