@@ -18,6 +18,7 @@ use wdl::format::config::Indent;
 use wdl::format::config::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -54,23 +55,6 @@ pub struct Args {
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
-}
-
-impl Args {
-    /// Applies the configuration to the command arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-        self.with_tabs = self.with_tabs || config.format.with_tabs;
-        if self.indentation_size.is_none() {
-            self.indentation_size = Some(config.format.indentation_size);
-        }
-        if self.max_line_length.is_none() {
-            self.max_line_length = Some(config.format.max_line_length);
-        }
-        self
-    }
 }
 
 /// Vec of Source arguments (may be empty).
@@ -129,15 +113,24 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
-    let indent = Indent::try_new(args.with_tabs, args.indentation_size)
-        .context("failed to create indentation configuration")?;
+pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    let fallback_version = config.common.wdl.fallback_version;
 
-    let max_line_length = match args.max_line_length {
-        Some(length) => MaxLineLength::try_new(length)
-            .context("failed to create max line length configuration")?,
-        None => MaxLineLength::default(),
-    };
+    let indent = Indent::try_new(
+        args.with_tabs || config.format.with_tabs,
+        Some(
+            args.indentation_size
+                .unwrap_or(config.format.indentation_size),
+        ),
+    )
+    .context("failed to create indentation configuration")?;
+
+    let max_line_length = MaxLineLength::try_new(
+        args.max_line_length
+            .unwrap_or(config.format.max_line_length),
+    )
+    .context("failed to create max line length configuration")?;
 
     let config = Builder::default()
         .indent(indent)
@@ -155,6 +148,7 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
 
             let results = Analysis::default()
                 .extend_sources(sources.clone())
+                .fallback_version(fallback_version)
                 .run()
                 .await
                 .map_err(CommandError::from)?;
@@ -169,22 +163,18 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
                     continue;
                 }
 
-                let (source, formatted) = match format_document(
-                    &formatter,
-                    result.document(),
-                    args.report_mode.unwrap_or_default(),
-                    colorize,
-                ) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        errors += 1;
-                        warn!(
-                            "skipping format check for `{}`: {e}",
-                            result.document().path()
-                        );
-                        continue;
-                    }
-                };
+                let (source, formatted) =
+                    match format_document(&formatter, result.document(), report_mode, colorize) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            errors += 1;
+                            warn!(
+                                "skipping format check for `{}`: {e}",
+                                result.document().path()
+                            );
+                            continue;
+                        }
+                    };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
                     if colorize {
@@ -217,6 +207,7 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
 
             let results = Analysis::default()
                 .add_source(source.clone())
+                .fallback_version(fallback_version)
                 .run()
                 .await
                 .map_err(CommandError::from)?;
@@ -230,18 +221,14 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
                 .into());
             }
 
-            let (_source, formatted) = format_document(
-                &formatter,
-                result.document(),
-                args.report_mode.unwrap_or_default(),
-                colorize,
-            )
-            .with_context(|| {
-                format!(
-                    "could not view document `{path}`",
-                    path = result.document().path()
-                )
-            })?;
+            let (_source, formatted) =
+                format_document(&formatter, result.document(), report_mode, colorize)
+                    .with_context(|| {
+                        format!(
+                            "could not view document `{path}`",
+                            path = result.document().path()
+                        )
+                    })?;
             print!("{}", formatted);
         }
         FormatSubcommand::Overwrite(s) => {
@@ -252,6 +239,7 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
 
             let results = Analysis::default()
                 .extend_sources(sources.clone())
+                .fallback_version(fallback_version)
                 .run()
                 .await
                 .map_err(CommandError::from)?;
@@ -269,22 +257,18 @@ pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
                     continue;
                 }
 
-                let (_source, formatted) = match format_document(
-                    &formatter,
-                    result.document(),
-                    args.report_mode.unwrap_or_default(),
-                    colorize,
-                ) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        errors += 1;
-                        warn!(
-                            "not overwriting document `{path}` due to error: {e:#}",
-                            path = result.document().path()
-                        );
-                        continue;
-                    }
-                };
+                let (_source, formatted) =
+                    match format_document(&formatter, result.document(), report_mode, colorize) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            errors += 1;
+                            warn!(
+                                "not overwriting document `{path}` due to error: {e:#}",
+                                path = result.document().path()
+                            );
+                            continue;
+                        }
+                    };
 
                 fs::write(result.document().uri().to_file_path().unwrap(), formatted)
                     .with_context(|| {

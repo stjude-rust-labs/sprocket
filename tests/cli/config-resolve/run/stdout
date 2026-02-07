@@ -100,3 +100,5 @@ digests = "weak"
 color = "auto"
 report_mode = "full"
 
+[common.wdl]
+

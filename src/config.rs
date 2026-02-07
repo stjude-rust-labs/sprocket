@@ -18,6 +18,7 @@ use serde::Serialize;
 use tracing::debug;
 use tracing::warn;
 use url::Url;
+use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
 
 use crate::diagnostics::Mode;
@@ -97,13 +98,26 @@ pub struct Config {
 }
 
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
     pub color: ColorMode,
     /// The report mode.
     pub report_mode: Mode,
+    /// WDL-specific configuration.
+    #[serde(default)]
+    pub wdl: WdlConfig,
+}
+
+/// WDL-specific configuration options shared across all commands.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct WdlConfig {
+    /// The fallback version to use when a WDL document declares an
+    /// unrecognized version (e.g., `version development`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_version: Option<SupportedVersion>,
 }
 
 /// Represents the configuration for the Sprocket `format` command.

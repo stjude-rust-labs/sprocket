@@ -10,13 +10,14 @@ use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::doc::AdditionalScript;
-use wdl::doc::Config;
+use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::document_workspace;
 use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
+use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
@@ -121,7 +122,7 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args, colorize: bool) -> CommandResult<()> {
+pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     if args.with_doc_comments {
         tracing::warn!(
             "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
@@ -197,9 +198,10 @@ pub async fn doc(args: Args, colorize: bool) -> CommandResult<()> {
     }
 
     let analysis_config = AnalysisConfig::default()
+        .with_fallback_version(config.common.wdl.fallback_version)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let config = Config::new(analysis_config, &workspace, &docs_dir)
+    let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .init_light_mode(args.light_mode)
         .custom_theme(args.theme)

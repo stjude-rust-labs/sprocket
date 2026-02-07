@@ -14,6 +14,7 @@ use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -45,7 +46,7 @@ struct Lock {
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
@@ -54,6 +55,7 @@ pub async fn lock(args: Args) -> CommandResult<()> {
     let s = args.source.unwrap_or_default();
     let results = Analysis::default()
         .add_source(s)
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;

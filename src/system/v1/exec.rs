@@ -18,6 +18,7 @@ use wdl::analysis::Analyzer;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
+use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
 use wdl::engine::Config as WdlConfig;
 use wdl::engine::EvaluationError;
@@ -169,6 +170,8 @@ pub struct RunnableExecutor {
     /// Human-readable generated name for this run.
     #[builder(into)]
     run_name: String,
+    /// The fallback WDL version for documents with unrecognized versions.
+    fallback_version: Option<SupportedVersion>,
     /// Validated source location of the WDL document.
     source: AllowedSource,
     /// User-provided target name (workflow or task), if any.
@@ -194,7 +197,7 @@ impl RunnableExecutor {
     /// returns early. On completion (success or failure), the run is removed
     /// from the active runs map.
     pub async fn execute(self) {
-        let result = match analyze_wdl_document(&self.source).await {
+        let result = match analyze_wdl_document(&self.source, self.fallback_version).await {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!(
@@ -379,8 +382,12 @@ impl RunnableExecutor {
 /// Creates an analyzer, adds the document, runs analysis, and returns the
 /// result for the entrypoint document. Checks all analysis results (including
 /// transitive dependencies) for errors before returning.
-pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResult> {
-    let analyzer = Analyzer::new(AnalysisConfig::default(), |(), _, _, _| async {});
+pub async fn analyze_wdl_document(
+    source: &AllowedSource,
+    fallback_version: Option<SupportedVersion>,
+) -> Result<AnalysisResult> {
+    let config = AnalysisConfig::default().with_fallback_version(fallback_version);
+    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
 
     let uri = source.to_url();
     analyzer

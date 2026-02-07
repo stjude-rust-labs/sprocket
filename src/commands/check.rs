@@ -142,44 +142,6 @@ pub struct CheckArgs {
     pub lint: bool,
 }
 
-impl CheckArgs {
-    /// Applies the configuration to the CLI options.
-    fn apply(&mut self, config: &crate::config::Config) {
-        self.common
-            .except
-            .extend(config.check.except.iter().cloned());
-
-        self.common.deny_notes |= config.check.deny_notes;
-
-        self.common.deny_warnings |= config.check.deny_warnings || self.common.deny_notes;
-
-        self.common.hide_notes |= config.check.hide_notes;
-
-        if self.common.report_mode.is_none() {
-            self.common.report_mode = Some(config.common.report_mode);
-        }
-
-        // Linting is implied by any of these args when they are used on the CL
-        if !self.common.filter_lint_tag.is_empty()
-            || !self.common.only_lint_tag.is_empty()
-            || self.common.all_lint_rules
-        {
-            self.lint = true;
-        }
-
-        self.common.all_lint_rules |= config.check.all_lint_rules;
-        self.common
-            .filter_lint_tag
-            .extend(config.check.filter_lint_tags.iter().cloned());
-
-        if !self.common.all_lint_rules {
-            self.common
-                .only_lint_tag
-                .extend(config.check.only_lint_tags.iter().cloned());
-        }
-    }
-}
-
 /// Arguments for the `lint` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -190,15 +152,35 @@ pub struct LintArgs {
 }
 
 /// Performs the `check` subcommand.
-pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    args.apply(&config);
+pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
+    let mut except = args.common.except;
+    except.extend(config.check.except.iter().cloned());
+
+    let deny_notes = args.common.deny_notes || config.check.deny_notes;
+    let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
+    let hide_notes = args.common.hide_notes || config.check.hide_notes;
+    let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
+
+    let lint = args.lint
+        || !args.common.filter_lint_tag.is_empty()
+        || !args.common.only_lint_tag.is_empty()
+        || args.common.all_lint_rules;
+
+    let all_lint_rules = args.common.all_lint_rules || config.check.all_lint_rules;
+
+    let mut filter_lint_tag = args.common.filter_lint_tag;
+    filter_lint_tag.extend(config.check.filter_lint_tags.iter().cloned());
+
+    let mut only_lint_tag = args.common.only_lint_tag;
+    if !all_lint_rules {
+        only_lint_tag.extend(config.check.only_lint_tags.iter().cloned());
+    }
 
     let mut sources = args.common.sources;
     if sources.is_empty() {
         sources.push(Source::default());
     }
 
-    // Validate provided args
     if args.common.suppress_imports {
         for source in sources.iter() {
             if let Source::Directory(dir) = source {
@@ -225,11 +207,7 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
         any_remote_sources || args.common.show_remote_diagnostics
     };
 
-    report_unknown_rules(
-        &args.common.except,
-        args.common.report_mode.unwrap_or_default(),
-        colorize,
-    )?;
+    report_unknown_rules(&except, report_mode, colorize)?;
 
     let provided_source_uris = sources
         .iter()
@@ -237,13 +215,12 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
         .cloned()
         .collect::<HashSet<_>>();
 
-    let enabled_tags = if args.lint {
-        if args.common.all_lint_rules {
+    let enabled_tags = if lint {
+        if all_lint_rules {
             TagSet::new(Tag::VARIANTS)
-        } else if !args.common.only_lint_tag.is_empty() {
+        } else if !only_lint_tag.is_empty() {
             TagSet::new(
-                args.common
-                    .only_lint_tag
+                only_lint_tag
                     .iter()
                     .filter_map(|t| Tag::from_str(t).ok())
                     .collect::<Vec<_>>()
@@ -256,10 +233,9 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
         TagSet::new(&[])
     };
 
-    let disabled_tags = if args.lint && !args.common.filter_lint_tag.is_empty() {
+    let disabled_tags = if lint && !filter_lint_tag.is_empty() {
         TagSet::new(
-            args.common
-                .filter_lint_tag
+            filter_lint_tag
                 .iter()
                 .filter_map(|t| Tag::from_str(t).ok())
                 .collect::<Vec<_>>()
@@ -272,9 +248,10 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
     // Run analysis
     let results = Analysis::default()
         .extend_sources(sources)
-        .extend_exceptions(args.common.except)
+        .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -324,7 +301,7 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
                                 return false;
                             }
 
-                            if !args.common.hide_notes {
+                            if !hide_notes {
                                 counts.notes += 1;
                                 true
                             } else {
@@ -334,7 +311,7 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
                     }
                 }),
                 &[],
-                args.common.report_mode.unwrap_or_default(),
+                report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
@@ -343,13 +320,9 @@ pub async fn check(mut args: CheckArgs, config: Config, colorize: bool) -> Comma
 
     if let Some(e) = counts.verify_no_errors() {
         return Err(e.into());
-    } else if args.common.deny_warnings
-        && let Some(e) = counts.verify_no_warnings(true)
-    {
+    } else if deny_warnings && let Some(e) = counts.verify_no_warnings(true) {
         return Err(e.into());
-    } else if args.common.deny_notes
-        && let Some(e) = counts.verify_no_notes(true)
-    {
+    } else if deny_notes && let Some(e) = counts.verify_no_notes(true) {
         return Err(e.into());
     }
 

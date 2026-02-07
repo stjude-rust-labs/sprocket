@@ -35,6 +35,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -106,24 +107,6 @@ pub struct Args {
     /// Clean all exectuion directories, even for tests that failed or errored.
     #[clap(long)]
     pub clean_all: bool,
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: wdl::engine::Config,
-}
-
-impl Args {
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.engine = config.run.engine;
-        self.engine.task.cache = CallCachingMode::Off;
-        self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        self.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        self
-    }
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -523,7 +506,7 @@ async fn process_tests(
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args) -> CommandResult<()> {
+pub async fn test(args: Args, config: Config) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
         (Source::File(url), _) if url.scheme() != "file" => {
@@ -548,6 +531,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -587,7 +571,13 @@ pub async fn test(args: Args) -> CommandResult<()> {
     let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
         test_dir.join(FIXTURES_DIR).as_path(),
     )));
-    let engine = Arc::new(args.engine);
+    let engine = {
+        let mut engine = config.run.engine;
+        engine.task.cache = CallCachingMode::Off;
+        engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        Arc::new(engine)
+    };
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
