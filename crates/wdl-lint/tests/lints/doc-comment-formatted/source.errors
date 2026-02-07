@@ -1,0 +1,160 @@
+note[KnownRules]: unknown lint rule `Foo`
+  ┌─ tests/lints/doc-comment-formatted/source.wdl:4:12
+  │
+4 │ #@ except: Foo
+  │            ^^^ cannot make an exception for this rule
+  │
+  = fix: remove the unknown rule from the exception list
+
+note[MetaDescription]: workflow `correct_order` is missing a description key
+  ┌─ tests/lints/doc-comment-formatted/source.wdl:6:5
+  │
+6 │     meta {}
+  │     ^^^^
+  │
+  = fix: add a `description` key to the meta section
+
+note[KnownRules]: unknown lint rule `Bar`
+  ┌─ tests/lints/doc-comment-formatted/source.wdl:9:12
+  │
+9 │ #@ except: Bar
+  │            ^^^ cannot make an exception for this rule
+  │
+  = fix: remove the unknown rule from the exception list
+
+note[DocCommentFormatted]: doc comments should come before lint directives
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:10:1
+   │
+10 │ ## This is incorrect - doc comment after directive
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: move the doc comment before any lint directives
+
+note[MetaSections]: task `incorrect_order` is missing a `meta` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:11:6
+   │
+11 │ task incorrect_order {
+   │      ^^^^^^^^^^^^^^^ this task is missing a `meta` section
+   │
+   = fix: add the missing section
+
+warning[RequirementsSection]: task `incorrect_order` is missing a `requirements` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:11:6
+   │
+11 │ task incorrect_order {
+   │      ^^^^^^^^^^^^^^^ this task is missing a `requirements` section
+   │
+   = fix: add a `requirements` section
+
+note[KnownRules]: unknown lint rule `Baz`
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:17:12
+   │
+17 │ #@ except: Baz
+   │            ^^^ cannot make an exception for this rule
+   │
+   = fix: remove the unknown rule from the exception list
+
+warning[PascalCase]: struct name `incorrect_struct` is not PascalCase
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:18:8
+   │
+18 │ struct incorrect_struct {
+   │        ^^^^^^^^^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `incorrect_struct` with `IncorrectStruct`
+
+note[MetaSections]: struct `incorrect_struct` is missing both `meta` and `parameter_meta` sections
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:18:8
+   │
+18 │ struct incorrect_struct {
+   │        ^^^^^^^^^^^^^^^^ this struct is missing both `meta` and `parameter_meta` sections
+   │
+   = fix: add both the `meta` and `parameter_meta` sections
+
+note[KnownRules]: unknown lint rule `Qux`
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:22:12
+   │
+22 │ #@ except: Qux
+   │            ^^^ cannot make an exception for this rule
+   │
+   = fix: remove the unknown rule from the exception list
+
+note[KnownRules]: unknown lint rule `Quux`
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:23:12
+   │
+23 │ #@ except: Quux
+   │            ^^^^ cannot make an exception for this rule
+   │
+   = fix: remove the unknown rule from the exception list
+
+note[DocCommentFormatted]: doc comments should come before lint directives
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:32:1
+   │
+32 │ ## Another doc comment after directive
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: move the doc comment before any lint directives
+
+note[MetaSections]: task `mixed_order` is missing a `meta` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:33:6
+   │
+33 │ task mixed_order {
+   │      ^^^^^^^^^^^ this task is missing a `meta` section
+   │
+   = fix: add the missing section
+
+warning[RequirementsSection]: task `mixed_order` is missing a `requirements` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:33:6
+   │
+33 │ task mixed_order {
+   │      ^^^^^^^^^^^ this task is missing a `requirements` section
+   │
+   = fix: add a `requirements` section
+
+note[MetaSections]: task `no_directives` is missing a `meta` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:38:6
+   │
+38 │ task no_directives {
+   │      ^^^^^^^^^^^^^ this task is missing a `meta` section
+   │
+   = fix: add the missing section
+
+warning[RequirementsSection]: task `no_directives` is missing a `requirements` section
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:38:6
+   │
+38 │ task no_directives {
+   │      ^^^^^^^^^^^^^ this task is missing a `requirements` section
+   │
+   = fix: add a `requirements` section
+
+note[KnownRules]: unknown lint rule `SomeRule`
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:43:12
+   │
+43 │ #@ except: SomeRule
+   │            ^^^^^^^^ cannot make an exception for this rule
+   │
+   = fix: remove the unknown rule from the exception list
+
+note[DocCommentFormatted]: doc comments should come before lint directives
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:45:1
+   │
+45 │ ## Another doc block after blank line and directive
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: move the doc comment before any lint directives
+
+warning[PascalCase]: struct name `with_blank_lines` is not PascalCase
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:46:8
+   │
+46 │ struct with_blank_lines {
+   │        ^^^^^^^^^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `with_blank_lines` with `WithBlankLines`
+
+note[MetaSections]: struct `with_blank_lines` is missing both `meta` and `parameter_meta` sections
+   ┌─ tests/lints/doc-comment-formatted/source.wdl:46:8
+   │
+46 │ struct with_blank_lines {
+   │        ^^^^^^^^^^^^^^^^ this struct is missing both `meta` and `parameter_meta` sections
+   │
+   = fix: add both the `meta` and `parameter_meta` sections
+

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
+* Added `DocCommentFormatted` lint rule to ensure doc comments appear before lint directives ([#592](https://github.com/stjude-rust-labs/sprocket/issues/592))
 
 #### Fixed
 
