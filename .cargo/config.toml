@@ -1,0 +1,2 @@
+[alias]
+generate-lint-site = "run --package wdl-lint-site-generator --bin wdl-lint-site-generator"
