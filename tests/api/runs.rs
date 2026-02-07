@@ -7,6 +7,7 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
+use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
@@ -46,7 +47,14 @@ async fn create_test_server(
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
 
-    let (_, run_manager_tx) = RunManagerSvc::spawn(1000, server_config, db.clone());
+    let (_, run_manager_tx) = RunManagerSvc::spawn(
+        1000,
+        Config {
+            server: server_config,
+            ..Default::default()
+        },
+        db.clone(),
+    );
 
     // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -1365,7 +1373,14 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     let db: Arc<dyn Database> = Arc::new(SqliteDatabase::from_pool(pool).await.unwrap());
 
     // Create events and subscribe to crankshaft events
-    let (_, manager) = RunManagerSvc::spawn(1000, server_config, db.clone());
+    let (_, manager) = RunManagerSvc::spawn(
+        1000,
+        Config {
+            server: server_config,
+            ..Default::default()
+        },
+        db.clone(),
+    );
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");

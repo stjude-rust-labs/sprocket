@@ -1,0 +1,6 @@
+warning: unsupported WDL version `development`; interpreting document as version `1.2`
+  ┌─ test.wdl:1:9
+  │
+1 │ version development
+  │         ^^^^^^^^^^^ this version of WDL is not supported
+

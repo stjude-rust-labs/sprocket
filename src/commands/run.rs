@@ -188,29 +188,9 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
-
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: EngineConfig,
 }
 
 impl Args {
-    /// Applies the given configuration to the CLI arguments.
-    fn apply(&mut self, config: &Config) {
-        if self.runs_dir.is_none() {
-            self.runs_dir = Some(config.run.runs_dir.clone());
-        }
-
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-    }
-
     /// Applies the CLI arguments to the given engine configuration.
     fn apply_engine_config(&self, config: &mut EngineConfig) {
         // Apply the Azure auth to the engine config
@@ -518,12 +498,16 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn run(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
-    args.apply(&config);
+    let runs_dir = args
+        .runs_dir
+        .clone()
+        .unwrap_or_else(|| config.run.runs_dir.clone());
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
 
     let template = if colorize {
@@ -539,6 +523,7 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
 
     let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .init({
             let progress_bar = progress_bar.clone();
             Box::new(move || {
@@ -586,7 +571,7 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
                 source,
                 result.document().diagnostics(),
                 &[],
-                args.report_mode.unwrap_or_default(),
+                report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
@@ -665,7 +650,7 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
         }
         supplied_dir
     } else {
-        setup_run_dir(&args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()), &target)?
+        setup_run_dir(&runs_dir, &target)?
     };
 
     tracing::info!(
@@ -764,7 +749,7 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
                             e.document.root().text().to_string(),
                             &[e.diagnostic],
                             &e.backtrace,
-                            args.report_mode.unwrap_or_default(),
+                            report_mode,
                             colorize
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
