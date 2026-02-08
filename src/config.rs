@@ -294,16 +294,14 @@ impl ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
-    /// Number of test executions to run in parallel
+    /// Number of test executions to run in parallel. The default is `50`.
     #[serde(default)]
     pub parallelism: usize,
 }
 
 impl Default for TestConfig {
     fn default() -> Self {
-        Self {
-            parallelism: 20, // TODO play with this number
-        }
+        Self { parallelism: 50 }
     }
 }
 
