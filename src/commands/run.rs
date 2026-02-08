@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs;
+use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,6 +26,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
@@ -38,6 +40,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
+use crate::LoggingReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -81,6 +84,9 @@ pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
 /// The name for the "latest" symlink.
 #[cfg(not(target_os = "windows"))]
 const LATEST: &str = "_latest";
+
+/// The log file in the output directory for writing `sprocket` output to
+const LOG_FILE_NAME: &str = "output.log";
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
@@ -518,7 +524,12 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
 }
 
 /// The main function for the `run` subcommand.
-pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn run(
+    mut args: Args,
+    mut config: Config,
+    colorize: bool,
+    handle: LoggingReloadHandle,
+) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
@@ -668,6 +679,9 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
         setup_run_dir(&args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()), &target)?
     };
 
+    // Now that the output directory is calculated, initialize file logging
+    initialize_file_logging(handle, &output_dir)?;
+
     tracing::info!(
         "`{dir}` will be used as the execution directory",
         dir = output_dir.display()
@@ -774,4 +788,26 @@ pub async fn run(mut args: Args, mut config: Config, colorize: bool) -> CommandR
             },
         }
     }
+}
+
+/// Initializes logging to `output.log` in the given output directory.
+fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &PathBuf) -> Result<()> {
+    fs::create_dir_all(output_dir).with_context(|| {
+        format!(
+            "failed to create directory `{path}`",
+            path = output_dir.display()
+        )
+    })?;
+
+    let log_file_path = output_dir.join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path).with_context(|| {
+        format!(
+            "failed to create log file `{path}`",
+            path = log_file_path.display()
+        )
+    })?;
+
+    handle
+        .reload(layer().with_ansi(false).with_writer(log_file))
+        .context("failed to initialize file logging")
 }
