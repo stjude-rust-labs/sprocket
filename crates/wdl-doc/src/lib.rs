@@ -498,7 +498,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
 
     let docs_dir = absolute(&config.output_dir)?.clean();
     if !docs_dir.exists() {
-        std::fs::create_dir(&docs_dir)
+        std::fs::create_dir_all(&docs_dir)
             .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(

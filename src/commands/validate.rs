@@ -43,10 +43,6 @@ pub struct Args {
     /// pairs passed in on the command line.
     pub inputs: Vec<String>,
 
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -55,7 +51,6 @@ pub struct Args {
 impl Args {
     /// Applies the configuration to the arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }

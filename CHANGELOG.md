@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* The values for the `common.report_mode` setting in `sprocket.toml` have
+  changed to lower kebab-case, e.g. `full` and `one-line` ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* The `common.color` setting in `sprocket.toml` has been changed from being a
+  boolean to an enum with values `auto` (default), `always`, and `never`. ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Replaced the `--no-color` option for a global `--color` option to control
+  output colorization and made the uncolorized output consistent ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
 * Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
   ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * `sprocket dev doc` will now **fail** in the presence of analysis errors

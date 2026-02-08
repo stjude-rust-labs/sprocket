@@ -1,7 +1,6 @@
 //! Implementation of the `format` subcommand.
 
 use std::fs;
-use std::io::IsTerminal;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -30,10 +29,6 @@ use crate::diagnostics::emit_diagnostics;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// Disables color output.
-    #[arg(long, global = true)]
-    pub no_color: bool,
-
     /// The report mode for any emitted diagnostics.
     #[arg(short = 'm', long, value_name = "MODE", global = true)]
     pub report_mode: Option<Mode>,
@@ -64,7 +59,6 @@ pub struct Args {
 impl Args {
     /// Applies the configuration to the command arguments.
     pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
@@ -111,7 +105,7 @@ fn format_document(
     formatter: &Formatter,
     document: &Document,
     mode: Mode,
-    no_color: bool,
+    colorize: bool,
 ) -> Result<(String, String)> {
     let source = document.root().text().to_string();
     let diagnostics = document
@@ -121,7 +115,7 @@ fn format_document(
         .collect::<Vec<_>>();
     if !diagnostics.is_empty() {
         let path = document.path();
-        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, no_color)?;
+        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, colorize)?;
         return Err(anyhow!("cannot format a malformed document"));
     }
 
@@ -135,7 +129,7 @@ fn format_document(
 }
 
 /// Runs the `format` command.
-pub async fn format(args: Args) -> CommandResult<()> {
+pub async fn format(args: Args, colorize: bool) -> CommandResult<()> {
     let indent = Indent::try_new(args.with_tabs, args.indentation_size)
         .context("failed to create indentation configuration")?;
 
@@ -179,7 +173,7 @@ pub async fn format(args: Args) -> CommandResult<()> {
                     &formatter,
                     result.document(),
                     args.report_mode.unwrap_or_default(),
-                    args.no_color,
+                    colorize,
                 ) {
                     Ok(r) => r,
                     Err(e) => {
@@ -193,7 +187,7 @@ pub async fn format(args: Args) -> CommandResult<()> {
                 };
                 if formatted != source {
                     warn!("difference in `{}`", result.document().path());
-                    if !args.no_color && std::io::stderr().is_terminal() {
+                    if colorize {
                         eprint!(
                             "{}",
                             pretty_assertions::StrComparison::new(&source, &formatted)
@@ -240,7 +234,7 @@ pub async fn format(args: Args) -> CommandResult<()> {
                 &formatter,
                 result.document(),
                 args.report_mode.unwrap_or_default(),
-                args.no_color,
+                colorize,
             )
             .with_context(|| {
                 format!(
@@ -279,7 +273,7 @@ pub async fn format(args: Args) -> CommandResult<()> {
                     &formatter,
                     result.document(),
                     args.report_mode.unwrap_or_default(),
-                    args.no_color,
+                    colorize,
                 ) {
                     Ok(r) => r,
                     Err(e) => {
