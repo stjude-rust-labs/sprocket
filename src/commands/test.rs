@@ -1,5 +1,6 @@
 //! Implementation of the `test` subcommand.
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs::read;
@@ -550,7 +551,8 @@ async fn process_tests(
     root: &Path,
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
-) -> Result<()> {
+) -> Result<BTreeMap<String, (usize, usize, usize)>> {
+    let mut all_results = BTreeMap::new();
     for (document_name, target_results) in tests {
         info!("evaluating document: `{document_name}`");
         for (target_name, results) in target_results {
@@ -582,41 +584,47 @@ async fn process_tests(
                         }
                     }
                 }
-                if err_counter > 0 {
-                    let total = err_counter + fail_counter + success_counter;
-                    println!(
-                        "☠️ `{document_name}::{target_name}::{test_name}` had errors: \
-                         {err_counter} execution{err_plural} errored (out of {total} test \
-                         execution{total_plural})",
-                        err_plural = if err_counter > 1 { "s" } else { "" },
-                        total_plural = if total > 1 { "s" } else { "" },
-                    );
-                } else if fail_counter > 0 {
-                    let total = fail_counter + success_counter;
-                    println!(
-                        "❌ `{document_name}::{target_name}::{test_name}` failed: {fail_counter} \
-                         execution{fail_plural} failed assertions (out of {total} \
-                         execution{total_plural})",
-                        fail_plural = if fail_counter > 1 { "s" } else { "" },
-                        total_plural = if total > 1 { "s" } else { "" },
-                    )
-                } else {
-                    println!(
-                        "✅ `{document_name}::{target_name}::{test_name}` success! \
-                         ({success_counter} successful test execution{plural})",
-                        plural = if success_counter > 1 { "s" } else { "" }
-                    );
-                    if clean {
-                        let test_dir = target_dir.join(test_name);
-                        let _ = remove_dir_all(&test_dir).await;
-                    }
+                all_results.insert(
+                    format!("{document_name}::{target_name}::{test_name}"),
+                    (err_counter, fail_counter, success_counter),
+                );
+                if clean && err_counter == 0 && fail_counter == 0 {
+                    let test_dir = target_dir.join(test_name);
+                    let _ = remove_dir_all(&test_dir).await;
                 }
             }
             // If the target directory is empty, remove it; otherwise leave it.
             let _ = remove_dir(root.join(&target_name));
         }
     }
-    Ok(())
+    Ok(all_results)
+}
+
+fn print_all_results(results: BTreeMap<String, (usize, usize, usize)>) {
+    for (full_name, (err_counter, fail_counter, success_counter)) in results {
+        if err_counter > 0 {
+            let total = err_counter + fail_counter + success_counter;
+            println!(
+                "☠️ `{full_name}` had errors: {err_counter} execution{err_plural} errored (out of \
+                 {total} test execution{total_plural})",
+                err_plural = if err_counter > 1 { "s" } else { "" },
+                total_plural = if total > 1 { "s" } else { "" },
+            );
+        } else if fail_counter > 0 {
+            let total = fail_counter + success_counter;
+            println!(
+                "❌ `{full_name}` failed: {fail_counter} execution{fail_plural} failed assertions \
+                 (out of {total} execution{total_plural})",
+                fail_plural = if fail_counter > 1 { "s" } else { "" },
+                total_plural = if total > 1 { "s" } else { "" },
+            )
+        } else {
+            println!(
+                "✅ `{full_name}` success! ({success_counter} successful test execution{plural})",
+                plural = if success_counter > 1 { "s" } else { "" }
+            );
+        }
+    }
 }
 
 /// Performs the `test` command.
@@ -717,7 +725,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
         );
     }
 
-    process_tests(all_results, &test_dir, !args.no_clean, &mut errors).await?;
+    let all_results = process_tests(all_results, &test_dir, !args.no_clean, &mut errors).await?;
+    print_all_results(all_results);
 
     if args.clean_all {
         remove_dir_all(test_dir.join(DEFAULT_RUNS_DIR))
