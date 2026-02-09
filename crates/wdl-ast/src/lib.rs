@@ -30,7 +30,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashSet;
 use std::fmt;
+use std::str::FromStr;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
@@ -563,6 +565,39 @@ impl<T: TreeToken> AstToken<T> for Whitespace<T> {
     }
 }
 
+/// The prefix for directive comments.
+pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
+/// The delimiter between a directive and its contents
+pub const DIRECTIVE_DELIMITER: &str = ":";
+
+/// A directive for WDL tools to respect.
+#[non_exhaustive]
+#[derive(Debug, PartialEq, Eq)]
+pub enum Directive {
+    /// Ignore any rules contained in the set.
+    Except(HashSet<String>),
+}
+
+impl FromStr for Directive {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let trimmed = s.trim();
+        let (directive, contents) = trimmed
+            .split_once(DIRECTIVE_DELIMITER)
+            .ok_or(s.to_string())?;
+        match directive.trim_end() {
+            "except" => Ok(Self::Except(HashSet::from_iter(
+                contents.split(',').map(|id| id.trim().to_string()),
+            ))),
+            _ => Err(s.to_string()),
+        }
+    }
+}
+
+/// The prefix for doc comments.
+pub const DOC_COMMENT_PREFIX: &str = "##";
+
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
@@ -581,6 +616,30 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 
     fn inner(&self) -> &T {
         &self.0
+    }
+}
+
+impl Comment {
+    /// Gets whether the comment starts with DIRECIVE_COMMENT_PREFIX.
+    pub fn is_directive(&self) -> bool {
+        self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
+    }
+
+    /// Gets the comment's rule exceptions set.
+    pub fn exceptions(&self) -> Option<HashSet<String>> {
+        match self
+            .text()
+            .strip_prefix(DIRECTIVE_COMMENT_PREFIX)?
+            .parse::<Directive>()
+        {
+            Ok(Directive::Except(e)) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Gets whether comment starts with DOC_COMMENT_PREFIX.
+    pub fn is_doc_comment(&self) -> bool {
+        self.text().starts_with(DOC_COMMENT_PREFIX)
     }
 }
 

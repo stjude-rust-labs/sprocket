@@ -1,9 +1,9 @@
-## # Header
 # regular comment
-#@ except: CommentWhitespace, DeprecatedObject, MetaDescription
-#@ except: InputSorted, MatchingOutputMeta, ParameterMetaMatched
 
+## # Header
 ## part of preamble
+#@ except: CommentWhitespace, DeprecatedObject, InputSorted, MatchingOutputMeta
+#@ except: MetaDescription, ParameterMetaMatched
 version 1.3
 
 #@ except: MetaSections

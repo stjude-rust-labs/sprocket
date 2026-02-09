@@ -1,183 +1,167 @@
 note[ExpressionSpacing]: assignments must be surrounded by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:14:14
+   ┌─ tests/lints/expression-spacing/source.wdl:13:14
    │
-14 │         Int a=- 1
+13 │         Int a=- 1
    │              ^
    │
    = fix: add whitespace around this assignment
 
 note[ExpressionSpacing]: prefix operators may not contain whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:14:15
+   ┌─ tests/lints/expression-spacing/source.wdl:13:15
    │
-14 │         Int a=- 1
+13 │         Int a=- 1
    │               ^^^
    │
    = fix: remove the whitespace
 
 note[ExpressionSpacing]: operators must be followed by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:27:31
+   ┌─ tests/lints/expression-spacing/source.wdl:26:31
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                               ^
    │
    = fix: add whitespace after this operator
 
 note[ExpressionSpacing]: operators must be followed by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:27:34
+   ┌─ tests/lints/expression-spacing/source.wdl:26:34
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                  ^
    │
    = fix: add whitespace after this operator
 
 note[ExpressionSpacing]: this space is not allowed
-   ┌─ tests/lints/expression-spacing/source.wdl:27:36
+   ┌─ tests/lints/expression-spacing/source.wdl:26:36
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                    ^
    │
    = fix: remove the space
 
 note[ExpressionSpacing]: operators must be preceded by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:27:38
+   ┌─ tests/lints/expression-spacing/source.wdl:26:38
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                      ^
    │
    = fix: add whitespace before this operator
 
 note[ExpressionSpacing]: this space is not allowed
-   ┌─ tests/lints/expression-spacing/source.wdl:27:41
+   ┌─ tests/lints/expression-spacing/source.wdl:26:41
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                         ^
    │
    = fix: remove the space
 
 note[ExpressionSpacing]: operators must be followed by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:27:44
+   ┌─ tests/lints/expression-spacing/source.wdl:26:44
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                            ^
    │
    = fix: add whitespace after this operator
 
 note[ExpressionSpacing]: operators must be followed by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:27:48
+   ┌─ tests/lints/expression-spacing/source.wdl:26:48
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                                ^
    │
    = fix: add whitespace after this operator
 
 note[ExpressionSpacing]: this space is not allowed
-   ┌─ tests/lints/expression-spacing/source.wdl:27:51
+   ┌─ tests/lints/expression-spacing/source.wdl:26:51
    │
-27 │         Int complex_value = w -x +( y* ( z /(f %b) ))
+26 │         Int complex_value = w -x +( y* ( z /(f %b) ))
    │                                                   ^
    │
    = fix: remove the space
 
 note[ExpressionSpacing]: operators must be followed by whitespace
-   ┌─ tests/lints/expression-spacing/source.wdl:49:29
+   ┌─ tests/lints/expression-spacing/source.wdl:48:29
    │
-49 │                             ||!e
+48 │                             ||!e
    │                             ^^
    │
    = fix: add whitespace after this operator
 
 note[ExpressionSpacing]: multi-line if...then...else must have a preceding parenthesis and newline
-   ┌─ tests/lints/expression-spacing/source.wdl:65:21
+   ┌─ tests/lints/expression-spacing/source.wdl:64:21
    │
-65 │         Boolean v = if 
+64 │         Boolean v = if 
    │                     ^^
    │
    = fix: add a open parenthesis and newline prior to this if
 
 note[ExpressionSpacing]: multi-line if...then...else must have a preceding space
-   ┌─ tests/lints/expression-spacing/source.wdl:66:15
+   ┌─ tests/lints/expression-spacing/source.wdl:65:15
    │
-66 │         a < b then true
+65 │         a < b then true
    │               ^^^^
    │
    = fix: add a newline before the then keyword
 
 note[ExpressionSpacing]: multi-line if...then...else must have a following newline and parenthesis
-   ┌─ tests/lints/expression-spacing/source.wdl:67:9
+   ┌─ tests/lints/expression-spacing/source.wdl:66:9
    │
-67 │         else false
+66 │         else false
    │         ^^^^
    │
    = fix: add a newline and close parenthesis after to this else clause
 
 note[ExpressionSpacing]: multi-line if...then...else must have a preceding space
-   ┌─ tests/lints/expression-spacing/source.wdl:72:22
+   ┌─ tests/lints/expression-spacing/source.wdl:71:22
    │
-72 │             if a < b then true
+71 │             if a < b then true
    │                      ^^^^
    │
    = fix: add a newline before the then keyword
 
 note[ExpressionSpacing]: multi-line if...then...else must have a preceding space
-   ┌─ tests/lints/expression-spacing/source.wdl:77:22
+   ┌─ tests/lints/expression-spacing/source.wdl:76:22
    │
-77 │             if a < b then true
+76 │             if a < b then true
    │                      ^^^^
    │
    = fix: add a newline before the then keyword
 
 note[ExpressionSpacing]: multi-line array/map/object literals must have a newline following the opening token
-   ┌─ tests/lints/expression-spacing/source.wdl:87:21
+   ┌─ tests/lints/expression-spacing/source.wdl:86:21
    │
-87 │         Boolean i = [1
+86 │         Boolean i = [1
    │                     ^
    │
    = fix: add a newline after the opening brace/bracket/parenthesis
 
 note[ExpressionSpacing]: multi-line array/map/object literals must have a newline preceding the closing token
-   ┌─ tests/lints/expression-spacing/source.wdl:89:18
+   ┌─ tests/lints/expression-spacing/source.wdl:88:18
    │
-89 │             ,2,3,] == [1,2,4]
+88 │             ,2,3,] == [1,2,4]
    │                  ^
    │
    = fix: add a newline before the closing brace/bracket/parenthesis
 
-note[CommentWhitespace]: comment not sufficiently indented
-    ┌─ tests/lints/expression-spacing/source.wdl:110:13
-    │
-110 │             # This comment will flag, because the  `] == [` expression is incorrect.
-    │             ^
-    │
-    = fix: this comment has 3 levels of indentation. It should have 4 levels of indentation.
-
-note[CommentWhitespace]: comment not sufficiently indented
-    ┌─ tests/lints/expression-spacing/source.wdl:144:13
-    │
-144 │             # This comment will flag, because the  `} == {` expression is incorrect.
-    │             ^
-    │
-    = fix: this comment has 3 levels of indentation. It should have 4 levels of indentation.
-
 note[ExpressionSpacing]: multi-line array/map/object literals must have a newline following the opening token
-    ┌─ tests/lints/expression-spacing/source.wdl:155:24
+    ┌─ tests/lints/expression-spacing/source.wdl:154:24
     │
-155 │         Array[Int] p = [1,
+154 │         Array[Int] p = [1,
     │                        ^
     │
     = fix: add a newline after the opening brace/bracket/parenthesis
 
 note[ExpressionSpacing]: multi-line array/map/object literals must have a newline preceding the closing token
-    ┌─ tests/lints/expression-spacing/source.wdl:156:13
+    ┌─ tests/lints/expression-spacing/source.wdl:155:13
     │
-156 │         2,3,]
+155 │         2,3,]
     │             ^
     │
     = fix: add a newline before the closing brace/bracket/parenthesis
 
 note[ExpressionSpacing]: prefix operators may not contain whitespace
-    ┌─ tests/lints/expression-spacing/source.wdl:163:25
+    ┌─ tests/lints/expression-spacing/source.wdl:162:25
     │
-163 │         Boolean b_out = ! d
+162 │         Boolean b_out = ! d
     │                         ^^^
     │
     = fix: remove the whitespace

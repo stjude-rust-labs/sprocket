@@ -1,0 +1,11 @@
+error: task execution failed for task `t`: Docker responded with status code 400: rpc error: code = InvalidArgument desc = invalid memory value 200: Must be at least 4MiB
+   ┌─ tests/workflows/override-requirements/source.wdl:3:6
+   │
+ 3 │ task t {
+   │      ^ this task failed to execute
+   │
+   ┌─ tests/workflows/override-requirements/source.wdl:23:5
+   │
+23 │     call t
+   │     ---- called from this location
+

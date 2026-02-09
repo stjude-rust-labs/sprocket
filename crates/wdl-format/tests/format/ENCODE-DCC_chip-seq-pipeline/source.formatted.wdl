@@ -1092,7 +1092,7 @@ workflow chip {
         basename(chrsz_),
     ])
 
-    ### temp vars (do not define these)
+    ## # temp vars (do not define these)
     String aligner_ = if defined(custom_align_py) then "custom" else aligner
     String peak_caller_ = if pipeline_type == "tf" then select_first([
         peak_caller,
@@ -3379,7 +3379,7 @@ task qc_report {
     }
 }
 
-### workflow system tasks
+## # workflow system tasks
 task read_genome_tsv {
     input {
         RuntimeEnvironment runtime_environment
