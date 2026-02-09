@@ -43,6 +43,10 @@ impl Rule for ImportPlacementRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that imports are placed between the version statement and any document items."
     }

@@ -68,6 +68,10 @@ impl Rule for SectionOrderingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that all sections are in the correct order."
     }

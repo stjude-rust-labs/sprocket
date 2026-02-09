@@ -56,6 +56,10 @@ impl Rule for InputNameRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short)."
     }

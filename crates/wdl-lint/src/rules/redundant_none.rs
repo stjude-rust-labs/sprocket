@@ -40,6 +40,10 @@ impl Rule for RedundantNone {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.12.0"
+    }
+
     fn description(&self) -> &'static str {
         "Flags redundant assignment of `None` to optional inputs."
     }

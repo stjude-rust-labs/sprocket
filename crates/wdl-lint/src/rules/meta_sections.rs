@@ -101,6 +101,10 @@ impl Rule for MetaSectionsRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections."
     }

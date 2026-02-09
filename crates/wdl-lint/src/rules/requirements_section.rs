@@ -48,6 +48,10 @@ impl Rule for RequirementsSectionRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks have a `requirements` section (for WDL v1.2 and beyond)."
     }

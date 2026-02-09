@@ -225,6 +225,10 @@ impl Rule for ExpectedRuntimeKeysRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that `runtime` sections have the appropriate keys."
     }

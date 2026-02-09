@@ -70,6 +70,10 @@ impl Rule for DeprecatedPlaceholderRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that deprecated expression placeholder options are not used."
     }

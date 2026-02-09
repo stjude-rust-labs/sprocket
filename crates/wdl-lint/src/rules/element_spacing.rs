@@ -82,6 +82,10 @@ impl Rule for ElementSpacingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that WDL elements are spaced appropriately."
     }
