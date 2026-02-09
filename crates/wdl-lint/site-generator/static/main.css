@@ -100,11 +100,15 @@
     .rule-description > ul {
         list-style: initial;
     }
+    .rule-description > ol {
+        list-style: decimal;
+    }
     .rule-description p {
         margin-top: revert;
         margin-bottom: revert;
     }
-    .rule-description ul {
+    .rule-description ul,
+    .rule-description ol {
         margin-block-start: revert;
         margin-block-end: revert;
         margin-top: revert;
