@@ -55,6 +55,10 @@ impl Rule for DeclarationNameRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.10.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures declaration names do not redundantly include their type name."
     }

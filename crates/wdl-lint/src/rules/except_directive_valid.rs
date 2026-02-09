@@ -68,6 +68,10 @@ impl Rule for ExceptDirectiveValidRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.6.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures `except` directives are placed correctly to have the intended effect."
     }
