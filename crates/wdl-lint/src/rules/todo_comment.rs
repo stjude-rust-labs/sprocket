@@ -49,8 +49,7 @@ impl Rule for TodoCommentRule {
     }
 
     fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
+        &[r#"```wdl
 version 1.2
 
 # The following comment will be flagged:
@@ -60,8 +59,7 @@ workflow example {
 
     output {}
 }
-```"#,
-        ]
+```"#]
     }
 
     fn tags(&self) -> TagSet {
