@@ -43,11 +43,8 @@ pub trait Rule: Send + Sync {
     /// Get the long-form explanation of the rule.
     fn explanation(&self) -> &'static str;
 
-    // TODO: Write examples for each rule, make this a mandatory impl
     /// Get a list of examples that would trigger this lint rule.
-    fn examples(&self) -> &'static [&'static str] {
-        &[]
-    }
+    fn examples(&self) -> &'static [&'static str];
 
     /// Denies the rule.
     ///
@@ -120,6 +117,20 @@ impl Rule for UnusedImportRule {
          impact parsing and evaluation performance."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+import "example2.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -158,6 +169,22 @@ impl Rule for UnusedInputRule {
     fn explanation(&self) -> &'static str {
         "Unused inputs degrade evaluation performance and reduce the clarity of the code. Unused \
          file inputs in tasks can also cause unnecessary file localizations."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    inputs {
+        String unused
+    }
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -201,6 +228,20 @@ impl Rule for UnusedDeclarationRule {
          code."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    String unused = "this will produce a warning"
+
+    output {}
+}
+```"#]
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -238,6 +279,29 @@ impl Rule for UnusedCallRule {
 
     fn explanation(&self) -> &'static str {
         "Unused calls may cause unnecessary consumption of compute resources."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # The output of `do_work` is never used
+    call do_work
+
+    output {}
+}
+
+task do_work {
+    command <<<>>>
+
+    output {
+        Int x = 0
+    }
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -279,6 +343,22 @@ impl Rule for UnnecessaryFunctionCall {
         "Unnecessary function calls may impact evaluation performance."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # Calls to `defined` on values that are statically
+    # known to be non-None are unnecessary.
+    Boolean exists = defined("hello")
+
+    output {}
+}
+```"#]
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -317,6 +397,20 @@ impl Rule for UsingFallbackVersion {
     fn explanation(&self) -> &'static str {
         "A document with an unsupported version may have unpredictable behavior if interpreted as \
          a different version."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+# Not a valid version. If a fallback version is configured,
+# the document will be interpreted as that version.
+version 3.0
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {

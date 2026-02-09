@@ -85,7 +85,7 @@ workflow example {
 ```"#,
         ]
     }
-    
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Sorting])
     }

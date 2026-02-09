@@ -74,13 +74,13 @@ impl Rule for SectionOrderingRule {
 
     fn explanation(&self) -> &'static str {
         "For workflows, if present, the following sections must be in this order: meta, \
-parameter_meta, input, (body), output. \"(body)\" represents all calls and declarations.
+         parameter_meta, input, (body), output. \"(body)\" represents all calls and declarations.
 
-For tasks, if present, the following sections must be in this order: meta, parameter_meta, \
-input, (private declarations), command, output, runtime, requirements, hints.
+For tasks, if present, the following sections must be in this order: meta, parameter_meta, input, \
+         (private declarations), command, output, runtime, requirements, hints.
 
-For structs, if present, the following sections must be in this order: meta, \
-parameter_meta, members."
+For structs, if present, the following sections must be in this order: meta, parameter_meta, \
+         members."
     }
 
     fn examples(&self) -> &'static [&'static str] {

@@ -76,15 +76,15 @@ impl Rule for DeprecatedPlaceholderRule {
 
     fn explanation(&self) -> &'static str {
         "Expression placeholder options were deprecated in WDL v1.1 and will be removed in the \
-next major WDL version.
+         next major WDL version.
 
 - `sep` placeholder options should be replaced by the `sep()` standard library function.
 - `true/false` placeholder options should be replaced with `if`/`else` statements.
-- `default` placeholder options should be replaced by the `select_first()` standard \
-  library function.
+- `default` placeholder options should be replaced by the `select_first()` standard library \
+         function.
 
-This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this \
-was the version where the deprecation was introduced."
+This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this was the \
+         version where the deprecation was introduced."
     }
 
     fn examples(&self) -> &'static [&'static str] {

@@ -151,7 +151,7 @@ task say_hello {
 ```"#,
         ]
     }
-    
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Clarity, Tag::Documentation])
     }

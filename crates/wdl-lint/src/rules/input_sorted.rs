@@ -198,29 +198,14 @@ impl Rule for InputSortedRule {
 
     fn explanation(&self) -> &'static str {
         "Each input declaration section should be sorted. This rule enforces an opinionated \
-         sorting.\n\n\
-It first sorts by:\n\
-    1. required inputs\n\
-    2. optional inputs without defaults\n\
-    3. optional inputs with defaults\n\
-    4. inputs with a default value\n\n\
-Then by the type:\n\
-    1. File\n\
-    2. Array[*]+\n\
-    3. Array[*]\n\
-    4. struct\n\
-    5. Object\n\
-    6. Map[*, *]\n\
-    7. Pair[*, *]\n\
-    8. String\n\
-    9. Boolean\n\
-    10. Float\n\
-    11. Int\n\n\
-    \
-For ordering of the same compound type (Array[*], Map[*, *], Pair[*, *]), drop the outermost type\
-(Array, Map, etc.) and recursively apply above sorting on the first inner type *, with ties broken\
-by the second inner type. Continue this pattern as far as possible. Once this ordering is satisfied,\
-it is up to the developer for final order of inputs of the same type."
+         sorting.\n\nIt first sorts by:\n1. required inputs\n2. optional inputs without \
+         defaults\n3. optional inputs with defaults\n4. inputs with a default value\n\nThen by the \
+         type:\n1. File\n2. Array[*]+\n3. Array[*]\n4. struct\n5. Object\n6. Map[*, *]\n7. Pair[*, \
+         *]\n8. String\n9. Boolean\n10. Float\n11. Int\n\nFor ordering of the same compound type \
+         (Array[*], Map[*, *], Pair[*, *]), drop the outermost type(Array, Map, etc.) and \
+         recursively apply above sorting on the first inner type *, with ties brokenby the second \
+         inner type. Continue this pattern as far as possible. Once this ordering is satisfied,it \
+         is up to the developer for final order of inputs of the same type."
     }
 
     fn examples(&self) -> &'static [&'static str] {
