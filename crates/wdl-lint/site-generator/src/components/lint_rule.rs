@@ -180,9 +180,9 @@ pub fn lint_rule_list(source: LintRuleSource) -> PreEscaped<String> {
 
                     div class="accordion-content overflow-hidden" {
                         div class="min-h-0" {
-                            div class="px-5 py-0 text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 mt-2" {
-                                div class="w-full pt-4 rule-description" x-html="lint.descriptionHtml" {}
-                                div class="w-full flex flex-row flex-nowrap border-t border-slate-800/50 mt-2 rule-extras" {
+                            div class="py-0 text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 mt-2" {
+                                div class="w-full px-5 pt-4 rule-description" x-html="lint.descriptionHtml" {}
+                                div class="w-full flex flex-row flex-nowrap border-t border-slate-800/50 px-5 mt-2 rule-extras" {
                                     div class="inline-flex grow my-auto" {
                                         "Added in: "
                                         div class="main__badge-inner mx-[5px] my-auto" {
