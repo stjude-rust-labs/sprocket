@@ -140,6 +140,10 @@ impl Rule for SnakeCaseRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks, workflows, and variables are defined with snake_case names."
     }

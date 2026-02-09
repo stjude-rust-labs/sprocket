@@ -38,6 +38,10 @@ impl Rule for ConciseInputRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.9.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures concise input assignments are used (implicit binding when available)."
     }

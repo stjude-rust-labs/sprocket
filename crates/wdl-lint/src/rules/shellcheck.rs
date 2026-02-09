@@ -226,6 +226,10 @@ impl Rule for ShellCheckRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.9.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that command blocks are free of ShellCheck violations."
     }
