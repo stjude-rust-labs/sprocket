@@ -28,6 +28,16 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
   -c, --config <CONFIG>
           Path to the configuration file
 

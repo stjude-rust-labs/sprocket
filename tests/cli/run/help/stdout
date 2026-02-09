@@ -36,9 +36,6 @@ Options:
       --overwrite
           Overwrites the execution directory if it exists
 
-      --no-color
-          Disables color output
-
   -m, --report-mode <MODE>
           The report mode
 
@@ -76,22 +73,32 @@ Options:
           
           [env: GOOGLE_HMAC_ACCESS_KEY=]
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --google-hmac-secret <SECRET>
           The Google Cloud Storage HMAC secret to use; overrides configuration
           
           [env: GOOGLE_HMAC_SECRET]
 
-  -q, --quiet...
-          Decrease logging verbosity
-
-  -c, --config <CONFIG>
-          Path to the configuration file
+  -v, --verbose...
+          Increase logging verbosity
 
       --no-call-cache
           Disables the use of the call cache for this run
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.

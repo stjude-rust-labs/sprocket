@@ -3,10 +3,12 @@
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use clap::ValueEnum;
 use figment::Figment;
 use figment::providers::Format;
 use figment::providers::Serialized;
@@ -40,6 +42,42 @@ fn default_output_directory() -> PathBuf {
     PathBuf::from(DEFAULT_OUTPUT_DIRECTORY)
 }
 
+/// Represents the supported output color modes.
+#[derive(Debug, Default, Clone, ValueEnum, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ColorMode {
+    /// Automatically colorize output depending on output device.
+    #[default]
+    Auto,
+    /// Always colorize output.
+    Always,
+    /// Never colorize output.
+    Never,
+}
+
+impl FromStr for ColorMode {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "auto" => Ok(Self::Auto),
+            "always" => Ok(Self::Always),
+            "never" => Ok(Self::Never),
+            _ => bail!("invalid color mode `{s}`"),
+        }
+    }
+}
+
+impl std::fmt::Display for ColorMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "auto"),
+            Self::Always => write!(f, "always"),
+            Self::Never => write!(f, "never"),
+        }
+    }
+}
+
 /// Represents the configuration for the Sprocket CLI tool.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
@@ -61,22 +99,13 @@ pub struct Config {
 }
 
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
-    pub color: bool,
+    pub color: ColorMode,
     /// The report mode.
     pub report_mode: Mode,
-}
-
-impl Default for CommonConfig {
-    fn default() -> Self {
-        Self {
-            color: true,
-            report_mode: Mode::default(),
-        }
-    }
 }
 
 /// Represents the configuration for the Sprocket `format` command.

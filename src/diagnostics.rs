@@ -1,6 +1,5 @@
 //! Utilities for reporting diagnostics to the terminal.
 
-use std::io::IsTerminal as _;
 use std::io::Write as _;
 use std::sync::LazyLock;
 
@@ -100,6 +99,7 @@ impl DiagnosticCounts {
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]
@@ -121,17 +121,15 @@ impl std::fmt::Display for Mode {
 /// Gets the diagnostics display configuration based on the user's preferences.
 pub fn get_diagnostics_display_config(
     report_mode: Mode,
-    no_color: bool,
+    colorize: bool,
 ) -> (&'static TermConfig, StandardStream) {
     let config = match report_mode {
         Mode::Full => &FULL_CONFIG,
         Mode::OneLine => &ONE_LINE_CONFIG,
     };
 
-    let color_choice = if no_color {
-        ColorChoice::Never
-    } else if std::io::stderr().is_terminal() {
-        ColorChoice::Auto
+    let color_choice = if colorize {
+        ColorChoice::Always
     } else {
         ColorChoice::Never
     };
@@ -148,14 +146,14 @@ pub fn emit_diagnostics<'a>(
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
     backtrace: &[CallLocation],
     report_mode: Mode,
-    no_color: bool,
+    colorize: bool,
 ) -> anyhow::Result<()> {
     let mut map = std::collections::HashMap::new();
     let mut files = SimpleFiles::new();
 
     let file_id = files.add(std::borrow::Cow::Borrowed(path), source);
 
-    let (config, mut stream) = get_diagnostics_display_config(report_mode, no_color);
+    let (config, mut stream) = get_diagnostics_display_config(report_mode, colorize);
 
     for diagnostic in diagnostics {
         let diagnostic = diagnostic.to_codespan(file_id).with_labels_iter(
