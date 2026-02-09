@@ -154,7 +154,26 @@ fn find_trailing_comments(token: &SyntaxToken) -> Option<NonEmpty<SyntaxToken>> 
 
 /// Formats a [`VersionStatement`](wdl_ast::VersionStatement).
 pub fn format_version_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    for child in element.children().expect("version statement children") {
+    let mut children = element.children().expect("version statement children");
+
+    // We never want to start a WDL document with a blank line,
+    // but the preceding trivia may include one that will
+    // be added if we don't exclude it.
+    let version_keyword = children.next().expect("version keyword");
+    assert!(version_keyword.element().kind() == SyntaxKind::VersionKeyword);
+    let mut buffer = TokenStream::<PreToken>::default();
+    (&version_keyword).write(&mut buffer);
+    let mut buff_iter = buffer.into_iter();
+    let first_token = buff_iter.next().expect("at least one token");
+    if !matches!(first_token, PreToken::Trivia(crate::Trivia::BlankLine)) {
+        stream.push(first_token);
+    }
+    for remaining in buff_iter {
+        stream.push(remaining);
+    }
+    stream.end_word();
+
+    for child in children {
         (&child).write(stream);
         stream.end_word();
     }
