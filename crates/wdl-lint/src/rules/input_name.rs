@@ -61,12 +61,13 @@ impl Rule for InputNameRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Any input name matching these regular expressions will be flagged: /^[iI]n[A-Z_]/, \
-         /^input/i or /^..?$/. It is redundant and needlessly verbose to use an input's name to \
-         specify that it is an input. Input names should be short yet descriptive. Prefixing a \
-         name with in or input adds length to the name without adding clarity or context. \
-         Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-         content of an input. Input names should be at least 3 characters long."
+        "Any input name matching these regular expressions will be flagged: [`/^[iI]n[A-Z_]/`](https://regex101.com/r/V0AFIG/2), \
+[`/^input/i`](https://regex101.com/r/Ox8oYb/1) or [`/^..?$/`](https://regex101.com/r/IS1d49/1).\n\n\
+It is redundant and needlessly verbose to use an input's name to \
+specify that it is an input. Input names should be short yet descriptive. Prefixing a \
+name with in or input adds length to the name without adding clarity or context. \
+Additionally, names with only 2 characters can lead to confusion and obfuscates the \
+content of an input. Input names should be at least 3 characters long."
     }
 
     fn examples(&self) -> &'static [&'static str] {

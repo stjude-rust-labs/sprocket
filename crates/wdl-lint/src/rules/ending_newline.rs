@@ -55,7 +55,7 @@ impl Rule for EndingNewlineRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "The file should end with one and only one newline character to conform to POSIX standards. See https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206."
+        "The file should end with one and only one newline character to conform to POSIX standards. See <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206>."
     }
 
     fn examples(&self) -> &'static [&'static str] {

@@ -55,8 +55,8 @@ impl Rule for RequirementsSectionRule {
     fn explanation(&self) -> &'static str {
         "Tasks that don't declare `requirements` sections are unlikely to be portable.
 
-        For tasks that _should_ contain a `requirements` section but a `runtime` section exists \
-         instead, the `runtime` section is flagged as deprecated."
+For tasks that _should_ contain a `requirements` section but a `runtime` section exists \
+instead, the `runtime` section is flagged as deprecated."
     }
 
     fn examples(&self) -> &'static [&'static str] {
