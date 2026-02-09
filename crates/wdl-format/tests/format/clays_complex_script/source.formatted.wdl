@@ -1,7 +1,6 @@
 # regular comment
 
 ## # Header
-##
 ## part of preamble
 #@ except: CommentWhitespace, DeprecatedObject, InputSorted, MatchingOutputMeta
 #@ except: MetaDescription, ParameterMetaMatched

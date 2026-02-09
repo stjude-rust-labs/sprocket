@@ -121,45 +121,60 @@ impl Token for PostToken {
                             let start_width = indent_width + prefix.len();
                             let mut remaining = max.saturating_sub(start_width);
                             let mut lines = markdown.lines().peekable();
+                            let mut in_literal_block = false;
                             while let Some(cur_line) = lines.next() {
-                                let line_is_header = cur_line.trim().starts_with('#');
-                                let line_is_blank = cur_line.trim().is_empty();
-                                let words = cur_line.split_ascii_whitespace();
-                                if line_is_blank {
+                                if cur_line.trim().is_empty() {
                                     write!(f, "{NEWLINE}")?;
                                     write_indents(f, &self.config.indent().string(), *num_indents)?;
                                     write!(f, "{prefix}")?;
                                     remaining = max.saturating_sub(start_width);
+                                    continue;
                                 }
-                                for word in words {
-                                    let word_len = word.len();
-                                    if remaining.saturating_sub(word_len + 1) > 0 {
-                                        write!(f, " {word}")?;
-                                        remaining = remaining.saturating_sub(word_len + 1);
+                                let starts_with_letter = cur_line
+                                    .trim_start()
+                                    .chars()
+                                    .next()
+                                    .is_some_and(|c| c.is_alphabetic());
+                                if in_literal_block {
+                                    write!(f, "{cur_line}")?;
+                                    remaining = remaining.saturating_sub(cur_line.len());
+                                    if cur_line.contains("```") {
+                                        in_literal_block = false;
+                                    }
+                                } else if !starts_with_letter {
+                                    if cur_line.contains("```") {
+                                        in_literal_block = true;
+                                        write!(f, "{cur_line}")?;
+                                        remaining = remaining.saturating_sub(cur_line.len());
                                     } else {
-                                        write!(f, "{NEWLINE}")?;
-                                        write_indents(
-                                            f,
-                                            &self.config.indent().string(),
-                                            *num_indents,
-                                        )?;
-                                        write!(f, "{prefix} {word}")?;
-                                        remaining = max.saturating_sub(start_width + word_len + 1);
+                                        let cur_line = cur_line.trim();
+                                        write!(f, " {cur_line}")?;
+                                        remaining = remaining.saturating_sub(cur_line.len() + 1);
+                                    }
+                                } else {
+                                    let words = cur_line.split_ascii_whitespace();
+                                    for word in words {
+                                        let word_len = word.len();
+                                        if remaining.saturating_sub(word_len + 1) > 0 {
+                                            write!(f, " {word}")?;
+                                            remaining = remaining.saturating_sub(word_len + 1);
+                                        } else {
+                                            write!(f, "{NEWLINE}")?;
+                                            write_indents(
+                                                f,
+                                                &self.config.indent().string(),
+                                                *num_indents,
+                                            )?;
+                                            write!(f, "{prefix} {word}")?;
+                                            remaining =
+                                                max.saturating_sub(start_width + word_len + 1);
+                                        }
                                     }
                                 }
                                 if let Some(next) = lines.peek() {
-                                    // Markdown formatting help.
-                                    // This ensures consistency with how `wdl-doc` parses doc
-                                    // comments.
-                                    if line_is_header && !next.is_empty() {
-                                        // a header should be followed by a blank line
-                                        write!(f, "{NEWLINE}")?;
-                                        write_indents(
-                                            f,
-                                            &self.config.indent().string(),
-                                            *num_indents,
-                                        )?;
-                                        write!(f, "{prefix}")?;
+                                    if !starts_with_letter && !next.trim().is_empty() {
+                                        // prior line is not a simple paragraph
+                                        // so we don't want to join the next line
                                         write!(f, "{NEWLINE}")?;
                                         write_indents(
                                             f,
@@ -168,12 +183,11 @@ impl Token for PostToken {
                                         )?;
                                         write!(f, "{prefix}")?;
                                         remaining = max.saturating_sub(start_width);
-                                    } else if !line_is_blank && !next.trim().is_empty() {
-                                        // do not write a newline
-                                        // this joins consecutive lines of
-                                        // paragraphs
-                                    } else if next.trim().is_empty() {
-                                        // end this paragraph of markdown
+                                    } else if let Some(first) = next.trim().chars().next()
+                                        && !first.is_alphabetic()
+                                    {
+                                        // next line is not a simple paragraph
+                                        // so we don't want to join it to this line
                                         write!(f, "{NEWLINE}")?;
                                         write_indents(
                                             f,
@@ -181,7 +195,21 @@ impl Token for PostToken {
                                             *num_indents,
                                         )?;
                                         write!(f, "{prefix}")?;
+                                        remaining = max.saturating_sub(start_width);
+                                    } else if next.trim().is_empty() {
+                                        // end this paragraph. Next line will be blank.
+                                        write!(f, "{NEWLINE}")?;
+                                        write_indents(
+                                            f,
+                                            &self.config.indent().string(),
+                                            *num_indents,
+                                        )?;
+                                        write!(f, "{prefix}")?;
+                                        remaining = max.saturating_sub(start_width);
                                     }
+                                    // else we are not writing a newline
+                                    // so the lines will be joined into one
+                                    // paragraph
                                 }
                             }
                         } else {

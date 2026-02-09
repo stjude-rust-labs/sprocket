@@ -191,7 +191,9 @@ impl TokenStream<PreToken> {
                 }
                 SyntaxKind::Comment => {
                     if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
-                        documentation.push_str(t.trim());
+                        // do not `trim()` the token as the whitespace may
+                        // have syntactical meaning in markdown
+                        documentation.push_str(t);
                         documentation.push_str(NEWLINE);
                     } else if let Some(remainder) =
                         token.text().strip_prefix(DIRECTIVE_COMMENT_PREFIX)
