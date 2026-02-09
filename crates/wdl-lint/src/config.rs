@@ -39,11 +39,18 @@ macro_rules! define_lint_rule_config {
         impl $name {
             /// **(NOT A PUBLIC API)** Get the metadata for all config fields
             #[doc(hidden)]
-            pub fn fields() -> &'static [ConfigField] {
-                &[
+            pub fn fields() -> Vec<ConfigField> {
+                vec![
                     $(
                         ConfigField {
-                            name: stringify!($name),
+                            name: stringify!($field),
+                            description: concat!($($doc, '\n',)*),
+                            default: {
+                                let default: $ty = $default;
+                                let mut text = String::new();
+                                default.serialize(toml::ser::ValueSerializer::new(&mut text)).unwrap();
+                                text
+                            },
                             applicable_lints: &[$(stringify!($lints)),+,]
                         }
                     ),+
@@ -59,6 +66,10 @@ macro_rules! define_lint_rule_config {
 pub struct ConfigField {
     /// The name of the field.
     pub name: &'static str,
+    /// The description of the config field.
+    pub description: &'static str,
+    /// The default value of the field as a TOML string.
+    pub default: String,
     /// All lints that this field applies to.
     pub applicable_lints: &'static [&'static str],
 }
@@ -76,7 +87,7 @@ define_lint_rule_config! {
         /// ```
         ///
         /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule.
-        #[lints(ExpectedRuntimeKeysRule)]
+        #[lints(ExpectedRuntimeKeys)]
         allowed_runtime_keys: HashSet<String> = HashSet::default(),
         /// List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]
         /// lints.
