@@ -1,0 +1,41 @@
+name: Generate lint site
+on:
+  push:
+    branches:
+      - main
+      - lint-site # TODO: Remove this before merge
+  workflow_run:
+    workflows: ["Release Plz"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  generate:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - uses: actions/setup-node@v4
+      - name: Generate site
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            LINT_TAG=$(git describe --tags --abbrev=0 --match "wdl-lint-v*")
+            ANALYSIS_TAG=$(git describe --tags --abbrev=0 --match "wdl-analysis-v*")
+
+            echo "Building stable site with $LINT_TAG and $ANALYSIS_TAG"
+            cargo generate-lint-site --wdl-lint-tag "$LINT_TAG" --wdl-analysis-tag "$ANALYSIS_TAG"
+          else
+            # Building for main branch
+            cargo generate-lint-site
+          fi
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: crates/wdl-lint/site-generator/dist
+          branch: gh-pages
+          clean: true
