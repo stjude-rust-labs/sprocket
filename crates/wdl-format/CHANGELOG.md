@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added
+#### Added
 
-* Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
+* `#@ except:` comment and doc comment normalization and consolidation ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 ## 0.14.0 - 01-12-2026
 
