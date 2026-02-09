@@ -173,6 +173,7 @@ impl Token for PostToken {
                                         // this joins consecutive lines of
                                         // paragraphs
                                     } else if next.trim().is_empty() {
+                                        // end this paragraph of markdown
                                         write!(f, "{NEWLINE}")?;
                                         write_indents(
                                             f,
@@ -243,7 +244,7 @@ impl Token for PostToken {
                                     write!(f, "{rules}", rules = rules.join(", "))
                                 }
                             }
-                            _ => todo!(),
+                            _ => todo!("format this directive"),
                         }
                     }
                 }
@@ -538,7 +539,7 @@ impl Postprocessor {
                             }
                             stream.push(PostToken::Literal(value));
                         }
-                        Comment::Documentation(markdown) => {
+                        Comment::Documentation(contents) => {
                             if !matches!(
                                 stream.0.last(),
                                 Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
@@ -546,10 +547,9 @@ impl Postprocessor {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
-
                             stream.push(PostToken::Documentation {
                                 num_indents: self.indent_level,
-                                contents: markdown,
+                                contents,
                             });
                         }
                         Comment::Directive(directive) => {
@@ -560,7 +560,6 @@ impl Postprocessor {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
-
                             stream.push(PostToken::Directive {
                                 num_indents: self.indent_level,
                                 directive,
