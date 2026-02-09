@@ -72,7 +72,8 @@ impl std::fmt::Debug for PostToken {
             Self::Indent => write!(f, "<INDENT>"),
             Self::TempIndent(value) => write!(f, "<TEMP_INDENT@{value}>"),
             Self::Literal(value) => write!(f, "<LITERAL@{value}>"),
-            _ => todo!(),
+            Self::Directive { directive, .. } => write!(f, "<DIRECTIVE@{directive:?}>"),
+            Self::Documentation { contents, .. } => write!(f, "<DOCUMENTATION@{contents}>"),
         }
     }
 }
@@ -86,6 +87,17 @@ impl Token for PostToken {
             token: &'a PostToken,
             /// The configuration to use.
             config: &'a Config,
+        }
+
+        fn write_indents(
+            f: &mut std::fmt::Formatter<'_>,
+            indent: &str,
+            num_indents: usize,
+        ) -> std::fmt::Result {
+            for _ in 0usize..num_indents {
+                write!(f, "{indent}")?;
+            }
+            Ok(())
         }
 
         impl std::fmt::Display for Display<'_> {
@@ -102,7 +114,7 @@ impl Token for PostToken {
                         num_indents,
                         contents: markdown,
                     } => {
-                        let prefix = format!("{} ", DOC_COMMENT_PREFIX);
+                        let prefix = DOC_COMMENT_PREFIX.to_string();
                         write!(f, "{prefix}")?;
                         if let Some(max) = self.config.max_line_length() {
                             let indent_width = self.config.indent().num() * num_indents;
@@ -110,10 +122,14 @@ impl Token for PostToken {
                             let mut remaining = max.saturating_sub(start_width);
                             let mut lines = markdown.lines().peekable();
                             while let Some(cur_line) = lines.next() {
-                                let mut words = cur_line.split_ascii_whitespace().peekable();
-                                if let Some(word) = words.next() {
-                                    write!(f, "{word}")?;
-                                    remaining = remaining.saturating_sub(word.len());
+                                let line_is_header = cur_line.trim().starts_with('#');
+                                let line_is_blank = cur_line.trim().is_empty();
+                                let words = cur_line.split_ascii_whitespace();
+                                if line_is_blank {
+                                    write!(f, "{NEWLINE}")?;
+                                    write_indents(f, &self.config.indent().string(), *num_indents)?;
+                                    write!(f, "{prefix}")?;
+                                    remaining = max.saturating_sub(start_width);
                                 }
                                 for word in words {
                                     let word_len = word.len();
@@ -122,27 +138,49 @@ impl Token for PostToken {
                                         remaining = remaining.saturating_sub(word_len + 1);
                                     } else {
                                         write!(f, "{NEWLINE}")?;
-                                        for _ in 0usize..*num_indents {
-                                            write!(
-                                                f,
-                                                "{indent}",
-                                                indent = self.config.indent().string()
-                                            )?;
-                                        }
-                                        write!(f, "{prefix}{word}")?;
-                                        remaining = max.saturating_sub(start_width + word_len);
+                                        write_indents(
+                                            f,
+                                            &self.config.indent().string(),
+                                            *num_indents,
+                                        )?;
+                                        write!(f, "{prefix} {word}")?;
+                                        remaining = max.saturating_sub(start_width + word_len + 1);
                                     }
                                 }
-                                if lines.peek().is_some() {
-                                    write!(f, "{NEWLINE}")?;
-                                    for _ in 0usize..*num_indents {
-                                        write!(
+                                if let Some(next) = lines.peek() {
+                                    // Markdown formatting help.
+                                    // This ensures consistency with how `wdl-doc` parses doc
+                                    // comments.
+                                    if line_is_header && !next.is_empty() {
+                                        // a header should be followed by a blank line
+                                        write!(f, "{NEWLINE}")?;
+                                        write_indents(
                                             f,
-                                            "{indent}",
-                                            indent = self.config.indent().string()
+                                            &self.config.indent().string(),
+                                            *num_indents,
                                         )?;
+                                        write!(f, "{prefix}")?;
+                                        write!(f, "{NEWLINE}")?;
+                                        write_indents(
+                                            f,
+                                            &self.config.indent().string(),
+                                            *num_indents,
+                                        )?;
+                                        write!(f, "{prefix}")?;
+                                        remaining = max.saturating_sub(start_width);
+                                    } else if !line_is_blank && !next.trim().is_empty() {
+                                        // do not write a newline
+                                        // this joins consecutive lines of
+                                        // paragraphs
+                                    } else if next.trim().is_empty() {
+                                        write!(f, "{NEWLINE}")?;
+                                        write_indents(
+                                            f,
+                                            &self.config.indent().string(),
+                                            *num_indents,
+                                        )?;
+                                        write!(f, "{prefix}")?;
                                     }
-                                    write!(f, "{prefix}")?;
                                 }
                             }
                         } else {
@@ -151,13 +189,7 @@ impl Token for PostToken {
                                 write!(f, "{cur}")?;
                                 if lines.peek().is_some() {
                                     write!(f, "{NEWLINE}")?;
-                                    for _ in 0usize..*num_indents {
-                                        write!(
-                                            f,
-                                            "{indent}",
-                                            indent = self.config.indent().string()
-                                        )?;
-                                    }
+                                    write_indents(f, &self.config.indent().string(), *num_indents)?;
                                     write!(f, "{prefix}")?;
                                 }
                             }
@@ -196,13 +228,11 @@ impl Token for PostToken {
                                         } else {
                                             // Current rule does not fit
                                             write!(f, "{NEWLINE}")?;
-                                            for _ in 0usize..*num_indents {
-                                                write!(
-                                                    f,
-                                                    "{indent}",
-                                                    indent = self.config.indent().string()
-                                                )?;
-                                            }
+                                            write_indents(
+                                                f,
+                                                &self.config.indent().string(),
+                                                *num_indents,
+                                            )?;
                                             write!(f, "{prefix}{rule}")?;
                                             written_to_cur_line = 1;
                                             remaining = max.saturating_sub(start_width + cur_len);

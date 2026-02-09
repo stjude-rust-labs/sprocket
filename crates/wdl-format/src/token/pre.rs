@@ -10,6 +10,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 
 use crate::Comment;
+use crate::NEWLINE;
 use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
@@ -189,9 +190,9 @@ impl TokenStream<PreToken> {
                     }
                 }
                 SyntaxKind::Comment => {
-                    if let Some(markdown) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
-                        documentation.push_str(markdown.trim());
-                        documentation.push('\n');
+                    if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
+                        documentation.push_str(t.trim());
+                        documentation.push_str(NEWLINE);
                     } else if let Some(remainder) =
                         token.text().strip_prefix(DIRECTIVE_COMMENT_PREFIX)
                         && let Ok(directive) = remainder.parse::<Directive>()
