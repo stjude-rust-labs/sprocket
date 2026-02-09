@@ -231,7 +231,7 @@ impl Rule for ShellCheckRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "ShellCheck (https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
+        "[ShellCheck](https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
          The lints provided by ShellCheck help prevent common errors and pitfalls in your scripts. \
          Following its recommendations will increase the robustness of your command sections."
     }
