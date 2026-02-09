@@ -74,6 +74,10 @@ impl Rule for MetaKeyValueFormattingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that arrays and objects in `meta` and `parameter_meta` sections have one element \
          per line and are indented correctly."

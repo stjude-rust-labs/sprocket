@@ -192,6 +192,10 @@ impl Rule for InputSortedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that input declarations are sorted."
     }

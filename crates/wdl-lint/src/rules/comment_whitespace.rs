@@ -75,6 +75,10 @@ impl Rule for CommentWhitespaceRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that WDL comments have the proper spacing."
     }

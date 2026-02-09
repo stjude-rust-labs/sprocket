@@ -99,6 +99,10 @@ impl Rule for LineWidthRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that lines do not exceed a certain width."
     }

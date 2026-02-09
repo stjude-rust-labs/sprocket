@@ -54,6 +54,10 @@ impl Rule for ImportWhitespaceRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that there is no extraneous whitespace between or within imports."
     }

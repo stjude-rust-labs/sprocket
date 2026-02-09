@@ -109,6 +109,10 @@ impl Rule for PreambleFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that documents have correct formatting in the preamble."
     }

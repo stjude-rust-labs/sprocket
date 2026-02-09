@@ -58,6 +58,10 @@ impl Rule for CallInputSpacingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that call inputs are spaced appropriately."
     }

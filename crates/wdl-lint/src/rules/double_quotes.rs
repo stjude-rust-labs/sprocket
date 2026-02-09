@@ -36,6 +36,10 @@ impl Rule for DoubleQuotesRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that strings are defined using double quotes."
     }

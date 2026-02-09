@@ -73,6 +73,10 @@ impl Rule for VersionStatementFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.7.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures the `version` statement is correctly formatted."
     }

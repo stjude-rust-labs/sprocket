@@ -76,6 +76,10 @@ impl Rule for LintDirectiveFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.7.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures lint directives are correctly formatted."
     }

@@ -45,6 +45,10 @@ impl Rule for TrailingCommaRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that lists and objects have a trailing comma and that there's not extraneous \
          whitespace and/or comments before the trailing comma."

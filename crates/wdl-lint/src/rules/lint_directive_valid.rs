@@ -69,6 +69,10 @@ impl Rule for LintDirectiveValidRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.6.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures lint directives are placed correctly to have the intended effect."
     }
