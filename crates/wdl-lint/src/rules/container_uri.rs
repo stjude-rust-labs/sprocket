@@ -96,6 +96,10 @@ impl Rule for ContainerUriRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that values for the `container` key within `runtime`/`requirements` sections are \
          well-formed."
