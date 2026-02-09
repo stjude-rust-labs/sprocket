@@ -116,6 +116,9 @@
         padding-inline-start: revert;
         padding-left: revert;
     }
+    .rule-extras > div {
+        padding: 9px 5px 5px 15px;
+    }
 
     * {
         box-sizing: border-box;
