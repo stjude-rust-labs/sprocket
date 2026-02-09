@@ -8,6 +8,9 @@ rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "wdl-lint-site-generator"
+
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
@@ -16,14 +19,11 @@ opener.workspace = true
 pulldown-cmark.workspace = true
 serde_json.workspace = true
 strum.workspace = true
-tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+walkdir.workspace = true
 wdl-analysis = { path = "../../wdl-analysis" }
 wdl-lint = { path = ".." }
-walkdir.workspace = true
 
 [lints]
 workspace = true
-
-[[bin]]
-name = "wdl-lint-site-generator"
