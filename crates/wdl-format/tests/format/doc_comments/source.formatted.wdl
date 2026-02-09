@@ -5,7 +5,7 @@
 ## - `BC`: Barcode sequence identifying the sample or library. This value is the
 ## expected barcode bases as read by the sequencing machine in the absence of errors. If
 ## there are several barcodes for the sample/library
-## (e.g., one on each end of the template), the recommended implementation
+##     (e.g., one on each end of the template), the recommended implementation
 ## concatenates all the barcodes separating them with hyphens (`-`).
 ## - `CN`: Name of sequencing center producing the read.
 ## - `DS`: Description.
@@ -21,7 +21,7 @@
 ## Valid values: CAPILLARY, DNBSEQ (MGI/BGI), ELEMENT, HELICOS, ILLUMINA, IONTORRENT,
 ## LS454, ONT (Oxford Nanopore), PACBIO (Pacific Biosciences), SINGULAR, SOLID, and
 ## ULTIMA. This field should be omitted when the technology is not in this list
-## (though the PM field may still be present in this case) or is unknown.
+##     (though the PM field may still be present in this case) or is unknown.
 ## - `PM`: Platform model. Free-form text providing further details of the
 ## platform/technology used.
 ## - `PU`: Platform unit (e.g., flowcell-barcode.lane for Illumina or slide

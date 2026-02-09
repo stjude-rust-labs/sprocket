@@ -136,6 +136,7 @@ impl Token for PostToken {
                                     .next()
                                     .is_some_and(|c| c.is_alphabetic());
                                 if in_literal_block {
+                                    // leave all whitespace as it was found
                                     write!(f, "{cur_line}")?;
                                     remaining = remaining.saturating_sub(cur_line.len());
                                     if cur_line.contains("```") {
@@ -147,11 +148,17 @@ impl Token for PostToken {
                                         write!(f, "{cur_line}")?;
                                         remaining = remaining.saturating_sub(cur_line.len());
                                     } else {
-                                        let cur_line = cur_line.trim();
-                                        write!(f, " {cur_line}")?;
-                                        remaining = remaining.saturating_sub(cur_line.len() + 1);
+                                        // this line starts with some symbol that may have meaning
+                                        // in markdown. don't trim leading whitespace in case it has
+                                        // meaning
+                                        // TODO: we could check what the symbol is and handle more
+                                        // complex markdown
+                                        let cur_line = cur_line.trim_end();
+                                        write!(f, "{cur_line}")?;
+                                        remaining = remaining.saturating_sub(cur_line.len());
                                     }
                                 } else {
+                                    // this line is just text
                                     let words = cur_line.split_ascii_whitespace();
                                     for word in words {
                                         let word_len = word.len();
