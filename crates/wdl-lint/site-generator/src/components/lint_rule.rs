@@ -42,20 +42,24 @@ impl LintRule {
             explanation = self.explanation()
         );
 
-        if let Some(config_fields) = self.applicable_config_fields() {
-            writeln!(&mut markdown).unwrap();
-            writeln!(&mut markdown, "### Configuration").unwrap();
-            for field in config_fields {
-                writeln!(&mut markdown, "* {}", field.name).unwrap();
-            }
-        }
-
         let examples = self.examples();
         if !examples.is_empty() {
             writeln!(&mut markdown).unwrap();
             writeln!(&mut markdown, "### Examples").unwrap();
             for example in examples {
                 writeln!(&mut markdown, "{example}").unwrap();
+            }
+            writeln!(&mut markdown).unwrap();
+        }
+
+        if let Some(config_fields) = self.applicable_config_fields() {
+            writeln!(&mut markdown, "### Configuration").unwrap();
+            for field in config_fields {
+                writeln!(&mut markdown, "#### `{}`", field.name).unwrap();
+                writeln!(&mut markdown).unwrap();
+                writeln!(&mut markdown, "{}", field.description).unwrap();
+                writeln!(&mut markdown).unwrap();
+                writeln!(&mut markdown, "Default: `{}`", field.default).unwrap();
             }
         }
 
@@ -120,14 +124,14 @@ impl LintRule {
     }
 
     /// All config fields that apply to this lint rule.
-    pub fn applicable_config_fields(&self) -> Option<Vec<&'static ConfigField>> {
+    pub fn applicable_config_fields(&self) -> Option<Vec<ConfigField>> {
         // `wdl-analysis` rules have no configuration
         let Self::WdlLint(rule) = self else {
             return None;
         };
 
         let applicable_fields = Config::fields()
-            .iter()
+            .into_iter()
             .filter(|field| field.applicable_lints.contains(&rule.id()))
             .collect::<Vec<_>>();
 
