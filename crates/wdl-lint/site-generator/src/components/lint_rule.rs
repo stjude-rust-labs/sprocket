@@ -84,6 +84,14 @@ impl LintRule {
         }
     }
 
+    /// Get the version (crate-dependent) in which the lint was added.
+    pub fn version(&self) -> &'static str {
+        match self {
+            LintRule::WdlLint(rule) => rule.version(),
+            LintRule::WdlAnalysis(rule) => rule.version(),
+        }
+    }
+
     /// Get the rule's short description.
     pub fn description(&self) -> &'static str {
         match self {
@@ -120,6 +128,7 @@ impl LintRule {
             "id": self.id(),
             "tags": tags,
             "descriptionHtml": self.render().0,
+            "addedIn": self.version(),
         })
     }
 
@@ -171,8 +180,26 @@ pub fn lint_rule_list(source: LintRuleSource) -> PreEscaped<String> {
 
                     div class="accordion-content overflow-hidden" {
                         div class="min-h-0" {
-                            div class="p-5 pt-0 text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 mt-2" {
+                            div class="px-5 py-0 text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 mt-2" {
                                 div class="w-full pt-4 rule-description" x-html="lint.descriptionHtml" {}
+                                div class="w-full flex flex-row flex-nowrap border-t border-slate-800/50 mt-2 rule-extras" {
+                                    div class="inline-flex grow my-auto" {
+                                        "Added in: "
+                                        div class="main__badge-inner mx-[5px] my-auto" {
+                                            span class="main__badge-inner-text" x-text="lint.addedIn" {}
+                                        }
+                                    }
+                                    div class="inline-flex grow my-auto border-l border-slate-800/50" {
+                                        "Tags: "
+                                        div class="inline-flex gap-2 mx-[5px] my-auto" {
+                                            template "x-for"=("tag in lint.tags") {
+                                                div class="main__badge-inner" {
+                                                    span class="main__badge-inner-text" x-text="tag" {}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
