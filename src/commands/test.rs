@@ -26,6 +26,7 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
+use tracing::subscriber::NoSubscriber;
 use tracing::warn;
 use wdl::analysis::AnalysisResult;
 use wdl::engine::CancellationContext;
@@ -518,6 +519,7 @@ async fn launch_tests(
                 let document = wdl_document.clone();
                 let permit = permits.clone().acquire_owned().await.unwrap();
                 futures.spawn(async move {
+                    let subscriber_guard = tracing::subscriber::set_default(NoSubscriber::new());
                     let evaluator =
                         Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
@@ -535,6 +537,7 @@ async fn launch_tests(
                         run_dir,
                     };
                     drop(permit);
+                    drop(subscriber_guard);
                     res
                 });
             }
