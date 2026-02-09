@@ -116,7 +116,7 @@ workflow example {
 ```"#,
         ]
     }
-    
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Correctness, Tag::SprocketCompatibility])
     }
