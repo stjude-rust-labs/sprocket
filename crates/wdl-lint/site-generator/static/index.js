@@ -28,6 +28,13 @@ Alpine.data('App', () => ({
         window.history.pushState({}, '', url);
     },
 
+    focusSearch(event) {
+        if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+
+        event.preventDefault();
+        this.$refs.searchBox.focus();
+    },
+
     toggleTag(tag) {
         if (this.activeTags.includes(tag)) {
             this.activeTags = this.activeTags.filter(t => t !== tag);
