@@ -183,6 +183,10 @@ pub(crate) fn header<P: AsRef<Path>>(
     script: &AdditionalScript,
 ) -> Markup {
     let root = root.as_ref();
+    let search_import = format!(
+        "const pagefindPath = new URL('{}', import.meta.url).href;\nwindow.pagefind = import(pagefindPath)",
+        root.join("pagefind").join("pagefind.js").to_string_lossy()
+    );
     html! {
         head {
             @match script {
@@ -195,6 +199,10 @@ pub(crate) fn header<P: AsRef<Path>>(
             link rel="preconnect" href="https://fonts.googleapis.com";
             link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
             link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
+            script type="module" {
+                (PreEscaped(search_import))
+            }
+
             script defer src=(root.join("index.js").to_string_lossy()) {}
             (Css(&root.join("style.css").to_string_lossy()))
             @match script {

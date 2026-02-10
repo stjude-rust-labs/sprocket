@@ -11,8 +11,10 @@ Alpine.data('search', () => ({
 
     async init() {
         try {
-            this.pagefind = await import('/pagefind/pagefind.js');
-            await this.pagefind.init();
+            await window.pagefind.then((pagefind) => {
+                this.pagefind = pagefind;
+                pagefind.init()
+            });
         } catch (e) {
             console.error("Failed to load Pagefind", e);
         }
