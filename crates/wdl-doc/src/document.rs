@@ -106,7 +106,7 @@ impl Document {
     pub fn render(&self) -> (Markup, PageSections) {
         let rows = self.local_pages.iter().map(|page| {
             html! {
-                div class="main__grid-row" x-data="{ description_expanded: false }" {
+                div class="main__grid-row" x-data="{ description_expanded: false }" data-pagefind-ignore="all" {
                     @match page.1.page_type() {
                         PageType::Struct(s) => {
                             div class="main__grid-cell" {

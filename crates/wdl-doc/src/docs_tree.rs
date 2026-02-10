@@ -1040,12 +1040,17 @@ impl DocsTree {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
-                    div class="relative w-full h-10" {
-                        input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";
-                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
-                        img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
-                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
-                        img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                    div
+                        id="search"
+                        x-init="window.pageFind = new PagefindUI({ element: '#search-results', showSubResults: true });"
+                    {
+                        div class="relative w-full h-10" {
+                            input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox" "x-on:input"="pageFind.triggerSearch($event.target.value)";
+                            img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                            img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                            img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                            img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
+                        }
                     }
                     div class="left-sidebar__tabs-container mt-4" {
                         button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
@@ -1206,7 +1211,7 @@ impl DocsTree {
         };
 
         html! {
-            div class="layout__breadcrumb-container" {
+            div class="layout__breadcrumb-container" data-pagefind-ignore="all" {
                 (root_crumb)
                 @for crumb in breadcrumbs {
                     span { " / " }
@@ -1246,7 +1251,7 @@ impl DocsTree {
         let content = html! {
             @if let Some(homepage) = &self.homepage {
                 div class="main__section" {
-                    div class="markdown-body" {
+                    div data-pagefind-body class="markdown-body" {
                         (Markdown(std::fs::read_to_string(homepage).map_err(Into::<DocError>::into).with_context(|| {
                             format!("failed to read provided homepage file: `{}`", homepage.display())
                         })?).render())
@@ -1353,7 +1358,8 @@ impl DocsTree {
                 }
                 div class="layout__main-center" {
                     div class="layout__main-center-content" {
-                        div {
+                        div id="search-results" x-show="search !== ''" style="display: none;" {}
+                        div x-show="search === ''" {
                             div class="flex gap-1 mb-3" x-show="showCenterButtons" {
                                 (self.render_sidebar_control_buttons(assets))
                             }

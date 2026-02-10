@@ -169,9 +169,9 @@ impl Task {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-violet-400" { "Task" }
-                h1 id="title" class="main__title" { code { (self.name()) } }
+            div class="main__container" data-pagefind-body {
+                span class="text-brand-violet-400" data-pagefind-ignore { "Task" }
+                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
                 div class="markdown-body mb-4" {
                     (self.render_description(false))
                 }

@@ -55,6 +55,11 @@
   h5 {
     @apply text-xl;
   }
+
+  /* Disable default Pagefind search box */
+  #search-results .pagefind-ui__form {
+    display: none;
+  }
 }
 
 @utility dark-scrollbar {
