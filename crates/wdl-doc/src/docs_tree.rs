@@ -968,17 +968,9 @@ impl DocsTree {
         let data = format!(
             r#"{{
                 showWorkflows: $persist({}).using(sessionStorage),
-                search: $persist('').using(sessionStorage),
                 dirOpen: '{}',
                 dirClosed: '{}',
                 nodes: [{}],
-                get searchedNodes() {{
-                    if (this.search === '') {{
-                        return [];
-                    }}
-                    this.showWorkflows = false;
-                    return this.nodes.filter(node => node.search_name.toLowerCase().includes(this.search.toLowerCase()));
-                }},
                 get shownNodes() {{
                     if (this.search !== '') {{
                         return [];
@@ -1040,18 +1032,6 @@ impl DocsTree {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
-                    div
-                        id="search"
-                        x-init="window.pageFind = new PagefindUI({ element: '#search-results', showSubResults: true });"
-                    {
-                        div class="relative w-full h-10" {
-                            input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox" "x-on:input"="pageFind.triggerSearch($event.target.value)";
-                            img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
-                            img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
-                            img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
-                            img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
-                        }
-                    }
                     div class="left-sidebar__tabs-container mt-4" {
                         button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
                             img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
@@ -1068,10 +1048,10 @@ impl DocsTree {
                 // Main content
                 div x-cloak class="left-sidebar__content-container pt-4" {
                     // Full directory view
-                    ul x-show="! showWorkflows || search != ''" class="left-sidebar__content" {
+                    ul x-show="! showWorkflows" class="left-sidebar__content" {
                         // Root node for the directory tree
                         sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
+                            a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
                                 div class="left-sidebar__content-item-container crop-ellipsis" {
                                     div class="relative shrink-0" {
                                         img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
@@ -1099,31 +1079,9 @@ impl DocsTree {
                                 }
                             }
                         }
-                        // Search results
-                        template x-for="node in searchedNodes" {
-                            li class="left-sidebar__search-result-item" {
-                                p class="text-xs text-slate-500 crop-ellipsis" x-text="node.parent" {}
-                                div class="left-sidebar__search-result-item-container" {
-                                    img x-bind:src="node.icon" class="left-sidebar__icon" alt="Node icon";
-                                    sprocket-tooltip class="crop-ellipsis" x-bind:content="node.display_name" {
-                                        a x-bind:href="node.href" x-text="node.display_name" {}
-                                    }
-                                }
-                            }
-                        }
-                        // No results found icon
-                        li x-show="search !== '' && searchedNodes.length === 0" class="flex place-content-center" {
-                            img src=(self.get_asset(base, "search.svg")) class="size-8 block light:hidden" alt="Search icon";
-                            img src=(self.get_asset(base, "search.light.svg")) class="size-8 hidden light:block" alt="Search icon";
-                        }
-                        // No results found message
-                        li x-show="search !== '' && searchedNodes.length === 0" class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
-                            span x-text="'No results found for'" {}
-                            span x-text="`\"${search}\"`" class="text-slate-50" {}
-                        }
                     }
                     // Workflows view
-                    ul x-show="showWorkflows && search === ''" class="left-sidebar__content" {
+                    ul x-show="showWorkflows" class="left-sidebar__content" {
                         (self.sidebar_workflows_view(path))
                     }
                 }
@@ -1357,30 +1315,72 @@ impl DocsTree {
                     (left_sidebar)
                 }
                 div class="layout__main-center" {
-                    div class="layout__main-center-content" {
-                        div id="search-results" x-show="search !== ''" style="display: none;" {}
-                        div x-show="search === ''" {
-                            div class="flex gap-1 mb-3" x-show="showCenterButtons" {
-                                (self.render_sidebar_control_buttons(assets))
-                            }
-                            div class="flex flex-row-reverse items-start justify-between" {
-                                button
-                                x-on:click="
-                                document.documentElement.classList.toggle('light')
-                                localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
-                                "
-                                id="theme-toggle"
-                                class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
-                                    "☀︎"
+                    div class="layout__main-center-content" x-data="search" {
+                        div class="w-full flex flex-col" {
+                            div class="w-full flex justify-between pb-4" {
+                                div id="search" class="relative h-10" {
+                                    input id="searchbox" "x-model.debounce"="query" type="text" placeholder="Search...";
+                                    img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                                    img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                                    img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="query !== ''" x-on:click="query = ''";
+                                    img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="query !== ''" x-on:click="query = ''";
                                 }
-                                @if let Some(breadcrumbs) = breadcrumbs {
-                                    div class="layout__breadcrumbs" {
-                                        (breadcrumbs)
+                                div class="flex flex-row-reverse items-start justify-between" {
+                                    button
+                                    x-on:click="
+                                    document.documentElement.classList.toggle('light')
+                                    localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
+                                    "
+                                    id="theme-toggle"
+                                    class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
+                                        "☀︎"
+                                    }
+                                }
+                            }
+                            @if let Some(breadcrumbs) = breadcrumbs {
+                                div class="layout__breadcrumbs" {
+                                    (breadcrumbs)
+                                }
+                            }
+                        }
+                        div x-show="query !== ''" {
+                            h2 class="text-2xl font-bold mb-4" { "Search results" }
+                            div x-show="loading" { "Loading..." }
+                            ul class="space-y-4" {
+                                // TODO: Add page icon next to title
+                                template x-for="result in results" ":key"="result.url" {
+                                    li class="border-b pb-2" {
+                                        a
+                                            ":href"="result.url"
+                                            class="text-blue-500 font-bold"
+                                            x-text="result.meta.title"
+                                        {}
+                                        p class="text-sm text-gray-600" x-html="result.excerpt" {}
+                                    }
+                                }
+
+                                div x-show="!loading && results.length === 0" {
+                                    // No results found icon
+                                    li class="flex place-content-center" {
+                                        img src=(assets.join("search.svg").to_string_lossy()) class="size-8 block light:hidden" alt="Search icon";
+                                        img src=(assets.join("search.light.svg").to_string_lossy()) class="size-8 hidden light:block" alt="Search icon";
+                                    }
+                                    // No results found message
+                                    li class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
+                                        span x-text="'No results found for'" {}
+                                        span x-text="`\"${query}\"`" class="text-slate-50" {}
                                     }
                                 }
                             }
                         }
-                        (content)
+                        div {
+                            div class="flex gap-1 mb-3" x-show="showCenterButtons" {
+                                (self.render_sidebar_control_buttons(assets))
+                            }
+                        }
+                        div x-show="query === ''" {
+                            (content)
+                        }
                     }
                 }
                 div class="layout__sidebar-right" {
