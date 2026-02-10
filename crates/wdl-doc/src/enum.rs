@@ -111,7 +111,7 @@ impl Enum {
         let search_image = html! {
             img src=(assets.join("enum-selected.svg").to_string_lossy()) class="hidden" data-pagefind-meta="image[src]" {}
         };
-        
+
         let definition = self.definition.display(None);
         let markup = html! {
             div class="main__container" data-pagefind-body {
