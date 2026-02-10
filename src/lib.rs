@@ -162,7 +162,7 @@ type FmtSubscriber =
 type Layered = tracing_subscriber::layer::Layered<IndicatifLayer<FmtSubscriber>, FmtSubscriber>;
 
 /// A type alias for the layer used by file logging.
-type Layer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
+type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
 
 /// A type alias for a logging reload handle.
 ///
@@ -171,7 +171,7 @@ type Layer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File
 ///
 /// Initially the inner layer will be `None` which means file logging will not
 /// take place.
-type LoggingReloadHandle = reload::Handle<Option<Layer>, Layered>;
+type FileLoggingReloadHandle = reload::Handle<Option<FileLayer>, Layered>;
 
 /// Initializes logging given the verbosity level and whether or not to colorize
 /// log output.
@@ -182,7 +182,7 @@ type LoggingReloadHandle = reload::Handle<Option<Layer>, Layered>;
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<LoggingReloadHandle> {
+) -> Result<FileLoggingReloadHandle> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -207,23 +207,25 @@ fn initialize_logging(
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
     let indicatif_layer = IndicatifLayer::new();
+    let stderr_writer = indicatif_layer.get_stderr_writer();
+    let (stderr_layer, stderr_handle) = reload::Layer::new(indicatif_layer);
 
     // To start, the file layer is `None` and may be reloaded later
-    let (file_layer, handle) = reload::Layer::new(None);
+    let (file_layer, file_handle) = reload::Layer::new(None);
 
     // Build the subscriber and set it as the global default
     let subscriber = Subscriber::builder()
         .with_env_filter(env_filter)
-        .with_writer(indicatif_layer.get_stderr_writer())
+        .with_writer(stderr_writer)
         .with_ansi(colorize)
         .finish()
-        .with(indicatif_layer)
+        .with(stderr_layer)
         .with(file_layer);
 
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok(handle)
+    Ok(file_handle)
 }
 
 /// The Sprocket command line entrypoint.

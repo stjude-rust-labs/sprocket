@@ -40,7 +40,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
-use crate::LoggingReloadHandle;
+use crate::FileLoggingReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -528,7 +528,7 @@ pub async fn run(
     mut args: Args,
     mut config: Config,
     colorize: bool,
-    handle: LoggingReloadHandle,
+    handle: FileLoggingReloadHandle,
 ) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
@@ -791,7 +791,7 @@ pub async fn run(
 }
 
 /// Initializes logging to `output.log` in the given output directory.
-fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &PathBuf) -> Result<()> {
+fn initialize_file_logging(handle: FileLoggingReloadHandle, output_dir: &PathBuf) -> Result<()> {
     fs::create_dir_all(output_dir).with_context(|| {
         format!(
             "failed to create directory `{path}`",
