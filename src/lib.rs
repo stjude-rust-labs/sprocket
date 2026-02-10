@@ -126,7 +126,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     colored::control::set_override(colorize);
-    let handle =
+    let (file_handle, stderr_handle) =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
@@ -141,7 +141,7 @@ async fn real_main() -> CommandResult<()> {
         Commands::Format(args) => commands::format::format(args.apply(config), colorize).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
-        Commands::Run(args) => commands::run::run(args, config, colorize, handle).await,
+        Commands::Run(args) => commands::run::run(args, config, colorize, file_handle).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args, colorize).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
@@ -149,7 +149,7 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args.apply(config)).await
+            commands::test::test(args.apply(config), stderr_handle).await
         }
     }
 }
@@ -159,7 +159,7 @@ type FmtSubscriber =
     tracing_subscriber::FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
 
 /// A type alias for a layered subscriber (wraps the indicatif layer)
-type Layered = tracing_subscriber::layer::Layered<IndicatifLayer<FmtSubscriber>, FmtSubscriber>;
+type Layered = tracing_subscriber::layer::Layered<reload::Layer<Option<IndicatifLayer<FmtSubscriber>>, FmtSubscriber>, FmtSubscriber>;
 
 /// A type alias for the layer used by file logging.
 type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
@@ -173,6 +173,8 @@ type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, 
 /// take place.
 type FileLoggingReloadHandle = reload::Handle<Option<FileLayer>, Layered>;
 
+type StderrLoggingReloadHandle = reload::Handle<Option<IndicatifLayer<FmtSubscriber>>, FmtSubscriber>;
+
 /// Initializes logging given the verbosity level and whether or not to colorize
 /// log output.
 ///
@@ -182,7 +184,7 @@ type FileLoggingReloadHandle = reload::Handle<Option<FileLayer>, Layered>;
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<FileLoggingReloadHandle> {
+) -> Result<(FileLoggingReloadHandle, StderrLoggingReloadHandle)> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -208,7 +210,7 @@ fn initialize_logging(
     // output
     let indicatif_layer = IndicatifLayer::new();
     let stderr_writer = indicatif_layer.get_stderr_writer();
-    let (stderr_layer, stderr_handle) = reload::Layer::new(indicatif_layer);
+    let (stderr_layer, stderr_handle) = reload::Layer::new(Some(indicatif_layer));
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_handle) = reload::Layer::new(None);
@@ -225,7 +227,7 @@ fn initialize_logging(
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok(file_handle)
+    Ok((file_handle, stderr_handle))
 }
 
 /// The Sprocket command line entrypoint.

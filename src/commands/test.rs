@@ -38,6 +38,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
+use crate::StderrLoggingReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -628,7 +629,7 @@ fn print_all_results(results: BTreeMap<String, (usize, usize, usize)>) {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args) -> CommandResult<()> {
+pub async fn test(args: Args, handle: StderrLoggingReloadHandle) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
         (Source::File(url), _) if url.scheme() != "file" => {
@@ -689,6 +690,8 @@ pub async fn test(args: Args) -> CommandResult<()> {
         );
         documents.push((analysis, document_tests));
     }
+    
+    handle.reload(None).context("failed to disable stderr logs")?;
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
