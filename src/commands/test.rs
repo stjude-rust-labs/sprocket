@@ -38,7 +38,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
-use crate::StderrLoggingReloadHandle;
+use crate::StdErrWriter;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -376,6 +376,7 @@ async fn launch_tests(
     fixtures: &Arc<OriginPaths>,
     engine: &Arc<wdl::engine::Config>,
     permits: &Arc<Semaphore>,
+    writer: StdErrWriter,
     errors: &mut Vec<Arc<anyhow::Error>>,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {
@@ -509,6 +510,7 @@ async fn launch_tests(
                         }
                     }
                 };
+                let writer = writer.clone();
                 let run_dir = run_root.join(test_num.to_string());
                 let events = Events::disabled();
                 let name = test_name.clone();
@@ -519,6 +521,7 @@ async fn launch_tests(
                 let document = wdl_document.clone();
                 let permit = permits.clone().acquire_owned().await.unwrap();
                 futures.spawn(async move {
+                    writer.disable();
                     let evaluator =
                         Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
@@ -535,6 +538,7 @@ async fn launch_tests(
                         assertions,
                         run_dir,
                     };
+                    writer.enable();
                     drop(permit);
                     res
                 });
@@ -629,7 +633,7 @@ fn print_all_results(results: BTreeMap<String, (usize, usize, usize)>) {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args, handle: StderrLoggingReloadHandle) -> CommandResult<()> {
+pub async fn test(args: Args, writer: StdErrWriter) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
         (Source::File(url), _) if url.scheme() != "file" => {
@@ -690,8 +694,6 @@ pub async fn test(args: Args, handle: StderrLoggingReloadHandle) -> CommandResul
         );
         documents.push((analysis, document_tests));
     }
-    
-    handle.reload(None).context("failed to disable stderr logs")?;
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
@@ -713,6 +715,7 @@ pub async fn test(args: Args, handle: StderrLoggingReloadHandle) -> CommandResul
             &fixture_origins,
             &engine,
             &permits,
+            writer.clone(),
             &mut errors,
             should_filter,
         )

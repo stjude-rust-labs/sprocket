@@ -12,9 +12,13 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 
 use std::fs::File;
+use std::io;
 use std::io::IsTerminal as _;
 use std::io::stderr;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -32,7 +36,9 @@ use tracing::level_filters::LevelFilter;
 use tracing::trace;
 use tracing_indicatif::IndicatifLayer;
 use tracing_indicatif::IndicatifWriter;
+use tracing_indicatif::writer;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::fmt::format::DefaultFields;
 use tracing_subscriber::fmt::format::Format;
@@ -126,7 +132,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     colored::control::set_override(colorize);
-    let (file_handle, stderr_handle) =
+    let (writer, file_handle) =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
@@ -149,20 +155,23 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args.apply(config), stderr_handle).await
+            commands::test::test(args.apply(config), writer).await
         }
     }
 }
 
+/// A type alias for the stderr writer.
+pub type StdErrWriter = Writer<IndicatifWriter<writer::Stderr>>;
+
 /// A type alias for a tracing format subscriber.
-type FmtSubscriber =
-    tracing_subscriber::FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
+pub type FmtSubscriber =
+    tracing_subscriber::FmtSubscriber<DefaultFields, Format, EnvFilter, StdErrWriter>;
 
 /// A type alias for a layered subscriber (wraps the indicatif layer)
-type Layered = tracing_subscriber::layer::Layered<reload::Layer<Option<IndicatifLayer<FmtSubscriber>>, FmtSubscriber>, FmtSubscriber>;
+pub type Layered = tracing_subscriber::layer::Layered<IndicatifLayer<FmtSubscriber>, FmtSubscriber>;
 
 /// A type alias for the layer used by file logging.
-type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
+pub type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
 
 /// A type alias for a logging reload handle.
 ///
@@ -171,9 +180,76 @@ type FileLayer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, 
 ///
 /// Initially the inner layer will be `None` which means file logging will not
 /// take place.
-type FileLoggingReloadHandle = reload::Handle<Option<FileLayer>, Layered>;
+pub type FileLoggingReloadHandle = reload::Handle<Option<FileLayer>, Layered>;
 
-type StderrLoggingReloadHandle = reload::Handle<Option<IndicatifLayer<FmtSubscriber>>, FmtSubscriber>;
+/// A logging writer implementation that can be disabled at runtime.
+#[derive(Debug, Clone)]
+pub struct Writer<W> {
+    /// The underlying writer to write to when this writer is enabled.
+    writer: W,
+    /// Stores the count of requests to disable the writer.
+    ///
+    /// When this is non-zero, the writer is considered to be disabled.
+    disabled: Arc<AtomicUsize>,
+}
+
+impl<W> Writer<W> {
+    /// Constructs a new `Writer` to wrap the given writer.
+    fn new(writer: W) -> Self {
+        Self {
+            writer,
+            disabled: Arc::default(),
+        }
+    }
+
+    /// Decrements the internal disabled count.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal disabled count underflows.
+    fn enable(&self) {
+        if self.disabled.fetch_sub(1, Ordering::SeqCst) == usize::MAX {
+            panic!("writer disable count has underflowed");
+        }
+    }
+
+    /// Increments the internal disabled count.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal disabled count overflows.
+    fn disable(&self) {
+        if self.disabled.fetch_add(1, Ordering::SeqCst) == usize::MIN {
+            panic!("writer disable count has overflowed");
+        }
+    }
+}
+
+impl<W: io::Write> io::Write for Writer<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if self.disabled.load(Ordering::SeqCst) == 0 {
+            self.writer.write(buf)
+        } else {
+            Ok(buf.len())
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        if self.disabled.load(Ordering::SeqCst) == 0 {
+            self.writer.flush()
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl<'a, W: io::Write + Clone> MakeWriter<'a> for Writer<W> {
+    type Writer = Self;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
 
 /// Initializes logging given the verbosity level and whether or not to colorize
 /// log output.
@@ -184,7 +260,7 @@ type StderrLoggingReloadHandle = reload::Handle<Option<IndicatifLayer<FmtSubscri
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<(FileLoggingReloadHandle, StderrLoggingReloadHandle)> {
+) -> Result<(StdErrWriter, FileLoggingReloadHandle)> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -207,10 +283,9 @@ fn initialize_logging(
     };
 
     // Set up an indicatif layer so that progress bars don't interfere with logging
-    // output
+    // output; the indicatif writer is wrapped with a writer that can be disabled
     let indicatif_layer = IndicatifLayer::new();
-    let stderr_writer = indicatif_layer.get_stderr_writer();
-    let (stderr_layer, stderr_handle) = reload::Layer::new(Some(indicatif_layer));
+    let writer = Writer::new(indicatif_layer.get_stderr_writer());
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_handle) = reload::Layer::new(None);
@@ -218,16 +293,16 @@ fn initialize_logging(
     // Build the subscriber and set it as the global default
     let subscriber = Subscriber::builder()
         .with_env_filter(env_filter)
-        .with_writer(stderr_writer)
+        .with_writer(writer.clone())
         .with_ansi(colorize)
         .finish()
-        .with(stderr_layer)
+        .with(indicatif_layer)
         .with(file_layer);
 
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok((file_handle, stderr_handle))
+    Ok((writer, file_handle))
 }
 
 /// The Sprocket command line entrypoint.
