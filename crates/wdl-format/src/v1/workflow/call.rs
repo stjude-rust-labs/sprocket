@@ -14,7 +14,7 @@ use crate::element::FormatElement;
 /// This will panic if the element does not have the expected children.
 pub fn format_call_target(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call target children") {
-        (&child).write(stream);
+        (&child).write(stream, None);
     }
 }
 
@@ -25,7 +25,7 @@ pub fn format_call_target(element: &FormatElement, stream: &mut TokenStream<PreT
 /// This will panic if the element does not have the expected children.
 pub fn format_call_alias(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call alias children") {
-        (&child).write(stream);
+        (&child).write(stream, None);
         stream.end_word();
     }
 }
@@ -37,7 +37,7 @@ pub fn format_call_alias(element: &FormatElement, stream: &mut TokenStream<PreTo
 /// This will panic if the element does not have the expected children.
 pub fn format_call_after(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call after children") {
-        (&child).write(stream);
+        (&child).write(stream, None);
         stream.end_word();
     }
 }
@@ -51,17 +51,17 @@ pub fn format_call_input_item(element: &FormatElement, stream: &mut TokenStream<
     let mut children = element.children().expect("call input item children");
 
     let name = children.next().expect("call input item name");
-    (&name).write(stream);
+    (&name).write(stream, None);
     // Don't call end_word() here in case the name is alone in which case it should
     // be followed by a comma.
 
     if let Some(equals) = children.next() {
         stream.end_word();
-        (&equals).write(stream);
+        (&equals).write(stream, None);
         stream.end_word();
 
         let value = children.next().expect("call input item value");
-        (&value).write(stream);
+        (&value).write(stream, None);
     }
 }
 
@@ -75,11 +75,11 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
 
     let call_keyword = children.next().expect("call keyword");
     assert!(call_keyword.element().kind() == SyntaxKind::CallKeyword);
-    (&call_keyword).write(stream);
+    (&call_keyword).write(stream, None);
     stream.end_word();
 
     let target = children.next().expect("call target");
-    (&target).write(stream);
+    (&target).write(stream, None);
     stream.end_word();
 
     let mut alias = None;
@@ -127,22 +127,22 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
     }
 
     if let Some(alias) = alias {
-        (&alias).write(stream);
+        (&alias).write(stream, None);
         stream.end_word();
     }
 
     for after in afters {
-        (&after).write(stream);
+        (&after).write(stream, None);
         stream.end_word();
     }
 
     if let Some(open_brace) = open_brace {
-        (&open_brace).write(stream);
+        (&open_brace).write(stream, None);
         stream.end_word();
 
         if let Some(input_keyword) = input_keyword {
-            (&input_keyword).write(stream);
-            (&colon.expect("colon")).write(stream);
+            (&input_keyword).write(stream, None);
+            (&colon.expect("colon")).write(stream, None);
             stream.end_word();
         }
 
@@ -150,10 +150,10 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
 
         let mut commas = commas.iter();
         for input in inputs {
-            (&input).write(stream);
+            (&input).write(stream, None);
 
             if let Some(comma) = commas.next() {
-                (comma).write(stream);
+                (comma).write(stream, None);
             } else {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
@@ -162,7 +162,7 @@ pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<P
         }
 
         stream.decrement_indent();
-        (&close_brace.expect("close brace")).write(stream);
+        (&close_brace.expect("close brace")).write(stream, None);
         stream.end_line();
     }
 }

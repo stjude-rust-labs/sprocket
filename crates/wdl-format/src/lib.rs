@@ -7,7 +7,7 @@ pub mod v1;
 
 use std::fmt::Write;
 
-pub use config::Config;
+pub use config::*;
 pub use token::*;
 use wdl_ast::Element;
 use wdl_ast::Node as AstNode;
@@ -28,11 +28,11 @@ pub const TAB: &str = "\t";
 /// An element that can be written to a token stream.
 pub trait Writable {
     /// Writes the element to the token stream.
-    fn write(&self, stream: &mut TokenStream<PreToken>);
+    fn write(&self, stream: &mut TokenStream<PreToken>, config: Option<&Config>);
 }
 
 impl Writable for &FormatElement {
-    fn write(&self, stream: &mut TokenStream<PreToken>) {
+    fn write(&self, stream: &mut TokenStream<PreToken>, config: Option<&Config>) {
         match self.element() {
             Element::Node(node) => match node {
                 AstNode::AccessExpr(_) => v1::expr::format_access_expr(self, stream),
@@ -75,7 +75,7 @@ impl Writable for &FormatElement {
                 AstNode::ImportStatement(_) => v1::import::format_import_statement(self, stream),
                 AstNode::IndexExpr(_) => v1::expr::format_index_expr(self, stream),
                 AstNode::InequalityExpr(_) => v1::expr::format_inequality_expr(self, stream),
-                AstNode::InputSection(_) => v1::format_input_section(self, stream),
+                AstNode::InputSection(_) => v1::format_input_section(self, stream, config),
                 AstNode::LessEqualExpr(_) => v1::expr::format_less_equal_expr(self, stream),
                 AstNode::LessExpr(_) => v1::expr::format_less_expr(self, stream),
                 AstNode::LiteralArray(_) => v1::expr::format_literal_array(self, stream),
@@ -204,7 +204,7 @@ impl Formatter {
     /// Gets the [`PostToken`] stream.
     fn to_stream<W: Writable>(&self, element: W) -> TokenStream<PostToken> {
         let mut stream = TokenStream::default();
-        element.write(&mut stream);
+        element.write(&mut stream, Some(self.config()));
 
         let mut postprocessor = Postprocessor::default();
         postprocessor.run(stream, self.config())

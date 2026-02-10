@@ -12,7 +12,7 @@ use crate::element::FormatElement;
 /// This will panic if the element does not have the expected children.
 pub fn format_import_alias(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("import alias children") {
-        (&child).write(stream);
+        (&child).write(stream, None);
         stream.end_word();
     }
 }
@@ -24,7 +24,7 @@ pub fn format_import_alias(element: &FormatElement, stream: &mut TokenStream<Pre
 /// This will panic if the element does not have the expected children.
 pub fn format_import_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("import statement children") {
-        (&child).write(stream);
+        (&child).write(stream, None);
         stream.end_word();
     }
 

@@ -21,17 +21,17 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
 
     let task_keyword = children.next().expect("task keyword");
     assert!(task_keyword.element().kind() == SyntaxKind::TaskKeyword);
-    (&task_keyword).write(stream);
+    (&task_keyword).write(stream, None);
     stream.end_word();
 
     let name = children.next().expect("task name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, None);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.end_line();
     stream.increment_indent();
 
@@ -88,24 +88,24 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
     }
 
     if let Some(meta) = meta {
-        (&meta).write(stream);
+        (&meta).write(stream, None);
         stream.blank_line();
     }
 
     if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream);
+        (&parameter_meta).write(stream, None);
         stream.blank_line();
     }
 
     if let Some(input) = input {
-        (&input).write(stream);
+        (&input).write(stream, None);
         stream.blank_line();
     }
 
     stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
-        (&child).write(stream);
+        (&child).write(stream, None);
     }
     stream.ignore_trailing_blank_lines();
     if !body_empty {
@@ -113,37 +113,37 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
     }
 
     if let Some(command) = command {
-        (&command).write(stream);
+        (&command).write(stream, None);
         stream.blank_line();
     }
 
     if let Some(output) = output {
-        (&output).write(stream);
+        (&output).write(stream, None);
         stream.blank_line();
     }
 
     match requirements {
         Some(requirements) => {
-            (&requirements).write(stream);
+            (&requirements).write(stream, None);
             stream.blank_line();
         }
         _ => {
             if let Some(runtime) = runtime {
-                (&runtime).write(stream);
+                (&runtime).write(stream, None);
                 stream.blank_line();
             }
         }
     }
 
     if let Some(hints) = hints {
-        (&hints).write(stream);
+        (&hints).write(stream, None);
         stream.blank_line();
     }
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("task close brace")).write(stream);
+    (&close_brace.expect("task close brace")).write(stream, None);
     stream.end_line();
 }
 
@@ -157,7 +157,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
 
     let command_keyword = children.next().expect("command keyword");
     assert!(command_keyword.element().kind() == SyntaxKind::CommandKeyword);
-    (&command_keyword).write(stream);
+    (&command_keyword).write(stream, None);
     stream.end_word();
 
     let open_delimiter = children.next().expect("open delimiter");
@@ -172,7 +172,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
             );
         }
         SyntaxKind::OpenHeredoc => {
-            (&open_delimiter).write(stream);
+            (&open_delimiter).write(stream, None);
         }
         _ => {
             unreachable!(
@@ -206,10 +206,10 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
                         );
                     }
                     SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream);
+                        (&child).write(stream, None);
                     }
                     SyntaxKind::LiteralCommandText | SyntaxKind::PlaceholderNode => {
-                        (&child).write(stream);
+                        (&child).write(stream, None);
                     }
                     _ => {
                         unreachable!(
@@ -242,7 +242,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
                     }
                     StrippedCommandPart::Placeholder(_) => {
                         stream.push(PreToken::TempIndentStart);
-                        (&child).write(stream);
+                        (&child).write(stream, None);
                         stream.push(PreToken::TempIndentEnd);
                     }
                 }
@@ -262,7 +262,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
                         );
                     }
                     SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream);
+                        (&child).write(stream, None);
                     }
                     _ => {
                         unreachable!(
@@ -287,15 +287,15 @@ pub fn format_requirements_item(element: &FormatElement, stream: &mut TokenStrea
 
     let name = children.next().expect("requirements item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, None);
 
     let colon = children.next().expect("requirements item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, None);
     stream.end_word();
 
     let value = children.next().expect("requirements item value");
-    (&value).write(stream);
+    (&value).write(stream, None);
 }
 
 /// Formats a [`RequirementsSection`](wdl_ast::v1::RequirementsSection).
@@ -308,12 +308,12 @@ pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenSt
 
     let requirements_keyword = children.next().expect("requirements keyword");
     assert!(requirements_keyword.element().kind() == SyntaxKind::RequirementsKeyword);
-    (&requirements_keyword).write(stream);
+    (&requirements_keyword).write(stream, None);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -337,12 +337,12 @@ pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenSt
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("requirements close brace")).write(stream);
+    (&close_brace.expect("requirements close brace")).write(stream, None);
     stream.end_line();
 }
 
@@ -356,15 +356,15 @@ pub fn format_task_hints_item(element: &FormatElement, stream: &mut TokenStream<
 
     let name = children.next().expect("task hints item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, None);
 
     let colon = children.next().expect("task hints item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, None);
     stream.end_word();
 
     let value = children.next().expect("task hints item value");
-    (&value).write(stream);
+    (&value).write(stream, None);
 
     assert!(children.next().is_none());
 }
@@ -379,15 +379,15 @@ pub fn format_runtime_item(element: &FormatElement, stream: &mut TokenStream<Pre
 
     let name = children.next().expect("runtime item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, None);
 
     let colon = children.next().expect("runtime item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, None);
     stream.end_word();
 
     let value = children.next().expect("runtime item value");
-    (&value).write(stream);
+    (&value).write(stream, None);
 }
 
 /// Formats a [`RuntimeSection`](wdl_ast::v1::RuntimeSection).
@@ -400,12 +400,12 @@ pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<
 
     let runtime_keyword = children.next().expect("runtime keyword");
     assert!(runtime_keyword.element().kind() == SyntaxKind::RuntimeKeyword);
-    (&runtime_keyword).write(stream);
+    (&runtime_keyword).write(stream, None);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -429,12 +429,12 @@ pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("runtime close brace")).write(stream);
+    (&close_brace.expect("runtime close brace")).write(stream, None);
     stream.end_line();
 }
 
@@ -448,12 +448,12 @@ pub fn format_task_hints_section(element: &FormatElement, stream: &mut TokenStre
 
     let hints_keyword = children.next().expect("hints keyword");
     assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
-    (&hints_keyword).write(stream);
+    (&hints_keyword).write(stream, None);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -477,11 +477,11 @@ pub fn format_task_hints_section(element: &FormatElement, stream: &mut TokenStre
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("task hints close brace")).write(stream);
+    (&close_brace.expect("task hints close brace")).write(stream, None);
     stream.end_line();
 }
