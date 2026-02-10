@@ -20,6 +20,10 @@ pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenS
     for child in element.children().expect("conditional statement children") {
         (&child).write(stream);
     }
+
+    // Note that we do not end the line between clauses, but only after the full
+    // conditional statement.
+    stream.end_line();
 }
 
 /// Formats a [`ConditionalStatementClause`](wdl_ast::v1::ConditionalStatementClause).
@@ -32,6 +36,8 @@ pub fn format_conditional_statement_clause(
         .expect("conditional statement clause children")
         .peekable();
 
+    let mut has_condition = false;
+
     while let Some(el) = children.peek() {
         // If the format element doesn't contain a token, it's not a keyword, so
         // break.
@@ -42,10 +48,13 @@ pub fn format_conditional_statement_clause(
         // Write the token if it's an `if` or an `else`.
         match token {
             Token::IfKeyword(_) => {
+                has_condition = true;
                 el.write(stream);
+                stream.end_word();
             }
             Token::ElseKeyword(_) => {
                 el.write(stream);
+                stream.end_word();
             }
             _ => break,
         }
@@ -53,17 +62,20 @@ pub fn format_conditional_statement_clause(
         // Take the child token we just processed.
         children.next();
     }
-    stream.end_word();
 
-    let open_paren = children.next().expect("open paren");
-    assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
-    (&open_paren).write(stream);
+    // If the ConditionalStatementClause contains a condition, we need to process
+    // the parens and all elements inside!
+    if has_condition {
+        let open_paren = children.next().expect("open paren");
+        assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
+        (&open_paren).write(stream);
 
-    for child in children.by_ref() {
-        (&child).write(stream);
-        if child.element().kind() == SyntaxKind::CloseParen {
-            stream.end_word();
-            break;
+        for child in children.by_ref() {
+            (&child).write(stream);
+            if child.element().kind() == SyntaxKind::CloseParen {
+                stream.end_word();
+                break;
+            }
         }
     }
 
@@ -78,7 +90,7 @@ pub fn format_conditional_statement_clause(
         }
         (&child).write(stream);
     }
-    stream.end_line();
+    stream.end_word();
 }
 
 /// Formats a [`ScatterStatement`](wdl_ast::v1::ScatterStatement).
