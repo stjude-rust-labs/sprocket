@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added an `output.log` file to the run directory that captures all logged
+  messages from `sprocket run` ([#613](https://github.com/stjude-rust-labs/sprocket/pull/613)).
 * Added reading configuration from a `sprocket.toml` next to the sprocket
   executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
