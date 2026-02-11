@@ -33,7 +33,7 @@ const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Default output directory.
-const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
+pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 
 /// The name of the Sprocket configuration file.
 const CONFIG_FILE_NAME: &str = "sprocket.toml";
@@ -188,9 +188,11 @@ pub struct RunConfig {
     #[serde(flatten)]
     pub engine: EngineConfig,
 
-    /// The "runs" directory under which new `run` sessions' execution
-    /// directories will be placed.
-    pub runs_dir: PathBuf,
+    /// The output directory (default: `./out`).
+    ///
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    #[serde(default = "default_output_directory")]
+    pub output_dir: PathBuf,
 
     /// The capacity of the events channel used to display progress statistics.
     ///
@@ -211,7 +213,7 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
+            output_dir: default_output_directory(),
             events_capacity: None,
         }
     }

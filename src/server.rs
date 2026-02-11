@@ -1,7 +1,5 @@
 //! The API server for executing runs (WDL tasks and workflows).
 
-use std::sync::Arc;
-
 use anyhow::Context;
 use axum::Router;
 use axum::http::HeaderValue;
@@ -16,7 +14,7 @@ use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
-use crate::system::v1::db::SqliteDatabase;
+use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::svc::RunManagerSvc;
 
 mod api;
@@ -66,7 +64,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
             .to_string()
     });
 
-    let db = Arc::new(SqliteDatabase::new(&db_path).await?);
+    let db = open_database(&db_path).await?;
     let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
 
     let state = AppState::builder().run_manager_tx(run_manager_tx).build();
