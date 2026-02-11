@@ -124,7 +124,13 @@ impl LintRule {
             LintRule::WdlAnalysis(_) => Vec::new(),
         };
 
+        let source = match self {
+            LintRule::WdlLint(_) => "wdlLint",
+            LintRule::WdlAnalysis(_) => "wdlAnalysis",
+        };
+
         json!({
+            "source": source,
             "id": self.id(),
             "tags": tags,
             "descriptionHtml": self.render().0,
@@ -154,14 +160,14 @@ impl LintRule {
 
 /// A list of lint rules.
 pub fn lint_rule_list(source: LintRuleSource) -> PreEscaped<String> {
-    let list_name = match source {
-        LintRuleSource::WdlLint => "allLints",
-        LintRuleSource::WdlAnalysis => "allAnalysisLints",
+    let source = match source {
+        LintRuleSource::WdlLint => "wdlLint",
+        LintRuleSource::WdlAnalysis => "wdlAnalysis",
     };
 
     html! {
         div class="rule__container" {
-            template "x-for"=(format!("lint in $store.{list_name}")) ":key"="lint.id" {
+            template "x-for"=(format!("lint in {source}.allLints")) ":key"="lint.id" {
                 article
                     ":id"="lint.id"
                     x-show="isVisible(lint)"
