@@ -195,7 +195,7 @@ pub fn lint_rule_list(source: LintRuleSource) -> PreEscaped<String> {
                                             span class="main__badge-inner-text" x-text="lint.addedIn" {}
                                         }
                                     }
-                                    div class="inline-flex grow my-auto border-l border-slate-800/50" {
+                                    div class="inline-flex grow my-auto border-l border-slate-800/50" x-show="lint.tags.length > 0" {
                                         "Tags: "
                                         div class="inline-flex gap-2 mx-[5px] my-auto" {
                                             template "x-for"=("tag in lint.tags") {
