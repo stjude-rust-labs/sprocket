@@ -1122,7 +1122,7 @@ impl Evaluator {
             let host = state.path_map.get_by_right(guest).unwrap();
 
             // Check for a host path that is a URL and use the localized path instead
-            let symlink_host_path: Cow<'_, Path> =
+            let base_host_path =
                 if self.backend.needs_local_inputs() && is_supported_url(host.as_str()) {
                     state
                         .backend_inputs
@@ -1136,7 +1136,7 @@ impl Evaluator {
                             if url.strip_suffix('/').unwrap_or(url)
                                 == host.strip_suffix('/').unwrap_or(host)
                             {
-                                Some(Cow::Borrowed(i.local_path()?))
+                                Some(i.local_path()?)
                             } else {
                                 None
                             }
@@ -1147,14 +1147,19 @@ impl Evaluator {
                                  localized path for URL `{host}` was not found"
                             )
                         })?
-                } else if let Ok(stripped) = symlink_guest_path.strip_prefix(guest.0.as_str())
-                    && !stripped.as_os_str().is_empty()
-                {
-                    // Translate the guest path to the corresponding host path
-                    Cow::Owned(Path::new(host.0.as_str()).join(stripped))
                 } else {
-                    Cow::Borrowed(Path::new(host.0.as_str()))
+                    Path::new(host.0.as_str())
                 };
+
+            // Translate the guest path to the corresponding host path
+            let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
+                symlink_guest_path.strip_prefix(guest.0.as_str())
+                && !stripped.as_os_str().is_empty()
+            {
+                Cow::Owned(base_host_path.join(stripped))
+            } else {
+                Cow::Borrowed(base_host_path)
+            };
 
             // Remove the existing link
             remove_file(path).with_context(|| {
