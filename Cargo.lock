@@ -4407,6 +4407,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "semver"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d767eb0aabc880b29956c35734170f26ed551a859dbd361d140cdbeca61ab1e2"
+dependencies = [
+ "serde",
+ "serde_core",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6393,6 +6403,7 @@ dependencies = [
  "maud",
  "opener",
  "pulldown-cmark",
+ "semver",
  "serde_json",
  "strum",
  "tracing",
