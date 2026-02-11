@@ -13,6 +13,7 @@ use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
 use wdl::analysis::config::FeatureFlags;
+use wdl::ast::SupportedVersion;
 use wdl::lint::Linter;
 
 mod results;
@@ -59,6 +60,10 @@ pub struct Analysis {
 
     /// Feature flags for experimental features.
     feature_flags: FeatureFlags,
+
+    /// The fallback version to use when a WDL document declares an
+    /// unrecognized version.
+    fallback_version: Option<SupportedVersion>,
 
     /// The initialization callback.
     init: InitCb,
@@ -116,6 +121,13 @@ impl Analysis {
         self
     }
 
+    /// Sets the fallback version to use when a WDL document declares an
+    /// unrecognized version.
+    pub fn fallback_version(mut self, version: Option<SupportedVersion>) -> Self {
+        self.fallback_version = version;
+        self
+    }
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
@@ -138,6 +150,7 @@ impl Analysis {
             info!("disabled lint rules: {:?}", disabled_rules);
         }
         let config = wdl::analysis::Config::default()
+            .with_fallback_version(self.fallback_version)
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
             .with_ignore_filename(self.ignore_filename)
             .with_feature_flags(self.feature_flags);
@@ -191,6 +204,7 @@ impl Default for Analysis {
             lint_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
+            fallback_version: None,
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }

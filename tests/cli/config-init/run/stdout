@@ -23,7 +23,7 @@ except = []
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
-runs_dir = "runs"
+output_dir = "./out"
 
 [run.http]
 
@@ -75,4 +75,6 @@ digests = "weak"
 [common]
 color = "auto"
 report_mode = "full"
+
+[common.wdl]
 

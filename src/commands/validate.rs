@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use wdl::engine::Inputs as EngineInputs;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -48,18 +49,8 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 }
 
-impl Args {
-    /// Applies the configuration to the arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-        self
-    }
-}
-
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),
@@ -68,6 +59,7 @@ pub async fn validate(args: Args) -> CommandResult<()> {
 
     let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;

@@ -61,14 +61,8 @@ task hello {
         assert!(str::from_utf8(&result.stderr).unwrap().contains(level));
 
         // Ensure the log file have at least one message at the level
-        let log = fs::read_to_string(
-            dir.path()
-                .join("runs")
-                .join("hello")
-                .join("_latest")
-                .join("output.log"),
-        )
-        .expect("should have output log");
+        let log = fs::read_to_string(dir.path().join("out").join("output.log"))
+            .expect("should have output log");
         assert!(log.contains(level));
     }
 }
