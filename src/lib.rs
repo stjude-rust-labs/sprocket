@@ -33,11 +33,9 @@ use tracing::trace;
 use tracing_indicatif::IndicatifLayer;
 use tracing_indicatif::IndicatifWriter;
 use tracing_subscriber::EnvFilter;
-use tracing_subscriber::FmtSubscriber;
-use tracing_subscriber::fmt;
+use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::fmt::format::DefaultFields;
 use tracing_subscriber::fmt::format::Format;
-use tracing_subscriber::layer::Layered;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::reload;
 
@@ -128,7 +126,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     colored::control::set_override(colorize);
-    let (writer, file_handle) =
+    let handle =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
@@ -143,7 +141,7 @@ async fn real_main() -> CommandResult<()> {
         Commands::Format(args) => commands::format::format(args.apply(config), colorize).await,
         Commands::Inputs(args) => commands::inputs::inputs(args).await,
         Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
-        Commands::Run(args) => commands::run::run(args, config, colorize, file_handle).await,
+        Commands::Run(args) => commands::run::run(args, config, colorize, handle).await,
         Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args, colorize).await,
         Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
@@ -151,33 +149,29 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args.apply(config), writer).await
+            commands::test::test(args.apply(config)).await
         }
     }
 }
 
-/// The type of the logging subscriber.
-pub type Subscriber = FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
+/// A type alias for a tracing format subscriber.
+type FmtSubscriber =
+    tracing_subscriber::FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
 
-/// Represents the type of the filter (i.e. controls logging output) layer.
-pub type FilterLayer = Layered<reload::Layer<LevelFilter, Subscriber>, Subscriber>;
+/// A type alias for a layered subscriber (wraps the indicatif layer)
+type Layered = tracing_subscriber::layer::Layered<IndicatifLayer<FmtSubscriber>, FmtSubscriber>;
 
-/// The handle type for the logging filter reload handle.
+/// A type alias for the layer used by file logging.
+type Layer = tracing_subscriber::fmt::Layer<Layered, DefaultFields, Format, File>;
+
+/// A type alias for a logging reload handle.
 ///
-/// This type is used to temporarily disable logging during `sprocket test`
-/// evaluation.
-pub type FilterReloadHandle = reload::Handle<LevelFilter, Subscriber>;
-
-/// The handle type for the logging file reload handle.
+/// This is used to initialize file logging *after* the global tracing
+/// subscriber has been installed.
 ///
-/// This type is used to update the file to log with for `sprocket run` once the
-/// run directory has been created.
-pub type FileReloadHandle = reload::Handle<
-    Option<
-        fmt::Layer<Layered<IndicatifLayer<FilterLayer>, FilterLayer>, DefaultFields, Format, File>,
-    >,
-    Layered<IndicatifLayer<FilterLayer>, FilterLayer>,
->;
+/// Initially the inner layer will be `None` which means file logging will not
+/// take place.
+type LoggingReloadHandle = reload::Handle<Option<Layer>, Layered>;
 
 /// Initializes logging given the verbosity level and whether or not to colorize
 /// log output.
@@ -188,7 +182,7 @@ pub type FileReloadHandle = reload::Handle<
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<(FilterReloadHandle, FileReloadHandle)> {
+) -> Result<LoggingReloadHandle> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -210,32 +204,26 @@ fn initialize_logging(
         }
     };
 
-    // Set up a reload layer where we can change the level filter on the fly
-    // This layer should always come first in the subscriber
-    let (filter_layer, filter_reload_handle) = reload::Layer::new(LevelFilter::from(verbosity));
-
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
     let indicatif_layer = IndicatifLayer::new();
 
     // To start, the file layer is `None` and may be reloaded later
-    let (file_layer, file_reload_handle) =
-        reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f)));
+    let (file_layer, handle) = reload::Layer::new(None);
 
     // Build the subscriber and set it as the global default
-    let subscriber = fmt::Subscriber::builder()
+    let subscriber = Subscriber::builder()
         .with_env_filter(env_filter)
         .with_writer(indicatif_layer.get_stderr_writer())
         .with_ansi(colorize)
         .finish()
-        .with(filter_layer)
         .with(indicatif_layer)
         .with(file_layer);
 
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok((filter_reload_handle, file_reload_handle))
+    Ok(handle)
 }
 
 /// The Sprocket command line entrypoint.

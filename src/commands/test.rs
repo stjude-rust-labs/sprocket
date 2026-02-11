@@ -26,6 +26,7 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
+use tracing::subscriber::NoSubscriber;
 use tracing::warn;
 use wdl::analysis::AnalysisResult;
 use wdl::engine::CancellationContext;
@@ -38,7 +39,6 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
-use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -376,7 +376,6 @@ async fn launch_tests(
     fixtures: &Arc<OriginPaths>,
     engine: &Arc<wdl::engine::Config>,
     permits: &Arc<Semaphore>,
-    handle: FilterReloadHandle,
     errors: &mut Vec<Arc<anyhow::Error>>,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>> {
@@ -520,6 +519,7 @@ async fn launch_tests(
                 let document = wdl_document.clone();
                 let permit = permits.clone().acquire_owned().await.unwrap();
                 futures.spawn(async move {
+                    let subscriber_guard = tracing::subscriber::set_default(NoSubscriber::new());
                     let evaluator =
                         Evaluator::new(&document, &target, wdl_inputs, &fixtures, engine, &run_dir);
                     let cancellation = CancellationContext::new(FailureMode::Fast);
@@ -537,6 +537,7 @@ async fn launch_tests(
                         run_dir,
                     };
                     drop(permit);
+                    drop(subscriber_guard);
                     res
                 });
             }
@@ -630,7 +631,7 @@ fn print_all_results(results: BTreeMap<String, (usize, usize, usize)>) {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args, handle: FilterReloadHandle) -> CommandResult<()> {
+pub async fn test(args: Args) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let (source, workspace) = match (&source, args.workspace) {
         (Source::File(url), _) if url.scheme() != "file" => {
@@ -712,7 +713,6 @@ pub async fn test(args: Args, handle: FilterReloadHandle) -> CommandResult<()> {
             &fixture_origins,
             &engine,
             &permits,
-            handle.clone(),
             &mut errors,
             should_filter,
         )

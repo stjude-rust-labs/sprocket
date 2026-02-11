@@ -40,7 +40,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
-use crate::FileReloadHandle;
+use crate::LoggingReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -194,6 +194,15 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// The engine configuration to use.
+    ///
+    /// This is not exposed via [`clap`] and is not settable by users.
+    /// It will always be overwritten by the engine config provided by the user
+    /// (which will be set with `Default::default()` if the user does not
+    /// explicitly set `run` config values).
+    #[clap(skip)]
+    pub engine: EngineConfig,
 }
 
 impl Args {
@@ -519,7 +528,7 @@ pub async fn run(
     mut args: Args,
     mut config: Config,
     colorize: bool,
-    handle: FileReloadHandle,
+    handle: LoggingReloadHandle,
 ) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
@@ -782,7 +791,7 @@ pub async fn run(
 }
 
 /// Initializes logging to `output.log` in the given output directory.
-fn initialize_file_logging(handle: FileReloadHandle, output_dir: &PathBuf) -> Result<()> {
+fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &PathBuf) -> Result<()> {
     fs::create_dir_all(output_dir).with_context(|| {
         format!(
             "failed to create directory `{path}`",
