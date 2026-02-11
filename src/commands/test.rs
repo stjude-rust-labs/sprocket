@@ -280,7 +280,7 @@ impl TestIteration {
                                 .stdout()
                                 .as_file()
                                 .expect("stdout should be `File`");
-                            match file_matches(stdout_path.as_str(), regexs.as_slice()) {
+                            match file_matches(stdout_path.as_str(), regexes.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -299,7 +299,7 @@ impl TestIteration {
                                 .stderr()
                                 .as_file()
                                 .expect("stderr should be `File`");
-                            match file_matches(stderr_path.as_str(), regexs.as_slice()) {
+                            match file_matches(stderr_path.as_str(), regexes.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -549,8 +549,12 @@ async fn launch_tests(
     Ok(results)
 }
 
+type TestResults = IndexMap<String, JoinSet<TestIteration>>;
+type TargetResults = IndexMap<String, TestResults>;
+type DocumentResults = IndexMap<String, TargetResults>;
+
 async fn process_tests(
-    tests: IndexMap<String, IndexMap<String, IndexMap<String, JoinSet<TestIteration>>>>,
+    tests: DocumentResults,
     root: &Path,
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,

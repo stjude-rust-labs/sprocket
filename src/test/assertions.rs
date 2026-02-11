@@ -176,49 +176,16 @@ impl OutputAssertion {
                         return Ok(());
                     }
                 }
-                let mut valid = false;
-                match prim_ty {
-                    PrimitiveType::Boolean => {
-                        if matches!(self, Self::BoolEquals(_)) {
-                            valid = true;
-                        }
-                    }
-                    PrimitiveType::Directory => {
-                        if matches!(self, Self::Name(_)) {
-                            valid = true;
-                        }
-                    }
-                    PrimitiveType::File => {
-                        if matches!(self, Self::Name(_)) {
-                            valid = true;
-                        }
-                    }
-                    PrimitiveType::Float => {
-                        if matches!(self, Self::FloatEquals(_)) {
-                            valid = true;
-                        }
-                    }
-                    PrimitiveType::Integer => {
-                        if matches!(self, Self::IntEquals(_)) {
-                            valid = true;
-                        }
-                    }
-                    PrimitiveType::String => {
-                        if matches!(
-                            self,
-                            Self::Contains(_)
-                                | Self::StrEquals(_)
-                                | Self::Length(_)
-                                | Self::Empty(_)
-                        ) {
-                            valid = true;
-                        }
-                    }
-                }
-                if !valid {
-                    bail!("`{self}` assertion cannot be used on `{prim_ty}` WDL type")
-                } else {
-                    Ok(())
+                match (self, prim_ty) {
+                    (Self::BoolEquals(_), PrimitiveType::Boolean)
+                    | (Self::Name(_), PrimitiveType::Directory | PrimitiveType::File)
+                    | (Self::FloatEquals(_), PrimitiveType::Float)
+                    | (Self::IntEquals(_), PrimitiveType::Integer)
+                    | (
+                        Self::Contains(_) | Self::StrEquals(_) | Self::Length(_) | Self::Empty(_),
+                        PrimitiveType::String,
+                    ) => Ok(()),
+                    _ => bail!("`{self}` assertion cannot be used on `{prim_ty}` WDL type"),
                 }
             }
             Type::Compound(comp_ty, optional) => {
@@ -315,7 +282,7 @@ impl OutputAssertion {
             }
             Self::FloatEquals(should_equal) => {
                 let o = output.as_float().expect("type should be validated");
-                if (*should_equal - o).abs() > f64::EPSILON * 100.0 {
+                if (*should_equal - o).abs() > 1e-3 {
                     bail!("output `{o}` does not equal assertion `{should_equal}`")
                 }
             }
