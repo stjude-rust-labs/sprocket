@@ -101,16 +101,20 @@ pub(crate) trait Runnable: DefinitionMeta {
             let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
             let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
             html! {
-                div x-data="{ unix: true }" class="main__run-with-container" {
+                div x-data="{ run_with: (localStorage.getItem('run_with') ?? 'unix') }" class="main__run-with-container" {
                     div class="main__run-with-label" {
                         span class="main__run-with-label-text" {
                             "RUN WITH"
                         }
-                        button x-on:click="unix = !unix" class="main__run-with-toggle" {
-                            div x-bind:class="unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                        button x-on:click="
+                        run_with = run_with == 'unix' ? 'windows' : 'unix'
+                        localStorage.setItem('run_with', run_with)
+                        "
+                        class="main__run-with-toggle" {
+                            div x-bind:class="run_with == 'unix' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
                                 "Unix"
                             }
-                            div x-bind:class="!unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                            div x-bind:class="run_with == 'windows' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
                                 "Windows"
                             }
                         }
@@ -120,10 +124,10 @@ pub(crate) trait Runnable: DefinitionMeta {
                             "sprocket run --target "
                             (self.name())
                             " "
-                            span x-show="unix" {
+                            span x-show="run_with == 'unix'" {
                                 (unix_path)
                             }
-                            span x-show="!unix" {
+                            span x-show="run_with == 'windows'" {
                                 (windows_path)
                             }
                             " [INPUTS]..."
