@@ -6214,7 +6214,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6250,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6360,7 +6360,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",

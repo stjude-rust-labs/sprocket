@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.1 - 02-11-2026
+
+### Dependencies
+
+* Bumps `wdl-grammar` to v0.21.0 and `wdl-ast` to v0.21.1.
+
 ## 0.17.0 - 02-11-2026
 
 #### Fixed
