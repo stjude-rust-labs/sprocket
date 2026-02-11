@@ -5,17 +5,24 @@ import * as common from '../../../../web-common/dist/common.js';
 
 Alpine.plugin(persist)
 
-Alpine.store('allLints', state.allLints);
-Alpine.store('allAnalysisLints', state.allAnalysisLints);
-
 const urlParams = new URLSearchParams(window.location.search);
 
 Alpine.data('App', () => ({
     tab: urlParams.get('tab') || state.defaultTab,
     search: Alpine.$persist('').using(sessionStorage),
-    activeTags: state.defaultTags,
-    lintVersion: state.lintVersion,
-    analysisVersion: state.analysisVersion,
+    wdlLint: {
+        activeTags: state.defaultTags,
+        allLints: state.wdlLint.allLints,
+        version: state.wdlLint.currentVersion,
+        allVersions: state.wdlLint.allVersions,
+        filteredVersion: state.wdlLint.filteredVersion,
+    },
+    wdlAnalysis: {
+        allLints: state.wdlAnalysis.allLints,
+        version: state.wdlAnalysis.currentVersion,
+        allVersions: state.wdlAnalysis.allVersions,
+        filteredVersion: state.wdlAnalysis.filteredVersion,
+    },
 
     switchTab(tab) {
         this.tab = tab;
@@ -36,17 +43,21 @@ Alpine.data('App', () => ({
     },
 
     toggleTag(tag) {
-        if (this.activeTags.includes(tag)) {
-            this.activeTags = this.activeTags.filter(t => t !== tag);
+        if (this.wdlLint.activeTags.includes(tag)) {
+            this.wdlLint.activeTags = this.wdlLint.activeTags.filter(t => t !== tag);
         } else {
-            this.activeTags.push(tag);
+            this.wdlLint.activeTags.push(tag);
         }
     },
 
     isVisible(lint) {
         const tagMatch = lint.tags.length === 0 ||
-            this.activeTags.some(tag => lint.tags.includes(tag));
+            this.wdlLint.activeTags.some(tag => lint.tags.includes(tag));
         if (!tagMatch) return false;
+
+        const lintSource = this[lint.source];
+        const versionMatch = lintSource.allVersions.slice(0, lintSource.filteredVersion + 1).includes(lint.addedIn);
+        if (!versionMatch) return false;
 
         if (!this.search) return true;
         const query = this.search.toLowerCase();

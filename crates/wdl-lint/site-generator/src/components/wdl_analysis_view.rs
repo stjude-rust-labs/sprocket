@@ -8,8 +8,8 @@ use crate::components::LintRuleSource;
 /// The content of the `wdl-analysis` tab.
 pub fn wdl_analysis_view() -> PreEscaped<String> {
     let filters = html! {
-        (super::version_filter())
-        span class="ml-auto" x-text="analysisVersion" {}
+        (super::version_filter(LintRuleSource::WdlAnalysis))
+        span class="ml-auto" x-text="wdlAnalysis.currentVersion" {}
     };
 
     html! {

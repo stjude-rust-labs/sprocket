@@ -216,10 +216,25 @@ fn dump_default_state_json(
         .iter()
         .map(LintRule::to_json)
         .collect::<Vec<_>>();
+    let mut all_lint_versions_sorted = wdl_lint_rules
+        .iter()
+        .map(LintRule::version)
+        .filter_map(|version| semver::Version::parse(version).ok())
+        .collect::<Vec<_>>();
+    all_lint_versions_sorted.sort();
+    all_lint_versions_sorted.dedup();
+
     let all_analysis_lints = wdl_analysis_rules
         .iter()
         .map(LintRule::to_json)
         .collect::<Vec<_>>();
+    let mut all_analysis_versions_sorted = wdl_analysis_rules
+        .iter()
+        .map(LintRule::version)
+        .filter_map(|version| semver::Version::parse(version).ok())
+        .collect::<Vec<_>>();
+    all_analysis_versions_sorted.sort();
+    all_analysis_versions_sorted.dedup();
 
     let commit_hash_output = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
@@ -238,10 +253,18 @@ fn dump_default_state_json(
     let json = json!({
         "defaultTab": "wdl-lint",
         "defaultTags": default_tags,
-        "allLints": all_lints,
-        "allAnalysisLints": all_analysis_lints,
-        "lintVersion": format_crate_version("wdl-lint", &commit_hash, args.wdl_lint_tag.as_deref()),
-        "analysisVersion": format_crate_version("wdl-analysis", &commit_hash, args.wdl_analysis_tag.as_deref()),
+        "wdlLint": {
+            "allLints": all_lints,
+            "allVersions": all_lint_versions_sorted,
+            "currentVersion": format_crate_version("wdl-lint", &commit_hash, args.wdl_lint_tag.as_deref()),
+            "filteredVersion": all_lint_versions_sorted.len() - 1, // Current version
+        },
+        "wdlAnalysis": {
+            "allLints": all_analysis_lints,
+            "allVersions": all_analysis_versions_sorted,
+            "currentVersion": format_crate_version("wdl-analysis", &commit_hash, args.wdl_analysis_tag.as_deref()),
+            "filteredVersion": all_analysis_versions_sorted.len() - 1,
+        }
     });
 
     let output_path = static_dir()?.join("default-state.json");
@@ -353,7 +376,7 @@ fn copy_files_to_dist(dist_dir: &Path) -> std::io::Result<()> {
         ));
     }
 
-    // skip JS, since esbuild handles it for it
+    // skip JS, since esbuild handles it for us
     do_copy(&static_dir, dist_dir, true)?;
     do_copy(&web_common_dist_dir, dist_dir, false)?;
 

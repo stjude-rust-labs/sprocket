@@ -12,8 +12,8 @@ use crate::default_tags;
 pub fn wdl_lint_view() -> PreEscaped<String> {
     let filters = html! {
         (tag_filter())
-        (super::version_filter())
-        span class="ml-auto" x-text="lintVersion" {}
+        (super::version_filter(LintRuleSource::WdlLint))
+        span class="ml-auto" x-text="wdlLint.currentVersion" {}
     };
 
     html! {
@@ -27,10 +27,10 @@ pub fn wdl_lint_view() -> PreEscaped<String> {
 pub fn tag_filter() -> PreEscaped<String> {
     let dropdown_menu = html! {
         li class="checkbox" {
-            button class="reset-all" "@click"=(format!("activeTags = {}", default_tags())) { ("All") }
+            button class="w-full" "@click"=(format!("wdlLint.activeTags = {}", default_tags())) { ("All") }
         }
         li class="checkbox" {
-            button class="reset-none" "@click"="activeTags = []" { ("None") }
+            button class="w-full" "@click"="wdlLint.activeTags = []" { ("None") }
         }
         li role="separator" class="divider" {}
         @for tag in Tag::VARIANTS {
@@ -38,7 +38,7 @@ pub fn tag_filter() -> PreEscaped<String> {
                 label class="flex items-center gap-3 px-2 py-1 rounded hover:bg-slate-800 cursor-pointer text-sm text-slate-300" "@mousedown.prevent" {
                     input
                         type="checkbox"
-                        ":checked"=(format!("activeTags.includes('{tag}')"))
+                        ":checked"=(format!("wdlLint.activeTags.includes('{tag}')"))
                         "@click"=(format!("toggleTag('{tag}')"))
                         class="rounded bg-slate-800 border-slate-600"
                     {}

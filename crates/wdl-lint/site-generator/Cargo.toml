@@ -17,6 +17,7 @@ clap.workspace = true
 maud.workspace = true
 opener.workspace = true
 pulldown-cmark.workspace = true
+semver = { workspace = true, features = ["serde"] }
 serde_json.workspace = true
 strum.workspace = true
 tracing.workspace = true
