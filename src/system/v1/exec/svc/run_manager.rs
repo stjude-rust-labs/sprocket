@@ -14,10 +14,12 @@ use tokio::task::JoinHandle;
 use tracing::info;
 use tracing::trace;
 use uuid::Uuid;
+use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
+use crate::config::Config;
 use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
@@ -55,6 +57,8 @@ type Rx = mpsc::Receiver<RunManagerCmd>;
 pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
+    /// The fallback WDL version for documents with unrecognized versions.
+    fallback_version: Option<SupportedVersion>,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -80,7 +84,9 @@ pub struct RunManagerSvc {
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(config: ServerConfig, db: Arc<dyn Database>, rx: Rx) -> Self {
+    pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
+        let fallback_version = config.common.wdl.fallback_version;
+        let config = config.server;
         let semaphore = config
             .max_concurrent_runs
             .map(|max| Arc::new(Semaphore::new(max)));
@@ -89,6 +95,7 @@ impl RunManagerSvc {
 
         Self {
             config,
+            fallback_version,
             output_dir,
             db,
             // NOTE: this is empty upon creation, but it's created lazily upon
@@ -241,7 +248,7 @@ impl RunManagerSvc {
     /// - the sender channel
     pub fn spawn(
         channel_buffer_size: usize,
-        config: ServerConfig,
+        config: Config,
         db: Arc<dyn Database>,
     ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
@@ -283,6 +290,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
+            .maybe_fallback_version(self.fallback_version)
             .source(source)
             .maybe_target(target)
             .inputs(inputs)

@@ -138,18 +138,22 @@ async fn real_main() -> CommandResult<()> {
         }
         Commands::Config(args) => commands::config::config(args, config),
         Commands::Explain(args) => commands::explain::explain(args),
-        Commands::Format(args) => commands::format::format(args.apply(config), colorize).await,
-        Commands::Inputs(args) => commands::inputs::inputs(args).await,
+        Commands::Format(args) => commands::format::format(args, config, colorize).await,
+        Commands::Inputs(args) => commands::inputs::inputs(args, config).await,
         Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
         Commands::Run(args) => commands::run::run(args, config, colorize, handle).await,
-        Commands::Validate(args) => commands::validate::validate(args.apply(config)).await,
-        Commands::Dev(commands::DevCommands::Doc(args)) => commands::doc::doc(args, colorize).await,
-        Commands::Dev(commands::DevCommands::Lock(args)) => commands::lock::lock(args).await,
+        Commands::Validate(args) => commands::validate::validate(args, config).await,
+        Commands::Dev(commands::DevCommands::Doc(args)) => {
+            commands::doc::doc(args, config, colorize).await
+        }
+        Commands::Dev(commands::DevCommands::Lock(args)) => {
+            commands::lock::lock(args, config).await
+        }
         Commands::Dev(commands::DevCommands::Server(args)) => {
             commands::server::server(args, config).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args.apply(config)).await
+            commands::test::test(args, config).await
         }
     }
 }

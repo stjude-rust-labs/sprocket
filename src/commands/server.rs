@@ -82,5 +82,5 @@ pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
         .into());
     }
 
-    crate::server::run(config.server).await.map_err(Into::into)
+    crate::server::run(config).await.map_err(Into::into)
 }

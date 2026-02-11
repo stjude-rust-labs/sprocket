@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `common.wdl.fallback_version` setting to `sprocket.toml` for
+  interpreting WDL documents with unrecognized version strings (e.g., `version
+  development`) as a specific supported version
+  ([#612](https://github.com/stjude-rust-labs/sprocket/pull/612)).
 * Added `--index-on` flag to `sprocket run` for output indexing via symlinks
   ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * Added `--output-dir` flag to `sprocket run`, replacing `--runs-dir` and
