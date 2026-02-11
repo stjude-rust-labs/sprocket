@@ -717,6 +717,9 @@ pub async fn test(args: Args) -> CommandResult<()> {
         .await?;
         let path = analysis.document().path().to_string();
         let path = Path::new(&path);
+        let path = absolute(path)
+            .with_context(|| format!("resolving absolute path to document: `{}`", path.display()))?
+            .clean();
         let doc_name = path
             .strip_prefix(&workspace)
             .expect("document to be in workspace");
