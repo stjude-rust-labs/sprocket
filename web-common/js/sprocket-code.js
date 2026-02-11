@@ -18,14 +18,18 @@ const CODE_BLOCK_STYLES = `
 `;
 
 // Manual highlighting for pages generated without <sprocket-code> elements
-export async function initManualHighlighting() {
+export async function initManualHighlighting(languagesToLoad = []) {
   try {
-    const highlighter = await initializeHighlighter();
-    for (const codeElem of document.querySelectorAll('pre > code.language-wdl')) {
+    const highlighter = await initializeHighlighter(languagesToLoad);
+    for (const codeElem of document.querySelectorAll('pre > code[class*="language-"]')) {
+      const langClass = [...codeElem.classList].find(c => c.startsWith('language-'));
+      if (!langClass) continue;
+
+      const lang = langClass.replace('language-', '');
       const code = codeElem.textContent
 
       const highlighted = await highlighter.codeToHtml(code, {
-        lang: 'wdl',
+        lang: lang,
         theme: 'material-theme-ocean'
       });
 
