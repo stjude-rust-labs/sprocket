@@ -39,13 +39,14 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::run::DEFAULT_RUNS_DIR;
 use crate::eval::Evaluator;
 use crate::inputs::OriginPaths;
+use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
 use crate::test::OutputAssertion;
 use crate::test::ParsedAssertions;
@@ -114,27 +115,6 @@ pub struct Args {
     /// The number of test executions to run in parallel.
     #[clap(short, long)]
     pub parallelism: Option<usize>,
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: wdl::engine::Config,
-}
-
-impl Args {
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        if self.parallelism.is_none() {
-            self.parallelism = Some(config.test.parallelism);
-        }
-        self.engine = config.run.engine;
-        self.engine.task.cache = CallCachingMode::Off;
-        self.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        self.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        self
-    }
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -423,7 +403,7 @@ async fn launch_tests(
             };
             info!("running `{}`", test.name);
             let run_root = root
-                .join(DEFAULT_RUNS_DIR)
+                .join(RUNS_DIR)
                 .join(target.as_ref())
                 .join(&test.name);
             if run_root.exists() {
@@ -635,10 +615,11 @@ fn print_all_results(results: BTreeMap<String, (usize, usize, usize)>) {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args) -> CommandResult<()> {
+pub async fn test(args: Args, config: Config) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
+    let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
     let (source, workspace) = match (&source, args.workspace) {
-        (Source::File(url), _) if url.scheme() != "file" => {
+        (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
         }
         (Source::Directory(_), Some(workspace)) => (source, workspace),
@@ -660,6 +641,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -699,8 +681,14 @@ pub async fn test(args: Args) -> CommandResult<()> {
     let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
         test_dir.join(FIXTURES_DIR).as_path(),
     )));
-    let engine = Arc::new(args.engine);
-    let permits = Arc::new(Semaphore::new(args.parallelism.unwrap()));
+    let permits = Arc::new(Semaphore::new(parallelism));
+    let engine = {
+        let mut engine = config.run.engine;
+        engine.task.cache = CallCachingMode::Off;
+        engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+        Arc::new(engine)
+    };
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
     let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
@@ -734,7 +722,7 @@ pub async fn test(args: Args) -> CommandResult<()> {
     print_all_results(all_results);
 
     if args.clean_all {
-        remove_dir_all(test_dir.join(DEFAULT_RUNS_DIR))
+        remove_dir_all(test_dir.join(RUNS_DIR))
             .await
             .with_context(|| "cleaning the file system of all test exections")?;
     }

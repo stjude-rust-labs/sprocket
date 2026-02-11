@@ -18,6 +18,7 @@ use serde::Serialize;
 use tracing::debug;
 use tracing::warn;
 use url::Url;
+use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
 
 use crate::diagnostics::Mode;
@@ -32,7 +33,7 @@ const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Default output directory.
-const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
+pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 
 /// The name of the Sprocket configuration file.
 const CONFIG_FILE_NAME: &str = "sprocket.toml";
@@ -99,13 +100,26 @@ pub struct Config {
 }
 
 /// Represents shared configuration options for Sprocket commands.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
     pub color: ColorMode,
     /// The report mode.
     pub report_mode: Mode,
+    /// WDL-specific configuration.
+    #[serde(default)]
+    pub wdl: WdlConfig,
+}
+
+/// WDL-specific configuration options shared across all commands.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct WdlConfig {
+    /// The fallback version to use when a WDL document declares an
+    /// unrecognized version (e.g., `version development`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_version: Option<SupportedVersion>,
 }
 
 /// Represents the configuration for the Sprocket `format` command.
@@ -176,9 +190,11 @@ pub struct RunConfig {
     #[serde(flatten)]
     pub engine: EngineConfig,
 
-    /// The "runs" directory under which new `run` sessions' execution
-    /// directories will be placed.
-    pub runs_dir: PathBuf,
+    /// The output directory (default: `./out`).
+    ///
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    #[serde(default = "default_output_directory")]
+    pub output_dir: PathBuf,
 
     /// The capacity of the events channel used to display progress statistics.
     ///
@@ -199,7 +215,7 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            runs_dir: crate::commands::run::DEFAULT_RUNS_DIR.into(),
+            output_dir: default_output_directory(),
             events_capacity: None,
         }
     }

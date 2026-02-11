@@ -1,0 +1,6 @@
+{
+  "test.files": {
+    "good": "data/sample.txt",
+    "missing": "/does/not/exist.txt"
+  }
+}

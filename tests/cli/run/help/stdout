@@ -23,18 +23,15 @@ Options:
           
           If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
 
-  -r, --runs-dir <ROOT_DIR>
-          The root "runs" directory; defaults to `./runs/`.
+  -o, --output-dir <OUTPUT_DIR>
+          The output directory; defaults to `./out`.
           
-          Individual sessions of `sprocket run` will nest their execution directories beneath this root directory at the path `<target name>/<timestamp>/`. On Unix systems, the latest `run` session will be symlinked at `<target name>/_latest`.
+          Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
-      --output <OUTPUT_DIR>
-          The execution directory.
+      --index-on <OUTPUT_NAME>
+          The output name to index on.
           
-          If this argument is supplied, the default output behavior of nesting execution directories using the target and timestamp will be disabled.
-
-      --overwrite
-          Overwrites the execution directory if it exists
+          If provided, the run outputs will be indexed using the specified output name as the key. The index allows efficient lookup of runs by output values.
 
   -m, --report-mode <MODE>
           The report mode
@@ -78,11 +75,11 @@ Options:
           
           [env: GOOGLE_HMAC_SECRET]
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --no-call-cache
           Disables the use of the call cache for this run
+
+  -v, --verbose...
+          Increase logging verbosity
 
   -q, --quiet...
           Decrease logging verbosity
