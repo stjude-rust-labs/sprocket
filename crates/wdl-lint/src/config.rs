@@ -80,7 +80,7 @@ define_lint_rule_config! {
     pub struct Config {
         /// List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.
         ///
-        /// ## Example
+        /// ##### Example
         ///
         /// ```toml
         /// allowed_runtime_keys = ["foo"]

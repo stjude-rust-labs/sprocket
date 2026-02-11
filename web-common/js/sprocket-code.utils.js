@@ -34,7 +34,9 @@ if (!window.sprocketHighlighterPromise) {
 }
 
 // Highlighter initialization logic
-export async function initializeHighlighter() {
+//
+// This sets up a highlighter for the provided languages, as well as WDL (implicitly).
+export async function initializeHighlighter(languagesToLoad = []) {
   // If we already have a promise (ongoing or completed), return it
   if (window.sprocketHighlighterPromise) {
     console.log('sprocket-code-utils: using cached/ongoing highlighter initialization');
@@ -47,7 +49,6 @@ export async function initializeHighlighter() {
   window.sprocketHighlighterPromise = (async () => {
     try {
       const wdlLangDefinition = await getWdlGrammar();
-      const languagesToLoad = []; // Don't load any languages by default
 
       if (wdlLangDefinition) {
         languagesToLoad.push(wdlLangDefinition);
