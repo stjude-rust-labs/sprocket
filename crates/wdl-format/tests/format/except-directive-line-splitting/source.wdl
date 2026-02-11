@@ -12,7 +12,7 @@ task test2 {}
 #@ except: CommentWhitespace, DeprecatedObject, MetaDescription, InputSorted, ParameterMetaMatched, MatchingOutputMeta, RuntimeSectionKeys, RequirementsSectionKeys, HintsSectionKeys, OutputSectionKeys
 task test3 {}
 
-# Test 4: Already multiline - each line normalized independently
+# Test 4: multiline - should be consolidated into one line
 #@ except: FirstRule, SecondRule
 #@ except: ThirdRule, FourthRule
 task test4 {}

@@ -18,9 +18,8 @@ task test2 {
 task test3 {
 }
 
-# Test 4: Already multiline - each line normalized independently
-#@ except: FirstRule, SecondRule
-#@ except: FourthRule, ThirdRule
+# Test 4: multiline - should be consolidated into one line
+#@ except: FirstRule, FourthRule, SecondRule, ThirdRule
 task test4 {
 }
 

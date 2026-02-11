@@ -15,7 +15,7 @@ use crate::element::FormatElement;
 pub fn format_literal_null(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal null children");
     let null = children.next().expect("literal null token");
-    (&null).write(stream);
+    (&null).write(stream, None);
 }
 
 /// Formats a [`MetadataArray`](wdl_ast::v1::MetadataArray).
@@ -28,7 +28,7 @@ pub fn format_metadata_array(element: &FormatElement, stream: &mut TokenStream<P
 
     let open_bracket = children.next().expect("metadata array open bracket");
     assert!(open_bracket.element().kind() == SyntaxKind::OpenBracket);
-    (&open_bracket).write(stream);
+    (&open_bracket).write(stream, None);
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -55,9 +55,9 @@ pub fn format_metadata_array(element: &FormatElement, stream: &mut TokenStream<P
 
     let mut commas = commas.iter();
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         if let Some(comma) = commas.next() {
-            (comma).write(stream);
+            (comma).write(stream, None);
         } else {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
@@ -67,7 +67,7 @@ pub fn format_metadata_array(element: &FormatElement, stream: &mut TokenStream<P
     if !empty {
         stream.decrement_indent();
     }
-    (&close_bracket.expect("metadata array close bracket")).write(stream);
+    (&close_bracket.expect("metadata array close bracket")).write(stream, None);
 }
 
 /// Formats a [`MetadataObject`](wdl_ast::v1::MetadataObject).
@@ -80,7 +80,7 @@ pub fn format_metadata_object(element: &FormatElement, stream: &mut TokenStream<
 
     let open_brace = children.next().expect("metadata object open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -111,9 +111,9 @@ pub fn format_metadata_object(element: &FormatElement, stream: &mut TokenStream<
 
     let mut commas = commas.iter();
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         if let Some(comma) = commas.next() {
-            (comma).write(stream);
+            (comma).write(stream, None);
         } else {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
@@ -123,7 +123,7 @@ pub fn format_metadata_object(element: &FormatElement, stream: &mut TokenStream<
     if !empty {
         stream.decrement_indent();
     }
-    (&close_brace.expect("metadata object close brace")).write(stream);
+    (&close_brace.expect("metadata object close brace")).write(stream, None);
 }
 
 /// Formats a [`MetadataObjectItem`](wdl_ast::v1::MetadataObjectItem).
@@ -136,15 +136,15 @@ pub fn format_metadata_object_item(element: &FormatElement, stream: &mut TokenSt
 
     let key = children.next().expect("metadata object item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream);
+    (&key).write(stream, None);
 
     let colon = children.next().expect("metadata object item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, None);
     stream.end_word();
 
     let value = children.next().expect("metadata object item value");
-    (&value).write(stream);
+    (&value).write(stream, None);
 }
 
 /// Formats a [MetadataSection](wdl_ast::v1::MetadataSection).
@@ -157,12 +157,12 @@ pub fn format_metadata_section(element: &FormatElement, stream: &mut TokenStream
 
     let meta_keyword = children.next().expect("meta keyword");
     assert!(meta_keyword.element().kind() == SyntaxKind::MetaKeyword);
-    (&meta_keyword).write(stream);
+    (&meta_keyword).write(stream, None);
     stream.end_word();
 
     let open_brace = children.next().expect("metadata section open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -184,12 +184,12 @@ pub fn format_metadata_section(element: &FormatElement, stream: &mut TokenStream
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("metadata section close brace")).write(stream);
+    (&close_brace.expect("metadata section close brace")).write(stream, None);
     stream.end_line();
 }
 
@@ -206,14 +206,14 @@ pub fn format_parameter_metadata_section(
 
     let parameter_meta_keyword = children.next().expect("parameter meta keyword");
     assert!(parameter_meta_keyword.element().kind() == SyntaxKind::ParameterMetaKeyword);
-    (&parameter_meta_keyword).write(stream);
+    (&parameter_meta_keyword).write(stream, None);
     stream.end_word();
 
     let open_brace = children
         .next()
         .expect("parameter metadata section open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, None);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -235,11 +235,11 @@ pub fn format_parameter_metadata_section(
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, None);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("parameter metadata section close brace")).write(stream);
+    (&close_brace.expect("parameter metadata section close brace")).write(stream, None);
     stream.end_line();
 }

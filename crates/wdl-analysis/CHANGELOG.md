@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Removed
+
+* Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `except_comments()` method from `SyntaxNodeExt` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
 #### Fixed
 
 * Fixed a panic when a workflow contains more than one non-empty `output`

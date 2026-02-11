@@ -4,12 +4,10 @@ Rules with the tag `Clarity`:
   - ContainerUri
   - DeclarationName
   - DoubleQuotes
+  - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement
   - KnownRules
-  - LintDirectiveFormatted
-  - LintDirectiveValid
   - MetaSections
   - PascalCase
-  - PreambleCommentPlacement
   - SnakeCase

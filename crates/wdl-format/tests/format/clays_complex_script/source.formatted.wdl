@@ -1,9 +1,9 @@
-## # Header
 # regular comment
-#@ except: CommentWhitespace, DeprecatedObject, MetaDescription
-#@ except: InputSorted, MatchingOutputMeta, ParameterMetaMatched
 
+## # Header
 ## part of preamble
+#@ except: CommentWhitespace, DeprecatedObject, InputSorted, MatchingOutputMeta
+#@ except: MetaDescription, ParameterMetaMatched
 version 1.3
 
 #@ except: MetaSections
@@ -61,12 +61,12 @@ task a_task {
     input
         # Here is a comment between `input` and the open brace.
     {
-        AStruct a_struct  # This should not be higlighted, as it's not known within
         Object an_object
         String a_string
         Boolean a_boolean
-        Float a_float
         Int an_integer
+        Float a_float
+        AStruct a_struct  # This should not be higlighted, as it's not known within
     # the TextMate language that it's a custom struct.
     }
 
@@ -99,8 +99,7 @@ task a_task {
     }
 }
 
-## These are double-pound-sign comments.
-## blah blah blah.
+## These are double-pound-sign comments. blah blah blah.
 workflow hello {
     meta
         # Here is a comment between `meta` and the open brace.
@@ -149,12 +148,12 @@ workflow hello {
     }
 
     input {
-        AStruct a_struct  # This should not be higlighted, as it's not known within
         Object an_object
         String a_string
         Boolean a_boolean
-        Float a_float
         Int an_integer
+        Float a_float
+        AStruct a_struct  # This should not be higlighted, as it's not known within
     # the TextMate language that it's a custom struct.
     }
 

@@ -270,12 +270,8 @@ impl TreeNode for SyntaxNode {
     }
 }
 
+// TODO: find a way to remove this extension trait
 impl SyntaxNodeExt for SyntaxNode {
-    fn except_comments(&self) -> impl Iterator<Item = wdl_ast::SyntaxToken> + '_ {
-        // For engine evaluation, we don't except comments
-        std::iter::empty()
-    }
-
     fn is_rule_excepted(&self, _: &str) -> bool {
         // For engine evaluation, we except all rules
         true

@@ -33,7 +33,6 @@ pub use docs_tree::DocsTreeBuilder;
 use docs_tree::HTMLPage;
 use docs_tree::PageType;
 use document::Document;
-pub use document::parse_preamble_comments;
 use maud::DOCTYPE;
 use maud::Markup;
 use maud::PreEscaped;
@@ -687,36 +686,8 @@ mod tests {
     use crate::meta::DefinitionMeta;
 
     #[test]
-    fn test_parse_preamble_comments() {
+    fn test_simple_markdown_render() {
         let source = r#"
-        ## This is a comment
-        ## This is also a comment
-        version 1.0
-        workflow test {
-            input {
-                String name
-            }
-            output {
-                String greeting = "Hello, ${name}!"
-            }
-            call say_hello as say_hello {
-                input:
-                    name = name
-            }
-        }
-        "#;
-        let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        assert_eq!(preamble, "This is a comment\nThis is also a comment");
-    }
-
-    #[test]
-    fn test_markdown_render() {
-        let source = r#"
-        ## This is a paragraph.
-        ##
-        ## This is the start of a new paragraph.
-        ## And this is the same paragraph continued.
         version 1.0
         workflow test {
             meta {
@@ -725,13 +696,6 @@ mod tests {
         }
         "#;
         let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        let markdown = Markdown(&preamble).render();
-        assert_eq!(
-            markdown.into_string(),
-            "<p>This is a paragraph.</p>\n<p>This is the start of a new paragraph.\nAnd this is \
-             the same paragraph continued.</p>\n"
-        );
 
         let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
         let ast_workflow = doc_item.into_workflow_definition().unwrap();

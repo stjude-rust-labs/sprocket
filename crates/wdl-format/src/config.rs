@@ -1,30 +1,51 @@
 //! Formatting configuration.
 
-mod builder;
 mod indent;
 mod max_line_length;
 
-pub use builder::Builder;
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 
+/// Default for whether input sorting is enabled.
+const SORT_INPUTS_DEFAULT: bool = false;
+
 /// Configuration for formatting.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct Config {
     /// The indentation configuration.
-    indent: Indent,
+    pub indent: Indent,
     /// The maximum line length.
-    max_line_length: MaxLineLength,
+    pub max_line_length: MaxLineLength,
+    /// Whether to sort input sections.
+    pub sort_inputs: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            indent: Indent::default(),
+            max_line_length: MaxLineLength::default(),
+            sort_inputs: SORT_INPUTS_DEFAULT,
+        }
+    }
 }
 
 impl Config {
-    /// Gets the indentation configuration.
-    pub fn indent(&self) -> Indent {
-        self.indent
+    /// Overwrite the indentation configuration.
+    pub fn indent(mut self, indent: Indent) -> Self {
+        self.indent = indent;
+        self
     }
 
-    /// Gets the maximum line length of the configuration.
-    pub fn max_line_length(&self) -> Option<usize> {
-        self.max_line_length.get()
+    /// Overwrite the maximum line length configuration.
+    pub fn max_line_length(mut self, max_line_length: MaxLineLength) -> Self {
+        self.max_line_length = max_line_length;
+        self
+    }
+
+    /// Set whether input sorting is enabled.
+    pub fn sort_inputs(mut self, sort_inputs: bool) -> Self {
+        self.sort_inputs = sort_inputs;
+        self
     }
 }

@@ -55,7 +55,6 @@ Available rules:
   - CallInputKeyword
   - CallInputSpacing
   - CommandSectionIndentation
-  - CommentWhitespace
   - ConciseInput
   - ConsistentNewlines
   - ContainerUri
@@ -66,19 +65,16 @@ Available rules:
   - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
-  - EndingNewline
+  - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
   - ImportSorted
-  - ImportWhitespace
   - InputName
   - InputSorted
   - KnownRules
   - LineWidth
-  - LintDirectiveFormatted
-  - LintDirectiveValid
   - MatchingOutputMeta
   - MetaDescription
   - MetaKeyValueFormatting
@@ -86,8 +82,6 @@ Available rules:
   - OutputName
   - ParameterMetaMatched
   - PascalCase
-  - PreambleCommentPlacement
-  - PreambleFormatted
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
@@ -102,8 +96,6 @@ Available rules:
   - UnusedImport
   - UnusedInput
   - UsingFallbackVersion
-  - VersionStatementFormatted
-  - Whitespace
 
 Available tags:
   - Clarity
