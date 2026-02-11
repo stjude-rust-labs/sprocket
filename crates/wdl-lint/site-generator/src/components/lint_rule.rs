@@ -55,11 +55,14 @@ impl LintRule {
         if let Some(config_fields) = self.applicable_config_fields() {
             writeln!(&mut markdown, "### Configuration").unwrap();
             for field in config_fields {
-                writeln!(&mut markdown, "#### `{}`", field.name).unwrap();
+                writeln!(
+                    &mut markdown,
+                    "#### `{}` (Default: `{}`)",
+                    field.name, field.default
+                )
+                .unwrap();
                 writeln!(&mut markdown).unwrap();
                 writeln!(&mut markdown, "{}", field.description).unwrap();
-                writeln!(&mut markdown).unwrap();
-                writeln!(&mut markdown, "Default: `{}`", field.default).unwrap();
             }
         }
 
