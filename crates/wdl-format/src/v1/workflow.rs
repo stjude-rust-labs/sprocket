@@ -46,15 +46,13 @@ pub fn format_conditional_statement_clause(
         match token {
             Token::IfKeyword(_) => {
                 has_condition = true;
-                el.write(stream);
-                stream.end_word();
             }
-            Token::ElseKeyword(_) => {
-                el.write(stream);
-                stream.end_word();
-            }
+            Token::ElseKeyword(_) => {}
             _ => break,
         }
+
+        el.write(stream);
+        stream.end_word();
 
         // Take the child token we just processed.
         children.next();
