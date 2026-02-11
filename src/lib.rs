@@ -30,6 +30,7 @@ use git_testament::git_testament;
 use git_testament::render_testament;
 use tracing::level_filters::LevelFilter;
 use tracing::trace;
+use tracing_indicatif::IndicatifLayer;
 use tracing_indicatif::IndicatifWriter;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::FmtSubscriber;
@@ -173,14 +174,9 @@ pub type FilterReloadHandle = reload::Handle<LevelFilter, Subscriber>;
 /// run directory has been created.
 pub type FileReloadHandle = reload::Handle<
     Option<
-        fmt::Layer<
-            Layered<tracing_indicatif::IndicatifLayer<FilterLayer>, FilterLayer>,
-            DefaultFields,
-            Format,
-            File,
-        >,
+        fmt::Layer<Layered<IndicatifLayer<FilterLayer>, FilterLayer>, DefaultFields, Format, File>,
     >,
-    Layered<tracing_indicatif::IndicatifLayer<FilterLayer>, FilterLayer>,
+    Layered<IndicatifLayer<FilterLayer>, FilterLayer>,
 >;
 
 /// Initializes logging given the verbosity level and whether or not to colorize
@@ -220,7 +216,7 @@ fn initialize_logging(
 
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
-    let indicatif_layer = tracing_indicatif::IndicatifLayer::new();
+    let indicatif_layer = IndicatifLayer::new();
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
