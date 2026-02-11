@@ -8,9 +8,6 @@ rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
 
-[[bin]]
-name = "wdl-lint-site-generator"
-
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
@@ -28,3 +25,6 @@ wdl-lint = { path = ".." }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "wdl-lint-site-generator"
