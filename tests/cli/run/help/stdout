@@ -75,11 +75,11 @@ Options:
           
           [env: GOOGLE_HMAC_SECRET]
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --no-call-cache
           Disables the use of the call cache for this run
+
+  -v, --verbose...
+          Increase logging verbosity
 
   -q, --quiet...
           Decrease logging verbosity
@@ -91,7 +91,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-
+          
           [default: auto]
 
   -c, --config <CONFIG>

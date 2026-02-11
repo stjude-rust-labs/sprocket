@@ -753,10 +753,7 @@ async fn execute_task_target(
         Err(e) => return Err(e),
     };
 
-    evaluated_task
-        .into_outputs()
-        .map(Some)
-        .map_err(Into::into)
+    evaluated_task.into_outputs().map(Some)
 }
 
 /// Execute a workflow or task target.
