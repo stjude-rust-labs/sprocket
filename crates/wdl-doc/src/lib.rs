@@ -184,7 +184,8 @@ pub(crate) fn header<P: AsRef<Path>>(
 ) -> Markup {
     let root = root.as_ref();
     let search_import = format!(
-        "const pagefindPath = new URL('{}', import.meta.url).href;\nwindow.pagefind = import(pagefindPath)",
+        r#"const pagefindPath = new URL('{}', import.meta.url).href;
+window.pagefind = import(pagefindPath)"#,
         root.join("pagefind").join("pagefind.js").to_string_lossy()
     );
     html! {
