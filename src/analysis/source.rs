@@ -12,7 +12,7 @@ use url::Url;
 use wdl::analysis::Analyzer;
 
 /// Remote URL schemes that are parsed as `Source::Url`.
-const REMOTE_URL_SCHEMES: &[&str] = &["https://", "http://", "ftp://"];
+const REMOTE_URL_SCHEMES: &[&str] = &["https://", "http://"];
 
 /// File URL schemes that are parsed as `Source::File`.
 const FILE_URL_SCHEMES: &[&str] = &["file://"];

@@ -29,6 +29,7 @@ use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
 use wdl::engine::EngineEvent;
+use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
 use wdl::engine::config::CallCachingMode;
@@ -722,7 +723,21 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                         }
                         Ok(())
                     }
-                    Err(e) => Err(anyhow!("evaluation failed: {:#}", e).into())
+                    Err(EvaluationError::Canceled) => {
+                        Err(anyhow!("evaluation was interrupted").into())
+                    }
+                    Err(EvaluationError::Source(e)) => {
+                        emit_diagnostics(
+                            &e.document.path(),
+                            e.document.root().text().to_string(),
+                            &[e.diagnostic],
+                            &e.backtrace,
+                            args.report_mode.unwrap_or_default(),
+                            args.no_color,
+                        )?;
+                        Err(anyhow!("aborting due to evaluation error").into())
+                    }
+                    Err(EvaluationError::Other(e)) => Err(e.into())
                 };
             },
         }

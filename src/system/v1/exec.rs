@@ -461,7 +461,7 @@ impl RunnableExecutor {
                 "run `{}` ({}) failed: {}",
                 &ctx.run_generated_name,
                 self.run_id,
-                e
+                e.to_string()
             );
         }
 
@@ -678,7 +678,7 @@ async fn execute_workflow_target(
     inputs: &JsonValue,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-) -> Result<Option<Outputs>> {
+) -> Result<Option<Outputs>, EvaluationError> {
     let mut workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
 
     // Resolve relative paths in inputs from `base_dir`
@@ -700,7 +700,7 @@ async fn execute_workflow_target(
     {
         Ok(outputs) => Ok(Some(outputs)),
         Err(EvaluationError::Canceled) => Ok(None),
-        Err(e) => Err(anyhow::anyhow!("workflow evaluation failed: {:#?}", e)),
+        Err(e) => Err(e),
     }
 }
 
@@ -725,7 +725,7 @@ async fn execute_task_target(
     inputs: &JsonValue,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-) -> Result<Option<Outputs>> {
+) -> Result<Option<Outputs>, EvaluationError> {
     let task = document
         .task_by_name(target.name())
         // SAFETY: we should never get to this point with a task target without
@@ -750,13 +750,13 @@ async fn execute_task_target(
     {
         Ok(task) => task,
         Err(EvaluationError::Canceled) => return Ok(None),
-        Err(e) => return Err(anyhow::anyhow!("task evaluation failed: {:#?}", e)),
+        Err(e) => return Err(e),
     };
 
     evaluated_task
         .into_outputs()
         .map(Some)
-        .map_err(|e| anyhow::anyhow!("task outputs evaluation failed: {:#?}", e))
+        .map_err(Into::into)
 }
 
 /// Execute a workflow or task target.
@@ -796,11 +796,13 @@ pub async fn execute_target(
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
     index_on: Option<&str>,
-) -> Result<()> {
+) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
-    db.start_run(ctx.run_id, ctx.started_at).await?;
+    db.start_run(ctx.run_id, ctx.started_at)
+        .await
+        .map_err(anyhow::Error::from)?;
 
-    let result: Result<Option<Outputs>> = async {
+    let result: Result<Option<Outputs>, EvaluationError> = async {
         match &target {
             Target::Task(_) => {
                 execute_task_target(
@@ -837,15 +839,18 @@ pub async fn execute_target(
 
     match result {
         Ok(Some(outputs)) => {
-            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await
+            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
+            Ok(())
         }
         // NOTE: `Ok(None)` means the execution was canceled. The run manager
         // handles transitioning the run status from `Canceling` to `Canceled`.
         Ok(None) => Ok(()),
         Err(e) => {
-            let error = format!("{:#}", e);
-            db.fail_run(ctx.run_id, &error, Utc::now()).await?;
-            anyhow::bail!(error);
+            let error = e.to_string();
+            if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {
+                tracing::error!("failed to record run failure: {db_err:#}");
+            }
+            Err(e)
         }
     }
 }
