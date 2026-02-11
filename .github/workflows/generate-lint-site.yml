@@ -38,4 +38,5 @@ jobs:
         with:
           folder: crates/wdl-lint/site-generator/dist
           branch: gh-pages
-          clean: true
+          # TODO: add this back once Pagefind search design is done
+          #clean: true
