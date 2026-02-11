@@ -275,7 +275,7 @@ impl TestIteration {
             RunResult::Task(result) => match *result {
                 Ok(evaled_task) => {
                     if evaled_task.exit_code() == self.assertions.exit_code {
-                        if let Some(regexs) = &self.assertions.stdout {
+                        if let Some(regexes) = &self.assertions.stdout {
                             let stdout_path = evaled_task
                                 .stdout()
                                 .as_file()
@@ -294,7 +294,7 @@ impl TestIteration {
                                 Err(e) => return Err(e),
                             }
                         }
-                        if let Some(regexs) = &self.assertions.stderr {
+                        if let Some(regexes) = &self.assertions.stderr {
                             let stderr_path = evaled_task
                                 .stderr()
                                 .as_file()
