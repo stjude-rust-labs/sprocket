@@ -112,11 +112,6 @@ pub struct Args {
     #[arg(long)]
     pub with_doc_comments: bool,
 
-    // Diagnostics
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -126,7 +121,7 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args) -> CommandResult<()> {
+pub async fn doc(args: Args, colorize: bool) -> CommandResult<()> {
     if args.with_doc_comments {
         tracing::warn!(
             "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
@@ -235,7 +230,7 @@ pub async fn doc(args: Args) -> CommandResult<()> {
                         }),
                         &[],
                         args.report_mode.unwrap_or_default(),
-                        args.no_color,
+                        colorize,
                     )
                     .context("failed to emit diagnostics")?;
                 }

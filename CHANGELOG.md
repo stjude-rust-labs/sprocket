@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added SQLite database tracking to `sprocket run` with full provenance
   including session, run records, and task execution details
   ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added an `output.log` file to the run directory that captures all logged
+  messages from `sprocket run` ([#613](https://github.com/stjude-rust-labs/sprocket/pull/613)).
 * Added reading configuration from a `sprocket.toml` next to the sprocket
   executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
 * Added `sprocket dev server` command for running an HTTP API server for
@@ -39,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * Unified `AllowedSource` and `Source` types into a single `Source` type
   ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* The values for the `common.report_mode` setting in `sprocket.toml` have
+  changed to lower kebab-case, e.g. `full` and `one-line` ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* The `common.color` setting in `sprocket.toml` has been changed from being a
+  boolean to an enum with values `auto` (default), `always`, and `never`. ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Replaced the `--no-color` option for a global `--color` option to control
+  output colorization and made the uncolorized output consistent ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
 * Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
   ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
 * `sprocket dev doc` will now **fail** in the presence of analysis errors

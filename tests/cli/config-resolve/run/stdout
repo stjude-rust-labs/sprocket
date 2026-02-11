@@ -97,6 +97,6 @@ digests = "weak"
 [server.engine.storage.google]
 
 [common]
-color = true
-report_mode = "Full"
+color = "auto"
+report_mode = "full"
 

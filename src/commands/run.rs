@@ -2,12 +2,16 @@
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
+use std::fs;
+use std::fs::File;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::anyhow;
+use anyhow::bail;
 use chrono::Utc;
 use clap::Parser;
 use colored::Colorize as _;
@@ -23,6 +27,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
@@ -36,6 +41,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
+use crate::LoggingReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -83,6 +89,13 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// capacity unlikely without allocating too much space unnecessarily.
 const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
+/// The name for the "latest" symlink.
+#[cfg(not(target_os = "windows"))]
+const LATEST: &str = "_latest";
+
+/// The log file in the output directory for writing `sprocket` output to
+const LOG_FILE_NAME: &str = "output.log";
+
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
 #[clap(disable_version_flag = true)]
@@ -129,10 +142,6 @@ pub struct Args {
     /// values.
     #[clap(long, value_name = "OUTPUT_NAME")]
     pub index_on: Option<String>,
-
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -206,7 +215,6 @@ impl Args {
             self.output_dir = Some(config.run.output_dir.clone());
         }
 
-        self.no_color = self.no_color || !config.common.color;
         if self.report_mode.is_none() {
             self.report_mode = Some(config.common.report_mode);
         }
@@ -463,8 +471,68 @@ async fn progress(
     }
 }
 
+/// Determines the timestamped execution directory and performs any necessary
+/// staging prior to execution.
+///
+/// Staging includes writing a `.sprocketignore` file with contents `*` in the
+/// `root` if an existing ignorefile is not found.
+///
+/// Notably, this function does not actually create the execution directory at
+/// the returned path, as that is handled by execution itself.
+///
+/// If running on a Unix system, a symlink to the returned path will be created
+/// at `<root>/<target>/_latest`.
+pub fn setup_run_dir(root: &Path, target: &str) -> anyhow::Result<PathBuf> {
+    // Create the target root directory
+    let target_root = root.join(target);
+    fs::create_dir_all(&target_root).with_context(|| {
+        format!(
+            "failed to create target directory `{path}`",
+            path = target_root.display()
+        )
+    })?;
+
+    // Create an ignore file at the root if one doesn't exist
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        fs::write(&ignore_path, "*").with_context(|| {
+            format!(
+                "failed to write ignorefile `{path}`",
+                path = ignore_path.display()
+            )
+        })?;
+    }
+
+    // Format an output directory path
+    let timestamp = chrono::Utc::now().format("%F_%H%M%S%f").to_string();
+    let output = target_root.join(&timestamp);
+    if output.exists() {
+        bail!(
+            "timestamped execution directory `{dir}` existed before execution began",
+            dir = output.display()
+        );
+    }
+
+    // Replace the latest symlink to the new output path
+    #[cfg(not(target_os = "windows"))]
+    {
+        let latest = target_root.join(LATEST);
+        let _ = fs::remove_file(&latest);
+        if let Err(e) = std::os::unix::fs::symlink(&timestamp, &latest) {
+            tracing::warn!("failed to create latest run symlink: {e}")
+        }
+    }
+
+    Ok(output)
+}
+
 /// The main function for the `run` subcommand.
-pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
+pub async fn run(
+    mut args: Args,
+    mut config: Config,
+    colorize: bool,
+    handle: LoggingReloadHandle,
+) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
@@ -472,10 +540,13 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
     args.apply(&config);
     args.apply_engine_config(&mut config.run.engine);
 
-    let style = ProgressStyle::with_template(
-        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
-    )
-    .unwrap();
+    let template = if colorize {
+        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
+    } else {
+        "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
+    };
+
+    let style = ProgressStyle::with_template(template).unwrap();
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
@@ -530,7 +601,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                 result.document().diagnostics(),
                 &[],
                 args.report_mode.unwrap_or_default(),
-                args.no_color,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
@@ -583,6 +654,9 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
     // Create the run directory
     let run_dir = create_run_directory(&output_dir, target.name())?;
 
+    // Now that the output directory is calculated, initialize file logging
+    initialize_file_logging(handle, output_dir.root())?;
+
     tracing::info!(
         "`{dir}` will be used as the execution directory",
         dir = run_dir.root().display()
@@ -593,15 +667,21 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         Target::Workflow(_) => "workflow",
     };
 
-    progress_bar.pb_set_style(
-        &ProgressStyle::with_template(&format!(
+    let template = if colorize {
+        format!(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
-             {name}{{msg}}",
+             {target}{{msg}}",
             running = "running".cyan(),
-            name = target.name().magenta().bold()
-        ))
-        .unwrap(),
-    );
+            target = target.name().magenta().bold()
+        )
+    } else {
+        format!(
+            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
+            target = target.name()
+        )
+    };
+
+    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
     // Open or create the database for provenance tracking
     let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
@@ -733,7 +813,7 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                             &[e.diagnostic],
                             &e.backtrace,
                             args.report_mode.unwrap_or_default(),
-                            args.no_color,
+                            colorize
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
@@ -742,4 +822,26 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
             },
         }
     }
+}
+
+/// Initializes logging to `output.log` in the given output directory.
+fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &Path) -> anyhow::Result<()> {
+    fs::create_dir_all(output_dir).with_context(|| {
+        format!(
+            "failed to create directory `{path}`",
+            path = output_dir.display()
+        )
+    })?;
+
+    let log_file_path = output_dir.join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path).with_context(|| {
+        format!(
+            "failed to create log file `{path}`",
+            path = log_file_path.display()
+        )
+    })?;
+
+    handle
+        .reload(layer().with_ansi(false).with_writer(log_file))
+        .context("failed to initialize file logging")
 }

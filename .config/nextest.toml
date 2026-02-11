@@ -3,14 +3,19 @@ failure-output = "immediate-final"
 fail-fast = false
 # Terminate individual tests after 30 minutes
 slow-timeout = { period = "10m", terminate-after = 3 }
-# wdl-engine and sprocket tests are run separately in CI
-default-filter = "not (package(wdl-engine) or package(sprocket))"
+# wdl-engine and sprocket tests are run separately in CI, as they have extra setup.
+# TODO: `wdl-doc` UI tests are only run on Linux (for now?). Other platforms fail the browser runs headless.
+default-filter = "not (package(wdl-engine) or package(sprocket) or binary(ui))"
+
+[[profile.ci.overrides]]
+platform = 'cfg(target_os = "linux")'
+default-filter = 'not (package(wdl-engine) or package(sprocket))'
 
 [test-groups]
 serial = { max-threads = 1 }
 
 # Run the workflow tests serially as they may scatter tasks
-# Remove this once the Docker backend supports evaluation parallelism
+# TODO: Remove this once the Docker backend supports evaluation parallelism
 [[profile.default.overrides]]
 filter = 'binary_id(wdl-engine::workflows)'
 test-group = 'serial'
