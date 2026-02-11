@@ -20,9 +20,6 @@ pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenS
     for child in element.children().expect("conditional statement children") {
         (&child).write(stream);
     }
-
-    // Note that we do not end the line between clauses, but only after the full
-    // conditional statement.
     stream.end_line();
 }
 
