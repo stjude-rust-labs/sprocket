@@ -402,10 +402,7 @@ async fn launch_tests(
                 }
             };
             info!("running `{}`", test.name);
-            let run_root = root
-                .join(RUNS_DIR)
-                .join(target.as_ref())
-                .join(&test.name);
+            let run_root = root.join(RUNS_DIR).join(target.as_ref()).join(&test.name);
             if run_root.exists() {
                 remove_dir_all(&run_root).await.with_context(|| {
                     format!("removing prior test dir: `{}`", run_root.display())
