@@ -78,7 +78,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         })?
         .into_engine_invocation(document)?;
 
-    let (name, inputs, _) = if let Some(inputs) = inputs {
+    let (name, inputs, origins) = if let Some(inputs) = inputs {
         inputs
     } else {
         // No inputs provided
@@ -119,15 +119,31 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     };
 
     match inputs {
-        EngineInputs::Task(inputs) => {
+        EngineInputs::Task(mut inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            inputs.validate(document, document.task_by_name(&name).unwrap(), None)?
+            let task = document.task_by_name(&name).unwrap();
+            inputs
+                .join_paths(task, |key| {
+                    origins
+                        .get(key)
+                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+                })
+                .await?;
+            inputs.validate(document, task, None)?
         }
-        EngineInputs::Workflow(inputs) => {
+        EngineInputs::Workflow(mut inputs) => {
             // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
             // exist that matched the user's criteria.
-            inputs.validate(document, document.workflow().unwrap(), None)?
+            let workflow = document.workflow().unwrap();
+            inputs
+                .join_paths(workflow, |key| {
+                    origins
+                        .get(key)
+                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
+                })
+                .await?;
+            inputs.validate(document, workflow, None)?
         }
     }
 

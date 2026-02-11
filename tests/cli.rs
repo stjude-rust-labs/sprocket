@@ -241,16 +241,24 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
 
 /// Normalizes a string for OS platform differences and dynamic content.
 fn normalize_string(input: &str) -> String {
-    let normalized = input
+    // NOTE: the drive prefix removal (e.g., `C:`) must occur after backslash
+    // normalization so that paths like `C:\foo` are first converted to `C:/foo`
+    // before the prefix is stripped.
+    let s = input
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
         .replace("\\", "/")
         .replace("//", "/");
 
-    let normalized = UUID_PATTERN.replace_all(&normalized, "_UUID_");
-    let normalized = TIMESTAMP_PATTERN.replace_all(&normalized, "_TIMESTAMP_");
-    normalized.to_string()
+    // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
+    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/[^\s])").unwrap());
+    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+
+    let s = UUID_PATTERN.replace_all(&s, "_UUID_");
+    let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
+    s.to_string()
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with
