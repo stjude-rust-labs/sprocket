@@ -79,14 +79,14 @@ fn ensure_host_path_exists(name: &str, is_file: bool, host_path: &HostPath) -> R
             return Ok(());
         }
 
-        let local_path = path::parse_supported_url(raw_path)
-            .and_then(|url| url.to_file_path().ok())
-            .ok_or_else(|| {
+        let local_path = path::parse_supported_url(raw_path).and_then(|url| {
+            url.to_file_path().map_err(|_| {
                 anyhow!(
                     "input `{name}` references file URL `{raw_path}` which could not be converted \
                      to a local path"
                 )
-            })?;
+            })
+        })?;
 
         return check_local_path_exists(name, is_file, raw_path, local_path.as_path());
     }

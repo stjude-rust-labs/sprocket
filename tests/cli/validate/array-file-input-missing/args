@@ -1,0 +1,1 @@
+validate source.wdl --target compound_array_checks inputs.json

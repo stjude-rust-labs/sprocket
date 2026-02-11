@@ -1,0 +1,6 @@
+{
+  "compound_map_checks.named_files": {
+    "good": "data/sample.txt",
+    "missing": "data/missing.txt"
+  }
+}

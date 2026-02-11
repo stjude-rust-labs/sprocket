@@ -1,0 +1,1 @@
+error: input `named_files` references file `data/missing.txt` that does not exist

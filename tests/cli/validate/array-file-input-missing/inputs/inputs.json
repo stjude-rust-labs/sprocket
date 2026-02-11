@@ -1,0 +1,3 @@
+{
+  "compound_array_checks.samples": ["data/sample.txt", "data/missing.txt"]
+}
