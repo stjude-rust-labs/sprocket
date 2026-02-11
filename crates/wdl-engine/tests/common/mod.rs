@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 
@@ -17,6 +18,12 @@ use pretty_assertions::StrComparison;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_engine::config::BackendConfig;
 use wdl_engine::config::Config as EngineConfig;
+
+/// The set of tests that should only use the Docker backend
+const DOCKER_ONLY_TESTS: &[&str] = &[
+    // Disabled for local backend due to paths coming from the download cache
+    "url-symlink",
+];
 
 /// The set of configs that determine how a test is run.
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
@@ -93,6 +100,14 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
             *config = combined;
         }
     }
+
+    // Remove the local configuration if the test is marked as Docker-only
+    if let Some(test) = path.file_name().and_then(OsStr::to_str)
+        && DOCKER_ONLY_TESTS.contains(&test)
+    {
+        base_configs.remove("local");
+    }
+
     Ok(base_configs)
 }
 

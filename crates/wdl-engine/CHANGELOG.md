@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fix an incorrect remapping of guest symlinks when the input was a remote URL ([#621](https://github.com/stjude-rust-labs/sprocket/pull/621)).
 * Fix an issue where remote directory digesting included double slashes in
   entry URLs ([#603](https://github.com/stjude-rust-labs/sprocket/pull/603)).
 * Automatically remap symbolic links created by tasks that use guest paths to
