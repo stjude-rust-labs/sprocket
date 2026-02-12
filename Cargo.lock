@@ -6204,6 +6204,7 @@ dependencies = [
  "codespan-reporting",
  "wdl-analysis",
  "wdl-ast",
+ "wdl-diagnostics",
  "wdl-doc",
  "wdl-engine",
  "wdl-format",
@@ -6263,6 +6264,18 @@ dependencies = [
  "url",
  "urlencoding",
  "wdl-grammar",
+]
+
+[[package]]
+name = "wdl-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "codespan-reporting",
+ "serde",
+ "wdl-ast",
+ "wdl-engine",
 ]
 
 [[package]]

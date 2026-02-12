@@ -20,6 +20,7 @@ default = [
     "ast",
     "engine",
     "format",
+    "diagnostics",
     "doc",
     "grammar",
     "lint",
@@ -27,8 +28,9 @@ default = [
 ]
 analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
+diagnostics = ["dep:wdl-diagnostics"]
 doc = ["dep:wdl-doc"]
-engine = ["dep:wdl-engine"]
+engine = ["dep:wdl-engine", "wdl-diagnostics?/backtrace"]
 format = ["dep:wdl-format"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
@@ -37,6 +39,7 @@ lsp = ["dep:wdl-lsp"]
 [dependencies]
 wdl-analysis = { path = "../wdl-analysis", version = "0.17.2", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.21.1", optional = true }
+wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.0", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.12.1", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.12.1", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.15.1", optional = true }

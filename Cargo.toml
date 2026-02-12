@@ -4,6 +4,7 @@ members = [
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",
+    "crates/wdl-diagnostics",
     "crates/wdl-doc",
     "crates/wdl-engine",
     "crates/wdl-format",

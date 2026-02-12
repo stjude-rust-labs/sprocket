@@ -12,6 +12,8 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::format::Formatter;
 use wdl::format::config::Builder;
 use wdl::format::config::Indent;
@@ -23,8 +25,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -99,7 +99,7 @@ fn format_document(
         .collect::<Vec<_>>();
     if !diagnostics.is_empty() {
         let path = document.path();
-        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, colorize)?;
+        emit_diagnostics(&path, source.clone(), diagnostics, mode, colorize)?;
         return Err(anyhow!("cannot format a malformed document"));
     }
 
