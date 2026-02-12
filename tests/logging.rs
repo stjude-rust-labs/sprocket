@@ -62,9 +62,7 @@ task hello {
 
         // Ensure the log file in the run directory has at least one message
         // at the level
-        let log_path = dir
-            .path()
-            .join("out/runs/hello/_latest/output.log");
+        let log_path = dir.path().join("out/runs/hello/_latest/output.log");
         let log = fs::read_to_string(&log_path).expect("should have output log");
         assert!(log.contains(level));
     }
