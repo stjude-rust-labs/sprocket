@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [0.22.1](https://github.com/stjude-rust-labs/sprocket/compare/wdl-v0.22.0...wdl-v0.22.1) - 2026-02-12
+## 0.22.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
 ## 0.22.0 - 02-11-2026
 
 ### Dependencies

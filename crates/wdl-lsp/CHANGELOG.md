@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [0.17.1](https://github.com/stjude-rust-labs/sprocket/compare/wdl-lsp-v0.17.0...wdl-lsp-v0.17.1) - 2026-02-12
+## 0.17.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
 ## 0.17.0 - 02-11-2026
 
 ### Dependencies
