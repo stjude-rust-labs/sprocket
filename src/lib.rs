@@ -14,10 +14,12 @@
 use std::fs::File;
 use std::io::IsTerminal as _;
 use std::io::stderr;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use anyhow::anyhow;
 use clap::CommandFactory as _;
 use clap::Parser as _;
 use clap_verbosity_flag::Verbosity;
@@ -80,12 +82,42 @@ struct Cli {
     #[arg(long, short, global = true)]
     config: Vec<PathBuf>,
 
+    /// The application data directory.
+    #[arg(long, env = "SPROCKET_DATA_DIR", global = true)]
+    data_dir: Option<PathBuf>,
+
     /// Skip searching for and loading configuration files.
     ///
     /// Only a configuration file specified as a command line argument will be
     /// used.
     #[arg(long, short, global = true)]
     skip_config_search: bool,
+}
+
+/// The data directory for `sprocket`.
+///
+/// This optionally takes the `--data-dir` specified on the CLI.
+fn sprocket_data_dir(cli: Option<&Path>) -> CommandResult<PathBuf> {
+    if let Some(dir) = cli {
+        return Ok(PathBuf::from(dir));
+    }
+
+    if let Some(data_dir) = dirs::data_dir() {
+        return Ok(data_dir.join("sprocket"));
+    }
+
+    if let Some(home_dir) = dirs::home_dir() {
+        return Ok(home_dir.join(".sprocket"));
+    }
+
+    Err(anyhow!("Unable to determine sprocket data directory").into())
+}
+
+/// The `sprocket` components directory.
+///
+/// This optionally takes the `--data-dir` specified on the CLI.
+fn sprocket_components_dir(cli_data_dir: Option<&Path>) -> CommandResult<PathBuf> {
+    Ok(sprocket_data_dir(cli_data_dir)?.join("components"))
 }
 
 /// Logic for [`sprocket_main()`].
@@ -124,6 +156,12 @@ async fn real_main() -> CommandResult<()> {
         (ColorMode::Never, _) => false,
     };
 
+    let color_mode = if colorize {
+        ColorMode::Always
+    } else {
+        ColorMode::Never
+    };
+
     colored::control::set_override(colorize);
     let handle =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
@@ -143,7 +181,7 @@ async fn real_main() -> CommandResult<()> {
         Commands::Run(args) => commands::run::run(args, config, colorize, handle).await,
         Commands::Validate(args) => commands::validate::validate(args, config).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
-            commands::doc::doc(args, config, colorize).await
+            commands::doc::doc(args, config, color_mode).await
         }
         Commands::Dev(commands::DevCommands::Lock(args)) => {
             commands::lock::lock(args, config).await

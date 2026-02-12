@@ -1,0 +1,29 @@
+[package]
+name = "wdl-doc-bin"
+version = "0.1.0"
+description = "Documentation generator for Workflow Description Language (WDL) documents."
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-doc"
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wdl-analysis = { path = "../../wdl-analysis", version = "0.17.1" }
+wdl-ast = { path = "../../wdl-ast", version = "0.21.1" }
+wdl-doc = { path = "..", version = "0.12.0" }
+wdl-diagnostics = { path = "../../wdl-diagnostics", version = "0.1.0" }
+
+[[bin]]
+name = "wdl-doc"
+path = "src/main.rs"
+
+[lints]
+workspace = true
