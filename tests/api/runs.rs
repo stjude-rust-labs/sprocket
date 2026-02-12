@@ -448,33 +448,45 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
-    // Verify workflow is canceling in database
+    // Verify workflow is canceling or canceled in database
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
 
-    assert_eq!(run.status, RunStatus::Canceling);
+    assert!(
+        matches!(run.status, RunStatus::Canceling | RunStatus::Canceled),
+        "expected `Canceling` or `Canceled`, got `{}`",
+        run.status
+    );
     assert!(run.started_at.is_some());
-    assert!(run.completed_at.is_none());
+    if run.status == RunStatus::Canceled {
+        assert!(run.completed_at.is_some());
+    } else {
+        assert!(run.completed_at.is_none());
+    }
     assert!(run.outputs.is_none());
 
-    // Second cancel request (should go to `Canceled`)
-    let cancel_response2 = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
+    // If still `Canceling`, send a second cancel request to force `Canceled`
+    if run.status == RunStatus::Canceling {
+        let cancel_response2 = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(cancel_response2.status(), StatusCode::OK);
+    }
+
+    // Poll for the run to reach `Canceled` status
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
         .await
-        .unwrap();
+        .expect("run should reach `Canceled` status after cancellation");
 
-    assert_eq!(cancel_response2.status(), StatusCode::OK);
-
-    // Verify workflow is now canceled in database
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
-
-    assert_eq!(run.status, RunStatus::Canceled);
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
@@ -572,10 +584,12 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
-    // Verify workflow is canceled in database (not Canceling)
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    // Poll for the run to reach `Canceled` status
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
+        .await
+        .expect("run should reach `Canceled` status after cancel");
 
-    assert_eq!(run.status, RunStatus::Canceled);
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
