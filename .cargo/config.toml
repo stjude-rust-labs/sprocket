@@ -1,0 +1,2 @@
+[alias]
+sprocket = "run -p sprocket-dev-proxy"

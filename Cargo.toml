@@ -12,6 +12,7 @@ members = [
     "crates/wdl-grammar",
     "crates/wdl-lint",
     "crates/wdl-lsp",
+    "dev-proxy",
 ]
 resolver = "2"
 
