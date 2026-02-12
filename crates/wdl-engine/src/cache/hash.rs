@@ -11,7 +11,7 @@ use wdl_analysis::types::Type;
 use crate::Array;
 use crate::CompoundValue;
 use crate::ContentKind;
-use crate::EnumVariant;
+use crate::EnumChoice;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::HiddenValue;
@@ -66,8 +66,8 @@ enum ValueKind {
     Input,
     /// The value is an `Output` (hidden type).
     Output,
-    /// The value is an `EnumVariant`.
-    EnumVariant,
+    /// The value is an `EnumChoice`.
+    EnumChoice,
 }
 
 impl Hashable for ValueKind {
@@ -295,7 +295,7 @@ impl Hashable for CompoundValue {
             Self::Map(v) => v.hash(hasher),
             Self::Object(v) => v.hash(hasher),
             Self::Struct(v) => v.hash(hasher),
-            Self::EnumVariant(v) => v.hash(hasher),
+            Self::EnumChoice(v) => v.hash(hasher),
         }
     }
 }
@@ -336,9 +336,9 @@ impl Hashable for Struct {
     }
 }
 
-impl Hashable for EnumVariant {
+impl Hashable for EnumChoice {
     fn hash(&self, hasher: &mut Hasher) {
-        ValueKind::EnumVariant.hash(hasher);
+        ValueKind::EnumChoice.hash(hasher);
         self.name().hash(hasher);
         self.value().hash(hasher);
     }
