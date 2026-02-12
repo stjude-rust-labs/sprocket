@@ -60,16 +60,12 @@ task hello {
         // Ensure stderr has at least one message at the level
         assert!(str::from_utf8(&result.stderr).unwrap().contains(level));
 
-        // Find the run directory (`out/runs/hello/<timestamp>/`) and ensure
-        // the log file has at least one message at the level
-        let runs_dir = dir.path().join("out").join("runs").join("hello");
-        let run_dir = fs::read_dir(&runs_dir)
-            .expect("should have runs directory")
-            .filter_map(|e| e.ok())
-            .find(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-            .expect("should have at least one run directory");
-        let log = fs::read_to_string(run_dir.path().join("output.log"))
-            .expect("should have output log");
+        // Ensure the log file in the run directory has at least one message
+        // at the level
+        let log_path = dir
+            .path()
+            .join("out/runs/hello/_latest/output.log");
+        let log = fs::read_to_string(&log_path).expect("should have output log");
         assert!(log.contains(level));
     }
 }
