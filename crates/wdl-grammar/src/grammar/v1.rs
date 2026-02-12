@@ -127,7 +127,7 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
 ];
 
 /// The expected names of items in an enum definition.
-const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &["enum variant declaration"];
+const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &["enum choice declaration"];
 
 /// The expected set of tokens in a task definition.
 pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -578,15 +578,15 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
         marker,
         Some(Token::Comma),
         ENUM_SECTION_RECOVERY_SET,
-        enum_variant
+        enum_choice
     );
 
     marker.complete(parser, SyntaxKind::EnumDefinitionNode);
     Ok(())
 }
 
-/// Parses a variant in an enum definition.
-fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+/// Parses a choice in an enum definition.
+fn enum_choice(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     match parser.peek() {
         Some((Token::Ident, _)) => {
             parser.require(Token::Ident);
@@ -601,7 +601,7 @@ fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
                 }
             }
 
-            marker.complete(parser, SyntaxKind::EnumVariantNode);
+            marker.complete(parser, SyntaxKind::EnumChoiceNode);
         }
         found => {
             let (found, span) = found

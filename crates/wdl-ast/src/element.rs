@@ -159,8 +159,8 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     EnumDefinition(EnumDefinition<N>),
     /// An enum type parameter.
     EnumTypeParameter(EnumTypeParameter<N>),
-    /// An enum variant.
-    EnumVariant(EnumVariant<N>),
+    /// An enum choice.
+    EnumChoice(EnumChoice<N>),
     /// An exponentiation expression.
     ExponentiationExpr(ExponentiationExpr<N>),
     /// A greater than or equal to expression.
@@ -329,7 +329,7 @@ ast_element_impl!(
         equality_expr(): EqualityExprNode => EqualityExpr => EqualityExpr,
         enum_definition(): EnumDefinitionNode => EnumDefinition => EnumDefinition,
         enum_type_parameter(): EnumTypeParameterNode => EnumTypeParameter => EnumTypeParameter,
-        enum_variant(): EnumVariantNode => EnumVariant => EnumVariant,
+        enum_choice(): EnumChoiceNode => EnumChoice => EnumChoice,
         exponentiation_expr(): ExponentiationExprNode => ExponentiationExpr => ExponentiationExpr,
         greater_equal_expr(): GreaterEqualExprNode => GreaterEqualExpr => GreaterEqualExpr,
         greater_expr(): GreaterExprNode => GreaterExpr => GreaterExpr,
