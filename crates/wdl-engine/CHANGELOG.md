@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.1 - 2026-02-12
+
 #### Fixed
 
 * Corrected the location for `output.log` to be in the related run directory
