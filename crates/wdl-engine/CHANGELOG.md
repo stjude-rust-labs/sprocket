@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Corrected the location for `output.log` to be in the related run directory
+  instead of the top-level output directory ([#626](https://github.com/stjude-rust-labs/sprocket/pull/626)).
+
 ## 0.12.0 - 02-11-2026
 
 #### Added
