@@ -1,8 +1,8 @@
-## Test enum with invalid variant syntax
+## Test enum with invalid choice syntax
 
 version 1.3
 
-# Missing variant name before assignment
+# Missing choice name before assignment
 enum Priority[Int] {
     = 1,
     Low = 2

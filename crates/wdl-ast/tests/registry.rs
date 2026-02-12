@@ -199,7 +199,7 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::EnumDefinition::register(),
         v1::EnumKeyword::register(),
         v1::EnumTypeParameter::register(),
-        v1::EnumVariant::register(),
+        v1::EnumChoice::register(),
         v1::SubtractionExpr::register(),
         v1::TaskDefinition::register(),
         v1::TaskHintsItem::register(),
