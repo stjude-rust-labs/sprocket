@@ -18,12 +18,12 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 wdl-analysis = { path = "../../wdl-analysis", version = "0.17.1" }
 wdl-ast = { path = "../../wdl-ast", version = "0.21.1" }
-wdl-doc = { path = "..", version = "0.12.0" }
 wdl-diagnostics = { path = "../../wdl-diagnostics", version = "0.1.0" }
+wdl-doc = { path = "..", version = "0.12.0" }
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "wdl-doc"
 path = "src/main.rs"
-
-[lints]
-workspace = true
