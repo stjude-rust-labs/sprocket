@@ -116,10 +116,8 @@ impl Struct {
                         @for member in self.members.iter() {
                             @let member_name = member.decl.name();
                             @let member_id = format!("member.{}", member_name.text());
-                            @let member_anchor = format!("#{member_id}");
                             div id=(member_id) class="main__grid-row" x-data="{ description_expanded: false }" {
                                 div class="main__grid-cell" {
-                                    a href=(member_anchor) {}
                                     code { (member_name.text()) }
                                 }
 
@@ -127,10 +125,10 @@ impl Struct {
                                     code { (member.decl.ty()) }
                                 }
                                 div class="main__grid-cell" {
-                                    (member.meta().render_description(true))
+                                    (member.meta().render_full_description(true))
                                 }
                                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                                    (member.meta().render_description(false))
+                                    (member.meta().render_full_description(false))
                                 }
                             }
                             div class="main__grid-row-separator" {}
