@@ -14,6 +14,7 @@ documentation = "https://docs.rs/wdl-analysis"
 anyhow = { workspace = true }
 convert_case = { workspace = true }
 futures = { workspace = true }
+getopts = { workspace = true }
 ignore = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }

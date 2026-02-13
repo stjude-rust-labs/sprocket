@@ -3,6 +3,7 @@
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use wdl::diagnostics::Mode;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
@@ -10,7 +11,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
 use crate::inputs::OriginPaths;
 
