@@ -1,0 +1,93 @@
+## This preamble should not be warned as it's not a doc comment!
+
+version 1.3
+
+## This doc comment is allowed
+enum Color {
+    ## As is this one
+    Red,
+    ## And so is this mutltiline
+    ##
+    ## one.
+    Green
+
+}
+
+## This floating doc comment should be ignored by UnusedDocCommentsRule, but
+## should get a lint by PreambleCommentPlacementRule.
+
+#@ except: MetaSections
+# Documented with comments
+## A base person struct.
+##
+## This defines a named person.
+struct Person {
+    ## The name of the person.
+    ##
+    ## This is the full (first, last) name of the person.
+    String name
+}
+
+#@ except: RequirementsSection
+## This doc comment should be allowed
+task test_task {
+    meta {
+        description: "Show doc comments on bad placement of elements"
+    }
+
+    ## You can't doc comment a comment - the user should be warned.
+    # Comment about my doc comment
+    ## Commands don't support doc comments so the user should be warned here.
+    ## about this multiline comment with whitespace...
+    ##
+    ## ... that isn't doing anything!
+    command <<<
+        ## I'm a shell comment and shouldn't be picked up.
+        printf "Hello World"
+    >>>
+}
+
+#@ except: MetaSections, MatchingOutputMeta
+## This doc comment should be allowed
+workflow test_workflow {
+    ## This doc comment does nothing and the user should be warned!
+    meta {
+        description: "Show doc comments on bad placement of elements"
+    }
+
+    ## This input section can have a doc comment.
+    input {
+        ## And so can it's elements
+        Person person
+        Boolean apple
+        Boolean banana
+    }
+
+    ## I am not allowed to be doc commented
+    call test_task {}
+
+    # Comments are definitely valid here
+    ## But doc comments are not!
+    if (apple) {
+        String favorite_fruit = "Apple"
+    }
+        # Comments seem fine here (although maybe a weird choice)
+        ## But doc comments probably shouldn't be?
+    else if (banana) {
+        String favorite_fruit = "Banana"
+    }
+        # Seemingly, you can also put comments here,
+        ## but we don't want doc comments here.
+    else {
+            # Weirdly, wdl-lint seems to suggest my comment whitespace is incorrect
+            ## Doc comments shouldn't be allowed on variable assignment!
+        String favorite_fruit = "Chocolate"
+    }
+
+    ## The output section can have a doc comment!
+    output {
+        ## An element of an output should be doc commentable probably if I want to say
+        ## what this specific thing is doing?
+        Boolean my_output = banana
+    }
+}
