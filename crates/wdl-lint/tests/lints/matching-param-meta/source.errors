@@ -1,3 +1,17 @@
+warning[ParameterDescription]: parameter `matching` is missing a description
+   ┌─ tests/lints/matching-param-meta/source.wdl:15:9
+   │  
+15 │ ╭         matching: {
+16 │ │             help: "a matching parameter!",
+17 │ │             foo: {
+18 │ │                 bar: {
+   · │
+21 │ │             },
+22 │ │         }
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
+   │  
+   = fix: add a description for `matching`
+
 note[ParameterMetaMatched]: workflow `w` has an extraneous parameter metadata key named `extra`
    ┌─ tests/lints/matching-param-meta/source.wdl:23:9
    │
@@ -14,6 +28,20 @@ warning[ParameterMetaMatched]: workflow `w` is missing a parameter metadata key 
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
 
+warning[ParameterDescription]: parameter `matching` is missing a description
+   ┌─ tests/lints/matching-param-meta/source.wdl:39:9
+   │  
+39 │ ╭         matching: {
+40 │ │             help: "a matching parameter!",
+41 │ │             foo: {
+42 │ │                 bar: {
+   · │
+45 │ │             },
+46 │ │         }
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
+   │  
+   = fix: add a description for `matching`
+
 warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:51:16
    │
@@ -21,6 +49,20 @@ warning[ParameterMetaMatched]: task `foo` is missing a parameter metadata key fo
    │                ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
+
+warning[ParameterDescription]: parameter `matching` is missing a description
+   ┌─ tests/lints/matching-param-meta/source.wdl:64:9
+   │  
+64 │ ╭         matching: {
+65 │ │             help: "a matching parameter!",
+66 │ │             foo: {
+67 │ │                 bar: {
+   · │
+70 │ │             },
+71 │ │         }
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
+   │  
+   = fix: add a description for `matching`
 
 note[ParameterMetaMatched]: task `bar` has an extraneous parameter metadata key named `does_not_exist`
    ┌─ tests/lints/matching-param-meta/source.wdl:72:9

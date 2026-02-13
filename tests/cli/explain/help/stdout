@@ -84,6 +84,7 @@ Available rules:
   - MetaKeyValueFormatting
   - MetaSections
   - OutputName
+  - ParameterDescription
   - ParameterMetaMatched
   - PascalCase
   - PreambleCommentPlacement

@@ -1,3 +1,17 @@
+warning[ParameterDescription]: parameter `matching` is missing a description
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:15:9
+   │  
+15 │ ╭         matching: {
+16 │ │             help: "a matching parameter!",
+17 │ │             foo: {
+18 │ │                 bar: {
+   · │
+21 │ │             },
+22 │ │         }
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
+   │  
+   = fix: add a description for `matching`
+
 note[ParameterMetaMatched]: struct `Text` has an extraneous parameter metadata key named `extra`
    ┌─ tests/lints/struct-matching-param-meta/source.wdl:23:9
    │

@@ -38,6 +38,14 @@ warning[DocMetaStrings]: metadata key `description` should have a `String` value
    │
    = fix: change the value of `description` to a `String`
 
+warning[ParameterDescription]: output `description` is missing a description in `meta.outputs`
+   ┌─ tests/lints/doc-meta-strings/source.wdl:20:13
+   │
+20 │             description: 456,  # Should warn: integer instead of string
+   │             ^^^^^^^^^^^^^^^^ output should be documented with either a `String` description or an object with a `description` key
+   │
+   = fix: add a description for `description`
+
 warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
    ┌─ tests/lints/doc-meta-strings/source.wdl:31:9
    │
@@ -45,6 +53,14 @@ warning[DocMetaStrings]: metadata key `description` should have a `String` value
    │         ^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
    │
    = fix: change the value of `description` to a `String`
+
+warning[ParameterDescription]: parameter `flag_input` is missing a description
+   ┌─ tests/lints/doc-meta-strings/source.wdl:31:9
+   │
+31 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
+   │         ^^^^^^^^^^^^^^ parameter should be documented with either a `String` description or an object with a `description` key
+   │
+   = fix: add a description for `flag_input`
 
 warning[DocMetaStrings]: metadata key `warning` should have a `String` value, found integer
    ┌─ tests/lints/doc-meta-strings/source.wdl:48:9

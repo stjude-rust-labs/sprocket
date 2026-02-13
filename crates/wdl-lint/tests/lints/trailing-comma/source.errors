@@ -67,6 +67,16 @@ note[TrailingComma]: item missing trailing comma
    │
    = fix: add a trailing comma
 
+warning[ParameterDescription]: parameter `not_an_option` is missing a description
+   ┌─ tests/lints/trailing-comma/source.wdl:73:9
+   │  
+73 │ ╭         not_an_option: {
+74 │ │             name: "test"  # OK
+75 │ │         }
+   │ ╰─────────^ parameter should be documented with either a `String` description or an object with a `description` key
+   │  
+   = fix: add a description for `not_an_option`
+
 note[TrailingComma]: item missing trailing comma
    ┌─ tests/lints/trailing-comma/source.wdl:90:13
    │
