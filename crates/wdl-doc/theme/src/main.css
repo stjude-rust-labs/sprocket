@@ -309,8 +309,8 @@
   }
   .main__grid-full-width-cell p,
   .main__grid-cell p {
-    margin-top: revert;
-    margin-bottom: revert;
+    margin-top: 1em;
+    margin-bottom: 1em;
   }
   .main__grid-full-width-cell p:first-of-type,
   .main__grid-cell p:first-of-type {

@@ -10,6 +10,7 @@ use wdl_ast::AstToken;
 use wdl_ast::v1::Decl;
 
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::DefinitionMeta;
 use crate::meta::MaybeSummarized;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
@@ -82,6 +83,12 @@ pub(crate) struct Parameter {
     meta: MetaMap,
     /// Whether the parameter is an input or output.
     io: InputOutput,
+}
+
+impl DefinitionMeta for Parameter {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
 }
 
 impl Parameter {
@@ -186,11 +193,6 @@ impl Parameter {
             .map(Group)
     }
 
-    /// Render the description of the parameter.
-    pub fn description(&self, summarize: bool) -> Markup {
-        self.meta().render_description(summarize)
-    }
-
     /// Render any remaining metadata as HTML.
     ///
     /// This will render all metadata key-value pairs except for `description`
@@ -217,10 +219,10 @@ impl Parameter {
                     div class="main__grid-cell" { (self.render_expr(true)) }
                 }
                 div class="main__grid-cell" {
-                    (self.description(true))
+                    (self.meta().render_full_description(true))
                 }
                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                    (self.description(false))
+                    (self.meta().render_full_description(false))
                 }
                 @if show_expr {
                     div x-show="expr_expanded" class="main__grid-full-width-cell" {

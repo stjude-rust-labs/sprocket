@@ -85,18 +85,16 @@ impl Enum {
                         @for choice in self.choices.iter() {
                             @let choice_name = choice.choice.name();
                             @let choice_id = format!("choice.{}", choice_name.text());
-                            @let choice_anchor = format!("#{choice_id}");
                             div id=(choice_id) class="main__grid-row" x-data="{ description_expanded: false }" {
                                 div class="main__grid-cell" {
-                                    a href=(choice_anchor) class="hidden" {}
-                                    (choice_name.text())
+                                    code { (choice_name.text()) }
                                 }
 
                                 div class="main__grid-cell" {
-                                    (choice.meta().render_description(true))
+                                    (choice.meta().render_full_description(true))
                                 }
                                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                                    (choice.meta().render_description(false))
+                                    (choice.meta().render_full_description(false))
                                 }
                             }
                             div class="main__grid-row-separator" {}
