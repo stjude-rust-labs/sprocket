@@ -75,6 +75,10 @@ impl Rule for CommentWhitespaceRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that WDL comments have the proper spacing."
     }
@@ -84,6 +88,35 @@ impl Rule for CommentWhitespaceRule {
          the comment text. Comments on their own line should match the indentation level around \
          them and have one space between the # and the comment text. Keep in mind that even \
          comments must be kept below the 90 character width limit."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Int user_count = 10 # The number of users
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Int user_count = 10  # The number of users
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

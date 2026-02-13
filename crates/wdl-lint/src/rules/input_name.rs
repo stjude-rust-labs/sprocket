@@ -56,17 +56,59 @@ impl Rule for InputNameRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures input names are meaningful (e.g. not generic like 'input', 'in', or too short)."
     }
 
     fn explanation(&self) -> &'static str {
-        "Any input name matching these regular expressions will be flagged: /^[iI]n[A-Z_]/, \
-         /^input/i or /^..?$/. It is redundant and needlessly verbose to use an input's name to \
-         specify that it is an input. Input names should be short yet descriptive. Prefixing a \
-         name with in or input adds length to the name without adding clarity or context. \
-         Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-         content of an input. Input names should be at least 3 characters long."
+        "Any input name matching these regular expressions will be flagged: [`/^[iI]n[A-Z_]/`](https://regex101.com/r/V0AFIG/2), \
+[`/^input/i`](https://regex101.com/r/Ox8oYb/1) or [`/^..?$/`](https://regex101.com/r/IS1d49/1).\n\n\
+It is redundant and needlessly verbose to use an input's name to \
+specify that it is an input. Input names should be short yet descriptive. Prefixing a \
+name with in or input adds length to the name without adding clarity or context. \
+Additionally, names with only 2 characters can lead to confusion and obfuscates the \
+content of an input. Input names should be at least 3 characters long."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String input_name
+    }
+
+    command <<<
+        echo "Hello, ~{input_name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {
+        description: "Says hello for the given name"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

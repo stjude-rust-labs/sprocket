@@ -43,6 +43,10 @@ impl Rule for PreambleCommentPlacementRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that preamble comments are inside the preamble."
     }
@@ -51,6 +55,39 @@ impl Rule for PreambleCommentPlacementRule {
         "Preamble comments should only appear in the preamble section of a WDL document. This rule \
          ensures that freestanding double-pound comments (`##`) are not used after the version \
          statement."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

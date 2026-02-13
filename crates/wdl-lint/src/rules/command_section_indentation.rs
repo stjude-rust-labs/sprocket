@@ -81,6 +81,10 @@ impl Rule for CommandSectionIndentationRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures consistent indentation (no mixed spaces/tabs) within command sections."
     }
@@ -89,6 +93,45 @@ impl Rule for CommandSectionIndentationRule {
         "Mixing indentation (tab and space) characters within the command line causes leading \
          whitespace stripping to be skipped. Commands may be whitespace sensitive, and skipping \
          the whitespace stripping step may cause unexpected behavior."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with tabs
+		echo "Hello, ~{name}!"
+		# this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with spaces
+        echo "Hello, ~{name}!"
+        # this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

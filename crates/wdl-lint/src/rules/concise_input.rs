@@ -38,6 +38,10 @@ impl Rule for ConciseInputRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.9.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures concise input assignments are used (implicit binding when available)."
     }
@@ -45,6 +49,61 @@ impl Rule for ConciseInputRule {
     fn explanation(&self) -> &'static str {
         "Redundant input assignments can be shortened in WDL versions >=v1.1 with an implicit \
          binding. For example, `{ input: a = a }` can be shortened to `{ input: a }`."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow hello {
+    input {
+        String name
+    }
+
+    # Since WDL v1.1, these explicit bindings can be shortened.
+    call say_hello {
+        name = name,
+    }
+}
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow hello {
+    input {
+        String name
+    }
+
+    # `name` can be passed in directly
+    call say_hello {
+        name,
+    }
+}
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

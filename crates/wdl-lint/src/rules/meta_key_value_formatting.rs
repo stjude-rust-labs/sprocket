@@ -74,6 +74,10 @@ impl Rule for MetaKeyValueFormattingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that arrays and objects in `meta` and `parameter_meta` sections have one element \
          per line and are indented correctly."
@@ -85,6 +89,40 @@ impl Rule for MetaKeyValueFormattingRule {
          the value is atomic (i.e. not a list or an object). Otherwise have the key and opening \
          bracket on the same line; subsequently indent one level; put one value per line; and have \
          the closing bracket on its own line at the same indentation level of the key."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        names: ["James",
+        "Jimmy", "John"]
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        names: [
+            "James",
+            "Jimmy",
+            "John"
+        ]
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

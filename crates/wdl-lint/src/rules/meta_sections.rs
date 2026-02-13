@@ -101,6 +101,10 @@ impl Rule for MetaSectionsRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks and workflows have the required `meta` and `parameter_meta` sections."
     }
@@ -109,6 +113,47 @@ impl Rule for MetaSectionsRule {
         "It is important that WDL code is well-documented. Every task and workflow should have \
          both a meta and parameter_meta section. Tasks without an `input` section are permitted to \
          skip the `parameter_meta` section."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {
+        description: "Says hello for the given name"
+    }
+    
+    parameter_meta {
+        name: "The name of the person to greet"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

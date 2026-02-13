@@ -119,6 +119,10 @@ impl Rule for SnakeCaseRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks, workflows, and variables are defined with snake_case names."
     }
@@ -126,6 +130,31 @@ impl Rule for SnakeCaseRule {
     fn explanation(&self) -> &'static str {
         "Workflow, task, and variable names should be in snake case. Maintaining a consistent \
          naming convention makes the code easier to read and understand."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow ProcessData {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow process_data {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

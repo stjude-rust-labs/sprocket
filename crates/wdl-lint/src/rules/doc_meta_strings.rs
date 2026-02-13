@@ -104,6 +104,10 @@ impl Rule for DocMetaStringsRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.17.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that reserved meta keys have string values."
     }
@@ -115,6 +119,35 @@ impl Rule for DocMetaStringsRule {
          non-`String` values will cause the documentation to be rendered incorrectly or not at \
          all. This rule ensures all reserved keys have `String` values for proper documentation \
          generation."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: 123
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "123"
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

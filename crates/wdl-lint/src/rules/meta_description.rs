@@ -53,6 +53,10 @@ impl Rule for MetaDescriptionRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures the `meta` section contains a `description` key."
     }
@@ -61,6 +65,43 @@ impl Rule for MetaDescriptionRule {
         "Each task, workflow, and struct should have a description in the meta section. The \
          description should be short, written in active voice, and be in complete sentences. More \
          detailed information can be included in the `help` key."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {
+        description: "Says hello for the given name"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

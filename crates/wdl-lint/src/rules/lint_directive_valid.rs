@@ -69,6 +69,10 @@ impl Rule for LintDirectiveValidRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.6.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures lint directives are placed correctly to have the intended effect."
     }
@@ -77,6 +81,37 @@ impl Rule for LintDirectiveValidRule {
         "When writing WDL, lint directives are used to suppress certain rules. If a lint directive \
          is misplaced, it will have no effect. This rule flags misplaced lint directives to ensure \
          they are in the correct location."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {
+        # MatchingOutputMeta exceptions aren't valid
+        # in this context
+        #@ except: MatchingOutputMeta
+        String name = "Jimmy"
+    }
+}
+```"#,
+            r#"Use instead:
+version 1.2
+
+#@ except: MatchingOutputMeta
+workflow example {
+    meta {}
+
+    output {
+        String name = "Jimmy"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

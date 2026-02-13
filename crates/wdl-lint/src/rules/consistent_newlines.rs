@@ -48,6 +48,10 @@ impl Rule for ConsistentNewlinesRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that newline usage is consistent."
     }
@@ -55,6 +59,10 @@ impl Rule for ConsistentNewlinesRule {
     fn explanation(&self) -> &'static str {
         "Files should not mix `\\n` and `\\r\\n` line breaks. Pick one and use it consistently in \
          your project."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
     }
 
     fn tags(&self) -> TagSet {

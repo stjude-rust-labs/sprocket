@@ -58,6 +58,10 @@ impl Rule for CallInputSpacingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that call inputs are spaced appropriately."
     }
@@ -70,6 +74,40 @@ impl Rule for CallInputSpacingRule {
          document, but it is worth it for the consistent readability. An exception can be made \
          (but does not have to be made), for calls with only a single parameter. In those cases, \
          it is permissable to keep the input on the same line as the call."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    call add {
+        input: lhs=10,rhs=20
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    call add { input:
+        lhs = 10,
+        rhs = 20,
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

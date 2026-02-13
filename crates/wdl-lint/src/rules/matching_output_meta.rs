@@ -112,6 +112,10 @@ impl Rule for MatchingOutputMetaRule<'_> {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that each output field is documented in the meta section under `meta.outputs`."
     }
@@ -122,6 +126,49 @@ impl Rule for MatchingOutputMetaRule<'_> {
          each named output of a task or workflow, there should be an entry under `meta.outputs` \
          with that same name. Additionally, these entries should be in the same order (that order \
          is up to the developer to decide). No extraneous `meta.outputs` entries are allowed."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task generate_greeting {
+    meta {
+        outputs: {
+            greeting: "The generated greeting for the provided name"
+        }
+    }
+
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

@@ -38,6 +38,10 @@ impl Rule for PascalCaseRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that structs are defined with PascalCase names."
     }
@@ -45,6 +49,29 @@ impl Rule for PascalCaseRule {
     fn explanation(&self) -> &'static str {
         "Struct names should be in PascalCase. Maintaining a consistent naming convention makes \
          the code easier to read and understand."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"Struct names should be in PascalCase:
+
+```wdl
+version 1.2
+
+struct registered_user {
+    String name
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+struct RegisteredUser {
+    String name
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

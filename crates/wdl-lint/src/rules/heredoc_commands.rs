@@ -38,6 +38,10 @@ impl Rule for HereDocCommandsRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks use heredoc syntax in command sections."
     }
@@ -46,6 +50,47 @@ impl Rule for HereDocCommandsRule {
         "Curly command blocks are no longer considered idiomatic WDL. Idiomatic WDL code uses \
          heredoc command blocks instead. This is because curly command blocks create ambiguity \
          with Bash syntax."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    parameter_meta {}
+
+    command {
+        echo "Hello, World!"
+    }
+
+    output {}
+
+    runtime {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    parameter_meta {}
+
+    command <<<
+        echo "Hello, World!"
+    >>>
+
+    output {}
+
+    runtime {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

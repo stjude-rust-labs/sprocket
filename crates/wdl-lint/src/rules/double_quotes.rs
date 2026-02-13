@@ -36,6 +36,10 @@ impl Rule for DoubleQuotesRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that strings are defined using double quotes."
     }
@@ -44,6 +48,35 @@ impl Rule for DoubleQuotesRule {
         "All strings should be defined using double quotes. There is no semantic difference \
          between single and double quotes in WDL, but double quotes should be used exclusively to \
          ensure consistency and avoid any confusion."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow test {
+    meta {}
+
+    String name = 'Jimmy'
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow test {
+    meta {}
+
+    String name = "Jimmy"
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

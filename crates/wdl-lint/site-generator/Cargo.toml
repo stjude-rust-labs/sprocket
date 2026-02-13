@@ -1,0 +1,30 @@
+[package]
+name = "wdl-lint-site-generator"
+version = "0.1.0"
+publish = false
+description = "Static site generator for wdl-lint"
+authors.workspace = true
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+maud.workspace = true
+opener.workspace = true
+pulldown-cmark.workspace = true
+semver = { workspace = true, features = ["serde"] }
+serde_json.workspace = true
+strum.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+walkdir.workspace = true
+wdl-analysis = { path = "../../wdl-analysis" }
+wdl-lint = { path = ".." }
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "wdl-lint-site-generator"

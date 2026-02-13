@@ -73,6 +73,10 @@ impl Rule for VersionStatementFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.7.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures the `version` statement is correctly formatted."
     }
@@ -83,6 +87,30 @@ impl Rule for VersionStatementFormattedRule {
          'version' and the version number. It also checks that if there are comments before the \
          version statement, they are separated by exactly one blank line. If there are no \
          comments, there should be no whitespace before the version statement."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version    1.2
+workflow formatting {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow formatting {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

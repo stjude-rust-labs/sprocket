@@ -226,14 +226,22 @@ impl Rule for ShellCheckRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.9.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that command blocks are free of ShellCheck violations."
     }
 
     fn explanation(&self) -> &'static str {
-        "ShellCheck (https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
+        "[ShellCheck](https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
          The lints provided by ShellCheck help prevent common errors and pitfalls in your scripts. \
          Following its recommendations will increase the robustness of your command sections."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
     }
 
     fn tags(&self) -> TagSet {

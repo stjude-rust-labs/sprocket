@@ -82,6 +82,10 @@ impl Rule for ElementSpacingRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that WDL elements are spaced appropriately."
     }
@@ -96,6 +100,50 @@ impl Rule for ElementSpacingRule {
          private declarations, call statements, conditional statements, and scatter statements. A \
          `task body` is any and all private declarations. Within a workflow or task body, \
          individual elements may optionally be separated by a blank line."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow determine_jimmy_age {
+
+    meta {
+
+        description: "Determines the current age of Jimmy."
+
+        outputs: {
+            age: "The age of Jimmy."
+
+        }
+
+    }
+
+    output {
+        Int age = 55
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow determine_jimmy_age {
+    meta {
+        description: "Determines the current age of Jimmy."
+        outputs: {
+            age: "The age of Jimmy."
+        }
+    }
+
+    output {
+        Int age = 55
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

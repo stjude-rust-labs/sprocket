@@ -104,6 +104,10 @@ impl Rule for ParameterMetaMatchedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that inputs have a matching entry in a `parameter_meta` section."
     }
@@ -112,6 +116,48 @@ impl Rule for ParameterMetaMatchedRule {
         "Each input parameter within a task or workflow should have an associated `parameter_meta` \
          entry with a detailed description of the input. Non-input keys are not permitted within \
          the `parameter_meta` block."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    parameter_meta {
+        name: "The name of the person to greet"
+        does_not_exist: "This is not a real parameter"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    parameter_meta {
+        name: "The name of the person to greet"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

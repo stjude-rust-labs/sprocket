@@ -76,6 +76,10 @@ impl Rule for LintDirectiveFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.7.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures lint directives are correctly formatted."
     }
@@ -85,6 +89,36 @@ impl Rule for LintDirectiveFormattedRule {
          their own line, only preceded by whitespace. They should follow the pattern `#@ \
          <directive>: <value>` _exactly_. Currently the only accepted lint directive is `except`. \
          For example, `#@ except: LintDirectiveFormatted`."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@except: SnakeCase
+#@ ecept: LineWidth
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+#@ except: SnakeCase
+#@ except: LineWidth
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

@@ -55,6 +55,10 @@ impl Rule for KnownRulesRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.6.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures only known rules are used in lint directives."
     }
@@ -63,6 +67,33 @@ impl Rule for KnownRulesRule {
         "When writing WDL, lint directives are used to suppress certain rules. If a rule is \
          unknown, nothing will be suppressed. This rule flags unknown rules as they are often \
          mistakes."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@ except: LintThatDoesNotExit
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

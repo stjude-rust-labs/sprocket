@@ -225,6 +225,10 @@ impl Rule for ExpectedRuntimeKeysRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that `runtime` sections have the appropriate keys."
     }
@@ -232,21 +236,61 @@ impl Rule for ExpectedRuntimeKeysRule {
     fn explanation(&self) -> &'static str {
         "The behavior of this rule is different depending on the WDL version:
 
-        For WDL v1.0 documents, the `docker` and `memory` keys are recommended, but the inclusion \
-         of any number of other keys is permitted.
+For WDL v1.0 documents, the `docker` and `memory` keys are recommended, but the inclusion of any \
+         number of other keys is permitted.
 
-        For WDL v1.1 documents,
+For WDL v1.1 documents:
 
-        - A list of mandatory, reserved keywords will be recommended for inclusion if they are not \
+- A list of mandatory, reserved keywords will be recommended for inclusion if they are not \
          present. Here, 'mandatory' refers to the requirement that all execution engines support \
          this key—not that the key must be present in the `runtime` section.
-        - Optional, reserved \"hint\" keys are also permitted but not flagged when they are \
-         missing (as their support in execution engines is not guaranteed).
-        - The WDL v1.1 specification deprecates the inclusion of non-reserved keys in a  `runtime` \
+- Optional, reserved \"hint\" keys are also permitted but not flagged when they are missing (as \
+         their support in execution engines is not guaranteed).
+- The WDL v1.1 specification deprecates the inclusion of non-reserved keys in a  `runtime` \
          section. As such, any non-reserved keys will be flagged for removal.
 
-         For WDL v1.2 documents and later, this rule does not evaluate because `runtime` sections \
-         were deprecated in this version."
+For WDL v1.2 documents and later, this rule does not evaluate because `runtime` sections were \
+         deprecated in this version."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"The following is missing a mandatory key:
+
+```wdl
+version 1.1
+
+task missing_required_keys {
+    meta {}
+
+    command <<<>>>
+
+    output {}
+
+    runtime {}  # Missing `container` key
+}
+```
+"#,
+            r#"The following has an unexpected key:
+
+```wdl
+version 1.1
+
+task unexpected_runtime_key {
+    meta {}
+
+    command <<<>>>
+
+    output {}
+
+    runtime {
+        container: "ubuntu"
+        foo: "bar"
+    }
+}
+```
+"#,
+        ]
     }
 
     fn tags(&self) -> crate::TagSet {

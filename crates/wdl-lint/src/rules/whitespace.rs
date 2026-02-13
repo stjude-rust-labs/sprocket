@@ -56,6 +56,10 @@ impl Rule for WhitespaceRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that a document does not contain undesired whitespace."
     }
@@ -65,6 +69,33 @@ impl Rule for WhitespaceRule {
          automation, and rendering. There should never be trailing whitespace at the end of lines \
          and blank lines should be completely empty with no whitespace characters between \
          newlines. There should be at most one empty line in a row."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+# Extra trailing whitespace
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

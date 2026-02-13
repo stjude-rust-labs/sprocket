@@ -39,6 +39,10 @@ impl Rule for CallInputKeywordRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.17.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that the `input:` keyword is not used in call statements when WDL version is 1.2 \
          or later."
@@ -49,6 +53,42 @@ impl Rule for CallInputKeywordRule {
          specification change allows call inputs to be specified directly within the braces \
          without the `input:` keyword, resulting in a cleaner and more concise syntax. This rule \
          encourages adoption of the newer syntax when using WDL 1.2 or later."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # In versions prior to WDL v1.2, the `input:` keyword
+    # was necessary in `call` statements.
+    call say_hello { input:
+        name = "world",
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # This is correct for WDL v1.2 and later.
+    call say_hello {
+        name = "world",
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

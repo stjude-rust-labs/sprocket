@@ -40,6 +40,10 @@ impl Rule for DeclarationNameRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.10.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures declaration names do not redundantly include their type name."
     }
@@ -49,6 +53,39 @@ impl Rule for DeclarationNameRule {
          often redundant. For example, use 'counter' instead of 'counter_int' or 'is_active' \
          instead of 'is_active_bool'. Exceptions are made for String, File, and user-defined \
          struct types, which are not flagged by this rule."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task example {
+    meta {}
+
+    input {
+        Int total_count_int
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task example {
+    meta {}
+
+    input {
+        Int total_count
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

@@ -1,0 +1,23 @@
+{
+  "name": "sprocket-web-common",
+  "version": "1.0.0",
+  "description": "Common web components shared between static sites in the sprocket repo.",
+  "main": "dist/bundle.js",
+  "module": "dist/bundle.js",
+  "type": "module",
+  "scripts": {
+    "build": "./node_modules/.bin/esbuild js/index.js --bundle --format=esm --outfile=dist/common.js"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "^1.7.2",
+    "@tailwindcss/cli": "^4.1.11",
+    "shiki": "^3.7.0",
+    "tippy.js": "^6.3.7"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.25.5",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.11"
+  }
+}

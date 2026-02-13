@@ -109,6 +109,10 @@ impl Rule for PreambleFormattedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that documents have correct formatting in the preamble."
     }
@@ -118,30 +122,64 @@ impl Rule for PreambleFormattedRule {
          the version declaration statement itself. Only comments and whitespace are permitted \
          before the version declaration.
 
-         All comments in the preamble should conform to one of two special formats: lint \
-         directives or preamble comments.
+All comments in the preamble should conform to one of two special formats: lint directives or \
+         preamble comments.
 
-         This rule enforces the following formatting requirements:
+This rule enforces the following formatting requirements:
 
-         1. Comments in the preamble should be full line comments (no whitespace before the \
-         comment).
-         2. If lint directives are present, they should be at the absolute beginning of the \
-         document.
-         3. Multiple lint directives are permitted, but they should not be interleaved with \
-         preamble comments or blank lines.
-         4. A space should follow the double-pound-sign (`##`) if there is any text within the \
-         preamble comment.
-         5. \"Empty\" preamble comments (`##`) are permitted and should not have any whitespace \
-         following the `##`.
-         6. Comments beginning with 3 or more pound signs before the version declaration are not \
-         permitted.
-         7. All preamble comments should be in a single block without blank lines.
-         8. Following the preamble comment block, there should always be a blank line before the \
-         version statement.
-         9. When transitioning from lint directives to preamble comments, there should be exactly \
-         one blank line.
-         10. Both lint directives and preamble comments are optional, and if they are not present, \
-         there should be no comments or whitespace before the version declaration."
+1. Comments in the preamble should be full line comments (no whitespace before the comment).\n
+2. If lint directives are present, they should be at the absolute beginning of the document.\n
+3. Multiple lint directives are permitted, but they should not be interleaved with preamble \
+         comments or blank lines.\n
+4. A space should follow the double-pound-sign (`##`) if there is any text within the preamble \
+         comment.\n
+5. \"Empty\" preamble comments (`##`) are permitted and should not have any whitespace following \
+         the `##`.\n
+6. Comments beginning with 3 or more pound signs before the version declaration are not \
+         permitted.\n
+7. All preamble comments should be in a single block without blank lines.\n
+8. Following the preamble comment block, there should always be a blank line before the version \
+         statement.\n
+9. When transitioning from lint directives to preamble comments, there should be exactly one blank \
+         line.\n
+10. Both lint directives and preamble comments are optional, and if they are not present, there \
+         should be no comments or whitespace before the version declaration."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+#@ except: LineWidth
+##This is a preamble comment!
+##
+##This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+#@ except: LineWidth
+
+## This is a preamble comment!
+##
+## This document provides the `example` workflow.
+
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

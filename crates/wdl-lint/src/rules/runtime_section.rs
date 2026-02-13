@@ -38,12 +38,53 @@ impl Rule for RuntimeSectionRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks have a `runtime` section (for WDL v1.1 and prior)."
     }
 
     fn explanation(&self) -> &'static str {
         "Tasks that don't declare `runtime` sections are unlikely to be portable."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.1
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.1
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

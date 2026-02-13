@@ -54,6 +54,10 @@ impl Rule for ImportWhitespaceRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that there is no extraneous whitespace between or within imports."
     }
@@ -67,6 +71,38 @@ impl Rule for ImportWhitespaceRule {
          needed, it should be done with one or more comments labelling groups of imports. \
          Extraneous whitespace between and within imports makes code harder to parse and \
          understand."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+import    "apple.wdl" as   apples
+
+import "orange.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+import "apple.wdl" as apples
+import "orange.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

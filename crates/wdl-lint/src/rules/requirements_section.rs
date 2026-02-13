@@ -48,6 +48,10 @@ impl Rule for RequirementsSectionRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that tasks have a `requirements` section (for WDL v1.2 and beyond)."
     }
@@ -55,8 +59,45 @@ impl Rule for RequirementsSectionRule {
     fn explanation(&self) -> &'static str {
         "Tasks that don't declare `requirements` sections are unlikely to be portable.
 
-        For tasks that _should_ contain a `requirements` section but a `runtime` section exists \
-         instead, the `runtime` section is flagged as deprecated."
+For tasks that _should_ contain a `requirements` section but a `runtime` section exists instead, \
+         the `runtime` section is flagged as deprecated."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

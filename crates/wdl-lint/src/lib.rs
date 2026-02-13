@@ -37,6 +37,8 @@ mod tags;
 pub(crate) mod util;
 
 pub use config::Config;
+#[doc(hidden)]
+pub use config::ConfigField;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
@@ -79,11 +81,17 @@ pub trait Rule: Visitor {
     /// a lint rule is disabled.
     fn id(&self) -> &'static str;
 
+    /// The `wdl-lint` version in which this rule was added.
+    fn version(&self) -> &'static str;
+
     /// A short, single sentence description of the lint rule.
     fn description(&self) -> &'static str;
 
     /// Get the long-form explanation of the lint rule.
     fn explanation(&self) -> &'static str;
+
+    /// Get a list of examples that would trigger this lint rule.
+    fn examples(&self) -> &'static [&'static str];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;

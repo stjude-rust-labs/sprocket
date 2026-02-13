@@ -1,0 +1,165 @@
+@import "./colors.css";
+
+@layer components {
+    /**
+     * Layout
+     */
+    .layout__container {
+        @apply h-screen w-screen flex pl-0 md:pl-72 bg-slate-950;
+    }
+    .layout__sidebar-left {
+        @apply fixed left-0 top-0 h-screen w-72 dark-scrollbar z-40;
+    }
+    .layout__main-center {
+        @apply flex-grow bg-slate-950 text-slate-300 h-screen w-screen overflow-y-auto p-10 dark-scrollbar;
+    }
+    .layout__main-center-content {
+        @apply xl:max-w-5xl 2xl:max-w-[1300px] xl:mx-auto;
+    }
+    .layout__sidebar-right {
+        /* should take up w-72 space and NOT grow or shrink */
+        @apply w-72 max-xl:hidden;
+    }
+    /**
+     * Main Content, Headers, and Text
+     */
+    .main__container {
+        @apply flex flex-col;
+    }
+    .main__title {
+        @apply text-5xl text-slate-50 mt-4 mb-6;
+    }
+    .main__section {
+        @apply flex flex-col mt-8;
+    }
+    .main__section--empty {
+        @apply flex flex-col flex-grow items-center justify-center size-full gap-y-2 pt-8;
+    }
+    .main__section-header {
+        @apply text-2xl text-slate-50;
+    }
+    .main__section-subheader {
+        @apply text-lg text-slate-50 mt-8;
+    }
+    .main__section-text {
+        @apply mt-3 text-slate-300 text-sm;
+    }
+    .main__container code {
+        @apply inline border border-slate-700 rounded-md font-mono text-[0.8em] p-[0.2em];
+    }
+    .main__container a {
+        @apply hover:underline;
+    }
+    /**
+     * Badges & Buttons
+     */
+    .main__badge-container {
+        @apply flex flex-row items-center gap-2 flex-wrap;
+    }
+    .main__badge {
+        @apply flex flex-row max-w-fit gap-1 items-center border border-slate-700 p-1.5 rounded-md bg-slate-800 min-h-8;
+    }
+    .main__badge-text {
+        @apply text-xs text-slate-100;
+    }
+    .main__badge-inner {
+        @apply flex items-center gap-1 bg-slate-700 px-1 rounded-md h-[18px];
+    }
+    .main__badge-inner-latest::before {
+        content: "";
+        @apply w-1.5 h-1.5 rounded-full bg-brand-emerald-400;
+    }
+    .main__badge-inner-text {
+        @apply text-xs text-slate-100;
+    }
+    .main__badge--success {
+        @apply border-brand-emerald-400 bg-brand-emerald-950 text-brand-emerald-200;
+    }
+    .main__badge--success .main__badge-text {
+        @apply text-brand-emerald-200;
+    }
+    .main__badge--success::before {
+        content: "✓";
+        @apply text-[8px] rounded-full w-[10px] h-[10px] bg-brand-emerald-400 text-brand-emerald-950 flex items-center justify-center;
+    }
+    .main__badge--disabled::before {
+        content: "-";
+        @apply text-[10px] font-bold rounded-full w-[10px] h-[10px] bg-brand-red-400 text-red-950 flex items-center justify-center;
+    }
+    .main__button {
+        @apply px-2 py-1 rounded hover:cursor-pointer hover:bg-slate-800 text-slate-50 text-sm flex items-center gap-1.5 [&>b]:font-bold [&>b]:text-nowrap [&>b]:overflow-x-hidden [&>b]:text-ellipsis max-w-[max-content];
+    }
+    .metadata__warning {
+        /* should render a grid with 2 columns, the first should shrink, and the second should take up the remaining space */
+        @apply rounded-lg bg-brand-yellow-950 border border-brand-yellow-700 p-3 grid grid-cols-[auto_1fr] text-brand-yellow-50 items-center gap-2 text-sm mt-3;
+    }
+    .metadata__warning code {
+        @apply border-brand-yellow-700 bg-brand-yellow-900;
+    }
+    /**
+     * Main Grids
+     */
+    .main__grid-container {
+        @apply rounded py-8;
+    }
+    .main__grid-header-separator {
+        @apply col-span-full border-b border-slate-700;
+    }
+    .main__grid-row-separator {
+        @apply col-span-full border-b border-slate-800;
+    }
+    .main__grid-row {
+        @apply contents;
+    }
+    .main__grid-header-cell {
+        @apply text-sm font-bold;
+    }
+    .main__grid-cell {
+        @apply text-sm;
+    }
+    .main__grid-full-width-cell {
+        @apply col-span-full text-sm gap-2;
+    }
+    .main__grid-toc-container {
+        @apply grid grid-cols-[1fr_1fr_3fr] gap-4;
+    }
+    .main__grid-runtime-container {
+        @apply grid grid-cols-[20%_1fr] gap-4;
+    }
+    .main__grid-req-inputs-container {
+        @apply grid grid-cols-[1fr_1fr_3fr] gap-4;
+    }
+    .main__grid-non-req-param-container {
+        @apply grid grid-cols-[1fr_1fr_2fr_3fr] gap-4;
+    }
+    /**
+     * Metadata
+     */
+    .main__grid-nested-container {
+        @apply grid grid-cols-[20%_1fr] gap-4;
+    }
+    .main__addl-meta-outer-container {
+        @apply flex flex-col gap-2 mb-4;
+    }
+    .main__addl-meta-inner-container {
+        @apply flex flex-col gap-4 text-slate-300 bg-slate-900 rounded-md p-4;
+    }
+    .main__grid-meta-object-container {
+        @apply grid grid-cols-[20%_1fr] gap-4;
+    }
+    .main__grid-nested-row {
+        @apply contents;
+    }
+    .main__grid-nested-cell {
+        @apply text-sm;
+    }
+    .main__grid-meta-array-container {
+        @apply flex flex-row gap-2 flex-wrap;
+    }
+    .main__grid-meta-array-item {
+        @apply flex;
+    }
+    .main__summary-container {
+        @apply inline;
+    }
+}

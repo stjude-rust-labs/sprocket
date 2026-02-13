@@ -37,6 +37,10 @@ impl Rule for TodoCommentRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Flags TODO statements in comments to ensure they are not forgotten."
     }
@@ -46,6 +50,20 @@ impl Rule for TodoCommentRule {
          implementor intended to go back to the code and handle the todo item. TODO items should \
          not be long-term fixtures within code and, as such, they are flagged to ensure none are \
          forgotten."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+# The following comment will be flagged:
+# TODO: Implement this workflow
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
     }
 
     fn tags(&self) -> TagSet {

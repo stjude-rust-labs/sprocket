@@ -50,12 +50,20 @@ impl Rule for EndingNewlineRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.1.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that documents end with a single newline character."
     }
 
     fn explanation(&self) -> &'static str {
-        "The file should end with one and only one newline character to conform to POSIX standards. See https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206."
+        "The file should end with one and only one newline character to conform to POSIX standards. See <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_206>."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
     }
 
     fn tags(&self) -> TagSet {

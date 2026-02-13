@@ -45,6 +45,10 @@ impl Rule for TrailingCommaRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.5.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that lists and objects have a trailing comma and that there's not extraneous \
          whitespace and/or comments before the trailing comma."
@@ -57,6 +61,41 @@ impl Rule for TrailingCommaRule {
          single-line lists are not allowed in the `meta` or `parameter_meta` sections. This method \
          checks `arrays` and `objects` in `meta` and `parameter_meta` sections. It also checks \
          `call` input blocks as well as `Array`, `Map`, `Object`, and `Struct` literals."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Map[String, Int] ages = {
+        "James": 34,
+        "Jimmy": 55 # No trailing comma
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Map[String, Int] ages = {
+        "James": 34,
+        "Jimmy": 55,
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

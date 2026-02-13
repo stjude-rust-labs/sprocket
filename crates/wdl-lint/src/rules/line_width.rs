@@ -99,6 +99,10 @@ impl Rule for LineWidthRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that lines do not exceed a certain width."
     }
@@ -107,6 +111,10 @@ impl Rule for LineWidthRule {
         "Lines should not exceed a certain width to make it easier to read and understand the \
          code. Code within the either the meta or parameter meta sections is not checked. Comments \
          are included in the line width check. The current maximum width is 90 characters."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
     }
 
     fn tags(&self) -> TagSet {

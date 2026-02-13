@@ -43,6 +43,10 @@ impl Rule for ImportPlacementRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that imports are placed between the version statement and any document items."
     }
@@ -50,6 +54,35 @@ impl Rule for ImportPlacementRule {
     fn explanation(&self) -> &'static str {
         "All import statements should follow the WDL version declaration with one empty line \
          between the version and the first import statement."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+
+import "example2.wdl"
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+import "example2.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

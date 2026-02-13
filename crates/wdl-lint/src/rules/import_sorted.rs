@@ -44,6 +44,10 @@ impl Rule for ImportSortedRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.3.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that imports are sorted lexicographically."
     }
@@ -53,6 +57,37 @@ impl Rule for ImportSortedRule {
          This rule ensures that imports are sorted in a consistent manner. Specifically, the \
          desired sort can be achieved with a GNU compliant `sort` and `LC_COLLATE=C`. No comments \
          are permitted within an import statement."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+import "orange.wdl"
+import "apple.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+import "apple.wdl"
+import "orange.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

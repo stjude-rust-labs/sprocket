@@ -43,6 +43,10 @@ impl Rule for DescriptionLengthRule {
         ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.17.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that description meta entries are not too long for display in Sprocket \
          documentation."
@@ -52,6 +56,37 @@ impl Rule for DescriptionLengthRule {
         "Descriptions should be kept short so that they can always render in full. If a \
          `description` is too long, it will be clipped in some documentation contexts. `help` meta \
          entries are never clipped and may be a better place for long form text."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "This is an example workflow. It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "This is an example workflow."
+        # The `help` key can be used for extended descriptions
+        help: "It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {
