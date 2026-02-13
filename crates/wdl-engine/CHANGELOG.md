@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.12.2 - 2026-02-13
+
 #### Fixed
 
 * Removed duplicate DEBUG log message from the LSF backend ([#629](https://github.com/stjude-rust-labs/sprocket/pull/629)).

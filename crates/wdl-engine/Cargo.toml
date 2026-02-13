@@ -1,6 +1,6 @@
 [package]
 name = "wdl-engine"
-version = "0.12.1"
+version = "0.12.2"
 description = "Execution engine for Workflow Description Language (WDL) documents."
 rust-version.workspace = true
 license.workspace = true
