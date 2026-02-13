@@ -115,6 +115,7 @@ impl MetaMapExt for MetaMap {
         {
             if let Some(help) = help {
                 description.push('\n');
+                description.push('\n');
                 description.push_str(&help);
             }
 
@@ -126,15 +127,7 @@ impl MetaMapExt for MetaMap {
 
     fn render_description(&self, summarize: bool) -> Markup {
         let desc = self
-            .get(DESCRIPTION_KEY)
-            .map(|v| match v {
-                MetaMapValueSource::MetaValue(MetadataValue::String(s)) => {
-                    let t = s.text().expect("meta string should not be interpolated");
-                    t.text().to_string()
-                }
-                MetaMapValueSource::Comment(s) => s.to_string(),
-                _ => "ERROR: description not of type String".to_string(),
-            })
+            .full_description()
             .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
 
         if !summarize {
@@ -146,7 +139,7 @@ impl MetaMapExt for MetaMap {
             MaybeSummarized::Yes(summary) => {
                 html! {
                     div class="main__summary-container" {
-                        (summary)
+                        (Markdown(summary))
                         "..."
                         button type="button" class="main__button" x-on:click="description_expanded = !description_expanded" {
                             b x-text="description_expanded ? 'Hide full description' : 'Show full description'" {}
@@ -454,6 +447,7 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
 
     let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
+            acc.push('\n');
             acc.push('\n');
         }
 
