@@ -271,6 +271,12 @@
   .main__grid-non-req-param-container {
     @apply grid grid-cols-[1fr_1fr_2fr_3fr] gap-4;
   }
+  .main__grid-struct-member-container {
+    @apply grid grid-cols-[1fr_1fr_3fr] gap-4;
+  }
+  .main__grid-enum-choice-container {
+    @apply grid grid-cols-[1fr_3fr] gap-4;
+  }
   /**
    * Metadata
    */
@@ -301,14 +307,18 @@
   .main__summary-container {
     @apply inline;
   }
-  .main__meta-item-member {
-    @apply mb-[0.75em];
+  .main__grid-full-width-cell p,
+  .main__grid-cell p {
+    margin-top: revert;
+    margin-bottom: revert;
   }
-  .main__meta-item-member-description {
-    @apply ml-[1.5em];
+  .main__grid-full-width-cell p:first-of-type,
+  .main__grid-cell p:first-of-type {
+    margin-top: 0;
   }
-  .main__meta-item-member-description-para {
-    @apply mb-[0.75em];
+  .main__grid-full-width-cell p:last-of-type,
+  .main__grid-cell p:last-of-type {
+    margin-bottom: 0;
   }
   /**
    * Left sidebar
