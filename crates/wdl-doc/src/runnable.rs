@@ -101,7 +101,7 @@ pub(crate) trait Runnable: DefinitionMeta {
             let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
             let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
             html! {
-                div x-data="{ unix: true }" class="main__run-with-container" {
+                div x-data="{ unix: true }" class="main__run-with-container" data-pagefind-ignore="all" {
                     div class="main__run-with-label" {
                         span class="main__run-with-label-text" {
                             "RUN WITH"

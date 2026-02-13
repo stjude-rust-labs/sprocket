@@ -136,10 +136,16 @@ impl Struct {
             .render_remaining(&[DESCRIPTION_KEY], assets)
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
+        // Invisible image for search results
+        let search_image = html! {
+            img src=(assets.join("struct-selected.svg").to_string_lossy()) class="hidden" data-pagefind-meta="image[src]" {}
+        };
+
         let markup = html! {
-            div class="main__container" {
-                p class="text-brand-pink-400" { "Struct" }
-                h1 id="title" class="main__title" { code { (name) } }
+            div class="main__container" data-pagefind-body {
+                (search_image)
+                p class="text-brand-pink-400" data-pagefind-ignore { "Struct" }
+                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
                 div class="markdown-body mb-4" {
                     (self.meta.render_description(false))
                 }
