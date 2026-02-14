@@ -155,6 +155,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Dev(commands::DevCommands::Test(args)) => {
             commands::test::test(args, config).await
         }
+        Commands::Dev(commands::DevCommands::Submit(args)) => {
+            commands::submit::submit(args, config).await
+        }
     }
 }
 
