@@ -1,0 +1,95 @@
+note[EmptyDocComment]: empty documentation comment serves no purpose
+  ┌─ tests/lints/empty-doc-comment/source.wdl:5:1
+  │
+5 │ ##
+  │ ^^
+  │
+  = fix: add comment text after `##` or remove the empty comment
+
+error: struct `Foo` must have at least one declared member
+  ┌─ tests/lints/empty-doc-comment/source.wdl:6:8
+  │
+6 │ struct Foo {}
+  │        ^^^ this struct cannot be empty
+
+note[EmptyDocComment]: empty documentation comment serves no purpose
+  ┌─ tests/lints/empty-doc-comment/source.wdl:8:1
+  │
+8 │ ##
+  │ ^^
+  │
+  = fix: add comment text after `##` or remove the empty comment
+
+note[EmptyDocComment]: empty documentation comment serves no purpose
+   ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
+   │
+10 │ ##
+   │ ^^
+   │
+   = fix: add comment text after `##` or remove the empty comment
+
+error: struct `Qux` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:16:8
+   │
+16 │ struct Qux {}
+   │        ^^^ this struct cannot be empty
+
+error: struct `Normal` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:19:8
+   │
+19 │ struct Normal {}
+   │        ^^^^^^ this struct cannot be empty
+
+note[EmptyDocComment]: empty documentation comment serves no purpose
+   ┌─ tests/lints/empty-doc-comment/source.wdl:21:1
+   │
+21 │ ##   
+   │ ^^^^^
+   │
+   = fix: add comment text after `##` or remove the empty comment
+
+note[Whitespace]: line contains trailing whitespace
+   ┌─ tests/lints/empty-doc-comment/source.wdl:21:3
+   │
+21 │ ##   
+   │   ^^^
+   │
+   = fix: remove the trailing whitespace
+
+error: struct `WhitespaceOnly` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:22:8
+   │
+22 │ struct WhitespaceOnly {}
+   │        ^^^^^^^^^^^^^^ this struct cannot be empty
+
+note[PreambleCommentPlacement]: preamble comment after the version statement
+   ┌─ tests/lints/empty-doc-comment/source.wdl:24:1
+   │
+24 │ ## Multiple
+   │ ^^^^^^^^^^^
+   │
+   = help: freestanding doc comments (`##`) are assumed to be preamble comments
+   = fix: move the preamble comment before the `version` statement
+
+note[EmptyDocComment]: empty documentation comment serves no purpose
+   ┌─ tests/lints/empty-doc-comment/source.wdl:26:1
+   │
+26 │ ##
+   │ ^^
+   │
+   = fix: add comment text after `##` or remove the empty comment
+
+note[EmptyDocComment]: empty documentation comment serves no purpose
+   ┌─ tests/lints/empty-doc-comment/source.wdl:27:1
+   │
+27 │ ##
+   │ ^^
+   │
+   = fix: add comment text after `##` or remove the empty comment
+
+error: struct `MultipleEmpty` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:29:8
+   │
+29 │ struct MultipleEmpty {}
+   │        ^^^^^^^^^^^^^ this struct cannot be empty
+
