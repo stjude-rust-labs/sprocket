@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `EmptyDocComment` lint rule to detect and flag empty documentation comments that serve no purpose ([#632](https://github.com/stjude-rust-labs/sprocket/issues/632)).
+
 ## 0.21.1 - 2026-02-12
 
 ### Dependencies
