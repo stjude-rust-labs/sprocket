@@ -2,7 +2,6 @@
 
 use wdl_ast::SyntaxKind;
 
-use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -13,21 +12,17 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_definition(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("enum definition children");
 
     let enum_keyword = children.next().expect("enum keyword");
     assert!(enum_keyword.element().kind() == SyntaxKind::EnumKeyword);
-    (&enum_keyword).write(stream, config);
+    (&enum_keyword).write(stream);
     stream.end_word();
 
     let name = children.next().expect("enum name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream, config);
+    (&name).write(stream);
 
     let mut variants = Vec::new();
     let mut commas = Vec::new();
@@ -36,11 +31,11 @@ pub fn format_enum_definition(
     for child in children {
         match child.element().kind() {
             SyntaxKind::EnumTypeParameterNode => {
-                (&child).write(stream, config);
+                (&child).write(stream);
             }
             SyntaxKind::OpenBrace => {
                 stream.end_word();
-                (&child).write(stream, config);
+                (&child).write(stream);
                 stream.end_line();
                 stream.increment_indent();
             }
@@ -64,9 +59,9 @@ pub fn format_enum_definition(
 
     let mut commas = commas.iter();
     for variant in variants {
-        (&variant).write(stream, config);
+        (&variant).write(stream);
         if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
+            (comma).write(stream);
         } else {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
@@ -74,7 +69,7 @@ pub fn format_enum_definition(
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("enum definition close brace")).write(stream, config);
+    (&close_brace.expect("enum definition close brace")).write(stream);
     stream.end_line();
 }
 
@@ -83,26 +78,22 @@ pub fn format_enum_definition(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_variant(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_enum_variant(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("enum variant children");
 
     let name = children.next().expect("enum variant name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream, config);
+    (&name).write(stream);
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::Assignment => {
                 stream.end_word();
-                (&child).write(stream, config);
+                (&child).write(stream);
                 stream.end_word();
             }
             _ => {
-                (&child).write(stream, config);
+                (&child).write(stream);
             }
         }
     }
@@ -113,12 +104,8 @@ pub fn format_enum_variant(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_type_parameter(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_enum_type_parameter(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("enum type parameter children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }

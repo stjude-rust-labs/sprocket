@@ -2,7 +2,6 @@
 
 use wdl_ast::SyntaxKind;
 
-use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -13,13 +12,9 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_call_target(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_call_target(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call target children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -28,13 +23,9 @@ pub fn format_call_target(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_call_alias(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_call_alias(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call alias children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         stream.end_word();
     }
 }
@@ -44,13 +35,9 @@ pub fn format_call_alias(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_call_after(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_call_after(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("call after children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         stream.end_word();
     }
 }
@@ -60,25 +47,21 @@ pub fn format_call_after(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_call_input_item(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_call_input_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("call input item children");
 
     let name = children.next().expect("call input item name");
-    (&name).write(stream, config);
+    (&name).write(stream);
     // Don't call end_word() here in case the name is alone in which case it should
     // be followed by a comma.
 
     if let Some(equals) = children.next() {
         stream.end_word();
-        (&equals).write(stream, config);
+        (&equals).write(stream);
         stream.end_word();
 
         let value = children.next().expect("call input item value");
-        (&value).write(stream, config);
+        (&value).write(stream);
     }
 }
 
@@ -87,20 +70,16 @@ pub fn format_call_input_item(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_call_statement(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_call_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("call statement children");
 
     let call_keyword = children.next().expect("call keyword");
     assert!(call_keyword.element().kind() == SyntaxKind::CallKeyword);
-    (&call_keyword).write(stream, config);
+    (&call_keyword).write(stream);
     stream.end_word();
 
     let target = children.next().expect("call target");
-    (&target).write(stream, config);
+    (&target).write(stream);
     stream.end_word();
 
     let mut alias = None;
@@ -148,22 +127,22 @@ pub fn format_call_statement(
     }
 
     if let Some(alias) = alias {
-        (&alias).write(stream, config);
+        (&alias).write(stream);
         stream.end_word();
     }
 
     for after in afters {
-        (&after).write(stream, config);
+        (&after).write(stream);
         stream.end_word();
     }
 
     if let Some(open_brace) = open_brace {
-        (&open_brace).write(stream, config);
+        (&open_brace).write(stream);
         stream.end_word();
 
         if let Some(input_keyword) = input_keyword {
-            (&input_keyword).write(stream, config);
-            (&colon.expect("colon")).write(stream, config);
+            (&input_keyword).write(stream);
+            (&colon.expect("colon")).write(stream);
             stream.end_word();
         }
 
@@ -171,10 +150,10 @@ pub fn format_call_statement(
 
         let mut commas = commas.iter();
         for input in inputs {
-            (&input).write(stream, config);
+            (&input).write(stream);
 
             if let Some(comma) = commas.next() {
-                (comma).write(stream, config);
+                (comma).write(stream);
             } else {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
@@ -183,7 +162,7 @@ pub fn format_call_statement(
         }
 
         stream.decrement_indent();
-        (&close_brace.expect("close brace")).write(stream, config);
+        (&close_brace.expect("close brace")).write(stream);
         stream.end_line();
     }
 }

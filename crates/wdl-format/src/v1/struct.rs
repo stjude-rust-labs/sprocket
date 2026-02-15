@@ -2,7 +2,6 @@
 
 use wdl_ast::SyntaxKind;
 
-use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -13,26 +12,22 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_struct_definition(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_struct_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("struct definition children");
 
     let struct_keyword = children.next().expect("struct keyword");
     assert!(struct_keyword.element().kind() == SyntaxKind::StructKeyword);
-    (&struct_keyword).write(stream, config);
+    (&struct_keyword).write(stream);
     stream.end_word();
 
     let name = children.next().expect("struct name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream, config);
+    (&name).write(stream);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream, config);
+    (&open_brace).write(stream);
     stream.end_line();
     stream.increment_indent();
 
@@ -65,21 +60,21 @@ pub fn format_struct_definition(
     }
 
     if let Some(meta) = meta {
-        (&meta).write(stream, config);
+        (&meta).write(stream);
         stream.blank_line();
     }
 
     if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
+        (&parameter_meta).write(stream);
         stream.blank_line();
     }
 
     for member in members {
-        (&member).write(stream, config);
+        (&member).write(stream);
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("struct definition close brace")).write(stream, config);
+    (&close_brace.expect("struct definition close brace")).write(stream);
     stream.end_line();
 }
 
@@ -88,24 +83,20 @@ pub fn format_struct_definition(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_literal_struct_item(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_literal_struct_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal struct item children");
 
     let key = children.next().expect("literal struct item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream, config);
+    (&key).write(stream);
 
     let colon = children.next().expect("literal struct item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream, config);
+    (&colon).write(stream);
     stream.end_word();
 
     for child in children {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -114,21 +105,17 @@ pub fn format_literal_struct_item(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_literal_struct(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_literal_struct(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("literal struct children");
 
     let name = children.next().expect("literal struct name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream, config);
+    (&name).write(stream);
     stream.end_word();
 
     let open_brace = children.next().expect("literal struct open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream, config);
+    (&open_brace).write(stream);
     stream.increment_indent();
 
     let mut members = Vec::new();
@@ -157,9 +144,9 @@ pub fn format_literal_struct(
 
     let mut commas = commas.iter();
     for member in members {
-        (&member).write(stream, config);
+        (&member).write(stream);
         if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
+            (comma).write(stream);
         } else {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
@@ -167,5 +154,5 @@ pub fn format_literal_struct(
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("literal struct close brace")).write(stream, config);
+    (&close_brace.expect("literal struct close brace")).write(stream);
 }

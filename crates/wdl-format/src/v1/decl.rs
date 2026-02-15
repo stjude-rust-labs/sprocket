@@ -2,7 +2,6 @@
 
 use wdl_ast::SyntaxKind;
 
-use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -13,13 +12,9 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_primitive_type(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_primitive_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("primitive type children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -28,13 +23,9 @@ pub fn format_primitive_type(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_array_type(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_array_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("array type children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -43,13 +34,9 @@ pub fn format_array_type(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_map_type(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_map_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("map type children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         if child.element().kind() == SyntaxKind::Comma {
             stream.end_word();
         }
@@ -61,13 +48,9 @@ pub fn format_map_type(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_object_type(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_object_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("object type children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -76,13 +59,9 @@ pub fn format_object_type(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_pair_type(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_pair_type(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("pair type children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         if child.element().kind() == SyntaxKind::Comma {
             stream.end_word();
         }
@@ -94,13 +73,9 @@ pub fn format_pair_type(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_type_ref(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_type_ref(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("type ref children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
     }
 }
 
@@ -109,13 +84,9 @@ pub fn format_type_ref(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_unbound_decl(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_unbound_decl(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("unbound decl children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         stream.end_word();
     }
     stream.end_line();
@@ -126,13 +97,9 @@ pub fn format_unbound_decl(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_bound_decl(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_bound_decl(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     for child in element.children().expect("bound decl children") {
-        (&child).write(stream, config);
+        (&child).write(stream);
         stream.end_word();
     }
     stream.end_line();
