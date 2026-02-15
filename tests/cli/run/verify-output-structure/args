@@ -1,0 +1,1 @@
+-qq run hello.wdl -t hello -o out --index-on greeting

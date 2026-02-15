@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Renamed `LintDirectiveValid` to `ExceptDirectiveValid` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+#### Removed
+
+* Removed some "formatting only" lint rules (CommentWhitespace, EndingNewline, ImportWhitespace, LintDirectiveFormatted, PreambleCommentPlacement, PreambleFormatted, VersionStatementFormatted, Whitespace) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `util::is_inline_comment()` and `util::strip_newline()` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+## 0.20.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.20.0 - 02-11-2026
+
 #### Added
 
 * Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
@@ -17,15 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed `ShellCheck` diagnostic spans for command sections with leading empty lines ([#545](https://github.com/stjude-rust-labs/sprocket/pull/545)).
 * Allow excepting specific runtime items with `#@ except: ExpectedRuntimeKeys`
   ([#563](https://github.com/stjude-rust-labs/sprocket/pull/563)).
-
-#### Changed
-
-* Renamed `LintDirectiveValid` to `ExceptDirectiveValid` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
-
-#### Removed
-
-* Removed some "formatting only" lint rules (CommentWhitespace, EndingNewline, ImportWhitespace, LintDirectiveFormatted, PreambleCommentPlacement, PreambleFormatted, VersionStatementFormatted, Whitespace) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
-* Removed `util::is_inline_comment()` and `util::strip_newline()` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 ## 0.19.0 - 01-12-2026
 

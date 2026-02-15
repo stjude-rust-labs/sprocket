@@ -1051,8 +1051,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.8.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#8840bb72409b50d955debb868701d1a0fdf1d962"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fe3b288ff149d1e5a10a2b91265bd2b8d54c4a7f4d3684f90e84199ab3b3f53"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -1063,7 +1064,8 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#8840bb72409b50d955debb868701d1a0fdf1d962"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d2e13ae8d83b9876ef53901b468ae7af951740b0f171f5ea38c64811e9db123"
 dependencies = [
  "base64",
  "bon",
@@ -1078,14 +1080,18 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#8840bb72409b50d955debb868701d1a0fdf1d962"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4000c590f2c7319861e353efecb7e0b0d152699e52f92de7b659a6a84ebd5b89"
 dependencies = [
  "anyhow",
  "bollard",
+ "bon",
  "crankshaft-events",
  "futures",
  "indexmap 2.13.0",
  "nix",
+ "serde",
+ "tar",
  "thiserror 2.0.18",
  "tokio",
  "tokio-retry2 0.7.0",
@@ -1095,8 +1101,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.8.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#8840bb72409b50d955debb868701d1a0fdf1d962"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78697a87ac1b9c6beac1df23d320c4a64ac5c5aa6d9270a7998130f6ccccddea"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1128,7 +1135,8 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft.git?branch=main#8840bb72409b50d955debb868701d1a0fdf1d962"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
 dependencies = [
  "bytes",
  "nonempty",
@@ -4762,7 +4770,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.20.1"
+version = "0.21.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6189,7 +6197,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.21.1"
+version = "0.22.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -6206,7 +6214,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.16.0"
+version = "0.17.2"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6242,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.20.0"
+version = "0.21.1"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6259,7 +6267,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.11.0"
+version = "0.12.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6285,7 +6293,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.11.1"
+version = "0.12.1"
 dependencies = [
  "anyhow",
  "approx",
@@ -6339,7 +6347,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.14.0"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6352,7 +6360,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6367,7 +6375,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.19.0"
+version = "0.20.1"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6393,7 +6401,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.16.1"
+version = "0.17.1"
 dependencies = [
  "anyhow",
  "fs_extra",

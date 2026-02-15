@@ -10,15 +10,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use chrono::Utc;
 use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
+use serde_json::Value as JsonValue;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
@@ -34,8 +35,8 @@ use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
-use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
@@ -45,11 +46,20 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::config::DEFAULT_DATABASE_FILENAME;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
-use crate::eval::Evaluator;
 use crate::inputs::Invocation;
-use crate::inputs::OriginPaths;
+use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::RunContext;
+use crate::system::v1::exec::Target;
+use crate::system::v1::exec::create_run_directory;
+use crate::system::v1::exec::create_run_record;
+use crate::system::v1::exec::create_session;
+use crate::system::v1::exec::execute_target;
+use crate::system::v1::exec::open_database;
+use crate::system::v1::exec::select_target;
+use crate::system::v1::fs::OutputDirectory;
 
 /// The delay in showing the progress bar.
 ///
@@ -77,9 +87,6 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// The value of `5000` was chosen as a reasonable amount to make reaching
 /// capacity unlikely without allocating too much space unnecessarily.
 const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
-
-/// The name of the default "runs" directory.
-pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
 
 /// The name for the "latest" symlink.
 #[cfg(not(target_os = "windows"))]
@@ -119,26 +126,21 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     pub target: Option<String>,
 
-    /// The root "runs" directory; defaults to `./runs/`.
+    /// The output directory; defaults to `./out`.
     ///
-    /// Individual sessions of `sprocket run` will nest their execution
-    /// directories beneath this root directory at the path
-    /// `<target name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// session will be symlinked at `<target name>/_latest`.
-    #[clap(short, long, value_name = "ROOT_DIR")]
-    pub runs_dir: Option<PathBuf>,
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    /// On Unix systems, the latest run is symlinked at
+    /// `<output_dir>/runs/<target>/_latest`.
+    #[clap(short, long, value_name = "OUTPUT_DIR")]
+    pub output_dir: Option<PathBuf>,
 
-    /// The execution directory.
+    /// The output name to index on.
     ///
-    /// If this argument is supplied, the default output behavior of nesting
-    /// execution directories using the target and timestamp will be
-    /// disabled.
-    #[clap(long, conflicts_with = "runs_dir", value_name = "OUTPUT_DIR")]
-    pub output: Option<PathBuf>,
-
-    /// Overwrites the execution directory if it exists.
-    #[clap(long, conflicts_with = "runs_dir")]
-    pub overwrite: bool,
+    /// If provided, the run outputs will be indexed using the specified output
+    /// name as the key. The index allows efficient lookup of runs by output
+    /// values.
+    #[clap(long, value_name = "OUTPUT_NAME")]
+    pub index_on: Option<String>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -194,29 +196,9 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
-
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: EngineConfig,
 }
 
 impl Args {
-    /// Applies the given configuration to the CLI arguments.
-    fn apply(&mut self, config: &Config) {
-        if self.runs_dir.is_none() {
-            self.runs_dir = Some(config.run.runs_dir.clone());
-        }
-
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-    }
-
     /// Applies the CLI arguments to the given engine configuration.
     fn apply_engine_config(&self, config: &mut EngineConfig) {
         // Apply the Azure auth to the engine config
@@ -479,7 +461,7 @@ async fn progress(
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
 /// at `<root>/<target>/_latest`.
-pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
+pub fn setup_run_dir(root: &Path, target: &str) -> anyhow::Result<PathBuf> {
     // Create the target root directory
     let target_root = root.join(target);
     fs::create_dir_all(&target_root).with_context(|| {
@@ -525,7 +507,7 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
 
 /// The main function for the `run` subcommand.
 pub async fn run(
-    mut args: Args,
+    args: Args,
     mut config: Config,
     colorize: bool,
     handle: LoggingReloadHandle,
@@ -534,7 +516,7 @@ pub async fn run(
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
-    args.apply(&config);
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
 
     let template = if colorize {
@@ -550,6 +532,7 @@ pub async fn run(
 
     let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .init({
             let progress_bar = progress_bar.clone();
             Box::new(move || {
@@ -597,7 +580,7 @@ pub async fn run(
                 source,
                 result.document().diagnostics(),
                 &[],
-                args.report_mode.unwrap_or_default(),
+                report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
@@ -614,7 +597,9 @@ pub async fn run(
 
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Invocation::coalesce(&args.inputs, args.target.clone())
+    // Parse and resolve inputs. The `into_resolved_json()` method resolves
+    // relative paths using per-input origins before serializing to JSON.
+    let resolved = Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -622,74 +607,44 @@ pub async fn run(
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_invocation(document)?;
+        .into_resolved_json(document)
+        .await?;
 
-    let (target, inputs, origins) = if let Some(inputs) = inputs {
-        inputs
+    // Extract target name and inputs, or use explicit target with empty inputs
+    let (target_name, inputs) = if let Some((name, json)) = resolved {
+        (name, json)
     } else {
-        // No inputs were provided
-        let origins = OriginPaths::Single(
-            std::env::current_dir()
-                .context("failed to get current directory")?
-                .as_path()
-                .into(),
-        );
-
-        if let Some(name) = args.target {
-            match (document.task_by_name(&name), document.workflow()) {
-                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) if workflow.name() == name => {
-                    (name, EngineInputs::Workflow(Default::default()), origins)
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "no task or workflow with name `{name}` was found in document `{path}`",
-                        path = document.path()
-                    )
-                    .into());
-                }
-            }
-        } else {
-            return Err(
-                anyhow!("the `--target` option is required if no inputs are provided").into(),
-            );
-        }
+        // No inputs were provided, need explicit target
+        let name = args.target.clone().ok_or_else(|| {
+            anyhow!("the `--target` option is required if no inputs are provided")
+        })?;
+        (name, JsonValue::Object(Default::default()))
     };
 
-    let output_dir = if let Some(supplied_dir) = args.output {
-        if supplied_dir.exists() {
-            if !args.overwrite {
-                return Err(anyhow!(
-                    "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
-                     its contents",
-                    dir = supplied_dir.display()
-                )
-                .into());
-            }
+    // Select the target (task or workflow) from the document
+    let target = select_target(document, Some(&target_name)).map_err(|e| anyhow!("{}", e))?;
 
-            std::fs::remove_dir_all(&supplied_dir).with_context(|| {
-                format!(
-                    "failed to remove output directory `{dir}`",
-                    dir = supplied_dir.display()
-                )
-            })?;
-        }
-        supplied_dir
-    } else {
-        setup_run_dir(&args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()), &target)?
-    };
+    // Set up output directory structure
+    let output_dir = OutputDirectory::new(
+        args.output_dir
+            .clone()
+            .unwrap_or_else(|| config.run.output_dir.clone()),
+    );
 
-    // Now that the output directory is calculated, initialize file logging
-    initialize_file_logging(handle, &output_dir)?;
+    // Create the run directory
+    let run_dir = create_run_directory(&output_dir, target.name())?;
+
+    // Now that the run directory is created, initialize file logging
+    initialize_file_logging(handle, run_dir.root())?;
 
     tracing::info!(
         "`{dir}` will be used as the execution directory",
-        dir = output_dir.display()
+        dir = run_dir.root().display()
     );
 
-    let run_kind = match &inputs {
-        EngineInputs::Task(_) => "task",
-        EngineInputs::Workflow(_) => "workflow",
+    let run_kind = match &target {
+        Target::Task(_) => "task",
+        Target::Workflow(_) => "workflow",
     };
 
     let template = if colorize {
@@ -697,13 +652,50 @@ pub async fn run(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
              {target}{{msg}}",
             running = "running".cyan(),
-            target = target.magenta().bold()
+            target = target.name().magenta().bold()
         )
     } else {
-        format!("[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",)
+        format!(
+            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
+            target = target.name()
+        )
     };
 
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
+
+    // Open or create the database for provenance tracking
+    let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
+    let db = open_database(&db_path).await?;
+
+    // Create session and run records
+    let session = create_session(db.as_ref(), SprocketCommand::Run)
+        .await
+        .context("failed to create session")?;
+
+    let (run_id, run_name, _run) = create_run_record(
+        db.as_ref(),
+        session.uuid,
+        &args.source,
+        Some(target.name()),
+        &inputs,
+    )
+    .await
+    .context("failed to create run record")?;
+
+    // Update the run directory in the database
+    let run_dir_str = run_dir
+        .root()
+        .to_str()
+        .context("run directory path is not valid UTF-8")?;
+    db.update_run_directory(run_id, run_dir_str)
+        .await
+        .context("failed to update run directory")?;
+
+    let ctx = RunContext {
+        run_id,
+        run_generated_name: run_name,
+        started_at: Utc::now(),
+    };
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(
@@ -729,16 +721,25 @@ pub async fn run(
         cancellation.first(),
     ));
 
-    let evaluator = Evaluator::new(
-        document,
-        &target,
-        inputs,
-        &origins,
-        config.run.engine.into(),
-        &output_dir,
-    );
+    // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
+    // passed to `execute_target()` is not used for path resolution. We pass
+    // CWD as a placeholder.
+    let cwd = std::env::current_dir().context("failed to get current working directory")?;
+    let base_dir = EvaluationPath::from(cwd.as_path());
 
-    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
+    let mut execute = Box::pin(execute_target(
+        db.clone(),
+        &ctx,
+        document.clone(),
+        config.run.engine,
+        cancellation.clone(),
+        events,
+        target,
+        &inputs,
+        &run_dir,
+        &base_dir,
+        args.index_on.as_deref(),
+    ));
 
     loop {
         select! {
@@ -762,23 +763,36 @@ pub async fn run(
                     },
                 }
             },
-            res = &mut evaluate => {
+            res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
 
                 return match res {
-                    Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&target)).context("failed to serialize outputs")?);
+                    Ok(()) => {
+                        // Check if execution was canceled
+                        if cancellation.state() != CancellationContextState::NotCanceled {
+                            return Err(anyhow!("evaluation was interrupted").into());
+                        }
+
+                        // Read outputs from the outputs file
+                        let outputs_file = run_dir.outputs_file();
+                        if outputs_file.exists() {
+                            let outputs_json = std::fs::read_to_string(&outputs_file)
+                                .context("failed to read outputs file")?;
+                            println!("{outputs_json}");
+                        }
                         Ok(())
                     }
-                    Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
+                    Err(EvaluationError::Canceled) => {
+                        Err(anyhow!("evaluation was interrupted").into())
+                    }
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],
                             &e.backtrace,
-                            args.report_mode.unwrap_or_default(),
+                            report_mode,
                             colorize
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
@@ -790,16 +804,16 @@ pub async fn run(
     }
 }
 
-/// Initializes logging to `output.log` in the given output directory.
-fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &PathBuf) -> Result<()> {
-    fs::create_dir_all(output_dir).with_context(|| {
+/// Initializes logging to `output.log` in the given run directory.
+fn initialize_file_logging(handle: LoggingReloadHandle, run_dir: &Path) -> anyhow::Result<()> {
+    fs::create_dir_all(run_dir).with_context(|| {
         format!(
             "failed to create directory `{path}`",
-            path = output_dir.display()
+            path = run_dir.display()
         )
     })?;
 
-    let log_file_path = output_dir.join(LOG_FILE_NAME);
+    let log_file_path = run_dir.join(LOG_FILE_NAME);
     let log_file = File::create(&log_file_path).with_context(|| {
         format!(
             "failed to create log file `{path}`",

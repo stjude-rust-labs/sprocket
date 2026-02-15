@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.1 - 02-11-2026
+
+### Dependencies
+
+* Bumps `wdl-grammar` to v0.21.0.
+
+## 0.21.0 - 02-11-2026
+
 #### Added
 
 * Support for identifying and parsing comments with special meaning (i.e. directives and doc comments) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).

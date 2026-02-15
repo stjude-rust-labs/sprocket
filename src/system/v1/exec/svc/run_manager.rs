@@ -14,22 +14,24 @@ use tokio::task::JoinHandle;
 use tracing::info;
 use tracing::trace;
 use uuid::Uuid;
+use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
+use crate::config::Config;
 use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::LogSource;
 use crate::system::v1::db::RunStatus;
-use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::TaskStatus;
-use crate::system::v1::exec::AllowedSource;
 use crate::system::v1::exec::ConfigError;
 use crate::system::v1::exec::RunnableExecutor;
-use crate::system::v1::exec::names::generate_run_name;
+use crate::system::v1::exec::create_run_record;
+use crate::system::v1::exec::create_session;
+use crate::system::v1::exec::validate_source;
 use crate::system::v1::fs::OutputDirectory;
 
 pub(crate) mod commands;
@@ -45,14 +47,6 @@ const EVENTS_CHANNEL_CAPACITY: usize = 2048;
 /// A receiver for commands issued to the run manager service.
 type Rx = mpsc::Receiver<RunManagerCmd>;
 
-/// Creates an session entry in the database for a server.
-async fn create_server_session(db: Arc<dyn Database>) -> Result<Session, DatabaseError> {
-    let id = Uuid::new_v4();
-    let username = whoami::username()?;
-    db.create_session(id, SprocketCommand::Server, &username)
-        .await
-}
-
 /// The run manager service.
 ///
 /// The run manager service is an actor that executes WDL tasks and workflows
@@ -63,6 +57,8 @@ async fn create_server_session(db: Arc<dyn Database>) -> Result<Session, Databas
 pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
+    /// The fallback WDL version for documents with unrecognized versions.
+    fallback_version: Option<SupportedVersion>,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -88,7 +84,9 @@ pub struct RunManagerSvc {
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(config: ServerConfig, db: Arc<dyn Database>, rx: Rx) -> Self {
+    pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
+        let fallback_version = config.common.wdl.fallback_version;
+        let config = config.server;
         let semaphore = config
             .max_concurrent_runs
             .map(|max| Arc::new(Semaphore::new(max)));
@@ -97,6 +95,7 @@ impl RunManagerSvc {
 
         Self {
             config,
+            fallback_version,
             output_dir,
             db,
             // NOTE: this is empty upon creation, but it's created lazily upon
@@ -139,7 +138,7 @@ impl RunManagerSvc {
                     let session_id = if let Some(id) = self.session_id {
                         id
                     } else {
-                        match create_server_session(self.db.clone()).await {
+                        match create_session(self.db.as_ref(), SprocketCommand::Server).await {
                             Ok(session) => {
                                 let id = session.uuid;
                                 self.session_id = Some(id);
@@ -249,7 +248,7 @@ impl RunManagerSvc {
     /// - the sender channel
     pub fn spawn(
         channel_buffer_size: usize,
-        config: ServerConfig,
+        config: Config,
         db: Arc<dyn Database>,
     ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
@@ -267,21 +266,16 @@ impl RunManagerSvc {
         target: Option<String>,
         index_on: Option<String>,
     ) -> Result<SubmitResponse, SubmitRunError> {
-        let source = AllowedSource::validate(&source, &self.config)?;
+        let source = validate_source(&source, &self.config)?;
 
-        let run_id = Uuid::new_v4();
-        let run_generated_name = generate_run_name();
-
-        self.db
-            .create_run(
-                run_id,
-                session_id,
-                &run_generated_name,
-                source.as_str(),
-                target.as_deref(),
-                &inputs.to_string(),
-            )
-            .await?;
+        let (run_id, run_generated_name, _) = create_run_record(
+            self.db.as_ref(),
+            session_id,
+            &source,
+            target.as_deref(),
+            &inputs,
+        )
+        .await?;
 
         let engine_config = self.config.engine.clone();
         let cancellation = CancellationContext::new(engine_config.failure_mode);
@@ -296,6 +290,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
+            .maybe_fallback_version(self.fallback_version)
             .source(source)
             .maybe_target(target)
             .inputs(inputs)
