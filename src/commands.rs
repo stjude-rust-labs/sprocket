@@ -174,33 +174,23 @@ pub struct DebuggableCommand<'a>(&'a Command);
 
 impl Debug for DebuggableCommand<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut envs_str = String::new();
         for (key, value) in self.0.get_envs() {
             match value {
-                Some(value) => envs_str.push_str(&format!(
-                    "{}={} ",
-                    key.to_string_lossy(),
-                    value.to_string_lossy()
-                )),
-                None => envs_str.push_str(&format!("{} ", key.to_string_lossy())),
+                Some(value) => write!(f, "{}={} ", key.to_string_lossy(), value.to_string_lossy())?,
+                None => write!(f, "{} ", key.to_string_lossy())?,
             }
         }
+
+        write!(f, "{}", self.0.get_program().to_string_lossy(),)?;
 
         let args_os = self.0.get_args();
-        let mut args_str = String::new();
         if args_os.len() > 0 {
-            args_str.push(' ');
+            write!(f, " ")?;
             for arg in args_os {
-                args_str.push_str(&format!("{} ", arg.to_string_lossy()));
+                write!(f, "{} ", arg.to_string_lossy())?;
             }
         }
 
-        write!(
-            f,
-            "{envs_str}{}{args_spacer}{args_str}",
-            self.0.get_program().to_string_lossy(),
-            args_spacer = if args_str.is_empty() { "" } else { " " }
-        )?;
         Ok(())
     }
 }

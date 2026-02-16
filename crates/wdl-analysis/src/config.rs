@@ -186,7 +186,10 @@ impl Config {
         } = &*self.inner;
 
         let mut args = String::new();
-        diagnostics.write_args(&mut args)?;
+        if !diagnostics.is_empty() {
+            diagnostics.write_args(&mut args)?;
+        }
+
         if let Some(fallback_version) = fallback_version {
             write!(args, " --fallback-version={fallback_version}")?;
         }
@@ -194,12 +197,15 @@ impl Config {
             write!(args, " --ignore-filename={ignore_filename}")?;
         }
         if !all_rules.is_empty() {
-            write!(args, " --rules=")?;
+            write!(args, " --all-rules=")?;
             for rule in all_rules {
                 write!(args, "{rule},")?;
             }
         }
-        feature_flags.write_args(&mut args)?;
+        if !feature_flags.is_empty() {
+            args.push(' ');
+            feature_flags.write_args(&mut args)?;
+        }
 
         Ok(args.trim().to_string())
     }
@@ -350,6 +356,11 @@ impl FeatureFlags {
             "Enable an experimental feature",
             "<FEATURE NAME>",
         );
+    }
+
+    /// Whether any feature flags are enabled.
+    fn is_empty(&self) -> bool {
+        self == &FeatureFlags::default()
     }
 }
 
@@ -571,5 +582,24 @@ impl DiagnosticsConfig {
             .optmulti("D", "deny", "", "<LINT>")
             .optmulti("W", "warn", "", "<LINT>")
             .optmulti("N", "note", "", "<LINT>");
+    }
+
+    /// Whether any lint severities have been configured.
+    fn is_empty(&self) -> bool {
+        let DiagnosticsConfig {
+            unused_import,
+            unused_input,
+            unused_declaration,
+            unused_call,
+            unnecessary_function_call,
+            using_fallback_version,
+        } = self;
+
+        unused_import.is_none()
+            && unused_input.is_none()
+            && unused_declaration.is_none()
+            && unused_call.is_none()
+            && unnecessary_function_call.is_none()
+            && using_fallback_version.is_none()
     }
 }
