@@ -7,8 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.21.0 - 02-11-2026
+
 ### Added
 
+* Added "output assertions" to `sprocket dev test` for asserting on WDL
+  values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
+* Added `common.wdl.fallback_version` setting to `sprocket.toml` for
+  interpreting WDL documents with unrecognized version strings (e.g., `version
+  development`) as a specific supported version
+  ([#612](https://github.com/stjude-rust-labs/sprocket/pull/612)).
+* Added `--index-on` flag to `sprocket run` for output indexing via symlinks
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added `--output-dir` flag to `sprocket run`, replacing `--runs-dir` and
+  `--output` with a unified output directory structure matching the server
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added SQLite database tracking to `sprocket run` with full provenance
+  including session, run records, and task execution details
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * Added an `output.log` file to the run directory that captures all logged
   messages from `sprocket run` ([#613](https://github.com/stjude-rust-labs/sprocket/pull/613)).
 * Added reading configuration from a `sprocket.toml` next to the sprocket
@@ -27,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* The `sprocket run` command now uses the same execution infrastructure as the
+  server ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Replaced `--runs-dir` and `--output` flags with `--output-dir` in `sprocket run`
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Unified `AllowedSource` and `Source` types into a single `Source` type
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
 * The values for the `common.report_mode` setting in `sprocket.toml` have
   changed to lower kebab-case, e.g. `full` and `one-line` ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
 * The `common.color` setting in `sprocket.toml` has been changed from being a
@@ -40,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed `sprocket validate` not checking that `File` and `Directory` inputs
+  exist ([#615](https://github.com/stjude-rust-labs/sprocket/pull/615)).
 * Fixed a race condition where canceled workflows would be marked as `Failed`
   instead of `Canceled` ([#601](https://github.com/stjude-rust-labs/sprocket/pull/601)).
 

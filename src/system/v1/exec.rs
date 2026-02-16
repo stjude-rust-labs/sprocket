@@ -1,6 +1,7 @@
 //! Execution of runs for provenance tracking in v1.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -18,15 +19,23 @@ use wdl::analysis::Analyzer;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
 use wdl::ast::Severity;
+use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
 use wdl::engine::Config as WdlConfig;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
 use wdl::engine::v1::Evaluator;
 
+use crate::analysis::Source;
 use crate::system::v1::db::Database;
+use crate::system::v1::db::DatabaseError;
+use crate::system::v1::db::Run;
+use crate::system::v1::db::Session;
+use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::db::SqliteDatabase;
 use crate::system::v1::exec::svc::TaskMonitorSvc;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
@@ -39,7 +48,117 @@ pub mod svc;
 pub use config::ConfigError;
 pub use config::ConfigResult;
 pub use names::generate_run_name;
-pub use source::AllowedSource;
+pub use source::validate as validate_source;
+
+/// The name for the `_latest` symlink.
+const LATEST: &str = "_latest";
+
+/// Creates a `_latest` symlink pointing to the given run directory.
+///
+/// On Unix, this creates a symbolic link. On Windows, this creates a directory
+/// junction. Any existing symlink at the target location is removed first.
+/// Failures are logged at trace level but do not cause errors.
+fn create_latest_symlink(run_dir: &RunDirectory) {
+    let Some(run_dir_parent) = run_dir.root().parent() else {
+        return;
+    };
+    let latest_symlink = run_dir_parent.join(LATEST);
+
+    #[cfg(unix)]
+    let _ = std::fs::remove_file(&latest_symlink);
+
+    #[cfg(windows)]
+    let _ = std::fs::remove_dir(&latest_symlink);
+
+    let Some(run_dir_basename) = run_dir.root().file_name() else {
+        return;
+    };
+
+    #[cfg(unix)]
+    let result = std::os::unix::fs::symlink(run_dir_basename, &latest_symlink);
+
+    #[cfg(windows)]
+    let result = std::os::windows::fs::symlink_dir(run_dir_basename, &latest_symlink);
+
+    if let Err(e) = result {
+        tracing::trace!(
+            "failed to create `_latest` symlink at `{}`: {}",
+            latest_symlink.display(),
+            e
+        );
+    }
+}
+
+/// Opens or creates a SQLite database at the given path.
+///
+/// If the database does not exist, it will be created along with any
+/// necessary parent directories. Migrations are run automatically.
+pub async fn open_database(path: impl AsRef<Path>) -> Result<Arc<dyn Database>> {
+    let db = SqliteDatabase::new(path)
+        .await
+        .context("failed to open database")?;
+    Ok(Arc::new(db))
+}
+
+/// Creates a new session record in the database.
+///
+/// The session tracks which Sprocket command initiated the execution and
+/// associates all runs created during that session.
+pub async fn create_session(
+    db: &dyn Database,
+    command: SprocketCommand,
+) -> Result<Session, DatabaseError> {
+    let id = Uuid::new_v4();
+    let username = whoami::username()?;
+    db.create_session(id, command, &username).await
+}
+
+/// Creates a timestamped run directory for the given target.
+///
+/// The directory is created at `<output_dir>/runs/<target>/<timestamp>/` where
+/// timestamp has the format `YYYY-MM-DD_HHMMSSffffff`. A `_latest` symlink is
+/// created pointing to the new directory.
+///
+/// Returns the [`RunDirectory`] handle for the created directory.
+pub fn create_run_directory(output_dir: &OutputDirectory, target: &str) -> Result<RunDirectory> {
+    let run_dir_name = PathBuf::from(target).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
+
+    let run_dir = output_dir
+        .ensure_workflow_run(run_dir_name)
+        .context("failed to create run directory")?;
+
+    create_latest_symlink(&run_dir);
+
+    Ok(run_dir)
+}
+
+/// Creates a new run record in the database.
+///
+/// Returns the generated run ID, run name, and the database run record.
+pub async fn create_run_record(
+    db: &dyn Database,
+    session_id: Uuid,
+    source: &Source,
+    target: Option<&str>,
+    inputs: &JsonValue,
+) -> Result<(Uuid, String, Run), DatabaseError> {
+    let run_id = Uuid::new_v4();
+    let run_name = generate_run_name();
+    let source_str = source.to_string();
+
+    let run = db
+        .create_run(
+            run_id,
+            session_id,
+            &run_name,
+            &source_str,
+            target,
+            &inputs.to_string(),
+        )
+        .await?;
+
+    Ok((run_id, run_name, run))
+}
 
 /// An identified target to run.
 #[derive(Clone, Debug)]
@@ -139,9 +258,6 @@ pub struct RunContext {
     pub started_at: DateTime<Utc>,
 }
 
-/// The name for the "latest" symlink.
-const LATEST: &str = "_latest";
-
 /// Context for executing the full run pipeline (analysis → execution).
 ///
 /// This struct encapsulates all the state needed to execute a run
@@ -169,8 +285,10 @@ pub struct RunnableExecutor {
     /// Human-readable generated name for this run.
     #[builder(into)]
     run_name: String,
+    /// The fallback WDL version for documents with unrecognized versions.
+    fallback_version: Option<SupportedVersion>,
     /// Validated source location of the WDL document.
-    source: AllowedSource,
+    source: Source,
     /// User-provided target name (workflow or task), if any.
     target: Option<String>,
     /// Input values as JSON.
@@ -194,7 +312,7 @@ impl RunnableExecutor {
     /// returns early. On completion (success or failure), the run is removed
     /// from the active runs map.
     pub async fn execute(self) {
-        let result = match analyze_wdl_document(&self.source).await {
+        let result = match analyze_wdl_document(&self.source, self.fallback_version).await {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!(
@@ -304,32 +422,7 @@ impl RunnableExecutor {
             return;
         }
 
-        // Create the `_latest` symlink.
-        // SAFETY: we know that the `runs/` directory should be the parent here.
-        let run_dir_parent = run_dir.root().parent().unwrap();
-        let latest_symlink = run_dir_parent.join(LATEST);
-
-        #[cfg(unix)]
-        let _ = std::fs::remove_file(&latest_symlink);
-
-        #[cfg(windows)]
-        let _ = std::fs::remove_dir(&latest_symlink);
-
-        if let Some(run_dir_basename) = run_dir.root().file_name() {
-            #[cfg(unix)]
-            let result = std::os::unix::fs::symlink(run_dir_basename, &latest_symlink);
-
-            #[cfg(windows)]
-            let result = std::os::windows::fs::symlink_dir(run_dir_basename, &latest_symlink);
-
-            if let Err(e) = result {
-                tracing::trace!(
-                    "failed to create `_latest` symlink at `{}`: {}",
-                    latest_symlink.display(),
-                    e
-                );
-            }
-        }
+        create_latest_symlink(&run_dir);
 
         let ctx = RunContext {
             run_id: self.run_id,
@@ -348,6 +441,10 @@ impl RunnableExecutor {
         let task_monitor_svc = TaskMonitorSvc::new(self.run_id, self.db.clone(), crankshaft_rx);
         tokio::spawn(task_monitor_svc.run());
 
+        // Resolve relative paths in inputs from the current working directory.
+        let cwd = std::env::current_dir().expect("failed to get current working directory");
+        let base_dir = EvaluationPath::from(cwd.as_path());
+
         if let Err(e) = execute_target(
             self.db.clone(),
             &ctx,
@@ -358,6 +455,7 @@ impl RunnableExecutor {
             resolved_target,
             &self.inputs,
             &run_dir,
+            &base_dir,
             self.index_on.as_deref(),
         )
         .await
@@ -366,7 +464,7 @@ impl RunnableExecutor {
                 "run `{}` ({}) failed: {}",
                 &ctx.run_generated_name,
                 self.run_id,
-                e
+                e.to_string()
             );
         }
 
@@ -379,8 +477,12 @@ impl RunnableExecutor {
 /// Creates an analyzer, adds the document, runs analysis, and returns the
 /// result for the entrypoint document. Checks all analysis results (including
 /// transitive dependencies) for errors before returning.
-pub async fn analyze_wdl_document(source: &AllowedSource) -> Result<AnalysisResult> {
-    let analyzer = Analyzer::new(AnalysisConfig::default(), |(), _, _, _| async {});
+pub async fn analyze_wdl_document(
+    source: &Source,
+    fallback_version: Option<SupportedVersion>,
+) -> Result<AnalysisResult> {
+    let config = AnalysisConfig::default().with_fallback_version(fallback_version);
+    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
 
     let uri = source.to_url();
     analyzer
@@ -566,10 +668,10 @@ async fn set_run_success(
 
 /// Execute a workflow target.
 ///
-/// Parses the workflow inputs from JSON, creates a workflow evaluator with the
-/// provided configuration, cancellation context, and events handler, then
-/// evaluates the workflow and returns the outputs. The workflow is executed in
-/// the provided run directory.
+/// Parses the workflow inputs from JSON, resolves relative paths from
+/// `base_dir`, creates a workflow evaluator with the provided configuration,
+/// cancellation context, and events handler, then evaluates the workflow and
+/// returns the outputs. The workflow is executed in the provided run directory.
 ///
 /// Returns `Ok(None)` if the workflow was canceled.
 #[allow(clippy::too_many_arguments)]
@@ -582,8 +684,18 @@ async fn execute_workflow_target(
     events: Events,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
-) -> Result<Option<Outputs>> {
-    let workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
+    base_dir: &EvaluationPath,
+) -> Result<Option<Outputs>, EvaluationError> {
+    let mut workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
+
+    // Resolve relative paths in inputs from `base_dir`
+    let workflow = document
+        .workflow()
+        .context("document does not contain a workflow")?;
+    workflow_inputs
+        .join_paths(workflow, |_| Ok(base_dir))
+        .await
+        .context("failed to resolve input paths")?;
 
     let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
         .await
@@ -595,16 +707,17 @@ async fn execute_workflow_target(
     {
         Ok(outputs) => Ok(Some(outputs)),
         Err(EvaluationError::Canceled) => Ok(None),
-        Err(e) => Err(anyhow::anyhow!("workflow evaluation failed: {:#?}", e)),
+        Err(e) => Err(e),
     }
 }
 
 /// Execute a task target.
 ///
 /// Retrieves the task from the document by name, parses the task inputs from
-/// JSON, creates a task evaluator with the provided configuration, cancellation
-/// context, and events handler, then evaluates the task and returns the
-/// outputs. The task is executed in the provided run directory.
+/// JSON, resolves relative paths from `base_dir`, creates a task evaluator with
+/// the provided configuration, cancellation context, and events handler, then
+/// evaluates the task and returns the outputs. The task is executed in the
+/// provided run directory.
 ///
 /// Returns `Ok(None)` if the task was canceled.
 #[allow(clippy::too_many_arguments)]
@@ -618,14 +731,21 @@ async fn execute_task_target(
     target: &Target,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
-) -> Result<Option<Outputs>> {
+    base_dir: &EvaluationPath,
+) -> Result<Option<Outputs>, EvaluationError> {
     let task = document
         .task_by_name(target.name())
         // SAFETY: we should never get to this point with a task target without
         // the task being present in the document.
         .unwrap();
 
-    let task_inputs = parse_task_inputs(db, ctx, inputs, document, task, run_dir).await?;
+    let mut task_inputs = parse_task_inputs(db, ctx, inputs, document, task, run_dir).await?;
+
+    // Resolve relative paths in inputs from `base_dir`
+    task_inputs
+        .join_paths(task, |_| Ok(base_dir))
+        .await
+        .context("failed to resolve input paths")?;
 
     let evaluator = Evaluator::new(run_dir.root(), config, cancellation, events)
         .await
@@ -637,13 +757,10 @@ async fn execute_task_target(
     {
         Ok(task) => task,
         Err(EvaluationError::Canceled) => return Ok(None),
-        Err(e) => return Err(anyhow::anyhow!("task evaluation failed: {:#?}", e)),
+        Err(e) => return Err(e),
     };
 
-    evaluated_task
-        .into_outputs()
-        .map(Some)
-        .map_err(|e| anyhow::anyhow!("task outputs evaluation failed: {:#?}", e))
+    evaluated_task.into_outputs().map(Some)
 }
 
 /// Execute a workflow or task target.
@@ -666,6 +783,9 @@ async fn execute_task_target(
 /// - `target` is the target we are attempting to execute.
 /// - `inputs` is the unparsed version of the inputs as JSON.
 /// - `run_dir` is the run directory to output the results to.
+/// - `base_dir` is the directory from which relative paths in inputs should be
+///   resolved. For the server, this is typically the server's working
+///   directory. For the CLI, paths should already be absolute.
 /// - `index_on` is the key to index results on, if provided.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_target(
@@ -678,12 +798,15 @@ pub async fn execute_target(
     target: Target,
     inputs: &JsonValue,
     run_dir: &RunDirectory,
+    base_dir: &EvaluationPath,
     index_on: Option<&str>,
-) -> Result<()> {
+) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
-    db.start_run(ctx.run_id, ctx.started_at).await?;
+    db.start_run(ctx.run_id, ctx.started_at)
+        .await
+        .map_err(anyhow::Error::from)?;
 
-    let result: Result<Option<Outputs>> = async {
+    let result: Result<Option<Outputs>, EvaluationError> = async {
         match &target {
             Target::Task(_) => {
                 execute_task_target(
@@ -696,6 +819,7 @@ pub async fn execute_target(
                     &target,
                     inputs,
                     run_dir,
+                    base_dir,
                 )
                 .await
             }
@@ -709,6 +833,7 @@ pub async fn execute_target(
                     events,
                     inputs,
                     run_dir,
+                    base_dir,
                 )
                 .await
             }
@@ -718,15 +843,18 @@ pub async fn execute_target(
 
     match result {
         Ok(Some(outputs)) => {
-            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await
+            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
+            Ok(())
         }
         // NOTE: `Ok(None)` means the execution was canceled. The run manager
         // handles transitioning the run status from `Canceling` to `Canceled`.
         Ok(None) => Ok(()),
         Err(e) => {
-            let error = format!("{:#}", e);
-            db.fail_run(ctx.run_id, &error, Utc::now()).await?;
-            anyhow::bail!(error);
+            let error = e.to_string();
+            if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {
+                tracing::error!("failed to record run failure: {db_err:#}");
+            }
+            Err(e)
         }
     }
 }

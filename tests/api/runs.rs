@@ -7,6 +7,7 @@ use axum::http::Request;
 use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
+use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
@@ -46,7 +47,14 @@ async fn create_test_server(
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
 
-    let (_, run_manager_tx) = RunManagerSvc::spawn(1000, server_config, db.clone());
+    let (_, run_manager_tx) = RunManagerSvc::spawn(
+        1000,
+        Config {
+            server: server_config,
+            ..Default::default()
+        },
+        db.clone(),
+    );
 
     // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -440,33 +448,45 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
-    // Verify workflow is canceling in database
+    // Verify workflow is canceling or canceled in database
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
 
-    assert_eq!(run.status, RunStatus::Canceling);
+    assert!(
+        matches!(run.status, RunStatus::Canceling | RunStatus::Canceled),
+        "expected `Canceling` or `Canceled`, got `{}`",
+        run.status
+    );
     assert!(run.started_at.is_some());
-    assert!(run.completed_at.is_none());
+    if run.status == RunStatus::Canceled {
+        assert!(run.completed_at.is_some());
+    } else {
+        assert!(run.completed_at.is_none());
+    }
     assert!(run.outputs.is_none());
 
-    // Second cancel request (should go to `Canceled`)
-    let cancel_response2 = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
+    // If still `Canceling`, send a second cancel request to force `Canceled`
+    if run.status == RunStatus::Canceling {
+        let cancel_response2 = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(cancel_response2.status(), StatusCode::OK);
+    }
+
+    // Poll for the run to reach `Canceled` status
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
         .await
-        .unwrap();
+        .expect("run should reach `Canceled` status after cancellation");
 
-    assert_eq!(cancel_response2.status(), StatusCode::OK);
-
-    // Verify workflow is now canceled in database
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
-
-    assert_eq!(run.status, RunStatus::Canceled);
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
@@ -564,10 +584,12 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
-    // Verify workflow is canceled in database (not Canceling)
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    // Poll for the run to reach `Canceled` status
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
+        .await
+        .expect("run should reach `Canceled` status after cancel");
 
-    assert_eq!(run.status, RunStatus::Canceled);
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
     assert!(run.outputs.is_none());
@@ -1365,7 +1387,14 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     let db: Arc<dyn Database> = Arc::new(SqliteDatabase::from_pool(pool).await.unwrap());
 
     // Create events and subscribe to crankshaft events
-    let (_, manager) = RunManagerSvc::spawn(1000, server_config, db.clone());
+    let (_, manager) = RunManagerSvc::spawn(
+        1000,
+        Config {
+            server: server_config,
+            ..Default::default()
+        },
+        db.clone(),
+    );
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");

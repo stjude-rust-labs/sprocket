@@ -40,7 +40,7 @@ cloud-copy = { version = "0.7.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.11.0"
-crankshaft = { version = "0.8.0", git = "https://github.com/stjude-rust-labs/crankshaft.git", branch = "main", features = ["docker"] }
+crankshaft = { version = "0.9.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
@@ -121,7 +121,7 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.21.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc"] }
+wdl = { version = "0.22.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc"] }
 which = "8.0.0"
 whoami = "2.1.0"
 zip = { version = "7.3.0", default-features = false, features = [] }
@@ -149,7 +149,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.20.1"
+version = "0.21.1"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -217,6 +217,7 @@ whoami.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
 http-body-util = "0.1.3"
 libtest-mimic.workspace = true
+regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true

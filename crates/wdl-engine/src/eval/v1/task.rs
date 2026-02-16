@@ -1121,14 +1121,44 @@ impl Evaluator {
             // Get the corresponding host path (lookup can't fail)
             let host = state.path_map.get_by_right(guest).unwrap();
 
+            // Check for a host path that is a URL and use the localized path instead
+            let base_host_path =
+                if self.backend.needs_local_inputs() && is_supported_url(host.as_str()) {
+                    state
+                        .backend_inputs
+                        .as_slice()
+                        .iter()
+                        .find_map(|i| {
+                            let url = i.path().as_remote()?.as_str();
+                            let host = host.as_str();
+
+                            // Normalize any trailing slash
+                            if url.strip_suffix('/').unwrap_or(url)
+                                == host.strip_suffix('/').unwrap_or(host)
+                            {
+                                Some(i.local_path()?)
+                            } else {
+                                None
+                            }
+                        })
+                        .with_context(|| {
+                            format!(
+                                "cannot remap symbolic link for guest path `{guest}` because a \
+                                 localized path for URL `{host}` was not found"
+                            )
+                        })?
+                } else {
+                    Path::new(host.0.as_str())
+                };
+
             // Translate the guest path to the corresponding host path
             let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
                 symlink_guest_path.strip_prefix(guest.0.as_str())
                 && !stripped.as_os_str().is_empty()
             {
-                Cow::Owned(Path::new(host.0.as_str()).join(stripped))
+                Cow::Owned(base_host_path.join(stripped))
             } else {
-                Cow::Borrowed(Path::new(host.0.as_str()))
+                Cow::Borrowed(base_host_path)
             };
 
             // Remove the existing link
