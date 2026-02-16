@@ -934,7 +934,6 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
             let name = job.task_name;
             let job_id = job.id;
-            debug!("task `{name}` was queued as LSF job `{job_id}`");
 
             // Create a task-specific cancellation token that is independent of the overall
             // cancellation context

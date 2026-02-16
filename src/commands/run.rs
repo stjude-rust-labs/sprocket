@@ -634,8 +634,8 @@ pub async fn run(
     // Create the run directory
     let run_dir = create_run_directory(&output_dir, target.name())?;
 
-    // Now that the output directory is calculated, initialize file logging
-    initialize_file_logging(handle, output_dir.root())?;
+    // Now that the run directory is created, initialize file logging
+    initialize_file_logging(handle, run_dir.root())?;
 
     tracing::info!(
         "`{dir}` will be used as the execution directory",
@@ -804,16 +804,16 @@ pub async fn run(
     }
 }
 
-/// Initializes logging to `output.log` in the given output directory.
-fn initialize_file_logging(handle: LoggingReloadHandle, output_dir: &Path) -> anyhow::Result<()> {
-    fs::create_dir_all(output_dir).with_context(|| {
+/// Initializes logging to `output.log` in the given run directory.
+fn initialize_file_logging(handle: LoggingReloadHandle, run_dir: &Path) -> anyhow::Result<()> {
+    fs::create_dir_all(run_dir).with_context(|| {
         format!(
             "failed to create directory `{path}`",
-            path = output_dir.display()
+            path = run_dir.display()
         )
     })?;
 
-    let log_file_path = output_dir.join(LOG_FILE_NAME);
+    let log_file_path = run_dir.join(LOG_FILE_NAME);
     let log_file = File::create(&log_file_path).with_context(|| {
         format!(
             "failed to create log file `{path}`",
