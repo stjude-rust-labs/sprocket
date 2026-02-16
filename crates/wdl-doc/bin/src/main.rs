@@ -114,7 +114,7 @@ pub struct Args {
     pub with_doc_comments: bool,
 
     /// Controls output colorization.
-    #[arg(long, default_value = "auto")]
+    #[arg(long, default_value = "auto", env = "WDL_DOC_COLOR_MODE")]
     pub color: ColorMode,
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]

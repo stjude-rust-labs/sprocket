@@ -77,10 +77,10 @@ pub async fn doc(args: Args, config: Config, color_mode: ColorMode) -> CommandRe
     let mut command = Command::new(wdl_doc_bin);
     command
         .args(args.doc_args)
-        .arg(format!("--color={color_mode}"))
         .arg(format!("--output={}", docs_dir.to_string_lossy()))
-        .arg(&docs_dir)
+        .arg(&workspace)
         .env("WDL_ANALYSIS_ARGS", analysis_args)
+        .env("WDL_DOC_COLOR_MODE", color_mode.to_string())
         .envs(std::env::vars())
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit());

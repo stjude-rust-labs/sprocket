@@ -148,18 +148,15 @@ async fn real_main() -> CommandResult<()> {
         toml::to_string_pretty(&config).unwrap_or_default()
     );
 
-    let colorize = match (cli.color, config.common.color) {
-        (ColorMode::Auto, ColorMode::Auto) => stderr().is_terminal(),
-        (ColorMode::Auto, ColorMode::Always) => true,
-        (ColorMode::Auto, ColorMode::Never) => false,
-        (ColorMode::Always, _) => true,
-        (ColorMode::Never, _) => false,
+    let color_mode = match (cli.color, config.common.color) {
+        (ColorMode::Auto, ColorMode::Auto) => ColorMode::Auto,
+        (ColorMode::Auto, ColorMode::Always) | (ColorMode::Always, _) => ColorMode::Always,
+        (ColorMode::Auto, ColorMode::Never) | (ColorMode::Never, _) => ColorMode::Never,
     };
-
-    let color_mode = if colorize {
-        ColorMode::Always
-    } else {
-        ColorMode::Never
+    let colorize = match color_mode {
+        ColorMode::Auto => stderr().is_terminal(),
+        ColorMode::Always => true,
+        ColorMode::Never => false,
     };
 
     colored::control::set_override(colorize);
