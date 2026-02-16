@@ -135,6 +135,7 @@ impl Rule for DocMetaStringsRule {
             "MetaDescription",
             "MetaSections",
             "ParameterMetaMatched",
+            "ParameterDescription",
             "DescriptionLength",
         ]
     }

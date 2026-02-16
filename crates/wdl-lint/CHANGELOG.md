@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
+* New lint rule `ParameterDescription` to ensure parameters and outputs have proper descripitons ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
 
 #### Fixed
 
