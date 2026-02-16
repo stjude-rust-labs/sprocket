@@ -1,11 +1,7 @@
 //! Configuration for this crate.
 
-use std::fmt;
-use std::fmt::Write;
 use std::sync::Arc;
 
-use anyhow::anyhow;
-use anyhow::bail;
 use tracing::warn;
 use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
@@ -172,98 +168,17 @@ impl Config {
         }
     }
 
-    /// Convert the config into a string of arguments.
-    ///
-    /// These arguments are intended to be used in the `WDL_ANALYSIS_ARGS`
-    /// environment variable, loaded via [`Self::load()`].
-    pub fn as_args(&self) -> Result<String, fmt::Error> {
-        let ConfigInner {
-            diagnostics,
-            fallback_version,
-            ignore_filename,
-            all_rules,
-            feature_flags,
-        } = &*self.inner;
-
-        let mut args = String::new();
-        if !diagnostics.is_empty() {
-            diagnostics.write_args(&mut args)?;
-        }
-
-        if let Some(fallback_version) = fallback_version {
-            write!(args, " --fallback-version={fallback_version}")?;
-        }
-        if let Some(ignore_filename) = ignore_filename {
-            write!(args, " --ignore-filename={ignore_filename}")?;
-        }
-        if !all_rules.is_empty() {
-            write!(args, " --all-rules=")?;
-            for rule in all_rules {
-                write!(args, "{rule},")?;
-            }
-        }
-        if !feature_flags.is_empty() {
-            args.push(' ');
-            feature_flags.write_args(&mut args)?;
-        }
-
-        Ok(args.trim().to_string())
-    }
-
     /// Load the analysis config from the `WDL_ANALYSIS_ARGS` environment
     /// variable.
     ///
     /// If the `WDL_ANALYSIS_ARGS` environment variable is not set, this is the
     /// same as [`Self::default()`].
     pub fn load() -> anyhow::Result<Self> {
-        let mut inner = ConfigInner::default();
         let Ok(args) = std::env::var("WDL_ANALYSIS_ARGS") else {
-            return Ok(Self {
-                inner: Arc::new(inner),
-            });
+            return Ok(Self::default());
         };
 
-        let mut options = getopts::Options::new();
-
-        options
-            .optopt(
-                "",
-                "fallback-version",
-                "Set a fallback version",
-                "<VERSION>",
-            )
-            .optopt("", "ignore-filename", "Set an ignorefile", "<FILENAME>")
-            .optopt(
-                "",
-                "all-rules",
-                "A comma-separated list of rule names",
-                "<RULES>",
-            );
-
-        DiagnosticsConfig::apply_args(&mut options);
-        FeatureFlags::apply_args(&mut options);
-
-        let matches = options.parse(args.split(' '))?;
-        inner.diagnostics = DiagnosticsConfig::load(&matches);
-        inner.fallback_version = matches
-            .opt_get("fallback-version")
-            .map_err(|version| anyhow!("unknown version: {version}"))?;
-        inner.ignore_filename = matches.opt_str("ignore-filename");
-        inner.all_rules = matches
-            .opt_str("all-rules")
-            .map(|rules| {
-                rules
-                    .split(',')
-                    .map(str::trim)
-                    .map(ToString::to_string)
-                    .collect()
-            })
-            .unwrap_or_default();
-        inner.feature_flags = FeatureFlags::load(&matches)?;
-
-        Ok(Self {
-            inner: Arc::new(inner),
-        })
+        serde_json::from_str(&args).map_err(Into::<anyhow::Error>::into)
     }
 }
 
@@ -321,46 +236,6 @@ impl FeatureFlags {
     #[deprecated(note = "WDL 1.3 is now enabled by default; this method is a no-op")]
     pub fn with_wdl_1_3(self) -> Self {
         self
-    }
-
-    /// Convert these feature flags into a string of arguments.
-    ///
-    /// See [`Config::as_args()`].
-    pub fn write_args(self, writer: &mut dyn Write) -> fmt::Result {
-        let FeatureFlags { wdl_1_3 } = self;
-
-        if wdl_1_3 {
-            write!(writer, "-Fwdl13")?;
-        }
-
-        Ok(())
-    }
-
-    /// Load the feature flags from the CLI.
-    fn load(matches: &getopts::Matches) -> anyhow::Result<Self> {
-        let mut ret = FeatureFlags::default();
-        for feature in matches.opt_strs("feature") {
-            match &*feature {
-                "wdl13" => ret.wdl_1_3 = true,
-                _ => bail!("unknown feature flag '{feature}'"),
-            }
-        }
-        Ok(ret)
-    }
-
-    /// Add the `FeatureFlags`-specific CLI arguments to the options builder.
-    fn apply_args(options: &mut getopts::Options) {
-        options.optmulti(
-            "F",
-            "feature",
-            "Enable an experimental feature",
-            "<FEATURE NAME>",
-        );
-    }
-
-    /// Whether any feature flags are enabled.
-    fn is_empty(&self) -> bool {
-        self == &FeatureFlags::default()
     }
 }
 
@@ -486,120 +361,5 @@ impl DiagnosticsConfig {
             unnecessary_function_call: None,
             using_fallback_version: None,
         }
-    }
-
-    /// Convert this diagnostic config into a string of arguments.
-    ///
-    /// See [`Config::as_args()`].
-    pub fn write_args(&self, writer: &mut dyn Write) -> fmt::Result {
-        fn field_to_arg(
-            writer: &mut dyn Write,
-            field: &str,
-            value: Option<Severity>,
-        ) -> fmt::Result {
-            if let Some(value) = value {
-                let severity = match value {
-                    Severity::Error => 'D',
-                    Severity::Warning => 'W',
-                    Severity::Note => 'N',
-                };
-                write!(writer, " -{severity}{field}")?;
-            }
-
-            Ok(())
-        }
-
-        let DiagnosticsConfig {
-            unused_import,
-            unused_input,
-            unused_declaration,
-            unused_call,
-            unnecessary_function_call,
-            using_fallback_version,
-        } = self;
-
-        field_to_arg(writer, "unused_import", *unused_import)?;
-        field_to_arg(writer, "unused_input", *unused_input)?;
-        field_to_arg(writer, "unused_declaration", *unused_declaration)?;
-        field_to_arg(writer, "unused_call", *unused_call)?;
-        field_to_arg(
-            writer,
-            "unnecessary_function_call",
-            *unnecessary_function_call,
-        )?;
-        field_to_arg(writer, "using_fallback_version", *using_fallback_version)?;
-
-        Ok(())
-    }
-
-    /// Load a diagnostic config from the CLI.
-    fn load(matches: &getopts::Matches) -> Self {
-        fn check_severity(
-            severity: Severity,
-            matches: &getopts::Matches,
-            config: &mut DiagnosticsConfig,
-        ) {
-            let opt = match severity {
-                Severity::Error => "D",
-                Severity::Warning => "W",
-                Severity::Note => "N",
-            };
-
-            for opt in matches.opt_strs(opt) {
-                match &*opt {
-                    "unused_import" => config.unused_import = Some(severity),
-                    "unused_input" => config.unused_input = Some(severity),
-                    "unused_declaration" => config.unused_declaration = Some(severity),
-                    "unused_call" => config.unused_call = Some(severity),
-                    "unnecessary_function_call" => {
-                        config.unnecessary_function_call = Some(severity)
-                    }
-                    "using_fallback_version" => config.using_fallback_version = Some(severity),
-                    _ => {}
-                }
-            }
-        }
-
-        let mut config = DiagnosticsConfig {
-            unused_import: None,
-            unused_input: None,
-            unused_declaration: None,
-            unused_call: None,
-            unnecessary_function_call: None,
-            using_fallback_version: None,
-        };
-
-        check_severity(Severity::Error, matches, &mut config);
-        check_severity(Severity::Warning, matches, &mut config);
-        check_severity(Severity::Note, matches, &mut config);
-        config
-    }
-
-    /// Add the `DiagnosticConfig`-specific CLI arguments to the options
-    /// builder.
-    fn apply_args(options: &mut getopts::Options) {
-        options
-            .optmulti("D", "deny", "", "<LINT>")
-            .optmulti("W", "warn", "", "<LINT>")
-            .optmulti("N", "note", "", "<LINT>");
-    }
-
-    /// Whether any lint severities have been configured.
-    fn is_empty(&self) -> bool {
-        let DiagnosticsConfig {
-            unused_import,
-            unused_input,
-            unused_declaration,
-            unused_call,
-            unnecessary_function_call,
-            using_fallback_version,
-        } = self;
-
-        unused_import.is_none()
-            && unused_input.is_none()
-            && unused_declaration.is_none()
-            && unused_call.is_none()
-            && unnecessary_function_call.is_none()
-            && using_fallback_version.is_none()
     }
 }

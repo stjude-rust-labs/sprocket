@@ -14,7 +14,6 @@ documentation = "https://docs.rs/wdl-analysis"
 anyhow = { workspace = true }
 convert_case = { workspace = true }
 futures = { workspace = true }
-getopts = { workspace = true }
 ignore = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
@@ -28,6 +27,7 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
+serde_json = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

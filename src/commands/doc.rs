@@ -68,12 +68,12 @@ pub async fn doc(args: Args, config: Config, color_mode: ColorMode) -> CommandRe
 
     let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
-    let analysis_args = AnalysisConfig::default()
+    let analysis_config = AnalysisConfig::default()
         .with_fallback_version(config.common.wdl.fallback_version)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
-        .with_diagnostics_config(DiagnosticsConfig::except_all())
-        .as_args()
-        .map_err(Into::<anyhow::Error>::into)?;
+        .with_diagnostics_config(DiagnosticsConfig::except_all());
+    let analysis_args =
+        serde_json::to_string(&analysis_config).map_err(Into::<anyhow::Error>::into)?;
     let mut command = Command::new(wdl_doc_bin);
     command
         .args(args.doc_args)
