@@ -44,7 +44,7 @@ Options:
       --data-dir <DATA_DIR>
           The application data directory
           
-          [env: SPROCKET_DATA_DIR=]
+          [env: SPROCKET_DATA_DIR=/tmp/.tmpzxeL6s]
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.

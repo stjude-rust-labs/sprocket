@@ -167,14 +167,29 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 /// Runs sprocket for a test.
 fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<CommandOutput> {
     debug!(test_path = %test_path.display(), "running Sprocket for test");
-    let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
+    let dev_proxy_manifest = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("dev-proxy")
+        .join("Cargo.toml");
+
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
         .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
     let args_string = args_string.replace("\r\n", "\n");
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
-    let mut command = Command::new(sprocket_exe);
+    let mut command = Command::new("cargo");
+    command
+        .args([
+            "run",
+            "--quiet",
+            "-p",
+            "sprocket-dev-proxy",
+            "--manifest-path",
+        ])
+        .arg(dev_proxy_manifest)
+        // The first -- is to pass the arguments to dev-proxy, the second is for the `cargo run`
+        // invocation *within* dev-proxy.
+        .args(["--", "--"]);
 
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {

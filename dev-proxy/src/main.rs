@@ -15,8 +15,12 @@ use tempfile::tempdir;
 fn main() -> std::io::Result<()> {
     let tmpdir = setup_temp()?;
 
+    let project_root_manifest = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("Cargo.toml");
     let status = Command::new("cargo")
-        .args(["run", "-p", "sprocket"])
+        .args(["run", "--quiet", "-p", "sprocket", "--manifest-path"])
+        .arg(project_root_manifest)
         .args(std::env::args_os().skip(1))
         .env("SPROCKET_DATA_DIR", tmpdir.path())
         .envs(std::env::vars_os())
@@ -61,11 +65,12 @@ fn setup_temp() -> std::io::Result<TempDir> {
     let components_dir = tmpdir.path().join("components");
     std::fs::create_dir_all(&components_dir)?;
 
+    let project_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     for (package, binary) in ARTIFACTS {
-        eprintln!("Building {package}...");
         let status = Command::new("cargo")
-            .args(["build", "-p", package, "--bin", binary])
+            .args(["build", "--quiet", "-p", package, "--bin", binary])
             .args(["--profile", profile])
+            .current_dir(&project_root)
             .stderr(Stdio::inherit())
             .stdout(Stdio::inherit())
             .status()?;
