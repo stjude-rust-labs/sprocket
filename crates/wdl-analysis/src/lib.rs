@@ -33,9 +33,9 @@
 
 use std::collections::HashSet;
 
-use wdl_ast::DIRECTIVE_COMMENT_PREFIX;
+use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::Direction;
-use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
@@ -77,9 +77,7 @@ pub trait SyntaxNodeExt {
 
 impl SyntaxNodeExt for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<String> {
-        let mut set = HashSet::default();
-        let comments = self
-            .siblings_with_tokens(Direction::Prev)
+        self.siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
                 if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {
@@ -88,19 +86,10 @@ impl SyntaxNodeExt for SyntaxNode {
                     None
                 }
             })
-            .filter(move |t| t.kind() == SyntaxKind::Comment);
-        for comment in comments {
-            let Some(remainder) = comment.text().strip_prefix(DIRECTIVE_COMMENT_PREFIX) else {
-                continue;
-            };
-            match remainder.parse::<Directive>() {
-                Ok(Directive::Except(e)) => set.extend(e),
-                _ => {
-                    continue;
-                }
-            }
-        }
-        set
+            .filter_map(Comment::cast)
+            .filter_map(|c| c.exceptions())
+            .flat_map(|e| e.into_iter())
+            .collect()
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
