@@ -85,6 +85,9 @@ digests = "weak"
 
 [server.engine.storage.google]
 
+[test]
+parallelism = 50
+
 [common]
 color = "auto"
 report_mode = "full"

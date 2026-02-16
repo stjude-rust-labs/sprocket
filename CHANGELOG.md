@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.21.0 - 02-11-2026
+
 ### Added
 
+* Added "output assertions" to `sprocket dev test` for asserting on WDL
+  values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
 * Added `common.wdl.fallback_version` setting to `sprocket.toml` for
   interpreting WDL documents with unrecognized version strings (e.g., `version
   development`) as a specific supported version

@@ -35,7 +35,7 @@ task hello {
     for (opt, level) in [("-vvv", " TRACE "), ("-vv", " DEBUG "), ("-v", " INFO ")] {
         // Spawn sprocket with the requested logging option
         let result = Command::new(env!("CARGO_BIN_EXE_sprocket"))
-            .args(["run", "source.wdl", "-t", "hello", opt])
+            .args(["run", "-s", "source.wdl", "-t", "hello", opt])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .current_dir(dir.path())
@@ -60,9 +60,10 @@ task hello {
         // Ensure stderr has at least one message at the level
         assert!(str::from_utf8(&result.stderr).unwrap().contains(level));
 
-        // Ensure the log file have at least one message at the level
-        let log = fs::read_to_string(dir.path().join("out").join("output.log"))
-            .expect("should have output log");
+        // Ensure the log file in the run directory has at least one message
+        // at the level
+        let log_path = dir.path().join("out/runs/hello/_latest/output.log");
+        let log = fs::read_to_string(&log_path).expect("should have output log");
         assert!(log.contains(level));
     }
 }
