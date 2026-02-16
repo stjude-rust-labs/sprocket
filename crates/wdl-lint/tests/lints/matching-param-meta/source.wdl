@@ -13,7 +13,7 @@ workflow w {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
@@ -37,7 +37,7 @@ task foo {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
@@ -62,7 +62,7 @@ task bar {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
