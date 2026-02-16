@@ -34,7 +34,8 @@ fn main() -> std::io::Result<()> {
 /// Sets up a temp directory with all of the development versions of the
 /// required components.
 fn setup_temp() -> std::io::Result<TempDir> {
-    const ARTIFACTS: &[&str] = &["wdl-doc"];
+    // (package, binary)
+    const ARTIFACTS: &[(&str, &str)] = &[("wdl-doc-bin", "wdl-doc")];
 
     let target = std::env::var("CARGO_TARGET_DIR").map_or_else(
         |_| {
@@ -44,6 +45,12 @@ fn setup_temp() -> std::io::Result<TempDir> {
         },
         PathBuf::from,
     );
+
+    let profile = if cfg!(debug_assertions) {
+        "dev"
+    } else {
+        "release"
+    };
     let profile_dir = if cfg!(debug_assertions) {
         target.join("debug")
     } else {
@@ -54,8 +61,19 @@ fn setup_temp() -> std::io::Result<TempDir> {
     let components_dir = tmpdir.path().join("components");
     std::fs::create_dir_all(&components_dir)?;
 
-    for artifact in ARTIFACTS {
-        std::fs::copy(profile_dir.join(artifact), components_dir.join(artifact))?;
+    for (package, binary) in ARTIFACTS {
+        eprintln!("Building {package}...");
+        let status = Command::new("cargo")
+            .args(["build", "-p", package, "--bin", binary])
+            .args(["--profile", profile])
+            .stderr(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .status()?;
+        if !status.success() {
+            std::process::exit(status.code().unwrap_or(1));
+        }
+
+        std::fs::copy(profile_dir.join(binary), components_dir.join(binary))?;
     }
 
     Ok(tmpdir)
