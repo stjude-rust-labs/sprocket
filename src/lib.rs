@@ -113,11 +113,11 @@ fn sprocket_data_dir(cli: Option<&Path>) -> CommandResult<PathBuf> {
     Err(anyhow!("Unable to determine sprocket data directory").into())
 }
 
-/// The `sprocket` components directory.
+/// The `sprocket` binary components directory.
 ///
 /// This optionally takes the `--data-dir` specified on the CLI.
-fn sprocket_components_dir(cli_data_dir: Option<&Path>) -> CommandResult<PathBuf> {
-    Ok(sprocket_data_dir(cli_data_dir)?.join("components"))
+fn sprocket_bin_dir(cli_data_dir: Option<&Path>) -> CommandResult<PathBuf> {
+    Ok(sprocket_data_dir(cli_data_dir)?.join("bin"))
 }
 
 /// Logic for [`sprocket_main()`].

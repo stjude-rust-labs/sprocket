@@ -3,6 +3,7 @@
 use std::fmt;
 use std::fmt::Debug;
 use std::io::IsTerminal;
+use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
@@ -10,6 +11,8 @@ use std::sync::Arc;
 use clap::Subcommand;
 use colored::Colorize;
 use nonempty::NonEmpty;
+
+use crate::sprocket_bin_dir;
 
 pub mod analyzer;
 pub mod check;
@@ -34,7 +37,7 @@ pub enum CommandError {
     /// A component was not found.
     MissingComponent {
         component: &'static str,
-        component_dir: PathBuf,
+        bin_dir: PathBuf,
     },
     /// The error is a single `anyhow::Error`.
     Single(anyhow::Error),
@@ -57,13 +60,10 @@ impl fmt::Display for CommandError {
         }
 
         match self {
-            Self::MissingComponent {
-                component,
-                component_dir,
-            } => write!(
+            Self::MissingComponent { component, bin_dir } => write!(
                 f,
                 "unable to locate component '{component}' (searched {}). Is it installed?",
-                component_dir.display(),
+                bin_dir.display(),
             ),
             Self::Single(e) => write(f, e),
             Self::Multiple(errors) => {
@@ -193,4 +193,21 @@ impl Debug for DebuggableCommand<'_> {
 
         Ok(())
     }
+}
+
+/// Find the component binary, or error if it isn't installed.
+fn find_component(
+    cli_data_dir: Option<&Path>,
+    component_name: &'static str,
+) -> CommandResult<PathBuf> {
+    let bin_dir = sprocket_bin_dir(cli_data_dir)?;
+    let component_path = bin_dir.join(component_name);
+    if !component_path.exists() {
+        return Err(CommandError::MissingComponent {
+            component: component_name,
+            bin_dir,
+        });
+    }
+
+    Ok(component_path)
 }

@@ -16,9 +16,8 @@ use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandDebugExt;
-use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::sprocket_components_dir;
+use crate::commands::find_component;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -53,14 +52,7 @@ const COMPONENT_NAME: &str = "wdl-doc";
 
 /// Generate documentation for a WDL workspace.
 pub async fn doc(args: Args, config: Config, color_mode: ColorMode) -> CommandResult<()> {
-    let component_dir = sprocket_components_dir(args.data_dir.as_deref())?;
-    let wdl_doc_bin = component_dir.join(COMPONENT_NAME);
-    if !wdl_doc_bin.exists() {
-        return Err(CommandError::MissingComponent {
-            component: COMPONENT_NAME,
-            component_dir,
-        });
-    }
+    let wdl_doc_bin = find_component(args.data_dir.as_deref(), COMPONENT_NAME)?;
 
     let Source::Directory(workspace) = args.workspace.unwrap_or_default() else {
         return Err(anyhow!("`workspace` must be a local directory for the `doc` command").into());

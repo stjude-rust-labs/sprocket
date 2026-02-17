@@ -13,6 +13,7 @@ members = [
     "crates/wdl-lint",
     "crates/wdl-lsp",
     "dev-proxy",
+    "sprocketup",
 ]
 resolver = "2"
 
@@ -34,9 +35,11 @@ axum = "0.8.8"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
+bytes = "1.11.1"
 bytesize = { version = "2.3.1", features = ["serde"] }
 chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
+clap-cargo = "0.18.3"
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
 cloud-copy = { version = "0.7.0", features = ["cli"] }
@@ -47,6 +50,7 @@ crankshaft = { version = "0.9.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
+flate2 = "1.1.9"
 figment = { version = "0.10.19", features = ["toml", "yaml"] }
 fs_extra = "1.3.0"
 ftree = "1.3.0"
@@ -94,6 +98,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde_with = "3.16.1"
 serde_yaml_ng = "0.10.0"
+sha2 = "0.11.0-rc.5"
 shellexpand = "3.1.1"
 shlex = "1.3.0"
 similar = "2.7.0"
@@ -102,6 +107,7 @@ sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite", "chrono", "uu
 strsim = "0.11.1"
 strum = { version = "0.27", features = ["derive"] }
 sysinfo = "0.38.0"
+tar = "0.4.44"
 tempfile = "3.24.0"
 thirtyfour = "0.36.1"
 thiserror = "2.0.18"
@@ -127,7 +133,7 @@ walkdir = "2.5.0"
 wdl = { version = "0.22.1", path = "crates/wdl", features = ["engine", "lint", "lsp"] }
 which = "8.0.0"
 whoami = "2.1.0"
-zip = { version = "7.3.0", default-features = false, features = [] }
+zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
 missing_docs = "warn"

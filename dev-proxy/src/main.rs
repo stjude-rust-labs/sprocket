@@ -62,7 +62,7 @@ fn setup_temp() -> std::io::Result<TempDir> {
     };
 
     let tmpdir = tempdir()?;
-    let components_dir = tmpdir.path().join("components");
+    let components_dir = tmpdir.path().join("bin");
     std::fs::create_dir_all(&components_dir)?;
 
     let project_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
