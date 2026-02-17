@@ -114,7 +114,7 @@ impl Token for PostToken {
                         num_indents,
                         contents: markdown,
                     } => {
-                        let prefix = DOC_COMMENT_PREFIX.to_string();
+                        let prefix = DOC_COMMENT_PREFIX;
                         write!(f, "{prefix}")?;
                         if let Some(max) = self.config.max_line_length() {
                             let indent_width = self.config.indent().num() * num_indents;
