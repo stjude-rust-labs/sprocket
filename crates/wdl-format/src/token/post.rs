@@ -284,6 +284,8 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     }
 }
 
+/// Gets the corresponding [`SyntaxKind`] that should be line broken in tandem
+/// with the provided [`SyntaxKind`].
 fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     match kind {
         SyntaxKind::OpenBrace => Some(SyntaxKind::CloseBrace),
