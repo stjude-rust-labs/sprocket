@@ -36,6 +36,7 @@ use std::collections::HashSet;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Direction;
+use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
@@ -64,18 +65,22 @@ pub use validation::*;
 pub use visitor::*;
 
 /// An extension trait for syntax nodes.
-pub trait SyntaxNodeExt {
+pub trait Exceptable {
     /// Gets the AST node's rule exceptions set.
     ///
     /// The set is the comma-delimited list of rule identifiers that follows a
     /// `#@ except:` comment.
-    fn rule_exceptions(&self) -> HashSet<String>;
+    fn rule_exceptions(&self) -> HashSet<String> {
+        HashSet::new()
+    }
 
     /// Determines if a given rule id is excepted for the syntax node.
-    fn is_rule_excepted(&self, id: &str) -> bool;
+    fn is_rule_excepted(&self, _id: &str) -> bool {
+        true
+    }
 }
 
-impl SyntaxNodeExt for SyntaxNode {
+impl Exceptable for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<String> {
         self.siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
@@ -87,8 +92,10 @@ impl SyntaxNodeExt for SyntaxNode {
                 }
             })
             .filter_map(Comment::cast)
-            .filter_map(|c| c.exceptions())
-            .flat_map(|e| e.into_iter())
+            .filter_map(|c| c.directive())
+            .flat_map(|d| match d {
+                Directive::Except(e) => e,
+            })
             .collect()
     }
 

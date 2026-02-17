@@ -571,7 +571,6 @@ pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
 pub const DIRECTIVE_DELIMITER: &str = ":";
 
 /// A comment directive for WDL tools to respect.
-#[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Directive {
     /// Ignore any rules contained in the set.
@@ -579,18 +578,16 @@ pub enum Directive {
 }
 
 impl FromStr for Directive {
-    type Err = String;
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let trimmed = s.trim();
-        let (directive, contents) = trimmed
-            .split_once(DIRECTIVE_DELIMITER)
-            .ok_or(s.to_string())?;
+        let s = s.strip_prefix(DIRECTIVE_COMMENT_PREFIX).ok_or(())?;
+        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER).ok_or(())?;
         match directive.trim_end() {
             "except" => Ok(Self::Except(HashSet::from_iter(
                 contents.split(',').map(|id| id.trim().to_string()),
             ))),
-            _ => Err(s.to_string()),
+            _ => Err(()),
         }
     }
 }
@@ -625,16 +622,9 @@ impl Comment {
         self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
     }
 
-    /// Gets the comment's rule exceptions set.
-    pub fn exceptions(&self) -> Option<HashSet<String>> {
-        match self
-            .text()
-            .strip_prefix(DIRECTIVE_COMMENT_PREFIX)?
-            .parse::<Directive>()
-        {
-            Ok(Directive::Except(e)) => Some(e),
-            _ => None,
-        }
+    /// Try to parse the comment as a directive.
+    pub fn directive(&self) -> Option<Directive> {
+        self.text().parse::<Directive>().ok()
     }
 
     /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].

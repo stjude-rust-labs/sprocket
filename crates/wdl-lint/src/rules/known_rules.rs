@@ -9,6 +9,7 @@ use wdl_analysis::rules as analysis_rules;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::Directive;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 
@@ -86,7 +87,7 @@ impl Visitor for KnownRulesRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(ids) = comment.exceptions() {
+        if let Some(Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
             for id in ids {
                 // Check if the rule is known

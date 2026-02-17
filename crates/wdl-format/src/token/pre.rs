@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
-use wdl_ast::DIRECTIVE_COMMENT_PREFIX;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
@@ -179,6 +178,7 @@ impl TokenStream<PreToken> {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
         let mut documentation = String::new();
+        let mut trivia = Vec::new();
         let mut exceptions = HashSet::new();
         for token in preceding_trivia {
             match token.kind() {
@@ -186,7 +186,7 @@ impl TokenStream<PreToken> {
                     if !self.0.last().is_some_and(|t| {
                         matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
                     }) {
-                        self.0.push(PreToken::Trivia(Trivia::BlankLine));
+                        trivia.push(PreToken::Trivia(Trivia::BlankLine));
                     }
                 }
                 SyntaxKind::Comment => {
@@ -195,31 +195,45 @@ impl TokenStream<PreToken> {
                         // have syntactical meaning in markdown
                         documentation.push_str(t);
                         documentation.push_str(NEWLINE);
-                    } else if let Some(remainder) =
-                        token.text().strip_prefix(DIRECTIVE_COMMENT_PREFIX)
-                        && let Ok(directive) = remainder.parse::<Directive>()
-                    {
+                    } else if let Ok(directive) = token.text().parse::<Directive>() {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
-                            _ => {
-                                todo!("handle other directives")
-                            }
                         }
                     } else {
                         let comment = PreToken::Trivia(Trivia::Comment(Comment::Preceding(
                             Rc::new(token.text().trim_end().to_string()),
                         )));
-                        self.0.push(comment);
+                        trivia.push(comment);
                     }
                 }
                 _ => unreachable!("unexpected trivia: {:?}", token),
             };
         }
+
+        let mut trivia = trivia.into_iter().peekable();
+        // Preserve any leading blank lines
+        if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
+            self.0.push(trivia.next().unwrap());
+        }
+        let mut docs_present = false;
         if !documentation.is_empty() {
+            docs_present = true;
             let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(Rc::new(
                 documentation,
             ))));
             self.0.push(comment);
+
+            // don't allow documentation to "float" above the item being documented
+            if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
+                let _ = trivia.next();
+            }
+        }
+        for token in trivia {
+            self.0.push(token);
+        }
+        if docs_present && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last() {
+            // don't allow documentation to "float" above the item being documented
+            self.0.pop();
         }
         if !exceptions.is_empty() {
             let comment = PreToken::Trivia(Trivia::Comment(Comment::Directive(Rc::new(

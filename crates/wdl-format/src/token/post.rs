@@ -279,7 +279,6 @@ impl Token for PostToken {
                                     write!(f, "{rules}", rules = rules.join(", "))
                                 }
                             }
-                            _ => todo!("format this directive"),
                         }
                     }
                 }

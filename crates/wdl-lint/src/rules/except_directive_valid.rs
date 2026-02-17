@@ -97,7 +97,7 @@ impl Visitor for ExceptDirectiveValidRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(ids) = comment.exceptions() {
+        if let Some(wdl_ast::Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
 
             let excepted_element = comment
