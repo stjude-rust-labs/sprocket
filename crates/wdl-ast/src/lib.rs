@@ -570,7 +570,7 @@ pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
 /// The delimiter between a directive and its contents
 pub const DIRECTIVE_DELIMITER: &str = ":";
 
-/// A directive for WDL tools to respect.
+/// A comment directive for WDL tools to respect.
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq)]
 pub enum Directive {
@@ -637,7 +637,7 @@ impl Comment {
         }
     }
 
-    /// Gets whether comment starts with DOC_COMMENT_PREFIX.
+    /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
     pub fn is_doc_comment(&self) -> bool {
         self.text().starts_with(DOC_COMMENT_PREFIX)
     }
