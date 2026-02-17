@@ -10,7 +10,7 @@ use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
 use crate::Config;
-use crate::SyntaxNodeExt;
+use crate::Exceptable;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::document::Document;

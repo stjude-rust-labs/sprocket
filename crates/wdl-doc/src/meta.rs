@@ -10,6 +10,7 @@ use maud::Markup;
 use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 use wdl_ast::TreeToken;
@@ -421,12 +422,11 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
     for token in token.preceding_trivia() {
         match token.kind() {
             SyntaxKind::Comment => {
-                let Some(comment) = token.text().strip_prefix("##") else {
-                    break;
+                let Some(comment) = token.text().strip_prefix(DOC_COMMENT_PREFIX) else {
+                    continue;
                 };
 
-                let comment = comment.trim();
-                if comment.is_empty() {
+                if comment.trim().is_empty() {
                     paragraphs.push(current_paragraph);
                     current_paragraph = Paragraph::default();
                     continue;
@@ -435,7 +435,7 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
                 current_paragraph.push(comment.to_owned());
             }
             SyntaxKind::Whitespace => continue,
-            _ => break,
+            _ => unreachable!(),
         }
     }
 

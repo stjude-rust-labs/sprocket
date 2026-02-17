@@ -1,0 +1,24 @@
+note[ImportSorted]: imports are not sorted lexicographically
+  ┌─ tests/lints/import-sorting-with-odd-ws/source.wdl:8:1
+  │
+8 │ import "foo.wdl" as foo  # OK
+  │ ^^^^^^ imports must be sorted
+  │
+  = fix: sort the imports lexicographically:
+    import  "bar.wdl"
+    import	"baz.wdl"
+    import "chuk.wdl"        as something
+    import  # BAD (comment within statement)
+    "corge.wdl" as grault
+    import "foo.wdl" as foo
+    import "lorem.wdl" as 	ipsum
+    import   "qux.wdl"  alias   Jabber    as    quux
+
+note[ImportSorted]: comments are not allowed within an import statement
+   ┌─ tests/lints/import-sorting-with-odd-ws/source.wdl:14:9
+   │
+14 │ import  # BAD (comment within statement)
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: remove the comment from the import statement
+

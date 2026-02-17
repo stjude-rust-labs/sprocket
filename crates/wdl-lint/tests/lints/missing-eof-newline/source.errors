@@ -1,8 +1,0 @@
-note[EndingNewline]: missing newline at the end of the file
-   ┌─ tests/lints/missing-eof-newline/source.wdl:10:1
-   │
-10 │ }
-   │ ^ expected a newline to follow this
-   │
-   = fix: add a newline at the end of the file
-

@@ -4,12 +4,12 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use wdl_analysis::Diagnostics;
-use wdl_analysis::EXCEPT_COMMENT_PREFIX;
 use wdl_analysis::Visitor;
 use wdl_analysis::rules as analysis_rules;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::Directive;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
 
@@ -19,20 +19,23 @@ use crate::TagSet;
 use crate::rules::RULE_MAP;
 use crate::util::find_nearest_rule;
 
-/// A set of known analysis rules.
+/// The set of known analysis rules.
 static ANALYSIS_RULES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     analysis_rules()
         .iter()
         .map(|r| r.id().to_string())
         .collect()
 });
+/// The set of known lint rules.
+static LINT_RULES: LazyLock<HashSet<String>> =
+    LazyLock::new(|| RULE_MAP.keys().map(|name| name.to_string()).collect());
 
 /// The identifier for the unknown rule rule.
 const ID: &str = "KnownRules";
 
 /// Creates an "unknown rule" diagnostic.
 fn unknown_rule(id: &str, span: Span) -> Diagnostic {
-    let mut diagnostic = Diagnostic::note(format!("unknown lint rule `{id}`"))
+    let mut diagnostic = Diagnostic::note(format!("unknown rule `{id}`"))
         .with_rule(ID)
         .with_label("cannot make an exception for this rule", span);
 
@@ -56,11 +59,11 @@ impl Rule for KnownRulesRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures only known rules are used in lint directives."
+        "Ensures only known rules are used in `except` directives."
     }
 
     fn explanation(&self) -> &'static str {
-        "When writing WDL, lint directives are used to suppress certain rules. If a rule is \
+        "When writing WDL, `except` directives are used to suppress certain rules. If a rule is \
          unknown, nothing will be suppressed. This rule flags unknown rules as they are often \
          mistakes."
     }
@@ -84,31 +87,19 @@ impl Visitor for KnownRulesRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
+        if let Some(Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
-            let mut offset = EXCEPT_COMMENT_PREFIX.len();
-            for id in ids.split(',') {
-                // First trim the start so we can determine how much whitespace was removed
-                let trimmed_start = id.trim_start();
-                // Next trim the end
-                let trimmed: &str = trimmed_start.trim_end();
-
-                // Update the offset to account for the whitespace that was removed
-                offset += id.len() - trimmed.len();
-
+            for id in ids {
                 // Check if the rule is known
-                if !ANALYSIS_RULES.contains(trimmed) && !RULE_MAP.contains_key(&trimmed) {
+                if !ANALYSIS_RULES.contains(&id) && !LINT_RULES.contains(&id) {
                     // Since this rule can only be excepted in a document-wide fashion,
                     // if the rule is running we can directly add the diagnostic
                     // without checking for the exceptable nodes
                     diagnostics.add(unknown_rule(
-                        trimmed,
-                        Span::new(start + offset, trimmed.len()),
+                        &id,
+                        Span::new(start + comment.text().find(&id).unwrap(), id.len()),
                     ));
                 }
-
-                // Update the offset to account for the rule id and comma
-                offset += trimmed.len() + 1;
             }
         }
     }
