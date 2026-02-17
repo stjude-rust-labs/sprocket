@@ -9,196 +9,229 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  docker-x86:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
-    - name: Log in to the Container registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build and push by digest
-      id: build
-      uses: docker/build-push-action@v6
-      with:
-        platforms: linux/amd64
-        labels: ${{ steps.meta.outputs.labels }}
-        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
-        outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-    - name: Export digest
-      run: |
-        mkdir -p ${{ runner.temp }}/digests
-        digest="${{ steps.build.outputs.digest }}"
-        touch "${{ runner.temp }}/digests/${digest#sha256:}"
-    - name: Upload digest
-      uses: actions/upload-artifact@v4
-      with:
-        name: digests-x86
-        path: ${{ runner.temp }}/digests/*
-        if-no-files-found: error
-        retention-days: 1
-  docker-arm:
-    runs-on: ubuntu-24.04-arm
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
-    - name: Log in to the Container registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Build and push by digest
-      id: build
-      uses: docker/build-push-action@v6
-      with:
-        platforms: linux/arm64
-        labels: ${{ steps.meta.outputs.labels }}
-        tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
-        outputs: type=image,push-by-digest=true,name-canonical=true,push=true
-    - name: Export digest
-      run: |
-        mkdir -p ${{ runner.temp }}/digests
-        digest="${{ steps.build.outputs.digest }}"
-        touch "${{ runner.temp }}/digests/${digest#sha256:}"
-    - name: Upload digest
-      uses: actions/upload-artifact@v4
-      with:
-        name: digests-arm
-        path: ${{ runner.temp }}/digests/*
-        if-no-files-found: error
-        retention-days: 1
-  docker-merge-manifests:
-    runs-on: ubuntu-latest
-    needs: [docker-x86, docker-arm]
-    steps:
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}/digests
-          pattern: digests-*
-          merge-multiple: true
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
-          tags: type=semver,pattern=v{{version}}
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=v{{version}}
-      - name: Create manifest list and push
-        working-directory: ${{ runner.temp }}/digests
-        run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket@sha256:%s ' *)
-      - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ steps.meta.outputs.version }}
-  build_artifacts_win:
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - rust-target: x86_64-pc-windows-msvc
-            os: windows-latest
-            extension: zip
-          - rust-target: aarch64-pc-windows-msvc
-            extension: zip
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
-    - run: cargo --locked build --release --target ${{ matrix.rust-target }}
-    - run: 7z a sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.zip sprocket.exe
-      working-directory: ./target/${{ matrix.rust-target }}/release
-    - name: Update the GH release with the new artifact
-      uses: softprops/action-gh-release@v2
-      with:
-        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
-  build_artifacts_mac:
+#  docker_build:
+#    name: Docker Build ${{ matrix.arch }}
+#    runs-on: ${{ matrix.runner }}
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        include:
+#          - runner: ubuntu-latest
+#            platform: linux/amd64
+#            arch: amd64
+#          - runner: ubuntu-24.04-arm
+#            platform: linux/arm64
+#            arch: arm64
+#    steps:
+#      - uses: actions/checkout@v4
+#        with:
+#          submodules: true
+#      - name: Update Rust
+#        run: rustup update stable && rustup default stable
+#      - name: Docker meta
+#        id: meta
+#        uses: docker/metadata-action@v5
+#        with:
+#          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+#      - name: Log in to the Container registry
+#        uses: docker/login-action@v3
+#        with:
+#          registry: ${{ env.REGISTRY }}
+#          username: ${{ github.actor }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#
+#      - name: Build and push by digest
+#        id: build
+#        uses: docker/build-push-action@v6
+#        with:
+#          platforms: ${{ matrix.platform }}
+#          labels: ${{ steps.meta.outputs.labels }}
+#          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+#          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+#      - name: Export digest
+#        run: |
+#          mkdir -p ${{ runner.temp }}/digests
+#          digest="${{ steps.build.outputs.digest }}"
+#          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+#      - name: Upload digest
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: digests-${{ matrix.arch }}
+#          path: ${{ runner.temp }}/digests/*
+#          if-no-files-found: error
+#          retention-days: 1
+#  docker-merge-manifests:
+#    runs-on: ubuntu-latest
+#    needs: docker_build
+#    steps:
+#      - name: Download digests
+#        uses: actions/download-artifact@v4
+#        with:
+#          path: ${{ runner.temp }}/digests
+#          pattern: digests-*
+#          merge-multiple: true
+#      - name: Log in to the Container registry
+#        uses: docker/login-action@v3
+#        with:
+#          registry: ${{ env.REGISTRY }}
+#          username: ${{ github.actor }}
+#          password: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v3
+#      - name: Docker meta
+#        id: meta
+#        uses: docker/metadata-action@v5
+#        with:
+#          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket
+#          tags: type=semver,pattern=v{{version}}
+#          labels: |
+#            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+#            org.opencontainers.image.version=v{{version}}
+#      - name: Create manifest list and push
+#        working-directory: ${{ runner.temp }}/digests
+#        run: |
+#          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+#            $(printf '${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket@sha256:%s ' *)
+#      - name: Inspect image
+#        run: |
+#          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ steps.meta.outputs.version }}
+  build_artifacts:
+    name: Build ${{ matrix.rust-target }} artifacts
     runs-on: ${{ matrix.os }}
+    env:
+      # Space-separated list of packages to release (package:binary)
+      BUILD_CONFIG: "sprocket:sprocket wdl-doc-bin:wdl-doc"
     strategy:
       fail-fast: false
       matrix:
         include:
-          - rust-target: x86_64-apple-darwin
-            os: macos-latest
-            extension: tar.gz
-          - rust-target: aarch64-apple-darwin
-            os: macos-latest
-            extension: tar.gz
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
-    - run: brew install openssl pkg-config
-    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo --locked build --release --target ${{ matrix.rust-target }}
-    - run: tar -czvf sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz sprocket
-      working-directory: ./target/${{ matrix.rust-target }}/release
-    - name: Update the GH release with the new artifact
-      uses: softprops/action-gh-release@v2
-      with:
-        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
-  build_artifacts_linux:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
+# TODO: uncomment these before merge
+#          # == Windows ==
+#          - rust-target: x86_64-pc-windows-msvc
+#            os: windows-latest
+#            archive-extension: zip
+#            binary-extension: ".exe"
+#          - rust-target: aarch64-pc-windows-msvc
+#            os: windows-latest
+#            archive-extension: zip
+#            binary-extension: ".exe"
+#          # == macOS ==
+#          - rust-target: x86_64-apple-darwin
+#            os: macos-latest
+#            archive-extension: tar.gz
+#            binary-extension: ""
+#          - rust-target: aarch64-apple-darwin
+#            os: macos-latest
+#            archive-extension: tar.gz
+#            binary-extension: ""
+          # == Linux ==
           - rust-target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            extension: tar.gz
-          - rust-target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04-arm
-            extension: tar.gz
+            archive-extension: tar.gz
+            binary-extension: ""
+#          - rust-target: aarch64-unknown-linux-gnu
+#            os: ubuntu-24.04-arm
+#            archive-extension: tar.gz
+#            binary-extension: ""
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - name: Update Rust
-      run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
-    - run: sudo apt-get install pkg-config libssl-dev
-    - run: PKG_CONFIG_SYSROOT_DIR=/ cargo --locked build --release --target ${{ matrix.rust-target }}
-    - run: tar -czvf sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.tar.gz sprocket
-      working-directory: ./target/${{ matrix.rust-target }}/release
-    - name: Update the GH release with the new artifact
-      uses: softprops/action-gh-release@v2
-      with:
-        files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
+      - uses: actions/checkout@v4
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable && rustup target add ${{ matrix.rust-target }}
+
+      - name: Install Dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install pkg-config libssl-dev
+
+      - name: Install Dependencies
+        if: runner.os == 'macOS'
+        run: brew install openssl pkg-config
+
+      - name: Build
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" != "Windows" ]; then
+              export PKG_CONFIG_SYSROOT_DIR=/
+          fi
+
+          CARGO_ARGS=""
+          for ITEM in $BUILD_CONFIG; do
+            PKG="${ITEM%%:*}"
+            BIN="${ITEM##*:}"
+            CARGO_ARGS="$CARGO_ARGS -p $PKG --bin $BIN"
+          done
+          cargo --locked build $CARGO_ARGS --release --target ${{ matrix.rust-target }}
+
+      - name: Package artifacts
+        shell: bash
+        working-directory: "target/${{ matrix.rust-target }}/release"
+        run: |
+          FRAGMENT_PATH="../../../${{ matrix.rust-target }}.toml"
+          touch "$FRAGMENT_PATH"
+          
+          for ITEM in $BUILD_CONFIG; do
+            BIN="${ITEM##*:}"
+            BINARY_FILENAME="${BIN}${{ matrix.binary-extension }}"
+            ARCHIVE_FILENAME="${BIN}-${{ matrix.rust-target }}.${{ matrix.archive-extension }}"
+
+            if [ ! -f "$BINARY_FILENAME" ]; then
+              echo "Binary $BINARY_FILENAME not found"
+              exit 1
+            fi
+
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              7z a "$ARCHIVE_FILENAME" "$BINARY_FILENAME" > /dev/null
+            else
+              tar -czvf "$ARCHIVE_FILENAME" "$BINARY_FILENAME"
+            fi
+
+            HASH=$(sha256sum "$ARCHIVE_FILENAME" | awk '{print $1}')
+
+            printf "[component.%s.%s]\nsrc = \"https://github.com/%s/releases/download/%s/%s\"\nhash = \"%s\"\n\n" \
+            "$BIN" \
+            "${{ matrix.rust-target }}" \
+            "${{ github.repository }}" \
+            "${{ github.ref_name }}" \
+            "$ARCHIVE_FILENAME" \
+            "$HASH" >> "$FRAGMENT_PATH"
+          done
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./target/${{ matrix.rust-target }}/release/*.${{ matrix.archive-extension }}
+
+      - name: Upload Manifest Fragment
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-fragment-${{ matrix.rust-target }}
+          path: ${{ matrix.rust-target }}.toml
+  generate_manifest:
+    name: Generate Manifest
+    needs: build_artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download manifest fragments
+        uses: actions/download-artifact@v4
+        with:
+          pattern: manifest-fragment-*
+          merge-multiple: true
+          path: fragments
+
+      - name: Concatenate Manifest
+        run: |
+          cat fragments/*.toml > manifest.toml
+          cat sprocketup/profiles.toml >> manifest.toml
+          
+          echo "Generated manifest.toml:"
+          cat manifest.toml
+
+      - name: Upload Manifest to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: manifest.toml
+
