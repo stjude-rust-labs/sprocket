@@ -98,7 +98,8 @@ task a_task {
     }
 }
 
-## These are double-pound-sign comments. blah blah blah.
+## These are double-pound-sign comments.
+## blah blah blah.
 workflow hello {
     meta
         # Here is a comment between `meta` and the open brace.
