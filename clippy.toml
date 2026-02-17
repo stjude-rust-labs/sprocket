@@ -1,0 +1,2 @@
+# `clippy::result_large_err` fires on errors >= 128 bytes by default.
+large-error-threshold = 256

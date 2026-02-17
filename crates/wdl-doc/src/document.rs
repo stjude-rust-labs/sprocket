@@ -26,7 +26,9 @@ use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::docs_tree::PageType;
-use crate::runnable::Runnable;
+use crate::meta::DefinitionMeta;
+use crate::meta::MetaMapExt;
+use crate::meta::doc_comments;
 
 /// Parse the preamble comments of a document using the version statement.
 pub fn parse_preamble_comments(version: &VersionStatement) -> String {
@@ -91,10 +93,8 @@ impl Document {
 
     /// Get the preamble comments of the document as HTML if there are any.
     pub fn render_preamble(&self) -> Option<Markup> {
-        let preamble = parse_preamble_comments(&self.version_statement);
-        if preamble.is_empty() {
-            return None;
-        }
+        let preamble = doc_comments(self.version_statement.keyword().inner()).full_description()?;
+
         Some(html! {
             div class="markdown-body" {
                 (Markdown(&preamble).render())
@@ -108,14 +108,27 @@ impl Document {
             html! {
                 div class="main__grid-row" x-data="{ description_expanded: false }" {
                     @match page.1.page_type() {
-                        PageType::Struct(_) => {
+                        PageType::Struct(s) => {
                             div class="main__grid-cell" {
                                 a class="text-brand-pink-400 hover:text-pink-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
                             div class="main__grid-cell" { code { "struct" } }
-                            div class="main__grid-cell" { "N/A" }
+                            div class="main__grid-cell" {
+                                (s.render_description(true))
+                            }
+                        }
+                        PageType::Enum(e) => {
+                            div class="main__grid-cell" {
+                                a class="text-brand-lime-300 hover:text-lime-200" href=(page.0.to_string_lossy()) {
+                                    (page.1.name())
+                                }
+                            }
+                            div class="main__grid-cell" { code { "enum" } }
+                            div class="main__grid-cell" { 
+                                (e.render_description(true))
+                            }
                         }
                         PageType::Task(t) => {
                             div class="main__grid-cell" {
@@ -149,12 +162,17 @@ impl Document {
                     }
                     div x-show="description_expanded" class="main__grid-full-width-cell" {
                         @match page.1.page_type() {
-                            PageType::Struct(_) => "ERROR"
                             PageType::Task(t) => {
                                 (t.render_description(false))
                             }
                             PageType::Workflow(w) => {
                                 (w.render_description(false))
+                            }
+                            PageType::Struct(s) => {
+                                (s.render_description(false))
+                            }
+                            PageType::Enum(e) => {
+                                (e.render_description(false))
                             }
                             PageType::Index(_) => "ERROR"
                         }

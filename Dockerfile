@@ -16,6 +16,7 @@ COPY ./src ./src
 COPY ./benches ./benches
 COPY ./crates ./crates
 COPY ./tests ./tests
+COPY ./migrations ./migrations
 
 # Build the release version of Sprocket
 RUN cargo build --release

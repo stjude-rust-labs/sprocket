@@ -1,4 +1,4 @@
-//! Invocations (inputs and entrypoints) parsed in from the command line.
+//! Invocations (inputs and targets) parsed in from the command line.
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -133,13 +133,13 @@ type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 /// A command-line invocation of a WDL workflow or task.
 ///
 /// An invocation is set of inputs parsed from the command line and/or read from
-/// files, along with an optional explicit specification of a named entrypoint.
+/// files, along with an optional explicit specification of a named target.
 #[derive(Clone, Debug, Default)]
 pub struct Invocation {
     /// The actual inputs map.
     inputs: JsonInputMap,
     /// The name of the task or workflow these inputs are provided for.
-    entrypoint: Option<String>,
+    target: Option<String>,
 }
 
 impl Invocation {
@@ -154,7 +154,7 @@ impl Invocation {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = if let Some(prefix) = &self.entrypoint {
+                let key = if let Some(prefix) = &self.target {
                     format!("{prefix}.{key}")
                 } else {
                     key
@@ -174,24 +174,24 @@ impl Invocation {
 
     /// Attempts to coalesce a set of inputs into an [`Inputs`].
     ///
-    /// `entrypoint` is the task or workflow the inputs are for.
-    /// If `entrypoint` is `Some(_)` then it will be prefixed to each
+    /// `target` is the task or workflow the inputs are for.
+    /// If `target` is `Some(_)` then it will be prefixed to each
     /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
-    /// common prefix specified. If `entrypoint` is `None` then all of the
+    /// common prefix specified. If `target` is `None` then all of the
     /// inputs in `iter` must be prefixed with the task or workflow name.
-    pub async fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
+    pub async fn coalesce<T, V>(iter: T, target: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
     {
-        if let Some(ep) = &entrypoint
-            && ep.contains('.')
+        if let Some(t) = &target
+            && t.contains('.')
         {
-            bail!("invalid entrypoint `{ep}`");
+            bail!("invalid target `{t}`");
         }
 
         let mut inputs = Invocation {
-            entrypoint,
+            target,
             ..Default::default()
         };
 
@@ -230,11 +230,11 @@ impl Invocation {
         let result = EngineInputs::parse_json_object(document, values)?;
 
         if let Some((derived, _)) = &result
-            && let Some(ep) = &self.entrypoint
-            && derived != ep
+            && let Some(t) = &self.target
+            && derived != t
         {
             bail!(format!(
-                "supplied entrypoint `{ep}` does not match derived entrypoint `{derived}`"
+                "supplied target `{t}` does not match derived target `{derived}`"
             ))
         }
 
@@ -255,6 +255,87 @@ impl Invocation {
             (callee_name, inputs, OriginPaths::Map(origins))
         }))
     }
+
+    /// Resolves all relative paths in inputs and converts to JSON ready for
+    /// [`execute_target`](crate::system::v1::exec::execute_target).
+    ///
+    /// Each input tracks where it came from (its origin path). For inputs from
+    /// files, the origin is the file's parent directory. For key-value pairs on
+    /// the command line, the origin is the current working directory. The
+    /// `join_paths` call resolves relative `File` and `Directory` values by
+    /// joining them with their respective origin paths, producing absolute
+    /// paths.
+    ///
+    /// This method:
+    ///
+    /// 1. Parses inputs into typed engine inputs
+    /// 2. Resolves relative paths using per-input origins via `join_paths`
+    /// 3. Serializes back to JSON with the target prefix
+    ///
+    /// Returns `Ok(None)` if there are no inputs. Otherwise returns the target
+    /// name and the resolved JSON inputs.
+    pub async fn into_resolved_json(
+        self,
+        document: &Document,
+    ) -> anyhow::Result<Option<(String, JsonValue)>> {
+        let Some((target_name, mut inputs, origins)) = self.into_engine_invocation(document)?
+        else {
+            return Ok(None);
+        };
+
+        // Resolve relative paths using per-input origins
+        match &mut inputs {
+            EngineInputs::Task(task_inputs) => {
+                let task = document
+                    .task_by_name(&target_name)
+                    .context("task not found")?;
+                task_inputs
+                    .join_paths(task, |key| {
+                        origins
+                            .get(key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+            EngineInputs::Workflow(workflow_inputs) => {
+                let workflow = document.workflow().context("workflow not found")?;
+                workflow_inputs
+                    .join_paths(workflow, |key| {
+                        origins
+                            .get(key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+        }
+
+        // Serialize to JSON with target prefix
+        let json = inputs_to_json_with_prefix(&target_name, &inputs)?;
+
+        Ok(Some((target_name, json)))
+    }
+}
+
+/// Serializes engine inputs to JSON with the target name prefix on each key.
+fn inputs_to_json_with_prefix(
+    target_name: &str,
+    inputs: &EngineInputs,
+) -> anyhow::Result<JsonValue> {
+    let serialized = match inputs {
+        EngineInputs::Task(task_inputs) => serde_json::to_value(task_inputs)?,
+        EngineInputs::Workflow(workflow_inputs) => serde_json::to_value(workflow_inputs)?,
+    };
+
+    let mut map = serde_json::Map::new();
+    if let JsonValue::Object(obj) = serialized {
+        for (key, value) in obj {
+            map.insert(format!("{target_name}.{key}"), value);
+        }
+    }
+
+    Ok(JsonValue::Object(map))
 }
 
 #[cfg(test)]

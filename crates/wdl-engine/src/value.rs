@@ -6,6 +6,7 @@ use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -141,6 +142,18 @@ impl<'a> From<&'a str> for HostPath {
 impl From<url::Url> for HostPath {
     fn from(url: url::Url) -> Self {
         url.as_str().into()
+    }
+}
+
+impl From<HostPath> for PathBuf {
+    fn from(path: HostPath) -> Self {
+        PathBuf::from(path.0.as_str())
+    }
+}
+
+impl From<&HostPath> for PathBuf {
+    fn from(path: &HostPath) -> Self {
+        PathBuf::from(path.as_str())
     }
 }
 

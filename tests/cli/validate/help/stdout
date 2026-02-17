@@ -16,17 +16,14 @@ Arguments:
           These inputs can be either paths to files containing inputs or key-value pairs passed in on the command line.
 
 Options:
-  -e, --entrypoint <NAME>
+  -t, --target <NAME>
           The name of the task or workflow to validate inputs against.
           
           This argument is required if trying to validate a task or workflow without any inputs.
           
-          If `entrypoint` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
+          If `target` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
           
-          If `entrypoint` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
-
-      --no-color
-          Disables color output
+          If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
 
   -m, --report-mode <MODE>
           The report mode
@@ -40,6 +37,16 @@ Options:
 
   -q, --quiet...
           Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
 
   -c, --config <CONFIG>
           Path to the configuration file

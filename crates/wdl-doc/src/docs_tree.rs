@@ -20,6 +20,7 @@ use crate::DocError;
 use crate::Markdown;
 use crate::Render;
 use crate::document::Document;
+use crate::r#enum::Enum;
 use crate::error::DocResult;
 use crate::error::ResultContextExt;
 use crate::full_page;
@@ -42,6 +43,8 @@ pub(crate) enum PageType {
     Index(Document),
     /// A struct page.
     Struct(Struct),
+    /// An enum page.
+    Enum(Enum),
     /// A task page.
     Task(Task),
     /// A workflow page.
@@ -890,6 +893,14 @@ impl DocsTree {
                                 "struct-unselected.svg"
                             },
                         )),
+                        PageType::Enum(_) => Some(self.get_asset(
+                            base,
+                            if ancestor {
+                                "enum-selected.svg"
+                            } else {
+                                "enum-unselected.svg"
+                            },
+                        )),
                         PageType::Workflow(_) => Some(self.get_asset(
                             base,
                             if ancestor {
@@ -1352,6 +1363,7 @@ impl DocsTree {
                                 document.documentElement.classList.toggle('light')
                                 localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
                                 "
+                                id="theme-toggle"
                                 class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
                                     "☀︎"
                                 }
@@ -1381,7 +1393,8 @@ impl DocsTree {
 
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
-            PageType::Struct(s) => s.render(),
+            PageType::Struct(s) => s.render(&self.assets_relative_to(base)),
+            PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
             PageType::Task(t) => t.render(&self.assets_relative_to(base)),
             PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),
         };

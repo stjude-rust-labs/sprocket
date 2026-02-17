@@ -20,6 +20,7 @@ use wdl::ast::v1::LiteralExpr;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
 
+use crate::Config;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -442,12 +443,13 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args) -> CommandResult<()> {
+pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `inputs` command").into());
     }
     let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;

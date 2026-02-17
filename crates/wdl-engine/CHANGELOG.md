@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Removed duplicate DEBUG log message from the LSF backend ([#629](https://github.com/stjude-rust-labs/sprocket/pull/629)).
+
+## 0.12.1 - 2026-02-12
+
+#### Fixed
+
+* Corrected the location for `output.log` to be in the related run directory
+  instead of the top-level output directory ([#626](https://github.com/stjude-rust-labs/sprocket/pull/626)).
+
+## 0.12.0 - 02-11-2026
+
 #### Added
 
 * Added a configurable prefix for LSF job names and ensured the byte-length
@@ -14,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Fix an incorrect remapping of guest symlinks when the input was a remote URL ([#621](https://github.com/stjude-rust-labs/sprocket/pull/621)).
+* Fix an issue where remote directory digesting included double slashes in
+  entry URLs ([#603](https://github.com/stjude-rust-labs/sprocket/pull/603)).
+* Automatically remap symbolic links created by tasks that use guest paths to
+  their corresponding host paths ([#585](https://github.com/stjude-rust-labs/sprocket/pull/585)).
 * Fixed the `size` function not performing guest-to-host path translation for
   `String` arguments ([#576](https://github.com/stjude-rust-labs/sprocket/pull/576)).
 * Fixed an issue where task requirements and hints sources from an inputs file
