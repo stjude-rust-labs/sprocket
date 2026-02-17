@@ -13,8 +13,8 @@ enum Color {
 
 }
 
-## This floating doc comment should be ignored by UnusedDocCommentsRule, but
-## should get a lint by PreambleCommentPlacementRule.
+## Should I get a lint now that there have been changes to the preamble structure?
+## If so, we need to explicitly target whitespace in the `UnusedDocCommentsRule`
 
 #@ except: MetaSections
 # Documented with comments
@@ -28,8 +28,8 @@ struct Person {
     String name
 }
 
-#@ except: RequirementsSection
 ## This doc comment should be allowed
+#@ except: RequirementsSection
 task test_task {
     meta {
         description: "Show doc comments on bad placement of elements"
@@ -47,6 +47,9 @@ task test_task {
     >>>
 }
 
+## While it's not what we want people to do, I should be able to
+## sandwich lint directives with doc comments for the purposes of
+## the unused doc comment lint.
 #@ except: MetaSections, MatchingOutputMeta
 ## This doc comment should be allowed
 workflow test_workflow {
