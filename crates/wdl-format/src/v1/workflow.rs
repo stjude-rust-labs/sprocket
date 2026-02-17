@@ -5,6 +5,7 @@ pub mod call;
 use wdl_ast::SyntaxKind;
 use wdl_ast::Token;
 
+use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Trivia;
@@ -16,9 +17,13 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_conditional_statement(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     for child in element.children().expect("conditional statement children") {
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
     stream.end_line();
 }
@@ -27,6 +32,7 @@ pub fn format_conditional_statement(element: &FormatElement, stream: &mut TokenS
 pub fn format_conditional_statement_clause(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
+    config: &Config,
 ) {
     let mut children = element
         .children()
@@ -51,7 +57,7 @@ pub fn format_conditional_statement_clause(
             _ => break,
         }
 
-        el.write(stream);
+        el.write(stream, config);
         stream.end_word();
 
         // Take the child token we just processed.
@@ -63,10 +69,10 @@ pub fn format_conditional_statement_clause(
     if has_condition {
         let open_paren = children.next().expect("open paren");
         assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
-        (&open_paren).write(stream);
+        (&open_paren).write(stream, config);
 
         for child in children.by_ref() {
-            (&child).write(stream);
+            (&child).write(stream, config);
             if child.element().kind() == SyntaxKind::CloseParen {
                 stream.end_word();
                 break;
@@ -76,14 +82,14 @@ pub fn format_conditional_statement_clause(
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
         }
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
     stream.end_word();
 }
@@ -93,30 +99,34 @@ pub fn format_conditional_statement_clause(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_scatter_statement(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("scatter statement children");
 
     let scatter_keyword = children.next().expect("scatter keyword");
     assert!(scatter_keyword.element().kind() == SyntaxKind::ScatterKeyword);
-    (&scatter_keyword).write(stream);
+    (&scatter_keyword).write(stream, config);
     stream.end_word();
 
     let open_paren = children.next().expect("open paren");
     assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
-    (&open_paren).write(stream);
+    (&open_paren).write(stream, config);
 
     let variable = children.next().expect("scatter variable");
     assert!(variable.element().kind() == SyntaxKind::Ident);
-    (&variable).write(stream);
+    (&variable).write(stream, config);
     stream.end_word();
 
     let in_keyword = children.next().expect("in keyword");
     assert!(in_keyword.element().kind() == SyntaxKind::InKeyword);
-    (&in_keyword).write(stream);
+    (&in_keyword).write(stream, config);
     stream.end_word();
 
     for child in children.by_ref() {
-        (&child).write(stream);
+        (&child).write(stream, config);
         if child.element().kind() == SyntaxKind::CloseParen {
             stream.end_word();
             break;
@@ -125,7 +135,7 @@ pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStrea
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
 
@@ -133,7 +143,7 @@ pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStrea
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
         }
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
     stream.end_line();
 }
@@ -143,24 +153,28 @@ pub fn format_scatter_statement(element: &FormatElement, stream: &mut TokenStrea
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_workflow_definition(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("workflow definition children");
 
     stream.ignore_trailing_blank_lines();
 
     let workflow_keyword = children.next().expect("workflow keyword");
     assert!(workflow_keyword.element().kind() == SyntaxKind::WorkflowKeyword);
-    (&workflow_keyword).write(stream);
+    (&workflow_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("workflow name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut meta = None;
@@ -213,41 +227,41 @@ pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStr
     }
 
     if let Some(meta) = meta {
-        (&meta).write(stream);
+        (&meta).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream);
+        (&parameter_meta).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(input) = input {
-        (&input).write(stream);
+        (&input).write(stream, config);
         stream.blank_line();
     }
 
     stream.allow_blank_lines();
     for child in body {
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
     stream.blank_line();
 
     if let Some(output) = output {
-        (&output).write(stream);
+        (&output).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(hints) = hints {
-        (&hints).write(stream);
+        (&hints).write(stream, config);
         stream.blank_line();
     }
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("workflow close brace")).write(stream);
+    (&close_brace.expect("workflow close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -256,12 +270,16 @@ pub fn format_workflow_definition(element: &FormatElement, stream: &mut TokenStr
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_workflow_hints_array(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("workflow hints array children");
 
     let open_bracket = children.next().expect("open bracket");
     assert!(open_bracket.element().kind() == SyntaxKind::OpenBracket);
-    (&open_bracket).write(stream);
+    (&open_bracket).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -284,10 +302,10 @@ pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenSt
 
     let mut commas = commas.into_iter();
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         match commas.next() {
             Some(comma) => {
-                (&comma).write(stream);
+                (&comma).write(stream, config);
             }
             _ => {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
@@ -297,7 +315,7 @@ pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenSt
     }
 
     stream.decrement_indent();
-    (&close_bracket.expect("workflow hints array close bracket")).write(stream);
+    (&close_bracket.expect("workflow hints array close bracket")).write(stream, config);
 }
 
 /// Formats a [`WorkflowHintsItem`](wdl_ast::v1::WorkflowHintsItem).
@@ -305,20 +323,24 @@ pub fn format_workflow_hints_array(element: &FormatElement, stream: &mut TokenSt
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_workflow_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_workflow_hints_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("workflow hints item children");
 
     let key = children.next().expect("workflow hints item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream);
+    (&key).write(stream, config);
 
     let colon = children.next().expect("workflow hints item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("workflow hints item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 
     stream.end_line();
 }
@@ -331,6 +353,7 @@ pub fn format_workflow_hints_item(element: &FormatElement, stream: &mut TokenStr
 pub fn format_workflow_hints_object_item(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
+    config: &Config,
 ) {
     let mut children = element
         .children()
@@ -338,15 +361,15 @@ pub fn format_workflow_hints_object_item(
 
     let key = children.next().expect("workflow hints object item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream);
+    (&key).write(stream, config);
 
     let colon = children.next().expect("workflow hints object item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("workflow hints object item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 
     stream.end_line();
 }
@@ -356,19 +379,23 @@ pub fn format_workflow_hints_object_item(
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_workflow_hints_object(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_workflow_hints_object(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("workflow hints object children");
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
         }
-        (&child).write(stream);
+        (&child).write(stream, config);
         stream.end_line();
     }
 }
@@ -378,24 +405,28 @@ pub fn format_workflow_hints_object(element: &FormatElement, stream: &mut TokenS
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_workflow_hints_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_workflow_hints_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("workflow hints section children");
 
     let hints_keyword = children.next().expect("hints keyword");
     assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
-    (&hints_keyword).write(stream);
+    (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
         }
-        (&child).write(stream);
+        (&child).write(stream, config);
         stream.end_line();
     }
 }

@@ -132,17 +132,21 @@ pub struct FormatConfig {
     pub indentation_size: usize,
     /// The maximum line length (default is 90).
     pub max_line_length: usize,
+    /// Enable sorting of input sections.
+    pub sort_inputs: bool,
 }
 
 impl Default for FormatConfig {
     fn default() -> Self {
-        let config = wdl::format::config::Config::default();
+        let config = wdl::format::Config::default();
         Self {
             with_tabs: false,
-            indentation_size: config.indent().num(),
+            indentation_size: config.indent.num(),
             max_line_length: config
-                .max_line_length()
+                .max_line_length
+                .get()
                 .expect("should have a max line length"),
+            sort_inputs: config.sort_inputs,
         }
     }
 }
