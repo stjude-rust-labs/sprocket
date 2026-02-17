@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
 #### Removed
 
 * Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
-* Removed `except_comments()` method from `SyntaxNodeExt` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `except_comments()` method from `SyntaxNodeExt`/`Exceptable` trait ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 ## 0.17.2 - 2026-02-12
 
