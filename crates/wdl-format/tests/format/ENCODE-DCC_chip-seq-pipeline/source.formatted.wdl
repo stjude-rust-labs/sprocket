@@ -1305,7 +1305,8 @@ workflow chip {
     # temporary variables to get number of controls
     Int num_ctl_fastq = length(ctl_fastqs_R1)
     Int num_ctl_bam = if length(ctl_bams) < num_ctl_fastq then num_ctl_fastq else length(
-        ctl_bams)
+        ctl_bams
+    )
     Int num_ctl_nodup_bam = if length(ctl_nodup_bams) < num_ctl_bam then num_ctl_bam else length(
         ctl_nodup_bams)
     Int num_ctl_ta = if length(ctl_tas) < num_ctl_nodup_bam then num_ctl_nodup_bam else length(
@@ -1345,7 +1346,8 @@ workflow chip {
         }
     }
     if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(
-        custom_aligner_idx_tar))) {
+        custom_aligner_idx_tar
+    ))) {
         call raise_exception as error_custom_aligner { input:
             msg = "To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.",
             runtime_environment = runtime_environment,
@@ -1353,7 +1355,8 @@ workflow chip {
     }
 
     if ((ctl_depth_limit > 0 || exp_ctl_depth_ratio_limit > 0) && num_ctl > 1 && length(
-        ctl_paired_ends) > 1) {
+        ctl_paired_ends
+    ) > 1) {
         call raise_exception as error_subsample_pooled_control_with_mixed_endedness { input:
             msg = "Cannot use automatic control subsampling (\"chip.ctl_depth_limit\">0 and \"chip.exp_ctl_depth_limit\">0) for "
                 + "multiple controls with mixed endedness (e.g. SE ctl-rep1 and PE ctl-rep2). "
@@ -1624,7 +1627,8 @@ workflow chip {
         # to override endedness definition for individual control
         #     ctl_paired_end will override ctl_paired_ends[i]
         Boolean ctl_paired_end_ = if !defined(ctl_paired_end) && i < length(
-            ctl_paired_ends) then ctl_paired_ends[i] else select_first([
+            ctl_paired_ends
+        ) then ctl_paired_ends[i] else select_first([
             ctl_paired_end,
             paired_end,
         ])
@@ -1780,7 +1784,8 @@ workflow chip {
     }
 
     Boolean has_all_input_of_choose_ctl = length(select_all(ta_)) == num_rep && length(
-        select_all(ctl_ta_)) == num_ctl && num_ctl > 0
+        select_all(ctl_ta_
+    )) == num_ctl && num_ctl > 0
     if (has_all_input_of_choose_ctl && !align_only_) {
         # choose appropriate control for each exp IP replicate
         # outputs:
@@ -1819,7 +1824,8 @@ workflow chip {
         if (chosen_ctl_ta_id > -2 && chosen_ctl_ta_subsample > 0) {
             call subsample_ctl { input:
                 ta = if chosen_ctl_ta_id == -1 then pool_ta_ctl.ta_pooled else ctl_ta_[
-                    chosen_ctl_ta_id],
+                    chosen_ctl_ta_id
+                ],
                 subsample = chosen_ctl_ta_subsample,
                 paired_end = chosen_ctl_paired_end,
                 mem_factor = subsample_ctl_mem_factor,
