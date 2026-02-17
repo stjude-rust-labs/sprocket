@@ -1,7 +1,6 @@
 //! A lint rule for misplaced doc comments that will not generate documentation.
 
 use wdl_analysis::Diagnostics;
-use wdl_analysis::EXCEPT_COMMENT_PREFIX;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -13,21 +12,11 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxToken;
 use wdl_ast::SyntaxTokenExt;
-use wdl_ast::TreeToken;
 use wdl_ast::v1;
 
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-
-/// Prefix for defining the start of a doc comment.
-const DOC_COMMENT_PREFIX: &str = "## ";
-
-/// An "empty doc comment" should have this text.
-///
-/// Used to ensure that if we are parsing a doc comment and we don't see
-/// `DOC_COMMENT_PREFIX`, but we see this text we continue parsing.
-const EMPTY_DOC_COMMENT_TEXT: &str = "##";
 
 /// The ID for the UnusedDocComments lint.
 const ID: &str = "UnusedDocComments";
@@ -44,12 +33,7 @@ fn unused_doc_comment_diagnostic(span: Span) -> Diagnostic {
 /// Detects whether a doc comment has been placed atop a Node that we do not
 /// generate documentation for.
 #[derive(Default, Debug, Clone)]
-pub struct UnusedDocCommentsRule {
-    /// Tracks whether the `version_statement` has been processed or not. At the
-    /// moment, any comment with a doc comment prefix before the
-    /// `version_statement` is assumed to be a part of the WDL preamble.
-    version_statement_processed: bool,
-}
+pub struct UnusedDocCommentsRule {}
 
 impl UnusedDocCommentsRule {
     /// Walk up the preceding trivia from closest to the visited syntax node and
@@ -68,28 +52,29 @@ impl UnusedDocCommentsRule {
         for token in reversed_trivia {
             match token.kind() {
                 SyntaxKind::Comment => {
-                    if !(token.text().starts_with(DOC_COMMENT_PREFIX)
-                        || (token.text() == EMPTY_DOC_COMMENT_TEXT))
-                    {
+                    let comment = Comment::cast(token).expect(
+                        "Token with SyntaxKind::Comment must be able to be casted to comment",
+                    );
+
+                    // Ignore directives when linting for unusued doc comments,
+                    // and if we aren't already processing a doc comment don't include them in the
+                    // highlighted span.
+                    if last_comment.is_none() && comment.is_directive() {
+                        continue;
+                    }
+
+                    if !comment.is_doc_comment() {
                         break;
                     }
 
-                    if last_comment.is_none() && token.text().starts_with(EXCEPT_COMMENT_PREFIX) {
-                        continue;
-                    }
-
-                    span = span.map_or(Some(token.span()), |prev_span| {
+                    span = span.map_or(Some(comment.span()), |prev_span| {
                         Some(Span::new(
-                            token.span().start(),
-                            prev_span.end() - token.span().start(),
+                            comment.span().start(),
+                            prev_span.end() - comment.span().start(),
                         ))
                     });
 
-                    if token.text().starts_with(EXCEPT_COMMENT_PREFIX) {
-                        continue;
-                    }
-
-                    last_comment = Some(token);
+                    last_comment = Some(comment.inner().clone());
                 }
                 _ => break,
             }
@@ -145,20 +130,7 @@ impl Rule for UnusedDocCommentsRule {
 }
 
 impl Visitor for UnusedDocCommentsRule {
-    fn reset(&mut self) {
-        self.version_statement_processed = false;
-    }
-
-    // Doc Comments before the version statement are assumed to be a "preamble" for
-    // now.
-    fn version_statement(
-        &mut self,
-        _diagnostics: &mut Diagnostics,
-        _reason: wdl_analysis::VisitReason,
-        _stmt: &wdl_ast::VersionStatement,
-    ) {
-        self.version_statement_processed = true;
-    }
+    fn reset(&mut self) {}
 
     fn metadata_section(
         &mut self,
@@ -209,11 +181,7 @@ impl Visitor for UnusedDocCommentsRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if comment.text().starts_with(EXCEPT_COMMENT_PREFIX)
-            || comment.text() == EMPTY_DOC_COMMENT_TEXT
-            || comment.text().starts_with(DOC_COMMENT_PREFIX)
-            || !self.version_statement_processed
-        {
+        if comment.is_directive() || comment.is_doc_comment() {
             return;
         }
 
