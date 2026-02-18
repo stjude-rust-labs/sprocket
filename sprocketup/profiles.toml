@@ -1,3 +1,4 @@
 [profiles]
 full = ["sprocket", "wdl-doc"]
+default = ["sprocket"]
 minimal = ["sprocket"]

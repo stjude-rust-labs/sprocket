@@ -108,34 +108,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-# TODO: uncomment these before merge
-#          # == Windows ==
-#          - rust-target: x86_64-pc-windows-msvc
-#            os: windows-latest
-#            archive-extension: zip
-#            binary-extension: ".exe"
-#          - rust-target: aarch64-pc-windows-msvc
-#            os: windows-latest
-#            archive-extension: zip
-#            binary-extension: ".exe"
-#          # == macOS ==
-#          - rust-target: x86_64-apple-darwin
-#            os: macos-latest
-#            archive-extension: tar.gz
-#            binary-extension: ""
-#          - rust-target: aarch64-apple-darwin
-#            os: macos-latest
-#            archive-extension: tar.gz
-#            binary-extension: ""
+          # == Windows ==
+          - rust-target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive-extension: zip
+            binary-extension: ".exe"
+          - rust-target: aarch64-pc-windows-msvc
+            os: windows-latest
+            archive-extension: zip
+            binary-extension: ".exe"
+          # == macOS ==
+          - rust-target: x86_64-apple-darwin
+            os: macos-latest
+            archive-extension: tar.gz
+            binary-extension: ""
+          - rust-target: aarch64-apple-darwin
+            os: macos-latest
+            archive-extension: tar.gz
+            binary-extension: ""
           # == Linux ==
           - rust-target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             archive-extension: tar.gz
             binary-extension: ""
-#          - rust-target: aarch64-unknown-linux-gnu
-#            os: ubuntu-24.04-arm
-#            archive-extension: tar.gz
-#            binary-extension: ""
+          - rust-target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            archive-extension: tar.gz
+            binary-extension: ""
 
     steps:
       - uses: actions/checkout@v4
