@@ -6,4 +6,5 @@ error: enums are not supported in WDL v1.2
   │
   = fix: use WDL v1.3 or higher to use enums
 
-error: failing due to 1 error
+Error: failing due to 1 error
+error: `wdl-doc` did not exit successfully

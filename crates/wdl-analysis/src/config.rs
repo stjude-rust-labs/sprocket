@@ -167,10 +167,23 @@ impl Config {
             inner: Arc::new(inner),
         }
     }
+
+    /// Load the analysis config from the `WDL_ANALYSIS_ARGS` environment
+    /// variable.
+    ///
+    /// If the `WDL_ANALYSIS_ARGS` environment variable is not set, this is the
+    /// same as [`Self::default()`].
+    pub fn load() -> anyhow::Result<Self> {
+        let Ok(args) = std::env::var("WDL_ANALYSIS_ARGS") else {
+            return Ok(Self::default());
+        };
+
+        serde_json::from_str(&args).map_err(Into::<anyhow::Error>::into)
+    }
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 struct ConfigInner {
     /// See [`DiagnosticsConfig`].
     #[serde(default)]

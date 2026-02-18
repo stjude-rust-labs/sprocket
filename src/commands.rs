@@ -1,7 +1,10 @@
 //! Implementation of sprocket CLI commands.
 
 use std::fmt;
+use std::fmt::Debug;
 use std::io::IsTerminal;
+use std::path::PathBuf;
+use std::process::Command;
 use std::sync::Arc;
 
 use clap::Subcommand;
@@ -28,6 +31,11 @@ pub mod validate;
 /// from WDL source file analysis.
 #[derive(Debug)]
 pub enum CommandError {
+    /// A component was not found.
+    MissingComponent {
+        component: &'static str,
+        component_dir: PathBuf,
+    },
     /// The error is a single `anyhow::Error`.
     Single(anyhow::Error),
     /// The error is multiple shared `anyhow::Error`.
@@ -49,6 +57,14 @@ impl fmt::Display for CommandError {
         }
 
         match self {
+            Self::MissingComponent {
+                component,
+                component_dir,
+            } => write!(
+                f,
+                "unable to locate component '{component}' (searched {}). Is it installed?",
+                component_dir.display(),
+            ),
             Self::Single(e) => write(f, e),
             Self::Multiple(errors) => {
                 for (i, e) in errors.iter().enumerate() {
@@ -139,4 +155,42 @@ pub enum DevCommands {
     Server(server::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
+}
+
+/// Extension trait for debug printing [`Command`]s.
+pub(crate) trait CommandDebugExt {
+    /// Create a [`Debug`] adapter for this command.
+    fn debug(&self) -> DebuggableCommand<'_>;
+}
+
+impl CommandDebugExt for Command {
+    fn debug(&self) -> DebuggableCommand<'_> {
+        DebuggableCommand(self)
+    }
+}
+
+/// Wrapper for debug printing [`Command`]s.
+pub struct DebuggableCommand<'a>(&'a Command);
+
+impl Debug for DebuggableCommand<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (key, value) in self.0.get_envs() {
+            match value {
+                Some(value) => write!(f, "{}={} ", key.to_string_lossy(), value.to_string_lossy())?,
+                None => write!(f, "{} ", key.to_string_lossy())?,
+            }
+        }
+
+        write!(f, "{}", self.0.get_program().to_string_lossy(),)?;
+
+        let args_os = self.0.get_args();
+        if args_os.len() > 0 {
+            write!(f, " ")?;
+            for arg in args_os {
+                write!(f, "{} ", arg.to_string_lossy())?;
+            }
+        }
+
+        Ok(())
+    }
 }

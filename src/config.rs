@@ -19,9 +19,8 @@ use tracing::debug;
 use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
+use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
-
-use crate::diagnostics::Mode;
 
 /// Default host.
 const DEFAULT_HOST: &str = "127.0.0.1";
