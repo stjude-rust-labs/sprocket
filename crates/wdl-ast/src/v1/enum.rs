@@ -110,14 +110,9 @@ impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
 
         writeln!(f, " {{")?;
 
- for choice in self.definition.variants() {
+        for choice in self.definition.variants() {
             write!(f, "  {}", choice.name().text())?;
             if let Some(value) = choice.value() {
-                write!(f, " = {}", value.inner().text())?;
-            }
-            writeln!(f, ",")?;
-        }
-      main
                 write!(f, " = {}", value.inner().text())?;
             }
             writeln!(f, ",")?;
