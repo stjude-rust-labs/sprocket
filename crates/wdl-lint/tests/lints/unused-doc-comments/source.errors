@@ -29,9 +29,18 @@ note[UnusedDocComments]: Unused doc comment
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
 note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:69:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:61:5
    │
-69 │     ## I am not allowed to be doc commented
+61 │     ## This input section cannot have a doc comment.
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Documentation will not be generated for this item
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:70:5
+   │
+70 │     ## I am not allowed to be doc commented
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: Documentation will not be generated for this item
@@ -40,35 +49,53 @@ note[UnusedDocComments]: Unused doc comment
 note[UnusedDocComments]: Unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:73:5
    │
-73 │     ## But doc comments are not!
+73 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Documentation will not be generated for this item
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:79:5
+   │
+79 │     ## But doc comments are not!
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: Documentation will not be generated for this item
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
 note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:78:9
+   ┌─ tests/lints/unused-doc-comments/source.wdl:84:9
    │
-78 │         ## But doc comments probably shouldn't be?
-   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+84 │         ## But doc comments shouldn't be.
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: Documentation will not be generated for this item
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
 note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:83:9
+   ┌─ tests/lints/unused-doc-comments/source.wdl:89:9
    │
-83 │         ## but we don't want doc comments here.
+89 │         ## but we don't want doc comments here.
    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: Documentation will not be generated for this item
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
 
 note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:86:13
+   ┌─ tests/lints/unused-doc-comments/source.wdl:92:13
    │
-86 │             ## Doc comments shouldn't be allowed on variable assignment!
+92 │             ## Doc comments shouldn't be allowed on variable assignment!
    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: Documentation will not be generated for this item
+   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+
+note[UnusedDocComments]: Unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:96:5
+   │
+96 │     ## The output section cannot have a doc comment!
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = help: Documentation will not be generated for this item
    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
