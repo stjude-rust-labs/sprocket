@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
 
+### Fixed
+
+* Correctly format `ConditionalStatement` with `else if` and `else` ([#617](https://github.com/stjude-rust-labs/sprocket/pull/617)).
+
 ## 0.14.0 - 01-12-2026
 
 #### Added
