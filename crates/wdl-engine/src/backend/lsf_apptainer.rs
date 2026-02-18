@@ -707,7 +707,7 @@ impl LsfApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir),
+            apptainer: ApptainerRuntime::new(run_root_dir)?,
             monitor,
             permits,
         })
