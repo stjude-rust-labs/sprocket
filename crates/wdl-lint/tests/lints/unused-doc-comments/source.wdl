@@ -58,16 +58,22 @@ workflow test_workflow {
         description: "Show doc comments on bad placement of elements"
     }
 
-    ## This input section can have a doc comment.
+    ## This input section cannot have a doc comment.
     input {
         ## And so can it's elements
         Person person
         Boolean apple
-        Boolean banana
+        ## A BoundDeclNode may have a doc comment if it's in an input section
+        Boolean banana = false
     }
 
     ## I am not allowed to be doc commented
     call test_task {}
+
+    ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section
+    Person p = Person {
+        name: "Brendon"
+    }
 
     # Comments are definitely valid here
     ## But doc comments are not!
@@ -75,7 +81,7 @@ workflow test_workflow {
         String favorite_fruit = "Apple"
     }
         # Comments seem fine here (although maybe a weird choice)
-        ## But doc comments probably shouldn't be?
+        ## But doc comments shouldn't be.
     else if (banana) {
         String favorite_fruit = "Banana"
     }
@@ -87,7 +93,7 @@ workflow test_workflow {
         String favorite_fruit = "Chocolate"
     }
 
-    ## The output section can have a doc comment!
+    ## The output section cannot have a doc comment!
     output {
         ## An element of an output should be doc commentable probably if I want to say
         ## what this specific thing is doing?
