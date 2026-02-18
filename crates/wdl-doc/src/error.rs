@@ -36,6 +36,8 @@ pub enum NpmError {
     Build(IoError),
     /// Failed to run `npm install` in the theme directory.
     Install(IoError),
+    /// Failed to run `npx pagefind` in the output directory.
+    SearchIndex(IoError),
     /// Failed to run `npx @tailwindcss/cli`.
     Tailwind(IoError),
 }
@@ -45,6 +47,7 @@ impl Display for NpmError {
         match self {
             NpmError::Build(e) => write!(f, "failed to run `npm run build`: {e}"),
             NpmError::Install(e) => write!(f, "failed to run `npm install`: {e}"),
+            NpmError::SearchIndex(e) => write!(f, "failed to run `npx pagefind`: {e}"),
             NpmError::Tailwind(e) => write!(f, "failed to run `npx @tailwindcss/cli`: {e}"),
         }
     }

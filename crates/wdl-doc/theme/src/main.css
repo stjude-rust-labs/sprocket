@@ -325,9 +325,6 @@
   .left-sidebar__searchbar {
     @apply flex flex-row items-center size-full;
   }
-  .left-sidebar__searchbox {
-    @apply flex text-slate-400 w-full h-full px-8 outline-none bg-transparent items-center rounded-md border border-slate-700 transition-colors focus:border-slate-400 placeholder:text-slate-400;
-  }
   .left-sidebar__search-clear {
     @apply flex size-6 hover:cursor-pointer ml-2 pr-2;
   }
@@ -422,6 +419,12 @@
   }
   .right-sidebar__back-to-top-text {
     @apply text-sm;
+  }
+  /**
+   * Search
+   */
+  #searchbox {
+    @apply flex text-slate-400 w-full h-full px-8 outline-none bg-transparent items-center rounded-md border border-slate-700 transition-colors focus:border-slate-400 placeholder:text-slate-400;
   }
 }
 

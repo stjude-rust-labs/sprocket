@@ -168,10 +168,16 @@ impl Task {
         let (input_markup, inner_headers) = self.render_inputs(assets);
         headers.extend(inner_headers);
 
+        // Invisible image for search results
+        let search_image = html! {
+            img src=(assets.join("task-selected.svg").to_string_lossy()) class="hidden" data-pagefind-meta="image[src]" {}
+        };
+
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-violet-400" { "Task" }
-                h1 id="title" class="main__title" { code { (self.name()) } }
+            div class="main__container" data-pagefind-body {
+                (search_image)
+                span class="text-brand-violet-400" data-pagefind-ignore { "Task" }
+                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
                 div class="markdown-body mb-4" {
                     (self.render_description(false))
                 }

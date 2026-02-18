@@ -144,6 +144,22 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
     Ok(())
 }
 
+/// Build the search index using [Pagefind](https://pagefind.app).
+pub fn build_search_index(dist_dir: &Path) -> DocResult<()> {
+    let dist_dir = absolute(dist_dir)?;
+    let output = std::process::Command::new("npx")
+        .arg("pagefind")
+        .arg("--site")
+        .arg(dist_dir)
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(NpmError::SearchIndex(IoError::other(stderr)).into());
+    }
+
+    Ok(())
+}
+
 /// HTML link to a CSS stylesheet at the given path.
 struct Css<'a>(&'a str);
 
@@ -166,6 +182,11 @@ pub(crate) fn header<P: AsRef<Path>>(
     script: &AdditionalScript,
 ) -> Markup {
     let root = root.as_ref();
+    let search_import = format!(
+        r#"const pagefindPath = new URL('{}', import.meta.url).href;
+window.pagefind = import(pagefindPath)"#,
+        root.join("pagefind").join("pagefind.js").to_string_lossy()
+    );
     html! {
         head {
             @match script {
@@ -178,8 +199,10 @@ pub(crate) fn header<P: AsRef<Path>>(
             link rel="preconnect" href="https://fonts.googleapis.com";
             link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
             link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
-            script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js" {}
-            script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" {}
+            script type="module" {
+                (PreEscaped(search_import))
+            }
+
             script defer src=(root.join("index.js").to_string_lossy()) {}
             (Css(&root.join("style.css").to_string_lossy()))
             @match script {
@@ -201,7 +224,12 @@ pub(crate) fn full_page<P: AsRef<Path>>(
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: 'dark' }" }) x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : 'dark'" x-cloak {
+        html
+            lang="en"
+            x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: 'dark' }" })
+            x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : 'dark'"
+            x-cloak
+        {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {
@@ -674,6 +702,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
             docs_dir.display()
         )
     })?;
+
+    build_search_index(&docs_dir)?;
 
     Ok(())
 }
