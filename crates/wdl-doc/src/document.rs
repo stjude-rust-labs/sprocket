@@ -166,11 +166,6 @@ impl Document {
                 div class="main__badge-container" {
                     (self.render_version())
                 }
-                @if let Some(preamble) = self.render_preamble() {
-                    div id="preamble" class="main__section" {
-                        (preamble)
-                    }
-                }
                 div class="main__section" {
                     h2 id="toc" class="main__section-header" { "Table of Contents" }
                     div class="main__grid-container" {
@@ -181,6 +176,11 @@ impl Document {
                             div class="main__grid-header-separator" {}
                             (PreEscaped(rows))
                         }
+                    }
+                }
+                @if let Some(preamble) = self.render_preamble() {
+                    div id="preamble" class="main__section" {
+                        (preamble)
                     }
                 }
             }

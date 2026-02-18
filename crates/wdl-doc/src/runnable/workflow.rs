@@ -98,7 +98,7 @@ impl Workflow {
         if let Some(name) = self.name_override() {
             html! { (name) }
         } else {
-            html! { (self.name) }
+            html! { code { (self.name) } }
         }
     }
 
