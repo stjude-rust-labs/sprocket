@@ -77,6 +77,18 @@ impl TaskInputs {
         self.inputs.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of the inputs.
+    ///
+    /// This includes the count of inputs, requirements, and hints.
+    pub fn len(&self) -> usize {
+        self.inputs.len() + self.requirements.len() + self.hints.len()
+    }
+
     /// Gets an input by name.
     pub fn get(&self, name: &str) -> Option<&Value> {
         self.inputs.get(name)
@@ -324,12 +336,23 @@ impl Serialize for TaskInputs {
     where
         S: serde::Serializer,
     {
-        // Only serialize the input values
-        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        let mut map = serializer.serialize_map(Some(self.len()))?;
+
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(None, v, true);
-            map.serialize_entry(k, &serialized_value)?;
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(k, &v)?;
         }
+
+        for (k, v) in &self.requirements {
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(&format!("requirements.{k}"), &v)?;
+        }
+
+        for (k, v) in &self.hints {
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(&format!("hints.{k}"), &v)?;
+        }
+
         map.end()
     }
 }
@@ -358,6 +381,18 @@ impl WorkflowInputs {
     /// Iterates the inputs to the workflow.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
         self.inputs.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of the workflow inputs.
+    ///
+    /// This includes the workflow inputs plus the lengths of all nested inputs.
+    pub fn len(&self) -> usize {
+        self.inputs.len() + self.calls.values().map(Inputs::len).sum::<usize>()
     }
 
     /// Gets an input by name.
@@ -679,13 +714,24 @@ impl Serialize for WorkflowInputs {
     where
         S: serde::Serializer,
     {
-        // Note: for serializing, only serialize the direct inputs, not the nested
-        // inputs
-        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        let mut map = serializer.serialize_map(Some(self.len()))?;
         for (k, v) in &self.inputs {
             let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
+
+        for (k, v) in &self.calls {
+            let serialized = serde_json::to_value(v).map_err(|_| {
+                serde::ser::Error::custom(format!("failed to serialize inputs for call `{k}`"))
+            })?;
+            let mut map = serde_json::Map::new();
+            if let JsonValue::Object(obj) = serialized {
+                for (inner, value) in obj {
+                    map.insert(format!("{k}.{inner}"), value);
+                }
+            }
+        }
+
         map.end()
     }
 }
@@ -801,6 +847,23 @@ impl Inputs {
         })?);
 
         Self::parse_json_object(document, object)
+    }
+
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of all inputs.
+    ///
+    /// For task inputs, this include the inputs, requirements, and hints.
+    ///
+    /// For workflow inputs, this includes the inputs and nested inputs.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Task(inputs) => inputs.len(),
+            Self::Workflow(inputs) => inputs.len(),
+        }
     }
 
     /// Gets an input value.
@@ -1013,5 +1076,17 @@ impl From<TaskInputs> for Inputs {
 impl From<WorkflowInputs> for Inputs {
     fn from(inputs: WorkflowInputs) -> Self {
         Self::Workflow(inputs)
+    }
+}
+
+impl Serialize for Inputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Task(inputs) => inputs.serialize(serializer),
+            Self::Workflow(inputs) => inputs.serialize(serializer),
+        }
     }
 }
