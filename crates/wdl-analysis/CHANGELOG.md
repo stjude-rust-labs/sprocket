@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Implicit input bindings will now error in document versions < WDL v1.1 ([#644](https://github.com/stjude-rust-labs/sprocket/pull/644)).
 * Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default
   implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Struct literals will now error in document versions < WDL v1.1 ([#643](https://github.com/stjude-rust-labs/sprocket/pull/643)).
 
 #### Removed
 
