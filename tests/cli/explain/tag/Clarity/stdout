@@ -4,6 +4,7 @@ Rules with the tag `Clarity`:
   - ContainerUri
   - DeclarationName
   - DoubleQuotes
+  - EmptyDocComment
   - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement

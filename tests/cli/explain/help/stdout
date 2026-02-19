@@ -65,6 +65,7 @@ Available rules:
   - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
+  - EmptyDocComment
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - ExpressionSpacing
