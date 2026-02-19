@@ -1,10 +1,10 @@
-error: use of implicit input bindings requires WDL version 1.1
+error: use of implicit input bindings requires WDL version 1.1 or later
    ┌─ tests/validation/implicit-binding-1.0/source.wdl:12:9
    │
 12 │         foo, # Bad
    │         ^^^
 
-error: use of implicit input bindings requires WDL version 1.1
+error: use of implicit input bindings requires WDL version 1.1 or later
    ┌─ tests/validation/implicit-binding-1.0/source.wdl:13:9
    │
 13 │         bar, # Bad

@@ -50,7 +50,7 @@ fn directory_type_requirement(span: Span) -> Diagnostic {
 
 /// Creates an "implicit binding" requirement diagnostic.
 fn implicit_binding_requirement(span: Span) -> Diagnostic {
-    Diagnostic::error("use of implicit input bindings requires WDL version 1.1")
+    Diagnostic::error("use of implicit input bindings requires WDL version 1.1 or later")
         .with_highlight(span)
 }
 
