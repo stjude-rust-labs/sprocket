@@ -1,4 +1,4 @@
-error: use of a struct literal requires WDL version 1.1
+error: use of a struct literal requires WDL version 1.1 or later
    ┌─ tests/validation/struct-literal-1.0/source.wdl:9:15
    │  
  9 │       Foo foo = Foo {

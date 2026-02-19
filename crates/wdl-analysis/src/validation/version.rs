@@ -63,7 +63,8 @@ fn input_keyword_requirement(span: Span) -> Diagnostic {
 
 /// Creates a "struct literal requirement" diagnostic.
 fn struct_literal_requirement(span: Span) -> Diagnostic {
-    Diagnostic::error("use of a struct literal requires WDL version 1.1").with_highlight(span)
+    Diagnostic::error("use of a struct literal requires WDL version 1.1 or later")
+        .with_highlight(span)
 }
 
 /// Creates a "struct metadata requirement" diagnostic.
@@ -286,8 +287,8 @@ impl Visitor for VersionVisitor {
                 diagnostics.add(directory_type_requirement(ty.span()));
             }
 
-            if let expr @ v1::Expr::Literal(v1::LiteralExpr::Struct(_)) = decl.expr()
-                && version < SupportedVersion::V1(V1::One)
+            if version < SupportedVersion::V1(V1::One)
+                && let expr @ v1::Expr::Literal(v1::LiteralExpr::Struct(_)) = decl.expr()
             {
                 diagnostics.add(struct_literal_requirement(expr.span()));
             }
