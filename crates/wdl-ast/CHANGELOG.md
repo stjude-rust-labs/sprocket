@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Support for identifying and parsing comments with special meaning (i.e. directives and doc comments) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
 ## 0.21.1 - 02-11-2026
 
 ### Dependencies

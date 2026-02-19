@@ -17,7 +17,6 @@ use maud::Render;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxTokenExt;
 use wdl_ast::VersionStatement;
 
 use crate::HTMLPage;
@@ -29,26 +28,6 @@ use crate::docs_tree::PageType;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
-
-/// Parse the preamble comments of a document using the version statement.
-pub fn parse_preamble_comments(version: &VersionStatement) -> String {
-    let comments = version
-        .keyword()
-        .inner()
-        .preceding_trivia()
-        .map(|t| match t.kind() {
-            wdl_ast::SyntaxKind::Comment => match t.to_string().strip_prefix("## ") {
-                Some(comment) => comment.to_string(),
-                None => "".to_string(),
-            },
-            wdl_ast::SyntaxKind::Whitespace => "".to_string(),
-            _ => {
-                panic!("Unexpected token kind: {:?}", t.kind())
-            }
-        })
-        .collect::<Vec<_>>();
-    comments.join("\n")
-}
 
 /// A WDL document. This is an index page that links to other HTML pages.
 #[derive(Debug)]
@@ -187,11 +166,6 @@ impl Document {
                 div class="main__badge-container" {
                     (self.render_version())
                 }
-                @if let Some(preamble) = self.render_preamble() {
-                    div id="preamble" class="main__section" {
-                        (preamble)
-                    }
-                }
                 div class="main__section" {
                     h2 id="toc" class="main__section-header" { "Table of Contents" }
                     div class="main__grid-container" {
@@ -202,6 +176,11 @@ impl Document {
                             div class="main__grid-header-separator" {}
                             (PreEscaped(rows))
                         }
+                    }
+                }
+                @if let Some(preamble) = self.render_preamble() {
+                    div id="preamble" class="main__section" {
+                        (preamble)
                     }
                 }
             }

@@ -1,39 +1,19 @@
 //! Tokens emitted during the formatting of particular elements.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
+use wdl_ast::DOC_COMMENT_PREFIX;
+use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 
 use crate::Comment;
+use crate::NEWLINE;
 use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
-
-/// Normalize single-line `#@ except:` directives
-fn normalize_except_directive(text: &str) -> String {
-    let Some(remainder) = text.trim_start().strip_prefix("#@") else {
-        return text.to_owned();
-    };
-
-    let Some(rules_text) = remainder.trim_start().strip_prefix("except:") else {
-        return text.to_owned();
-    };
-
-    // Split by comma, trim each rule, and collect
-    let mut rules: Vec<String> = rules_text
-        .split(',')
-        .map(|s| s.trim().to_owned())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    // Sort rules alphabetically, case-insensitive
-    rules.sort_by_key(|a| a.to_ascii_lowercase());
-
-    // Rebuild the comment
-    format!("#@ except: {}", rules.join(", "))
-}
 
 /// A token that can be written by elements.
 ///
@@ -97,18 +77,24 @@ impl std::fmt::Display for PreToken {
                 write!(f, "<LineSpacingPolicy@{policy:?}>")
             }
             PreToken::Literal(value, kind) => {
-                write!(f, "<Literal-{kind:?}@{value}>",)
+                write!(f, "<Literal-{kind:?}@{value}>")
             }
             PreToken::Trivia(trivia) => match trivia {
                 Trivia::BlankLine => {
                     write!(f, "<OptionalBlankLine>")
                 }
                 Trivia::Comment(comment) => match comment {
+                    Comment::Directive(directive) => {
+                        write!(f, "<Comment-Directive@{directive:?}>")
+                    }
+                    Comment::Documentation(documentation) => {
+                        write!(f, "<Comment-Documentation@{documentation}>")
+                    }
                     Comment::Preceding(value) => {
-                        write!(f, "<Comment-Preceding@{value}>",)
+                        write!(f, "<Comment-Preceding@{value}>")
                     }
                     Comment::Inline(value) => {
-                        write!(f, "<Comment-Inline@{value}>",)
+                        write!(f, "<Comment-Inline@{value}>")
                     }
                 },
             },
@@ -181,6 +167,9 @@ impl TokenStream<PreToken> {
 
     /// Inserts any preceding trivia into the stream.
     ///
+    /// This will consolidate all doc comments and directive comments which
+    /// precede this token.
+    ///
     /// # Panics
     ///
     /// This will panic if the provided token is itself trivia, as trivia
@@ -188,23 +177,69 @@ impl TokenStream<PreToken> {
     fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
+        let mut documentation = String::new();
+        let mut trivia = Vec::new();
+        let mut exceptions = HashSet::new();
         for token in preceding_trivia {
             match token.kind() {
                 SyntaxKind::Whitespace => {
                     if !self.0.last().is_some_and(|t| {
                         matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine))
                     }) {
-                        self.0.push(PreToken::Trivia(Trivia::BlankLine));
+                        trivia.push(PreToken::Trivia(Trivia::BlankLine));
                     }
                 }
                 SyntaxKind::Comment => {
-                    let normalized = normalize_except_directive(token.text().trim_end());
-                    let comment =
-                        PreToken::Trivia(Trivia::Comment(Comment::Preceding(Rc::new(normalized))));
-                    self.0.push(comment);
+                    if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
+                        // do not `trim()` the token as the whitespace may
+                        // have syntactical meaning in markdown
+                        documentation.push_str(t);
+                        documentation.push_str(NEWLINE);
+                    } else if let Ok(directive) = token.text().parse::<Directive>() {
+                        match directive {
+                            Directive::Except(e) => exceptions.extend(e),
+                        }
+                    } else {
+                        let comment = PreToken::Trivia(Trivia::Comment(Comment::Preceding(
+                            Rc::new(token.text().trim_end().to_string()),
+                        )));
+                        trivia.push(comment);
+                    }
                 }
                 _ => unreachable!("unexpected trivia: {:?}", token),
             };
+        }
+
+        let mut trivia = trivia.into_iter().peekable();
+        // Preserve any leading blank lines
+        if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
+            self.0.push(trivia.next().unwrap());
+        }
+        let mut docs_present = false;
+        if !documentation.is_empty() {
+            docs_present = true;
+            let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(Rc::new(
+                documentation,
+            ))));
+            self.0.push(comment);
+
+            // don't allow documentation to "float" above the item being documented
+            if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
+                let _ = trivia.next();
+            }
+        }
+        for token in trivia {
+            self.0.push(token);
+        }
+        if docs_present && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last() {
+            // don't allow documentation to "float" above the item being documented
+            self.0.pop();
+        }
+        if !exceptions.is_empty() {
+            let comment = PreToken::Trivia(Trivia::Comment(Comment::Directive(Rc::new(
+                Directive::Except(exceptions),
+            ))));
+            self.0.push(comment);
         }
     }
 

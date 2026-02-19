@@ -1,10 +1,9 @@
-//! A lint rule for flagging misplaced lint directives.
+//! A lint rule for flagging misplaced except directives.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use wdl_analysis::Diagnostics;
-use wdl_analysis::EXCEPT_COMMENT_PREFIX;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -19,11 +18,11 @@ use crate::Tag;
 use crate::TagSet;
 use crate::rules;
 
-/// The identifier for the unknown rule rule.
-const ID: &str = "LintDirectiveValid";
+/// The identifier for the except directive valid rule.
+const ID: &str = "ExceptDirectiveValid";
 
-/// Creates an "unknown rule" diagnostic.
-fn misplaced_lint_directive(
+/// Creates a "misplaced directive" diagnostic.
+fn misplaced_except_directive(
     id: &str,
     span: Span,
     wrong_element: &SyntaxElement,
@@ -36,13 +35,13 @@ fn misplaced_lint_directive(
         .join(", ");
 
     Diagnostic::note(format!(
-        "lint directive `{id}` has no effect above {elem}",
+        "`except` directive `{id}` has no effect above {elem}",
         elem = wrong_element.kind().describe()
     ))
     .with_rule(ID)
     .with_label("cannot make an exception for this rule", span)
     .with_label(
-        "invalid element for this lint directive",
+        "invalid element for this `except` directive",
         wrong_element.text_range(),
     )
     .with_fix(format!(
@@ -62,21 +61,21 @@ pub static RULE_MAP: LazyLock<HashMap<&'static str, Option<&'static [SyntaxKind]
 
 /// Detects unknown rules within lint directives.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct LintDirectiveValidRule;
+pub struct ExceptDirectiveValidRule;
 
-impl Rule for LintDirectiveValidRule {
+impl Rule for ExceptDirectiveValidRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures lint directives are placed correctly to have the intended effect."
+        "Ensures `except` directives are placed correctly to have the intended effect."
     }
 
     fn explanation(&self) -> &'static str {
-        "When writing WDL, lint directives are used to suppress certain rules. If a lint directive \
-         is misplaced, it will have no effect. This rule flags misplaced lint directives to ensure \
-         they are in the correct location."
+        "When writing WDL, `except` directives are used to suppress certain rules. If an `except` \
+         directive is misplaced, it will have no effect. This rule flags misplaced `except` \
+         directives to ensure they are in the correct location."
     }
 
     fn tags(&self) -> TagSet {
@@ -92,15 +91,14 @@ impl Rule for LintDirectiveValidRule {
     }
 }
 
-impl Visitor for LintDirectiveValidRule {
+impl Visitor for ExceptDirectiveValidRule {
     fn reset(&mut self) {
         *self = Self;
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
+        if let Some(wdl_ast::Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
-            let mut offset = EXCEPT_COMMENT_PREFIX.len();
 
             let excepted_element = comment
                 .inner()
@@ -113,29 +111,18 @@ impl Visitor for LintDirectiveValidRule {
                     }
                 });
 
-            for id in ids.split(',') {
-                // First trim the start so we can determine how much whitespace was removed
-                let trimmed_start = id.trim_start();
-                // Next trim the end
-                let trimmed: &str = trimmed_start.trim_end();
-
-                // Update the offset to account for the whitespace that was removed
-                offset += id.len() - trimmed.len();
-
+            for id in ids {
                 if let Some(elem) = &excepted_element
-                    && let Some(Some(exceptable_nodes)) = RULE_MAP.get(trimmed)
+                    && let Some(Some(exceptable_nodes)) = RULE_MAP.get(id.as_str())
                     && !exceptable_nodes.contains(&elem.kind())
                 {
-                    diagnostics.add(misplaced_lint_directive(
-                        trimmed,
-                        Span::new(start + offset, trimmed.len()),
+                    diagnostics.add(misplaced_except_directive(
+                        &id,
+                        Span::new(start + comment.text().find(&id).unwrap(), id.len()),
                         elem,
                         exceptable_nodes,
                     ));
                 }
-
-                // Update the offset to account for the rule id and comma
-                offset += trimmed.len() + 1;
             }
         }
     }

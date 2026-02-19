@@ -86,6 +86,10 @@ impl<T: Token> IntoIterator for TokenStream<T> {
 /// The kind of comment.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Comment {
+    /// A directive comment.
+    Directive(Rc<wdl_ast::Directive>),
+    /// A doc comment block.
+    Documentation(Rc<String>),
     /// A comment on its own line.
     Preceding(Rc<String>),
     /// A comment on the same line as the code preceding it.
