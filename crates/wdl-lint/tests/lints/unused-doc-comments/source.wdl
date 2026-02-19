@@ -13,9 +13,6 @@ enum Color {
 
 }
 
-## Should I get a lint now that there have been changes to the preamble structure?
-## If so, we need to explicitly target whitespace in the `UnusedDocCommentsRule`
-
 #@ except: MetaSections
 # Documented with comments
 ## A base person struct.
@@ -45,6 +42,24 @@ task test_task {
         ## I'm a shell comment and shouldn't be picked up.
         printf "Hello World"
     >>>
+}
+
+#@ except: RequirementsSection, MetaSections
+task test_task_2 {
+    ## doc comment
+    ## more text
+    ## these 3 lines should all be highlighted by one span
+    #@ directive
+    # regular comment
+    ## another doc comment block
+    ## that gets a new diagnostic fired with a new span
+
+    ## but there's a blank line in the middle!
+    ## but we are going to consider these consecutive anyway
+    ## this line and the prior 5 lines should all be in the same highlighted span
+    # another regular comment for good measure
+
+    command <<<>>>
 }
 
 ## While it's not what we want people to do, I should be able to

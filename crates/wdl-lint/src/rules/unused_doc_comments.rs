@@ -1,7 +1,5 @@
 //! A lint rule for misplaced doc comments that will not generate documentation.
 
-use std::collections::HashSet;
-
 use rowan::NodeOrToken;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Visitor;
@@ -34,10 +32,11 @@ fn unused_doc_comment_diagnostic(span: Span) -> Diagnostic {
 /// generate documentation for.
 #[derive(Default, Debug, Clone)]
 pub struct UnusedDocCommentsRule {
-    /// Because each individual doc comment is visited as a single token,
-    /// we need to track each individual [`Comment`] in a multiline doc comment
-    /// block so we don't visit them again.
-    comments_seen: HashSet<Comment>,
+    /// The number of comment tokens to skip.
+    ///
+    /// This is used when consolidating multiple comments into a single
+    /// diagnostic.
+    skip_count: u32,
 }
 
 /// Valid syntax kinds for doc comments.
@@ -96,9 +95,9 @@ impl UnusedDocCommentsRule {
     ///
     /// to determine what this doc comment is targeting.
     ///
-    /// Mark any comments seen while searching to avoid linting on a single doc
-    /// comment block twice, and build up the span of the doc comment throughout
-    /// the search.
+    /// Increment the skip_count while walking comments to avoid linting on a
+    /// single doc comment block twice, and build up the span of the doc
+    /// comment throughout the search.
     fn search_siblings_for_doc_comment_target(
         &mut self,
         comment: &Comment,
@@ -109,33 +108,26 @@ impl UnusedDocCommentsRule {
             next = sibling.next_sibling_or_token();
 
             if sibling.kind() == SyntaxKind::Whitespace {
-                // Lint on the comment if it's "floating". If there's just a newline on the end
-                // of the comment, continue.
-                if let Some(token) = sibling.as_token() {
-                    let comment_is_floating =
-                        token.text().chars().filter(|c| *c == '\n').count() > 1;
-
-                    if comment_is_floating {
-                        // TODO: Decide if we want to lint on floating comments or not, and how that
-                        // relates to preambles.
-                        return None;
-                    }
-                };
                 continue;
             }
 
-            // If we are still looking at a doc comment, then continue, but add the
-            // sibling to the list of comments_seen so we skip it when we come to visit the
-            // comment itself.q
+            // If we are still looking at a doc comment, then continue, increase the
+            // skip_count and update the span.
             if let Some(continued_comment) =
                 sibling.as_token().and_then(|t| Comment::cast(t.clone()))
                 && (continued_comment.is_doc_comment() || continued_comment.is_directive())
             {
-                self.comments_seen.insert(continued_comment.clone());
-                span = Span::new(
-                    comment.span().start(),
-                    continued_comment.span().end() - comment.span().start(),
-                );
+                self.skip_count += 1;
+
+                // Don't include a trailing directive in the doc comment's span, but ignore a
+                // directive in the middle of a doc comment block for the purposes of this lint.
+                if !continued_comment.is_directive() {
+                    span = Span::new(
+                        comment.span().start(),
+                        continued_comment.span().end() - comment.span().start(),
+                    );
+                }
+
                 continue;
             }
 
@@ -189,18 +181,20 @@ impl Rule for UnusedDocCommentsRule {
 
 impl Visitor for UnusedDocCommentsRule {
     fn reset(&mut self) {
-        self.comments_seen.clear();
+        self.skip_count = 0;
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        if self.skip_count > 0 {
+            self.skip_count -= 1;
+            return;
+        }
+
         // If the visited comment isn't a doc comment, or we've already seen it, then
         // there's no need to process it!
         //
         // Also, ignore comment directives.
-        if !comment.is_doc_comment()
-            || self.comments_seen.contains(comment)
-            || comment.is_directive()
-        {
+        if !comment.is_doc_comment() || comment.is_directive() {
             return;
         }
 
