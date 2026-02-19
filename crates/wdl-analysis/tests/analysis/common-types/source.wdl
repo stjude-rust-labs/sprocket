@@ -16,10 +16,7 @@ workflow test {
     # Tests for map literals
     Map[String, String?] e = { "foo": "a", "bar": None, "baz": "c" }
     Map[String, String?] f = { "foo": None, "bar": "b", "baz": "c" }
-    Map[String?, String] g = { "foo": "a", None: "b", "baz": "c" }
-    Map[String?, String] h = { None: "a", "bar": "b", "baz": "c" }
     Map[String, String?] i = { "foo": None, "bar": file, "baz": "c" }
-    Map[String?, String] j = { "foo": "a", None: "b", "baz": file }
 
     # Tests for `if` expressions
     String? k = if (true) then "foo" else None
@@ -33,9 +30,7 @@ workflow test {
     Array[String?] q = ["foo", None, "baz"]
     Array[String?] r = ["foo", "bar", "baz"]
     Array[Pair[String?, Float]] s = [("foo", 1.0), (None, 2), ("baz", 3)]
-    Map[String?, Float] t = { "foo": 1, None: 1.0 }
-    Map[String?, String] u = { None: "bar", "foo": "baz" }
-    Map[String?, Pair[Array[String?]?, Int]] v = { None: (["foo", None], 1), "foo": (None, 2) }
+    Map[String, Pair[Array[String?]?, Int]] v = { "foo": (["foo", None], 1), "bar": (None, 2) }
     Array[File]? w = ["foo"]
     Array[String] x = select_first([w, ["foo"]])
 }
