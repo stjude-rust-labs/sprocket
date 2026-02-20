@@ -292,7 +292,7 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
         SyntaxKind::OpenBracket => Some(SyntaxKind::CloseBracket),
         SyntaxKind::OpenParen => Some(SyntaxKind::CloseParen),
         SyntaxKind::OpenHeredoc => Some(SyntaxKind::CloseHeredoc),
-        SyntaxKind::PlaceholderOpen => Some(SyntaxKind::CloseBracket),
+        SyntaxKind::PlaceholderOpen => Some(SyntaxKind::CloseBrace),
         _ => None,
     }
 }
@@ -625,6 +625,7 @@ impl Postprocessor {
                     &mut post_buffer,
                 );
 
+                // SAFETY: if cache is Some(_) this step must have a potential line break
                 if let Some(also_break_on) =
                     tandem_line_break(*potential_line_breaks.get(&i).unwrap())
                 {
