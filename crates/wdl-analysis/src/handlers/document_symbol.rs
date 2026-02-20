@@ -8,9 +8,9 @@
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::DocumentSymbol;
-use lsp_types::DocumentSymbolResponse;
-use lsp_types::SymbolKind;
+use ls_types::DocumentSymbol;
+use ls_types::DocumentSymbolResponse;
+use ls_types::SymbolKind;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
