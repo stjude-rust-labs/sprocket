@@ -140,16 +140,16 @@ workflow seaseq {
     input {
         # group: reference_genome
         File reference
-        File gtf
         File? spikein_reference
         File? blacklist
+        File gtf
         Array[File]? bowtie_index
         Array[File]? spikein_bowtie_index
         Array[File]? motif_databases
-        Array[File]? sample_fastq
 
         # group: input_genomic_data
         Array[String]? sample_sraid
+        Array[File]? sample_fastq
 
         # group: analysis_parameter
         String? results_name
