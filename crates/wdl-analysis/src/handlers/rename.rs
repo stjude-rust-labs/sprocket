@@ -9,9 +9,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::TextEdit;
-use lsp_types::Url;
-use lsp_types::WorkspaceEdit;
+use ls_types::TextEdit;
+use ls_types::Uri;
+use ls_types::WorkspaceEdit;
+use url::Url;
 use wdl_ast::lexer::v1::is_ident;
 
 use crate::SourcePosition;
@@ -42,7 +43,7 @@ pub fn rename(
         return Ok(None);
     }
 
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
     for location in locations {
         let text_edit = TextEdit {
             range: location.range,

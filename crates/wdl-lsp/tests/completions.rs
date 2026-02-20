@@ -4,16 +4,16 @@ mod common;
 
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::CompletionContext;
-use tower_lsp::lsp_types::CompletionItem;
-use tower_lsp::lsp_types::CompletionItemKind;
-use tower_lsp::lsp_types::CompletionParams;
-use tower_lsp::lsp_types::CompletionResponse;
-use tower_lsp::lsp_types::CompletionTriggerKind;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::Completion;
+use tower_lsp_server::ls_types::CompletionContext;
+use tower_lsp_server::ls_types::CompletionItem;
+use tower_lsp_server::ls_types::CompletionItemKind;
+use tower_lsp_server::ls_types::CompletionParams;
+use tower_lsp_server::ls_types::CompletionResponse;
+use tower_lsp_server::ls_types::CompletionTriggerKind;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::Completion;
 
 async fn completion_request(
     ctx: &mut TestContext,
