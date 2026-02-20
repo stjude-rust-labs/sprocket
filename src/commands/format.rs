@@ -12,10 +12,10 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
-use wdl::format::config::Builder;
-use wdl::format::config::Indent;
-use wdl::format::config::MaxLineLength;
+use wdl::format::Indent;
+use wdl::format::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -132,10 +132,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .context("failed to create max line length configuration")?;
 
-    let config = Builder::default()
+    let config = FormatConfig::default()
         .indent(indent)
-        .max_line_length(max_line_length)
-        .build();
+        .max_line_length(max_line_length);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

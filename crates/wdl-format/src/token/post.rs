@@ -106,7 +106,7 @@ impl Token for PostToken {
                     PostToken::Space => write!(f, "{SPACE}"),
                     PostToken::Newline => write!(f, "{NEWLINE}"),
                     PostToken::Indent => {
-                        write!(f, "{indent}", indent = self.config.indent().string())
+                        write!(f, "{indent}", indent = self.config.indent.string())
                     }
                     PostToken::TempIndent(value) => write!(f, "{value}"),
                     PostToken::Literal(value) => write!(f, "{value}"),
@@ -121,7 +121,7 @@ impl Token for PostToken {
                             write!(f, "{cur}")?;
                             if lines.peek().is_some() {
                                 write!(f, "{NEWLINE}")?;
-                                write_indents(f, &self.config.indent().string(), *num_indents)?;
+                                write_indents(f, &self.config.indent.string(), *num_indents)?;
                                 write!(f, "{prefix}")?;
                             }
                         }
@@ -140,8 +140,8 @@ impl Token for PostToken {
                                 let mut rules: Vec<String> = exceptions.iter().cloned().collect();
                                 rules.sort();
                                 write!(f, "{prefix}")?;
-                                if let Some(max) = self.config.max_line_length() {
-                                    let indent_width = self.config.indent().num() * num_indents;
+                                if let Some(max) = self.config.max_line_length.get() {
+                                    let indent_width = self.config.indent.num() * num_indents;
                                     let start_width = indent_width + prefix.len();
                                     let mut remaining = max.saturating_sub(start_width);
                                     let mut written_to_cur_line = 0usize;
@@ -161,7 +161,7 @@ impl Token for PostToken {
                                             write!(f, "{NEWLINE}")?;
                                             write_indents(
                                                 f,
-                                                &self.config.indent().string(),
+                                                &self.config.indent.string(),
                                                 *num_indents,
                                             )?;
                                             write!(f, "{prefix}{rule}")?;
@@ -199,7 +199,7 @@ impl PostToken {
         match self {
             Self::Space => SPACE.len(), // 1 character
             Self::Newline => 0,
-            Self::Indent => config.indent().num(),
+            Self::Indent => config.indent.num(),
             Self::TempIndent(value) => value.len(),
             Self::Literal(value) => value.len(),
             Self::Directive { .. } => 0,
@@ -527,8 +527,8 @@ impl Postprocessor {
 
         // If all lines are short enough, we can just add the post_buffer to the
         // out_stream and be done.
-        if config.max_line_length().is_none()
-            || post_buffer.max_width(config) <= config.max_line_length().unwrap()
+        if config.max_line_length.get().is_none()
+            || post_buffer.max_width(config) <= config.max_line_length.get().unwrap()
         {
             out_stream.extend(post_buffer);
             return;
@@ -539,7 +539,7 @@ impl Postprocessor {
         // and then we iterate through the in_stream again to actually insert
         // them in the proper places.
 
-        let max_length = config.max_line_length().unwrap();
+        let max_length = config.max_line_length.get().unwrap();
 
         let mut potential_line_breaks: HashSet<usize> = HashSet::new();
         for (i, token) in in_stream.iter().enumerate() {
