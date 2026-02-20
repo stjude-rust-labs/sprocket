@@ -562,7 +562,7 @@ pub fn missing_struct_members<T: TreeToken>(
 
 /// Creates a "map key not primitive" diagnostic.
 pub fn map_key_not_primitive(span: Span, actual: &Type) -> Diagnostic {
-    Diagnostic::error("expected map literal to use primitive type keys")
+    Diagnostic::error("expected map key to be a non-optional primitive type")
         .with_highlight(span)
         .with_label(format!("this is type `{actual}`"), span)
 }

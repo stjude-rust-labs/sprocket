@@ -607,10 +607,7 @@ mod tests {
         assert!(last.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                Type::Primitive(PrimitiveType::Integer, true),
-                Type::Primitive(PrimitiveType::Boolean, false),
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(first.validate_type_congruence(&ty).is_err());
@@ -636,10 +633,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                Type::Primitive(PrimitiveType::Integer, true),
-                Type::Primitive(PrimitiveType::Boolean, false),
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -662,7 +656,7 @@ mod tests {
 
         let ty = Type::Compound(
             CompoundType::Pair(PairType::new(
-                Type::Primitive(PrimitiveType::String, false),
+                PrimitiveType::String,
                 Type::Primitive(PrimitiveType::String, true),
             )),
             true,
@@ -671,20 +665,14 @@ mod tests {
         assert!(right.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Pair(PairType::new(
-                Type::Primitive(PrimitiveType::Float, true),
-                Type::Primitive(PrimitiveType::Integer, false),
-            )),
+            CompoundType::Pair(PairType::new(PrimitiveType::Float, PrimitiveType::Integer)),
             false,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
         assert!(right.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                Type::Primitive(PrimitiveType::Integer, true),
-                Type::Primitive(PrimitiveType::Boolean, false),
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
@@ -710,10 +698,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                Type::Primitive(PrimitiveType::Integer, true),
-                Type::Primitive(PrimitiveType::Boolean, false),
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -725,10 +710,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Pair(PairType::new(
-                Type::Primitive(PrimitiveType::Float, true),
-                Type::Primitive(PrimitiveType::Integer, false),
-            )),
+            CompoundType::Pair(PairType::new(PrimitiveType::Float, PrimitiveType::Integer)),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -896,11 +878,11 @@ mod tests {
                 ),
                 vec![
                     (
-                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0)),
+                        wdl::engine::PrimitiveValue::Integer(0),
                         EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
                     ),
                     (
-                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(1)),
+                        wdl::engine::PrimitiveValue::Integer(1),
                         EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(false)),
                     ),
                 ],
@@ -915,8 +897,8 @@ mod tests {
                     Type::Primitive(PrimitiveType::Boolean, false),
                 ),
                 vec![(
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0)),
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                    wdl::engine::PrimitiveValue::Integer(0),
+                    wdl::engine::PrimitiveValue::Boolean(true),
                 )],
             )
             .unwrap(),
@@ -1043,7 +1025,7 @@ mod tests {
                     Type::Primitive(PrimitiveType::Integer, false),
                     Type::Primitive(PrimitiveType::Boolean, false),
                 ),
-                None::<(EngineValue, EngineValue)>,
+                None::<(PrimitiveValue, EngineValue)>,
             )
             .unwrap(),
         ));
@@ -1056,8 +1038,8 @@ mod tests {
                     Type::Primitive(PrimitiveType::Boolean, false),
                 ),
                 vec![(
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0)),
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                    wdl::engine::PrimitiveValue::Integer(0),
+                    wdl::engine::PrimitiveValue::Boolean(true),
                 )],
             )
             .unwrap(),

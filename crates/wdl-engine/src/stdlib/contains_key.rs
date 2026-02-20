@@ -34,8 +34,7 @@ fn contains_key_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .expect("first argument should be a map");
 
     let key = match &context.arguments[1].value {
-        Value::None(_) => None,
-        Value::Primitive(v) => Some(v.clone()),
+        Value::Primitive(v) => v.clone(),
         _ => unreachable!("expected a primitive value for second argument"),
     };
 
@@ -80,7 +79,7 @@ fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic>
     fn get(value: &Value, key: &Arc<String>) -> Option<Value> {
         match value {
             Value::Compound(CompoundValue::Map(map)) => {
-                map.get(&Some(PrimitiveValue::String(key.clone()))).cloned()
+                map.get(&PrimitiveValue::String(key.clone())).cloned()
             }
             Value::Compound(CompoundValue::Object(object)) => object.get(key.as_str()).cloned(),
             Value::Compound(CompoundValue::Struct(Struct { members, .. })) => {
@@ -115,7 +114,8 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(map: Map[K, V], key: K) -> Boolean where `K`: any primitive type",
+                    "(map: Map[K, V], key: K) -> Boolean where `K`: any non-optional primitive \
+                     type",
                     Callback::Sync(contains_key_map),
                 ),
                 Signature::new(
@@ -164,10 +164,10 @@ mod test {
             .unwrap();
         assert!(!value.unwrap_boolean());
 
-        let value = eval_v1_expr(&env, V1::Two, "contains_key({ 1: 2, None: 3}, None)")
+        let value = eval_v1_expr(&env, V1::Two, "contains_key({ 1: 2, 2: 3}, 3)")
             .await
             .unwrap();
-        assert!(value.unwrap_boolean());
+        assert!(!value.unwrap_boolean());
 
         let value = eval_v1_expr(&env, V1::Two, "contains_key({ 1: 2 }, 1)")
             .await

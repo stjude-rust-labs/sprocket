@@ -963,12 +963,12 @@ impl MapType {
     ///
     /// # Panics
     ///
-    /// Panics if the given key type is not primitive.
+    /// Panics if the given key type is not a required primitive type.
     pub fn new(key_type: impl Into<Type>, value_type: impl Into<Type>) -> Self {
         let key_type = key_type.into();
         assert!(
-            key_type.is_union() || key_type.as_primitive().is_some(),
-            "map key type `{key_type}` is not primitive"
+            key_type.is_union() || matches!(key_type, Type::Primitive(_, false)),
+            "map key type `{key_type}` is not a non-optional primitive"
         );
         Self(Arc::new((key_type, value_type.into())))
     }
@@ -1719,10 +1719,10 @@ mod test {
                 .is_coercible_to(&MapType::new(PrimitiveType::String, PrimitiveType::String))
         );
 
-        // Map[W, X] -> Map[Y?, Z?]
+        // Map[W, X] -> Map[Y, Z?]
         let type1: Type = MapType::new(PrimitiveType::String, PrimitiveType::String).into();
         let type2 = MapType::new(
-            Type::from(PrimitiveType::File).optional(),
+            PrimitiveType::File,
             Type::from(PrimitiveType::Directory).optional(),
         )
         .into();
