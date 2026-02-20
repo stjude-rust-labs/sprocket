@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.18.0 - 2026-02-20
+
 #### Changed
 
 * Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
