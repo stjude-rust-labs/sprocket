@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 
-use crate::diagnostics::enum_variant_does_not_coerce_to_type;
+use crate::diagnostics::enum_choice_does_not_coerce_to_type;
 use crate::diagnostics::no_common_inferred_type_for_enum;
 use crate::document::Input;
 use crate::document::Output;
@@ -1064,17 +1064,17 @@ impl Coercible for StructType {
     }
 }
 
-/// Cache key for enum variant values.
+/// Cache key for enum choice values.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub struct EnumVariantCacheKey {
+pub struct EnumChoiceCacheKey {
     /// The index of the enum in the document.
     enum_index: usize,
-    /// The index of the variant within the enum.
+    /// The index of the choice within the enum.
     variant_index: usize,
 }
 
-impl EnumVariantCacheKey {
-    /// Constructs a new enum variant cache key.
+impl EnumChoiceCacheKey {
+    /// Constructs a new enum choice cache key.
     pub(crate) fn new(enum_index: usize, variant_index: usize) -> Self {
         Self {
             enum_index,
@@ -1088,7 +1088,7 @@ impl EnumVariantCacheKey {
 pub struct EnumType {
     /// The name of the enum.
     name: Arc<String>,
-    /// The common coerced type computed from all variant values.
+    /// The common coerced type computed from all choice values.
     inner_value_type: Arc<Type>,
     /// The variants.
     variants: Arc<[String]>,
@@ -1097,9 +1097,9 @@ pub struct EnumType {
 impl EnumType {
     /// Constructs a new enum type with a known coerced type.
     ///
-    /// Validates that all variant types are coercible to the provided type.
+    /// Validates that all choice types are coercible to the provided type.
     ///
-    /// Returns an error if any variant cannot be coerced.
+    /// Returns an error if any choice cannot be coerced.
     pub fn new(
         enum_name: impl Into<String>,
         enum_span: Span,
@@ -1111,20 +1111,20 @@ impl EnumType {
         let enum_name = enum_name.into();
         let mut results = Vec::with_capacity(variants.len());
 
-        // Validate that all variant types are coercible to the value type
-        for (variant_idx, (variant_name, variant_type)) in variants.iter().enumerate() {
-            if !variant_type.is_coercible_to(&explicit_inner_type) {
-                return Err(enum_variant_does_not_coerce_to_type(
+        // Validate that all choice types are coercible to the value type.
+        for (choice_idx, (choice_name, choice_type)) in variants.iter().enumerate() {
+            if !choice_type.is_coercible_to(&explicit_inner_type) {
+                return Err(enum_choice_does_not_coerce_to_type(
                     &enum_name,
                     enum_span,
-                    variant_name,
-                    variant_spans[variant_idx],
+                    choice_name,
+                    variant_spans[choice_idx],
                     &explicit_inner_type,
-                    variant_type,
+                    choice_type,
                 ));
             }
 
-            results.push(variant_name.to_owned());
+            results.push(choice_name.to_owned());
         }
 
         Ok(Self {
@@ -1137,10 +1137,10 @@ impl EnumType {
     /// Attempts to create a new enum type by computing the common inner type
     /// through coercion.
     ///
-    /// Finds the common inner type among all variant types. If the enum has no
+    /// Finds the common inner type among all choice types. If the enum has no
     /// variants, the coerced inner type is [`Type::Union`].
     ///
-    /// Returns an error if no common type can be found among the variants.
+    /// Returns an error if no common type can be found among the choices.
     pub fn infer(
         enum_name: impl Into<String>,
         variants: Vec<(String, Type)>,
@@ -1185,7 +1185,7 @@ impl EnumType {
         &self.name
     }
 
-    /// Gets the inner value type that all variants coerce to.
+    /// Gets the inner value type that all choices coerce to.
     pub fn inner_value_type(&self) -> &Type {
         &self.inner_value_type
     }
@@ -2303,7 +2303,7 @@ mod test {
         );
 
         assert!(
-            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce variant `First` in enum `Bad` from type `String` to type `Int`")
+            matches!(result, Err(diagnostic) if diagnostic.message() == "cannot coerce choice `First` in enum `Bad` from type `String` to type `Int`")
         );
     }
 

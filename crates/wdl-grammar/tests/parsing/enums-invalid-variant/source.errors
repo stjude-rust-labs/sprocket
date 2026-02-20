@@ -1,4 +1,4 @@
-error: expected enum variant declaration, but found `=`
+error: expected enum choice declaration, but found `=`
   ┌─ tests/parsing/enums-invalid-variant/source.wdl:7:5
   │
 7 │     = 1,

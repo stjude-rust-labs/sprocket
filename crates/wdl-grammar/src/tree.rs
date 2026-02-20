@@ -214,8 +214,8 @@ pub enum SyntaxKind {
     EnumDefinitionNode,
     /// Represents an enum type parameter node.
     EnumTypeParameterNode,
-    /// Represents an enum variant node.
-    EnumVariantNode,
+    /// Represents an enum choice node.
+    EnumChoiceNode,
     /// Represents a task definition node.
     TaskDefinitionNode,
     /// Represents a workflow definition node.
@@ -492,7 +492,7 @@ impl SyntaxKind {
             Self::StructDefinitionNode => "struct definition",
             Self::EnumDefinitionNode => "enum definition",
             Self::EnumTypeParameterNode => "enum type parameter",
-            Self::EnumVariantNode => "enum variant",
+            Self::EnumChoiceNode => "enum choice",
             Self::TaskDefinitionNode => "task definition",
             Self::WorkflowDefinitionNode => "workflow definition",
             Self::UnboundDeclNode => "declaration without assignment",

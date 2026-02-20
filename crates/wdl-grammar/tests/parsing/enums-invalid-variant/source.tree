@@ -6,7 +6,7 @@ RootNode@0..282
     Whitespace@49..50 " "
     Version@50..53 "1.3"
   Whitespace@53..55 "\n\n"
-  Comment@55..95 "# Missing variant nam ..."
+  Comment@55..95 "# Missing choice nam ..."
   Whitespace@95..96 "\n"
   EnumDefinitionNode@96..139
     EnumKeyword@96..100 "enum"
@@ -25,7 +25,7 @@ RootNode@0..282
     Integer@123..124 "1"
     Comma@124..125 ","
     Whitespace@125..130 "\n    "
-    EnumVariantNode@130..137
+    EnumChoiceNode@130..137
       Ident@130..133 "Low"
       Whitespace@133..134 " "
       Assignment@134..135 "="
@@ -49,7 +49,7 @@ RootNode@0..282
     Assignment@195..196 "="
     Comma@196..197 ","
     Whitespace@197..202 "\n    "
-    EnumVariantNode@202..210
+    EnumChoiceNode@202..210
       Ident@202..210 "Complete"
     Whitespace@210..211 "\n"
     CloseBrace@211..212 "}"

@@ -37,7 +37,7 @@ fn position_in_range(pos: &Position, range: &Range) -> bool {
 ///
 /// - Enum definitions where the inner type was inferred rather than explicitly
 ///   specified.
-/// - Enum variants without explicit values, showing the inferred string value.
+/// - Enum choices without explicit values, showing the inferred string value.
 ///
 /// Only returns hints that fall within the specified range.
 pub fn inlay_hints(
@@ -119,39 +119,39 @@ pub fn inlay_hints(
             }
         }
 
-        // Add hints for variants without explicit values
-        for variant in definition.variants() {
-            // Skip variants that have an explicit value
-            if variant.value().is_some() {
+        // Add hints for choices without explicit values
+        for choice in definition.variants() {
+            // Skip choices that have an explicit value
+            if choice.value().is_some() {
                 continue;
             }
 
-            let variant_name = variant.name().text().to_string();
-            let variant_span = variant.name().span();
-            let absolute_end = enum_entry.offset() + variant_span.end();
-            let variant_end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;
+            let choice_name = choice.name().text().to_string();
+            let choice_span = choice.name().span();
+            let absolute_end = enum_entry.offset() + choice_span.end();
+            let choice_end_pos = position(&lines, TextSize::try_from(absolute_end)?)?;
 
-            // Skip if the variant position is not within the requested range
-            if !position_in_range(&variant_end_pos, &range) {
+            // Skip if the choice position is not within the requested range
+            if !position_in_range(&choice_end_pos, &range) {
                 continue;
             }
 
             hints.push(InlayHint {
                 position: Position {
-                    line: variant_end_pos.line,
-                    character: variant_end_pos.character,
+                    line: choice_end_pos.line,
+                    character: choice_end_pos.character,
                 },
-                label: InlayHintLabel::String(format!(" = \"{}\"", variant_name)),
+                label: InlayHintLabel::String(format!(" = \"{}\"", choice_name)),
                 kind: Some(InlayHintKind::PARAMETER),
                 text_edits: Some(vec![TextEdit {
                     range: Range {
-                        start: variant_end_pos,
-                        end: variant_end_pos,
+                        start: choice_end_pos,
+                        end: choice_end_pos,
                     },
-                    new_text: format!(" = \"{}\"", variant_name),
+                    new_text: format!(" = \"{}\"", choice_name),
                 }]),
                 tooltip: Some(lsp_types::InlayHintTooltip::String(
-                    "Click to insert variant value".to_string(),
+                    "Click to insert choice value".to_string(),
                 )),
                 padding_left: None,
                 padding_right: None,

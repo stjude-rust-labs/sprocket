@@ -57,8 +57,8 @@ pub enum Context {
     StructMember(Span),
     /// The name is an enum name.
     Enum(Span),
-    /// The name is an enum variant name.
-    EnumVariant(Span),
+    /// The name is an enum choice name.
+    EnumChoice(Span),
     /// A name from a scope.
     Name(NameContext),
 }
@@ -73,7 +73,7 @@ impl Context {
             Self::Struct(s) => *s,
             Self::StructMember(s) => *s,
             Self::Enum(s) => *s,
-            Self::EnumVariant(s) => *s,
+            Self::EnumChoice(s) => *s,
             Self::Name(n) => n.span(),
         }
     }
@@ -88,7 +88,7 @@ impl fmt::Display for Context {
             Self::Struct(_) => write!(f, "struct"),
             Self::StructMember(_) => write!(f, "struct member"),
             Self::Enum(_) => write!(f, "enum"),
-            Self::EnumVariant(_) => write!(f, "enum variant"),
+            Self::EnumChoice(_) => write!(f, "enum choice"),
             Self::Name(n) => n.fmt(f),
         }
     }
@@ -516,18 +516,18 @@ pub fn not_a_struct_member<T: TreeToken>(name: &str, member: &Ident<T>) -> Diagn
     .with_highlight(member.span())
 }
 
-/// Creates a "not an enum variant" diagnostic.
-pub fn not_an_enum_variant<T: TreeToken>(name: &str, variant: &Ident<T>) -> Diagnostic {
+/// Creates a "not an enum choice" diagnostic.
+pub fn not_an_enum_choice<T: TreeToken>(name: &str, choice: &Ident<T>) -> Diagnostic {
     Diagnostic::error(format!(
-        "enum `{name}` does not have a variant named `{variant}`",
-        variant = variant.text()
+        "enum `{name}` does not have a choice named `{choice}`",
+        choice = choice.text()
     ))
-    .with_highlight(variant.span())
+    .with_highlight(choice.span())
 }
 
 /// Creates a "non-literal enum value" diagnostic.
 pub fn non_literal_enum_value(span: Span) -> Diagnostic {
-    Diagnostic::error("enum variant value must be a literal expression")
+    Diagnostic::error("enum choice value must be a literal expression")
         .with_highlight(span)
         .with_fix(
             "enum values must be literal expressions only (string literals, numeric literals, \
@@ -921,7 +921,7 @@ pub fn not_a_custom_type<T: TreeToken>(name: &Ident<T>) -> Diagnostic {
 /// Creates a "no common inferred type for enum" diagnostic.
 ///
 /// This diagnostic occurs during enum type calculation when no common type can
-/// be inferred from the variant types.
+/// be inferred from the choice types.
 pub fn no_common_inferred_type_for_enum(
     enum_name: &str,
     common_type: &Type,
@@ -932,35 +932,32 @@ pub fn no_common_inferred_type_for_enum(
     Diagnostic::error(format!("cannot infer a common type for enum `{enum_name}`"))
         .with_label(
             format!(
-                "this is the first variant with type `{discordant_type}` that has no common type \
+                "this is the first choice with type `{discordant_type}` that has no common type \
                  with `{common_type}`"
             ),
             discordant_span,
         )
         .with_label(
-            format!("this is the last variant with a common type `{common_type}`"),
+            format!("this is the last choice with a common type `{common_type}`"),
             common_span,
         )
 }
 
-/// Creates an "enum variant does not coerce to type" diagnostic.
-pub fn enum_variant_does_not_coerce_to_type(
+/// Creates an "enum choice does not coerce to type" diagnostic.
+pub fn enum_choice_does_not_coerce_to_type(
     enum_name: &str,
     enum_span: Span,
-    variant_name: &str,
-    variant_span: Span,
+    choice_name: &str,
+    choice_span: Span,
     expected: &Type,
     actual: &Type,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from type `{actual}` to \
+        "cannot coerce choice `{choice_name}` in enum `{enum_name}` from type `{actual}` to \
          type `{expected}`"
     ))
     .with_label(format!("this is the `{enum_name}` enum"), enum_span)
-    .with_label(
-        format!("this is the `{variant_name}` variant"),
-        variant_span,
-    )
+    .with_label(format!("this is the `{choice_name}` choice"), choice_span)
     .with_fix(format!(
         "change the value to something that coerces to type `{expected}` or explicitly set the \
          enum's inner type"

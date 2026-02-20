@@ -24,7 +24,7 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
     assert!(name.element().kind() == SyntaxKind::Ident);
     (&name).write(stream);
 
-    let mut variants = Vec::new();
+    let mut choices = Vec::new();
     let mut commas = Vec::new();
     let mut close_brace = None;
 
@@ -39,8 +39,8 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
                 stream.end_line();
                 stream.increment_indent();
             }
-            SyntaxKind::EnumVariantNode => {
-                variants.push(child.clone());
+            SyntaxKind::EnumChoiceNode => {
+                choices.push(child.clone());
             }
             SyntaxKind::Comma => {
                 commas.push(child.clone());
@@ -58,8 +58,8 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
     }
 
     let mut commas = commas.iter();
-    for variant in variants {
-        (&variant).write(stream);
+    for choice in choices {
+        (&choice).write(stream);
         if let Some(comma) = commas.next() {
             (comma).write(stream);
         } else {
@@ -73,15 +73,15 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
     stream.end_line();
 }
 
-/// Formats an [`EnumVariant`](wdl_ast::v1::EnumVariant).
+/// Formats an [`EnumChoice`](wdl_ast::v1::EnumChoice).
 ///
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_variant(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    let mut children = element.children().expect("enum variant children");
+pub fn format_enum_choice(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+    let mut children = element.children().expect("enum choice children");
 
-    let name = children.next().expect("enum variant name");
+    let name = children.next().expect("enum choice name");
     assert!(name.element().kind() == SyntaxKind::Ident);
     (&name).write(stream);
 

@@ -15,15 +15,15 @@ RootNode@0..872
     Whitespace@95..96 " "
     OpenBrace@96..97 "{"
     Whitespace@97..102 "\n    "
-    EnumVariantNode@102..105
+    EnumChoiceNode@102..105
       Ident@102..105 "Red"
     Comma@105..106 ","
     Whitespace@106..111 "\n    "
-    EnumVariantNode@111..116
+    EnumChoiceNode@111..116
       Ident@111..116 "Green"
     Comma@116..117 ","
     Whitespace@117..122 "\n    "
-    EnumVariantNode@122..126
+    EnumChoiceNode@122..126
       Ident@122..126 "Blue"
     Whitespace@126..127 "\n"
     CloseBrace@127..128 "}"
@@ -42,15 +42,15 @@ RootNode@0..872
     Whitespace@194..195 " "
     OpenBrace@195..196 "{"
     Whitespace@196..201 "\n    "
-    EnumVariantNode@201..208
+    EnumChoiceNode@201..208
       Ident@201..208 "Pending"
     Comma@208..209 ","
     Whitespace@209..214 "\n    "
-    EnumVariantNode@214..221
+    EnumChoiceNode@214..221
       Ident@214..221 "Running"
     Comma@221..222 ","
     Whitespace@222..227 "\n    "
-    EnumVariantNode@227..235
+    EnumChoiceNode@227..235
       Ident@227..235 "Complete"
     Whitespace@235..236 "\n"
     CloseBrace@236..237 "}"
@@ -69,7 +69,7 @@ RootNode@0..872
     Whitespace@310..311 " "
     OpenBrace@311..312 "{"
     Whitespace@312..317 "\n    "
-    EnumVariantNode@317..324
+    EnumChoiceNode@317..324
       Ident@317..320 "Low"
       Whitespace@320..321 " "
       Assignment@321..322 "="
@@ -78,7 +78,7 @@ RootNode@0..872
         Integer@323..324 "1"
     Comma@324..325 ","
     Whitespace@325..330 "\n    "
-    EnumVariantNode@330..340
+    EnumChoiceNode@330..340
       Ident@330..336 "Medium"
       Whitespace@336..337 " "
       Assignment@337..338 "="
@@ -87,7 +87,7 @@ RootNode@0..872
         Integer@339..340 "2"
     Comma@340..341 ","
     Whitespace@341..346 "\n    "
-    EnumVariantNode@346..354
+    EnumChoiceNode@346..354
       Ident@346..350 "High"
       Whitespace@350..351 " "
       Assignment@351..352 "="
@@ -108,7 +108,7 @@ RootNode@0..872
     Whitespace@383..384 "\n"
     CloseBrace@384..385 "}"
   Whitespace@385..387 "\n\n"
-  Comment@387..408 "# Single variant enum"
+  Comment@387..408 "# Single choice enum"
   Whitespace@408..409 "\n"
   EnumDefinitionNode@409..436
     EnumKeyword@409..413 "enum"
@@ -117,7 +117,7 @@ RootNode@0..872
     Whitespace@420..421 " "
     OpenBrace@421..422 "{"
     Whitespace@422..427 "\n    "
-    EnumVariantNode@427..434
+    EnumChoiceNode@427..434
       Ident@427..434 "OnlyOne"
     Whitespace@434..435 "\n"
     CloseBrace@435..436 "}"
@@ -131,15 +131,15 @@ RootNode@0..872
     Whitespace@487..488 " "
     OpenBrace@488..489 "{"
     Whitespace@489..494 "\n    "
-    EnumVariantNode@494..499
+    EnumChoiceNode@494..499
       Ident@494..499 "First"
     Comma@499..500 ","
     Whitespace@500..505 "\n    "
-    EnumVariantNode@505..511
+    EnumChoiceNode@505..511
       Ident@505..511 "Second"
     Comma@511..512 ","
     Whitespace@512..517 "\n    "
-    EnumVariantNode@517..522
+    EnumChoiceNode@517..522
       Ident@517..522 "Third"
     Comma@522..523 ","
     Whitespace@523..524 "\n"
@@ -159,7 +159,7 @@ RootNode@0..872
     Whitespace@580..581 " "
     OpenBrace@581..582 "{"
     Whitespace@582..587 "\n    "
-    EnumVariantNode@587..596
+    EnumChoiceNode@587..596
       Ident@587..592 "First"
       Whitespace@592..593 " "
       Assignment@593..594 "="
@@ -168,11 +168,11 @@ RootNode@0..872
         Integer@595..596 "1"
     Comma@596..597 ","
     Whitespace@597..602 "\n    "
-    EnumVariantNode@602..608
+    EnumChoiceNode@602..608
       Ident@602..608 "Second"
     Comma@608..609 ","
     Whitespace@609..614 "\n    "
-    EnumVariantNode@614..623
+    EnumChoiceNode@614..623
       Ident@614..619 "Third"
       Whitespace@619..620 " "
       Assignment@620..621 "="
@@ -196,7 +196,7 @@ RootNode@0..872
     Whitespace@689..690 " "
     OpenBrace@690..691 "{"
     Whitespace@691..696 "\n    "
-    EnumVariantNode@696..707
+    EnumChoiceNode@696..707
       Ident@696..697 "A"
       Whitespace@697..698 " "
       Assignment@698..699 "="
@@ -207,7 +207,7 @@ RootNode@0..872
         DoubleQuote@706..707 "\""
     Comma@707..708 ","
     Whitespace@708..713 "\n    "
-    EnumVariantNode@713..730
+    EnumChoiceNode@713..730
       Ident@713..714 "B"
       Whitespace@714..715 " "
       Assignment@715..716 "="
@@ -226,7 +226,7 @@ RootNode@0..872
           DoubleQuote@729..730 "\""
     Comma@730..731 ","
     Whitespace@731..736 "\n    "
-    EnumVariantNode@736..768
+    EnumChoiceNode@736..768
       Ident@736..737 "C"
       Whitespace@737..738 " "
       Assignment@738..739 "="

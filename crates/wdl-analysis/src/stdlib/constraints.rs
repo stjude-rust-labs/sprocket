@@ -137,7 +137,7 @@ impl Constraint for JsonSerializableConstraint {
                 }
                 CompoundType::Custom(CustomType::Enum(_)) => {
                     // Enums always serialize as a string representing the
-                    // variant name.
+                    // choice name.
                     true
                 }
             }
@@ -185,13 +185,13 @@ impl Constraint for PrimitiveTypeConstraint {
     }
 }
 
-/// Represents a constraint that ensures the type is any enumeration variant.
+/// Represents a constraint that ensures the type is any enumeration choice.
 #[derive(Debug, Copy, Clone)]
-pub struct EnumVariantConstraint;
+pub struct EnumChoiceConstraint;
 
-impl Constraint for EnumVariantConstraint {
+impl Constraint for EnumChoiceConstraint {
     fn description(&self) -> &'static str {
-        "any enum variant"
+        "any enum choice"
     }
 
     fn satisfied(&self, ty: &Type) -> bool {

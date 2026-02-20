@@ -19,7 +19,7 @@ use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
-use wdl_analysis::types::EnumVariantCacheKey;
+use wdl_analysis::types::EnumChoiceCacheKey;
 
 use super::CancellationContext;
 use super::Events;
@@ -69,8 +69,8 @@ pub struct Evaluator {
     cache: Option<CallCache>,
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
-    /// Cache for evaluated enum variant values to avoid redundant AST lookups.
-    variant_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
+    /// Cache for evaluated enum choice values to avoid redundant AST lookups.
+    variant_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
 
 impl Evaluator {
