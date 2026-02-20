@@ -1,0 +1,65 @@
+note[EmptyDocComment]: empty doc comment
+  ┌─ tests/lints/empty-doc-comment/source.wdl:5:1
+  │
+5 │ ##
+  │ ^^
+  │
+  = help: consider adding a comment after the `##` or removing it
+
+error: struct `Foo` must have at least one declared member
+  ┌─ tests/lints/empty-doc-comment/source.wdl:6:8
+  │
+6 │ struct Foo {}
+  │        ^^^ this struct cannot be empty
+
+note[EmptyDocComment]: empty doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:8:1
+   │  
+ 8 │ ╭ ##
+ 9 │ │ 
+10 │ │ ##
+   │ ╰──^
+   │  
+   = help: consider adding a comment after the `##` or removing it
+
+error: struct `Qux` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:16:8
+   │
+16 │ struct Qux {}
+   │        ^^^ this struct cannot be empty
+
+error: struct `Normal` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:19:8
+   │
+19 │ struct Normal {}
+   │        ^^^^^^ this struct cannot be empty
+
+note[EmptyDocComment]: empty doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:21:1
+   │
+21 │ ##   
+   │ ^^^^^
+   │
+   = help: consider adding a comment after the `##` or removing it
+
+error: struct `WhitespaceOnly` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:22:8
+   │
+22 │ struct WhitespaceOnly {}
+   │        ^^^^^^^^^^^^^^ this struct cannot be empty
+
+note[EmptyDocComment]: empty doc comment
+   ┌─ tests/lints/empty-doc-comment/source.wdl:26:1
+   │  
+26 │ ╭ ##
+27 │ │ ##
+   │ ╰──^
+   │  
+   = help: consider adding a comment after the `##` or removing it
+
+error: struct `MultipleEmpty` must have at least one declared member
+   ┌─ tests/lints/empty-doc-comment/source.wdl:29:8
+   │
+29 │ struct MultipleEmpty {}
+   │        ^^^^^^^^^^^^^ this struct cannot be empty
+
