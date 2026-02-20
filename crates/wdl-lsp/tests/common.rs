@@ -25,18 +25,20 @@ use tokio::io::AsyncWriteExt;
 use tokio::io::BufReader;
 use tokio::io::DuplexStream;
 use tokio::io::duplex;
-use tower_lsp::LspService;
-use tower_lsp::jsonrpc;
-use tower_lsp::lsp_types;
-use tower_lsp::lsp_types::ClientCapabilities;
-use tower_lsp::lsp_types::InitializeParams;
-use tower_lsp::lsp_types::InitializedParams;
-use tower_lsp::lsp_types::WorkspaceDiagnosticParams;
-use tower_lsp::lsp_types::WorkspaceFolder;
-use tower_lsp::lsp_types::notification::Notification;
-use tower_lsp::lsp_types::request::Request;
-use tower_lsp::lsp_types::request::WorkspaceDiagnosticRequest;
+use tower_lsp_server::LspService;
+use tower_lsp_server::jsonrpc;
+use tower_lsp_server::ls_types;
+use tower_lsp_server::ls_types::ClientCapabilities;
+use tower_lsp_server::ls_types::InitializeParams;
+use tower_lsp_server::ls_types::InitializedParams;
+use tower_lsp_server::ls_types::Uri;
+use tower_lsp_server::ls_types::WorkspaceDiagnosticParams;
+use tower_lsp_server::ls_types::WorkspaceFolder;
+use tower_lsp_server::ls_types::notification::Notification;
+use tower_lsp_server::ls_types::request::Request;
+use tower_lsp_server::ls_types::request::WorkspaceDiagnosticRequest;
 use url::Url;
+use wdl_analysis::handlers::UrlToUri;
 use wdl_lsp::LintOptions;
 use wdl_lsp::Server;
 use wdl_lsp::ServerOptions;
@@ -97,8 +99,9 @@ impl TestContext {
                 },
             )
         });
-        let server =
-            tokio::spawn(tower_lsp::Server::new(req_server, resp_server, socket).serve(service));
+        let server = tokio::spawn(
+            tower_lsp_server::Server::new(req_server, resp_server, socket).serve(service),
+        );
 
         let workspace = TempDir::new().unwrap();
         let workspace_path = get_workspace_path(base);
@@ -121,8 +124,8 @@ impl TestContext {
     }
 
     /// Creates a file URI for a path within the temporary workspace.
-    pub fn doc_uri(&self, path: &str) -> Url {
-        Url::from_file_path(self.workspace.path().join(path)).unwrap()
+    pub fn doc_uri(&self, path: &str) -> Uri {
+        Uri::from_file_path(self.workspace.path().join(path)).unwrap()
     }
 
     /// Sends a raw JSON-RPC request to the server.
@@ -236,19 +239,19 @@ impl TestContext {
     }
 
     /// Performs the LSP initialization handshake.
-    pub async fn initialize(&mut self) -> lsp_types::InitializeResult {
+    pub async fn initialize(&mut self) -> ls_types::InitializeResult {
         let workspace_url = Url::from_file_path(self.workspace.path()).unwrap();
         let capabilities = ClientCapabilities {
-            text_document: Some(lsp_types::TextDocumentClientCapabilities {
-                synchronization: Some(lsp_types::TextDocumentSyncClientCapabilities {
+            text_document: Some(ls_types::TextDocumentClientCapabilities {
+                synchronization: Some(ls_types::TextDocumentSyncClientCapabilities {
                     dynamic_registration: Some(true),
                     ..Default::default()
                 }),
-                diagnostic: Some(lsp_types::DiagnosticClientCapabilities {
+                diagnostic: Some(ls_types::DiagnosticClientCapabilities {
                     dynamic_registration: Some(false),
                     ..Default::default()
                 }),
-                document_symbol: Some(lsp_types::DocumentSymbolClientCapabilities {
+                document_symbol: Some(ls_types::DocumentSymbolClientCapabilities {
                     dynamic_registration: Some(false),
                     ..Default::default()
                 }),
@@ -256,34 +259,35 @@ impl TestContext {
                 references: Some(Default::default()),
                 ..Default::default()
             }),
-            workspace: Some(lsp_types::WorkspaceClientCapabilities {
+            workspace: Some(ls_types::WorkspaceClientCapabilities {
                 workspace_folders: Some(true),
                 ..Default::default()
             }),
-            window: Some(lsp_types::WindowClientCapabilities {
+            window: Some(ls_types::WindowClientCapabilities {
                 work_done_progress: Some(true),
                 ..Default::default()
             }),
             ..Default::default()
         };
 
+        let workspace_uri = workspace_url.try_into_uri().expect("should be valid");
         let params = InitializeParams {
             process_id: Some(1234),
-            root_uri: Some(workspace_url.clone()),
+            root_uri: Some(workspace_uri.clone()),
             initialization_options: None,
             capabilities,
             trace: None,
             workspace_folders: Some(vec![WorkspaceFolder {
                 name: "wdl-lsp-workspace".to_owned(),
-                uri: workspace_url,
+                uri: workspace_uri,
             }]),
             client_info: None,
             locale: None,
             ..Default::default()
         };
 
-        let result = self.request::<lsp_types::request::Initialize>(params).await;
-        self.notify::<lsp_types::notification::Initialized>(InitializedParams {})
+        let result = self.request::<ls_types::request::Initialize>(params).await;
+        self.notify::<ls_types::notification::Initialized>(InitializedParams {})
             .await;
 
         // After initialization, we immediately ask for a full workspace diagnostic.

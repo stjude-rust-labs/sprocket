@@ -9,7 +9,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use lsp_types::Location;
+use ls_types::Location;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::SyntaxKind;
@@ -19,6 +19,7 @@ use crate::SourcePosition;
 use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::handlers;
+use crate::handlers::common::UriToUrl;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position;
 use crate::handlers::common::position_to_offset;
@@ -55,7 +56,7 @@ pub fn find_all_references(
         })?;
 
     let doc_index = graph
-        .get_index(&definition_location.uri)
+        .get_index(&definition_location.uri.try_into_url()?)
         .ok_or_else(|| anyhow!("definition document not in graph"))?;
 
     let node = graph.get(doc_index);

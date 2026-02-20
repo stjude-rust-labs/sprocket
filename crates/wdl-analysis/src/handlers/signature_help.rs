@@ -8,13 +8,13 @@
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::Documentation;
-use lsp_types::MarkupContent;
-use lsp_types::MarkupKind;
-use lsp_types::ParameterInformation;
-use lsp_types::ParameterLabel;
-use lsp_types::SignatureHelp;
-use lsp_types::SignatureInformation;
+use ls_types::Documentation;
+use ls_types::MarkupContent;
+use ls_types::MarkupKind;
+use ls_types::ParameterInformation;
+use ls_types::ParameterLabel;
+use ls_types::SignatureHelp;
+use ls_types::SignatureInformation;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;

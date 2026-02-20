@@ -5,14 +5,14 @@ mod common;
 use core::panic;
 
 use common::TestContext;
-use tower_lsp::lsp_types::Hover;
-use tower_lsp::lsp_types::HoverContents;
-use tower_lsp::lsp_types::HoverParams;
-use tower_lsp::lsp_types::MarkupContent;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::HoverRequest;
+use tower_lsp_server::ls_types::Hover;
+use tower_lsp_server::ls_types::HoverContents;
+use tower_lsp_server::ls_types::HoverParams;
+use tower_lsp_server::ls_types::MarkupContent;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::HoverRequest;
 
 async fn hover_request(ctx: &mut TestContext, path: &str, position: Position) -> Option<Hover> {
     ctx.request::<HoverRequest>(HoverParams {

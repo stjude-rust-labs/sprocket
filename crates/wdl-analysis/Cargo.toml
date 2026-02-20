@@ -18,7 +18,7 @@ ignore = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 line-index = { workspace = true }
-lsp-types = { workspace = true }
+ls-types = { workspace = true }
 parking_lot = { workspace = true }
 path-clean = { workspace = true }
 petgraph = { workspace = true }

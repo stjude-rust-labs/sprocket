@@ -7,12 +7,12 @@
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::InlayHint;
-use lsp_types::InlayHintKind;
-use lsp_types::InlayHintLabel;
-use lsp_types::Position;
-use lsp_types::Range;
-use lsp_types::TextEdit;
+use ls_types::InlayHint;
+use ls_types::InlayHintKind;
+use ls_types::InlayHintLabel;
+use ls_types::Position;
+use ls_types::Range;
+use ls_types::TextEdit;
 use rowan::TextSize;
 use url::Url;
 use wdl_ast::AstToken;
@@ -109,7 +109,7 @@ pub fn inlay_hints(
                         },
                         new_text: format!("[{}]", inner_type),
                     }]),
-                    tooltip: Some(lsp_types::InlayHintTooltip::String(
+                    tooltip: Some(ls_types::InlayHintTooltip::String(
                         "Click to insert type parameter".to_string(),
                     )),
                     padding_left: None,
@@ -150,7 +150,7 @@ pub fn inlay_hints(
                     },
                     new_text: format!(" = \"{}\"", variant_name),
                 }]),
-                tooltip: Some(lsp_types::InlayHintTooltip::String(
+                tooltip: Some(ls_types::InlayHintTooltip::String(
                     "Click to insert variant value".to_string(),
                 )),
                 padding_left: None,

@@ -14,16 +14,16 @@ use futures::Future;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
-use lsp_types::CompletionResponse;
-use lsp_types::DocumentSymbolResponse;
-use lsp_types::GotoDefinitionResponse;
-use lsp_types::Hover;
-use lsp_types::InlayHint;
-use lsp_types::Location;
-use lsp_types::SemanticTokensResult;
-use lsp_types::SignatureHelp;
-use lsp_types::SymbolInformation;
-use lsp_types::WorkspaceEdit;
+use ls_types::CompletionResponse;
+use ls_types::DocumentSymbolResponse;
+use ls_types::GotoDefinitionResponse;
+use ls_types::Hover;
+use ls_types::InlayHint;
+use ls_types::Location;
+use ls_types::SemanticTokensResult;
+use ls_types::SignatureHelp;
+use ls_types::SymbolInformation;
+use ls_types::WorkspaceEdit;
 use parking_lot::RwLock;
 use petgraph::Direction;
 use petgraph::graph::NodeIndex;
@@ -258,7 +258,7 @@ pub struct InlayHintsRequest {
     /// The document where the request was initiated.
     pub document: Url,
     /// The visible range for which inlay hints should be computed.
-    pub range: lsp_types::Range,
+    pub range: ls_types::Range,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
 }

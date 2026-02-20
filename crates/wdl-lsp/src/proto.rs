@@ -6,29 +6,31 @@ use anyhow::Context;
 use anyhow::Result;
 use line_index::LineIndex;
 use line_index::WideEncoding;
-use tower_lsp::lsp_types::Diagnostic;
-use tower_lsp::lsp_types::DiagnosticRelatedInformation;
-use tower_lsp::lsp_types::DiagnosticSeverity;
-use tower_lsp::lsp_types::DocumentDiagnosticParams;
-use tower_lsp::lsp_types::DocumentDiagnosticReport;
-use tower_lsp::lsp_types::DocumentDiagnosticReportResult;
-use tower_lsp::lsp_types::FullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::Location;
-use tower_lsp::lsp_types::NumberOrString;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::RelatedFullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::RelatedUnchangedDocumentDiagnosticReport;
-use tower_lsp::lsp_types::UnchangedDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceDiagnosticParams;
-use tower_lsp::lsp_types::WorkspaceDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
-use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceFullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceUnchangedDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::Diagnostic;
+use tower_lsp_server::ls_types::DiagnosticRelatedInformation;
+use tower_lsp_server::ls_types::DiagnosticSeverity;
+use tower_lsp_server::ls_types::DocumentDiagnosticParams;
+use tower_lsp_server::ls_types::DocumentDiagnosticReport;
+use tower_lsp_server::ls_types::DocumentDiagnosticReportResult;
+use tower_lsp_server::ls_types::FullDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::Location;
+use tower_lsp_server::ls_types::NumberOrString;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::Range;
+use tower_lsp_server::ls_types::RelatedFullDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::RelatedUnchangedDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::UnchangedDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::WorkspaceDiagnosticParams;
+use tower_lsp_server::ls_types::WorkspaceDiagnosticReport;
+use tower_lsp_server::ls_types::WorkspaceDiagnosticReportResult;
+use tower_lsp_server::ls_types::WorkspaceDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::WorkspaceFullDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::WorkspaceUnchangedDocumentDiagnosticReport;
 use tracing::debug;
 use url::Url;
 use wdl_analysis::AnalysisResult;
+use wdl_analysis::handlers::UriToUrl;
+use wdl_analysis::handlers::UrlToUri;
 use wdl_ast::Severity;
 use wdl_ast::Span;
 
@@ -82,10 +84,11 @@ pub fn diagnostic(
 
     let message = diagnostic.message().to_string();
 
+    let url = uri.try_into_uri()?;
     let mut related: Vec<_> = labels
         .map(|label| {
             Ok(DiagnosticRelatedInformation {
-                location: Location::new(uri.clone(), range_from_span(index, label.span())?),
+                location: Location::new(url.clone(), range_from_span(index, label.span())?),
                 message: label.message().to_string(),
             })
         })
@@ -95,7 +98,7 @@ pub fn diagnostic(
         && let Some(span) = diagnostic.labels().next().map(|l| l.span())
     {
         related.push(DiagnosticRelatedInformation {
-            location: Location::new(uri.clone(), range_from_span(index, span)?),
+            location: Location::new(url.clone(), range_from_span(index, span)?),
             message: format!("fix: {fix}"),
         });
     }
@@ -117,15 +120,16 @@ pub fn document_diagnostic_report(
     results: Vec<AnalysisResult>,
     source: &str,
 ) -> Option<DocumentDiagnosticReportResult> {
+    let url = params.text_document.uri.try_into_url().ok()?;
     let result = results
         .iter()
-        .find(|r| r.document().uri().as_ref() == &params.text_document.uri)?;
+        .find(|r| r.document().uri().as_ref() == &url)?;
 
     if let Some(previous) = params.previous_result_id {
         if &previous == result.document().id().as_ref() {
             debug!(
                 "diagnostics for document `{uri}` have not changed (client has latest)",
-                uri = params.text_document.uri,
+                uri = url,
             );
             return Some(DocumentDiagnosticReportResult::Report(
                 DocumentDiagnosticReport::Unchanged(RelatedUnchangedDocumentDiagnosticReport {
@@ -139,7 +143,7 @@ pub fn document_diagnostic_report(
 
         debug!(
             "diagnostics for document `{uri}` have changed since last client request",
-            uri = params.text_document.uri
+            uri = url
         );
     }
 
@@ -187,7 +191,11 @@ pub fn workspace_diagnostic_report(
             continue;
         }
 
-        if let Some(previous) = ids.get(result.document().uri())
+        let Some(document_uri) = result.document().uri().try_into_uri().ok() else {
+            continue;
+        };
+
+        if let Some(previous) = ids.get(&document_uri)
             && previous == result.document().id().as_ref()
         {
             debug!(
@@ -197,7 +205,7 @@ pub fn workspace_diagnostic_report(
 
             items.push(WorkspaceDocumentDiagnosticReport::Unchanged(
                 WorkspaceUnchangedDocumentDiagnosticReport {
-                    uri: result.document().uri().as_ref().clone(),
+                    uri: document_uri.clone(),
                     version: result.version().map(|v| v as i64),
                     unchanged_document_diagnostic_report: UnchangedDocumentDiagnosticReport {
                         result_id: result.document().id().as_ref().clone(),
@@ -228,7 +236,7 @@ pub fn workspace_diagnostic_report(
 
         items.push(WorkspaceDocumentDiagnosticReport::Full(
             WorkspaceFullDocumentDiagnosticReport {
-                uri: result.document().uri().as_ref().clone(),
+                uri: document_uri,
                 version: result.version().map(|v| v as i64),
                 full_document_diagnostic_report: FullDocumentDiagnosticReport {
                     result_id: Some(result.document().id().as_ref().clone()),

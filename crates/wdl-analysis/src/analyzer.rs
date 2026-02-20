@@ -21,16 +21,16 @@ use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
-use lsp_types::CompletionResponse;
-use lsp_types::DocumentSymbolResponse;
-use lsp_types::GotoDefinitionResponse;
-use lsp_types::Hover;
-use lsp_types::InlayHint;
-use lsp_types::Location;
-use lsp_types::SemanticTokensResult;
-use lsp_types::SignatureHelp;
-use lsp_types::SymbolInformation;
-use lsp_types::WorkspaceEdit;
+use ls_types::CompletionResponse;
+use ls_types::DocumentSymbolResponse;
+use ls_types::GotoDefinitionResponse;
+use ls_types::Hover;
+use ls_types::InlayHint;
+use ls_types::Location;
+use ls_types::SemanticTokensResult;
+use ls_types::SignatureHelp;
+use ls_types::SymbolInformation;
+use ls_types::WorkspaceEdit;
 use path_clean::PathClean;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc;
@@ -875,7 +875,7 @@ where
     pub async fn inlay_hints(
         &self,
         document: Url,
-        range: lsp_types::Range,
+        range: ls_types::Range,
     ) -> Result<Option<Vec<InlayHint>>> {
         let (tx, rx) = oneshot::channel();
         self.sender

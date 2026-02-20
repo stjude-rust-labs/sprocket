@@ -1,7 +1,7 @@
 //! Utilities for generating documentation for LSP handlers.
 
-use lsp_types::Documentation;
-use lsp_types::MarkupContent;
+use ls_types::Documentation;
+use ls_types::MarkupContent;
 use rowan::TextSize;
 use wdl_ast::AstNode;
 use wdl_ast::v1::EnumDefinition;
@@ -19,7 +19,7 @@ use crate::types::Type;
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
     Some(Documentation::MarkupContent(MarkupContent {
-        kind: lsp_types::MarkupKind::Markdown,
+        kind: ls_types::MarkupKind::Markdown,
         value: definition,
     }))
 }
