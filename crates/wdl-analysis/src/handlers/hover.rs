@@ -35,6 +35,7 @@ use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
+use crate::handlers::common::docs::extract_doc_comment;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
@@ -520,9 +521,23 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
     format!("{detail}\n\n{docs}")
 }
 
-/// Finds documentation for a variable declaration from a `parameter_meta`
-/// section.
+/// Finds documentation for a variable declaration.
+///
+/// Doc comments (`##`) on the declaration are preferred. Falls back to the
+/// matching entry in the enclosing `parameter_meta` section.
 fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
+    // Check for doc comments on the declaration node itself.
+    if let Some(decl_node) = token.parent_ancestors().find(|p| {
+        matches!(
+            p.kind(),
+            SyntaxKind::BoundDeclNode | SyntaxKind::UnboundDeclNode
+        )
+    }) && let Some(doc) = extract_doc_comment(&decl_node)
+    {
+        return Some(doc);
+    }
+
+    // Fall back to parameter_meta.
     let parent = token.parent_ancestors().find(|p| {
         matches!(
             p.kind(),
