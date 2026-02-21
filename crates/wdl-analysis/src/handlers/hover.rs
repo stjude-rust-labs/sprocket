@@ -35,6 +35,7 @@ use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
+use crate::handlers::common::docs::extract_doc_comment;
 use crate::handlers::common::find_identifier_token_at_offset;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
@@ -42,7 +43,6 @@ use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
 use crate::handlers::common::provide_task_documentation;
 use crate::handlers::common::provide_workflow_documentation;
-use crate::handlers::common::docs::extract_doc_comment;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
@@ -532,8 +532,7 @@ fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
             p.kind(),
             SyntaxKind::BoundDeclNode | SyntaxKind::UnboundDeclNode
         )
-    })
-        && let Some(doc) = extract_doc_comment(&decl_node)
+    }) && let Some(doc) = extract_doc_comment(&decl_node)
     {
         return Some(doc);
     }

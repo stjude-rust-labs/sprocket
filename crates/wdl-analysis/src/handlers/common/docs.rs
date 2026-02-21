@@ -43,6 +43,10 @@ pub fn make_md_docs(definition: String) -> Option<Documentation> {
 /// collecting consecutive `##` comment tokens. The `##` prefix (and one
 /// optional leading space) is stripped from each line.
 pub(crate) fn extract_doc_comment(node: &SyntaxNode) -> Option<String> {
+    if node.kind() == SyntaxKind::RootNode {
+        return None;
+    }
+
     let mut lines = Vec::new();
     let mut current = node.prev_sibling_or_token();
 
@@ -97,8 +101,7 @@ fn render_task_doc(n: &TaskDefinition, syntax: &SyntaxNode) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "```wdl\ntask {}\n```\n---", n.name().text());
 
-    let description =
-        extract_doc_comment(syntax).or_else(|| read_meta_description(n.metadata()));
+    let description = extract_doc_comment(syntax).or_else(|| read_meta_description(n.metadata()));
     if let Some(desc) = description {
         let _ = writeln!(s, "{}\n", desc);
     }
@@ -117,8 +120,7 @@ fn render_workflow_doc(n: &WorkflowDefinition, syntax: &SyntaxNode) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "```wdl\nworkflow {}\n```\n---", n.name().text());
 
-    let description =
-        extract_doc_comment(syntax).or_else(|| read_meta_description(n.metadata()));
+    let description = extract_doc_comment(syntax).or_else(|| read_meta_description(n.metadata()));
     if let Some(desc) = description {
         let _ = writeln!(s, "{}\n", desc);
     }
@@ -167,11 +169,7 @@ fn render_struct_doc(n: &StructDefinition, syntax: &SyntaxNode) -> String {
 /// Renders markdown documentation for an enum definition.
 ///
 /// Doc comments are used for the description paragraph if present.
-fn render_enum_doc(
-    n: &EnumDefinition,
-    syntax: &SyntaxNode,
-    computed_type: Option<&str>,
-) -> String {
+fn render_enum_doc(n: &EnumDefinition, syntax: &SyntaxNode, computed_type: Option<&str>) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "```wdl");
     let _ = write!(s, "{}", n.display(computed_type));

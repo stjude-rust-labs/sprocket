@@ -206,7 +206,7 @@ async fn should_hover_task_doc_comment_only() {
     assert_hover_content(&response, "task doc_only");
     assert_hover_content(
         &response,
-        "A task that greets someone by name.\nIt prints a greeting message.",
+        "Greets someone by name.\nUsed for hover doc tests.",
     );
 }
 
