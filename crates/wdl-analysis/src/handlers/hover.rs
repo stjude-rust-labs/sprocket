@@ -42,6 +42,7 @@ use crate::handlers::common::provide_enum_documentation;
 use crate::handlers::common::provide_struct_documentation;
 use crate::handlers::common::provide_task_documentation;
 use crate::handlers::common::provide_workflow_documentation;
+use crate::handlers::common::docs::extract_doc_comment;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
@@ -520,9 +521,24 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
     format!("{detail}\n\n{docs}")
 }
 
-/// Finds documentation for a variable declaration from a `parameter_meta`
-/// section.
+/// Finds documentation for a variable declaration.
+///
+/// Doc comments (`##`) on the declaration are preferred. Falls back to the
+/// matching entry in the enclosing `parameter_meta` section.
 fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
+    // Check for doc comments on the declaration node itself.
+    if let Some(decl_node) = token.parent_ancestors().find(|p| {
+        matches!(
+            p.kind(),
+            SyntaxKind::BoundDeclNode | SyntaxKind::UnboundDeclNode
+        )
+    })
+        && let Some(doc) = extract_doc_comment(&decl_node)
+    {
+        return Some(doc);
+    }
+
+    // Fall back to parameter_meta.
     let parent = token.parent_ancestors().find(|p| {
         matches!(
             p.kind(),

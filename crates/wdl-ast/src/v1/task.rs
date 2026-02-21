@@ -1,7 +1,5 @@
 //! V1 AST representation for task definitions.
 
-use std::fmt;
-
 use rowan::NodeOrToken;
 use wdl_grammar::SyntaxTokenExt;
 
@@ -27,8 +25,6 @@ use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::TreeNode;
 use crate::TreeToken;
-use crate::v1::display::write_input_section;
-use crate::v1::display::write_output_section;
 
 pub mod common;
 pub mod requirements;
@@ -412,27 +408,6 @@ impl<N: TreeNode> TaskDefinition<N> {
         self.children()
     }
 
-    /// Writes a Markdown formatted description of the task.
-    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "```wdl\ntask {}\n```\n---", self.name().text())?;
-
-        if let Some(meta) = self.metadata()
-            && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
-            && let MetadataValue::String(s) = desc.value()
-            && let Some(text) = s.text()
-        {
-            writeln!(f, "{}\n", text.text())?;
-        }
-
-        write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
-        write_output_section(
-            f,
-            self.output().as_ref(),
-            self.parameter_metadata().as_ref(),
-        )?;
-
-        Ok(())
-    }
 }
 
 impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {
