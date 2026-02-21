@@ -197,3 +197,64 @@ async fn should_hover_enum_variant() {
     let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 22)).await;
     assert_hover_content(&response, "Status.Active");
 }
+
+#[tokio::test]
+async fn should_hover_task_doc_comment_only() {
+    let mut ctx = setup().await;
+    // Position of `doc_only` in `task doc_only`
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(4, 7)).await;
+    assert_hover_content(&response, "task doc_only");
+    assert_hover_content(
+        &response,
+        "A task that greets someone by name.\nIt prints a greeting message.",
+    );
+}
+
+#[tokio::test]
+async fn should_hover_task_doc_comment_over_meta() {
+    let mut ctx = setup().await;
+    // Position of `doc_and_meta` in `task doc_and_meta`
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    assert_hover_content(&response, "task doc_and_meta");
+    assert_hover_content(&response, "This doc comment should win over meta.");
+}
+
+fn assert_hover_not_content(hover: &Option<Hover>, unexpected: &str) {
+    let Some(hover) = hover else {
+        return;
+    };
+
+    let HoverContents::Markup(MarkupContent { value, .. }) = &hover.contents else {
+        return;
+    };
+
+    assert!(
+        !value.contains(unexpected),
+        "hover content should NOT contain: `{unexpected}`\nActual: `{value}`"
+    );
+}
+
+#[tokio::test]
+async fn should_hover_task_doc_comment_not_meta() {
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    assert_hover_not_content(&response, "This meta description should NOT appear");
+}
+
+#[tokio::test]
+async fn should_hover_task_meta_fallback() {
+    let mut ctx = setup().await;
+    // Position of `meta_only` in `task meta_only`
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(38, 7)).await;
+    assert_hover_content(&response, "task meta_only");
+    assert_hover_content(&response, "A simple greeting task");
+}
+
+#[tokio::test]
+async fn should_hover_input_doc_comment() {
+    let mut ctx = setup().await;
+    // Position of `name` in `String name` inside doc_only task input
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(7, 15)).await;
+    assert_hover_content(&response, "(variable) name: String");
+    assert_hover_content(&response, "The person's name to greet");
+}

@@ -6,7 +6,7 @@ use crate::SyntaxNode;
 use crate::TreeNode;
 
 mod decls;
-mod display;
+pub mod display;
 mod r#enum;
 mod expr;
 mod import;
