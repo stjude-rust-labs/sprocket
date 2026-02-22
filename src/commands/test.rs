@@ -540,9 +540,17 @@ async fn run_tests(
                             (doc_name, target, test_name, result)
                         });
                     } else if let Some(result) = futures.join_next().await {
-                        let (_, _, _, test_iteration) =
+                        let (prior_doc_name, prior_target, prior_test_name, prior_test_iteration) =
                             result.with_context(|| "joining futures")?;
-                        test_iterations.push(test_iteration);
+                        all_results
+                            .get_mut(prior_doc_name.as_str())
+                            .unwrap_or(&mut document_results)
+                            .get_mut(prior_target.as_str())
+                            .unwrap_or(&mut target_results)
+                            .get_mut(prior_test_name.as_str())
+                            .unwrap_or(&mut test_iterations)
+                            .push(prior_test_iteration);
+
                         futures.spawn(async move {
                             let evaluator = Evaluator::new(
                                 &document, &target, wdl_inputs, &fixtures, engine, &run_dir,
