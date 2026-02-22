@@ -26,7 +26,6 @@ use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing::warn;
 use wdl::analysis::AnalysisResult;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
@@ -379,7 +378,6 @@ async fn run_tests(
             .expect("basename")
             .to_string_lossy()
             .to_string();
-        info!("testing WDL document `{}`", &doc_name);
         let doc_name = Arc::new(doc_name);
         let mut document_results = IndexMap::new();
         for (target, definitions) in tests.targets {
@@ -397,11 +395,9 @@ async fn run_tests(
                         continue;
                     }
                 };
-            info!("testing target `{}`", target);
             let mut target_results = IndexMap::new();
             for test in definitions {
                 if should_filter(&test) {
-                    info!("skipping `{}` due to tag selection", test.name);
                     continue;
                 }
                 let matrix = match test.parse_inputs().with_context(|| {
@@ -414,14 +410,9 @@ async fn run_tests(
                     Ok(res) => res,
                     Err(e) => {
                         errors.push(Arc::new(e));
-                        warn!(
-                            "skipping test `{}` due to problem with input matrix",
-                            test.name
-                        );
                         continue;
                     }
                 };
-                info!("running `{}`", test.name);
                 let run_root = root.join(RUNS_DIR).join(target.as_ref()).join(&test.name);
                 if run_root.exists() {
                     remove_dir_all(&run_root).await.with_context(|| {
@@ -443,10 +434,6 @@ async fn run_tests(
                         Ok(res) => Arc::new(res),
                         Err(e) => {
                             errors.push(Arc::new(e));
-                            warn!(
-                                "skipping test `{}` due to problem with assertions",
-                                test.name
-                            );
                             continue;
                         }
                     };
@@ -469,11 +456,6 @@ async fn run_tests(
                         Ok(res) => res,
                         Err(e) => {
                             errors.push(Arc::new(e));
-                            warn!(
-                                "skipping an iteration of test `{}` due to problem with input \
-                                 matrix",
-                                test.name
-                            );
                             continue;
                         }
                     };
@@ -489,11 +471,6 @@ async fn run_tests(
                         Ok(res) => res,
                         Err(e) => {
                             errors.push(Arc::new(e));
-                            warn!(
-                                "skipping an iteration of test `{}` due to problem with provided \
-                                 inputs",
-                                test.name
-                            );
                             continue;
                         }
                     };
