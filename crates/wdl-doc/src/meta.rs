@@ -382,15 +382,12 @@ pub(crate) fn summarize_if_needed(
 }
 
 /// A doc comment paragraph
-///
-/// Internally, this retains the line breaks as they appear in the document.
-/// When rendered, the lines are joined with spaces.
 #[derive(Debug, Clone, Default)]
 pub struct Paragraph(Vec<String>);
 
 impl Display for Paragraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.join(" "))
+        write!(f, "{}", self.0.join("\n"))
     }
 }
 
@@ -439,6 +436,8 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
     if paragraphs.is_empty() {
         return map;
     }
+    
+    let mut paragraphs = paragraphs.into_iter();
 
     // We need to determine the minimum indentation that we can strip from each
     // paragraph line. Prior to this point, no lines have been trimmed.
@@ -470,10 +469,10 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
 
     map.insert(
         DESCRIPTION_KEY.to_string(),
-        MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),
+        MetaMapValueSource::Comment(paragraphs.next().unwrap().to_string()),
     );
 
-    let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
+    let help = paragraphs.fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
             acc.push('\n');
         }
