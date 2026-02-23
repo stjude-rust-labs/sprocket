@@ -1,4 +1,5 @@
-## This preamble should not be warned as it's not a doc comment!
+## This preamble is considered a valid doc comment,
+## despite having whitespace between it and the version statement.
 
 version 1.3
 
@@ -32,8 +33,9 @@ task test_task {
         description: "Show doc comments on bad placement of elements"
     }
 
-    ## You can't doc comment a comment - the user should be warned.
-    # Comment about my doc comment
+    ## The user should be warned about this doc comment as it targets
+    ## command, despite the interruption below.
+    # comment interrupting doc block resulting in two diagnostics
     ## Commands don't support doc comments so the user should be warned here.
     ## about this multiline comment with whitespace...
     ##
@@ -63,10 +65,11 @@ task test_task_2 {
 }
 
 ## While it's not what we want people to do, I should be able to
-## sandwich lint directives with doc comments for the purposes of
-## the unused doc comment lint.
+## sandwich lint directives with doc comments or whitespace
+## for the purposes of the unused doc comment lint.
+
 #@ except: MetaSections, MatchingOutputMeta
-## This doc comment should be allowed
+## This doc comment should be allowed.
 workflow test_workflow {
     ## This doc comment does nothing and the user should be warned!
     meta {
@@ -75,43 +78,43 @@ workflow test_workflow {
 
     ## This input section cannot have a doc comment.
     input {
-        ## And so can it's elements
-        Person person
-        Boolean apple
-        ## A BoundDeclNode may have a doc comment if it's in an input section
+        ## But it's elements can.
+        #@ except: UnusedInput
+        Person person## Trailing doc comment without whitespace that should be linted.
+        Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
+        ## A BoundDeclNode may have a doc comment if it's in an input section.
         Boolean banana = false
     }
 
-    ## I am not allowed to be doc commented
+    ## I am not allowed to be doc commented.
     call test_task {}
 
-    ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section
+    ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
+    #@ except: UnusedDeclaration
     Person p = Person {
         name: "Brendon"
     }
 
-    # Comments are definitely valid here
+    # Comments are definitely valid here.
     ## But doc comments are not!
     if (apple) {
         String favorite_fruit = "Apple"
     }
-        # Comments seem fine here (although maybe a weird choice)
-        ## But doc comments shouldn't be.
+    # Comments seem fine here (although maybe a weird choice).
+    ## But doc comments shouldn't be.
     else if (banana) {
         String favorite_fruit = "Banana"
     }
-        # Seemingly, you can also put comments here,
-        ## but we don't want doc comments here.
+    # Seemingly, you can also put comments here,
+    ## but we don't want doc comments here.
     else {
-            # Weirdly, wdl-lint seems to suggest my comment whitespace is incorrect
-            ## Doc comments shouldn't be allowed on variable assignment!
+        ## Doc comments shouldn't be allowed on variable assignment!
         String favorite_fruit = "Chocolate"
     }
 
     ## The output section cannot have a doc comment!
     output {
-        ## An element of an output should be doc commentable probably if I want to say
-        ## what this specific thing is doing?
+        ## An element of an output should be doc commentable.
         Boolean my_output = banana
     }
 }

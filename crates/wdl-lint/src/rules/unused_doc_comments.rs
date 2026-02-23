@@ -1,6 +1,5 @@
 //! A lint rule for misplaced doc comments that will not generate documentation.
 
-use rowan::NodeOrToken;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
@@ -9,8 +8,6 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxToken;
 
 use crate::Rule;
 use crate::Tag;
@@ -21,11 +18,11 @@ const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
 fn unused_doc_comment_diagnostic(span: Span) -> Diagnostic {
-    Diagnostic::note("Unused doc comment")
+    Diagnostic::note("unused doc comment")
         .with_rule(ID)
         .with_highlight(span)
-        .with_help("Documentation will not be generated for this item")
-        .with_fix("If you're intending to use a regular comment here, replace the `##` with `#`")
+        .with_help("documentation will not be generated for this item")
+        .with_fix("replace the leading `##` with `#`")
 }
 
 /// Detects whether a doc comment has been placed atop a Node that we do not
@@ -59,7 +56,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
 ];
 
 /// Determine whether the SyntaxNodeOrToken is a valid target for a doc comment.
-fn valid_target_for_doc_comment(doc_comment_target: &NodeOrToken<SyntaxNode, SyntaxToken>) -> bool {
+fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     let kind = doc_comment_target.kind();
 
     // A BoundDeclNode can only have doc comments if it is a part of an InputSection
@@ -76,34 +73,28 @@ fn valid_target_for_doc_comment(doc_comment_target: &NodeOrToken<SyntaxNode, Syn
     VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS.contains(&kind)
 }
 
-/// While searching for the sibling that a doc comment is targeting, we want to
-/// also maintain the span of the doc comment itself. We use this struct to
-/// return the two items to the caller.
-struct DocCommentSearchResult {
-    /// The NodeOrToken we think that the doc comment is attempting to document.
-    target: NodeOrToken<SyntaxNode, SyntaxToken>,
-    /// The span of the doc comment.
-    span: Span,
-}
-
 impl UnusedDocCommentsRule {
-    /// Find the first [`NodeOrToken`] in the comment's siblings that is not
-    /// a ...
-    /// - doc comment
-    /// - comment directive
-    /// - single newline
-    ///
+    /// Find the first non-trivia [`SyntaxElement`] in the comment's siblings
     /// to determine what this doc comment is targeting.
-    ///
-    /// Increment the skip_count while walking comments to avoid linting on a
-    /// single doc comment block twice, and build up the span of the doc
-    /// comment throughout the search.
     fn search_siblings_for_doc_comment_target(
         &mut self,
         comment: &Comment,
-    ) -> Option<DocCommentSearchResult> {
-        let mut span = comment.span();
+    ) -> Option<SyntaxElement> {
         let mut next = comment.inner().next_sibling_or_token();
+        while let Some(sibling) = next {
+            next = sibling.next_sibling_or_token();
+            if !sibling.kind().is_trivia() {
+                return Some(sibling);
+            }
+        }
+        None
+    }
+
+    /// Produce an unused doc comment diagnostic for the doc comment block
+    /// starting at `comment`. Update `skip_count` along the way.
+    fn lint_next_doc_comment_block(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        let mut next = comment.inner().next_sibling_or_token();
+        let mut span_end = comment.span().end();
         while let Some(sibling) = next {
             next = sibling.next_sibling_or_token();
 
@@ -111,32 +102,25 @@ impl UnusedDocCommentsRule {
                 continue;
             }
 
-            // If we are still looking at a doc comment, then continue, increase the
-            // skip_count and update the span.
             if let Some(continued_comment) =
                 sibling.as_token().and_then(|t| Comment::cast(t.clone()))
-                && (continued_comment.is_doc_comment() || continued_comment.is_directive())
+                && continued_comment.is_doc_comment()
             {
                 self.skip_count += 1;
-
-                // Don't include a trailing directive in the doc comment's span, but ignore a
-                // directive in the middle of a doc comment block for the purposes of this lint.
-                if !continued_comment.is_directive() {
-                    span = Span::new(
-                        comment.span().start(),
-                        continued_comment.span().end() - comment.span().start(),
-                    );
-                }
-
+                span_end = continued_comment.span().end();
                 continue;
+            } else {
+                diagnostics.exceptable_add(
+                    unused_doc_comment_diagnostic(Span::new(
+                        comment.span().start(),
+                        span_end - comment.span().start(),
+                    )),
+                    SyntaxElement::from(comment.inner().clone()),
+                    &self.exceptable_nodes(),
+                );
+                break;
             }
-
-            return Some(DocCommentSearchResult {
-                target: sibling,
-                span,
-            });
         }
-        None
     }
 }
 
@@ -198,15 +182,19 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        let target = self.search_siblings_for_doc_comment_target(comment);
-        if let Some(result) = target
-            && !valid_target_for_doc_comment(&result.target)
-        {
+        if comment.is_inline_comment() {
             diagnostics.exceptable_add(
-                unused_doc_comment_diagnostic(result.span),
+                unused_doc_comment_diagnostic(comment.span()),
                 SyntaxElement::from(comment.inner().clone()),
                 &self.exceptable_nodes(),
             );
+        }
+
+        let target = self.search_siblings_for_doc_comment_target(comment);
+        if let Some(result) = target
+            && !valid_target_for_doc_comment(&result)
+        {
+            self.lint_next_doc_comment_block(diagnostics, comment);
         }
     }
 }

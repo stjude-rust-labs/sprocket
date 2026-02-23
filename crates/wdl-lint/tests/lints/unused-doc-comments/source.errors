@@ -1,138 +1,173 @@
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:35:5
-   │
-35 │     ## You can't doc comment a comment - the user should be warned.
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
-
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:37:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:36:5
    │  
-37 │ ╭     ## Commands don't support doc comments so the user should be warned here.
-38 │ │     ## about this multiline comment with whitespace...
-39 │ │     ##
-40 │ │     ## ... that isn't doing anything!
+36 │ ╭     ## The user should be warned about this doc comment as it targets
+37 │ │     ## command, despite the interruption below.
+   │ ╰───────────────────────────────────────────────^
+   │  
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:39:5
+   │  
+39 │ ╭     ## Commands don't support doc comments so the user should be warned here.
+40 │ │     ## about this multiline comment with whitespace...
+41 │ │     ##
+42 │ │     ## ... that isn't doing anything!
    │ ╰─────────────────────────────────────^
    │  
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:49:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:51:5
    │  
-49 │ ╭     ## doc comment
-50 │ │     ## more text
-51 │ │     ## these 3 lines should all be highlighted by one span
+51 │ ╭     ## doc comment
+52 │ │     ## more text
+53 │ │     ## these 3 lines should all be highlighted by one span
    │ ╰──────────────────────────────────────────────────────────^
    │  
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:54:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:56:5
    │  
-54 │ ╭     ## another doc comment block
-55 │ │     ## that gets a new diagnostic fired with a new span
-56 │ │ 
-57 │ │     ## but there's a blank line in the middle!
-58 │ │     ## but we are going to consider these consecutive anyway
-59 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
+56 │ ╭     ## another doc comment block
+57 │ │     ## that gets a new diagnostic fired with a new span
+58 │ │ 
+59 │ │     ## but there's a blank line in the middle!
+60 │ │     ## but we are going to consider these consecutive anyway
+61 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
    │ ╰─────────────────────────────────────────────────────────────────────────────────^
    │  
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
 note[ElementSpacing]: extra blank line(s) found
-   ┌─ tests/lints/unused-doc-comments/source.wdl:60:47
+   ┌─ tests/lints/unused-doc-comments/source.wdl:62:47
    │  
-60 │       # another regular comment for good measure
+62 │       # another regular comment for good measure
    │ ╭──────────────────────────────────────────────^
-61 │ │ 
-62 │ │     command <<<>>>
+63 │ │ 
+64 │ │     command <<<>>>
    │ ╰────^
    │  
    = fix: remove extra blank line(s)
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:71:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:74:5
    │
-71 │     ## This doc comment does nothing and the user should be warned!
+74 │     ## This doc comment does nothing and the user should be warned!
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:76:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:79:5
    │
-76 │     ## This input section cannot have a doc comment.
+79 │     ## This input section cannot have a doc comment.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:85:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:83:22
    │
-85 │     ## I am not allowed to be doc commented
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+83 │         Person person## Trailing doc comment without whitespace that should be linted.
+   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:88:5
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/unused-doc-comments/source.wdl:84:1
    │
-88 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+84 │         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = fix: split the line into multiple lines
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:94:5
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:84:23
    │
-94 │     ## But doc comments are not!
+84 │         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:89:5
+   │
+89 │     ## I am not allowed to be doc commented.
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
+
+note[LineWidth]: line exceeds maximum width of 90
+   ┌─ tests/lints/unused-doc-comments/source.wdl:92:1
+   │
+92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: split the line into multiple lines
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:92:5
+   │
+92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/unused-doc-comments/source.wdl:99:5
+   │
+99 │     ## But doc comments are not!
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+   = help: documentation will not be generated for this item
+   = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:99:9
-   │
-99 │         ## But doc comments shouldn't be.
-   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = help: Documentation will not be generated for this item
-   = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:104:5
+    │
+104 │     ## But doc comments shouldn't be.
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = help: documentation will not be generated for this item
+    = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:104:9
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:109:5
     │
-104 │         ## but we don't want doc comments here.
-    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+109 │     ## but we don't want doc comments here.
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
-    = help: Documentation will not be generated for this item
-    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+    = help: documentation will not be generated for this item
+    = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:107:13
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:111:9
     │
-107 │             ## Doc comments shouldn't be allowed on variable assignment!
-    │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+111 │         ## Doc comments shouldn't be allowed on variable assignment!
+    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
-    = help: Documentation will not be generated for this item
-    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+    = help: documentation will not be generated for this item
+    = fix: replace the leading `##` with `#`
 
-note[UnusedDocComments]: Unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:111:5
+note[UnusedDocComments]: unused doc comment
+    ┌─ tests/lints/unused-doc-comments/source.wdl:115:5
     │
-111 │     ## The output section cannot have a doc comment!
+115 │     ## The output section cannot have a doc comment!
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
-    = help: Documentation will not be generated for this item
-    = fix: If you're intending to use a regular comment here, replace the `##` with `#`
+    = help: documentation will not be generated for this item
+    = fix: replace the leading `##` with `#`
 
