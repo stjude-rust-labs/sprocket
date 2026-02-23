@@ -1,15 +1,17 @@
 //! Execution of runs for provenance tracking in v1.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
+use anyhow::bail;
 use chrono::DateTime;
 use chrono::Utc;
-use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::info;
@@ -27,6 +29,8 @@ use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
+use wdl::engine::TaskInputs;
+use wdl::engine::WorkflowInputs;
 use wdl::engine::v1::Evaluator;
 
 use crate::analysis::Source;
@@ -50,6 +54,9 @@ pub use config::ConfigResult;
 pub use names::generate_run_name;
 pub use source::validate as validate_source;
 
+/// Represents a JSON object.
+type JsonObject = serde_json::Map<String, serde_json::Value>;
+
 /// The name for the `_latest` symlink.
 const LATEST: &str = "_latest";
 
@@ -65,10 +72,10 @@ fn create_latest_symlink(run_dir: &RunDirectory) {
     let latest_symlink = run_dir_parent.join(LATEST);
 
     #[cfg(unix)]
-    let _ = std::fs::remove_file(&latest_symlink);
+    let _ = fs::remove_file(&latest_symlink);
 
     #[cfg(windows)]
-    let _ = std::fs::remove_dir(&latest_symlink);
+    let _ = fs::remove_dir(&latest_symlink);
 
     let Some(run_dir_basename) = run_dir.root().file_name() else {
         return;
@@ -134,27 +141,22 @@ pub fn create_run_directory(output_dir: &OutputDirectory, target: &str) -> Resul
 
 /// Creates a new run record in the database.
 ///
+/// The provided inputs are expected to be in JSON.
+///
 /// Returns the generated run ID, run name, and the database run record.
 pub async fn create_run_record(
     db: &dyn Database,
     session_id: Uuid,
     source: &Source,
     target: Option<&str>,
-    inputs: &JsonValue,
+    inputs: &str,
 ) -> Result<(Uuid, String, Run), DatabaseError> {
     let run_id = Uuid::new_v4();
     let run_name = generate_run_name();
     let source_str = source.to_string();
 
     let run = db
-        .create_run(
-            run_id,
-            session_id,
-            &run_name,
-            &source_str,
-            target,
-            &inputs.to_string(),
-        )
+        .create_run(run_id, session_id, &run_name, &source_str, target, inputs)
         .await?;
 
     Ok((run_id, run_name, run))
@@ -291,8 +293,8 @@ pub struct RunnableExecutor {
     source: Source,
     /// User-provided target name (workflow or task), if any.
     target: Option<String>,
-    /// Input values as JSON.
-    inputs: JsonValue,
+    /// The engine inputs.
+    inputs: JsonObject,
     /// Index key for result indexing, if requested.
     index_on: Option<String>,
 }
@@ -316,14 +318,13 @@ impl RunnableExecutor {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!(
-                    "run `{}` ({}) failed during analysis: {}",
+                    "run `{}` ({}) failed during analysis: {e:#}",
                     &self.run_name,
-                    self.run_id,
-                    e
+                    self.run_id
                 );
                 let _ = self
                     .db
-                    .fail_run(self.run_id, &e.to_string(), Utc::now())
+                    .fail_run(self.run_id, &format!("{e:#}"), Utc::now())
                     .await;
                 self.runs.lock().await.remove(&self.run_id);
                 return;
@@ -445,6 +446,27 @@ impl RunnableExecutor {
         let cwd = std::env::current_dir().expect("failed to get current working directory");
         let base_dir = EvaluationPath::from(cwd.as_path());
 
+        let inputs = match self
+            .parse_inputs(result.document(), &resolved_target)
+            .context("failed to parse inputs")
+        {
+            Ok(inputs) => inputs,
+            Err(e) => {
+                tracing::error!(
+                    "run `{}` ({}) failed to parse inputs: {e:#}",
+                    &self.run_name,
+                    self.run_id
+                );
+
+                let _ = self
+                    .db
+                    .fail_run(self.run_id, &format!("{e:#}"), Utc::now())
+                    .await;
+                self.runs.lock().await.remove(&self.run_id);
+                return;
+            }
+        };
+
         if let Err(e) = execute_target(
             self.db.clone(),
             &ctx,
@@ -453,7 +475,7 @@ impl RunnableExecutor {
             self.cancellation,
             self.events,
             resolved_target,
-            &self.inputs,
+            inputs,
             &run_dir,
             &base_dir,
             self.index_on.as_deref(),
@@ -469,6 +491,32 @@ impl RunnableExecutor {
         }
 
         self.runs.lock().await.remove(&self.run_id);
+    }
+
+    /// Parses the inputs into engine inputs.
+    fn parse_inputs(
+        &self,
+        document: &AnalysisDocument,
+        resolved_target: &Target,
+    ) -> Result<Inputs> {
+        let Some((target, inputs)) = Inputs::parse_json_object(document, self.inputs.clone())?
+        else {
+            return match resolved_target {
+                Target::Task(_) => Ok(TaskInputs::default().into()),
+                Target::Workflow(_) => Ok(WorkflowInputs::default().into()),
+            };
+        };
+
+        if let Some(t) = &self.target
+            && target != *t
+        {
+            bail!(format!(
+                "supplied target `{t}` does not match the target `{target}` derived from the \
+                 inputs"
+            ))
+        }
+
+        Ok(inputs)
     }
 }
 
@@ -497,7 +545,7 @@ pub async fn analyze_wdl_document(
 
     for result in &results {
         if let Some(e) = result.error() {
-            anyhow::bail!("parsing failed for `{}`: {:#}", result.document().uri(), e);
+            bail!("parsing failed for `{}`: {:#}", result.document().uri(), e);
         }
 
         if let Some(diagnostic) = result
@@ -505,7 +553,7 @@ pub async fn analyze_wdl_document(
             .diagnostics()
             .find(|d| d.severity() == Severity::Error)
         {
-            anyhow::bail!(
+            bail!(
                 "analysis error in `{}`: {:?}",
                 result.document().uri(),
                 diagnostic
@@ -517,88 +565,6 @@ pub async fn analyze_wdl_document(
         .into_iter()
         .find(|result| **result.document().uri() == uri)
         .context("analyzer didn't return analysis results for document")
-}
-
-/// Parses and validates workflow inputs.
-///
-/// If inputs are provided, writes them to a file and parses them. Returns
-/// workflow inputs or an error if the inputs are for a task instead of a
-/// workflow.
-async fn parse_workflow_inputs(
-    db: &dyn Database,
-    ctx: &RunContext,
-    inputs: &JsonValue,
-    document: &AnalysisDocument,
-    run_dir: &RunDirectory,
-) -> Result<wdl::engine::WorkflowInputs> {
-    // Handle empty inputs
-    if inputs.is_null() || inputs.as_object().is_some_and(|o| o.is_empty()) {
-        return Ok(Default::default());
-    }
-
-    // Write inputs to file
-    let inputs_file = run_dir.inputs_file();
-    std::fs::write(&inputs_file, serde_json::to_string_pretty(inputs)?)
-        .context("failed to write inputs file")?;
-
-    // Parse and validate inputs
-    match Inputs::parse(document, &inputs_file)? {
-        Some((_, Inputs::Task(_))) => {
-            let error = "inputs are for a task, not a workflow";
-            db.fail_run(ctx.run_id, error, Utc::now()).await?;
-            anyhow::bail!(error);
-        }
-        Some((_, Inputs::Workflow(inputs))) => Ok(inputs),
-        None => Ok(Default::default()),
-    }
-}
-
-/// Parse and validate task inputs from JSON.
-///
-/// Handles empty or null inputs by returning default values. For non-empty
-/// inputs, writes them to a file in the run directory, parses them, and
-/// validates that they match the target task. If the inputs are for a workflow
-/// or a different task, marks the run as failed in the database and returns an
-/// error.
-async fn parse_task_inputs(
-    db: &dyn Database,
-    ctx: &RunContext,
-    inputs: &JsonValue,
-    document: &AnalysisDocument,
-    task: &wdl::analysis::document::Task,
-    run_dir: &RunDirectory,
-) -> Result<wdl::engine::TaskInputs> {
-    // Handle empty inputs
-    if inputs.is_null() || inputs.as_object().is_some_and(|o| o.is_empty()) {
-        return Ok(Default::default());
-    }
-
-    // Write inputs to file
-    let inputs_file = run_dir.inputs_file();
-    std::fs::write(&inputs_file, serde_json::to_string_pretty(inputs)?)
-        .context("failed to write inputs file")?;
-
-    // Parse and validate inputs
-    match Inputs::parse(document, &inputs_file)? {
-        Some((name, Inputs::Task(task_inputs))) => {
-            if name != task.name() {
-                let error = format!(
-                    "inputs are for task `{}`, but executing task `{}`",
-                    name,
-                    task.name()
-                );
-                db.fail_run(ctx.run_id, &error, Utc::now()).await?;
-                anyhow::bail!(error);
-            }
-            Ok(task_inputs)
-        }
-        Some((_, Inputs::Workflow(_))) => {
-            let error = "inputs are for a workflow, not a task";
-            db.fail_run(ctx.run_id, error, Utc::now()).await?;
-            anyhow::bail!(error);
-        }
-        None => Ok(Default::default()),
-    }
 }
 
 /// Handles successful run execution.
@@ -620,7 +586,7 @@ async fn set_run_success(
 
     // Write outputs to file
     let outputs_file = run_dir.outputs_file();
-    std::fs::write(&outputs_file, serde_json::to_string_pretty(&outputs_json)?)
+    fs::write(&outputs_file, serde_json::to_string_pretty(&outputs_json)?)
         .context("failed to write outputs file")?;
 
     // Update outputs in database
@@ -653,7 +619,7 @@ async fn set_run_success(
             .await
             .context("failed to update run index directory")?;
         if !updated {
-            anyhow::bail!("run not found when updating index directory");
+            bail!("run not found when updating index directory");
         }
     }
 
@@ -682,17 +648,39 @@ async fn execute_workflow_target(
     config: Arc<WdlConfig>,
     cancellation: CancellationContext,
     events: Events,
-    inputs: &JsonValue,
+    inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
 ) -> Result<Option<Outputs>, EvaluationError> {
-    let mut workflow_inputs = parse_workflow_inputs(db, ctx, inputs, document, run_dir).await?;
+    // Write inputs to file
+    let inputs_file = run_dir.inputs_file();
+    fs::write(
+        &inputs_file,
+        serde_json::to_string_pretty(&inputs).context("failed to serialize inputs")?,
+    )
+    .with_context(|| {
+        format!(
+            "failed to write inputs file `{path}`",
+            path = inputs_file.display()
+        )
+    })?;
+
+    // Ensure the inputs are for a workflow
+    if inputs.as_workflow_inputs().is_none() {
+        let error = "inputs are for a task, not a workflow";
+        db.fail_run(ctx.run_id, error, Utc::now())
+            .await
+            .context("failed to update database")?;
+        return Err(anyhow!(error).into());
+    }
+
+    let mut inputs = inputs.unwrap_workflow_inputs();
 
     // Resolve relative paths in inputs from `base_dir`
     let workflow = document
         .workflow()
         .context("document does not contain a workflow")?;
-    workflow_inputs
+    inputs
         .join_paths(workflow, |_| Ok(base_dir))
         .await
         .context("failed to resolve input paths")?;
@@ -702,7 +690,7 @@ async fn execute_workflow_target(
         .context("failed to create workflow evaluator")?;
 
     match evaluator
-        .evaluate_workflow(document, workflow_inputs, run_dir.root())
+        .evaluate_workflow(document, inputs, run_dir.root())
         .await
     {
         Ok(outputs) => Ok(Some(outputs)),
@@ -729,20 +717,30 @@ async fn execute_task_target(
     cancellation: CancellationContext,
     events: Events,
     target: &Target,
-    inputs: &JsonValue,
+    inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
 ) -> Result<Option<Outputs>, EvaluationError> {
-    let task = document
-        .task_by_name(target.name())
-        // SAFETY: we should never get to this point with a task target without
-        // the task being present in the document.
-        .unwrap();
+    let task = document.task_by_name(target.name()).with_context(|| {
+        format!(
+            "task `{name}` was not found in the document",
+            name = target.name()
+        )
+    })?;
 
-    let mut task_inputs = parse_task_inputs(db, ctx, inputs, document, task, run_dir).await?;
+    // Ensure the inputs are for a tas
+    if inputs.as_task_inputs().is_none() {
+        let error = "inputs are for a workflow, not a task";
+        db.fail_run(ctx.run_id, error, Utc::now())
+            .await
+            .context("failed to update database")?;
+        return Err(anyhow!(error).into());
+    }
+
+    let mut inputs = inputs.unwrap_task_inputs();
 
     // Resolve relative paths in inputs from `base_dir`
-    task_inputs
+    inputs
         .join_paths(task, |_| Ok(base_dir))
         .await
         .context("failed to resolve input paths")?;
@@ -752,7 +750,7 @@ async fn execute_task_target(
         .context("failed to create task evaluator")?;
 
     let evaluated_task = match evaluator
-        .evaluate_task(document, task, task_inputs, run_dir.root())
+        .evaluate_task(document, task, inputs, run_dir.root())
         .await
     {
         Ok(task) => task,
@@ -796,7 +794,7 @@ pub async fn execute_target(
     cancellation: CancellationContext,
     events: Events,
     target: Target,
-    inputs: &JsonValue,
+    inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
     index_on: Option<&str>,
