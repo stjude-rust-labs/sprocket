@@ -32,6 +32,7 @@ use wdl::analysis::AnalysisResult;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
@@ -45,7 +46,6 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::eval::Evaluator;
-use crate::inputs::OriginPaths;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
 use crate::test::OutputAssertion;
@@ -353,7 +353,7 @@ async fn launch_tests(
     analysis: &AnalysisResult,
     tests: DocumentTests,
     root: &Path,
-    fixtures: &Arc<OriginPaths>,
+    fixtures: &Arc<EvaluationPath>,
     engine: &Arc<wdl::engine::Config>,
     permits: &Arc<Semaphore>,
     errors: &mut Vec<Arc<anyhow::Error>>,
@@ -675,9 +675,7 @@ pub async fn test(args: Args, config: Config) -> CommandResult<()> {
     }
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
-    let fixture_origins = Arc::new(OriginPaths::Single(wdl::engine::EvaluationPath::from(
-        test_dir.join(FIXTURES_DIR).as_path(),
-    )));
+    let fixture_origins = Arc::new(EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path()));
     let permits = Arc::new(Semaphore::new(parallelism));
     let engine = {
         let mut engine = config.run.engine;

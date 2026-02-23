@@ -7,6 +7,10 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
 
+use wdl_ast::DIRECTIVE_COMMENT_PREFIX;
+use wdl_ast::DIRECTIVE_DELIMITER;
+use wdl_ast::DOC_COMMENT_PREFIX;
+use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 
 use crate::Comment;
@@ -42,6 +46,22 @@ pub enum PostToken {
 
     /// A string literal.
     Literal(Rc<String>),
+
+    /// A doc comment block.
+    Documentation {
+        /// The current indent level.
+        num_indents: usize,
+        /// The contents of the doc comment block.
+        contents: Rc<String>,
+    },
+
+    /// A directive comment.
+    Directive {
+        /// The current indent level.
+        num_indents: usize,
+        /// The directive.
+        directive: Rc<Directive>,
+    },
 }
 
 impl std::fmt::Debug for PostToken {
@@ -52,6 +72,8 @@ impl std::fmt::Debug for PostToken {
             Self::Indent => write!(f, "<INDENT>"),
             Self::TempIndent(value) => write!(f, "<TEMP_INDENT@{value}>"),
             Self::Literal(value) => write!(f, "<LITERAL@{value}>"),
+            Self::Directive { directive, .. } => write!(f, "<DIRECTIVE@{directive:?}>"),
+            Self::Documentation { contents, .. } => write!(f, "<DOCUMENTATION@{contents}>"),
         }
     }
 }
@@ -67,16 +89,93 @@ impl Token for PostToken {
             config: &'a Config,
         }
 
+        fn write_indents(
+            f: &mut std::fmt::Formatter<'_>,
+            indent: &str,
+            num_indents: usize,
+        ) -> std::fmt::Result {
+            for _ in 0usize..num_indents {
+                write!(f, "{indent}")?;
+            }
+            Ok(())
+        }
+
         impl std::fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self.token {
                     PostToken::Space => write!(f, "{SPACE}"),
                     PostToken::Newline => write!(f, "{NEWLINE}"),
                     PostToken::Indent => {
-                        write!(f, "{indent}", indent = self.config.indent().string())
+                        write!(f, "{indent}", indent = self.config.indent.string())
                     }
                     PostToken::TempIndent(value) => write!(f, "{value}"),
                     PostToken::Literal(value) => write!(f, "{value}"),
+                    PostToken::Documentation {
+                        num_indents,
+                        contents: markdown,
+                    } => {
+                        let prefix = DOC_COMMENT_PREFIX;
+                        write!(f, "{prefix}")?;
+                        let mut lines = markdown.lines().peekable();
+                        while let Some(cur) = lines.next() {
+                            write!(f, "{cur}")?;
+                            if lines.peek().is_some() {
+                                write!(f, "{NEWLINE}")?;
+                                write_indents(f, &self.config.indent.string(), *num_indents)?;
+                                write!(f, "{prefix}")?;
+                            }
+                        }
+                        Ok(())
+                    }
+                    PostToken::Directive {
+                        num_indents,
+                        directive,
+                    } => {
+                        let mut prefix = format!("{} ", DIRECTIVE_COMMENT_PREFIX);
+                        match &**directive {
+                            Directive::Except(exceptions) => {
+                                prefix.push_str("except");
+                                prefix.push_str(DIRECTIVE_DELIMITER);
+                                prefix.push(' ');
+                                let mut rules: Vec<String> = exceptions.iter().cloned().collect();
+                                rules.sort();
+                                write!(f, "{prefix}")?;
+                                if let Some(max) = self.config.max_line_length.get() {
+                                    let indent_width = self.config.indent.num() * num_indents;
+                                    let start_width = indent_width + prefix.len();
+                                    let mut remaining = max.saturating_sub(start_width);
+                                    let mut written_to_cur_line = 0usize;
+                                    for rule in rules {
+                                        let cur_len = rule.len();
+                                        if written_to_cur_line == 0 {
+                                            write!(f, "{rule}")?;
+                                            remaining = remaining.saturating_sub(cur_len);
+                                            written_to_cur_line += 1;
+                                        } else if remaining.saturating_sub(cur_len + 2) > 0 {
+                                            // Current rule fits
+                                            write!(f, ", {rule}")?;
+                                            remaining = remaining.saturating_sub(cur_len + 2);
+                                            written_to_cur_line += 1;
+                                        } else {
+                                            // Current rule does not fit
+                                            write!(f, "{NEWLINE}")?;
+                                            write_indents(
+                                                f,
+                                                &self.config.indent.string(),
+                                                *num_indents,
+                                            )?;
+                                            write!(f, "{prefix}{rule}")?;
+                                            written_to_cur_line = 1;
+                                            remaining = max.saturating_sub(start_width + cur_len);
+                                        }
+                                    }
+                                    Ok(())
+                                } else {
+                                    write!(f, "{rules}", rules = rules.join(", "))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -93,14 +192,18 @@ impl PostToken {
     ///
     /// This is used to determine how much space the token takes up _within a
     /// single line_ for the purposes of respecting the maximum line length.
-    /// As such, newlines are considered zero-width tokens.
+    /// As such, newlines are considered zero-width tokens. Similarly, doc
+    /// comments and directive comments are considered zero-width as they always
+    /// appear on their own lines.
     fn width(&self, config: &crate::Config) -> usize {
         match self {
             Self::Space => SPACE.len(), // 1 character
             Self::Newline => 0,
-            Self::Indent => config.indent().num(),
+            Self::Indent => config.indent.num(),
             Self::TempIndent(value) => value.len(),
             Self::Literal(value) => value.len(),
+            Self::Directive { .. } => 0,
+            Self::Documentation { .. } => 0,
         }
     }
 }
@@ -179,68 +282,6 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::Comma => Some(LineBreak::After),
         _ => None,
     }
-}
-
-/// Attempts to split a `#@ except:` directive into multiple lines when it
-/// exceeds `max_len`.
-///
-/// Returns `None` if the input is not a `#@ except:` directive or if no
-/// splitting is required. Splitting occurs only at comma boundaries and
-/// ensures at least one rule per line.
-fn split_except_directive_lines(value: &str, max_len: usize) -> Option<Vec<String>> {
-    let remainder = value.strip_prefix("#@")?;
-    let rules_text = remainder.trim_start().strip_prefix("except:")?;
-
-    // If the whole line fits, no splitting needed
-    if value.len() <= max_len {
-        return None;
-    };
-
-    // Split into individual rules
-    let rules: Vec<&str> = rules_text
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    if rules.is_empty() {
-        return None;
-    }
-
-    let prefix = "#@ except: ";
-    let mut lines = Vec::new();
-    let mut current_rules = Vec::new();
-
-    for rule in rules {
-        // Build what the line would look like with this rule added
-        let mut test_rules = current_rules.clone();
-        test_rules.push(rule);
-        let test_line = format!("{}{}", prefix, test_rules.join(", "));
-
-        if test_line.len() <= max_len {
-            // Rule fits, add it to current line
-            current_rules.push(rule);
-        } else {
-            // Rule doesn't fit
-            if current_rules.is_empty() {
-                // This is the first rule and it's already too long
-                // Add it anyway (minimum 1 rule per line)
-                current_rules.push(rule);
-            } else {
-                // Finalize current line and start a new one
-                lines.push(format!("{}{}", prefix, current_rules.join(", ")));
-                current_rules.clear();
-                current_rules.push(rule);
-            }
-        }
-    }
-
-    // Add the last line if there are remaining rules
-    if !current_rules.is_empty() {
-        lines.push(format!("{}{}", prefix, current_rules.join(", ")));
-    }
-
-    Some(lines)
 }
 
 /// Current position in a line.
@@ -410,10 +451,9 @@ impl Postprocessor {
                                     | None
                             ) {
                                 self.interrupted = true;
+                                self.end_line(stream);
                             }
-                            self.end_line(stream);
                             stream.push(PostToken::Literal(value));
-                            self.position = LinePosition::MiddleOfLine;
                         }
                         Comment::Inline(value) => {
                             assert!(self.position == LinePosition::MiddleOfLine);
@@ -428,7 +468,34 @@ impl Postprocessor {
                             }
                             stream.push(PostToken::Literal(value));
                         }
+                        Comment::Documentation(contents) => {
+                            if !matches!(
+                                stream.0.last(),
+                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
+                            ) {
+                                self.interrupted = true;
+                                self.end_line(stream);
+                            }
+                            stream.push(PostToken::Documentation {
+                                num_indents: self.indent_level,
+                                contents,
+                            });
+                        }
+                        Comment::Directive(directive) => {
+                            if !matches!(
+                                stream.0.last(),
+                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
+                            ) {
+                                self.interrupted = true;
+                                self.end_line(stream);
+                            }
+                            stream.push(PostToken::Directive {
+                                num_indents: self.indent_level,
+                                directive,
+                            });
+                        }
                     }
+                    self.position = LinePosition::MiddleOfLine;
                     self.end_line(stream);
                 }
             },
@@ -450,35 +517,6 @@ impl Postprocessor {
     ) {
         assert!(!self.interrupted);
         assert!(self.position == LinePosition::StartOfLine);
-        // Preprocess the input stream to split long except directives if needed
-        let mut expanded_stream = TokenStream::<PreToken>::default();
-        let in_stream = if let Some(max_len) = config.max_line_length() {
-            for token in in_stream.iter() {
-                let PreToken::Trivia(Trivia::Comment(Comment::Preceding(value))) = token else {
-                    expanded_stream.push(token.clone());
-                    continue;
-                };
-
-                if !value.starts_with("#@") {
-                    expanded_stream.push(token.clone());
-                    continue;
-                }
-
-                if let Some(lines) = split_except_directive_lines(value, max_len) {
-                    for line in lines {
-                        expanded_stream.push(PreToken::Trivia(Trivia::Comment(
-                            Comment::Preceding(Rc::new(line)),
-                        )));
-                    }
-                } else {
-                    expanded_stream.push(token.clone());
-                }
-            }
-            &expanded_stream
-        } else {
-            // No max line length configured, use original stream
-            in_stream
-        };
         let mut post_buffer = TokenStream::<PostToken>::default();
         let mut pre_buffer = in_stream.iter().peekable();
         let starting_indent = self.indent_level;
@@ -489,8 +527,8 @@ impl Postprocessor {
 
         // If all lines are short enough, we can just add the post_buffer to the
         // out_stream and be done.
-        if config.max_line_length().is_none()
-            || post_buffer.max_width(config) <= config.max_line_length().unwrap()
+        if config.max_line_length.get().is_none()
+            || post_buffer.max_width(config) <= config.max_line_length.get().unwrap()
         {
             out_stream.extend(post_buffer);
             return;
@@ -501,7 +539,7 @@ impl Postprocessor {
         // and then we iterate through the in_stream again to actually insert
         // them in the proper places.
 
-        let max_length = config.max_line_length().unwrap();
+        let max_length = config.max_line_length.get().unwrap();
 
         let mut potential_line_breaks: HashSet<usize> = HashSet::new();
         for (i, token) in in_stream.iter().enumerate() {

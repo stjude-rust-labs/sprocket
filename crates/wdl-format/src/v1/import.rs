@@ -1,5 +1,6 @@
 //! Formatting for imports.
 
+use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -10,9 +11,13 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_import_alias(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_import_alias(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     for child in element.children().expect("import alias children") {
-        (&child).write(stream);
+        (&child).write(stream, config);
         stream.end_word();
     }
 }
@@ -22,9 +27,13 @@ pub fn format_import_alias(element: &FormatElement, stream: &mut TokenStream<Pre
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_import_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_import_statement(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     for child in element.children().expect("import statement children") {
-        (&child).write(stream);
+        (&child).write(stream, config);
         stream.end_word();
     }
 

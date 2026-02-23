@@ -16,7 +16,7 @@ use rowan::GreenTokenData;
 use rowan::Language;
 use rowan::NodeOrToken;
 use rowan::WalkEvent;
-use wdl_analysis::SyntaxNodeExt;
+use wdl_analysis::Exceptable;
 use wdl_ast::NewRoot;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
@@ -72,6 +72,8 @@ pub type SyntaxElement = NodeOrToken<SyntaxNode, SyntaxToken>;
 /// Represents a syntax node that is `Send + Sync`.
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SyntaxNode(Arc<ElementData>);
+
+impl Exceptable for SyntaxNode {}
 
 impl SyntaxNode {
     /// Constructs a new child node for this node.
@@ -267,23 +269,6 @@ impl TreeNode for SyntaxNode {
 
     fn ancestors(&self) -> impl Iterator<Item = Self> {
         std::iter::successors(Some(self.clone()), SyntaxNode::parent)
-    }
-}
-
-impl SyntaxNodeExt for SyntaxNode {
-    fn except_comments(&self) -> impl Iterator<Item = wdl_ast::SyntaxToken> + '_ {
-        // For engine evaluation, we don't except comments
-        std::iter::empty()
-    }
-
-    fn is_rule_excepted(&self, _: &str) -> bool {
-        // For engine evaluation, we except all rules
-        true
-    }
-
-    fn rule_exceptions(&self) -> std::collections::HashSet<String> {
-        // For engine evaluation, we except all rules
-        std::collections::HashSet::new()
     }
 }
 

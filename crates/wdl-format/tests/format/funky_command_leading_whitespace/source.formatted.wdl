@@ -1,5 +1,4 @@
 ## This is a test of leading whitespace stripping and normalization in command blocks.
-
 version 1.3
 
 task no_whitespace {

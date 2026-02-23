@@ -56,7 +56,7 @@ use super::Struct;
 use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
-use crate::SyntaxNodeExt;
+use crate::Exceptable;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;
 use crate::UNUSED_IMPORT_RULE_ID;
