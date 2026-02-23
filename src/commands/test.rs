@@ -355,7 +355,7 @@ type DocumentResults = IndexMap<String, TargetResults>;
 async fn run_tests(
     documents: Vec<(&AnalysisResult, DocumentTests)>,
     root: &Path,
-    fixtures: OriginPaths,
+    fixtures: EvaluationPath,
     engine: wdl::engine::Config,
     handle: FilterReloadHandle,
     errors: &mut Vec<Arc<anyhow::Error>>,
