@@ -39,6 +39,10 @@ pub enum DatabaseError {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
+    /// A JSON serialization error.
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
     /// Invalid database schema version.
     #[error("invalid database schema version: expected `{expected}`, found `{found}`")]
     InvalidVersion {

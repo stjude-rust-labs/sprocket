@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use chrono::Utc;
@@ -37,6 +38,9 @@ use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
+use wdl::engine::Inputs;
+use wdl::engine::TaskInputs;
+use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
@@ -461,7 +465,7 @@ async fn progress(
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
 /// at `<root>/<target>/_latest`.
-pub fn setup_run_dir(root: &Path, target: &str) -> anyhow::Result<PathBuf> {
+pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
     // Create the target root directory
     let target_root = root.join(target);
     fs::create_dir_all(&target_root).with_context(|| {
@@ -503,6 +507,20 @@ pub fn setup_run_dir(root: &Path, target: &str) -> anyhow::Result<PathBuf> {
     }
 
     Ok(output)
+}
+
+/// Serializes engine inputs to JSON with the target name prefix on each key.
+fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
+    let serialized = serde_json::to_value(inputs)?;
+
+    let mut map = serde_json::Map::new();
+    if let JsonValue::Object(obj) = serialized {
+        for (key, value) in obj {
+            map.insert(format!("{target}.{key}"), value);
+        }
+    }
+
+    Ok(serde_json::to_string(&map)?)
 }
 
 /// The main function for the `run` subcommand.
@@ -599,7 +617,7 @@ pub async fn run(
 
     // Parse and resolve inputs. The `into_resolved_json()` method resolves
     // relative paths using per-input origins before serializing to JSON.
-    let resolved = Invocation::coalesce(&args.inputs, args.target.clone())
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -607,22 +625,30 @@ pub async fn run(
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_resolved_json(document)
-        .await?;
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (
+            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
+            inputs,
+        ),
+        None => {
+            // No inputs were provided, need explicit target
+            let target = args
+                .target
+                .as_ref()
+                .context("the `--target` option is required if no inputs are provided")?;
 
-    // Extract target name and inputs, or use explicit target with empty inputs
-    let (target_name, inputs) = if let Some((name, json)) = resolved {
-        (name, json)
-    } else {
-        // No inputs were provided, need explicit target
-        let name = args.target.clone().ok_or_else(|| {
-            anyhow!("the `--target` option is required if no inputs are provided")
-        })?;
-        (name, JsonValue::Object(Default::default()))
+            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
+
+            let inputs = match target {
+                Target::Task(_) => TaskInputs::default().into(),
+                Target::Workflow(_) => WorkflowInputs::default().into(),
+            };
+
+            (target, inputs)
+        }
     };
-
-    // Select the target (task or workflow) from the document
-    let target = select_target(document, Some(&target_name)).map_err(|e| anyhow!("{}", e))?;
 
     // Set up output directory structure
     let output_dir = OutputDirectory::new(
@@ -677,7 +703,7 @@ pub async fn run(
         session.uuid,
         &args.source,
         Some(target.name()),
-        &inputs,
+        &inputs_to_json(target.name(), &inputs).context("failed to serialize inputs")?,
     )
     .await
     .context("failed to create run record")?;
@@ -735,7 +761,7 @@ pub async fn run(
         cancellation.clone(),
         events,
         target,
-        &inputs,
+        inputs,
         &run_dir,
         &base_dir,
         args.index_on.as_deref(),
@@ -805,7 +831,7 @@ pub async fn run(
 }
 
 /// Initializes logging to `output.log` in the given run directory.
-fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> anyhow::Result<()> {
+fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<()> {
     fs::create_dir_all(run_dir).with_context(|| {
         format!(
             "failed to create directory `{path}`",

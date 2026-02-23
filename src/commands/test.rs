@@ -30,6 +30,7 @@ use wdl::analysis::AnalysisResult;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
 use wdl::engine::Inputs as EngineInputs;
 use wdl::engine::Outputs;
@@ -44,7 +45,6 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::eval::Evaluator;
-use crate::inputs::OriginPaths;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
 use crate::test::OutputAssertion;
@@ -718,9 +718,7 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     }
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
-    let fixture_origins = OriginPaths::Single(wdl::engine::EvaluationPath::from(
-        test_dir.join(FIXTURES_DIR).as_path(),
-    ));
+    let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
     let engine = {
         let mut engine = config.run.engine;
         engine.task.cache = CallCachingMode::Off;
