@@ -10,7 +10,10 @@ use std::path::Path;
 use maud::Markup;
 use maud::PreEscaped;
 use maud::html;
+use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Direction;
+use wdl_ast::SyntaxElement;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
@@ -18,10 +21,12 @@ use wdl_ast::v1::OutputSection;
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
+use crate::meta::doc_comments;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
@@ -251,24 +256,69 @@ pub(crate) trait Runnable: DefinitionMeta {
     }
 }
 
+/// Attempts to convert a [`MetaMapValueSource`] to a [`MetaMap`] with a
+/// description.
+fn meta_to_description(value: &MetaMapValueSource) -> MetaMap {
+    match value {
+        MetaMapValueSource::Comment(_) => {
+            MetaMap::from([(DESCRIPTION_KEY.to_string(), value.clone())])
+        }
+        MetaMapValueSource::MetaValue(meta) => match meta {
+            MetadataValue::Object(o) => o
+                .items()
+                .map(|item| {
+                    (
+                        item.name().text().to_string(),
+                        MetaMapValueSource::MetaValue(item.value().clone()),
+                    )
+                })
+                .collect(),
+            MetadataValue::String(_s) => {
+                MetaMap::from([(DESCRIPTION_KEY.to_string(), value.clone())])
+            }
+            _ => {
+                // If it's not an object or string, we don't know how to handle it.
+                MetaMap::default()
+            }
+        },
+    }
+}
+
 /// Parse the [`InputSection`] into a vector of [`Parameter`]s.
-fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<Parameter> {
+fn parse_inputs(
+    input_section: &InputSection,
+    parameter_meta: &MetaMap,
+    enable_doc_comments: bool,
+) -> Vec<Parameter> {
     input_section
         .declarations()
         .map(|decl| {
             let name = decl.name().text().to_owned();
-            let meta = parameter_meta.get(&name);
-            Parameter::new(decl.clone(), meta.cloned(), InputOutput::Input)
+            let mut meta = parameter_meta
+                .get(&name)
+                .map(meta_to_description)
+                .unwrap_or_default();
+
+            if enable_doc_comments {
+                // Doc comments take precedence
+                meta.append(&mut doc_comments(
+                    decl.inner()
+                        .siblings_with_tokens(Direction::Prev)
+                        .filter_map(SyntaxElement::into_token),
+                ));
+            }
+
+            Parameter::new(decl.clone(), meta, InputOutput::Input)
         })
         .collect()
 }
 
-// TODO: Collect doc comments on outputs
 /// Parse the [`OutputSection`] into a vector of [`Parameter`]s.
 fn parse_outputs(
     output_section: &OutputSection,
     meta: &MetaMap,
     parameter_meta: &MetaMap,
+    enable_doc_comments: bool,
 ) -> Vec<Parameter> {
     let output_meta: MetaMap = meta
         .get("outputs")
@@ -292,10 +342,24 @@ fn parse_outputs(
         .declarations()
         .map(|decl| {
             let name = decl.name().text().to_owned();
-            let meta = parameter_meta.get(&name).or_else(|| output_meta.get(&name));
+            let mut meta = parameter_meta
+                .get(&name)
+                .or_else(|| output_meta.get(&name))
+                .map(meta_to_description)
+                .unwrap_or_default();
+
+            if enable_doc_comments {
+                // Doc comments take precedence
+                meta.append(&mut doc_comments(
+                    decl.inner()
+                        .siblings_with_tokens(Direction::Prev)
+                        .filter_map(SyntaxElement::into_token),
+                ));
+            }
+
             Parameter::new(
                 wdl_ast::v1::Decl::Bound(decl.clone()),
-                meta.cloned(),
+                meta,
                 InputOutput::Output,
             )
         })
@@ -467,6 +531,7 @@ mod tests {
         let inputs = parse_inputs(
             &doc_item.as_workflow_definition().unwrap().input().unwrap(),
             &meta_map,
+            false,
         );
         assert_eq!(inputs.len(), 3);
         assert_eq!(inputs[0].name(), "a");
@@ -530,6 +595,7 @@ mod tests {
             &doc_item.as_workflow_definition().unwrap().output().unwrap(),
             &meta_map,
             &parameter_meta,
+            false,
         );
         assert_eq!(outputs.len(), 3);
         assert_eq!(outputs[0].name(), "a");

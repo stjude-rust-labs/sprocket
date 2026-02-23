@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added doc comment support for workflows and tasks ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654))
+
 ## 0.12.1 - 2026-02-12
 
 ### Dependencies
