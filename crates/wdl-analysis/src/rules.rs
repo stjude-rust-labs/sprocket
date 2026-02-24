@@ -430,7 +430,7 @@ impl Rule for UsingFallbackVersion {
         &[r#"```wdl
 # Not a valid version. If a fallback version is configured,
 # the document will be interpreted as that version.
-version 3.0
+version development
 
 workflow example {
     meta {}
