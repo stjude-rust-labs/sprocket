@@ -1,0 +1,1 @@
+allowed_typed_identifiers = ["bad_but_ignored_int"]

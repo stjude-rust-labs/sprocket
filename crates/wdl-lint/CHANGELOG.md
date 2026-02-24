@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `non_snake_case` and `allowed_typed_identifiers` configuration keys for allowing certain names in the SnakeCase and
+  DeclarationName rules ([#660](https://github.com/stjude-rust-labs/sprocket/pull/660)).
+
 #### Changed
 
 * Renamed `LintDirectiveValid` to `ExceptDirectiveValid` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
