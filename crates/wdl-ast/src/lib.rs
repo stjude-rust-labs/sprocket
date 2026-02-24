@@ -80,11 +80,10 @@ pub fn doc_comments<N: TreeNode>(
         .into_iter()
         .take_while(|token| {
             token.kind() == SyntaxKind::Whitespace
-                || (token.kind() == SyntaxKind::Comment
-                    && token.text().starts_with(DOC_COMMENT_PREFIX))
+                || token.kind() == SyntaxKind::Comment
         })
         .filter_map(|token| {
-            if token.kind() == SyntaxKind::Comment {
+            if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
                 Some(Comment::<N::Token>::cast(token).expect("should be a comment"))
             } else {
                 None
