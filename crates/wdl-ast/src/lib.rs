@@ -68,7 +68,7 @@ pub trait Documented<N: TreeNode>: AstNode<N> {
     ///
     /// If doc comments don't apply to this node, `None` will be returned.
     ///
-    /// The comments returned are ordered bottom to top.
+    /// The comments returned are ordered top to bottom.
     fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
 }
 
