@@ -188,6 +188,11 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
                 .context("adding test directory")?;
             analyzer.analyze(()).await.context("analyzing documents")?
         };
+
+    if results.is_empty() {
+        bail!("there are no analysis results");
+    }
+
     compare_results(test, results)
 }
 
