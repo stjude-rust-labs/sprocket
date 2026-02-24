@@ -159,7 +159,7 @@ impl FromStr for JobState {
             "RUNNING" => Ok(Self::Running),
             "SUSPENDED" => Ok(Self::Suspended),
             "TIMEOUT" => Ok(Self::Timeout),
-            _ => bail!("unknown Slurm job state `{s}"),
+            _ => bail!("unknown Slurm job state `{s}`"),
         }
     }
 }
