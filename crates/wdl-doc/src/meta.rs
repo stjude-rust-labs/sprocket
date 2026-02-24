@@ -10,10 +10,9 @@ use maud::Markup;
 use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxTokenExt;
-use wdl_ast::TreeToken;
 use wdl_ast::v1::MetadataObjectItem;
 use wdl_ast::v1::MetadataValue;
 
@@ -414,29 +413,23 @@ impl DerefMut for Paragraph {
 /// The first paragraph of the doc comment text will be placed under the
 /// `description` key of the map. All other paragraphs will be joined with
 /// newlines and placed under the `help` key.
-pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap {
+pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaMap {
     let mut map = MetaMap::new();
 
     let mut current_paragraph = Paragraph::default();
     let mut paragraphs = Vec::new();
-    for token in token.preceding_trivia() {
-        match token.kind() {
-            SyntaxKind::Comment => {
-                let Some(comment) = token.text().strip_prefix(DOC_COMMENT_PREFIX) else {
-                    continue;
-                };
+    for doc_comment in comments {
+        let Some(comment) = doc_comment.text().strip_prefix(DOC_COMMENT_PREFIX) else {
+            continue;
+        };
 
-                if comment.trim().is_empty() {
-                    paragraphs.push(current_paragraph);
-                    current_paragraph = Paragraph::default();
-                    continue;
-                }
-
-                current_paragraph.push(comment.to_owned());
-            }
-            SyntaxKind::Whitespace => continue,
-            _ => unreachable!(),
+        if comment.trim().is_empty() {
+            paragraphs.push(current_paragraph);
+            current_paragraph = Paragraph::default();
+            continue;
         }
+
+        current_paragraph.push(comment.to_owned());
     }
 
     if !current_paragraph.is_empty() {
