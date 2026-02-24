@@ -48,6 +48,12 @@ fn directory_type_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of the `Directory` type requires WDL version 1.2").with_highlight(span)
 }
 
+/// Creates an "implicit binding" requirement diagnostic.
+fn implicit_binding_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of implicit input bindings requires WDL version 1.1 or later")
+        .with_highlight(span)
+}
+
 /// Creates an "input keyword" requirement diagnostic.
 fn input_keyword_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("omitting the `input` keyword in a call statement requires WDL version 1.2")
@@ -313,14 +319,24 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && version < SupportedVersion::V1(V1::Two)
-        {
+        let Some(version) = self.version else {
+            return;
+        };
+
+        if version < SupportedVersion::V1(V1::Two) {
             // Ensure there is a input keyword child token if there are inputs
             if let Some(input) = stmt.inputs().next()
                 && stmt.token::<InputKeyword<_>>().is_none()
             {
                 diagnostics.add(input_keyword_requirement(input.span()));
+            }
+        }
+
+        if version < SupportedVersion::V1(V1::One) {
+            for input in stmt.inputs() {
+                if input.is_implicit_bind() {
+                    diagnostics.add(implicit_binding_requirement(input.span()));
+                }
             }
         }
     }
