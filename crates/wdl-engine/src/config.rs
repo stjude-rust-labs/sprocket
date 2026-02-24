@@ -807,6 +807,17 @@ pub struct TaskConfig {
     /// Used as part of call caching.
     #[serde(default)]
     pub digests: ContentDigestMode,
+    /// input and required keys to exclude from the cache eqality check
+    ///
+    /// Changes to these keys will not cause previously cached task tobe 
+    /// run-executed 
+    ///
+    /// Keys may refer to task inputs (e.g. `modify_disk_size_gb`) or
+    /// requirements (e.g. `requirements.memory`, `requirements.disks`).
+    ///
+    /// Defaults to an empty list (all keys contribute to the cache key).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cache_excluded_keys: Vec<String>,
 }
 
 impl TaskConfig {

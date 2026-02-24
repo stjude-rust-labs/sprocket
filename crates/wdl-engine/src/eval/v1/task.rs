@@ -772,6 +772,7 @@ impl Evaluator {
                             .as_deref()
                             .unwrap_or(DEFAULT_TASK_SHELL),
                         backend_inputs: state.backend_inputs.as_slice(),
+                        excluded_keys: &self.config.task.cache_excluded_keys,
                     };
 
                     match cache.key(request).await {
