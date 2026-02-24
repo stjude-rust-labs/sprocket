@@ -79,8 +79,7 @@ pub fn doc_comments<N: TreeNode>(
     preceding_trivia
         .into_iter()
         .take_while(|token| {
-            token.kind() == SyntaxKind::Whitespace
-                || token.kind() == SyntaxKind::Comment
+            token.kind() == SyntaxKind::Whitespace || token.kind() == SyntaxKind::Comment
         })
         .filter_map(|token| {
             if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
