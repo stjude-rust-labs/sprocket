@@ -220,7 +220,7 @@ impl FromStr for JobExitCode {
         Ok(Self {
             exit_code: exit_code
                 .parse()
-                .with_context(|| "invalid exit code `{exit_code}`")?,
+                .with_context(|| format!("invalid exit code `{exit_code}`"))?,
             signal: signal
                 .parse()
                 .with_context(|| "invalid signal number `{signal}`")?,
