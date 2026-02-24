@@ -276,39 +276,50 @@ impl<'a> JobRecord<'a> {
             .next()
             .context("`sacct` output is missing job identifier")?;
 
+        // Ignore job identifiers that contain steps
         if job_id.contains('.') {
             return Ok(None);
         }
 
+        // Parse the job id
         let job_id = job_id.parse().context("invalid Slurm job identifier")?;
+
+        // Parse the job state
         let state: JobState = parts
             .next()
             .context("`sacct` output is missing job state")?
             .parse()?;
+
+        // Parse the exit code field (if terminated, otherwise ignore)
+        let exit_code = parts
+            .next()
+            .context("`sacct` output is missing exit code")?;
         let exit_code = if state.terminated() {
-            Some(
-                parts
-                    .next()
-                    .context("`sacct` output is missing exit code")?
-                    .parse()?,
-            )
+            Some(exit_code.parse()?)
         } else {
             None
         };
+
+        // Get the statistics fields
+        let total_cpu = parts.next().context("`sacct` output missing total CPU")?;
+        let system_cpu = parts.next().context("`sacct` output missing system CPU")?;
+        let user_cpu = parts.next().context("`sacct` output missing user CPU")?;
+        let max_vm_size = parts
+            .next()
+            .context("`sacct` output missing maximum virtual memory size")?;
+        let avg_vm_size = parts
+            .next()
+            .context("`sacct` output missing average virtual memory size")?;
 
         Ok(Some(Self {
             job_id,
             state,
             exit_code,
-            total_cpu: parts.next().context("`sacct` output missing total CPU")?,
-            system_cpu: parts.next().context("`sacct` output missing system CPU")?,
-            user_cpu: parts.next().context("`sacct` output missing user CPU")?,
-            max_vm_size: parts
-                .next()
-                .context("`sacct` output missing maximum virtual memory size")?,
-            avg_vm_size: parts
-                .next()
-                .context("`sacct` output missing average virtual memory size")?,
+            total_cpu,
+            system_cpu,
+            user_cpu,
+            max_vm_size,
+            avg_vm_size,
         }))
     }
 
