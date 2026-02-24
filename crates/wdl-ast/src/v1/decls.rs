@@ -826,7 +826,10 @@ impl<N: TreeNode> AstNode<N> for BoundDecl<N> {
 impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
         let parent = self.inner().parent()?;
-        if parent.kind() != SyntaxKind::OutputSectionNode {
+        if !matches!(
+            parent.kind(),
+            SyntaxKind::InputSectionNode | SyntaxKind::OutputSectionNode
+        ) {
             return None;
         }
 
