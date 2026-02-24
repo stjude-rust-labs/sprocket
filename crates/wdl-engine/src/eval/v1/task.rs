@@ -828,7 +828,12 @@ impl Evaluator {
                     .cache
                     .as_ref()
                     .expect("should have cache")
-                    .get(cache_key)
+                    .get(
+                        cache_key,
+                        self.config.task.excluded_cache_hints.clone(),
+                        self.config.task.excluded_cache_inputs.clone(),
+                        self.config.task.excluded_cache_requirements.clone(),
+                    )
                     .await
                 {
                     Ok(Some(results)) => {
