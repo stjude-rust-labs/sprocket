@@ -1052,7 +1052,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let exit_code = tokio::select! {
                 _ = task_token.cancelled() => {
                     if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
                     }
 
                     return Ok(None);
