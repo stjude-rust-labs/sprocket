@@ -388,9 +388,8 @@ async fn run_tests(
                     (None, Some(wf)) if wf.name() == *target => (true, wf.outputs()),
                     (..) => {
                         errors.push(Arc::new(anyhow!(
-                            "no target named `{}` in `{}`",
-                            target,
-                            wdl_document.path()
+                            "no target named `{target}` in `{path}`",
+                            path = wdl_document.path()
                         )));
                         continue;
                     }
@@ -402,9 +401,9 @@ async fn run_tests(
                 }
                 let matrix = match test.parse_inputs().with_context(|| {
                     format!(
-                        "parsing input matrix of test `{}` for WDL document `{}`",
-                        test.name,
-                        wdl_document.path()
+                        "parsing input matrix of test `{name}` for WDL document `{path}`",
+                        name = test.name,
+                        path = wdl_document.path()
                     )
                 }) {
                     Ok(res) => res,
@@ -426,9 +425,9 @@ async fn run_tests(
                         .parse(is_workflow, outputs)
                         .with_context(|| {
                             format!(
-                                "parsing assertions of test `{}` for WDL document `{}`",
-                                &test.name,
-                                wdl_document.path()
+                                "parsing assertions of test `{name}` for WDL document `{path}`",
+                                name = test.name,
+                                path = wdl_document.path()
                             )
                         }) {
                         Ok(res) => Arc::new(res),
