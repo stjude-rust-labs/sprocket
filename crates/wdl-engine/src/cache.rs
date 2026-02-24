@@ -1112,4 +1112,47 @@ mod test {
             )
         );
     }
+    #[tokio::test]
+    async fn excluded_key_does_not_affect_cache_key() {
+        let ctx = TestContext::new().await;
+
+    
+        let mut original_inputs = ctx.task.inputs.clone();
+        original_inputs.insert(
+            "extra".to_string(),
+            Value::Primitive(PrimitiveValue::String(Arc::new("original".to_string()))),
+        );
+
+        let original_request = KeyRequest {
+            inputs: &original_inputs,
+            excluded_keys: &["extra".to_string()],
+            ..ctx.task.key_request()
+        };
+
+        
+        let key = ctx.cache.key(original_request).await.unwrap();
+    
+        let mut modified_inputs = original_inputs.clone();
+        modified_inputs.insert(
+            "extra".to_string(),
+            Value::Primitive(PrimitiveValue::String(Arc::new("changed".to_string()))),
+        );
+
+        
+        let modified_key = ctx
+            .cache
+            .key(KeyRequest {
+                inputs: &modified_inputs,
+                excluded_keys: &["extra".to_string()],
+                ..ctx.task.key_request()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            key.as_str(),
+            modified_key.as_str(),
+            "excluded key should not change the cache key"
+        );
+    }
 }
