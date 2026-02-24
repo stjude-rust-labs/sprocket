@@ -774,7 +774,10 @@ impl Evaluator {
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache.key(request).await {
+                    match cache
+                        .key(request, self.config.task.excluded_cache_inputs.clone())
+                        .await
+                    {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
