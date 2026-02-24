@@ -152,7 +152,7 @@ impl<N: TreeNode> WorkflowDefinition<N> {
             && let MetadataValue::String(s) = desc.value()
             && let Some(text) = s.text()
         {
-            writeln!(f, "# {}\n", text.text())?;
+            writeln!(f, "{}\n", text.text())?;
         }
 
         write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
