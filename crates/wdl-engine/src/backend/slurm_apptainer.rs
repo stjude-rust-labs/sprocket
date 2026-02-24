@@ -98,6 +98,12 @@ enum JobState {
     Preempted,
     /// The job is currently running.
     Running,
+    /// The job was requeued.
+    Requeued,
+    /// The job is resizing.
+    Resizing,
+    /// The job was revoked.
+    Revoked,
     /// The job is currently suspended.
     Suspended,
     /// The job was terminated due to reaching a time limit.
@@ -135,6 +141,9 @@ impl fmt::Display for JobState {
             Self::Pending => write!(f, "pending"),
             Self::Preempted => write!(f, "preempted"),
             Self::Running => write!(f, "running"),
+            Self::Requeued => write!(f, "requeued"),
+            Self::Resizing => write!(f, "resizing"),
+            Self::Revoked => write!(f, "revoked"),
             Self::Suspended => write!(f, "suspended"),
             Self::Timeout => write!(f, "timeout"),
         }
@@ -145,22 +154,34 @@ impl FromStr for JobState {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        // See: https://slurm.schedmd.com/job_state_codes.html
-        match s {
-            "BOOT_FAIL" => Ok(Self::BootFail),
-            "CANCELLED" => Ok(Self::Canceled),
-            "COMPLETED" => Ok(Self::Completed),
-            "DEADLINE" => Ok(Self::Deadline),
-            "FAILED" => Ok(Self::Failed),
-            "NODE_FAIL" => Ok(Self::NodeFail),
-            "OUT_OF_MEMORY" => Ok(Self::OutOfMemory),
-            "PENDING" => Ok(Self::Pending),
-            "PREEMPTED" => Ok(Self::Preempted),
-            "RUNNING" => Ok(Self::Running),
-            "SUSPENDED" => Ok(Self::Suspended),
-            "TIMEOUT" => Ok(Self::Timeout),
-            _ => bail!("unknown Slurm job state `{s}`"),
+        // See https://slurm.schedmd.com/job_state_codes.html for base states
+        // See https://slurm.schedmd.com/sacct.html for state flags recognized by `sacct`
+
+        // Job states may have extraneous information that follows them, so match by
+        // prefix
+        for (prefix, state) in [
+            ("BOOT_FAIL", Self::BootFail),
+            ("CANCELLED", Self::Canceled),
+            ("COMPLETED", Self::Completed),
+            ("DEADLINE", Self::Deadline),
+            ("FAILED", Self::Failed),
+            ("NODE_FAIL", Self::NodeFail),
+            ("OUT_OF_MEMORY", Self::OutOfMemory),
+            ("PENDING", Self::Pending),
+            ("PREEMPTED", Self::Preempted),
+            ("RUNNING", Self::Running),
+            ("REQUEUED", Self::Requeued),
+            ("RESIZING", Self::Resizing),
+            ("REVOKED", Self::Revoked),
+            ("SUSPENDED", Self::Suspended),
+            ("TIMEOUT", Self::Timeout),
+        ] {
+            if s.starts_with(prefix) {
+                return Ok(state);
+            }
         }
+
+        bail!("unknown Slurm job state `{s}`");
     }
 }
 
@@ -231,7 +252,8 @@ impl FromStr for JobExitCode {
 impl fmt::Display for JobExitCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.signal > 0 {
-            write!(f, "signal number `{signal}`", signal = self.signal)
+            // Mask the lower 7 bits of the signal for display
+            write!(f, "signal number `{signal}`", signal = self.signal & 0xF7)
         } else {
             write!(f, "exit code `{code}`", code = self.exit_code)
         }
@@ -262,36 +284,19 @@ struct JobRecord<'a> {
 }
 
 impl<'a> JobRecord<'a> {
-    /// Creates a new job record from a line of `sacct` output.
+    /// Creates a new job record from the provided record fields iterator.
     ///
-    /// This implementation expects a `|` delimited list of fields matching
-    /// those returned by the `fields` method.
-    ///
-    /// Returns `Ok(None)` if the output line is for a job step and not the job
-    /// itself.
-    fn new(line: &'a str) -> Result<Option<Self>> {
-        let mut parts = line.split('|');
-
-        let job_id = parts
-            .next()
-            .context("`sacct` output is missing job identifier")?;
-
-        // Ignore job identifiers that contain steps
-        if job_id.contains('.') {
-            return Ok(None);
-        }
-
-        // Parse the job id
-        let job_id = job_id.parse().context("invalid Slurm job identifier")?;
-
+    /// The fields iterator must be in the order specified in the `fields`
+    /// method, expecting the job identifier to have already been extracted.
+    fn new(job_id: u64, mut fields: impl Iterator<Item = &'a str>) -> Result<Self> {
         // Parse the job state
-        let state: JobState = parts
+        let state: JobState = fields
             .next()
             .context("`sacct` output is missing job state")?
             .parse()?;
 
         // Parse the exit code field (if terminated, otherwise ignore)
-        let exit_code = parts
+        let exit_code = fields
             .next()
             .context("`sacct` output is missing exit code")?;
         let exit_code = if state.terminated() {
@@ -301,17 +306,17 @@ impl<'a> JobRecord<'a> {
         };
 
         // Get the statistics fields
-        let total_cpu = parts.next().context("`sacct` output missing total CPU")?;
-        let system_cpu = parts.next().context("`sacct` output missing system CPU")?;
-        let user_cpu = parts.next().context("`sacct` output missing user CPU")?;
-        let max_vm_size = parts
+        let total_cpu = fields.next().context("`sacct` output missing total CPU")?;
+        let system_cpu = fields.next().context("`sacct` output missing system CPU")?;
+        let user_cpu = fields.next().context("`sacct` output missing user CPU")?;
+        let max_vm_size = fields
             .next()
             .context("`sacct` output missing maximum virtual memory size")?;
-        let avg_vm_size = parts
+        let avg_vm_size = fields
             .next()
             .context("`sacct` output missing average virtual memory size")?;
 
-        Ok(Some(Self {
+        Ok(Self {
             job_id,
             state,
             exit_code,
@@ -320,13 +325,15 @@ impl<'a> JobRecord<'a> {
             user_cpu,
             max_vm_size,
             avg_vm_size,
-        }))
+        })
     }
 
     /// Gets the fields that should be output by `sacct`.
     ///
     /// The field list must be kept in sync with the implementation of the `new`
     /// method.
+    ///
+    /// The first must always be the job ID.
     fn fields() -> &'static str {
         "JobID,State,ExitCode,TotalCPU,SystemCPU,UserCPU,MaxVMSize,AveVMSize"
     }
@@ -394,14 +401,36 @@ impl MonitorState {
     /// Update the jobs based on the current output of `sacct`.
     ///
     /// This is also responsible for sending "task started" events.
-    fn update_jobs(&mut self, output: &[u8], events: &Events) -> Result<()> {
-        let output = str::from_utf8(output).map_err(|_| anyhow!("`sacct` output was not UTF-8"))?;
-
+    fn update_jobs(&mut self, output: &str, events: &Events) {
         for line in output.lines() {
-            let Some(record) = JobRecord::new(line)? else {
+            let mut fields = line.split('|');
+
+            // Attempt to locate a job identifier field
+            let Some(job_id) = fields.next() else {
                 continue;
             };
-            let Some(job) = self.jobs.get_mut(&record.job_id) else {
+
+            // Ignore job identifiers that contain steps
+            if job_id.contains('.') {
+                continue;
+            }
+
+            // Parse the job id or continue if unknown
+            let Ok(job_id) = job_id.parse() else {
+                continue;
+            };
+
+            let record = match JobRecord::new(job_id, fields) {
+                Ok(record) => record,
+                Err(e) => {
+                    // Fail the job and continue
+                    let job = self.jobs.remove(&job_id).unwrap();
+                    let _ = job.completed.send(Err(e));
+                    continue;
+                }
+            };
+
+            let Some(job) = self.jobs.get_mut(&job_id) else {
                 continue;
             };
 
@@ -445,7 +474,7 @@ impl MonitorState {
                         user_cpu = record.user_cpu,
                     );
 
-                    let job = self.jobs.remove(&record.job_id).unwrap();
+                    let job = self.jobs.remove(&job_id).unwrap();
                     let _ = job.completed.send(Ok(exit_code));
                     continue;
                 } else {
@@ -458,15 +487,6 @@ impl MonitorState {
 
                 job.state = record.state;
             }
-        }
-
-        Ok(())
-    }
-
-    /// Fails all currently monitored jobs with the given error.
-    fn fail_all_jobs(&mut self, error: &anyhow::Error) {
-        for (_, job) in self.jobs.drain() {
-            let _ = job.completed.send(Err(anyhow!("{error:#}")));
         }
     }
 }
@@ -490,7 +510,8 @@ struct SubmittedJob {
 struct Monitor {
     /// The state of the monitor.
     state: Arc<Mutex<MonitorState>>,
-    /// A sender for notifying that the monitor has been dropped.
+    /// A sender for notifying that the last cloned reference to this monitor
+    /// has been dropped.
     _drop: Arc<oneshot::Sender<()>>,
 }
 
@@ -683,16 +704,13 @@ impl Monitor {
                         state.jobs.keys().join(",")
                     };
 
-                    match Self::read_jobs(&jobs).await.context("failed to query jobs with `sacct`") {
+                    match Self::read_jobs(&jobs).await.and_then(|output| String::from_utf8(output).context("`sacct` output was not UTF-8")) {
                         Ok(output) => {
                             let mut state = state.lock().expect("failed to lock state");
-                            if let Err(e) = state.update_jobs(&output, &events) {
-                                state.fail_all_jobs(&e);
-                            }
+                            state.update_jobs(&output, &events);
                         }
                         Err(e) => {
-                            let mut state = state.lock().expect("failed to lock state");
-                            state.fail_all_jobs(&e);
+                            error!("failed to read Slurm job state: {e:#}");
                         }
                     }
                 }
@@ -1059,7 +1077,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 }
                 _ = token.cancelled() => {
                     if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (LSF job `{job_id}`): {e:#}");
+                        error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
                     }
 
                     return Ok(None);
@@ -1110,7 +1128,6 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 )
                 .into(),
             }))
-
         }
         .boxed()
     }
