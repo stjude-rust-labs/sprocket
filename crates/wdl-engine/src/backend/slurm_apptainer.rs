@@ -710,7 +710,7 @@ impl Monitor {
         let command = command
             .arg("-P") // parseable
             .arg("-n") // no header
-            .arg("--format") // JSON output
+            .arg("--format") // column format (pipe-delimited with -P)
             .arg(JobRecord::fields())
             .arg("-j")
             .arg(jobs)
