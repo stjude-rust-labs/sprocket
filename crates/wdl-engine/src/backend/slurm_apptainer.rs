@@ -1111,7 +1111,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 .into(),
             }))
 
-                }
+        }
         .boxed()
     }
 }
