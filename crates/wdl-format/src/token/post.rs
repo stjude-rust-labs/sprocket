@@ -297,6 +297,21 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     }
 }
 
+/// Tracks a tandem break.
+struct TandemBreak {
+    /// The [`SyntaxKind`] which opened this tandem break.
+    pub open: SyntaxKind,
+    /// The [`SyntaxKind`] which will close this tandem break.
+    pub close: SyntaxKind,
+    /// Token depth since opening the break.
+    ///
+    /// The close break is only added when `depth == 0`.
+    /// This is incremented by one for every token matching `open` after the
+    /// break is initiated. It is decremented by one for every token
+    /// matching `close` after the break is initiated.
+    pub depth: usize,
+}
+
 /// Current position in a line.
 #[derive(Default, Eq, PartialEq)]
 enum LinePosition {
@@ -582,17 +597,23 @@ impl Postprocessor {
         // Reset the indent level.
         self.indent_level = starting_indent;
 
-        let mut break_stack = Vec::new();
+        let mut break_stack: Vec<TandemBreak> = Vec::new();
 
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
-                if let Some(top_of_stack) = break_stack.last()
-                    && top_of_stack == break_kind
-                {
-                    break_stack.pop();
-                    self.interrupted = false;
-                    self.end_line(&mut post_buffer);
+                if let Some(top_of_stack) = break_stack.last_mut() {
+                    if *break_kind == top_of_stack.open {
+                        top_of_stack.depth += 1;
+                    } else if *break_kind == top_of_stack.close {
+                        if top_of_stack.depth > 0 {
+                            top_of_stack.depth -= 1;
+                        } else {
+                            break_stack.pop();
+                            self.interrupted = false;
+                            self.end_line(&mut post_buffer);
+                        }
+                    }
                 } else if post_buffer.last_line_width(config) > max_length {
                     // The line is already too long, and taking the next step
                     // can only make it worse. Insert a line break here.
@@ -626,10 +647,14 @@ impl Postprocessor {
                 );
 
                 // SAFETY: if cache is Some(_) this step must have a potential line break
-                if let Some(also_break_on) =
-                    tandem_line_break(*potential_line_breaks.get(&i).unwrap())
-                {
-                    break_stack.push(also_break_on);
+                let cur_token = potential_line_breaks.get(&i).unwrap();
+                if let Some(also_break_on) = tandem_line_break(*cur_token) {
+                    let tandem_break = TandemBreak {
+                        open: *cur_token,
+                        close: also_break_on,
+                        depth: 0,
+                    };
+                    break_stack.push(tandem_break);
                 }
             }
         }
