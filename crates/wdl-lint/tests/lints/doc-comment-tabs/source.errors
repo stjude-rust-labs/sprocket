@@ -1,0 +1,40 @@
+warning[DocCommentTabs]: doc comment contains tab characters
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:5:3
+  │
+5 │ ##  This should be flagged (single tab)
+  │   ^^
+  │
+  = fix: replace tabs with spaces for consistent rendering
+
+warning[DocCommentTabs]: doc comment contains tab characters
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:7:3
+  │
+7 │ ##      This should produce ONE diagnostic (grouped tabs)
+  │   ^^^^^^
+  │
+  = fix: replace tabs with spaces for consistent rendering
+
+warning[DocCommentTabs]: doc comment contains tab characters
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:9:8
+  │
+9 │ ## Text with    tab inside
+  │        ^
+  │
+  = fix: replace tabs with spaces for consistent rendering
+
+warning[DocCommentTabs]: doc comment contains tab characters
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:9:13
+  │
+9 │ ## Text with    tab inside
+  │             ^^^^
+  │
+  = fix: replace tabs with spaces for consistent rendering
+
+warning[DocCommentTabs]: doc comment contains tab characters
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:17:7
+   │
+17 │     ##  Workflow-level doc comment with tab (should be flagged)
+   │       ^^
+   │
+   = fix: replace tabs with spaces for consistent rendering
+
