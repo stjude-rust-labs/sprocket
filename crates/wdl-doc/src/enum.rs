@@ -5,6 +5,7 @@ use std::path::Path;
 use maud::Markup;
 use maud::html;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::EnumVariant;
@@ -138,16 +139,16 @@ fn parse_meta(
     definition: &EnumDefinition,
     enable_doc_comments: bool,
 ) -> (MetaMap, Vec<DocumentedEnumChoice>) {
-    let enum_docs = if enable_doc_comments {
-        doc_comments(definition.keyword().inner())
+    let enum_docs = if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+        doc_comments(comments)
     } else {
         MetaMap::new()
     };
 
     let mut choice_docs = Vec::new();
     for choice in definition.variants() {
-        let meta = if enable_doc_comments {
-            doc_comments(choice.name().inner())
+        let meta = if enable_doc_comments && let Some(comments) = choice.doc_comments() {
+            doc_comments(comments)
         } else {
             MetaMap::new()
         };
