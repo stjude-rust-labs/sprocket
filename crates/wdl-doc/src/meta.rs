@@ -447,6 +447,34 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
         return map;
     }
 
+    // We need to determine the minimum indentation that we can strip from each
+    // paragraph line. Prior to this point, no lines have been trimmed.
+    //
+    // In the most common case, we'll just be stripping a single space between the
+    // `##` and the comment text, as is convention.
+    let min_indent = paragraphs
+        .iter()
+        .map(|paragraph| {
+            paragraph
+                .iter()
+                .filter(|line| line.chars().any(|c| !c.is_whitespace()))
+                .map(|line| line.chars().take_while(|c| *c == ' ' || *c == '\t').count())
+                .min()
+                .unwrap_or(usize::MAX)
+        })
+        .min()
+        .unwrap_or(0);
+
+    for paragraph in &mut paragraphs {
+        for line in paragraph
+            .iter_mut()
+            .filter(|line| !line.chars().all(char::is_whitespace))
+        {
+            assert!(line.len() > min_indent);
+            *line = line.split_off(min_indent);
+        }
+    }
+
     map.insert(
         DESCRIPTION_KEY.to_string(),
         MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),

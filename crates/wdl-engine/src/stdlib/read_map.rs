@@ -65,7 +65,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
         let mut i = 1;
         let mut lines = BufReader::new(file).lines();
-        let mut map: IndexMap<Option<PrimitiveValue>, Value> = IndexMap::new();
+        let mut map = IndexMap::new();
         while let Some(line) = lines.next_line().await.map_err(read_error)? {
             let (key, value) = match line.split_once('\t') {
                 Some((key, value)) if !value.contains('\t') => (key, value),
@@ -80,7 +80,7 @@ fn read_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>
 
             if map
                 .insert(
-                    Some(PrimitiveValue::new_string(key)),
+                    PrimitiveValue::new_string(key),
                     PrimitiveValue::new_string(value).into(),
                 )
                 .is_some()

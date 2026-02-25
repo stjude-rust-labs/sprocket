@@ -53,7 +53,7 @@ pub const fn descriptor() -> Function {
         const {
             &[
                 Signature::new(
-                    "(map: Map[K, V]) -> Array[K] where `K`: any primitive type",
+                    "(map: Map[K, V]) -> Array[K] where `K`: any non-optional primitive type",
                     Callback::Sync(keys),
                 ),
                 Signature::new(
@@ -73,7 +73,6 @@ mod test {
     use wdl_analysis::types::StructType;
     use wdl_ast::version::V1;
 
-    use crate::Value;
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
@@ -107,7 +106,7 @@ mod test {
             .collect();
         assert_eq!(elements, ["foo", "bar", "baz"]);
 
-        let value = eval_v1_expr(&env, V1::One, "keys({'foo': 1, None: 2, 'baz': 3})")
+        let value = eval_v1_expr(&env, V1::One, "keys({1: 4, 2: 5, 3: 6})")
             .await
             .unwrap();
         let elements: Vec<_> = value
@@ -115,13 +114,9 @@ mod test {
             .unwrap()
             .as_slice()
             .iter()
-            .map(|v| match v {
-                Value::None(_) => None,
-                Value::Primitive(v) => Some(v.as_string().unwrap().as_str()),
-                _ => unreachable!("expected an optional primitive value"),
-            })
+            .map(|v| v.as_integer().unwrap())
             .collect();
-        assert_eq!(elements, [Some("foo"), None, Some("baz")]);
+        assert_eq!(elements, [1, 2, 3]);
 
         let value = eval_v1_expr(&env, V1::Two, "keys(object { foo: 1, bar: 2, baz: 3})")
             .await
