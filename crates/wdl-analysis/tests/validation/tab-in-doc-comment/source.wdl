@@ -1,6 +1,6 @@
 version 1.1
 
-## hello       world          
+## 		hello		
 task foo {
     command <<<
         echo "hello"

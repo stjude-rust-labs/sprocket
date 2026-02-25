@@ -1,0 +1,12 @@
+warning: doc comments cannot contain 2 tab characters
+  ┌─ tests/validation/tab-in-doc-comment/source.wdl:3:4
+  │
+3 │ ##      hello       
+  │    ^^^^^ remove this tab character
+
+warning: doc comments cannot contain 2 tab characters
+  ┌─ tests/validation/tab-in-doc-comment/source.wdl:3:11
+  │
+3 │ ##      hello       
+  │              ^^^^^^^ remove this tab character
+
