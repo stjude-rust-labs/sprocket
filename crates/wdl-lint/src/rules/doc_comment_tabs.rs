@@ -2,11 +2,11 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Visitor;
+use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
-use wdl_ast::AstToken;
 
 use crate::Rule;
 use crate::Tag;
@@ -37,8 +37,8 @@ impl Rule for DocCommentTabsRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Tabs render with different widths depending on the viewer. \
-         Doc comments should use spaces for indentation to ensure consistent rendering."
+        "Tabs render with different widths depending on the viewer. Doc comments should use spaces \
+         for indentation to ensure consistent rendering."
     }
 
     fn tags(&self) -> TagSet {
