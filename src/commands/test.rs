@@ -359,7 +359,7 @@ async fn run_tests(
     engine: wdl::engine::Config,
     handle: FilterReloadHandle,
     errors: &mut Vec<Arc<anyhow::Error>>,
-    parallelism: usize,
+    permits: usize,
     should_filter: impl Fn(&TestDefinition) -> bool,
 ) -> Result<IndexMap<String, DocumentResults>> {
     let current = handle.clone_current().expect("should have filter");
@@ -367,7 +367,7 @@ async fn run_tests(
 
     let fixtures = Arc::new(fixtures);
     let engine = Arc::new(engine);
-    let mut permits = parallelism;
+    let mut permits = permits;
     let mut futures = JoinSet::new();
     let mut all_results = IndexMap::new();
     for (analysis, tests) in documents {
@@ -515,7 +515,11 @@ async fn run_tests(
                             };
                             (doc_name, target, test_name, result)
                         });
-                    } else if let Some(result) = futures.join_next().await {
+                    } else {
+                        let result = futures
+                            .join_next()
+                            .await
+                            .expect("futures should not be exhausted");
                         let (prior_doc_name, prior_target, prior_test_name, prior_test_iteration) =
                             result.with_context(|| "joining futures")?;
                         all_results
@@ -547,8 +551,6 @@ async fn run_tests(
                             };
                             (doc_name, target, test_name, result)
                         });
-                    } else {
-                        unreachable!("futures should not be exhasuted");
                     }
                 }
                 target_results.insert(test_name.to_string(), test_iterations);
@@ -573,7 +575,7 @@ async fn run_tests(
     Ok(all_results)
 }
 
-async fn process_tests(
+async fn process_results(
     results: IndexMap<String, DocumentResults>,
     root: &Path,
     clean: bool,
@@ -581,12 +583,12 @@ async fn process_tests(
 ) -> Result<BTreeMap<String, (usize, usize, usize)>> {
     let mut all_results = BTreeMap::new();
     for (document_name, target_results) in results {
-        info!("evaluating document: `{document_name}`");
+        info!("processing document: `{document_name}`");
         for (target_name, results) in target_results {
-            info!("evaluating target: `{target_name}`");
+            info!("processing target: `{target_name}`");
             let target_dir = root.join(&target_name);
             for (test_name, test_results) in results {
-                info!("evaluating test: `{test_name}`");
+                info!("processing test: `{test_name}`");
                 let mut success_counter = 0usize;
                 let mut fail_counter = 0usize;
                 let mut err_counter = 0usize;
@@ -742,7 +744,7 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     )
     .await?;
 
-    let results = process_tests(results, &test_dir, !args.no_clean, &mut errors).await?;
+    let results = process_results(results, &test_dir, !args.no_clean, &mut errors).await?;
     print_all_results(results);
 
     if args.clean_all {
