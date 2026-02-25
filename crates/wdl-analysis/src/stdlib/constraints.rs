@@ -185,7 +185,31 @@ impl Constraint for PrimitiveTypeConstraint {
     }
 }
 
-/// Represents a constraint that ensures the type is any enumeration choice.
+/// Represents a constraint that ensures the type is a valid `Map` key type.
+#[derive(Debug, Copy, Clone)]
+pub struct MapKeyConstraint;
+
+impl Constraint for MapKeyConstraint {
+    fn description(&self) -> &'static str {
+        "any non-optional primitive type"
+    }
+
+    fn satisfied(&self, ty: &Type) -> bool {
+        match ty {
+            Type::Union | Type::Primitive(_, false) => true,
+            Type::Primitive(_, true)
+            | Type::Compound(..)
+            | Type::None
+            | Type::Object
+            | Type::OptionalObject
+            | Type::Hidden(_)
+            | Type::Call(_)
+            | Type::TypeNameRef(_) => false,
+        }
+    }
+}
+
+/// Represents a constraint that ensures the type is any enumeration choice
 #[derive(Debug, Copy, Clone)]
 pub struct EnumChoiceConstraint;
 
@@ -348,11 +372,31 @@ mod test {
         ));
         assert!(
             !constraint
-                .satisfied(&MapType::new(PrimitiveType::Integer, PrimitiveType::String,).into())
+                .satisfied(&MapType::new(PrimitiveType::Integer, PrimitiveType::String).into())
         );
         assert!(constraint.satisfied(
             &Type::from(StructType::new("Foo", [("foo", PrimitiveType::String)])).optional()
         ));
+    }
+
+    #[test]
+    fn test_map_key_constraint() {
+        let constraint = MapKeyConstraint;
+        assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(constraint.satisfied(&Type::Union));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(!constraint.satisfied(&Type::OptionalObject));
+        assert!(!constraint.satisfied(&Type::Object));
     }
 
     #[test]

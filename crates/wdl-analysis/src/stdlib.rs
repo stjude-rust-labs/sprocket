@@ -4526,7 +4526,7 @@ task select_all {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", PrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "map",
@@ -4584,7 +4584,7 @@ task as_pairs {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", PrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "pairs",
@@ -4670,7 +4670,7 @@ task keys_map {
                 PolymorphicFunction::new(vec![
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", PrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "map",
@@ -4746,7 +4746,7 @@ task contains_key_map {
                 PolymorphicFunction::new(vec![
                         FunctionSignature::builder()
                             .min_version(SupportedVersion::V1(V1::Two))
-                            .type_parameter("K", PrimitiveTypeConstraint)
+                            .type_parameter("K", MapKeyConstraint)
                             .any_type_parameter("V")
                             .parameter(
                                 "map",
@@ -4860,7 +4860,7 @@ task contains_key_map {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Two))
-                        .type_parameter("K", PrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "map",
@@ -4915,7 +4915,7 @@ task values_map {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", PrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "pairs",
@@ -5275,20 +5275,24 @@ mod test {
                 "flatten(array: Array[Array[X]]) -> Array[X]",
                 "select_first(array: Array[X], <default: X>) -> X",
                 "select_all(array: Array[X]) -> Array[X]",
-                "as_pairs(map: Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
-                "as_map(pairs: Array[Pair[K, V]]) -> Map[K, V] where `K`: any primitive type",
-                "keys(map: Map[K, V]) -> Array[K] where `K`: any primitive type",
+                "as_pairs(map: Map[K, V]) -> Array[Pair[K, V]] where `K`: any non-optional \
+                 primitive type",
+                "as_map(pairs: Array[Pair[K, V]]) -> Map[K, V] where `K`: any non-optional \
+                 primitive type",
+                "keys(map: Map[K, V]) -> Array[K] where `K`: any non-optional primitive type",
                 "keys(struct: S) -> Array[String] where `S`: any structure",
                 "keys(object: Object) -> Array[String]",
-                "contains_key(map: Map[K, V], key: K) -> Boolean where `K`: any primitive type",
+                "contains_key(map: Map[K, V], key: K) -> Boolean where `K`: any non-optional \
+                 primitive type",
                 "contains_key(object: Object, key: String) -> Boolean",
                 "contains_key(map: Map[String, V], keys: Array[String]) -> Boolean",
                 "contains_key(struct: S, keys: Array[String]) -> Boolean where `S`: any structure",
                 "contains_key(object: Object, keys: Array[String]) -> Boolean",
-                "values(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
+                "values(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
-                 primitive type",
+  non-optional primitive type",
                 "value(choice: V) -> T where `V`: any enum choice",
+  main
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",
@@ -5396,7 +5400,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Map[K, V]` where `K`: any primitive type".into()
+                expected: "`Map[K, V]` where `K`: any non-optional primitive type".into()
             }
         );
 
@@ -5422,18 +5426,6 @@ mod test {
             .expect("bind should succeed");
         assert_eq!(binding.index(), 0);
         assert_eq!(binding.return_type().to_string(), "Array[Object]");
-
-        // Check for a map with an optional primitive type
-        let ty: Type = MapType::new(
-            Type::from(PrimitiveType::String).optional(),
-            PrimitiveType::Boolean,
-        )
-        .into();
-        let binding = f
-            .bind(SupportedVersion::V1(V1::Two), &[ty])
-            .expect("bind should succeed");
-        assert_eq!(binding.index(), 0);
-        assert_eq!(binding.return_type().to_string(), "Array[Boolean]");
     }
 
     #[test]

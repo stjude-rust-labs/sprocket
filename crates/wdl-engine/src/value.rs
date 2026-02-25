@@ -1761,9 +1761,7 @@ pub struct Map {
     /// The type of the map value.
     ty: Type,
     /// The elements of the map value.
-    ///
-    /// A value of `None` indicates an empty map.
-    elements: Option<Arc<IndexMap<Option<PrimitiveValue>, Value>>>,
+    elements: Option<Arc<IndexMap<PrimitiveValue, Value>>>,
 }
 
 impl Map {
@@ -1773,7 +1771,7 @@ impl Map {
     /// value type, respectively.
     pub fn new<K, V>(ty: MapType, elements: impl IntoIterator<Item = (K, V)>) -> Result<Self>
     where
-        K: Into<Value>,
+        K: Into<PrimitiveValue>,
         V: Into<Value>,
     {
         Self::new_with_context(None, ty, elements)
@@ -1789,7 +1787,7 @@ impl Map {
         elements: impl IntoIterator<Item = (K, V)>,
     ) -> Result<Self>
     where
-        K: Into<Value>,
+        K: Into<PrimitiveValue>,
         V: Into<Value>,
     {
         let key_type = ty.key_type();
@@ -1802,19 +1800,9 @@ impl Map {
                 let k = k.into();
                 let v = v.into();
                 Ok((
-                    if k.is_none() {
-                        None
-                    } else {
-                        match k.coerce(context, key_type).with_context(|| {
-                            format!("failed to coerce map key for element at index {i}")
-                        })? {
-                            Value::None(_) => None,
-                            Value::Primitive(v) => Some(v),
-                            _ => {
-                                bail!("not all key values are primitive")
-                            }
-                        }
-                    },
+                    k.coerce(context, key_type).with_context(|| {
+                        format!("failed to coerce map key for element at index {i}")
+                    })?,
                     v.coerce(context, value_type).with_context(|| {
                         format!("failed to coerce map value for element at index {i}")
                     })?,
@@ -1833,7 +1821,7 @@ impl Map {
     /// Panics if the given type is not a map type.
     pub(crate) fn new_unchecked(
         ty: impl Into<Type>,
-        elements: IndexMap<Option<PrimitiveValue>, Value>,
+        elements: IndexMap<PrimitiveValue, Value>,
     ) -> Self {
         let ty = ty.into();
         assert!(ty.as_map().is_some());
@@ -1853,7 +1841,7 @@ impl Map {
     }
 
     /// Iterates the elements of the map.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&Option<PrimitiveValue>, &Value)> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&PrimitiveValue, &Value)> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.iter()))
@@ -1861,7 +1849,7 @@ impl Map {
     }
 
     /// Iterates the keys of the map.
-    pub fn keys(&self) -> impl ExactSizeIterator<Item = &Option<PrimitiveValue>> {
+    pub fn keys(&self) -> impl ExactSizeIterator<Item = &PrimitiveValue> {
         self.elements
             .as_ref()
             .map(|m| Either::Left(m.keys()))
@@ -1877,7 +1865,7 @@ impl Map {
     }
 
     /// Determines if the map contains the given key.
-    pub fn contains_key(&self, key: &Option<PrimitiveValue>) -> bool {
+    pub fn contains_key(&self, key: &PrimitiveValue) -> bool {
         self.elements
             .as_ref()
             .map(|m| m.contains_key(key))
@@ -1885,7 +1873,7 @@ impl Map {
     }
 
     /// Gets a value from the map by key.
-    pub fn get(&self, key: &Option<PrimitiveValue>) -> Option<&Value> {
+    pub fn get(&self, key: &PrimitiveValue) -> Option<&Value> {
         self.elements.as_ref().and_then(|m| m.get(key))
     }
 
@@ -1909,10 +1897,7 @@ impl fmt::Display for Map {
                 write!(f, ", ")?;
             }
 
-            match k {
-                Some(k) => write!(f, "{k}: {v}")?,
-                None => write!(f, "None: {v}")?,
-            }
+            write!(f, "{k}: {v}")?;
         }
 
         write!(f, "}}")
@@ -2463,13 +2448,7 @@ impl CompoundValue {
                 left.len() == right.len()
                     // Maps are ordered, so compare via iteration
                     && left.iter().zip(right.iter()).all(|((lk, lv), (rk, rv))| {
-                        match (lk, rk) {
-                            (None, None) => {},
-                            (Some(lk), Some(rk)) if lk == rk => {},
-                            _ => return false
-                        }
-
-                        Value::equals(lv, rv).unwrap_or(false)
+                        lk == rk && Value::equals(lv, rv).unwrap_or(false)
                     }),
             ),
             (CompoundValue::Object(left), CompoundValue::Object(right)) => Some(
@@ -2517,8 +2496,8 @@ impl CompoundValue {
             Self::Map(map) => {
                 for (k, v) in map.iter() {
                     match k {
-                        Some(PrimitiveValue::File(path)) => cb(true, path)?,
-                        Some(PrimitiveValue::Directory(path)) => cb(false, path)?,
+                        PrimitiveValue::File(path) => cb(true, path)?,
+                        PrimitiveValue::Directory(path) => cb(false, path)?,
                         _ => {}
                     }
 
@@ -2592,20 +2571,12 @@ impl CompoundValue {
                     if let Some(elements) = &map.elements {
                         let resolved_elements = futures::stream::iter(elements.iter())
                             .then(async |(k, v)| {
-                                let resolved_key = if let Some(k) = k {
-                                    Value::from(k.clone())
-                                        .resolve_paths(
-                                            key_optional,
-                                            base_dir,
-                                            transferer,
-                                            translate,
-                                        )
-                                        .await?
-                                        .as_primitive()
-                                        .cloned()
-                                } else {
-                                    None
-                                };
+                                let resolved_key = Value::from(k.clone())
+                                    .resolve_paths(key_optional, base_dir, transferer, translate)
+                                    .await?
+                                    .as_primitive()
+                                    .cloned()
+                                    .expect("key should be primitive");
                                 let resolved_value = v
                                     .resolve_paths(value_optional, base_dir, transferer, translate)
                                     .await?;
@@ -2715,14 +2686,7 @@ impl Coercible for CompoundValue {
                     return Ok(Self::Map(Map::new_with_context(
                         context,
                         target_ty.clone(),
-                        v.iter().map(|(k, v)| {
-                            (
-                                k.clone()
-                                    .map(Into::into)
-                                    .unwrap_or(Value::new_none(target_ty.key_type().optional())),
-                                v.clone(),
-                            )
-                        }),
+                        v.iter().map(|(k, v)| (k.clone(), v.clone())),
                     )?));
                 }
                 // Pair[W, Y] -> Pair[X, Z] where W -> X and Y -> Z
@@ -2755,10 +2719,7 @@ impl Coercible for CompoundValue {
                             v.iter()
                                 .map(|(k, v)| {
                                     let k = k
-                                        .as_ref()
-                                        .and_then(|k| {
-                                            k.coerce(context, &PrimitiveType::String.into()).ok()
-                                        })
+                                        .coerce(context, &PrimitiveType::String.into())
                                         .with_context(|| {
                                             format!(
                                                 "cannot coerce a map of type `{map_type}` to \
@@ -2807,8 +2768,7 @@ impl Coercible for CompoundValue {
                                 Ok((
                                     PrimitiveValue::new_string(n)
                                         .coerce(context, key_ty)
-                                        .expect("should coerce")
-                                        .into(),
+                                        .expect("should coerce"),
                                     v,
                                 ))
                             })
@@ -2837,8 +2797,7 @@ impl Coercible for CompoundValue {
                                 Ok((
                                     PrimitiveValue::new_string(n)
                                         .coerce(context, key_ty)
-                                        .expect("should coerce")
-                                        .into(),
+                                        .expect("should coerce"),
                                     v,
                                 ))
                             })
@@ -2902,10 +2861,7 @@ impl Coercible for CompoundValue {
                         v.iter()
                             .map(|(k, v)| {
                                 let k = k
-                                    .as_ref()
-                                    .and_then(|k| {
-                                        k.coerce(context, &PrimitiveType::String.into()).ok()
-                                    })
+                                    .coerce(context, &PrimitiveType::String.into())
                                     .with_context(|| {
                                         format!(
                                             "cannot coerce a map of type `{map_type}` to `Object` \
@@ -3383,7 +3339,7 @@ impl TaskPostEvaluationValue {
                     constraints
                         .disks
                         .iter()
-                        .map(|(k, v)| (Some(PrimitiveValue::new_string(k)), (*v).into()))
+                        .map(|(k, v)| (PrimitiveValue::new_string(k), (*v).into()))
                         .collect(),
                 ),
                 max_retries,
@@ -3871,61 +3827,75 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
         match &self.value {
             CompoundValue::Pair(pair) if self.allow_pairs => {
-                let mut state = serializer.serialize_map(Some(2))?;
+                let mut map = serializer.serialize_map(Some(2))?;
                 let left = ValueSerializer::new(self.context, pair.left(), self.allow_pairs);
                 let right = ValueSerializer::new(self.context, pair.right(), self.allow_pairs);
-                state.serialize_entry("left", &left)?;
-                state.serialize_entry("right", &right)?;
-                state.end()
+                map.serialize_entry("left", &left)?;
+                map.serialize_entry("right", &right)?;
+                map.end()
             }
             CompoundValue::Pair(_) => Err(S::Error::custom("a pair cannot be serialized")),
             CompoundValue::Array(v) => {
-                let mut s = serializer.serialize_seq(Some(v.len()))?;
+                let mut seq = serializer.serialize_seq(Some(v.len()))?;
                 for v in v.as_slice() {
-                    s.serialize_element(&ValueSerializer::new(self.context, v, self.allow_pairs))?;
+                    seq.serialize_element(&ValueSerializer::new(
+                        self.context,
+                        v,
+                        self.allow_pairs,
+                    ))?;
                 }
 
-                s.end()
+                seq.end()
             }
             CompoundValue::Map(v) => {
-                let ty = v.ty();
-                let map_type = ty.as_map().expect("type should be a map");
-                if !map_type
-                    .key_type()
-                    .is_coercible_to(&PrimitiveType::String.into())
-                {
-                    return Err(S::Error::custom(format!(
-                        "cannot serialize a map of type `{ty}` as the key type cannot be coerced \
-                         to `String`",
-                    )));
+                let mut map = serializer.serialize_map(Some(v.len()))?;
+                for (k, v) in v.iter() {
+                    match k {
+                        PrimitiveValue::String(s) => {
+                            map.serialize_entry(
+                                s.as_str(),
+                                &ValueSerializer::new(self.context, v, self.allow_pairs),
+                            )?;
+                        }
+                        PrimitiveValue::File(p) | PrimitiveValue::Directory(p) => {
+                            map.serialize_entry(
+                                p.as_str(),
+                                &ValueSerializer::new(self.context, v, self.allow_pairs),
+                            )?;
+                        }
+                        _ => {
+                            // Serialize the key as a string
+                            map.serialize_entry(
+                                &k.raw(None).to_string(),
+                                &ValueSerializer::new(self.context, v, self.allow_pairs),
+                            )?;
+                        }
+                    }
                 }
 
-                let mut s = serializer.serialize_map(Some(v.len()))?;
-                for (k, v) in v.iter() {
-                    s.serialize_entry(
-                        &k.as_ref()
-                            .map(|k| PrimitiveValueSerializer::new(self.context, k)),
+                map.end()
+            }
+            CompoundValue::Object(object) => {
+                let mut map = serializer.serialize_map(Some(object.len()))?;
+                for (k, v) in object.iter() {
+                    map.serialize_entry(
+                        k,
                         &ValueSerializer::new(self.context, v, self.allow_pairs),
                     )?;
                 }
 
-                s.end()
-            }
-            CompoundValue::Object(object) => {
-                let mut s = serializer.serialize_map(Some(object.len()))?;
-                for (k, v) in object.iter() {
-                    s.serialize_entry(k, &ValueSerializer::new(self.context, v, self.allow_pairs))?;
-                }
-
-                s.end()
+                map.end()
             }
             CompoundValue::Struct(Struct { members, .. }) => {
-                let mut s = serializer.serialize_map(Some(members.len()))?;
+                let mut map = serializer.serialize_map(Some(members.len()))?;
                 for (k, v) in members.iter() {
-                    s.serialize_entry(k, &ValueSerializer::new(self.context, v, self.allow_pairs))?;
+                    map.serialize_entry(
+                        k,
+                        &ValueSerializer::new(self.context, v, self.allow_pairs),
+                    )?;
                 }
 
-                s.end()
+                map.end()
             }
             CompoundValue::EnumChoice(e) => serializer.serialize_str(e.name()),
         }

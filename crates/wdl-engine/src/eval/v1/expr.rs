@@ -594,8 +594,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                 // The key type must be primitive
                 let key = match expected_key {
-                    Value::None(_) => None,
-                    Value::Primitive(key) => Some(key),
+                    Value::Primitive(key) => key,
                     _ => {
                         return Err(map_key_not_primitive(key.span(), &expected_key.ty()));
                     }
@@ -664,9 +663,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
 
                     let actual_key = match actual_key {
-                        Value::None(_) => None,
-                        Value::Primitive(key) => Some(key),
-                        _ => panic!("the key type is not primitive, but had a common type"),
+                        Value::Primitive(key) => key,
+                        _ => panic!(
+                            "key type `{actual_key}` is not primitive, but had a common type"
+                        ),
                     };
 
                     elements.push((actual_key, actual_value));
@@ -1443,9 +1443,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .as_primitive()
                     .expect("key type should be primitive");
 
-                let i = match self.evaluate_expr(&index).await? {
-                    Value::None(_) if Type::None.is_coercible_to(&key_type.into()) => None,
-                    Value::Primitive(i) if i.ty().is_coercible_to(&key_type.into()) => Some(i),
+                let key = match self.evaluate_expr(&index).await? {
+                    Value::Primitive(key) if key.ty().is_coercible_to(&key_type.into()) => key,
                     value => {
                         return Err(index_type_mismatch(
                             &key_type.into(),
@@ -1455,7 +1454,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     }
                 };
 
-                match map.get(&i) {
+                match map.get(&key) {
                     Some(value) => Ok(value.clone()),
                     None => Err(map_key_not_found(index.span())),
                 }
@@ -1604,11 +1603,14 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
             match_literal_value!(expr, Map(map), CompoundType::Map);
             let key_type = map_ty.key_type();
             let value_type = map_ty.value_type();
-            let entries: Option<Vec<(Value, Value)>> = map
+            let entries: Option<Vec<(PrimitiveValue, Value)>> = map
                 .items()
                 .map(|item| {
                     let (key_expr, val_expr) = item.key_value();
-                    let key = parse_constant_value(key_type, &key_expr)?;
+                    let key = parse_constant_value(key_type, &key_expr)?
+                        .as_primitive()
+                        .cloned()
+                        .expect("key should be primitive");
                     let val = parse_constant_value(value_type, &val_expr)?;
                     Some((key, val))
                 })
