@@ -1,0 +1,1 @@
+-qq run repro.wdl -t repro requirements.memory="8 MiB"
