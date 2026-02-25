@@ -15,8 +15,7 @@ filter_lint_tags = []
 
 [check.lint]
 allowed_runtime_keys = []
-non_snake_case = []
-allowed_typed_identifiers = []
+allowed_names = []
 
 [analyzer]
 lint = false
