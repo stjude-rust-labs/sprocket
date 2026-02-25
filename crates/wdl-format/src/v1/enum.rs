@@ -65,7 +65,6 @@ pub fn format_enum_definition(
     let mut commas = commas.iter();
 for choice in choices {
         (&choice).write(stream, config);
-main
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
         } else {
@@ -90,7 +89,6 @@ pub fn format_enum_choice(
     config: &Config,
 ) {
     let mut children = element.children().expect("enum choice children");
- main
 
     let name = children.next().expect("enum choice name");
     assert!(name.element().kind() == SyntaxKind::Ident);
