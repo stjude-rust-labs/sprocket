@@ -4,8 +4,10 @@ note[UnusedDocComments]: unused doc comment
 36 │ ╭     ## The user should be warned about this doc comment as it targets
 37 │ │     ## command, despite the interruption below.
    │ ╰───────────────────────────────────────────────^
+   ·  
+43 │       command <<<
+   │       ------- documentation will not be generated for this item
    │  
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -16,8 +18,9 @@ note[UnusedDocComments]: unused doc comment
 41 │ │     ##
 42 │ │     ## ... that isn't doing anything!
    │ ╰─────────────────────────────────────^
+43 │       command <<<
+   │       ------- documentation will not be generated for this item
    │  
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -27,8 +30,10 @@ note[UnusedDocComments]: unused doc comment
 52 │ │     ## more text
 53 │ │     ## these 3 lines should all be highlighted by one span
    │ ╰──────────────────────────────────────────────────────────^
+   ·  
+64 │       command <<<>>>
+   │       ------- documentation will not be generated for this item
    │  
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -41,8 +46,10 @@ note[UnusedDocComments]: unused doc comment
 60 │ │     ## but we are going to consider these consecutive anyway
 61 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
    │ ╰─────────────────────────────────────────────────────────────────────────────────^
+   ·  
+64 │       command <<<>>>
+   │       ------- documentation will not be generated for this item
    │  
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[ElementSpacing]: extra blank line(s) found
@@ -61,8 +68,9 @@ note[UnusedDocComments]: unused doc comment
    │
 74 │     ## This doc comment does nothing and the user should be warned!
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+75 │     meta {
+   │     ---- documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -70,17 +78,19 @@ note[UnusedDocComments]: unused doc comment
    │
 79 │     ## This input section cannot have a doc comment.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+80 │     input {
+   │     ----- documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:83:22
    │
 83 │         Person person## Trailing doc comment without whitespace that should be linted.
-   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │         ------       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │         │             
+   │         documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[LineWidth]: line exceeds maximum width of 90
@@ -95,9 +105,10 @@ note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:84:23
    │
 84 │         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
-   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │         -------       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │         │              
+   │         documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -105,8 +116,9 @@ note[UnusedDocComments]: unused doc comment
    │
 89 │     ## I am not allowed to be doc commented.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+90 │     call test_task {}
+   │     ---- documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[LineWidth]: line exceeds maximum width of 90
@@ -122,26 +134,30 @@ note[UnusedDocComments]: unused doc comment
    │
 92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+93 │     #@ except: UnusedDeclaration
+94 │     Person p = Person {
+   │     ------ documentation will not be generated for this item
    │
-   = help: documentation will not be generated for this item
    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:99:5
-   │
-99 │     ## But doc comments are not!
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = help: documentation will not be generated for this item
-   = fix: replace the leading `##` with `#`
+    ┌─ tests/lints/unused-doc-comments/source.wdl:99:5
+    │
+ 99 │     ## But doc comments are not!
+    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+100 │     if (apple) {
+    │     -- documentation will not be generated for this item
+    │
+    = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:104:5
     │
 104 │     ## But doc comments shouldn't be.
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+105 │     else if (banana) {
+    │     ---- documentation will not be generated for this item
     │
-    = help: documentation will not be generated for this item
     = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -149,8 +165,9 @@ note[UnusedDocComments]: unused doc comment
     │
 109 │     ## but we don't want doc comments here.
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+110 │     else {
+    │     ---- documentation will not be generated for this item
     │
-    = help: documentation will not be generated for this item
     = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -158,8 +175,9 @@ note[UnusedDocComments]: unused doc comment
     │
 111 │         ## Doc comments shouldn't be allowed on variable assignment!
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+112 │         String favorite_fruit = "Chocolate"
+    │         ------ documentation will not be generated for this item
     │
-    = help: documentation will not be generated for this item
     = fix: replace the leading `##` with `#`
 
 note[UnusedDocComments]: unused doc comment
@@ -167,7 +185,8 @@ note[UnusedDocComments]: unused doc comment
     │
 115 │     ## The output section cannot have a doc comment!
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+116 │     output {
+    │     ------ documentation will not be generated for this item
     │
-    = help: documentation will not be generated for this item
     = fix: replace the leading `##` with `#`
 

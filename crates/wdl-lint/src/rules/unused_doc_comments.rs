@@ -8,6 +8,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::TreeToken;
 
 use crate::Rule;
 use crate::Tag;
@@ -17,11 +18,14 @@ use crate::TagSet;
 const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
-fn unused_doc_comment_diagnostic(span: Span) -> Diagnostic {
+fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Span) -> Diagnostic {
     Diagnostic::note("unused doc comment")
         .with_rule(ID)
-        .with_highlight(span)
-        .with_help("documentation will not be generated for this item")
+        .with_highlight(comment_span)
+        .with_label(
+            "documentation will not be generated for this item",
+            target_span,
+        )
         .with_fix("replace the leading `##` with `#`")
 }
 
@@ -73,26 +77,46 @@ fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS.contains(&kind)
 }
 
-impl UnusedDocCommentsRule {
-    /// Find the first non-trivia [`SyntaxElement`] in the comment's siblings
-    /// to determine what this doc comment is targeting.
-    fn search_siblings_for_doc_comment_target(
-        &mut self,
-        comment: &Comment,
-    ) -> Option<SyntaxElement> {
-        let mut next = comment.inner().next_sibling_or_token();
-        while let Some(sibling) = next {
-            next = sibling.next_sibling_or_token();
-            if !sibling.kind().is_trivia() {
-                return Some(sibling);
-            }
+/// Find the first non-trivia [`SyntaxElement`] in the comment's siblings
+/// to determine what this doc comment is targeting.
+fn search_siblings_for_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
+    let mut next = comment.inner().next_sibling_or_token();
+    while let Some(sibling) = next {
+        next = sibling.next_sibling_or_token();
+        if !sibling.kind().is_trivia() {
+            return Some(sibling);
         }
-        None
     }
+    None
+}
 
+/// An inline doc comment is invalid, but the author likely is intending to
+/// comment the closest non-trivia node behind the comment.
+///
+/// This function attempts to find the SyntaxElement the author is likely
+/// intending to document.
+fn find_inline_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
+    let mut prev = comment.inner().prev_sibling_or_token();
+    while let Some(sibling) = prev {
+        if sibling.kind().is_trivia() {
+            prev = sibling.prev_sibling_or_token();
+            continue;
+        } else {
+            return Some(sibling);
+        }
+    }
+    None
+}
+
+impl UnusedDocCommentsRule {
     /// Produce an unused doc comment diagnostic for the doc comment block
     /// starting at `comment`. Update `skip_count` along the way.
-    fn lint_next_doc_comment_block(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+    fn lint_next_doc_comment_block(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        comment: &Comment,
+        target_span: Span,
+    ) {
         let mut next = comment.inner().next_sibling_or_token();
         let mut span_end = comment.span().end();
         while let Some(sibling) = next {
@@ -110,14 +134,10 @@ impl UnusedDocCommentsRule {
                 span_end = continued_comment.span().end();
                 continue;
             } else {
-                diagnostics.exceptable_add(
-                    unused_doc_comment_diagnostic(Span::new(
-                        comment.span().start(),
-                        span_end - comment.span().start(),
-                    )),
-                    SyntaxElement::from(comment.inner().clone()),
-                    &self.exceptable_nodes(),
-                );
+                diagnostics.add(unused_doc_comment_diagnostic(
+                    Span::new(comment.span().start(), span_end - comment.span().start()),
+                    target_span,
+                ));
                 break;
             }
         }
@@ -155,7 +175,7 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
-        None
+        Some(&[SyntaxKind::VersionStatementNode])
     }
 
     fn related_rules(&self) -> &[&'static str] {
@@ -174,27 +194,38 @@ impl Visitor for UnusedDocCommentsRule {
             return;
         }
 
-        // If the visited comment isn't a doc comment, or we've already seen it, then
+        // If the visited comment isn't a doc comment, then
         // there's no need to process it!
-        //
-        // Also, ignore comment directives.
         if !comment.is_doc_comment() || comment.is_directive() {
             return;
         }
 
-        if comment.is_inline_comment() {
-            diagnostics.exceptable_add(
-                unused_doc_comment_diagnostic(comment.span()),
-                SyntaxElement::from(comment.inner().clone()),
-                &self.exceptable_nodes(),
-            );
+        if comment.is_inline_comment()
+            && let Some(target) = find_inline_doc_comment_target(comment)
+        {
+            let target_span = if let Some(token) = target.as_token() {
+                token.span()
+            } else if let Some(node) = target.as_node() {
+                node.first_token().unwrap().span()
+            } else {
+                unreachable!();
+            };
+
+            diagnostics.add(unused_doc_comment_diagnostic(comment.span(), target_span));
         }
 
-        let target = self.search_siblings_for_doc_comment_target(comment);
+        let target = search_siblings_for_doc_comment_target(comment);
         if let Some(result) = target
             && !valid_target_for_doc_comment(&result)
         {
-            self.lint_next_doc_comment_block(diagnostics, comment);
+            let target_span = if let Some(token) = result.as_token() {
+                token.span()
+            } else if let Some(node) = result.as_node() {
+                node.first_token().unwrap().span()
+            } else {
+                unreachable!();
+            };
+            self.lint_next_doc_comment_block(diagnostics, comment, target_span)
         }
     }
 }
