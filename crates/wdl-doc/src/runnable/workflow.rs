@@ -254,6 +254,8 @@ mod tests {
         let (doc, _) = Document::parse(
             r#"
             version 1.0
+
+            ## This comment should be ignored.
             workflow test {
                 input {
                     String name
@@ -277,6 +279,7 @@ mod tests {
         );
 
         assert_eq!(workflow.name(), "test");
+        assert!(workflow.meta().get("description").is_none());
         assert_eq!(workflow.inputs.len(), 1);
         assert_eq!(workflow.outputs.len(), 1);
     }

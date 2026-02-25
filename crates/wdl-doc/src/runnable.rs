@@ -257,27 +257,30 @@ pub(crate) trait Runnable: DefinitionMeta {
 
 /// Attempts to convert a [`MetaMapValueSource`] to a [`MetaMap`] with a
 /// description.
-fn meta_to_description(value: &MetaMapValueSource) -> MetaMap {
+fn meta_to_description(value: &MetaMapValueSource) -> Option<MetaMap> {
     match value {
-        MetaMapValueSource::Comment(_) => {
-            MetaMap::from([(DESCRIPTION_KEY.to_string(), value.clone())])
-        }
+        MetaMapValueSource::Comment(_) => Some(MetaMap::from([(
+            DESCRIPTION_KEY.to_string(),
+            value.clone(),
+        )])),
         MetaMapValueSource::MetaValue(meta) => match meta {
-            MetadataValue::Object(o) => o
-                .items()
-                .map(|item| {
-                    (
-                        item.name().text().to_string(),
-                        MetaMapValueSource::MetaValue(item.value().clone()),
-                    )
-                })
-                .collect(),
-            MetadataValue::String(_s) => {
-                MetaMap::from([(DESCRIPTION_KEY.to_string(), value.clone())])
-            }
+            MetadataValue::Object(o) => Some(
+                o.items()
+                    .map(|item| {
+                        (
+                            item.name().text().to_string(),
+                            MetaMapValueSource::MetaValue(item.value().clone()),
+                        )
+                    })
+                    .collect(),
+            ),
+            MetadataValue::String(_s) => Some(MetaMap::from([(
+                DESCRIPTION_KEY.to_string(),
+                value.clone(),
+            )])),
             _ => {
                 // If it's not an object or string, we don't know how to handle it.
-                MetaMap::default()
+                None
             }
         },
     }
@@ -295,7 +298,7 @@ fn parse_inputs(
             let name = decl.name().text().to_owned();
             let mut meta = parameter_meta
                 .get(&name)
-                .map(meta_to_description)
+                .and_then(meta_to_description)
                 .unwrap_or_default();
 
             if enable_doc_comments {
@@ -347,7 +350,7 @@ fn parse_outputs(
             let mut meta = parameter_meta
                 .get(&name)
                 .or_else(|| output_meta.get(&name))
-                .map(meta_to_description)
+                .and_then(meta_to_description)
                 .unwrap_or_default();
 
             if enable_doc_comments && let Some(comments) = decl.doc_comments() {
