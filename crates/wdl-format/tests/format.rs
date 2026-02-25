@@ -26,6 +26,7 @@ use pretty_assertions::StrComparison;
 use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Node;
+use wdl_format::Config as FormatConfig;
 use wdl_format::Formatter;
 use wdl_format::element::FormatElement;
 use wdl_format::element::node::AstNodeFormatExt;
@@ -115,11 +116,28 @@ fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, anyhow::
 }
 
 /// Parses and formats source string
-fn format(source: &str, path: &Path) -> Result<String, anyhow::Error> {
+fn format(config: FormatConfig, source: &str, path: &Path) -> Result<String, anyhow::Error> {
     let document = prepare_document(source, path)?;
-    Formatter::default()
+    Formatter::new(config)
         .format(&document)
         .context("formatting document")
+}
+
+/// Runs a lint test with the specified [`FormatConfig`].
+fn run_test_inner(
+    config: FormatConfig,
+    source: &str,
+    original_doc: &Path,
+    formatted_doc: &Path,
+) -> anyhow::Result<()> {
+    let formatted = format(config, source, original_doc)?;
+    compare_result(formatted_doc, &formatted)?;
+
+    // test idempotency by formatting the formatted document
+    let twice_formatted = format(config, &formatted, formatted_doc)?;
+    compare_result(formatted_doc, &twice_formatted)?;
+
+    Ok(())
 }
 
 /// Run a test.
@@ -128,12 +146,29 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let formatted_path = path.with_extension("formatted.wdl");
     let source = std::fs::read_to_string(&path).context("reading source file")?;
 
-    let formatted = format(&source, path.as_path())?;
-    compare_result(formatted_path.as_path(), &formatted)?;
+    let config_path = test.join("config.toml");
+    if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).context(format!(
+            "failed to read config at '{}'",
+            config_path.display()
+        ))?;
+        let config = toml::from_str(&content).context(format!(
+            "failed to parse config at '{}'",
+            config_path.display()
+        ))?;
 
-    // test idempotency by formatting the formatted document
-    let twice_formatted = format(&formatted, formatted_path.as_path())?;
-    compare_result(formatted_path.as_path(), &twice_formatted)
+        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(
+            config,
+            &source,
+            &path,
+            &path.with_extension("formatted.default.wdl"),
+        )?;
+    } else {
+        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+    }
+
+    Ok(())
 }
 
 /// Run all the tests.

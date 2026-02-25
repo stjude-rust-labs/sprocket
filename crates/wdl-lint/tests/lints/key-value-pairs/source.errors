@@ -120,14 +120,6 @@ note[MetaKeyValueFormatting]: all items in an array or object should be on separ
    │
    = fix: put each item on a separate line
 
-note[TrailingComma]: item missing trailing comma
-   ┌─ tests/lints/key-value-pairs/source.wdl:34:46
-   │
-34 │             choices: ["yes", "reverse", "no",]
-   │                                              ^
-   │
-   = fix: add a trailing comma
-
 note[MetaKeyValueFormatting]: all items in an array or object should be on separate lines
    ┌─ tests/lints/key-value-pairs/source.wdl:36:19
    │
