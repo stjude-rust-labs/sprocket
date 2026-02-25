@@ -17,10 +17,10 @@ const ID: &str = "DocCommentTabs";
 
 /// Creates a diagnostic for a group of tab characters.
 fn tab_in_doc_comment(span: Span) -> Diagnostic {
-    Diagnostic::warning("doc comment contains tab characters")
+    Diagnostic::warning("tabs in doc comments are not recommended")
         .with_rule(ID)
         .with_highlight(span)
-        .with_fix("replace tabs with spaces for consistent rendering")
+        .with_help("considering replacing tabs with four spaces")
 }
 
 /// Detects tab characters inside doc comments.
@@ -60,12 +60,10 @@ impl Visitor for DocCommentTabsRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        let text = comment.text();
-
-        // Only operate on doc comments (## ...)
-        if !text.trim_start().starts_with("##") {
+        if !comment.is_doc_comment() {
             return;
         }
+        let text = comment.text();
 
         let mut i = 0;
         let bytes = text.as_bytes();

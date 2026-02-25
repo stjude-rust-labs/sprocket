@@ -1,0 +1,7 @@
+python <<CODE
+import json
+import sys
+with open("/mnt/task/inputs/8/tmpHIK68I") as j:
+  d = json.load(j)
+  json.dump(list(d.keys()), sys.stdout)
+CODE

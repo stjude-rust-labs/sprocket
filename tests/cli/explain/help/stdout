@@ -62,6 +62,7 @@ Available rules:
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
+  - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
