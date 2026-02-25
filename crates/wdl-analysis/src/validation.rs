@@ -24,6 +24,7 @@ mod numbers;
 mod requirements;
 mod strings;
 mod version;
+mod doc;
 
 /// Represents a collection of validation diagnostics.
 ///
@@ -145,6 +146,9 @@ impl Default for Validator {
                 Box::<exprs::ScopedExprVisitor>::default(),
                 Box::<imports::ImportsVisitor>::default(),
                 Box::<env::EnvVisitor>::default(),
+                Box::<doc::DocCommentVisitor>::default(), 
+
+
             ],
         }
     }
