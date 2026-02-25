@@ -46,7 +46,7 @@ impl Default for Config {
                 diagnostics: Default::default(),
                 fallback_version: None,
                 ignore_filename: None,
-                respect_gitignore: false,
+                respect_gitignore: true,
                 all_rules: Default::default(),
                 feature_flags: FeatureFlags::default(),
             }),
@@ -153,7 +153,7 @@ impl Config {
     }
 
     /// when "true", the file walker will  skip
-    /// defaults to "false"
+    /// files when walking directories. Defaults to `true`.
     pub fn with_respect_gitignore(&self, respect_gitignore: bool) -> Self {
         let mut inner = (*self.inner).clone();
         inner.respect_gitignore = respect_gitignore;
@@ -196,7 +196,7 @@ struct ConfigInner {
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
-    /// See ['Config::with_respect_gitignore()`]
+    /// See [`Config::with_respect_gitignore()`]
     #[serde(default)]
     respect_gitignore: bool,
     /// A list of all known rule identifiers.

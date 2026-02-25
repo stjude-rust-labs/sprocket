@@ -57,6 +57,8 @@ pub struct Analysis {
 
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
+    /// Whether to ignore `.gitignore` files when walking directories.
+    no_gitignore: bool,
 
     /// Feature flags for experimental features.
     feature_flags: FeatureFlags,
@@ -128,6 +130,12 @@ impl Analysis {
         self
     }
 
+    /// Sets whether to ignore `.gitignore` files when walking directories.
+    pub fn no_gitignore(mut self, no_gitignore: bool) -> Self {
+        self.no_gitignore = no_gitignore;
+        self
+    }
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
@@ -153,7 +161,8 @@ impl Analysis {
             .with_fallback_version(self.fallback_version)
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
             .with_ignore_filename(self.ignore_filename)
-            .with_feature_flags(self.feature_flags);
+            .with_feature_flags(self.feature_flags)
+            .with_respect_gitignore(!self.no_gitignore);
 
         (self.init)();
 
@@ -203,6 +212,7 @@ impl Default for Analysis {
             disabled_lint_tags: TagSet::new(&[]),
             lint_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            no_gitignore: false,
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
             init: Box::new(|| {}),

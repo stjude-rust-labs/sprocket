@@ -123,6 +123,9 @@ pub struct Common {
     /// Hide diagnostics with `note` severity.
     #[arg(long)]
     pub hide_notes: bool,
+    /// Do not respect `.gitignore` files when walking directories.
+    #[arg(long)]
+    pub no_gitignore: bool,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -252,6 +255,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
         .fallback_version(config.common.wdl.fallback_version)
+        .no_gitignore(args.common.no_gitignore)
         .run()
         .await
         .map_err(CommandError::from)?;
