@@ -45,7 +45,7 @@ impl DeclarationNameRule {
     /// Create a new instance of `DeclarationNameRule`.
     pub fn new(config: &Config) -> DeclarationNameRule {
         Self {
-            allowed_names: config.allowed_typed_identifiers.clone(),
+            allowed_names: config.allowed_names.clone(),
         }
     }
 }

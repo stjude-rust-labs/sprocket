@@ -115,7 +115,7 @@ impl SnakeCaseRule {
             within_struct: false,
             within_input: false,
             within_output: false,
-            allowed_names: config.non_snake_case.clone(),
+            allowed_names: config.allowed_names.clone(),
         }
     }
 }
