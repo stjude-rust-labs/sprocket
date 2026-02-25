@@ -7,7 +7,6 @@ use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxTokenExt;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::TaskDefinition;
@@ -67,11 +66,9 @@ impl Task {
             _ => MetaMap::default(),
         };
 
-        if enable_doc_comments {
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
-            meta.append(&mut doc_comments(
-                definition.keyword().inner().preceding_trivia(),
-            ));
+            meta.append(&mut doc_comments(comments));
         }
 
         let parameter_meta = match definition.parameter_metadata() {

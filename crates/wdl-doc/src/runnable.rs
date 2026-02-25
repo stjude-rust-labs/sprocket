@@ -10,10 +10,9 @@ use std::path::Path;
 use maud::Markup;
 use maud::PreEscaped;
 use maud::html;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
-use wdl_ast::Direction;
-use wdl_ast::SyntaxElement;
+use wdl_ast::Documented;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
@@ -300,12 +299,15 @@ fn parse_inputs(
                 .unwrap_or_default();
 
             if enable_doc_comments {
-                // Doc comments take precedence
-                meta.append(&mut doc_comments(
-                    decl.inner()
-                        .siblings_with_tokens(Direction::Prev)
-                        .filter_map(SyntaxElement::into_token),
-                ));
+                let comments = match &decl {
+                    Decl::Bound(decl) => decl.doc_comments(),
+                    Decl::Unbound(decl) => decl.doc_comments(),
+                };
+
+                if let Some(comments) = comments {
+                    // Doc comments take precedence
+                    meta.append(&mut doc_comments(comments));
+                }
             }
 
             Parameter::new(decl.clone(), meta, InputOutput::Input)
@@ -348,13 +350,9 @@ fn parse_outputs(
                 .map(meta_to_description)
                 .unwrap_or_default();
 
-            if enable_doc_comments {
+            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
-                meta.append(&mut doc_comments(
-                    decl.inner()
-                        .siblings_with_tokens(Direction::Prev)
-                        .filter_map(SyntaxElement::into_token),
-                ));
+                meta.append(&mut doc_comments(comments));
             }
 
             Parameter::new(
