@@ -162,7 +162,7 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             config,
             &source,
             &path,
-            &path.with_extension("formatted.default.wdl"),
+            &path.with_extension("default.formatted.wdl"),
         )?;
     } else {
         run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;

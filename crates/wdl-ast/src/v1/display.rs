@@ -4,7 +4,7 @@
 //! TODO: This functionality can be shared with `wdl-doc` ? It might make
 //! sense to fold this into wdl-analysis maybe?
 
-use std::fmt::{self};
+use std::fmt;
 
 use crate::AstNode;
 use crate::AstToken;
