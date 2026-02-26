@@ -20,7 +20,7 @@ fn tab_in_doc_comment(span: Span) -> Diagnostic {
     Diagnostic::warning("tabs in doc comments are not recommended")
         .with_rule(ID)
         .with_highlight(span)
-        .with_help("considering replacing tabs with four spaces")
+        .with_help("consider replacing tabs with spaces")
 }
 
 /// Detects tab characters inside doc comments.
@@ -33,12 +33,12 @@ impl Rule for DocCommentTabsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures doc comments use spaces instead of tabs for indentation."
+        "Ensures that doc comments do not contain tab characters."
     }
 
     fn explanation(&self) -> &'static str {
         "Tabs render with different widths depending on the viewer. Doc comments should use spaces \
-         for indentation to ensure consistent rendering."
+         instead of tabs to ensure consistent rendering."
     }
 
     fn tags(&self) -> TagSet {

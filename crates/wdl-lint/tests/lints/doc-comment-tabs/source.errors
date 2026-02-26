@@ -4,7 +4,7 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
 5 │ ##  This should be flagged (single tab)
   │   ^^
   │
-  = help: considering replacing tabs with four spaces
+  = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:7:3
@@ -12,7 +12,7 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
 7 │ ##      This should produce ONE diagnostic (grouped tabs)
   │   ^^^^^^
   │
-  = help: considering replacing tabs with four spaces
+  = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:9:8
@@ -20,7 +20,7 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
 9 │ ## Text with    tab inside
   │        ^
   │
-  = help: considering replacing tabs with four spaces
+  = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:9:13
@@ -28,7 +28,7 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
 9 │ ## Text with    tab inside
   │             ^^^^
   │
-  = help: considering replacing tabs with four spaces
+  = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:17:7
@@ -36,5 +36,5 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
 17 │     ##  Workflow-level doc comment with tab (should be flagged)
    │       ^^
    │
-   = help: considering replacing tabs with four spaces
+   = help: consider replacing tabs with spaces
 
