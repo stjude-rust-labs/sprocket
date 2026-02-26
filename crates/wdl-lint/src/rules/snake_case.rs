@@ -173,9 +173,12 @@ impl Rule for SnakeCaseRule {
 
 impl Visitor for SnakeCaseRule {
     fn reset(&mut self) {
-        self.within_struct = false;
-        self.within_input = false;
-        self.within_output = false;
+        *self = Self {
+            allowed_names: std::mem::take(&mut self.allowed_names),
+            within_struct: false,
+            within_input: false,
+            within_output: false,
+        };
     }
 
     fn struct_definition(
