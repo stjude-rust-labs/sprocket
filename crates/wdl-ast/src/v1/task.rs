@@ -407,7 +407,6 @@ impl<N: TreeNode> TaskDefinition<N> {
     pub fn declarations(&self) -> impl Iterator<Item = BoundDecl<N>> + use<'_, N> {
         self.children()
     }
-
 }
 
 impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {

@@ -53,3 +53,40 @@ task meta_only {
         String out = read_string(stdout())
     }
 }
+
+## A workflow that orchestrates greetings.
+## Useful for testing workflow doc comments.
+workflow doc_workflow {
+    input {
+        ## The recipient of the greeting
+        String recipient
+    }
+
+    call doc_only { input: name = recipient }
+
+    output {
+        String result = doc_only.out
+    }
+}
+
+## A person with a name and age.
+## Used to test struct doc comments.
+struct DocPerson {
+    ## The person's full name
+    String name
+    ## The person's age in years
+    Int age
+}
+
+## A status indicator enum.
+enum DocStatus {
+    Active,
+    Inactive,
+}
+
+## First paragraph of doc.
+##
+## Second paragraph after blank line.
+task blank_line_doc {
+    command <<<>>>
+}
