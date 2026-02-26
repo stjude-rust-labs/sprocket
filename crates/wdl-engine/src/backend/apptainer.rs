@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -60,11 +61,16 @@ impl ApptainerRuntime {
     /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
     /// An images cache directory will be created in the given root.
-    pub fn new(root_dir: &Path) -> Self {
-        Self {
-            cache_dir: root_dir.join(IMAGES_CACHE_DIR),
+    pub fn new(root_dir: &Path) -> Result<Self> {
+        Ok(Self {
+            cache_dir: absolute(root_dir.join(IMAGES_CACHE_DIR)).with_context(|| {
+                format!(
+                    "failed to make path `{root_dir}` absolute",
+                    root_dir = root_dir.display()
+                )
+            })?,
             images: Default::default(),
-        }
+        })
     }
 
     /// Generates the script to run the given task using the Apptainer runtime.
@@ -406,7 +412,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
         let _ = runtime
             .generate_script(
                 &Default::default(),
@@ -457,7 +463,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
         let script = runtime
             .generate_script(
                 &Default::default(),
