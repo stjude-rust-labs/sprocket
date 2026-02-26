@@ -436,8 +436,6 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
     if paragraphs.is_empty() {
         return map;
     }
-    
-    let mut paragraphs = paragraphs.into_iter();
 
     // We need to determine the minimum indentation that we can strip from each
     // paragraph line. Prior to this point, no lines have been trimmed.
@@ -466,6 +464,8 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
             *line = line.split_off(min_indent);
         }
     }
+
+    let mut paragraphs = paragraphs.into_iter();
 
     map.insert(
         DESCRIPTION_KEY.to_string(),
