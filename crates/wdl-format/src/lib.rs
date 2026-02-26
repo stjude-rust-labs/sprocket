@@ -14,12 +14,6 @@ use wdl_ast::Node as AstNode;
 
 use crate::element::FormatElement;
 
-/// Newline constant used for formatting on windows platforms.
-#[cfg(windows)]
-pub const NEWLINE: &str = "\r\n";
-/// Newline constant used for formatting on non-windows platforms.
-#[cfg(not(windows))]
-pub const NEWLINE: &str = "\n";
 /// A space.
 pub const SPACE: &str = " ";
 /// A tab.
