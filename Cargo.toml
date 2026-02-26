@@ -124,7 +124,7 @@ walkdir = "2.5.0"
 wdl = { version = "0.22.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc"] }
 which = "8.0.0"
 whoami = "2.1.0"
-zip = { version = "7.3.0", default-features = false, features = [] }
+zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
 missing_docs = "warn"

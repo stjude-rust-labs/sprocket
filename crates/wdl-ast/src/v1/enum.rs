@@ -3,11 +3,15 @@
 use std::fmt;
 use std::fmt::Formatter;
 
+use wdl_grammar::SyntaxTokenExt;
+
 use super::EnumKeyword;
 use super::Expr;
 use super::Type;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -140,6 +144,12 @@ impl<N: TreeNode> AstNode<N> for EnumDefinition<N> {
     }
 }
 
+impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
+    }
+}
+
 /// Represents an enum type parameter (e.g., [String]).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumTypeParameter<N: TreeNode = SyntaxNode>(N);
@@ -201,6 +211,12 @@ impl<N: TreeNode> AstNode<N> for EnumChoice<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for EnumVariant<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia()).collect())
     }
 }
 
