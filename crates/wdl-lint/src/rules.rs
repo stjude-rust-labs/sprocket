@@ -1,7 +1,6 @@
 //! Module for the lint rules.
 
 mod call_input_keyword;
-mod call_input_spacing;
 mod command_section_indentation;
 mod concise_input;
 mod consistent_newlines;
@@ -37,7 +36,6 @@ mod snake_case;
 mod todo_comment;
 
 pub use call_input_keyword::*;
-pub use call_input_spacing::*;
 pub use command_section_indentation::*;
 pub use concise_input::*;
 pub use consistent_newlines::*;
