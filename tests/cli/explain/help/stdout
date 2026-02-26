@@ -76,7 +76,6 @@ Available rules:
   - KnownRules
   - MatchingOutputMeta
   - MetaDescription
-  - MetaKeyValueFormatting
   - MetaSections
   - OutputName
   - ParameterMetaMatched
