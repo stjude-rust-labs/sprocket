@@ -162,7 +162,7 @@ impl UnusedDocCommentsRule {
         }
 
         // If the doc comment block extends to the end of the token stream,
-        // we won't add a diagnostic above. Add one here without a `target_span`.
+        // we won't add a diagnostic above. Add one here.
         diagnostics.add(unused_doc_comment_diagnostic(
             Span::new(comment.span().start(), span_end - comment.span().start()),
             target_span,
@@ -236,17 +236,17 @@ impl Visitor for UnusedDocCommentsRule {
         }
 
         let target = search_siblings_for_doc_comment_target(comment);
-        if target.is_none() {
-            self.lint_next_doc_comment_block(diagnostics, comment, None)
-        }
-        if let Some(result) = target
-            && !valid_target_for_doc_comment(&result)
+        if target
+            .as_ref()
+            .map_or(true, |t| !valid_target_for_doc_comment(t))
         {
             self.lint_next_doc_comment_block(
                 diagnostics,
                 comment,
-                Some(get_span_of_first_token_for_syntax_element(&result)),
-            )
+                target
+                    .as_ref()
+                    .map(get_span_of_first_token_for_syntax_element),
+            );
         }
     }
 }
