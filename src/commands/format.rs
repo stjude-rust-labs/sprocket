@@ -16,6 +16,7 @@ use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
 use wdl::format::Indent;
 use wdl::format::MaxLineLength;
+use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -52,6 +53,10 @@ pub struct Args {
     /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<String>,
+
+    /// The newline style to use
+    #[arg(long, value_name = "STYLE", global = true)]
+    pub newline_style: Option<NewlineStyle>,
 
     /// Subcommand for the `format` command.
     #[command(subcommand)]
@@ -138,12 +143,15 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         config.format.max_line_length
     };
 
+    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
+
     let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
         .sort_inputs(config.format.sort_inputs)
         .sort_imports(config.format.sort_imports)
-        .trailing_commas(config.format.trailing_commas);
+        .trailing_commas(config.format.trailing_commas)
+        .newline_style(newline_style);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;
