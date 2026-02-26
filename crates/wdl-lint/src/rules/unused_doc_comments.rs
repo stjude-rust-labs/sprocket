@@ -18,15 +18,23 @@ use crate::TagSet;
 const ID: &str = "UnusedDocComments";
 
 /// Creates a diagnostic for a misplaced doc comment.
-fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Span) -> Diagnostic {
-    Diagnostic::note("unused doc comment")
+fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Option<Span>) -> Diagnostic {
+    let diagnostic = Diagnostic::note("unused doc comment")
         .with_rule(ID)
         .with_highlight(comment_span)
-        .with_label(
+        .with_fix(
+            "if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this \
+             comment so it is bound to its associated element",
+        );
+
+    if let Some(target_span) = target_span {
+        diagnostic.with_label(
             "documentation will not be generated for this item",
             target_span,
         )
-        .with_fix("replace the leading `##` with `#`")
+    } else {
+        diagnostic
+    }
 }
 
 /// Detects whether a doc comment has been placed atop a Node that we do not
@@ -108,6 +116,17 @@ fn find_inline_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
     None
 }
 
+/// Get the [`Span`] of the first token of the provided [`SyntaxElement`]
+fn get_span_of_first_token_for_syntax_element(element: &SyntaxElement) -> Span {
+    if let Some(token) = element.as_token() {
+        token.span()
+    } else if let Some(node) = element.as_node() {
+        node.first_token().unwrap().span()
+    } else {
+        unreachable!();
+    }
+}
+
 impl UnusedDocCommentsRule {
     /// Produce an unused doc comment diagnostic for the doc comment block
     /// starting at `comment`. Update `skip_count` along the way.
@@ -115,7 +134,7 @@ impl UnusedDocCommentsRule {
         &mut self,
         diagnostics: &mut Diagnostics,
         comment: &Comment,
-        target_span: Span,
+        target_span: Option<Span>,
     ) {
         let mut next = comment.inner().next_sibling_or_token();
         let mut span_end = comment.span().end();
@@ -138,9 +157,16 @@ impl UnusedDocCommentsRule {
                     Span::new(comment.span().start(), span_end - comment.span().start()),
                     target_span,
                 ));
-                break;
+                return;
             }
         }
+
+        // If the doc comment block extends to the end of the token stream,
+        // we won't add a diagnostic above. Add one here without a `target_span`.
+        diagnostics.add(unused_doc_comment_diagnostic(
+            Span::new(comment.span().start(), span_end - comment.span().start()),
+            target_span,
+        ));
     }
 }
 
@@ -150,13 +176,12 @@ impl Rule for UnusedDocCommentsRule {
     }
 
     fn description(&self) -> &'static str {
-        "Reports doc comments that are attached to WDL sections that don't support them."
+        "Reports doc comments that are attached to WDL items that don't support them."
     }
 
     fn explanation(&self) -> &'static str {
-        "Some Workflow Definition Language items and sections do not support doc comments (`##`). \
-         This lint reports if a doc comment is attached to some section or item that isn't \
-         supported.
+        "Some Workflow Definition Language items do not support doc comments (`##`). This lint \
+         reports if a doc comment is attached an item that isn't supported.
 
         Doc comments are supported on:
 
@@ -203,29 +228,25 @@ impl Visitor for UnusedDocCommentsRule {
         if comment.is_inline_comment()
             && let Some(target) = find_inline_doc_comment_target(comment)
         {
-            let target_span = if let Some(token) = target.as_token() {
-                token.span()
-            } else if let Some(node) = target.as_node() {
-                node.first_token().unwrap().span()
-            } else {
-                unreachable!();
-            };
-
-            diagnostics.add(unused_doc_comment_diagnostic(comment.span(), target_span));
+            diagnostics.add(unused_doc_comment_diagnostic(
+                comment.span(),
+                Some(get_span_of_first_token_for_syntax_element(&target)),
+            ));
+            return;
         }
 
         let target = search_siblings_for_doc_comment_target(comment);
+        if target.is_none() {
+            self.lint_next_doc_comment_block(diagnostics, comment, None)
+        }
         if let Some(result) = target
             && !valid_target_for_doc_comment(&result)
         {
-            let target_span = if let Some(token) = result.as_token() {
-                token.span()
-            } else if let Some(node) = result.as_node() {
-                node.first_token().unwrap().span()
-            } else {
-                unreachable!();
-            };
-            self.lint_next_doc_comment_block(diagnostics, comment, target_span)
+            self.lint_next_doc_comment_block(
+                diagnostics,
+                comment,
+                Some(get_span_of_first_token_for_syntax_element(&result)),
+            )
         }
     }
 }

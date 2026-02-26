@@ -670,7 +670,7 @@ impl Comment {
 
     /// Gets whether the comment is an inline comment or not.
     pub fn is_inline_comment(&self) -> bool {
-        // If there is a preceeding token that isn't whitespace with a newline, then
+        // If there is a preceding token that isn't whitespace with a newline, then
         // the comment is not alone on this line.
         if let Some(prev) = self.inner().prev_sibling_or_token() {
             if prev.kind() == SyntaxKind::Whitespace {

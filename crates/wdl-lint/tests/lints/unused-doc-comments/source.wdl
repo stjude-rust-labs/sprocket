@@ -7,7 +7,7 @@ version 1.3
 enum Color {
     ## As is this one
     Red,
-    ## And so is this mutltiline
+    ## And so is this multiline
     ##
     ## one.
     Green
@@ -78,7 +78,7 @@ workflow test_workflow {
 
     ## This input section cannot have a doc comment.
     input {
-        ## But it's elements can.
+        ## But its elements can.
         #@ except: UnusedInput
         Person person## Trailing doc comment without whitespace that should be linted.
         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
@@ -103,7 +103,7 @@ workflow test_workflow {
     # Comments seem fine here (although maybe a weird choice).
     ## But doc comments shouldn't be.
     else if (banana) {
-        String favorite_fruit = "Banana"
+        String favorite_fruit = "Banana" ## Invalid inline doc comment that should only linted once by UnusedDocComment.
     }
     # Seemingly, you can also put comments here,
     ## but we don't want doc comments here.
@@ -118,3 +118,4 @@ workflow test_workflow {
         Boolean my_output = banana
     }
 }
+## Trailing Doc Comment should be linted
