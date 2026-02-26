@@ -120,7 +120,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::ImportSortedRule>::default(),
         Box::<rules::InputSortedRule>::default(),
-        Box::<rules::LineWidthRule>::default(),
         Box::<rules::ConsistentNewlinesRule>::default(),
         Box::<rules::CallInputSpacingRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
