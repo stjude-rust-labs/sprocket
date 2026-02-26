@@ -4,6 +4,7 @@ use std::fmt;
 
 use rowan::NodeOrToken;
 use wdl_grammar::SupportedVersion;
+use wdl_grammar::SyntaxTokenExt;
 use wdl_grammar::version::V1;
 
 use super::BoundDecl;
@@ -17,8 +18,11 @@ use super::MetadataSection;
 use super::MetadataValue;
 use super::OutputSection;
 use super::ParameterMetadataSection;
+use super::WorkflowKeyword;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -50,6 +54,11 @@ impl<N: TreeNode> WorkflowDefinition<N> {
     /// Gets the name of the workflow.
     pub fn name(&self) -> Ident<N::Token> {
         self.token().expect("workflow should have a name")
+    }
+
+    /// Gets the `workflow` keyword of the workflow definition.
+    pub fn keyword(&self) -> WorkflowKeyword<N::Token> {
+        self.token().expect("workflow should have a keyword")
     }
 
     /// Gets the items of the workflow.
@@ -180,6 +189,12 @@ impl<N: TreeNode> AstNode<N> for WorkflowDefinition<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for WorkflowDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
 

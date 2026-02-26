@@ -228,6 +228,23 @@ impl TreeNode for SyntaxNode {
             })
     }
 
+    fn first_token(&self) -> Option<Self::Token> {
+        let first: Option<NodeOrToken<&GreenNodeData, &GreenTokenData>> = self
+            .0
+            .green
+            .as_node()
+            .expect("should be node")
+            .children()
+            .next();
+
+        match first? {
+            NodeOrToken::Node(n) => self
+                .new_child_node(n.to_owned(), 0, self.0.offset)
+                .first_token(),
+            NodeOrToken::Token(t) => Some(self.new_child_token(t.to_owned(), 0, self.0.offset)),
+        }
+    }
+
     fn last_token(&self) -> Option<Self::Token> {
         // Unfortunately `rowan` does not expose the relative offset of each green
         // child. If it did, we could easily just look at the last child here
