@@ -1143,9 +1143,12 @@ fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) ->
     format!("{}({})", name, params)
 }
 
-#[derive(Clone, Copy)]
+/// Which task metadata section is being accessed.
+#[derive(Clone, Copy, Debug)]
 enum TaskMetadataField {
+    /// The `meta` section.
     Meta,
+    /// The `parameter_meta` section.
     ParameterMeta,
 }
 
