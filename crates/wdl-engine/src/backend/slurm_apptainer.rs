@@ -244,7 +244,7 @@ impl FromStr for JobExitCode {
                 .with_context(|| format!("invalid exit code `{exit_code}`"))?,
             signal: signal
                 .parse()
-                .with_context(|| "invalid signal number `{signal}`")?,
+                .with_context(|| format!("invalid signal number `{signal}`"))?,
         })
     }
 }
