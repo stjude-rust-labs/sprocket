@@ -38,6 +38,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_local_variable_definition() {
     let mut ctx = setup().await;
 
@@ -58,6 +59,7 @@ async fn should_goto_local_variable_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_local_task_definition() {
     let mut ctx = setup().await;
 
@@ -75,6 +77,7 @@ async fn should_goto_local_task_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_imported_task_definition() {
     let mut ctx = setup().await;
 
@@ -92,6 +95,7 @@ async fn should_goto_imported_task_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_imported_struct_definition() {
     let mut ctx = setup().await;
 
@@ -109,6 +113,7 @@ async fn should_goto_imported_struct_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_struct_member_definition() {
     let mut ctx = setup().await;
 
@@ -127,6 +132,7 @@ async fn should_goto_struct_member_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_call_output_definition() {
     let mut ctx = setup().await;
 
@@ -145,6 +151,7 @@ async fn should_goto_call_output_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_import_namespace_definition() {
     let mut ctx = setup().await;
 
@@ -163,6 +170,7 @@ async fn should_goto_import_namespace_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_correct_definitions_in_access_expression() {
     let mut ctx = setup().await;
 
@@ -233,6 +241,7 @@ async fn should_goto_correct_definitions_in_access_expression() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_struct_member_definition_for_struct_literal() {
     let mut ctx = setup().await;
 
@@ -261,6 +270,7 @@ async fn should_goto_struct_member_definition_for_struct_literal() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_call_task_input_definition() {
     let mut ctx = setup().await;
 
@@ -278,6 +288,7 @@ async fn should_goto_call_task_input_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_call_workflow_input_definition() {
     let mut ctx = setup().await;
 
@@ -295,6 +306,7 @@ async fn should_goto_call_workflow_input_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_local_variable_for_abbreviated_call_input_syntax() {
     let mut ctx = setup().await;
 
@@ -312,6 +324,7 @@ async fn should_goto_local_variable_for_abbreviated_call_input_syntax() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn lhs_and_rhs_navigation_in_call_inputs_should_goto_correct_definintions() {
     let mut ctx = setup().await;
 
@@ -341,6 +354,7 @@ async fn lhs_and_rhs_navigation_in_call_inputs_should_goto_correct_definintions(
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_enum_definition() {
     let mut ctx = setup().await;
 
@@ -361,6 +375,7 @@ async fn should_goto_enum_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_enum_variant_definition() {
     let mut ctx = setup().await;
 
@@ -381,6 +396,7 @@ async fn should_goto_enum_variant_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_enum_definition_in_member_access() {
     let mut ctx = setup().await;
 
@@ -401,6 +417,7 @@ async fn should_goto_enum_definition_in_member_access() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_imported_enum_definition() {
     let mut ctx = setup().await;
 
@@ -421,6 +438,7 @@ async fn should_goto_imported_enum_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_goto_imported_enum_definition_in_member_access() {
     let mut ctx = setup().await;
 

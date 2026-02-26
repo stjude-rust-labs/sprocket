@@ -27,6 +27,7 @@ async fn rename_request(
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_workspace_wide() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -52,6 +53,7 @@ async fn should_rename_workspace_wide() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_reject_invalid_identifier() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -62,6 +64,7 @@ async fn should_reject_invalid_identifier() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_struct_definition() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -89,6 +92,7 @@ async fn should_rename_struct_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_import_namespace_alias() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -106,6 +110,7 @@ async fn should_rename_import_namespace_alias() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_not_rename_shadowed_declaration() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -144,6 +149,7 @@ async fn should_not_rename_shadowed_declaration() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_enum() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -162,6 +168,7 @@ async fn should_rename_enum() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_enum_variant() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;

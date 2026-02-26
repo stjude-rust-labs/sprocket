@@ -64,6 +64,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_document_symbols() {
     let mut ctx = setup().await;
     let response = document_symbol_request(&mut ctx, "source.wdl").await;
@@ -124,6 +125,7 @@ async fn should_provide_document_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_workspace_symbols() {
     let mut ctx = setup().await;
     let response = workspace_symbol_request(&mut ctx, "").await;
@@ -140,6 +142,7 @@ async fn should_provide_workspace_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_filter_workspace_symbols() {
     let mut ctx = setup().await;
     let response = workspace_symbol_request(&mut ctx, "greet").await;
@@ -156,6 +159,7 @@ async fn should_filter_workspace_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_enum_symbols() {
     let mut ctx = setup().await;
     let response = document_symbol_request(&mut ctx, "enum.wdl").await;

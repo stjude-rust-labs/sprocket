@@ -43,6 +43,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_signature_help_for_stdlib_function() {
     let mut ctx = setup().await;
 
@@ -64,6 +65,7 @@ async fn should_provide_signature_help_for_stdlib_function() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_highlight_active_parameter() {
     let mut ctx = setup().await;
 
@@ -88,6 +90,7 @@ async fn should_highlight_active_parameter() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_signature_help_for_polymorphic_function() {
     let mut ctx = setup().await;
 
