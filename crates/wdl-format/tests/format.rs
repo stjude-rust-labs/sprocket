@@ -28,6 +28,7 @@ use wdl_ast::Document;
 use wdl_ast::Node;
 use wdl_format::Config as FormatConfig;
 use wdl_format::Formatter;
+use wdl_format::NewlineStyle;
 use wdl_format::element::FormatElement;
 use wdl_format::element::node::AstNodeFormatExt;
 
@@ -78,16 +79,30 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compare the result of a test to the expected result.
-fn compare_result(path: &Path, result: &str, allow_blessing: bool) -> Result<(), anyhow::Error> {
-    let result = normalize(result);
+fn compare_result(
+    path: &Path,
+    result: &str,
+    allow_blessing: bool,
+    preserve_line_endings: bool,
+) -> Result<(), anyhow::Error> {
+    let result = if preserve_line_endings {
+        result.to_string()
+    } else {
+        normalize(result)
+    };
+
     if allow_blessing && env::var_os("BLESS").is_some() {
         fs::write(path, &result).context("writing result file")?;
         return Ok(());
     }
 
-    let expected = fs::read_to_string(path)
-        .context("reading result file")?
-        .replace("\r\n", "\n");
+    let expected = if preserve_line_endings {
+        fs::read_to_string(path).context("reading result file")?
+    } else {
+        fs::read_to_string(path)
+            .context("reading result file")?
+            .replace("\r\n", "\n")
+    };
 
     if expected != result {
         bail!(
@@ -129,13 +144,20 @@ fn run_test_inner(
     source: &str,
     original_doc: &Path,
     formatted_doc: &Path,
+    preserve_line_endings: bool,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
-    compare_result(formatted_doc, &formatted, true)?;
+    compare_result(formatted_doc, &formatted, true, preserve_line_endings)?;
 
     // test idempotency by formatting the formatted document
     let twice_formatted = format(config, &formatted, formatted_doc)?;
-    compare_result(formatted_doc, &twice_formatted, false).context("testing idempotency")?;
+    compare_result(
+        formatted_doc,
+        &twice_formatted,
+        false,
+        preserve_line_endings,
+    )
+    .context("testing idempotency")?;
 
     Ok(())
 }
@@ -152,20 +174,35 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             "failed to read config at '{}'",
             config_path.display()
         ))?;
-        let config = toml::from_str(&content).context(format!(
+        let config: FormatConfig = toml::from_str(&content).context(format!(
             "failed to parse config at '{}'",
             config_path.display()
         ))?;
 
-        run_test_inner(config, &source, &path, &formatted_path)?;
+        let preserve_line_endings = config.newline_style != NewlineStyle::Auto;
+
+        run_test_inner(
+            config,
+            &source,
+            &path,
+            &formatted_path,
+            preserve_line_endings,
+        )?;
         run_test_inner(
             FormatConfig::default(),
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
+            false,
         )?;
     } else {
-        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(
+            FormatConfig::default(),
+            &source,
+            &path,
+            &formatted_path,
+            false,
+        )?;
     }
 
     Ok(())
