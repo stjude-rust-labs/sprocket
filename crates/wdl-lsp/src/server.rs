@@ -26,6 +26,7 @@ use tower_lsp_server::LspService;
 use tower_lsp_server::jsonrpc::Error as RpcError;
 use tower_lsp_server::jsonrpc::ErrorCode;
 use tower_lsp_server::jsonrpc::Result as RpcResult;
+use tower_lsp_server::ls_types::request::WorkspaceConfiguration;
 use tower_lsp_server::ls_types::*;
 use tracing::debug;
 use tracing::error;
@@ -59,36 +60,48 @@ fn normalize_uri_path(uri: &mut Uri) {
         return;
     }
 
-    // Call `to_file_path` which will automatically decode any encoded sequences
-    if let Some(path) = uri.to_file_path() {
-        // On windows we need to normalize any drive letter prefixes to uppercase
-        let path = if cfg!(windows) {
-            let mut comps = path.components();
-            match comps.next() {
-                Some(Component::Prefix(prefix)) => match prefix.kind() {
-                    Prefix::Disk(d) => {
-                        let mut path = PathBuf::new();
-                        path.push(format!("{}:", d.to_ascii_uppercase() as char));
-                        path.extend(comps);
-                        Cow::Owned(path)
-                    }
-                    Prefix::VerbatimDisk(d) => {
-                        let mut path = PathBuf::new();
-                        path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
-                        path.extend(comps);
-                        Cow::Owned(path)
-                    }
-                    _ => path,
-                },
-                _ => path,
-            }
-        } else {
-            path
-        };
+    *uri = Uri::from(uri.normalize());
+    let Some(path) = uri.to_file_path() else {
+        return;
+    };
 
-        if let Some(u) = Uri::from_file_path(path) {
-            *uri = u;
+    // On windows we need to normalize any drive letter prefixes to uppercase
+    let path = if cfg!(windows) {
+        let mut comps = path.components();
+        match comps.next() {
+            Some(Component::Prefix(prefix)) => match prefix.kind() {
+                Prefix::Disk(d) => {
+                    let mut path = PathBuf::new();
+                    path.push(format!("{}:", d.to_ascii_uppercase() as char));
+                    path.extend(comps);
+                    Cow::Owned(path)
+                }
+                Prefix::VerbatimDisk(d) => {
+                    let mut path = PathBuf::new();
+                    path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
+                    path.extend(comps);
+                    Cow::Owned(path)
+                }
+                _ => path,
+            },
+            _ => path,
         }
+    } else {
+        path
+    };
+
+    let mut path_str = path.to_string_lossy();
+    if cfg!(windows) && !path.is_absolute() {
+        path_str = Cow::Owned(path_str.replace('\\', "/"));
+
+        // The leading slash on Windows is a shorthand for `localhost` (e.g. `file://localhost/C:/Windows` with the `localhost` omitted).
+        if !path_str.starts_with('/') {
+            path_str = Cow::Owned(format!("/{path_str}"));
+        }
+    }
+
+    if let Ok(u) = Uri::from_str(&format!("file://{path_str}")) {
+        *uri = u;
     }
 }
 
@@ -647,6 +660,7 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 
     async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+        let config = self.config.read().await;
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
@@ -1324,4 +1338,54 @@ fn uri_to_url(uri: &Uri) -> RpcResult<Url> {
         .into(),
         data: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use tower_lsp_server::ls_types::Uri;
+
+    use super::normalize_uri_path;
+
+    #[test]
+    fn url_normalization() {
+        let cases = vec![
+            (
+                Uri::from_str("http://example.com/foo.wdl").unwrap(),
+                "http://example.com/foo.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///at/root/../../../root.wdl").unwrap(),
+                "file:///root.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///too/far/../../../../../../not_real.wdl").unwrap(),
+                "file:///not_real.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///Users/dev%20user/./../././my%20app/test:40:00.wdl").unwrap(),
+                "file:///Users/my%20app/test:40:00.wdl",
+            ),
+            (
+                Uri::from_str("file:///C%3A/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl")
+                    .unwrap(),
+                "file:///C:/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl",
+            ),
+            #[cfg(windows)]
+            (
+                Uri::from_str("file:///d:/Users/Admin/Documents/foo.wdl").unwrap(),
+                "file:///D:/Users/Admin/Documents/foo.wdl",
+            ),
+        ];
+
+        for (original, expected) in cases {
+            let mut updated = original.clone();
+            normalize_uri_path(&mut updated);
+            assert_eq!(updated.as_str(), expected);
+        }
+    }
 }

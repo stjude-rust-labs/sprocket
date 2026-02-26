@@ -5,9 +5,9 @@ use std::str::FromStr;
 use ls_types::Uri;
 use url::Url;
 
-/// A utility trait to convert [`Url`]s to [`Uri`]s.
+/// A utility trait to convert [`Uri`]s to [`Url`]s.
 pub trait UriToUrl {
-    /// Attempt to convert a [`Url`] to a [`Uri`].
+    /// Attempt to convert a [`Uri`] to a [`Url`].
     fn try_into_url(&self) -> Result<Url, <Url as FromStr>::Err>;
 }
 
@@ -17,9 +17,9 @@ impl UriToUrl for Uri {
     }
 }
 
-/// A utility trait to convert [`Uri`]s to [`Url`]s.
+/// A utility trait to convert [`Url`]s to [`Uri`]s.
 pub trait UrlToUri {
-    /// Attempt to convert a [`Uri`] to a [`Url`].
+    /// Attempt to convert a [`Url`] to a [`Uri`].
     fn try_into_uri(&self) -> Result<Uri, <Uri as FromStr>::Err>;
 }
 
