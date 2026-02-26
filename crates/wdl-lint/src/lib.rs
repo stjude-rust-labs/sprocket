@@ -132,7 +132,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
-        Box::<rules::TrailingCommaRule>::default(),
         Box::<rules::ElementSpacingRule>::default(),
         Box::<rules::MetaKeyValueFormattingRule>::default(),
         Box::<rules::ExpressionSpacingRule>::default(),

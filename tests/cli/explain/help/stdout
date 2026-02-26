@@ -90,7 +90,6 @@ Available rules:
   - ShellCheck
   - SnakeCase
   - TodoComment
-  - TrailingComma
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Removed
 
-* Removed some "formatting only" lint rules (CommentWhitespace, EndingNewline, ImportWhitespace, LintDirectiveFormatted, PreambleCommentPlacement, PreambleFormatted, VersionStatementFormatted, Whitespace) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed some "formatting only" lint rules (CommentWhitespace, EndingNewline, ImportWhitespace, LintDirectiveFormatted, PreambleCommentPlacement, PreambleFormatted, TrailingComma, VersionStatementFormatted, Whitespace) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
 * Removed `util::is_inline_comment()` and `util::strip_newline()` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
 ## 0.20.1 - 2026-02-12

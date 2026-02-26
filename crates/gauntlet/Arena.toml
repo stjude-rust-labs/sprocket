@@ -9,11 +9,6 @@ filters = ["/template/task-templates.wdl"]
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:23:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L23"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L3"
 
@@ -74,11 +69,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:10:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L10"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:115:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L115"
 
@@ -91,16 +81,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:20:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:21:41: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L21"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:27:48: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L27"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
@@ -134,18 +114,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/ww-annovar.wdl"
-message = "ww-annovar.wdl:14:71: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/ww-annovar.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/ww-annovar.wdl"
 message = "ww-annovar.wdl:47:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/ww-annovar.wdl/#L47"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:10:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L10"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -156,16 +126,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
 message = "testrun.wdl:15:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L15"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:17:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:24:37: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L24"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -226,11 +186,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:140:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L140"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:153:47: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L153"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
@@ -364,11 +319,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
-message = "testrun.wdl:20:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L3"
 
@@ -376,11 +326,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bcftools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
-message = "ww-bcftools.wdl:14:59: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
@@ -396,11 +341,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:92:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L92"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
-message = "testrun.wdl:11:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/testrun.wdl/#L11"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
@@ -444,11 +384,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:11:63: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L11"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
 message = "testrun.wdl:126:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L126"
 
@@ -469,28 +404,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:28:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L28"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:37:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L37"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:50:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
-message = "testrun.wdl:57:36: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
@@ -504,18 +419,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:110:72: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L110"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:148:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L148"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:14:80: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
@@ -554,11 +459,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:64:59: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L64"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:88:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L88"
 
@@ -589,43 +489,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:19:35: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L19"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:27:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:31:31: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:32:5: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:38:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:50:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:56:25: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L56"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
@@ -648,11 +513,6 @@ message = "ww-bwa.wdl:48:13: note[ContainerUri]: container URI uses a mutable ta
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L48"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
-message = "ww-bwa.wdl:61:76: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L61"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
 message = "testrun.wdl:12:60: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L12"
@@ -669,18 +529,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
-message = "testrun.wdl:27:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
 message = "testrun.wdl:31:30: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
-message = "testrun.wdl:38:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/testrun.wdl/#L38"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
@@ -701,11 +551,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:108:5: note[MatchingOutputMeta]: `outputs` section of `meta` for the task `run_cnvkit` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L108"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:111:42: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L111"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -829,16 +674,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:19:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L19"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:25:48: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L3"
 
@@ -866,11 +701,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
 message = "testrun.wdl:76:25: note[ShellCheck]: Use find instead of ls to better handle non-alphanumeric filenames."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:15:74: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
@@ -929,28 +759,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:11:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L11"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
 message = "testrun.wdl:151:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L151"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:18:46: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L18"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:26:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L26"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:33:64: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L33"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
@@ -974,11 +784,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:15:79: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L15"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:45:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L45"
 
@@ -996,21 +801,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:58:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L58"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:75:96: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L75"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
-message = "testrun.wdl:15:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/testrun.wdl/#L15"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
-message = "testrun.wdl:22:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/testrun.wdl/#L22"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
@@ -1034,11 +824,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
-message = "ww-fastqc.wdl:15:69: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L15"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
 message = "ww-fastqc.wdl:29:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L29"
 
@@ -1054,26 +839,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:100:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L100"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:115:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L115"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:126:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L126"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:139:106: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L139"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:139:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L139"
 
@@ -1084,53 +849,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:150:106: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L150"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:150:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L150"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:159:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L159"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:167:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L167"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:173:49: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L173"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:185:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L185"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:197:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L197"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:203:58: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L203"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:209:66: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L209"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:213:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L213"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1144,18 +869,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:221:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L221"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:225:50: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L225"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:229:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L229"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1164,28 +879,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:241:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L241"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:245:48: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L245"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:255:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L255"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:276:61: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L276"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:27:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L27"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1206,11 +901,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:322:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L322"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:33:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L33"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1271,11 +961,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:391:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L391"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:39:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L39"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -1404,11 +1089,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:47:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L47"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:486:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L486"
 
@@ -1488,31 +1168,6 @@ message = "testrun.wdl:529:13: note[ContainerUri]: container URI uses a mutable 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L529"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:56:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:62:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:70:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L70"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:79:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L79"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:91:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L91"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1009:13: note[ShellCheck]: Declare and assign separately to avoid masking return values."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1009"
@@ -1559,11 +1214,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:114:63: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L114"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1169:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1169"
 
@@ -1594,11 +1244,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1214:45: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1214"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1251:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1251"
 
@@ -1621,11 +1266,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:258:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L258"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:274:90: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L274"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1669,11 +1309,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:504:74: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L504"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:520:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L520"
 
@@ -1684,33 +1319,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:588:50: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L588"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:60:81: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L60"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:648:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L648"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:663:48: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L663"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:735:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L735"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:748:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L748"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -1739,11 +1354,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:845:50: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L845"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:862:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L862"
 
@@ -1764,23 +1374,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:955:52: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L955"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:972:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L972"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
-message = "testrun.wdl:13:63: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L13"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
-message = "testrun.wdl:22:42: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L22"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
@@ -1789,33 +1384,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
-message = "testrun.wdl:34:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L34"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
 message = "testrun.wdl:38:61: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/testrun.wdl"
-message = "testrun.wdl:43:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/testrun.wdl/#L43"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:117:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L117"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:130:72: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L130"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:15:72: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -1874,23 +1449,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:24:38: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:36:14: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
-message = "testrun.wdl:51:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L51"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
@@ -1929,11 +1489,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:70:102: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L70"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:75:7: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L75"
 
@@ -1941,16 +1496,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
 message = "testrun.wdl:103:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L103"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:20:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
-message = "testrun.wdl:25:46: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
@@ -1964,11 +1509,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
-message = "ww-manta.wdl:14:50: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:54:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L54"
 
@@ -1976,11 +1516,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:73:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L73"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
-message = "testrun.wdl:12:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/testrun.wdl/#L12"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
@@ -1996,11 +1531,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
 message = "testrun.wdl:28:28: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/testrun.wdl/#L28"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
-message = "testrun.wdl:35:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/testrun.wdl/#L35"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/testrun.wdl"
@@ -2021,11 +1551,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
 message = "ww-rseqc.wdl:110:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/ww-rseqc.wdl/#L110"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
-message = "ww-rseqc.wdl:19:60: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/ww-rseqc.wdl/#L19"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
@@ -2089,33 +1614,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:26:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L26"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:34:38: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L34"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:46:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:55:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L55"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:62:37: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
@@ -2159,11 +1659,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:136:82: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L136"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:160:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L160"
 
@@ -2189,11 +1684,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:71:63: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L71"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:84:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L84"
 
@@ -2209,38 +1699,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:28:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L28"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:36:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:46:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
-message = "testrun.wdl:55:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L55"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `samtools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:14:53: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
@@ -2269,11 +1734,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:63:46: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L63"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:86:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L86"
 
@@ -2289,18 +1749,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
-message = "testrun.wdl:29:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L29"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
 message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L33"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:15:84: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
@@ -2354,23 +1804,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:24:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:36:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:42:37: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L42"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
@@ -2389,11 +1824,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:14:50: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L14"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:59:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L59"
 
@@ -2406,11 +1836,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:92:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L92"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:11:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L11"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
@@ -2439,33 +1864,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:24:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:35:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:42:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:49:17: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L49"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:56:37: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L56"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
@@ -2496,11 +1896,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:123:68: note[MetaKeyValueFormatting]: incorrect indentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L123"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:124:50: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L124"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -2559,28 +1954,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:11:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L11"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:120:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L120"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
-message = "testrun.wdl:19:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L19"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `sra_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L5"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:16:89: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L16"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -2639,28 +2019,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:23:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L23"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:31:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:43:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L43"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
-message = "testrun.wdl:50:39: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L50"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -2671,11 +2031,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
 message = "ww-star.wdl:62:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
-message = "ww-star.wdl:80:84: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L80"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -2724,11 +2079,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:24:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:263:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L263"
 
@@ -2774,43 +2124,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:38:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:45:43: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L45"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:59:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L59"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:76:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:85:48: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L85"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:90:49: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L90"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:106:73: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L106"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -2821,11 +2136,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:141:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L141"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:14:61: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L14"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -3004,26 +2314,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
-message = "testrun.wdl:24:40: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L24"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
-message = "testrun.wdl:28:40: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L28"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
-message = "testrun.wdl:29:5: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L29"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
-message = "testrun.wdl:38:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
 message = "testrun.wdl:3:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L3"
 
@@ -3056,16 +2346,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:61:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:10:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L10"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:17:33: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L17"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -3139,43 +2419,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:30:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L30"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
 message = "testrun.wdl:334:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L334"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:35:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:40:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L40"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:53:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `testdata_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L5"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:95:58: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L95"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:112:71: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L112"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3214,18 +2464,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:17:54: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:180:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L180"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:193:44: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L193"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3249,11 +2489,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:255:42: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L255"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:275:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L275"
 
@@ -3266,11 +2501,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:30:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L30"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:315:63: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L315"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3304,11 +2534,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:364:64: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L364"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:382:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L382"
 
@@ -3339,11 +2564,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:419:55: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L419"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:45:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L45"
 
@@ -3356,11 +2576,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:485:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L485"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:498:69: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L498"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3381,11 +2596,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:53:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:545:57: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L545"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3411,11 +2621,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:617:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L617"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:632:88: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L632"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3456,11 +2661,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:717:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L717"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:731:69: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L731"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -3514,11 +2714,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:861:78: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L861"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:878:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L878"
 
@@ -3559,33 +2754,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
-message = "testrun.wdl:20:59: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
-message = "testrun.wdl:37:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L37"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
 message = "testrun.wdl:43:35: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L43"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
-message = "testrun.wdl:54:17: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L54"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
 message = "testrun.wdl:59:33: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L59"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
-message = "testrun.wdl:62:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L62"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
@@ -3644,18 +2819,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:25:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:29:51: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L29"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:36:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L36"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
@@ -3669,18 +2834,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:46:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:50:28: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:56:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L56"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
@@ -3689,28 +2844,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:65:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L65"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:69:26: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L69"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
-message = "testrun.wdl:73:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L73"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
 message = "testrun.wdl:7:10: note[MetaSections]: workflow `varscan_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L7"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
-message = "ww-varscan.wdl:15:69: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/ww-varscan.wdl/#L15"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
@@ -3744,18 +2884,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:17:22: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
 message = "testrun.wdl:22:40: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:25:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
@@ -3764,68 +2894,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:31:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:38:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
 message = "testrun.wdl:42:36: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
-message = "testrun.wdl:48:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L48"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:22:73: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L22"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:50:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:62:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:70:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L70"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
-message = "ww-bwa-gatk.wdl:87:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L87"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `fastq_to_cram_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
-message = "testrun.wdl:31:54: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L31"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
-message = "testrun.wdl:38:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
-message = "testrun.wdl:45:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L45"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
@@ -3844,11 +2919,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:35:76: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:54:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L54"
 
@@ -3864,11 +2934,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:65:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L65"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:69:116: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L69"
 
@@ -3879,23 +2944,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:74:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
 message = "ww-fastq-to-cram.wdl:77:83: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L77"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
-message = "ww-fastq-to-cram.wdl:82:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:25:74: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L25"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
@@ -3909,11 +2959,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:48:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L48"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
 message = "testrun.wdl:51:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L51"
 
@@ -3924,28 +2969,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:56:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:66:34: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L66"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
 message = "testrun.wdl:70:52: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L70"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
-message = "testrun.wdl:78:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L78"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:26:78: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L26"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
@@ -3959,18 +2984,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:55:25: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L55"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
 message = "ww-saturation.wdl:61:33: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:70:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
@@ -3978,24 +2993,9 @@ message = "ww-saturation.wdl:75:57: note[CallInputSpacing]: call input not prope
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L75"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:85:29: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L85"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
-message = "testrun.wdl:18:17: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L18"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:21:70: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L21"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
@@ -4008,64 +3008,14 @@ message = "ww-sra-salmon.wdl:3:1: note[ImportSorted]: imports are not sorted lex
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L3"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:45:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L45"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:53:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L53"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:62:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:71:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L71"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
-message = "testrun.wdl:18:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L18"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
-message = "testrun.wdl:22:17: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L22"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L6"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:25:104: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L25"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
 message = "ww-sra-star.wdl:39:3: note[InputSorted]: input not sorted"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L39"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:55:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L55"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:62:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L62"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:73:24: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
@@ -4076,11 +3026,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:23:39: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L23"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:26:30: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L26"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
@@ -4100,11 +3045,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:32:81: note[CallInputSpacing]: call inputs must be separated by newline"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:32:93: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L32"
 
 [[diagnostics]]
@@ -4129,11 +3069,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:33:93: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L33"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:34:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L34"
 
@@ -4150,11 +3085,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:34:79: note[CallInputSpacing]: call inputs must be separated by newline"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L34"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:34:91: note[TrailingComma]: item missing trailing comma"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L34"
 
 [[diagnostics]]
@@ -4179,38 +3109,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:35:91: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L35"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:42:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:49:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L49"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:56:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:63:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L63"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:70:30: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
@@ -4223,44 +3123,9 @@ message = "testrun.wdl:82:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L82"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
-message = "testrun.wdl:82:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:104:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:111:18: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L111"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
 message = "ww-star-deseq2.wdl:3:1: note[ImportSorted]: imports are not sorted lexicographically"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L3"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:43:82: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L43"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:72:32: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L72"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:90:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L90"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
-message = "ww-star-deseq2.wdl:97:27: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L97"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
@@ -4274,18 +3139,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:20:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L20"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:23:47: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L23"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:26:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L26"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
@@ -4294,28 +3149,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:32:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:39:30: note[CallInputSpacing]: call input not properly spaced"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L39"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:54:46: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L54"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `leukemia_test` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
-message = "testrun.wdl:70:26: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/testrun.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
@@ -4339,38 +3179,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:155:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L155"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:162:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:174:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L174"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:185:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L185"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:199:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L199"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:212:22: note[ExpressionSpacing]: operators must be surrounded by whitespace"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L212"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:213:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L213"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
@@ -4379,78 +3189,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:227:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L227"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:237:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L237"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:248:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L248"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:257:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L257"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:266:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L266"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:274:28: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L274"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:286:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L286"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:297:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L297"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:2:1: note[LineWidth]: line exceeds maximum width of 90"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L2"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:307:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L307"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:316:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L316"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:323:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L323"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:330:23: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L330"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:342:21: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L342"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:357:19: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L357"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
@@ -4471,11 +3211,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:89:9: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L89"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:94:91: note[TrailingComma]: item missing trailing comma"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"

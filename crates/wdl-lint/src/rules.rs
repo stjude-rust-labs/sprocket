@@ -38,7 +38,6 @@ mod section_order;
 mod shellcheck;
 mod snake_case;
 mod todo_comment;
-mod trailing_comma;
 
 pub use call_input_keyword::*;
 pub use call_input_spacing::*;
@@ -78,4 +77,3 @@ pub use section_order::*;
 pub use shellcheck::*;
 pub use snake_case::*;
 pub use todo_comment::*;
-pub use trailing_comma::*;
