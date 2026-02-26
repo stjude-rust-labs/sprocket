@@ -77,6 +77,18 @@ impl TaskInputs {
         self.inputs.iter().map(|(k, v)| (k.as_str(), v))
     }
 
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of the inputs.
+    ///
+    /// This includes the count of inputs, requirements, and hints.
+    pub fn len(&self) -> usize {
+        self.inputs.len() + self.requirements.len() + self.hints.len()
+    }
+
     /// Gets an input by name.
     pub fn get(&self, name: &str) -> Option<&Value> {
         self.inputs.get(name)
@@ -324,12 +336,23 @@ impl Serialize for TaskInputs {
     where
         S: serde::Serializer,
     {
-        // Only serialize the input values
-        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        let mut map = serializer.serialize_map(Some(self.len()))?;
+
         for (k, v) in &self.inputs {
-            let serialized_value = crate::ValueSerializer::new(None, v, true);
-            map.serialize_entry(k, &serialized_value)?;
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(k, &v)?;
         }
+
+        for (k, v) in &self.requirements {
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(&format!("requirements.{k}"), &v)?;
+        }
+
+        for (k, v) in &self.hints {
+            let v = crate::ValueSerializer::new(None, v, true);
+            map.serialize_entry(&format!("hints.{k}"), &v)?;
+        }
+
         map.end()
     }
 }
@@ -358,6 +381,18 @@ impl WorkflowInputs {
     /// Iterates the inputs to the workflow.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + use<'_> {
         self.inputs.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of the workflow inputs.
+    ///
+    /// This includes the workflow inputs plus the lengths of all nested inputs.
+    pub fn len(&self) -> usize {
+        self.inputs.len() + self.calls.values().map(Inputs::len).sum::<usize>()
     }
 
     /// Gets an input by name.
@@ -679,13 +714,24 @@ impl Serialize for WorkflowInputs {
     where
         S: serde::Serializer,
     {
-        // Note: for serializing, only serialize the direct inputs, not the nested
-        // inputs
-        let mut map = serializer.serialize_map(Some(self.inputs.len()))?;
+        let mut map = serializer.serialize_map(Some(self.len()))?;
         for (k, v) in &self.inputs {
             let serialized_value = crate::ValueSerializer::new(None, v, true);
             map.serialize_entry(k, &serialized_value)?;
         }
+
+        for (k, v) in &self.calls {
+            let serialized = serde_json::to_value(v).map_err(|_| {
+                serde::ser::Error::custom(format!("failed to serialize inputs for call `{k}`"))
+            })?;
+            let mut map = serde_json::Map::new();
+            if let JsonValue::Object(obj) = serialized {
+                for (inner, value) in obj {
+                    map.insert(format!("{k}.{inner}"), value);
+                }
+            }
+        }
+
         map.end()
     }
 }
@@ -803,6 +849,23 @@ impl Inputs {
         Self::parse_json_object(document, object)
     }
 
+    /// Determines if the inputs are empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the length of all inputs.
+    ///
+    /// For task inputs, this include the inputs, requirements, and hints.
+    ///
+    /// For workflow inputs, this includes the inputs and nested inputs.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Task(inputs) => inputs.len(),
+            Self::Workflow(inputs) => inputs.len(),
+        }
+    }
+
     /// Gets an input value.
     pub fn get(&self, name: &str) -> Option<&Value> {
         match self {
@@ -899,9 +962,9 @@ impl Inputs {
             return Ok(None);
         }
 
-        // Otherwise, build a set of candidate entrypoints from the prefixes of each
-        // input key.
-        let mut entrypoint_candidates = BTreeSet::new();
+        // Otherwise, build a set of candidate targets from the prefixes of each input
+        // key.
+        let mut target_candidates = BTreeSet::new();
         for key in object.keys() {
             let Some((prefix, _)) = key.split_once('.') else {
                 bail!(
@@ -909,36 +972,36 @@ impl Inputs {
                      or task name",
                 )
             };
-            entrypoint_candidates.insert(prefix);
+            target_candidates.insert(prefix);
         }
 
         // If every prefix is the same, there will be only one candidate. If not, report
         // an error.
-        let entrypoint_name = match entrypoint_candidates
+        let target_name = match target_candidates
             .iter()
             .take(2)
             .collect::<Vec<_>>()
             .as_slice()
         {
-            [] => panic!("no entrypoint candidates for inputs; report this as a bug"),
-            [entrypoint_name] => entrypoint_name.to_string(),
+            [] => panic!("no target candidates for inputs; report this as a bug"),
+            [target_name] => target_name.to_string(),
             _ => bail!(
                 "invalid inputs: expected each input key to be prefixed with the same workflow or \
-                 task name, but found multiple prefixes: {entrypoint_candidates:?}",
+                 task name, but found multiple prefixes: {target_candidates:?}",
             ),
         };
 
-        let inputs = match (document.task_by_name(&entrypoint_name), document.workflow()) {
+        let inputs = match (document.task_by_name(&target_name), document.workflow()) {
             (Some(task), _) => Self::parse_task_inputs(document, task, object)?,
-            (None, Some(workflow)) if workflow.name() == entrypoint_name => {
+            (None, Some(workflow)) if workflow.name() == target_name => {
                 Self::parse_workflow_inputs(document, workflow, object)?
             }
             _ => bail!(
-                "invalid inputs: a task or workflow named `{entrypoint_name}` does not exist in \
-                 the document"
+                "invalid inputs: a task or workflow named `{target_name}` does not exist in the \
+                 document"
             ),
         };
-        Ok(Some((entrypoint_name, inputs)))
+        Ok(Some((target_name, inputs)))
     }
 
     /// Parses the inputs for a task.
@@ -1013,5 +1076,17 @@ impl From<TaskInputs> for Inputs {
 impl From<WorkflowInputs> for Inputs {
     fn from(inputs: WorkflowInputs) -> Self {
         Self::Workflow(inputs)
+    }
+}
+
+impl Serialize for Inputs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Task(inputs) => inputs.serialize(serializer),
+            Self::Workflow(inputs) => inputs.serialize(serializer),
+        }
     }
 }

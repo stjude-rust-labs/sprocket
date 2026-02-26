@@ -1,4 +1,4 @@
-warning: unsupported WDL version `2.0`; interpreting document as version `1.2`
+warning[UsingFallbackVersion]: unsupported WDL version `2.0`; interpreting document as version `1.2`
   ┌─ tests/analysis/import-incompatible-versions-fallback/foo.wdl:1:9
   │
 1 │ version 2.0

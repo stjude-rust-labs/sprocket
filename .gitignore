@@ -5,7 +5,8 @@ target/
 
 rustc-ice*
 
-runs/
+out/
+!tests/**/out/
 
 .idea
 

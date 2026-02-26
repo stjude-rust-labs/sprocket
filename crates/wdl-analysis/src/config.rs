@@ -7,8 +7,8 @@ use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::Exceptable as _;
 use crate::Rule;
-use crate::SyntaxNodeExt as _;
 use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::UNUSED_CALL_RULE_ID;
 use crate::UNUSED_DECL_RULE_ID;

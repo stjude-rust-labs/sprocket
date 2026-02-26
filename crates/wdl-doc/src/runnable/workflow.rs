@@ -11,6 +11,9 @@ use super::*;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::MetaMapValueSource;
+use crate::meta::doc_comments;
+use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.
@@ -35,6 +38,12 @@ pub(crate) struct Workflow {
     wdl_path: Option<PathBuf>,
 }
 
+impl DefinitionMeta for Workflow {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
+    }
+}
+
 impl Workflow {
     /// Create a new workflow.
     pub fn new(
@@ -42,21 +51,28 @@ impl Workflow {
         version: SupportedVersion,
         definition: WorkflowDefinition,
         wdl_path: Option<PathBuf>,
+        enable_doc_comments: bool,
     ) -> Self {
-        let meta = match definition.metadata() {
-            Some(mds) => parse_meta(&mds),
+        let mut meta = match definition.metadata() {
+            Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
+
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+            // Doc comments take precedence
+            meta.append(&mut doc_comments(comments));
+        }
+
         let parameter_meta = match definition.parameter_metadata() {
-            Some(pmds) => parse_parameter_meta(&pmds),
+            Some(pmds) => parse_metadata_items(pmds.items()),
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
-            Some(is) => parse_inputs(&is, &parameter_meta),
+            Some(is) => parse_inputs(&is, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
         let outputs = match definition.output() {
-            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
 
@@ -72,28 +88,14 @@ impl Workflow {
 
     /// Returns the [`NAME_KEY`] meta entry, if it exists and is a String.
     pub fn name_override(&self) -> Option<String> {
-        self.meta.get(NAME_KEY).and_then(|v| match v {
-            MetadataValue::String(s) => Some(
-                s.text()
-                    .expect("meta string should not be interpolated")
-                    .text()
-                    .to_string(),
-            ),
-            _ => None,
-        })
+        self.meta.get(NAME_KEY).and_then(MetaMapValueSource::text)
     }
 
     /// Returns the [`CATEGORY_KEY`] meta entry, if it exists and is a String.
     pub fn category(&self) -> Option<String> {
-        self.meta.get(CATEGORY_KEY).and_then(|v| match v {
-            MetadataValue::String(s) => Some(
-                s.text()
-                    .expect("meta string should not be interpolated")
-                    .text()
-                    .to_string(),
-            ),
-            _ => None,
-        })
+        self.meta
+            .get(CATEGORY_KEY)
+            .and_then(MetaMapValueSource::text)
     }
 
     /// Returns the name of the workflow as HTML.
@@ -104,7 +106,7 @@ impl Workflow {
         if let Some(name) = self.name_override() {
             html! { (name) }
         } else {
-            html! { (self.name) }
+            html! { code { (self.name) } }
         }
     }
 
@@ -133,7 +135,7 @@ impl Workflow {
     /// If the value is `true`, it renders an "allowed badge", in all other
     /// cases it renders a "disabled badge".
     pub fn render_allow_nested_inputs(&self) -> Markup {
-        if let Some(MetadataValue::Boolean(b)) = self
+        if let Some(MetaMapValueSource::MetaValue(MetadataValue::Boolean(b))) = self
             .meta
             .get("allowNestedInputs")
             .or(self.meta.get("allow_nested_inputs"))
@@ -227,10 +229,6 @@ impl Runnable for Workflow {
         &self.version
     }
 
-    fn meta(&self) -> &MetaMap {
-        &self.meta
-    }
-
     fn inputs(&self) -> &[Parameter] {
         &self.inputs
     }
@@ -256,6 +254,8 @@ mod tests {
         let (doc, _) = Document::parse(
             r#"
             version 1.0
+
+            ## This comment should be ignored.
             workflow test {
                 input {
                     String name
@@ -275,10 +275,82 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
+            false,
         );
 
         assert_eq!(workflow.name(), "test");
+        assert!(workflow.meta().get("description").is_none());
         assert_eq!(workflow.inputs.len(), 1);
         assert_eq!(workflow.outputs.len(), 1);
+    }
+
+    #[test]
+    fn workflow_with_doc_comments() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.0
+
+            ## This is my workflow. It greets people.
+            workflow test {
+                input {
+                    ## The name to greet.
+                    String name
+                }
+                output {
+                    ## The generated greeting.
+                    String greeting = "Hello, ${name}!"
+                }
+            }
+            "#,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Zero),
+            ast_workflow,
+            None,
+            true,
+        );
+
+        assert_eq!(workflow.name(), "test");
+
+        assert_eq!(
+            workflow
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "This is my workflow. It greets people."
+        );
+        assert_eq!(workflow.inputs().len(), 1);
+        let input = &workflow.inputs()[0];
+        assert_eq!(
+            input
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The name to greet."
+        );
+
+        assert_eq!(workflow.outputs.len(), 1);
+        let output = &workflow.outputs()[0];
+        assert_eq!(
+            output
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The generated greeting."
+        );
     }
 }

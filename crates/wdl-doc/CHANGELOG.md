@@ -9,11 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added doc comment support for workflows and tasks ([#656](https://github.com/stjude-rust-labs/sprocket/pull/656))
+
+## 0.12.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.12.0 - 02-11-2026
+
+#### Added
+
 * Added `DocError` for concrete error reporting ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+* Added support for enumerations ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+* Added support for `meta`/`parameter_meta` sections on structs in WDL >=v1.2 ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+* Added experimental support for documentation comments on enumerations and structs ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551)).
+  The [design discussion](https://github.com/openwdl/wdl/issues/757) is still ongoing, so this feature is subject to change.
 
 #### Changed
 
+* Literal workflow names get code formatting in the H1 header. Explicitly named workflow headers are unchanged ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
+* Moved the Table of Contents of index pages to the top (above user markdown) ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
 * Documents with analysis errors will now **fail** to prevent invalid documentation (See [#555](https://github.com/stjude-rust-labs/sprocket/issues/555)) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+
+#### Fixed
+
+* The Unix/Windows toggle selection now persists between page navs ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
 
 ## 0.11.0 - 01-12-2026
 

@@ -16,7 +16,6 @@ use wdl_ast::v1::MetadataObject;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
-use crate::rules::trailing_comma::find_next_comma;
 
 /// Set indentation string
 const INDENT: &str = "    ";
@@ -387,6 +386,25 @@ fn find_next_newline(node: &wdl_ast::SyntaxNode) -> (Option<wdl_ast::SyntaxToken
             return (Some(next_node.into_token().unwrap()), is_next);
         } else {
             is_next = false;
+        }
+        next = next_node.next_sibling_or_token();
+    }
+    (None, false)
+}
+
+/// Find the next comma by consuming until we find a comma or a node.
+fn find_next_comma(node: &wdl_ast::SyntaxNode) -> (Option<wdl_ast::SyntaxToken>, bool) {
+    let mut next = node.next_sibling_or_token();
+    let mut comma_is_next = true;
+    while let Some(next_node) = next {
+        // If we find a node before a comma, then treat as no comma
+        // If we find other tokens, then mark that they precede any potential comma
+        if next_node.as_node().is_some() {
+            return (None, false);
+        } else if next_node.kind() == wdl_ast::SyntaxKind::Comma {
+            return (Some(next_node.into_token().unwrap()), comma_is_next);
+        } else {
+            comma_is_next = false;
         }
         next = next_node.next_sibling_or_token();
     }

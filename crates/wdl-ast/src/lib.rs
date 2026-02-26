@@ -30,7 +30,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashSet;
 use std::fmt;
+use std::str::FromStr;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
@@ -58,6 +60,35 @@ pub mod v1;
 mod element;
 
 pub use element::*;
+
+/// An [`AstNode`] that may have documentation comments attached to it.
+pub trait Documented<N: TreeNode>: AstNode<N> {
+    /// Get all comment nodes preceding this node that start with
+    /// [`DOC_COMMENT_PREFIX`].
+    ///
+    /// If doc comments don't apply to this node, `None` will be returned.
+    ///
+    /// The comments returned are ordered top to bottom.
+    fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
+}
+
+/// Shared doc comment extraction logic.
+pub fn doc_comments<N: TreeNode>(
+    preceding_trivia: impl IntoIterator<Item = N::Token>,
+) -> impl Iterator<Item = Comment<N::Token>> {
+    preceding_trivia
+        .into_iter()
+        .take_while(|token| {
+            token.kind() == SyntaxKind::Whitespace || token.kind() == SyntaxKind::Comment
+        })
+        .filter_map(|token| {
+            if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
+                Some(Comment::<N::Token>::cast(token).expect("should be a comment"))
+            } else {
+                None
+            }
+        })
+}
 
 /// A trait that abstracts the underlying representation of a syntax tree node.
 ///
@@ -87,6 +118,9 @@ pub trait TreeNode: Clone + fmt::Debug + PartialEq + Eq + std::hash::Hash {
 
     /// Gets all the children of the node, including tokens.
     fn children_with_tokens(&self) -> impl Iterator<Item = NodeOrToken<Self, Self::Token>>;
+
+    /// Gets the first token of the node.
+    fn first_token(&self) -> Option<Self::Token>;
 
     /// Gets the last token of the node.
     fn last_token(&self) -> Option<Self::Token>;
@@ -339,6 +373,10 @@ impl TreeNode for SyntaxNode {
         Span::new(start, usize::from(range.end()) - start)
     }
 
+    fn first_token(&self) -> Option<Self::Token> {
+        self.first_token()
+    }
+
     fn last_token(&self) -> Option<Self::Token> {
         self.last_token()
     }
@@ -563,6 +601,36 @@ impl<T: TreeToken> AstToken<T> for Whitespace<T> {
     }
 }
 
+/// The prefix for directive comments.
+pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
+/// The delimiter between a directive and its contents
+pub const DIRECTIVE_DELIMITER: &str = ":";
+
+/// A comment directive for WDL tools to respect.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Directive {
+    /// Ignore any rules contained in the set.
+    Except(HashSet<String>),
+}
+
+impl FromStr for Directive {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.strip_prefix(DIRECTIVE_COMMENT_PREFIX).ok_or(())?;
+        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER).ok_or(())?;
+        match directive.trim_end() {
+            "except" => Ok(Self::Except(HashSet::from_iter(
+                contents.split(',').map(|id| id.trim().to_string()),
+            ))),
+            _ => Err(()),
+        }
+    }
+}
+
+/// The prefix for doc comments.
+pub const DOC_COMMENT_PREFIX: &str = "##";
+
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
@@ -581,6 +649,23 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 
     fn inner(&self) -> &T {
         &self.0
+    }
+}
+
+impl Comment {
+    /// Gets whether the comment starts with DIRECIVE_COMMENT_PREFIX.
+    pub fn is_directive(&self) -> bool {
+        self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
+    }
+
+    /// Try to parse the comment as a directive.
+    pub fn directive(&self) -> Option<Directive> {
+        self.text().parse::<Directive>().ok()
+    }
+
+    /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
+    pub fn is_doc_comment(&self) -> bool {
+        self.text().starts_with(DOC_COMMENT_PREFIX)
     }
 }
 

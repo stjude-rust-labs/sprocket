@@ -17,6 +17,7 @@ use maud::Render;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxTokenExt;
 use wdl_ast::VersionStatement;
 
@@ -26,27 +27,9 @@ use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::docs_tree::PageType;
-use crate::runnable::Runnable;
-
-/// Parse the preamble comments of a document using the version statement.
-pub fn parse_preamble_comments(version: &VersionStatement) -> String {
-    let comments = version
-        .keyword()
-        .inner()
-        .preceding_trivia()
-        .map(|t| match t.kind() {
-            wdl_ast::SyntaxKind::Comment => match t.to_string().strip_prefix("## ") {
-                Some(comment) => comment.to_string(),
-                None => "".to_string(),
-            },
-            wdl_ast::SyntaxKind::Whitespace => "".to_string(),
-            _ => {
-                panic!("Unexpected token kind: {:?}", t.kind())
-            }
-        })
-        .collect::<Vec<_>>();
-    comments.join("\n")
-}
+use crate::meta::DefinitionMeta;
+use crate::meta::MetaMapExt;
+use crate::meta::doc_comments;
 
 /// A WDL document. This is an index page that links to other HTML pages.
 #[derive(Debug)]
@@ -91,10 +74,11 @@ impl Document {
 
     /// Get the preamble comments of the document as HTML if there are any.
     pub fn render_preamble(&self) -> Option<Markup> {
-        let preamble = parse_preamble_comments(&self.version_statement);
-        if preamble.is_empty() {
-            return None;
-        }
+        let keyword = self.version_statement.keyword();
+        let preamble_comments =
+            wdl_ast::doc_comments::<SyntaxNode>(keyword.inner().preceding_trivia());
+        let preamble = doc_comments(preamble_comments).full_description()?;
+
         Some(html! {
             div class="markdown-body" {
                 (Markdown(&preamble).render())
@@ -108,14 +92,27 @@ impl Document {
             html! {
                 div class="main__grid-row" x-data="{ description_expanded: false }" {
                     @match page.1.page_type() {
-                        PageType::Struct(_) => {
+                        PageType::Struct(s) => {
                             div class="main__grid-cell" {
                                 a class="text-brand-pink-400 hover:text-pink-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
                             div class="main__grid-cell" { code { "struct" } }
-                            div class="main__grid-cell" { "N/A" }
+                            div class="main__grid-cell" {
+                                (s.render_description(true))
+                            }
+                        }
+                        PageType::Enum(e) => {
+                            div class="main__grid-cell" {
+                                a class="text-brand-lime-300 hover:text-lime-200" href=(page.0.to_string_lossy()) {
+                                    (page.1.name())
+                                }
+                            }
+                            div class="main__grid-cell" { code { "enum" } }
+                            div class="main__grid-cell" { 
+                                (e.render_description(true))
+                            }
                         }
                         PageType::Task(t) => {
                             div class="main__grid-cell" {
@@ -149,12 +146,17 @@ impl Document {
                     }
                     div x-show="description_expanded" class="main__grid-full-width-cell" {
                         @match page.1.page_type() {
-                            PageType::Struct(_) => "ERROR"
                             PageType::Task(t) => {
                                 (t.render_description(false))
                             }
                             PageType::Workflow(w) => {
                                 (w.render_description(false))
+                            }
+                            PageType::Struct(s) => {
+                                (s.render_description(false))
+                            }
+                            PageType::Enum(e) => {
+                                (e.render_description(false))
                             }
                             PageType::Index(_) => "ERROR"
                         }
@@ -169,11 +171,6 @@ impl Document {
                 div class="main__badge-container" {
                     (self.render_version())
                 }
-                @if let Some(preamble) = self.render_preamble() {
-                    div id="preamble" class="main__section" {
-                        (preamble)
-                    }
-                }
                 div class="main__section" {
                     h2 id="toc" class="main__section-header" { "Table of Contents" }
                     div class="main__grid-container" {
@@ -184,6 +181,11 @@ impl Document {
                             div class="main__grid-header-separator" {}
                             (PreEscaped(rows))
                         }
+                    }
+                }
+                @if let Some(preamble) = self.render_preamble() {
+                    div id="preamble" class="main__section" {
+                        (preamble)
                     }
                 }
             }

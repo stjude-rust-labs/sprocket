@@ -2,12 +2,16 @@
 
 use std::fmt;
 
+use wdl_grammar::SyntaxTokenExt;
+
 use super::MetadataSection;
 use super::ParameterMetadataSection;
 use super::StructKeyword;
 use super::UnboundDecl;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -55,16 +59,9 @@ impl<N: TreeNode> StructDefinition<N> {
 
     /// Writes a Markdown formatted description of the struct.
     pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "```wdl\nstruct {} {{", self.name().text())?;
-        for member in self.members() {
-            writeln!(
-                f,
-                "  {} {}",
-                member.ty().inner().text(),
-                member.name().text()
-            )?;
-        }
-        writeln!(f, "}}\n```\n---")?;
+        writeln!(f, "```wdl")?;
+        writeln!(f, "{self}")?;
+        writeln!(f, "```\n---")?;
 
         if let Some(meta) = self.metadata().next()
             && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
@@ -94,6 +91,22 @@ impl<N: TreeNode> StructDefinition<N> {
     }
 }
 
+impl<N: TreeNode> fmt::Display for StructDefinition<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "struct {} {{", self.name().text())?;
+        for member in self.members() {
+            writeln!(
+                f,
+                "  {} {}",
+                member.ty().inner().text(),
+                member.name().text()
+            )?;
+        }
+        writeln!(f, "}}")?;
+        Ok(())
+    }
+}
+
 impl<N: TreeNode> AstNode<N> for StructDefinition<N> {
     fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::StructDefinitionNode
@@ -108,6 +121,12 @@ impl<N: TreeNode> AstNode<N> for StructDefinition<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for StructDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
 

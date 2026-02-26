@@ -3,10 +3,14 @@
 //! Generally speaking, unless you are working with the internals of code
 //! formatting, you're not going to be working with these.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
 
+use wdl_ast::DIRECTIVE_COMMENT_PREFIX;
+use wdl_ast::DIRECTIVE_DELIMITER;
+use wdl_ast::DOC_COMMENT_PREFIX;
+use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 
 use crate::Comment;
@@ -42,6 +46,22 @@ pub enum PostToken {
 
     /// A string literal.
     Literal(Rc<String>),
+
+    /// A doc comment block.
+    Documentation {
+        /// The current indent level.
+        num_indents: usize,
+        /// The contents of the doc comment block.
+        contents: Rc<String>,
+    },
+
+    /// A directive comment.
+    Directive {
+        /// The current indent level.
+        num_indents: usize,
+        /// The directive.
+        directive: Rc<Directive>,
+    },
 }
 
 impl std::fmt::Debug for PostToken {
@@ -52,6 +72,8 @@ impl std::fmt::Debug for PostToken {
             Self::Indent => write!(f, "<INDENT>"),
             Self::TempIndent(value) => write!(f, "<TEMP_INDENT@{value}>"),
             Self::Literal(value) => write!(f, "<LITERAL@{value}>"),
+            Self::Directive { directive, .. } => write!(f, "<DIRECTIVE@{directive:?}>"),
+            Self::Documentation { contents, .. } => write!(f, "<DOCUMENTATION@{contents}>"),
         }
     }
 }
@@ -67,16 +89,93 @@ impl Token for PostToken {
             config: &'a Config,
         }
 
+        fn write_indents(
+            f: &mut std::fmt::Formatter<'_>,
+            indent: &str,
+            num_indents: usize,
+        ) -> std::fmt::Result {
+            for _ in 0usize..num_indents {
+                write!(f, "{indent}")?;
+            }
+            Ok(())
+        }
+
         impl std::fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self.token {
                     PostToken::Space => write!(f, "{SPACE}"),
                     PostToken::Newline => write!(f, "{NEWLINE}"),
                     PostToken::Indent => {
-                        write!(f, "{indent}", indent = self.config.indent().string())
+                        write!(f, "{indent}", indent = self.config.indent.string())
                     }
                     PostToken::TempIndent(value) => write!(f, "{value}"),
                     PostToken::Literal(value) => write!(f, "{value}"),
+                    PostToken::Documentation {
+                        num_indents,
+                        contents: markdown,
+                    } => {
+                        let prefix = DOC_COMMENT_PREFIX;
+                        write!(f, "{prefix}")?;
+                        let mut lines = markdown.lines().peekable();
+                        while let Some(cur) = lines.next() {
+                            write!(f, "{cur}")?;
+                            if lines.peek().is_some() {
+                                write!(f, "{NEWLINE}")?;
+                                write_indents(f, &self.config.indent.string(), *num_indents)?;
+                                write!(f, "{prefix}")?;
+                            }
+                        }
+                        Ok(())
+                    }
+                    PostToken::Directive {
+                        num_indents,
+                        directive,
+                    } => {
+                        let mut prefix = format!("{} ", DIRECTIVE_COMMENT_PREFIX);
+                        match &**directive {
+                            Directive::Except(exceptions) => {
+                                prefix.push_str("except");
+                                prefix.push_str(DIRECTIVE_DELIMITER);
+                                prefix.push(' ');
+                                let mut rules: Vec<String> = exceptions.iter().cloned().collect();
+                                rules.sort();
+                                write!(f, "{prefix}")?;
+                                if let Some(max) = self.config.max_line_length.get() {
+                                    let indent_width = self.config.indent.num() * num_indents;
+                                    let start_width = indent_width + prefix.len();
+                                    let mut remaining = max.saturating_sub(start_width);
+                                    let mut written_to_cur_line = 0usize;
+                                    for rule in rules {
+                                        let cur_len = rule.len();
+                                        if written_to_cur_line == 0 {
+                                            write!(f, "{rule}")?;
+                                            remaining = remaining.saturating_sub(cur_len);
+                                            written_to_cur_line += 1;
+                                        } else if remaining.saturating_sub(cur_len + 2) > 0 {
+                                            // Current rule fits
+                                            write!(f, ", {rule}")?;
+                                            remaining = remaining.saturating_sub(cur_len + 2);
+                                            written_to_cur_line += 1;
+                                        } else {
+                                            // Current rule does not fit
+                                            write!(f, "{NEWLINE}")?;
+                                            write_indents(
+                                                f,
+                                                &self.config.indent.string(),
+                                                *num_indents,
+                                            )?;
+                                            write!(f, "{prefix}{rule}")?;
+                                            written_to_cur_line = 1;
+                                            remaining = max.saturating_sub(start_width + cur_len);
+                                        }
+                                    }
+                                    Ok(())
+                                } else {
+                                    write!(f, "{rules}", rules = rules.join(", "))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -93,14 +192,18 @@ impl PostToken {
     ///
     /// This is used to determine how much space the token takes up _within a
     /// single line_ for the purposes of respecting the maximum line length.
-    /// As such, newlines are considered zero-width tokens.
+    /// As such, newlines are considered zero-width tokens. Similarly, doc
+    /// comments and directive comments are considered zero-width as they always
+    /// appear on their own lines.
     fn width(&self, config: &crate::Config) -> usize {
         match self {
             Self::Space => SPACE.len(), // 1 character
             Self::Newline => 0,
-            Self::Indent => config.indent().num(),
+            Self::Indent => config.indent.num(),
             Self::TempIndent(value) => value.len(),
             Self::Literal(value) => value.len(),
+            Self::Directive { .. } => 0,
+            Self::Documentation { .. } => 0,
         }
     }
 }
@@ -179,6 +282,34 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::Comma => Some(LineBreak::After),
         _ => None,
     }
+}
+
+/// Gets the corresponding [`SyntaxKind`] that should be line broken in tandem
+/// with the provided [`SyntaxKind`].
+fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
+    match kind {
+        SyntaxKind::OpenBrace => Some(SyntaxKind::CloseBrace),
+        SyntaxKind::OpenBracket => Some(SyntaxKind::CloseBracket),
+        SyntaxKind::OpenParen => Some(SyntaxKind::CloseParen),
+        SyntaxKind::OpenHeredoc => Some(SyntaxKind::CloseHeredoc),
+        SyntaxKind::PlaceholderOpen => Some(SyntaxKind::CloseBrace),
+        _ => None,
+    }
+}
+
+/// Tracks a tandem break.
+struct TandemBreak {
+    /// The [`SyntaxKind`] which opened this tandem break.
+    pub open: SyntaxKind,
+    /// The [`SyntaxKind`] which will close this tandem break.
+    pub close: SyntaxKind,
+    /// Token depth since opening the break.
+    ///
+    /// The close break is only added when `depth == 0`.
+    /// This is incremented by one for every token matching `open` after the
+    /// break is initiated. It is decremented by one for every token
+    /// matching `close` after the break is initiated.
+    pub depth: usize,
 }
 
 /// Current position in a line.
@@ -348,10 +479,9 @@ impl Postprocessor {
                                     | None
                             ) {
                                 self.interrupted = true;
+                                self.end_line(stream);
                             }
-                            self.end_line(stream);
                             stream.push(PostToken::Literal(value));
-                            self.position = LinePosition::MiddleOfLine;
                         }
                         Comment::Inline(value) => {
                             assert!(self.position == LinePosition::MiddleOfLine);
@@ -366,7 +496,34 @@ impl Postprocessor {
                             }
                             stream.push(PostToken::Literal(value));
                         }
+                        Comment::Documentation(contents) => {
+                            if !matches!(
+                                stream.0.last(),
+                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
+                            ) {
+                                self.interrupted = true;
+                                self.end_line(stream);
+                            }
+                            stream.push(PostToken::Documentation {
+                                num_indents: self.indent_level,
+                                contents,
+                            });
+                        }
+                        Comment::Directive(directive) => {
+                            if !matches!(
+                                stream.0.last(),
+                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
+                            ) {
+                                self.interrupted = true;
+                                self.end_line(stream);
+                            }
+                            stream.push(PostToken::Directive {
+                                num_indents: self.indent_level,
+                                directive,
+                            });
+                        }
                     }
+                    self.position = LinePosition::MiddleOfLine;
                     self.end_line(stream);
                 }
             },
@@ -398,8 +555,8 @@ impl Postprocessor {
 
         // If all lines are short enough, we can just add the post_buffer to the
         // out_stream and be done.
-        if config.max_line_length().is_none()
-            || post_buffer.max_width(config) <= config.max_line_length().unwrap()
+        if config.max_line_length.get().is_none()
+            || post_buffer.max_width(config) <= config.max_line_length.get().unwrap()
         {
             out_stream.extend(post_buffer);
             return;
@@ -410,17 +567,17 @@ impl Postprocessor {
         // and then we iterate through the in_stream again to actually insert
         // them in the proper places.
 
-        let max_length = config.max_line_length().unwrap();
+        let max_length = config.max_line_length.get().unwrap();
 
-        let mut potential_line_breaks: HashSet<usize> = HashSet::new();
+        let mut potential_line_breaks: HashMap<usize, SyntaxKind> = HashMap::new();
         for (i, token) in in_stream.iter().enumerate() {
             if let PreToken::Literal(_, kind) = token {
                 match can_be_line_broken(*kind) {
                     Some(LineBreak::Before) => {
-                        potential_line_breaks.insert(i);
+                        potential_line_breaks.insert(i, *kind);
                     }
                     Some(LineBreak::After) => {
-                        potential_line_breaks.insert(i + 1);
+                        potential_line_breaks.insert(i + 1, *kind);
                     }
                     None => {}
                 }
@@ -440,10 +597,24 @@ impl Postprocessor {
         // Reset the indent level.
         self.indent_level = starting_indent;
 
+        let mut break_stack: Vec<TandemBreak> = Vec::new();
+
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
-            if potential_line_breaks.contains(&i) {
-                if post_buffer.last_line_width(config) > max_length {
+            if let Some(break_kind) = potential_line_breaks.get(&i) {
+                if let Some(top_of_stack) = break_stack.last_mut() {
+                    if *break_kind == top_of_stack.open {
+                        top_of_stack.depth += 1;
+                    } else if *break_kind == top_of_stack.close {
+                        if top_of_stack.depth > 0 {
+                            top_of_stack.depth -= 1;
+                        } else {
+                            break_stack.pop();
+                            self.interrupted = false;
+                            self.end_line(&mut post_buffer);
+                        }
+                    }
+                } else if post_buffer.last_line_width(config) > max_length {
                     // The line is already too long, and taking the next step
                     // can only make it worse. Insert a line break here.
                     self.interrupted = true;
@@ -474,6 +645,17 @@ impl Postprocessor {
                     pre_buffer.peek().map(|(_, v)| &**v),
                     &mut post_buffer,
                 );
+
+                // SAFETY: if cache is Some(_) this step must have a potential line break
+                let cur_token = potential_line_breaks.get(&i).unwrap();
+                if let Some(also_break_on) = tandem_line_break(*cur_token) {
+                    let tandem_break = TandemBreak {
+                        open: *cur_token,
+                        close: also_break_on,
+                        depth: 0,
+                    };
+                    break_stack.push(tandem_break);
+                }
             }
         }
 

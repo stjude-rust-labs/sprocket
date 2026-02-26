@@ -413,9 +413,9 @@ impl EvaluationError {
         use codespan_reporting::diagnostic::Label;
         use codespan_reporting::diagnostic::LabelStyle;
         use codespan_reporting::files::SimpleFiles;
+        use codespan_reporting::term;
         use codespan_reporting::term::Config;
         use codespan_reporting::term::termcolor::Buffer;
-        use codespan_reporting::term::{self};
         use wdl_ast::AstNode;
 
         match self {
@@ -444,12 +444,12 @@ impl EvaluationError {
                         }));
 
                 let mut buffer = Buffer::no_color();
-                term::emit(&mut buffer, &Config::default(), &files, &diagnostic)
+                term::emit_to_write_style(&mut buffer, &Config::default(), &files, &diagnostic)
                     .expect("failed to emit diagnostic");
 
                 String::from_utf8(buffer.into_inner()).expect("should be UTF-8")
             }
-            Self::Other(e) => format!("{e:?}"),
+            Self::Other(e) => format!("{e:#}"),
         }
     }
 }

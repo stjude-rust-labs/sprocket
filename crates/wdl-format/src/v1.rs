@@ -16,6 +16,7 @@ pub mod r#struct;
 pub mod task;
 pub mod workflow;
 
+use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -28,7 +29,7 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// It will panic if the provided `element` is not a valid WDL v1.x AST.
-pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, config: &Config) {
     fn last_token_of_element(elem: &FormatElement) -> SyntaxToken {
         elem.element()
             .as_node()
@@ -42,7 +43,7 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
 
     let version_statement = children.next().expect("version statement");
     assert!(version_statement.element().kind() == SyntaxKind::VersionStatementNode);
-    (&version_statement).write(stream);
+    (&version_statement).write(stream, config);
 
     stream.blank_line();
 
@@ -85,7 +86,7 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut trailing_comments = None;
 
     for import in imports {
-        (&import).write(stream);
+        (&import).write(stream, config);
 
         if trailing_comments.is_none() {
             trailing_comments = find_trailing_comments(&last_token_of_element(import));
@@ -95,7 +96,7 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     stream.blank_line();
 
     for child in &remainder {
-        (child).write(stream);
+        (child).write(stream, config);
 
         if trailing_comments.is_none() {
             trailing_comments = find_trailing_comments(&last_token_of_element(child));
@@ -153,9 +154,32 @@ fn find_trailing_comments(token: &SyntaxToken) -> Option<NonEmpty<SyntaxToken>> 
 }
 
 /// Formats a [`VersionStatement`](wdl_ast::VersionStatement).
-pub fn format_version_statement(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
-    for child in element.children().expect("version statement children") {
-        (&child).write(stream);
+pub fn format_version_statement(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut children = element.children().expect("version statement children");
+
+    // We never want to start a WDL document with a blank line,
+    // but the preceding trivia may include one that will
+    // be added if we don't exclude it.
+    let version_keyword = children.next().expect("version keyword");
+    assert!(version_keyword.element().kind() == SyntaxKind::VersionKeyword);
+    let mut buffer = TokenStream::<PreToken>::default();
+    (&version_keyword).write(&mut buffer, config);
+    let mut buff_iter = buffer.into_iter();
+    let first_token = buff_iter.next().expect("at least one token");
+    if !matches!(first_token, PreToken::Trivia(crate::Trivia::BlankLine)) {
+        stream.push(first_token);
+    }
+    for remaining in buff_iter {
+        stream.push(remaining);
+    }
+    stream.end_word();
+
+    for child in children {
+        (&child).write(stream, config);
         stream.end_word();
     }
     stream.end_line();
@@ -167,17 +191,21 @@ pub fn format_version_statement(element: &FormatElement, stream: &mut TokenStrea
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// input section.
-pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_input_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("input section children");
 
     let input_keyword = children.next().expect("input section input keyword");
     assert!(input_keyword.element().kind() == SyntaxKind::InputKeyword);
-    (&input_keyword).write(stream);
+    (&input_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("input section open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut inputs = Vec::new();
@@ -191,19 +219,21 @@ pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<Pr
         }
     }
 
-    inputs.sort_by(|a, b| {
-        let a_decl =
-            wdl_ast::v1::Decl::cast(a.element().as_node().unwrap().inner().clone()).unwrap();
-        let b_decl =
-            wdl_ast::v1::Decl::cast(b.element().as_node().unwrap().inner().clone()).unwrap();
-        sort::compare_decl(&a_decl, &b_decl)
-    });
+    if config.sort_inputs {
+        inputs.sort_by(|a, b| {
+            let a_decl =
+                wdl_ast::v1::Decl::cast(a.element().as_node().unwrap().inner().clone()).unwrap();
+            let b_decl =
+                wdl_ast::v1::Decl::cast(b.element().as_node().unwrap().inner().clone()).unwrap();
+            sort::compare_decl(&a_decl, &b_decl)
+        });
+    }
     for input in inputs {
-        (&input).write(stream);
+        (&input).write(stream, config);
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("input section close brace")).write(stream);
+    (&close_brace.expect("input section close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -213,17 +243,21 @@ pub fn format_input_section(element: &FormatElement, stream: &mut TokenStream<Pr
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// output section.
-pub fn format_output_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_output_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("output section children");
 
     let output_keyword = children.next().expect("output keyword");
     assert!(output_keyword.element().kind() == SyntaxKind::OutputKeyword);
-    (&output_keyword).write(stream);
+    (&output_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("output section open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     for child in children {
@@ -232,7 +266,7 @@ pub fn format_output_section(element: &FormatElement, stream: &mut TokenStream<P
         } else {
             assert!(child.element().kind() == SyntaxKind::BoundDeclNode);
         }
-        (&child).write(stream);
+        (&child).write(stream, config);
         stream.end_line();
     }
 }
@@ -243,21 +277,25 @@ pub fn format_output_section(element: &FormatElement, stream: &mut TokenStream<P
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal input item.
-pub fn format_literal_input_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_input_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal input item children");
 
     let key = children.next().expect("literal input item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream);
+    (&key).write(stream, config);
 
     let colon = children.next().expect("literal input item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let hints_node = children.next().expect("literal input item hints node");
     assert!(hints_node.element().kind() == SyntaxKind::LiteralHintsNode);
-    (&hints_node).write(stream);
+    (&hints_node).write(stream, config);
 }
 
 /// Formats a [`LiteralInput`](wdl_ast::v1::LiteralInput).
@@ -266,28 +304,49 @@ pub fn format_literal_input_item(element: &FormatElement, stream: &mut TokenStre
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal input.
-pub fn format_literal_input(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_input(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal input children");
 
     let input_keyword = children.next().expect("literal input keyword");
     assert!(input_keyword.element().kind() == SyntaxKind::InputKeyword);
-    (&input_keyword).write(stream);
+    (&input_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal input open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
+    let mut items = Vec::new();
+    let mut commas = Vec::new();
+    let mut close_brace = None;
+
     for child in children {
-        if child.element().kind() == SyntaxKind::CloseBrace {
-            stream.decrement_indent();
-        } else {
-            assert!(child.element().kind() == SyntaxKind::LiteralInputItemNode);
+        match child.element().kind() {
+            SyntaxKind::LiteralInputItemNode => items.push(child),
+            SyntaxKind::Comma => commas.push(child),
+            SyntaxKind::CloseBrace => close_brace = Some(child),
+            _ => panic!("unexpected literal input child"),
         }
-        (&child).write(stream);
     }
-    stream.end_line();
+
+    let mut commas = commas.iter();
+    for item in items {
+        (&item).write(stream, config);
+        if let Some(comma) = commas.next() {
+            (comma).write(stream, config);
+        } else if config.trailing_commas {
+            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        }
+        stream.end_line();
+    }
+
+    stream.decrement_indent();
+    (&close_brace.expect("literal input close brace")).write(stream, config);
 }
 
 /// Formats a [`LiteralHintsItem`](wdl_ast::v1::LiteralHintsItem).
@@ -296,20 +355,24 @@ pub fn format_literal_input(element: &FormatElement, stream: &mut TokenStream<Pr
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal hints item.
-pub fn format_literal_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_hints_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal hints item children");
 
     let key = children.next().expect("literal hints item key");
     assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream);
+    (&key).write(stream, config);
 
     let colon = children.next().expect("literal hints item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("literal hints item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 }
 
 /// Formats a [`LiteralHints`](wdl_ast::v1::LiteralHints).
@@ -318,17 +381,21 @@ pub fn format_literal_hints_item(element: &FormatElement, stream: &mut TokenStre
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal hints.
-pub fn format_literal_hints(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_hints(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal hints children");
 
     let hints_keyword = children.next().expect("literal hints keyword");
     assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
-    (&hints_keyword).write(stream);
+    (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal hints open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -346,17 +413,17 @@ pub fn format_literal_hints(element: &FormatElement, stream: &mut TokenStream<Pr
 
     let mut commas = commas.iter();
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         if let Some(comma) = commas.next() {
-            (comma).write(stream);
-        } else {
+            (comma).write(stream, config);
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("literal hints close brace")).write(stream);
+    (&close_brace.expect("literal hints close brace")).write(stream, config);
 }
 
 /// Formats a [`LiteralOutputItem`](wdl_ast::v1::LiteralOutputItem).
@@ -365,22 +432,26 @@ pub fn format_literal_hints(element: &FormatElement, stream: &mut TokenStream<Pr
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal output item.
-pub fn format_literal_output_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_output_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal output item children");
 
     for child in children.by_ref() {
         if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
-            (&child).write(stream);
+            (&child).write(stream, config);
         } else {
             assert!(child.element().kind() == SyntaxKind::Colon);
-            (&child).write(stream);
+            (&child).write(stream, config);
             stream.end_word();
             break;
         }
     }
 
     let value = children.next().expect("literal output item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 }
 
 /// Formats a [`LiteralOutput`](wdl_ast::v1::LiteralOutput).
@@ -389,17 +460,21 @@ pub fn format_literal_output_item(element: &FormatElement, stream: &mut TokenStr
 ///
 /// This will panic if the provided `element` is not a valid WDL v1.x
 /// literal output.
-pub fn format_literal_output(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_literal_output(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("literal output children");
 
     let output_keyword = children.next().expect("literal output keyword");
     assert!(output_keyword.element().kind() == SyntaxKind::OutputKeyword);
-    (&output_keyword).write(stream);
+    (&output_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal output open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -417,15 +492,15 @@ pub fn format_literal_output(element: &FormatElement, stream: &mut TokenStream<P
 
     let mut commas = commas.iter();
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         if let Some(comma) = commas.next() {
-            (comma).write(stream);
-        } else {
+            (comma).write(stream, config);
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("literal output close brace")).write(stream);
+    (&close_brace.expect("literal output close brace")).write(stream, config);
 }

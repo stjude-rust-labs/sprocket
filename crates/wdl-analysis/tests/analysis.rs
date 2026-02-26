@@ -134,7 +134,7 @@ fn compare_results(test: &Path, results: Vec<AnalysisResult>) -> Result<()> {
             let source = result.document().root().text().to_string();
             let file = SimpleFile::new(path, &source);
             for diagnostic in diagnostics {
-                term::emit(
+                term::emit_to_write_style(
                     &mut buffer,
                     &CodespanConfig::default(),
                     &file,
@@ -188,6 +188,11 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
                 .context("adding test directory")?;
             analyzer.analyze(()).await.context("analyzing documents")?
         };
+
+    if results.is_empty() {
+        bail!("there are no analysis results");
+    }
+
     compare_results(test, results)
 }
 

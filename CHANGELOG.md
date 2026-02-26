@@ -9,13 +9,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
-  rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
+* New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
 
 ### Changed
 
-* `sprocket dev doc` will now **fail** in the presence of analysis errors 
+* Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
+
+### Fixed
+
+* Fixed a regression where nested inputs and task requirements/hints were not
+  being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
+
+## 0.21.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.21.0 - 02-11-2026
+
+### Added
+
+* Added "output assertions" to `sprocket dev test` for asserting on WDL
+  values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
+* Added `common.wdl.fallback_version` setting to `sprocket.toml` for
+  interpreting WDL documents with unrecognized version strings (e.g., `version
+  development`) as a specific supported version
+  ([#612](https://github.com/stjude-rust-labs/sprocket/pull/612)).
+* Added `--index-on` flag to `sprocket run` for output indexing via symlinks
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added `--output-dir` flag to `sprocket run`, replacing `--runs-dir` and
+  `--output` with a unified output directory structure matching the server
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added SQLite database tracking to `sprocket run` with full provenance
+  including session, run records, and task execution details
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added an `output.log` file to the run directory that captures all logged
+  messages from `sprocket run` ([#613](https://github.com/stjude-rust-labs/sprocket/pull/613)).
+* Added reading configuration from a `sprocket.toml` next to the sprocket
+  executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
+* Added `sprocket dev server` command for running an HTTP API server for
+  workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added SQLite-backed database layer for tracking sessions, runs, and tasks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added index system for organizing run outputs via symlinks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
+  rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
+* Added the `--with-doc-comments` CLI option to `sprocket dev doc` to enable
+  support for the experimental [documentation comments](https://sprocket.bio/subcommands/doc.html#documentation-comments)
+  feature. ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+
+### Changed
+
+* The `sprocket run` command now uses the same execution infrastructure as the
+  server ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Replaced `--runs-dir` and `--output` flags with `--output-dir` in `sprocket run`
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Unified `AllowedSource` and `Source` types into a single `Source` type
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* The values for the `common.report_mode` setting in `sprocket.toml` have
+  changed to lower kebab-case, e.g. `full` and `one-line` ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* The `common.color` setting in `sprocket.toml` has been changed from being a
+  boolean to an enum with values `auto` (default), `always`, and `never`. ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Replaced the `--no-color` option for a global `--color` option to control
+  output colorization and made the uncolorized output consistent ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* `sprocket dev doc` will now **fail** in the presence of analysis errors
   that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
+
+### Fixed
+
+* Fixed `sprocket validate` not checking that `File` and `Directory` inputs
+  exist ([#615](https://github.com/stjude-rust-labs/sprocket/pull/615)).
+* Fixed a race condition where canceled workflows would be marked as `Failed`
+  instead of `Canceled` ([#601](https://github.com/stjude-rust-labs/sprocket/pull/601)).
+
+### Dependencies
+
+* Dependencies updated to latest ([#594](https://github.com/stjude-rust-labs/sprocket/pull/594)).
 
 ## 0.20.1 - 01-12-2026
 

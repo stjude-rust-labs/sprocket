@@ -2,6 +2,7 @@
 with_tabs = false
 indentation_size = 4
 max_line_length = 90
+sort_inputs = false
 
 [check]
 except = []
@@ -24,7 +25,7 @@ backend = "third"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
-runs_dir = "runs"
+output_dir = "./out"
 
 [run.http]
 
@@ -54,7 +55,43 @@ cleanup = true
 
 [run.storage.google]
 
+[server]
+host = "127.0.0.1"
+port = 8080
+allowed_origins = []
+output_directory = "./out"
+allowed_file_paths = []
+allowed_urls = []
+
+[server.database]
+
+[server.engine]
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+
+[server.engine.http]
+
+[server.engine.workflow.scatter]
+
+[server.engine.task]
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+cache = "off"
+digests = "weak"
+
+[server.engine.storage.azure]
+
+[server.engine.storage.s3]
+
+[server.engine.storage.google]
+
+[test]
+parallelism = 50
+
 [common]
-color = true
-report_mode = "Full"
+color = "auto"
+report_mode = "full"
+
+[common.wdl]
 
