@@ -2,9 +2,11 @@
 
 mod indent;
 mod max_line_length;
+mod newline;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
+pub use newline::NewlineStyle;
 
 /// Default for whether input sorting is enabled.
 const SORT_INPUTS_DEFAULT: bool = false;
@@ -18,14 +20,16 @@ pub struct Config {
     pub max_line_length: MaxLineLength,
     /// Whether to sort input sections.
     pub sort_inputs: bool,
+    /// The newline style.
+    pub newline_style: NewlineStyle,
 }
-
 impl Default for Config {
     fn default() -> Self {
         Self {
             indent: Indent::default(),
             max_line_length: MaxLineLength::default(),
             sort_inputs: SORT_INPUTS_DEFAULT,
+            newline_style: NewlineStyle::default(),
         }
     }
 }
@@ -34,6 +38,12 @@ impl Config {
     /// Overwrite the indentation configuration.
     pub fn indent(mut self, indent: Indent) -> Self {
         self.indent = indent;
+        self
+    }
+
+    /// Set the newline style.
+    pub fn newline_style(mut self, newline_style: NewlineStyle) -> Self {
+        self.newline_style = newline_style;
         self
     }
 
