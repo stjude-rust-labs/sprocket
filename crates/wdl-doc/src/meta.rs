@@ -469,6 +469,7 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
 
     map.insert(
         DESCRIPTION_KEY.to_string(),
+        // SAFETY: if paragraphs were empty, we would have returned early
         MetaMapValueSource::Comment(paragraphs.next().unwrap().to_string()),
     );
 
