@@ -52,6 +52,8 @@ jobs:
 
   test:
     runs-on: ${{ matrix.os }}
+    env:
+      RUST_LOG: trace
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +81,7 @@ jobs:
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
-        run: RUST_LOG=trace cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
+        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
 
   engine-test:
     runs-on: ${{ matrix.os }}
