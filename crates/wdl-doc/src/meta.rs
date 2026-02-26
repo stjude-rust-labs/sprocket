@@ -475,7 +475,7 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
 
     let help = paragraphs.fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
-            acc.push('\n');
+            acc.push_str("\n\n");
         }
 
         acc.push_str(&p.to_string());
