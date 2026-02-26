@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* `non_snake_case` and `allowed_typed_identifiers` configuration keys for allowing certain names in the SnakeCase and
+* `allowed_names` configuration key for allowing certain names in the SnakeCase and
   DeclarationName rules ([#660](https://github.com/stjude-rust-labs/sprocket/pull/660)).
 
 #### Changed
