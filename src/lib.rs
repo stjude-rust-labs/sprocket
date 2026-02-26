@@ -108,7 +108,7 @@ async fn real_main() -> CommandResult<()> {
             )?;
             config
                 .validate()
-                .with_context(|| "validating provided configuration")?;
+                .context("validating provided configuration")?;
             config
         }
     };

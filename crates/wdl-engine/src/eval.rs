@@ -413,9 +413,9 @@ impl EvaluationError {
         use codespan_reporting::diagnostic::Label;
         use codespan_reporting::diagnostic::LabelStyle;
         use codespan_reporting::files::SimpleFiles;
+        use codespan_reporting::term;
         use codespan_reporting::term::Config;
         use codespan_reporting::term::termcolor::Buffer;
-        use codespan_reporting::term::{self};
         use wdl_ast::AstNode;
 
         match self {
