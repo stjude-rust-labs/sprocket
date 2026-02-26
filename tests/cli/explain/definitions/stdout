@@ -15,7 +15,7 @@ Lint directives are special comments that begin with `#@ except:` followed by a 
 For example:
 
 ```wdl
-#@ except: DoubleQuotes, ConciseInput
+#@ except: LineWidth, CommentWhitespace
 ```
 
 ### Preamble Comments
