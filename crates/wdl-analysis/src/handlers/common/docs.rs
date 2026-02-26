@@ -8,6 +8,7 @@ use rowan::TextSize;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Documented;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumDefinition;
@@ -37,52 +38,66 @@ pub fn make_md_docs(definition: String) -> Option<Documentation> {
     }))
 }
 
-/// Converts a list of doc comments to a Markdown string, stripping the `## `
-/// prefix.
+/// Strips [`DOC_COMMENT_PREFIX`] from each comment, then strips the minimum
+/// common leading whitespace from all non-empty lines (matching what `wdl-doc`
+/// does). Returns the normalized lines; empty lines represent paragraph breaks.
+fn normalize_doc_comments(comments: &[Comment]) -> Vec<String> {
+    // Strip the `##` prefix; skip any comment that doesn't start with it.
+    let raw: Vec<&str> = comments
+        .iter()
+        .filter_map(|c| c.inner().text().strip_prefix(DOC_COMMENT_PREFIX))
+        .collect();
+
+    // Minimum indentation among non-blank lines (usually 1 for the space after
+    // `##`).
+    let min_indent = raw
+        .iter()
+        .filter(|line| line.chars().any(|c| !c.is_whitespace()))
+        .map(|line| line.chars().take_while(|c| *c == ' ' || *c == '\t').count())
+        .min()
+        .unwrap_or(0);
+
+    raw.into_iter()
+        .map(|line| {
+            if line.chars().all(char::is_whitespace) {
+                String::new()
+            } else {
+                line[min_indent..].to_string()
+            }
+        })
+        .collect()
+}
+
+/// Converts a list of doc comments to a Markdown string.
 ///
-/// Returns `None` if the list is empty. All paragraphs are included.
+/// Strips [`DOC_COMMENT_PREFIX`] and normalizes indentation. Returns `None` if
+/// the list is empty. All paragraphs are included.
 pub(crate) fn comments_to_string(comments: Vec<Comment>) -> Option<String> {
     if comments.is_empty() {
         return None;
     }
-    let lines: Vec<String> = comments
-        .iter()
-        .map(|c| {
-            let text = c.inner().text();
-            text.strip_prefix("## ")
-                .or_else(|| text.strip_prefix("##"))
-                .unwrap_or(text)
-                .to_string()
-        })
-        .collect();
+    let lines = normalize_doc_comments(&comments);
     Some(lines.join("\n"))
 }
 
-/// Returns the first paragraph of doc comments as a Markdown string, stripping
-/// the `## ` prefix.
+/// Returns the first paragraph of doc comments as a Markdown string.
 ///
-/// A paragraph ends at the first empty `##` comment (i.e., `##` with no
-/// following text). Returns `None` if the list is empty.
+/// A paragraph ends at the first empty line (bare `##` with no text). Returns
+/// `None` if the list is empty.
 fn first_paragraph_doc(comments: Vec<Comment>) -> Option<String> {
     if comments.is_empty() {
         return None;
     }
-    let mut lines: Vec<String> = Vec::new();
-    for c in comments {
-        let text = c.inner().text();
-        let stripped = text
-            .strip_prefix("## ")
-            .or_else(|| text.strip_prefix("##"))
-            .unwrap_or(text);
-        if stripped.is_empty() {
-            break;
-        }
-        lines.push(stripped.to_string());
-    }
-    if lines.is_empty() {
+    let lines = normalize_doc_comments(&comments);
+    let para: Vec<&str> = lines
+        .iter()
+        .map(String::as_str)
+        .take_while(|line| !line.is_empty())
+        .collect();
+    if para.is_empty() {
         None
     } else {
-        Some(lines.join("\n"))
+        Some(para.join("\n"))
     }
 }
 
@@ -113,8 +128,7 @@ fn write_documented_inputs(
             write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
         }
         if let Some(doc_str) = doc {
-            writeln!(f)?;
-            writeln!(f, "  {doc_str}")?;
+            writeln!(f, "\n{doc_str}")?;
         } else if let Some(meta_val) = get_param_meta(&name_text, param_meta) {
             writeln!(f)?;
             format_meta_value(f, &meta_val, 2)?;
@@ -146,8 +160,7 @@ fn write_documented_outputs(
         let doc = first_paragraph_doc(decl.doc_comments().unwrap_or_default());
         write!(f, "- **{}**: `{}`", name_text, ty_text)?;
         if let Some(doc_str) = doc {
-            writeln!(f)?;
-            writeln!(f, "  {doc_str}")?;
+            writeln!(f, "\n{doc_str}")?;
         } else if let Some(meta_val) = get_param_meta(&name_text, param_meta) {
             writeln!(f)?;
             format_meta_value(f, &meta_val, 2)?;
@@ -260,10 +273,10 @@ fn render_struct_doc(n: &StructDefinition) -> String {
                     )
                 });
             if let Some(d) = doc {
+                let _ = writeln!(s, "\n{d}");
+            } else {
                 let _ = writeln!(s);
-                let _ = write!(s, "{d}");
             }
-            let _ = writeln!(s);
         }
     }
 
