@@ -253,7 +253,7 @@ impl fmt::Display for JobExitCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.signal > 0 {
             // Mask the lower 7 bits of the signal for display
-            write!(f, "signal number `{signal}`", signal = self.signal & 0xF7)
+            write!(f, "signal number `{signal}`", signal = self.signal & 0x7F)
         } else {
             write!(f, "exit code `{code}`", code = self.exit_code)
         }
