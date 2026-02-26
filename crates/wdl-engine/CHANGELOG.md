@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs
+  without waiting; instead a monitor now periodically checks job status with
+  `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).
 * Removed support for constructing `Map` values with optional key types ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
 
 #### Fixed

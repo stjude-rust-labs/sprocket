@@ -143,6 +143,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
         Box::<rules::DescriptionLengthRule>::default(),
+        Box::<rules::DocCommentTabsRule>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
