@@ -1,7 +1,6 @@
 //! Module for the lint rules.
 
 mod call_input_keyword;
-mod call_input_spacing;
 mod command_section_indentation;
 mod concise_input;
 mod consistent_newlines;
@@ -23,10 +22,8 @@ mod import_sorted;
 mod input_name;
 mod input_sorted;
 mod known_rules;
-mod line_width;
 mod matching_output_meta;
 mod meta_description;
-mod meta_key_value_formatting;
 mod meta_sections;
 mod output_name;
 mod parameter_meta_matched;
@@ -40,7 +37,6 @@ mod snake_case;
 mod todo_comment;
 
 pub use call_input_keyword::*;
-pub use call_input_spacing::*;
 pub use command_section_indentation::*;
 pub use concise_input::*;
 pub use consistent_newlines::*;
@@ -62,10 +58,8 @@ pub use import_sorted::*;
 pub use input_name::*;
 pub use input_sorted::*;
 pub use known_rules::*;
-pub use line_width::*;
 pub use matching_output_meta::*;
 pub use meta_description::*;
-pub use meta_key_value_formatting::*;
 pub use meta_sections::*;
 pub use output_name::*;
 pub use parameter_meta_matched::*;
