@@ -107,6 +107,7 @@ pub(crate) trait MetaMapExt {
     /// Returns the rendered [`Markup`] of the [`self.full_description()`].
     ///
     /// See [`Self::render_description()`] for defaults.
+    #[expect(dead_code, reason = "Pending design work")]
     fn render_full_description(&self, summarize: bool) -> Markup;
     /// Returns the rendered [`Markup`] of the remaining metadata keys,
     /// excluding the keys specified in `filter_keys`.

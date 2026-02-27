@@ -125,10 +125,10 @@ impl Struct {
                                     code { (member.decl.ty()) }
                                 }
                                 div class="main__grid-cell" {
-                                    (member.meta().render_full_description(true))
+                                    (member.meta().render_description(true))
                                 }
                                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                                    (member.meta().render_full_description(false))
+                                    (member.meta().render_description(false))
                                 }
                             }
                             div class="main__grid-row-separator" {}

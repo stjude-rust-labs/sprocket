@@ -219,10 +219,10 @@ impl Parameter {
                     div class="main__grid-cell" { (self.render_expr(true)) }
                 }
                 div class="main__grid-cell" {
-                    (self.meta().render_full_description(true))
+                    (self.meta().render_description(true))
                 }
                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                    (self.meta().render_full_description(false))
+                    (self.meta().render_description(false))
                 }
                 @if show_expr {
                     div x-show="expr_expanded" class="main__grid-full-width-cell" {

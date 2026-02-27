@@ -91,10 +91,10 @@ impl Enum {
                                 }
 
                                 div class="main__grid-cell" {
-                                    (choice.meta().render_full_description(true))
+                                    (choice.meta().render_description(true))
                                 }
                                 div x-show="description_expanded" class="main__grid-full-width-cell" {
-                                    (choice.meta().render_full_description(false))
+                                    (choice.meta().render_description(false))
                                 }
                             }
                             div class="main__grid-row-separator" {}
@@ -199,7 +199,7 @@ mod tests {
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
-                "An RGB24 color enum\nEach variant is represented as a 24-bit hexadecimal RGB \
+                "An RGB24 color enum\n\nEach variant is represented as a 24-bit hexadecimal RGB \
                  string with exactly one non-zero channel."
             )
         );
