@@ -181,7 +181,7 @@ impl Rule for UnusedDocCommentsRule {
 
     fn explanation(&self) -> &'static str {
         "Some Workflow Definition Language items do not support doc comments (`##`). This lint \
-         reports if a doc comment is attached an item that isn't supported.
+         reports if a doc comment is attached to an item that isn't supported.
 
         Doc comments are supported on:
 
