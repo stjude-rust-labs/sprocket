@@ -38,6 +38,14 @@ warning[SnakeCase]: output name `badOut` is not snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
+warning[SnakeCase]: task name `BadButAllowedTask` is not snake_case
+   ┌─ tests/lints/snake-case/source.wdl:43:6
+   │
+43 │ task BadButAllowedTask {
+   │      ^^^^^^^^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `BadButAllowedTask` with `bad_but_allowed_task`
+
 warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:82:12
    │
