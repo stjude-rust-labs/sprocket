@@ -101,30 +101,32 @@ fn first_paragraph_doc(comments: Vec<Comment>) -> Option<String> {
     }
 }
 
-/// Formats the input section with doc comments preferred over parameter
-/// metadata for each declaration's description.
-fn write_documented_inputs(
+/// Writes declarations under `header`, preferring doc comments over
+/// `param_meta` for each entry's description.
+///
+/// When `show_default` is `true`, bound declarations include their default
+/// value expression (used for inputs; outputs omit it).
+fn write_documented_decls(
     f: &mut impl Write,
-    input: Option<&InputSection>,
+    header: &str,
+    decls: impl Iterator<Item = Decl>,
     param_meta: Option<&ParameterMetadataSection>,
+    show_default: bool,
 ) -> std::fmt::Result {
-    let Some(input) = input else {
-        return Ok(());
-    };
-    if input.declarations().next().is_none() {
+    let decls: Vec<Decl> = decls.collect();
+    if decls.is_empty() {
         return Ok(());
     }
-    writeln!(f, "\n**Inputs**")?;
-    for decl in input.declarations() {
+    writeln!(f, "\n{header}")?;
+    for decl in decls {
         let name_text = decl.name().text().to_string();
         let ty_text = decl.ty().inner().text().to_string();
-        let default_val = decl.expr().map(|e| e.text().to_string());
         let doc = match &decl {
             Decl::Unbound(u) => first_paragraph_doc(u.doc_comments().unwrap_or_default()),
             Decl::Bound(b) => first_paragraph_doc(b.doc_comments().unwrap_or_default()),
         };
         write!(f, "- **{}**: `{}`", name_text, ty_text)?;
-        if let Some(val) = &default_val {
+        if show_default && let Some(val) = decl.expr().map(|e| e.text().to_string()) {
             write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
         }
         if let Some(doc_str) = doc {
@@ -140,6 +142,19 @@ fn write_documented_inputs(
     Ok(())
 }
 
+/// Formats the input section with doc comments preferred over parameter
+/// metadata for each declaration's description.
+fn write_documented_inputs(
+    f: &mut impl Write,
+    input: Option<&InputSection>,
+    param_meta: Option<&ParameterMetadataSection>,
+) -> std::fmt::Result {
+    let Some(input) = input else {
+        return Ok(());
+    };
+    write_documented_decls(f, "**Inputs**", input.declarations(), param_meta, true)
+}
+
 /// Formats the output section with doc comments preferred over parameter
 /// metadata for each declaration's description.
 fn write_documented_outputs(
@@ -150,26 +165,13 @@ fn write_documented_outputs(
     let Some(output) = output else {
         return Ok(());
     };
-    if output.declarations().next().is_none() {
-        return Ok(());
-    }
-    writeln!(f, "\n**Outputs**")?;
-    for decl in output.declarations() {
-        let name_text = decl.name().text().to_string();
-        let ty_text = decl.ty().inner().text().to_string();
-        let doc = first_paragraph_doc(decl.doc_comments().unwrap_or_default());
-        write!(f, "- **{}**: `{}`", name_text, ty_text)?;
-        if let Some(doc_str) = doc {
-            writeln!(f, "\n{doc_str}")?;
-        } else if let Some(meta_val) = get_param_meta(&name_text, param_meta) {
-            writeln!(f)?;
-            format_meta_value(f, &meta_val, 2)?;
-            writeln!(f)?;
-        } else {
-            writeln!(f)?;
-        }
-    }
-    Ok(())
+    write_documented_decls(
+        f,
+        "**Outputs**",
+        output.declarations().map(Decl::Bound),
+        param_meta,
+        false,
+    )
 }
 
 /// Shared rendering logic for task and workflow definitions.
