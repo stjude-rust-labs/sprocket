@@ -67,7 +67,8 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::BoundDeclNode,
 ];
 
-/// Determines whether the SyntaxNodeOrToken is a valid target for a doc comment.
+/// Determines whether the SyntaxNodeOrToken is a valid target for a doc
+/// comment.
 fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     let kind = doc_comment_target.kind();
 
