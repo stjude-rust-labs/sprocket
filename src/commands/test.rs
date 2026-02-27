@@ -460,6 +460,7 @@ impl Runner {
                         };
                     let mut test_iterations = Vec::new();
                     for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
+                        let test_num = test_num + 1; // start count at 1
                         let inputs = match run_inputs
                             .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
                                 Ok(json_val) => Ok((format!("{target}.{key}"), json_val)),
