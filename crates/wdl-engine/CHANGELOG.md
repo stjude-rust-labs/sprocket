@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Refactored LSF backend to more efficiently track LSF jobs ([#562](github.com/stjude-rust-labs/sprocket/pull/562)).
 * Refactored how task execution backends are passed data relating to the tasks
   to execute ([#552](https://github.com/stjude-rust-labs/sprocket/pull/552)).
+* Renamed enum evaluator cache terminology from `variant` to `choice` for
+  consistency with WDL 1.3 enum naming.
 
 ## 0.11.1 - 01-12-2026
 
