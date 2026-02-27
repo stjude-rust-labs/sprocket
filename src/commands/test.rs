@@ -521,7 +521,7 @@ async fn run_tests(
                             .await
                             .expect("futures should not be exhausted");
                         let (prior_doc_name, prior_target, prior_test_name, prior_test_iteration) =
-                            result.with_context(|| "joining futures")?;
+                            result.context("joining futures")?;
                         all_results
                             .get_mut(prior_doc_name.as_str())
                             .unwrap_or(&mut document_results)
@@ -560,8 +560,7 @@ async fn run_tests(
         all_results.insert(doc_name.to_string(), document_results);
     }
     while let Some(result) = futures.join_next().await {
-        let (doc_name, target, test_name, test_iteration) =
-            result.with_context(|| "joining futures")?;
+        let (doc_name, target, test_name, test_iteration) = result.context("joining futures")?;
         all_results
             .get_mut(doc_name.as_str())
             .unwrap()
@@ -750,7 +749,7 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     if args.clean_all {
         remove_dir_all(test_dir.join(RUNS_DIR))
             .await
-            .with_context(|| "cleaning the file system of all test exections")?;
+            .context("cleaning the file system of all test executions")?;
     }
 
     if let Some(errors) = NonEmpty::from_vec(errors) {

@@ -120,9 +120,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::ImportSortedRule>::default(),
         Box::<rules::InputSortedRule>::default(),
-        Box::<rules::LineWidthRule>::default(),
         Box::<rules::ConsistentNewlinesRule>::default(),
-        Box::<rules::CallInputSpacingRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
         Box::<rules::SectionOrderingRule>::default(),
         Box::<rules::DeprecatedObjectRule>::default(),
@@ -132,9 +130,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
-        Box::<rules::TrailingCommaRule>::default(),
         Box::<rules::ElementSpacingRule>::default(),
-        Box::<rules::MetaKeyValueFormattingRule>::default(),
         Box::<rules::ExpressionSpacingRule>::default(),
         Box::<rules::InputNameRule>::default(),
         Box::<rules::OutputNameRule>::default(),
@@ -147,6 +143,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
         Box::<rules::DescriptionLengthRule>::default(),
+        Box::<rules::DocCommentTabsRule>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
