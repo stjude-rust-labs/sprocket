@@ -20,6 +20,7 @@ use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
+use wdl::format::Indent;
 
 use crate::diagnostics::Mode;
 
@@ -129,24 +130,34 @@ pub struct FormatConfig {
     /// Use tabs for indentation (default is spaces).
     pub with_tabs: bool,
     /// The number of spaces to use for indentation levels (default is 4).
+    ///
+    /// This is ignored if `with_tabs = true`.
     pub indentation_size: usize,
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     pub max_line_length: usize,
     /// Enable sorting of input sections.
     pub sort_inputs: bool,
+    /// Include trailing commas.
+    pub trailing_commas: bool,
 }
 
 impl Default for FormatConfig {
     fn default() -> Self {
-        let config = wdl::format::Config::default();
+        let wdl::format::Config {
+            indent,
+            max_line_length,
+            sort_inputs,
+            trailing_commas,
+        } = wdl::format::Config::default();
         Self {
-            with_tabs: false,
-            indentation_size: config.indent.num(),
-            max_line_length: config
-                .max_line_length
-                .get()
-                .expect("should have a max line length"),
-            sort_inputs: config.sort_inputs,
+            with_tabs: matches!(indent, Indent::Tabs),
+            indentation_size: indent.num(),
+            // MaxLineLength::get() returns `None` if no maximum is configured.
+            // setting max_line_length to `0` disables maximum line lengths.
+            max_line_length: max_line_length.get().unwrap_or(0),
+            sort_inputs,
+            trailing_commas,
         }
     }
 }

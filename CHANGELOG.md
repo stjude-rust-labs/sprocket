@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `format.trailing_commas` and `format.sort_inputs` options to `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
 
 ### Changed
