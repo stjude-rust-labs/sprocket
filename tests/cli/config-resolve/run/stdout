@@ -15,6 +15,7 @@ filter_lint_tags = []
 
 [check.lint]
 allowed_runtime_keys = []
+allowed_names = []
 
 [analyzer]
 lint = false
