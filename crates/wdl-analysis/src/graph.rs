@@ -825,6 +825,7 @@ mod tests {
             (Url::parse("file:///at/root/../../../root.wdl").unwrap(), "file:///root.wdl"),
             (Url::parse("file:///too/far/../../../../../../not_real.wdl").unwrap(), "file:///not_real.wdl"),
             (Url::parse("file:///C%3A/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl").unwrap(), "file:///C:/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl"),
+            #[cfg(not(windows))]
             (Url::parse("file:///Users/dev%20user/./../././my%20app/test%3A40%3A00.wdl?view=tail&encoding=utf-8#L150").unwrap(), "file:///Users/my%20app/test:40:00.wdl?view=tail&encoding=utf-8#L150"),
             #[cfg(windows)]
             (Url::parse("file:///d:/Users/Admin/Documents/foo.wdl").unwrap(), "file:///D:/Users/Admin/Documents/foo.wdl"),

@@ -53,7 +53,7 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     env:
-      RUST_LOG: trace
+      RUST_LOG: debug
     strategy:
       fail-fast: false
       matrix:

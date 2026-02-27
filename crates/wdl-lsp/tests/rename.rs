@@ -16,7 +16,7 @@ async fn rename_request(
     ctx.request::<Rename>(RenameParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier {
-                uri: dbg!(ctx.doc_uri(path)),
+                uri: ctx.doc_uri(path),
             },
             position,
         },
