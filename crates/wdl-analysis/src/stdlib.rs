@@ -4915,7 +4915,7 @@ task values_map {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", MapKeyConstraint)
+                        .type_parameter("K", NonOptionalPrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "pairs",
@@ -5290,9 +5290,8 @@ mod test {
                 "contains_key(object: Object, keys: Array[String]) -> Boolean",
                 "values(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
-  non-optional primitive type",
+                 non-optional primitive type",
                 "value(choice: V) -> T where `V`: any enum choice",
-  main
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",
