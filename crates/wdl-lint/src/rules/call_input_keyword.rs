@@ -51,6 +51,42 @@ impl Rule for CallInputKeywordRule {
          encourages adoption of the newer syntax when using WDL 1.2 or later."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # In versions prior to WDL v1.2, the `input:` keyword
+    # was necessary in `call` statements.
+    call say_hello { input:
+        name = "world",
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # This is correct for WDL v1.2 and later.
+    call say_hello {
+        name = "world",
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Deprecated, Tag::Style])
     }

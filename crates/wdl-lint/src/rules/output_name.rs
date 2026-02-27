@@ -61,12 +61,51 @@ impl Rule for OutputNameRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Any output name matching these regular expressions will be flagged: /^[oO]ut[A-Z_]/, \
-         /^output/i or /^..?$/. It is redundant and needlessly verbose to use an output's name to \
-         specify that it is an output. Output names should be short yet descriptive. Prefixing a \
-         name with out or output adds length to the name without adding clarity or context. \
-         Additionally, names with only 2 characters can lead to confusion and obfuscates the \
-         content of an output. Output names should be at least 3 characters long."
+        "Any output name matching these regular expressions will be flagged: [`/^[oO]ut[A-Z_]/`](https://regex101.com/r/r6v2fL/1), \
+[`/^output/i`](https://regex101.com/r/vybrEi/1) or [`/^..?$/`](https://regex101.com/r/5yWAfk/1).\n\n\
+\
+It is redundant and needlessly verbose to use an output's name to \
+specify that it is an output. Output names should be short yet descriptive. Prefixing a \
+name with out or output adds length to the name without adding clarity or context. \
+Additionally, names with only 2 characters can lead to confusion and obfuscates the \
+content of an output. Output names should be at least 3 characters long."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String output_greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task generate_greeting {
+    input {
+        String name
+    }
+
+    command <<<>>>
+
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

@@ -48,6 +48,20 @@ impl Rule for TodoCommentRule {
          forgotten."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+# The following comment will be flagged:
+# TODO: Implement this workflow
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style])
     }

@@ -52,6 +52,35 @@ impl Rule for ImportPlacementRule {
          between the version and the first import statement."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {}
+}
+
+import "example2.wdl"
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+import "example2.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity])
     }

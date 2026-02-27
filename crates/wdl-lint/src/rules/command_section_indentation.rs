@@ -91,6 +91,45 @@ impl Rule for CommandSectionIndentationRule {
          the whitespace stripping step may cause unexpected behavior."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with tabs
+		echo "Hello, ~{name}!"
+		# this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_greetings {
+    input {
+        String name
+    }
+
+    command <<<
+        # this line is prefixed with spaces
+        echo "Hello, ~{name}!"
+        # this line is prefixed with spaces
+        echo "Goodbye, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Correctness, Tag::Spacing, Tag::Clarity])
     }

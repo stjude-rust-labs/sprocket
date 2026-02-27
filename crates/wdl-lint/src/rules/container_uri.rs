@@ -104,18 +104,87 @@ impl Rule for ContainerUriRule {
     fn explanation(&self) -> &'static str {
         "This rule checks the following:
 
-        - Containers should have a tag, as container URIs with no tags have no expectation that \
-         the behavior of the containers won't change between runs.
-        - Further, immutable containers tagged with SHA256 sums are preferred. This is due to the \
+- Containers should have a tag, as container URIs with no tags have no expectation that the \
+         behavior of the containers won't change between runs.
+- Further, immutable containers tagged with SHA256 sums are preferred. This is due to the \
          requirement from the WDL specification that tasks produce functionally equivalent output \
          across runs. When a mutable tag is used, there is a risk that changes to the container \
          will cause different behavior between runs.
-        - Use of the 'any' container URI (`*`) within an array of container URIs is ambiguous and \
-         should be avoided.
-        - Empty container URI arrays are not disallowed by the specification but are ambiguous and \
-         should be avoided.
-        - An array of container URIs with a single element should be changed to a single string \
-         value."
+- Use of the 'any' container URI (`*`) within an array of container URIs is ambiguous and should \
+         be avoided.
+- Empty container URI arrays are not disallowed by the specification but are ambiguous and should \
+         be avoided.
+- An array of container URIs with a single element should be changed to a single string value."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    # No tag
+    requirements {
+        container: "ubuntu"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    requirements {
+        container: ["ubuntu:latest"]
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

@@ -37,11 +37,17 @@ pub trait Rule: Send + Sync {
     /// which a rule is excepted or denied.
     fn id(&self) -> &'static str;
 
+    /// The `wdl-analysis` version in which this rule was added.
+    fn version(&self) -> &'static str;
+
     /// A short, single sentence description of the rule.
     fn description(&self) -> &'static str;
 
     /// Get the long-form explanation of the rule.
     fn explanation(&self) -> &'static str;
+
+    /// Get a list of examples that would trigger this lint rule.
+    fn examples(&self) -> &'static [&'static str];
 
     /// Denies the rule.
     ///
@@ -105,6 +111,10 @@ impl Rule for UnusedImportRule {
         UNUSED_IMPORT_RULE_ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that import namespaces are used in the importing document."
     }
@@ -112,6 +122,20 @@ impl Rule for UnusedImportRule {
     fn explanation(&self) -> &'static str {
         "Imported WDL documents should be used in the document that imports them. Unused imports \
          impact parsing and evaluation performance."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+import "example2.wdl"
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -145,6 +169,10 @@ impl Rule for UnusedInputRule {
         UNUSED_INPUT_RULE_ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that task or workspace inputs are used within the declaring task or workspace."
     }
@@ -152,6 +180,22 @@ impl Rule for UnusedInputRule {
     fn explanation(&self) -> &'static str {
         "Unused inputs degrade evaluation performance and reduce the clarity of the code. Unused \
          file inputs in tasks can also cause unnecessary file localizations."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    inputs {
+        String unused
+    }
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -185,6 +229,10 @@ impl Rule for UnusedDeclarationRule {
         UNUSED_DECL_RULE_ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that private declarations in tasks or workspaces are used within the declaring \
          task or workspace."
@@ -193,6 +241,20 @@ impl Rule for UnusedDeclarationRule {
     fn explanation(&self) -> &'static str {
         "Unused private declarations degrade evaluation performance and reduce the clarity of the \
          code."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    String unused = "this will produce a warning"
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -226,12 +288,39 @@ impl Rule for UnusedCallRule {
         UNUSED_CALL_RULE_ID
     }
 
+    fn version(&self) -> &'static str {
+        "0.4.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that outputs of a call statement are used in the declaring workflow."
     }
 
     fn explanation(&self) -> &'static str {
         "Unused calls may cause unnecessary consumption of compute resources."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # The output of `do_work` is never used
+    call do_work
+
+    output {}
+}
+
+task do_work {
+    command <<<>>>
+
+    output {
+        Int x = 0
+    }
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -265,12 +354,32 @@ impl Rule for UnnecessaryFunctionCall {
         UNNECESSARY_FUNCTION_CALL
     }
 
+    fn version(&self) -> &'static str {
+        "0.6.0"
+    }
+
     fn description(&self) -> &'static str {
         "Ensures that function calls are necessary."
     }
 
     fn explanation(&self) -> &'static str {
         "Unnecessary function calls may impact evaluation performance."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    # Calls to `defined` on values that are statically
+    # known to be non-None are unnecessary.
+    Boolean exists = defined("hello")
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {
@@ -304,6 +413,10 @@ impl Rule for UsingFallbackVersion {
         USING_FALLBACK_VERSION
     }
 
+    fn version(&self) -> &'static str {
+        "0.10.0"
+    }
+
     fn description(&self) -> &'static str {
         "Warns if interpretation of a document with an unsupported version falls back to a default."
     }
@@ -311,6 +424,20 @@ impl Rule for UsingFallbackVersion {
     fn explanation(&self) -> &'static str {
         "A document with an unsupported version may have unpredictable behavior if interpreted as \
          a different version."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+# Not a valid version. If a fallback version is configured,
+# the document will be interpreted as that version.
+version development
+
+workflow example {
+    meta {}
+
+    output {}
+}
+```"#]
     }
 
     fn deny(&mut self) {

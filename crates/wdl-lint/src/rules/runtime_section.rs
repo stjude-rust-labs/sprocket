@@ -46,6 +46,43 @@ impl Rule for RuntimeSectionRule {
         "Tasks that don't declare `runtime` sections are unlikely to be portable."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.1
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.1
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Completeness, Tag::Portability])
     }

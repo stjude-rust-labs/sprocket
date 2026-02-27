@@ -54,6 +54,37 @@ impl Rule for DescriptionLengthRule {
          entries are never clipped and may be a better place for long form text."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "This is an example workflow. It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "This is an example workflow."
+        # The `help` key can be used for extended descriptions
+        help: "It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::SprocketCompatibility])
     }

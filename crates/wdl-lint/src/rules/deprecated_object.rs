@@ -41,12 +41,52 @@ impl Rule for DeprecatedObjectRule {
     fn explanation(&self) -> &'static str {
         "WDL `Object` types are officially deprecated and will be removed in the next major WDL release.
 
-        `Object`s existed prior to better containers, such as `Map`s and `Struct`s, being \
-         introduced into the language. Unfortunately, though these better alternatives did exist at \
-         the time of the v1.0 release, the type was not removed. It was later decided \
-         that `Object`s overlapped with `Map`s and `Struct`s in functionality, and the type was marked for removal.
+`Object`s existed prior to better containers, such as `Map`s and `Struct`s, being \
+introduced into the language. Unfortunately, though these better alternatives did exist at \
+the time of the v1.0 release, the type was not removed. It was later decided \
+that `Object`s overlapped with `Map`s and `Struct`s in functionality, and the type was marked for removal.
 
-         See this issue for more details: https://github.com/openwdl/wdl/pull/228."
+See this issue for more details: <https://github.com/openwdl/wdl/pull/228>."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Object person = object {
+        name: "Jimmy",
+        age: 55,
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+struct Person {
+    String name
+    Int age
+}
+
+workflow example {
+    meta {}
+
+    Person person = Person {
+        name: "Jimmy",
+        age: 55,
+    }
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

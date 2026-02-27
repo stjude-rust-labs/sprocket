@@ -37,6 +37,8 @@ mod tags;
 pub(crate) mod util;
 
 pub use config::Config;
+#[doc(hidden)]
+pub use config::ConfigField;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
@@ -84,6 +86,9 @@ pub trait Rule: Visitor {
 
     /// Get the long-form explanation of the lint rule.
     fn explanation(&self) -> &'static str;
+
+    /// Get a list of examples that would trigger this lint rule.
+    fn examples(&self) -> &'static [&'static str];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;
