@@ -22,15 +22,14 @@ use wdl_ast::SyntaxToken;
 use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
-use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
-use wdl_ast::v1::UnboundDecl;
 
 use crate::Document;
 use crate::SourcePosition;
@@ -532,25 +531,16 @@ fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
 
     // Check for doc comments on the declaration node itself via the Documented
     // trait.
-    let decl_kind = token.parent_ancestors().find(|p| {
-        matches!(
-            p.kind(),
-            SyntaxKind::BoundDeclNode | SyntaxKind::UnboundDeclNode
-        )
-    });
-    if let Some(decl_node) = decl_kind {
-        let doc = match decl_node.kind() {
-            SyntaxKind::BoundDeclNode => BoundDecl::cast(decl_node)
-                .and_then(|d| d.doc_comments())
-                .and_then(comments_to_string),
-            SyntaxKind::UnboundDeclNode => UnboundDecl::cast(decl_node)
-                .and_then(|d| d.doc_comments())
-                .and_then(comments_to_string),
-            _ => None,
-        };
-        if doc.is_some() {
-            return doc;
-        }
+    if let Some(doc) = token
+        .parent_ancestors()
+        .find_map(Decl::cast)
+        .and_then(|d| match &d {
+            Decl::Bound(b) => b.doc_comments(),
+            Decl::Unbound(u) => u.doc_comments(),
+        })
+        .and_then(comments_to_string)
+    {
+        return Some(doc);
     }
 
     // Fall back to parameter_meta.

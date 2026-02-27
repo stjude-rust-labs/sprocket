@@ -77,7 +77,7 @@ pub(crate) fn comments_to_string(comments: Vec<Comment>) -> Option<String> {
         return None;
     }
     let lines = normalize_doc_comments(&comments);
-    Some(lines.join("\n"))
+    Some(lines.join("\n")).filter(|s| !s.trim().is_empty())
 }
 
 /// Returns the first paragraph of doc comments as a Markdown string.
