@@ -1218,7 +1218,7 @@ workflow test {
         fs::write(dir.path().join("ignored.wdl"), "version 1.1\n")
             .expect("Failed to create ignored.wdl");
         fs::write(dir.path().join("included.wdl"), "version 1.1\n")
-            .expect("Failed to create included.wdl");
+            .expect("failed to create included.wdl");
         // Analyze respect_gitignore = true
         let config = Config::default().with_respect_gitignore(true);
         let analyzer = Analyzer::new(config, |_, _, _, _| async {});
