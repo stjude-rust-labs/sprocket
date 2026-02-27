@@ -93,14 +93,6 @@ note[UnusedDocComments]: unused doc comment
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
 
-note[LineWidth]: line exceeds maximum width of 90
-   ┌─ tests/lints/unused-doc-comments/source.wdl:84:1
-   │
-84 │         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = fix: split the line into multiple lines
-
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:84:23
    │
@@ -120,14 +112,6 @@ note[UnusedDocComments]: unused doc comment
    │     ---- documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
-
-note[LineWidth]: line exceeds maximum width of 90
-   ┌─ tests/lints/unused-doc-comments/source.wdl:92:1
-   │
-92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │
-   = fix: split the line into multiple lines
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:92:5
@@ -159,14 +143,6 @@ note[UnusedDocComments]: unused doc comment
     │     ---- documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
-
-note[LineWidth]: line exceeds maximum width of 90
-    ┌─ tests/lints/unused-doc-comments/source.wdl:106:1
-    │
-106 │         String favorite_fruit = "Banana" ## Invalid inline doc comment that should only linted once by UnusedDocComment.
-    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    │
-    = fix: split the line into multiple lines
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:106:42

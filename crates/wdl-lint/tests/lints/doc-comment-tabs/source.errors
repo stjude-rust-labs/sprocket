@@ -30,6 +30,17 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
   │
   = help: consider replacing tabs with spaces
 
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:17:5
+   │
+17 │     ##  Workflow-level doc comment with tab (should be flagged)
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ·
+20 │     meta {
+   │     ---- documentation will not be generated for this item
+   │
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+
 warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:17:7
    │
@@ -37,4 +48,25 @@ warning[DocCommentTabs]: tabs in doc comments are not recommended
    │       ^^
    │
    = help: consider replacing tabs with spaces
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:21:9
+   │
+21 │         ##  This should NOT be flagged (local except works)
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+22 │     }
+   │     - documentation will not be generated for this item
+   │
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+
+note[UnusedDocComments]: unused doc comment
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:30:5
+   │
+30 │     ##  This should NOT be flagged either (document-level except for this task)
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+31 │ 
+32 │     command <<<>>>
+   │     ------- documentation will not be generated for this item
+   │
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
 
