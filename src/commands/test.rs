@@ -530,7 +530,7 @@ impl Runner {
                                 .join_next()
                                 .await
                                 .expect("futures should not be exhausted");
-                            let prior_test_iteration = result.with_context(|| "joining futures")?;
+                            let prior_test_iteration = result.context("joining futures")?;
                             all_results
                                 .get_mut(prior_test_iteration.id.doc_name.as_str())
                                 .unwrap_or(&mut document_results)
@@ -557,7 +557,7 @@ impl Runner {
             all_results.insert(doc_name.to_string(), document_results);
         }
         while let Some(result) = futures.join_next().await {
-            let test_iteration = result.with_context(|| "joining futures")?;
+            let test_iteration = result.context("joining futures")?;
             all_results
                 .get_mut(test_iteration.id.doc_name.as_str())
                 .unwrap()
