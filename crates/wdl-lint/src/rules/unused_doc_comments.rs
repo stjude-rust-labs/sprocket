@@ -238,7 +238,7 @@ impl Visitor for UnusedDocCommentsRule {
         let target = search_siblings_for_doc_comment_target(comment);
         if target
             .as_ref()
-            .map_or(true, |t| !valid_target_for_doc_comment(t))
+            .is_none_or(|t| !valid_target_for_doc_comment(t))
         {
             self.lint_next_doc_comment_block(
                 diagnostics,
