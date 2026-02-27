@@ -12,7 +12,6 @@ use wdl_ast::v1::EnumVariant;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
-use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -28,14 +27,9 @@ pub(crate) struct DocumentedEnumChoice {
     choice: EnumVariant,
 }
 
-impl DocumentedEnumChoice {
-    /// Get the [full description] of the choice.
-    ///
-    /// [full description]: MetaMap::full_description()
-    pub fn full_description(&self) -> String {
-        self.meta
-            .full_description()
-            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
+impl DefinitionMeta for DocumentedEnumChoice {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
     }
 }
 
@@ -83,20 +77,27 @@ impl Enum {
         let choices = html! {
             div class="main__section" {
                 h2 id="choices" class="main__section-header" { "Choices" }
-                @for choice in self.choices.iter() {
-                    @let choice_name = choice.choice.name();
-                    @let choice_id = format!("choice.{}", choice_name.text());
-                    @let choice_anchor = format!("#{choice_id}");
-                    section id=(choice_id) {
-                        div class="main__meta-item-member" {
-                            a href=(choice_anchor) {}
-                            h3 class="main__section-subheader" { (choice_name.text()) }
-                        }
+                div class="main__grid-container" {
+                    div class="main__grid-enum-choice-container" {
+                        div class="main__grid-header-cell" { "Name" }
+                        div class="main__grid-header-cell" { "Description" }
+                        div class="main__grid-header-separator" {}
+                        @for choice in self.choices.iter() {
+                            @let choice_name = choice.choice.name();
+                            @let choice_id = format!("choice.{}", choice_name.text());
+                            div id=(choice_id) class="main__grid-row" x-data="{ description_expanded: false }" {
+                                div class="main__grid-cell" {
+                                    code { (choice_name.text()) }
+                                }
 
-                        div class="main__meta-item-member-description" {
-                            @for paragraph in choice.full_description().split('\n') {
-                                p class="main__meta-item-member-description-para" { (paragraph) }
+                                div class="main__grid-cell" {
+                                    (choice.meta().render_description(true))
+                                }
+                                div x-show="description_expanded" class="main__grid-full-width-cell" {
+                                    (choice.meta().render_description(false))
+                                }
                             }
+                            div class="main__grid-row-separator" {}
                         }
                     }
                 }
@@ -198,7 +199,7 @@ mod tests {
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
-                "An RGB24 color enum\nEach variant is represented as a 24-bit hexadecimal RGB \
+                "An RGB24 color enum\n\nEach variant is represented as a 24-bit hexadecimal RGB \
                  string with exactly one non-zero channel."
             )
         );

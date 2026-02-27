@@ -536,15 +536,18 @@ mod tests {
         );
         assert_eq!(inputs.len(), 3);
         assert_eq!(inputs[0].name(), "a");
-        assert_eq!(inputs[0].description(false).into_string(), "An integer");
+        assert_eq!(
+            inputs[0].render_description(false).into_string(),
+            "An integer"
+        );
         assert_eq!(inputs[1].name(), "b");
         assert_eq!(
-            inputs[1].description(false).into_string(),
+            inputs[1].render_description(false).into_string(),
             DEFAULT_DESCRIPTION
         );
         assert_eq!(inputs[2].name(), "c");
         assert_eq!(
-            inputs[2].description(false).into_string(),
+            inputs[2].render_description(false).into_string(),
             "Another integer"
         );
     }
@@ -600,15 +603,18 @@ mod tests {
         );
         assert_eq!(outputs.len(), 3);
         assert_eq!(outputs[0].name(), "a");
-        assert_eq!(outputs[0].description(false).into_string(), "An integer");
+        assert_eq!(
+            outputs[0].render_description(false).into_string(),
+            "An integer"
+        );
         assert_eq!(outputs[1].name(), "b");
         assert_eq!(
-            outputs[1].description(false).into_string(),
+            outputs[1].render_description(false).into_string(),
             "A different place!"
         );
         assert_eq!(outputs[2].name(), "c");
         assert_eq!(
-            outputs[2].description(false).into_string(),
+            outputs[2].render_description(false).into_string(),
             "Another integer"
         );
     }
