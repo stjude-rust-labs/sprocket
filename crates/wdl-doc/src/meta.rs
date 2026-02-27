@@ -382,15 +382,12 @@ pub(crate) fn summarize_if_needed(
 }
 
 /// A doc comment paragraph
-///
-/// Internally, this retains the line breaks as they appear in the document.
-/// When rendered, the lines are joined with spaces.
 #[derive(Debug, Clone, Default)]
 pub struct Paragraph(Vec<String>);
 
 impl Display for Paragraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.join(" "))
+        write!(f, "{}", self.0.join("\n"))
     }
 }
 
@@ -468,14 +465,17 @@ pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaM
         }
     }
 
+    let mut paragraphs = paragraphs.into_iter();
+
     map.insert(
         DESCRIPTION_KEY.to_string(),
-        MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),
+        // SAFETY: if paragraphs were empty, we would have returned early
+        MetaMapValueSource::Comment(paragraphs.next().unwrap().to_string()),
     );
 
-    let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
+    let help = paragraphs.fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
-            acc.push('\n');
+            acc.push_str("\n\n");
         }
 
         acc.push_str(&p.to_string());

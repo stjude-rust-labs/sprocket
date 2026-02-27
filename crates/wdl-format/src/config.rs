@@ -6,13 +6,17 @@ mod newline;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
-pub use newline::NewlineStyle;
+use serde::Deserialize;
+use serde::Serialize;
 
 /// Default for whether input sorting is enabled.
 const SORT_INPUTS_DEFAULT: bool = false;
+/// Default for whether trailing commas are enabled.
+const TRAILING_COMMAS_DEFAULT: bool = true;
 
 /// Configuration for formatting.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Config {
     /// The indentation configuration.
     pub indent: Indent,
@@ -20,8 +24,8 @@ pub struct Config {
     pub max_line_length: MaxLineLength,
     /// Whether to sort input sections.
     pub sort_inputs: bool,
-    /// The newline style.
-    pub newline_style: NewlineStyle,
+    /// Whether to add trailing commas to multiline lists.
+    pub trailing_commas: bool,
 }
 
 impl Default for Config {
@@ -30,7 +34,7 @@ impl Default for Config {
             indent: Indent::default(),
             max_line_length: MaxLineLength::default(),
             sort_inputs: SORT_INPUTS_DEFAULT,
-            newline_style: NewlineStyle::default(),
+            trailing_commas: TRAILING_COMMAS_DEFAULT,
         }
     }
 }
@@ -57,6 +61,12 @@ impl Config {
     /// Set whether input sorting is enabled.
     pub fn sort_inputs(mut self, sort_inputs: bool) -> Self {
         self.sort_inputs = sort_inputs;
+        self
+    }
+
+    /// Set whether trailing commas are enabled.
+    pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
+        self.trailing_commas = trailing_commas;
         self
     }
 }

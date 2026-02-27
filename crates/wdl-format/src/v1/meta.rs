@@ -67,7 +67,7 @@ pub fn format_metadata_array(
         (&item).write(stream, config);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
-        } else {
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
@@ -127,7 +127,7 @@ pub fn format_metadata_object(
         (&item).write(stream, config);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
-        } else {
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
