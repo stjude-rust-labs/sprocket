@@ -1,11 +1,11 @@
 //! Integration tests for the `textDocument/rename` request.
 
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::*;
+use tower_lsp_server::ls_types::*;
 
 mod common;
 use common::TestContext;
-use tower_lsp::lsp_types::request::Rename;
+use tower_lsp_server::ls_types::request::Rename;
 
 async fn rename_request(
     ctx: &mut TestContext,
@@ -27,6 +27,7 @@ async fn rename_request(
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_workspace_wide() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -40,20 +41,19 @@ async fn should_rename_workspace_wide() {
     let changes = edit.changes.expect("expected changes");
     assert!(changes.iter().any(|(uri, edits)| {
         uri.to_file_path()
-            .ok()
             .and_then(|p| p.file_name().map(|n| n == "source.wdl"))
             .unwrap_or(false)
             && edits.iter().any(|e| e.new_text == NEW_NAME)
     }));
     assert!(changes.keys().any(|u| {
         u.to_file_path()
-            .ok()
             .and_then(|p| p.file_name().map(|n| n == "foo.wdl"))
             .unwrap_or(false)
     }));
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_reject_invalid_identifier() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -64,6 +64,7 @@ async fn should_reject_invalid_identifier() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_struct_definition() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -80,19 +81,18 @@ async fn should_rename_struct_definition() {
     let changes = edit.changes.expect("expected changes");
     assert!(changes.keys().any(|u| {
         u.to_file_path()
-            .ok()
             .and_then(|p| p.file_name().map(|n| n == "structs.wdl"))
             .unwrap_or(false)
     }));
     assert!(changes.keys().any(|u| {
         u.to_file_path()
-            .ok()
             .and_then(|p| p.file_name().map(|n| n == "foo.wdl"))
             .unwrap_or(false)
     }));
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_import_namespace_alias() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -104,13 +104,13 @@ async fn should_rename_import_namespace_alias() {
     let changes = edit.changes.expect("expected changes");
     assert!(changes.keys().any(|u| {
         u.to_file_path()
-            .ok()
             .and_then(|p| p.file_name().map(|n| n == "source.wdl"))
             .unwrap_or(false)
     }));
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_not_rename_shadowed_declaration() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -149,6 +149,7 @@ async fn should_not_rename_shadowed_declaration() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_enum() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
@@ -167,6 +168,7 @@ async fn should_rename_enum() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_rename_enum_variant() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;

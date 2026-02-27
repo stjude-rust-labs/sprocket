@@ -19,7 +19,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use line_index::LineIndex;
-use lsp_types::Location;
+use ls_types::Location;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;

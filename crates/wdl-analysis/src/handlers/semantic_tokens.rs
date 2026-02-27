@@ -9,10 +9,10 @@
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::SemanticToken;
-use lsp_types::SemanticTokenModifier;
-use lsp_types::SemanticTokenType;
-use lsp_types::SemanticTokens;
+use ls_types::SemanticToken;
+use ls_types::SemanticTokenModifier;
+use ls_types::SemanticTokenType;
+use ls_types::SemanticTokens;
 use rowan::WalkEvent;
 use url::Url;
 use wdl_ast::AstNode;

@@ -4,14 +4,14 @@ mod common;
 
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::ParameterLabel;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::SignatureHelp;
-use tower_lsp::lsp_types::SignatureHelpParams;
-use tower_lsp::lsp_types::SignatureHelpTriggerKind;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::SignatureHelpRequest;
+use tower_lsp_server::ls_types::ParameterLabel;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::SignatureHelp;
+use tower_lsp_server::ls_types::SignatureHelpParams;
+use tower_lsp_server::ls_types::SignatureHelpTriggerKind;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::SignatureHelpRequest;
 
 async fn signature_help_request(
     ctx: &mut TestContext,
@@ -26,7 +26,7 @@ async fn signature_help_request(
             position,
         },
         work_done_progress_params: Default::default(),
-        context: Some(tower_lsp::lsp_types::SignatureHelpContext {
+        context: Some(tower_lsp_server::ls_types::SignatureHelpContext {
             trigger_kind: SignatureHelpTriggerKind::INVOKED,
             trigger_character: Some("(".to_string()),
             is_retrigger: false,
@@ -43,6 +43,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_signature_help_for_stdlib_function() {
     let mut ctx = setup().await;
 
@@ -64,6 +65,7 @@ async fn should_provide_signature_help_for_stdlib_function() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_highlight_active_parameter() {
     let mut ctx = setup().await;
 
@@ -88,6 +90,7 @@ async fn should_highlight_active_parameter() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_signature_help_for_polymorphic_function() {
     let mut ctx = setup().await;
 

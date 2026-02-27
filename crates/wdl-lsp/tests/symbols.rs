@@ -3,16 +3,16 @@
 mod common;
 
 use common::TestContext;
-use tower_lsp::lsp_types::DocumentSymbol;
-use tower_lsp::lsp_types::DocumentSymbolParams;
-use tower_lsp::lsp_types::DocumentSymbolResponse;
-use tower_lsp::lsp_types::SymbolInformation;
-use tower_lsp::lsp_types::SymbolKind;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::WorkspaceSymbolParams;
-use tower_lsp::lsp_types::WorkspaceSymbolResponse;
-use tower_lsp::lsp_types::request::DocumentSymbolRequest;
-use tower_lsp::lsp_types::request::WorkspaceSymbolRequest;
+use tower_lsp_server::ls_types::DocumentSymbol;
+use tower_lsp_server::ls_types::DocumentSymbolParams;
+use tower_lsp_server::ls_types::DocumentSymbolResponse;
+use tower_lsp_server::ls_types::SymbolInformation;
+use tower_lsp_server::ls_types::SymbolKind;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::WorkspaceSymbolParams;
+use tower_lsp_server::ls_types::WorkspaceSymbolResponse;
+use tower_lsp_server::ls_types::request::DocumentSymbolRequest;
+use tower_lsp_server::ls_types::request::WorkspaceSymbolRequest;
 
 async fn document_symbol_request(
     ctx: &mut TestContext,
@@ -64,6 +64,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_document_symbols() {
     let mut ctx = setup().await;
     let response = document_symbol_request(&mut ctx, "source.wdl").await;
@@ -124,6 +125,7 @@ async fn should_provide_document_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_workspace_symbols() {
     let mut ctx = setup().await;
     let response = workspace_symbol_request(&mut ctx, "").await;
@@ -140,6 +142,7 @@ async fn should_provide_workspace_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_filter_workspace_symbols() {
     let mut ctx = setup().await;
     let response = workspace_symbol_request(&mut ctx, "greet").await;
@@ -156,6 +159,7 @@ async fn should_filter_workspace_symbols() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_provide_enum_symbols() {
     let mut ctx = setup().await;
     let response = document_symbol_request(&mut ctx, "enum.wdl").await;

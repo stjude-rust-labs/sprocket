@@ -5,14 +5,14 @@ mod common;
 use core::panic;
 
 use common::TestContext;
-use tower_lsp::lsp_types::Hover;
-use tower_lsp::lsp_types::HoverContents;
-use tower_lsp::lsp_types::HoverParams;
-use tower_lsp::lsp_types::MarkupContent;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::HoverRequest;
+use tower_lsp_server::ls_types::Hover;
+use tower_lsp_server::ls_types::HoverContents;
+use tower_lsp_server::ls_types::HoverParams;
+use tower_lsp_server::ls_types::MarkupContent;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::HoverRequest;
 
 async fn hover_request(ctx: &mut TestContext, path: &str, position: Position) -> Option<Hover> {
     ctx.request::<HoverRequest>(HoverParams {
@@ -50,6 +50,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_local_variable() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "source.wdl", Position::new(6, 15)).await;
@@ -57,6 +58,7 @@ async fn should_hover_local_variable() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_struct_definition() {
     let mut ctx = setup().await;
     // Positon of `Person` in `struct Person`
@@ -66,6 +68,7 @@ async fn should_hover_struct_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_struct_object() {
     let mut ctx = setup().await;
     // Position of `Person` in `Person p`
@@ -74,6 +77,7 @@ async fn should_hover_struct_object() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_task_definition() {
     let mut ctx = setup().await;
     // Position of `greet` in `task greet`
@@ -86,6 +90,7 @@ async fn should_hover_task_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_task_call() {
     let mut ctx = setup().await;
     // Position of `greet` in `call greet`
@@ -94,6 +99,7 @@ async fn should_hover_task_call() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_imported_task_call() {
     let mut ctx = setup().await;
     // Position of `greet` in `call lib.greet`
@@ -103,6 +109,7 @@ async fn should_hover_imported_task_call() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_import_namespace() {
     let mut ctx = setup().await;
     // Position of `lib` in `call lib.greet`
@@ -114,6 +121,7 @@ async fn should_hover_import_namespace() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_stdlib_function() {
     let mut ctx = setup().await;
     // Position of `read_string`
@@ -123,6 +131,7 @@ async fn should_hover_stdlib_function() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_struct_member_access() {
     let mut ctx = setup().await;
     // Position of `name` in `p.name`
@@ -131,6 +140,7 @@ async fn should_hover_struct_member_access() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_call_output_access() {
     let mut ctx = setup().await;
     // Position of `out` in `t.out`
@@ -139,6 +149,7 @@ async fn should_hover_call_output_access() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_workflow_definition() {
     let mut ctx = setup().await;
     // Position of `out` in `t.out`
@@ -151,6 +162,7 @@ async fn should_hover_workflow_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_local_variable_docs() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(23, 16)).await;
@@ -159,6 +171,7 @@ async fn should_hover_local_variable_docs() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_local_struct_member_access_docs() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(20, 22)).await;
@@ -167,6 +180,7 @@ async fn should_hover_local_struct_member_access_docs() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_local_struct_literal_docs() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(29, 8)).await;
@@ -175,6 +189,7 @@ async fn should_hover_local_struct_literal_docs() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_enum_definition() {
     let mut ctx = setup().await;
     // Position of `Status` in `enum Status`
@@ -183,6 +198,7 @@ async fn should_hover_enum_definition() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_enum_type() {
     let mut ctx = setup().await;
     // Position of `Status` in `Status s`
@@ -191,6 +207,7 @@ async fn should_hover_enum_type() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_hover_enum_variant() {
     let mut ctx = setup().await;
     // Position of `Active` in `Status.Active`

@@ -3,6 +3,8 @@
 use std::collections::HashSet;
 use std::fs;
 use std::panic;
+use std::path::Component;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -37,6 +39,7 @@ use wdl_ast::SyntaxNode;
 use crate::Config;
 use crate::IncrementalChange;
 use crate::document::Document;
+use crate::handlers::UrlToUri;
 use crate::rules::USING_FALLBACK_VERSION;
 
 /// Represents space for a DFS search of a document graph.
@@ -469,6 +472,71 @@ impl DocumentGraphNode {
     }
 }
 
+/// Attempts to normalize `file://` URLs.
+///
+/// This will:
+///
+/// * Decode percent-encoded segments from the path
+///     * Mostly important for LSP interactions on Windows, which will always
+///       percent-encode the colon in drive names (e.g. `C:` is `C%3A`)
+/// * Capitalize drive names on Windows
+/// * Resolve intermediate components (`.` and `..`)
+fn normalize_file_uri(url: &Url) -> Url {
+    fn default_transform(url: &Url) -> Url {
+        let Ok(uri) = url.try_into_uri() else {
+            return url.clone();
+        };
+
+        Url::parse(uri.normalize().as_str()).unwrap_or_else(|_| url.clone())
+    }
+
+    if url.scheme() != "file" {
+        return default_transform(url);
+    }
+
+    let Ok(path) = url.to_file_path() else {
+        return default_transform(url);
+    };
+
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            c @ Component::Prefix(_) => {
+                let s = c.as_os_str();
+                if s.len() == 2 {
+                    normalized = PathBuf::from(s.to_ascii_uppercase());
+                } else {
+                    normalized = PathBuf::from(s);
+                }
+            }
+            Component::RootDir => {
+                normalized.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            Component::Normal(c) => {
+                normalized.push(c);
+            }
+        }
+    }
+
+    let Ok(mut normalized_url) = Url::from_file_path(&normalized) else {
+        return default_transform(url);
+    };
+
+    if let Some(query) = url.query() {
+        normalized_url.set_query(Some(query));
+    }
+
+    if let Some(fragment) = url.fragment() {
+        normalized_url.set_fragment(Some(fragment));
+    }
+
+    normalized_url
+}
+
 /// Represents a graph of WDL analyzed documents.
 #[derive(Debug)]
 pub struct DocumentGraph {
@@ -514,10 +582,11 @@ impl DocumentGraph {
 
     /// Add a node to the document graph.
     pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
+        let uri = normalize_file_uri(&uri);
         let index = match self.indexes.get(&uri) {
             Some(index) => *index,
             _ => {
-                debug!("inserting `{uri}` into the document graph");
+                debug!("inserting `{}` into the document graph", uri.as_str());
                 let uri = Arc::new(uri);
                 let index = self
                     .inner
@@ -542,6 +611,7 @@ impl DocumentGraph {
     /// If the node has no outgoing edges, it will be removed on the next
     /// garbage collection.
     pub fn remove_root(&mut self, uri: &Url) {
+        let uri = normalize_file_uri(uri);
         let base = match uri.to_file_path() {
             Ok(base) => base,
             Err(_) => return,
@@ -619,7 +689,9 @@ impl DocumentGraph {
     ///
     /// Returns `None` if the document is not in the graph.
     pub fn get_index(&self, uri: &Url) -> Option<NodeIndex> {
-        self.indexes.get(uri).copied()
+        let uri = normalize_file_uri(uri);
+        tracing::error!("get_index: {uri}");
+        self.indexes.get(&uri).copied()
     }
 
     /// Performs a breadth-first traversal of the graph starting at the given
@@ -738,5 +810,30 @@ impl DocumentGraph {
     /// Gets the inner stable dependency graph.
     pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, ()> {
         &self.inner
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use url::Url;
+
+    use super::normalize_file_uri;
+
+    #[test]
+    fn url_normalization() {
+        let cases = vec![
+            (Url::parse("http://example.com/foo.wdl").unwrap(), "http://example.com/foo.wdl"),
+            (Url::parse("file:///at/root/../../../root.wdl").unwrap(), "file:///root.wdl"),
+            (Url::parse("file:///too/far/../../../../../../not_real.wdl").unwrap(), "file:///not_real.wdl"),
+            (Url::parse("file:///C%3A/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl").unwrap(), "file:///C:/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl"),
+            #[cfg(not(windows))]
+            (Url::parse("file:///Users/dev%20user/./../././my%20app/test%3A40%3A00.wdl?view=tail&encoding=utf-8#L150").unwrap(), "file:///Users/my%20app/test:40:00.wdl?view=tail&encoding=utf-8#L150"),
+            #[cfg(windows)]
+            (Url::parse("file:///d:/Users/Admin/Documents/foo.wdl").unwrap(), "file:///D:/Users/Admin/Documents/foo.wdl"),
+        ];
+
+        for (original, expected) in cases {
+            assert_eq!(normalize_file_uri(&original).as_str(), expected);
+        }
     }
 }

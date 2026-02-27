@@ -5,14 +5,14 @@ use core::panic;
 
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::Location;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::ReferenceContext;
-use tower_lsp::lsp_types::ReferenceParams;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::References;
+use tower_lsp_server::ls_types::Location;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::Range;
+use tower_lsp_server::ls_types::ReferenceContext;
+use tower_lsp_server::ls_types::ReferenceParams;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::References;
 
 async fn find_all_references(
     ctx: &mut TestContext,
@@ -43,6 +43,7 @@ async fn setup() -> TestContext {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_struct() {
     let mut ctx = setup().await;
 
@@ -66,6 +67,7 @@ async fn should_have_references_to_struct() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_across_files() {
     let mut ctx = setup().await;
 
@@ -103,6 +105,7 @@ async fn should_have_references_across_files() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_struct_members() {
     let mut ctx = setup().await;
 
@@ -125,6 +128,7 @@ async fn should_have_references_to_struct_members() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_local_variables() {
     let mut ctx = setup().await;
 
@@ -147,6 +151,7 @@ async fn should_have_references_to_local_variables() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_tasks() {
     let mut ctx = setup().await;
 
@@ -169,6 +174,7 @@ async fn should_have_references_to_tasks() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_tasks_output() {
     let mut ctx = setup().await;
 
@@ -191,6 +197,7 @@ async fn should_have_references_to_tasks_output() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_enum() {
     let mut ctx = setup().await;
 
@@ -203,6 +210,7 @@ async fn should_have_references_to_enum() {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn should_have_references_to_enum_variant() {
     let mut ctx = setup().await;
 
