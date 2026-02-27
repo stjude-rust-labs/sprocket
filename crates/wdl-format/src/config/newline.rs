@@ -1,6 +1,8 @@
 //! Newline style within formatting configuration.
+
 /// The default newline style.
 pub const DEFAULT_NEWLINE_STYLE: NewlineStyle = NewlineStyle::Auto;
+
 /// The newline style to use when formatting.
 #[derive(Clone, Copy, Debug)]
 pub enum NewlineStyle {
@@ -11,11 +13,13 @@ pub enum NewlineStyle {
     /// Use Windows-style newlines (`\r\n`).
     Windows,
 }
+
 impl Default for NewlineStyle {
     fn default() -> Self {
         DEFAULT_NEWLINE_STYLE
     }
 }
+
 impl NewlineStyle {
     /// Gets the newline string for this style.
     pub fn as_str(&self) -> &str {
