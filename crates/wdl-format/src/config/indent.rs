@@ -10,9 +10,6 @@ use crate::TAB;
 /// Error while creating indentation configuration.
 #[derive(Error, Debug)]
 pub enum IndentError {
-    /// Invalid options
-    #[error("indentation with tabs cannot have a number of spaces")]
-    InvalidConfiguration,
     /// Too many spaces
     #[error("`{0}` is more than the maximum allowed number of spaces: `{max}`", max = MAX_SPACE_INDENT)]
     TooManySpaces(usize),
@@ -44,8 +41,7 @@ impl Indent {
     /// Attempts to create a new indentation level configuration.
     pub fn try_new(tab: bool, num_spaces: Option<usize>) -> Result<Self, IndentError> {
         match (tab, num_spaces) {
-            (true, None) => Ok(Indent::Tabs),
-            (true, Some(_)) => Err(IndentError::InvalidConfiguration),
+            (true, _) => Ok(Indent::Tabs),
             (false, Some(n)) => {
                 if n > MAX_SPACE_INDENT {
                     Err(IndentError::TooManySpaces(n))
