@@ -36,6 +36,9 @@ cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
 digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
 
 [run.backends.first]
 type = "tes"
@@ -90,6 +93,9 @@ cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
 digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
 
 [server.engine.storage.azure]
 

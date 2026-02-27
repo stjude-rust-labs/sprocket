@@ -807,6 +807,34 @@ pub struct TaskConfig {
     /// Used as part of call caching.
     #[serde(default)]
     pub digests: ContentDigestMode,
+    /// Keys of task requirements to exclude from call cache checking.
+    ///
+    /// When specified, these requirement keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for requirements that may vary between runs
+    /// but should not invalidate the cache (e.g., dynamic resource
+    /// allocation).
+    #[serde(default)]
+    pub excluded_cache_requirements: Vec<String>,
+    /// Keys of task hints to exclude from call cache checking.
+    ///
+    /// When specified, these hint keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for hints that may vary between runs
+    /// but should not invalidate the cache.
+    #[serde(default)]
+    pub excluded_cache_hints: Vec<String>,
+    /// Keys of task inputs to exclude from call cache checking.
+    ///
+    /// When specified, these input keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for inputs that may vary between runs
+    /// but should not affect the task's output.
+    #[serde(default)]
+    pub excluded_cache_inputs: Vec<String>,
 }
 
 impl TaskConfig {
