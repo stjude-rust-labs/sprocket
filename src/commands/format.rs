@@ -48,7 +48,8 @@ pub struct Args {
     )]
     pub indentation_size: Option<usize>,
 
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
@@ -134,7 +135,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
 
     let config = FormatConfig::default()
         .indent(indent)
-        .max_line_length(max_line_length);
+        .max_line_length(max_line_length)
+        .sort_inputs(config.format.sort_inputs)
+        .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

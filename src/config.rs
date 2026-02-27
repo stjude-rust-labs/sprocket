@@ -130,10 +130,13 @@ pub struct FormatConfig {
     pub with_tabs: bool,
     /// The number of spaces to use for indentation levels (default is 4).
     pub indentation_size: usize,
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     pub max_line_length: usize,
     /// Enable sorting of input sections.
     pub sort_inputs: bool,
+    /// Include trailing commas.
+    pub trailing_commas: bool,
 }
 
 impl Default for FormatConfig {
@@ -142,11 +145,11 @@ impl Default for FormatConfig {
         Self {
             with_tabs: false,
             indentation_size: config.indent.num(),
-            max_line_length: config
-                .max_line_length
-                .get()
-                .expect("should have a max line length"),
+            // max_line_length.get() returns `None` if no maximum is configured.
+            // setting max_line_length to `0` disables maximum line lengths.
+            max_line_length: config.max_line_length.get().unwrap_or(0),
             sort_inputs: config.sort_inputs,
+            trailing_commas: config.trailing_commas,
         }
     }
 }

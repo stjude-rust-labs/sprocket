@@ -3,6 +3,7 @@ with_tabs = false
 indentation_size = 4
 max_line_length = 90
 sort_inputs = false
+trailing_commas = true
 
 [check]
 except = []
