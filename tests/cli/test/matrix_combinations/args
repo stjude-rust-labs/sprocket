@@ -1,1 +1,1 @@
-dev test -qq -f slow
+dev test -qq -f slow --no-status

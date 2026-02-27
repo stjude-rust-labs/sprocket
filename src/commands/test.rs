@@ -113,6 +113,9 @@ pub struct Args {
     /// The number of test executions to run in parallel.
     #[clap(short, long)]
     pub parallelism: Option<usize>,
+    /// Do not print results as tests complete.
+    #[clap(long)]
+    pub no_status: bool,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -214,7 +217,7 @@ struct TestIteration {
 }
 
 impl TestIteration {
-    pub async fn evaluate(self, clean: bool) -> Result<IterationResult> {
+    pub async fn evaluate(self, clean: bool, quiet: bool) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
             doc = self.id.doc_name,
@@ -344,15 +347,17 @@ impl TestIteration {
             },
         };
         let result = inner().await;
-        match &result {
-            Ok(IterationResult::Success) => {
-                println!("{id}: ✅")
-            }
-            Ok(IterationResult::Fail(_)) => {
-                println!("{id}: ❌")
-            }
-            Err(_) => {
-                println!("{id}: ☠️")
+        if !quiet {
+            match &result {
+                Ok(IterationResult::Success) => {
+                    println!("{id}: ✅")
+                }
+                Ok(IterationResult::Fail(_)) => {
+                    println!("{id}: ❌")
+                }
+                Err(_) => {
+                    println!("{id}: ☠️")
+                }
             }
         }
         result
@@ -382,6 +387,7 @@ impl Runner {
         documents: Vec<(&AnalysisResult, DocumentTests)>,
         should_filter: impl Fn(&TestDefinition) -> bool,
         clean: bool,
+        quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
     ) -> Result<IndexMap<String, DocumentResults>> {
         let current_filter = self.log_handle.clone_current().expect("should have filter");
@@ -541,7 +547,7 @@ impl Runner {
                                 .unwrap_or(&mut target_results)
                                 .get_mut(prior_test_iteration.id.test_name.as_str())
                                 .unwrap_or(&mut test_iterations)
-                                .push(prior_test_iteration.evaluate(clean).await);
+                                .push(prior_test_iteration.evaluate(clean, quiet).await);
                             self.spawn_future(
                                 &mut futures,
                                 &run_root,
@@ -568,7 +574,7 @@ impl Runner {
                 .unwrap()
                 .get_mut(test_iteration.id.test_name.as_str())
                 .unwrap()
-                .push(test_iteration.evaluate(clean).await);
+                .push(test_iteration.evaluate(clean, quiet).await);
         }
 
         self.log_handle
@@ -617,8 +623,9 @@ async fn summarize_results(
     clean: bool,
     errors: &mut Vec<Arc<anyhow::Error>>,
 ) {
-    println!();
     println!("Sprocket test result summary:");
+
+    let mut any_results = false;
     for (document_name, target_results) in results {
         for (target_name, results) in target_results {
             let target_dir = root.join(&target_name);
@@ -628,6 +635,7 @@ async fn summarize_results(
                 let mut err_counter = 0usize;
 
                 for result in test_results {
+                    any_results = true;
                     match result {
                         Ok(IterationResult::Success) => {
                             success_counter += 1;
@@ -673,6 +681,9 @@ async fn summarize_results(
             // If the target directory is empty, remove it; otherwise leave it.
             let _ = remove_dir(root.join(&target_name));
         }
+    }
+    if !any_results {
+        println!("☠️ no tests executed ☠️")
     }
 }
 
@@ -762,7 +773,13 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
     let mut errors = Vec::new();
     let results = runner
-        .run(documents, should_filter, !args.no_clean, &mut errors)
+        .run(
+            documents,
+            should_filter,
+            !args.no_clean,
+            args.no_status,
+            &mut errors,
+        )
         .await?;
 
     summarize_results(results, &runner.root, !args.no_clean, &mut errors).await;
