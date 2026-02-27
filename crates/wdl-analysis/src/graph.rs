@@ -690,6 +690,7 @@ impl DocumentGraph {
     /// Returns `None` if the document is not in the graph.
     pub fn get_index(&self, uri: &Url) -> Option<NodeIndex> {
         let uri = normalize_file_uri(uri);
+        tracing::error!("get_index: {uri}");
         self.indexes.get(&uri).copied()
     }
 
