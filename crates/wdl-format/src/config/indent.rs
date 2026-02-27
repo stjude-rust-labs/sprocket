@@ -1,5 +1,7 @@
 //! Indentation within formatting configuration.
 
+use serde::Deserialize;
+use serde::Serialize;
 use thiserror::Error;
 
 use crate::SPACE;
@@ -24,7 +26,7 @@ pub const DEFAULT_INDENT: Indent = Indent::Spaces(DEFAULT_SPACE_INDENT);
 pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Indent {
     /// Tabs.
     Tabs,

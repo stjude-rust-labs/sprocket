@@ -3,6 +3,7 @@
 use std::fmt;
 
 use rowan::NodeOrToken;
+use wdl_grammar::SyntaxTokenExt;
 
 use super::BoundDecl;
 use super::Decl;
@@ -14,9 +15,12 @@ use super::LiteralString;
 use super::OpenHeredoc;
 use super::Placeholder;
 use super::StructDefinition;
+use super::TaskKeyword;
 use super::WorkflowDefinition;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -353,6 +357,11 @@ impl<N: TreeNode> TaskDefinition<N> {
         self.token().expect("task should have a name")
     }
 
+    /// Gets the `task` keyword of the task definition.
+    pub fn keyword(&self) -> TaskKeyword<N::Token> {
+        self.token().expect("task should have a keyword")
+    }
+
     /// Gets the items of the task.
     pub fn items(&self) -> impl Iterator<Item = TaskItem<N>> + use<'_, N> {
         TaskItem::children(&self.0)
@@ -440,6 +449,12 @@ impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for TaskDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
 
