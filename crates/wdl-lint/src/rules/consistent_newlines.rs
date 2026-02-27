@@ -48,10 +48,6 @@ impl Rule for ConsistentNewlinesRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.3.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that newline usage is consistent."
     }

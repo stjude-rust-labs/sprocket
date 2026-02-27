@@ -12,7 +12,6 @@ use crate::default_tags;
 pub fn wdl_lint_view() -> PreEscaped<String> {
     let filters = html! {
         (tag_filter())
-        (super::version_filter(LintRuleSource::WdlLint))
         span class="ml-auto" x-text="wdlLint.currentVersion" {}
     };
 
