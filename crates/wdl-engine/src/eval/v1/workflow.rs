@@ -181,7 +181,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .get_choice_cache_key(enum_name, choice_name)
             .ok_or_else(|| unknown_enum(enum_name))?;
 
-        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let cache = self.state.evaluator.choice_cache.lock().unwrap();
         if let Some(cached_value) = cache.get(&cache_key) {
             return Ok(cached_value.clone());
         }
@@ -195,7 +195,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .ok_or(unknown_enum(enum_name))?;
         let value = resolve_enum_choice_value(r#enum, choice_name)?;
 
-        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
         drop(cache);
 
