@@ -44,10 +44,6 @@ impl Rule for ImportSortedRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.3.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that imports are sorted lexicographically."
     }

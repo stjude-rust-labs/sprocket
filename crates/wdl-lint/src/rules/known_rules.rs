@@ -58,10 +58,6 @@ impl Rule for KnownRulesRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.6.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures only known rules are used in `except` directives."
     }

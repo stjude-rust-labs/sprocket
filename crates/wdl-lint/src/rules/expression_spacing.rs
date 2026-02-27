@@ -148,10 +148,6 @@ impl Rule for ExpressionSpacingRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.5.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that WDL expressions are properly spaced."
     }

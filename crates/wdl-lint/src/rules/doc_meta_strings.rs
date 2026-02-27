@@ -104,10 +104,6 @@ impl Rule for DocMetaStringsRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.17.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that reserved meta keys have string values."
     }

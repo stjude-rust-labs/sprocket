@@ -81,9 +81,6 @@ pub trait Rule: Visitor {
     /// a lint rule is disabled.
     fn id(&self) -> &'static str;
 
-    /// The `wdl-lint` version in which this rule was added.
-    fn version(&self) -> &'static str;
-
     /// A short, single sentence description of the lint rule.
     fn description(&self) -> &'static str;
 

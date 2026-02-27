@@ -216,25 +216,11 @@ fn dump_default_state_json(
         .iter()
         .map(LintRule::to_json)
         .collect::<Vec<_>>();
-    let mut all_lint_versions_sorted = wdl_lint_rules
-        .iter()
-        .map(LintRule::version)
-        .filter_map(|version| semver::Version::parse(version).ok())
-        .collect::<Vec<_>>();
-    all_lint_versions_sorted.sort();
-    all_lint_versions_sorted.dedup();
 
     let all_analysis_lints = wdl_analysis_rules
         .iter()
         .map(LintRule::to_json)
         .collect::<Vec<_>>();
-    let mut all_analysis_versions_sorted = wdl_analysis_rules
-        .iter()
-        .map(LintRule::version)
-        .filter_map(|version| semver::Version::parse(version).ok())
-        .collect::<Vec<_>>();
-    all_analysis_versions_sorted.sort();
-    all_analysis_versions_sorted.dedup();
 
     let commit_hash_output = Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
@@ -255,15 +241,11 @@ fn dump_default_state_json(
         "defaultTags": default_tags,
         "wdlLint": {
             "allLints": all_lints,
-            "allVersions": all_lint_versions_sorted,
             "currentVersion": format_crate_version("wdl-lint", &commit_hash, args.wdl_lint_tag.as_deref()),
-            "filteredVersion": all_lint_versions_sorted.len() - 1, // Current version
         },
         "wdlAnalysis": {
             "allLints": all_analysis_lints,
-            "allVersions": all_analysis_versions_sorted,
             "currentVersion": format_crate_version("wdl-analysis", &commit_hash, args.wdl_analysis_tag.as_deref()),
-            "filteredVersion": all_analysis_versions_sorted.len() - 1,
         }
     });
 

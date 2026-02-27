@@ -43,10 +43,6 @@ impl Rule for DescriptionLengthRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.17.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that description meta entries are not too long for display in Sprocket \
          documentation."

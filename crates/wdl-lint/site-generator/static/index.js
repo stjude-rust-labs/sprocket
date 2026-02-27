@@ -15,14 +15,10 @@ Alpine.data('App', () => ({
         activeTags: state.defaultTags,
         allLints: state.wdlLint.allLints,
         version: state.wdlLint.currentVersion,
-        allVersions: state.wdlLint.allVersions,
-        filteredVersion: state.wdlLint.filteredVersion,
     },
     wdlAnalysis: {
         allLints: state.wdlAnalysis.allLints,
         version: state.wdlAnalysis.currentVersion,
-        allVersions: state.wdlAnalysis.allVersions,
-        filteredVersion: state.wdlAnalysis.filteredVersion,
     },
 
     switchTab(tab) {
@@ -57,8 +53,6 @@ Alpine.data('App', () => ({
         if (!tagMatch) return false;
 
         const lintSource = this[lint.source];
-        const versionMatch = lintSource.allVersions.slice(0, lintSource.filteredVersion + 1).includes(lint.addedIn);
-        if (!versionMatch) return false;
 
         if (!this.search) return true;
         const query = this.search.toLowerCase();
