@@ -505,9 +505,9 @@ fn add_member_access_completions(
                 && version >= SupportedVersion::V1(V1::Three)
             {
                 let enum_type = e.inner_value_type();
-                for variant_name in e.variants() {
+                for choice_name in e.variants() {
                     items.push(CompletionItem {
-                        label: variant_name.to_string(),
+                        label: choice_name.to_string(),
                         kind: Some(CompletionItemKind::ENUM_MEMBER),
                         detail: Some(format!("{}[{}]", e.name(), enum_type)),
                         ..Default::default()

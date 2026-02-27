@@ -95,7 +95,7 @@ use wdl_ast::version::V1;
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
-use crate::EnumVariant;
+use crate::EnumChoice;
 use crate::EvaluationContext;
 use crate::HiddenValue;
 use crate::HintsValue;
@@ -119,8 +119,8 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum_variant;
-use crate::diagnostics::unknown_enum_variant_access;
+use crate::diagnostics::unknown_enum_choice;
+use crate::diagnostics::unknown_enum_choice_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -422,7 +422,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
                 }
-                Value::Compound(CompoundValue::EnumVariant(e)) => {
+                Value::Compound(CompoundValue::EnumChoice(e)) => {
                     write!(buffer, "{}", e.name()).unwrap()
                 }
                 v => {
@@ -1510,10 +1510,10 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 if let Some(ty) = ty.as_enum() {
                     let value = self
                         .context()
-                        .enum_variant_value(ty.name(), name.text())
-                        .map_err(|_| unknown_enum_variant_access(ty.name(), &name))?;
-                    let variant = EnumVariant::new(ty.clone(), name.text(), value);
-                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                        .enum_choice_value(ty.name(), name.text())
+                        .map_err(|_| unknown_enum_choice_access(ty.name(), &name))?;
+                    let choice = EnumChoice::new(ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
                 } else {
                     Err(cannot_access(&ty, target.span()))
                 }
@@ -1663,36 +1663,36 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     Some(value.coerce(None, target_ty).unwrap())
 }
 
-/// Resolves the value of an enum variant by looking up the variant's expression
+/// Resolves the value of an enum choice by looking up the choice's expression
 /// in the AST and resolving it to its literal value.
 ///
 /// # Panics
 ///
-/// The function panics if the variant value cannot be parsed as a literal or if
-/// the variant's value does not coerce to the enum's inner value type.
+/// The function panics if the choice value cannot be parsed as a literal or if
+/// the choice's value does not coerce to the enum's inner value type.
 ///
 /// All of these should be caught by `wdl-analysis` checks.
-pub(crate) fn resolve_enum_variant_value(
+pub(crate) fn resolve_enum_choice_value(
     r#enum: &Enum,
-    variant_name: &str,
+    choice_name: &str,
 ) -> Result<Value, Diagnostic> {
     // SAFETY: we can assume that any type associated with an [`Enum`] entry is
     // an [`EnumType`] at this point in analysis.
     let enum_ty = r#enum.ty().unwrap().as_enum().unwrap();
 
-    let variant = r#enum
+    let choice = r#enum
         .definition()
         .variants()
-        .find(|variant| variant.name().text() == variant_name)
-        .ok_or(unknown_enum_variant(enum_ty.name(), variant_name))?;
+        .find(|choice| choice.name().text() == choice_name)
+        .ok_or(unknown_enum_choice(enum_ty.name(), choice_name))?;
 
-    if let Some(value_expr) = variant.value() {
+    if let Some(value_expr) = choice.value() {
         // SAFETY: see the panic notice for this function.
         Ok(parse_constant_value(enum_ty.inner_value_type(), &value_expr).unwrap())
     } else {
         // NOTE: when no expression is provided, the default is the
-        // variant name as a string.
-        Ok(Value::Primitive(PrimitiveValue::new_string(variant_name)))
+        // choice name as a string.
+        Ok(Value::Primitive(PrimitiveValue::new_string(choice_name)))
     }
 }
 
@@ -1891,10 +1891,10 @@ pub(crate) mod test {
                 .ok_or_else(|| unknown_type(name, span))
         }
 
-        fn enum_variant_value(
+        fn enum_choice_value(
             &self,
             _enum_name: &str,
-            _variant_name: &str,
+            _choice_name: &str,
         ) -> Result<Value, Diagnostic> {
             unimplemented!();
         }

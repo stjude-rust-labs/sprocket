@@ -607,20 +607,20 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         return;
     }
 
-    // Ensure there are no duplicate variants
-    let mut variants = IndexMap::new();
-    for variant in definition.variants() {
-        let name = variant.name();
-        match variants.get(name.text()) {
+    // Ensure there are no duplicate choices
+    let mut choices = IndexMap::new();
+    for choice in definition.variants() {
+        let name = choice.name();
+        match choices.get(name.text()) {
             Some(prev_span) => {
                 document.analysis_diagnostics.push(name_conflict(
                     name.text(),
-                    Context::EnumVariant(name.span()),
-                    Context::EnumVariant(*prev_span),
+                    Context::EnumChoice(name.span()),
+                    Context::EnumChoice(*prev_span),
                 ));
             }
             _ => {
-                variants.insert(name.text().to_string(), name.span());
+                choices.insert(name.text().to_string(), name.span());
             }
         }
     }
@@ -1909,13 +1909,13 @@ fn set_enum_types(document: &mut DocumentData) {
         }
 
         let definition = e.definition();
-        let mut variants = Vec::new();
-        let mut variant_spans = Vec::new();
+        let mut choices = Vec::new();
+        let mut choice_spans = Vec::new();
 
-        // Populate the variants and their spans
-        for variant in definition.variants() {
-            let variant_name = variant.name().text().to_string();
-            let variant_type = if let Some(value_expr) = variant.value() {
+        // Populate the choices and their spans
+        for choice in definition.variants() {
+            let choice_name = choice.name().text().to_string();
+            let choice_type = if let Some(value_expr) = choice.value() {
                 // Validate that the value is a literal expression
                 match parse_literal_value(&document.structs, &value_expr) {
                     Some(ty) => ty,
@@ -1933,10 +1933,10 @@ fn set_enum_types(document: &mut DocumentData) {
                 PrimitiveType::String.into()
             };
 
-            variants.push((variant_name, variant_type));
-            variant_spans.push(Span::new(
-                variant.span().start() + e.offset(),
-                variant.span().len(),
+            choices.push((choice_name, choice_type));
+            choice_spans.push(Span::new(
+                choice.span().start() + e.offset(),
+                choice.span().len(),
             ));
         }
 
@@ -1948,11 +1948,11 @@ fn set_enum_types(document: &mut DocumentData) {
                 e.name.clone(),
                 e.name_span,
                 type_param,
-                variants,
-                &variant_spans,
+                choices,
+                &choice_spans,
             )
         } else {
-            EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
+            EnumType::infer(document.enums[index].name.clone(), choices, &choice_spans)
         };
 
         match result {
@@ -2040,7 +2040,7 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
 
 /// Validates that an expression is a literal and converts it to a type.
 ///
-/// Returns `None` if the expression is not a valid literal for enum variant
+/// Returns `None` if the expression is not a valid literal for enum choice
 /// values.
 fn parse_literal_value(structs: &indexmap::IndexMap<String, Struct>, expr: &Expr) -> Option<Type> {
     // Handle struct literals specially since they need struct definitions

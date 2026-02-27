@@ -23,7 +23,7 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
-use wdl_ast::v1::EnumVariant;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::ParameterMetadataSection;
@@ -195,22 +195,22 @@ fn resolve_hover_by_context(
                 return Ok(provide_enum_documentation(e, &root));
             }
         }
-        SyntaxKind::EnumVariantNode => {
-            let variant = EnumVariant::cast(parent_node.clone()).unwrap();
-            let variant_name = variant.name().text().to_string();
+        SyntaxKind::EnumChoiceNode => {
+            let choice = EnumChoice::cast(parent_node.clone()).unwrap();
+            let choice_name = choice.name().text().to_string();
 
-            // Show the variant value (explicit or inferred)
-            if let Some(value_expr) = variant.value() {
+            // Show the choice value (explicit or inferred)
+            if let Some(value_expr) = choice.value() {
                 // Has explicit value
                 let content = format!(
                     "```wdl\n{} = {}\n```",
-                    variant_name,
+                    choice_name,
                     value_expr.inner().text()
                 );
                 return Ok(Some(content));
             } else {
-                // Inferred value (defaults to string of variant name)
-                let content = format!("```wdl\n{} = \"{}\"\n```", variant_name, variant_name);
+                // Inferred value (defaults to string of choice name)
+                let content = format!("```wdl\n{} = \"{}\"\n```", choice_name, choice_name);
                 return Ok(Some(content));
             }
         }
@@ -297,12 +297,12 @@ fn resolve_hover_by_context(
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
+                            // Find the specific choice
+                            if let Some(choice) = definition
                                 .variants()
-                                .find(|v| v.name().text() == member.text())
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())
@@ -373,12 +373,12 @@ fn resolve_hover_by_context(
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
+                            // Find the specific choice
+                            if let Some(choice) = definition
                                 .variants()
-                                .find(|v| v.name().text() == member.text())
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())

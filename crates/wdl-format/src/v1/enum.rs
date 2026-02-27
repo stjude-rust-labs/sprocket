@@ -29,7 +29,7 @@ pub fn format_enum_definition(
     assert!(name.element().kind() == SyntaxKind::Ident);
     (&name).write(stream, config);
 
-    let mut variants = Vec::new();
+    let mut choices = Vec::new();
     let mut commas = Vec::new();
     let mut close_brace = None;
 
@@ -44,8 +44,8 @@ pub fn format_enum_definition(
                 stream.end_line();
                 stream.increment_indent();
             }
-            SyntaxKind::EnumVariantNode => {
-                variants.push(child.clone());
+            SyntaxKind::EnumChoiceNode => {
+                choices.push(child.clone());
             }
             SyntaxKind::Comma => {
                 commas.push(child.clone());
@@ -63,8 +63,8 @@ pub fn format_enum_definition(
     }
 
     let mut commas = commas.iter();
-    for variant in variants {
-        (&variant).write(stream, config);
+for choice in choices {
+        (&choice).write(stream, config);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
         } else if config.trailing_commas {
@@ -78,19 +78,19 @@ pub fn format_enum_definition(
     stream.end_line();
 }
 
-/// Formats an [`EnumVariant`](wdl_ast::v1::EnumVariant).
+/// Formats an [`EnumChoice`](wdl_ast::v1::EnumChoice).
 ///
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_variant(
+pub fn format_enum_choice(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    let mut children = element.children().expect("enum variant children");
+    let mut children = element.children().expect("enum choice children");
 
-    let name = children.next().expect("enum variant name");
+    let name = children.next().expect("enum choice name");
     assert!(name.element().kind() == SyntaxKind::Ident);
     (&name).write(stream, config);
 

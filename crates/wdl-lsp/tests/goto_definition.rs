@@ -361,7 +361,7 @@ async fn should_goto_enum_definition() {
 }
 
 #[tokio::test]
-async fn should_goto_enum_variant_definition() {
+async fn should_goto_enum_choice_definition() {
     let mut ctx = setup().await;
 
     // Position of `Active` in `Status.Active`
