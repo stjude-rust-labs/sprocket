@@ -6,6 +6,8 @@ For external contributors:
 
 - [ ] You have read the [contributing guide](https://github.com/stjude-rust-labs/sprocket/blob/main/CONTRIBUTING.md) in its entirety.
 - [ ] You have not used AI on any parts of this pull request.
+- [ ] You have added a few sentences describing the PR here.
+- [ ] Your code builds clean without any errors or warnings.
 
 For all contributors:
 
