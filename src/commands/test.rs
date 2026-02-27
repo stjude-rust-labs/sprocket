@@ -243,17 +243,11 @@ impl TestIteration {
                     {
                         Ok(IterationResult::Fail(e))
                     } else {
-                        if clean {
-                            let _ = remove_dir_all(self.run_dir).await;
-                        }
                         Ok(IterationResult::Success)
                     }
                 }
                 Err(eval_err) => {
                     if self.assertions.should_fail {
-                        if clean {
-                            let _ = remove_dir_all(self.run_dir).await;
-                        }
                         Ok(IterationResult::Success)
                     } else {
                         Ok(IterationResult::Fail(anyhow!(
@@ -309,9 +303,6 @@ impl TestIteration {
                                         eval_err.to_string()
                                     ));
                                 }
-                                if clean {
-                                    let _ = remove_dir_all(self.run_dir).await;
-                                }
                                 return Ok(IterationResult::Success);
                             }
                         };
@@ -325,9 +316,6 @@ impl TestIteration {
                         {
                             Ok(IterationResult::Fail(e))
                         } else {
-                            if clean {
-                                let _ = remove_dir_all(self.run_dir).await;
-                            }
                             Ok(IterationResult::Success)
                         }
                     } else {
@@ -359,6 +347,9 @@ impl TestIteration {
                     println!("{id}: ☠️")
                 }
             }
+        }
+        if clean && matches!(result, Ok(IterationResult::Success)) {
+            let _ = remove_dir_all(self.run_dir).await;
         }
         result
     }
