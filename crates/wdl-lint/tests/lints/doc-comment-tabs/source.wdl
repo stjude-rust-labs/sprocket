@@ -1,4 +1,4 @@
-#@ except: MetaDescription, MetaSections, RuntimeSection, ElementSpacing, TodoComment
+#@ except: MetaDescription, MetaSections, RuntimeSection, ElementSpacing, TodoComment, UnusedDocComments
 
 version 1.1
 
