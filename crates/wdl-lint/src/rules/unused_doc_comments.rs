@@ -67,7 +67,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::BoundDeclNode,
 ];
 
-/// Determine whether the SyntaxNodeOrToken is a valid target for a doc comment.
+/// Determines whether the SyntaxNodeOrToken is a valid target for a doc comment.
 fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     let kind = doc_comment_target.kind();
 
@@ -85,7 +85,7 @@ fn valid_target_for_doc_comment(doc_comment_target: &SyntaxElement) -> bool {
     VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS.contains(&kind)
 }
 
-/// Find the first non-trivia [`SyntaxElement`] in the comment's siblings
+/// Finds the first non-trivia [`SyntaxElement`] in the comment's siblings
 /// to determine what this doc comment is targeting.
 fn search_siblings_for_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
     let mut next = comment.inner().next_sibling_or_token();
@@ -116,7 +116,7 @@ fn find_inline_doc_comment_target(comment: &Comment) -> Option<SyntaxElement> {
     None
 }
 
-/// Get the [`Span`] of the first token of the provided [`SyntaxElement`]
+/// Gets the [`Span`] of the first token of the provided [`SyntaxElement`].
 fn get_span_of_first_token_for_syntax_element(element: &SyntaxElement) -> Span {
     if let Some(token) = element.as_token() {
         token.span()
@@ -128,8 +128,8 @@ fn get_span_of_first_token_for_syntax_element(element: &SyntaxElement) -> Span {
 }
 
 impl UnusedDocCommentsRule {
-    /// Produce an unused doc comment diagnostic for the doc comment block
-    /// starting at `comment`. Update `skip_count` along the way.
+    /// Produces an unused doc comment diagnostic for the doc comment block
+    /// starting at `comment`. Updates `skip_count` along the way.
     fn lint_next_doc_comment_block(
         &mut self,
         diagnostics: &mut Diagnostics,
