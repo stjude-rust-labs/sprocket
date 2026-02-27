@@ -38,10 +38,6 @@ impl Rule for PascalCaseRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.3.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that structs are defined with PascalCase names."
     }

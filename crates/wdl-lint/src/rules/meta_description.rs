@@ -53,10 +53,6 @@ impl Rule for MetaDescriptionRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.4.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures the `meta` section contains a `description` key."
     }
