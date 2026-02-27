@@ -78,6 +78,14 @@ warning[SnakeCase]: private declaration name `foo_bar_INT` is not snake_case
    │
    = fix: replace `foo_bar_INT` with `foo_bar_int`
 
+note[DeclarationName]: declaration identifier 'bad_but_ignored_int' contains type name 'Int'
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:39:9
+   │
+39 │     Int bad_but_ignored_int = 42
+   │         ^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: rename the identifier to not include the type name
+
 note[DeclarationName]: declaration identifier 'result_int' contains type name 'Int'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:46:13
    │

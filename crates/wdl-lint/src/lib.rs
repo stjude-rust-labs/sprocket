@@ -111,7 +111,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
-        Box::<rules::SnakeCaseRule>::default(),
+        Box::new(rules::SnakeCaseRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
         Box::<rules::CommandSectionIndentationRule>::default(),
@@ -134,7 +134,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::ExpressionSpacingRule>::default(),
         Box::<rules::InputNameRule>::default(),
         Box::<rules::OutputNameRule>::default(),
-        Box::<rules::DeclarationNameRule>::default(),
+        Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
