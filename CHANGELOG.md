@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
+
+### Changed
+
+* Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
+
 ### Fixed
 
 - Added `run.tasks.cache_excluded_keys` to skip certain input keys from cache checks ([#657](https://github.com/stjude-rust-labs/sprocket/issues/657)).

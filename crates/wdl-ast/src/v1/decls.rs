@@ -2,12 +2,16 @@
 
 use std::fmt;
 
+use wdl_grammar::SyntaxTokenExt;
+
 use super::EnvKeyword;
 use super::Expr;
 use super::Plus;
 use super::QuestionMark;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -756,6 +760,23 @@ impl<N: TreeNode> AstNode<N> for UnboundDecl<N> {
     }
 }
 
+impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        let parent = self.inner().parent()?;
+        if !matches!(
+            parent.kind(),
+            SyntaxKind::StructDefinitionNode | SyntaxKind::InputSectionNode
+        ) {
+            return None;
+        }
+
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
+                .collect(),
+        )
+    }
+}
+
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BoundDecl<N: TreeNode = SyntaxNode>(N);
@@ -799,6 +820,23 @@ impl<N: TreeNode> AstNode<N> for BoundDecl<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        let parent = self.inner().parent()?;
+        if !matches!(
+            parent.kind(),
+            SyntaxKind::InputSectionNode | SyntaxKind::OutputSectionNode
+        ) {
+            return None;
+        }
+
+        Some(
+            crate::doc_comments::<SyntaxNode>(self.inner().first_token()?.preceding_trivia())
+                .collect(),
+        )
     }
 }
 

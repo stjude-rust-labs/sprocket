@@ -1,4 +1,4 @@
-#@ except: MatchingOutputMeta, MetaKeyValueFormatting, ExpectedRuntimeKeys
+#@ except: MatchingOutputMeta, ExpectedRuntimeKeys
 #@ except: ParameterMetaMatched, RuntimeSection
 
 version 1.1

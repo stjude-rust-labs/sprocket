@@ -10,10 +10,9 @@ use maud::Markup;
 use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxTokenExt;
-use wdl_ast::TreeToken;
 use wdl_ast::v1::MetadataObjectItem;
 use wdl_ast::v1::MetadataValue;
 
@@ -383,15 +382,12 @@ pub(crate) fn summarize_if_needed(
 }
 
 /// A doc comment paragraph
-///
-/// Internally, this retains the line breaks as they appear in the document.
-/// When rendered, the lines are joined with spaces.
 #[derive(Debug, Clone, Default)]
 pub struct Paragraph(Vec<String>);
 
 impl Display for Paragraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.join(" "))
+        write!(f, "{}", self.0.join("\n"))
     }
 }
 
@@ -414,29 +410,23 @@ impl DerefMut for Paragraph {
 /// The first paragraph of the doc comment text will be placed under the
 /// `description` key of the map. All other paragraphs will be joined with
 /// newlines and placed under the `help` key.
-pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap {
+pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaMap {
     let mut map = MetaMap::new();
 
     let mut current_paragraph = Paragraph::default();
     let mut paragraphs = Vec::new();
-    for token in token.preceding_trivia() {
-        match token.kind() {
-            SyntaxKind::Comment => {
-                let Some(comment) = token.text().strip_prefix(DOC_COMMENT_PREFIX) else {
-                    continue;
-                };
+    for doc_comment in comments {
+        let Some(comment) = doc_comment.text().strip_prefix(DOC_COMMENT_PREFIX) else {
+            continue;
+        };
 
-                if comment.trim().is_empty() {
-                    paragraphs.push(current_paragraph);
-                    current_paragraph = Paragraph::default();
-                    continue;
-                }
-
-                current_paragraph.push(comment.to_owned());
-            }
-            SyntaxKind::Whitespace => continue,
-            _ => unreachable!(),
+        if comment.trim().is_empty() {
+            paragraphs.push(current_paragraph);
+            current_paragraph = Paragraph::default();
+            continue;
         }
+
+        current_paragraph.push(comment.to_owned());
     }
 
     if !current_paragraph.is_empty() {
@@ -447,14 +437,45 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
         return map;
     }
 
+    // We need to determine the minimum indentation that we can strip from each
+    // paragraph line. Prior to this point, no lines have been trimmed.
+    //
+    // In the most common case, we'll just be stripping a single space between the
+    // `##` and the comment text, as is convention.
+    let min_indent = paragraphs
+        .iter()
+        .map(|paragraph| {
+            paragraph
+                .iter()
+                .filter(|line| line.chars().any(|c| !c.is_whitespace()))
+                .map(|line| line.chars().take_while(|c| *c == ' ' || *c == '\t').count())
+                .min()
+                .unwrap_or(usize::MAX)
+        })
+        .min()
+        .unwrap_or(0);
+
+    for paragraph in &mut paragraphs {
+        for line in paragraph
+            .iter_mut()
+            .filter(|line| !line.chars().all(char::is_whitespace))
+        {
+            assert!(line.len() > min_indent);
+            *line = line.split_off(min_indent);
+        }
+    }
+
+    let mut paragraphs = paragraphs.into_iter();
+
     map.insert(
         DESCRIPTION_KEY.to_string(),
-        MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),
+        // SAFETY: if paragraphs were empty, we would have returned early
+        MetaMapValueSource::Comment(paragraphs.next().unwrap().to_string()),
     );
 
-    let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
+    let help = paragraphs.fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
-            acc.push('\n');
+            acc.push_str("\n\n");
         }
 
         acc.push_str(&p.to_string());

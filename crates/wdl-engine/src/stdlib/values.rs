@@ -37,7 +37,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(map: Map[K, V]) -> Array[V] where `K`: any primitive type",
+                "(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 Callback::Sync(values),
             )]
         },

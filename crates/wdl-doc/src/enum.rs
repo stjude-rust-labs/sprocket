@@ -5,6 +5,7 @@ use std::path::Path;
 use maud::Markup;
 use maud::html;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::EnumVariant;
@@ -138,16 +139,16 @@ fn parse_meta(
     definition: &EnumDefinition,
     enable_doc_comments: bool,
 ) -> (MetaMap, Vec<DocumentedEnumChoice>) {
-    let enum_docs = if enable_doc_comments {
-        doc_comments(definition.keyword().inner())
+    let enum_docs = if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+        doc_comments(comments)
     } else {
         MetaMap::new()
     };
 
     let mut choice_docs = Vec::new();
     for choice in definition.variants() {
-        let meta = if enable_doc_comments {
-            doc_comments(choice.name().inner())
+        let meta = if enable_doc_comments && let Some(comments) = choice.doc_comments() {
+            doc_comments(comments)
         } else {
             MetaMap::new()
         };
@@ -159,4 +160,79 @@ fn parse_meta(
     }
 
     (enum_docs, choice_docs)
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::AstToken;
+    use wdl_ast::Document;
+    use wdl_ast::SupportedVersion;
+    use wdl_ast::version::V1;
+
+    use crate::r#enum::Enum;
+    use crate::meta::DESCRIPTION_KEY;
+    use crate::meta::MetaMapExt;
+
+    #[test]
+    fn test_enum() {
+        let (doc, _) = Document::parse(
+            r##"
+            version 1.3
+            ## An RGB24 color enum
+            ##
+            ## Each variant is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
+            enum Color[String] {
+                ## Pure red
+                Red = "#FF0000",
+                ## Pure green
+                Green = "#00FF00",
+                Blue = "#0000FF" # No description
+            }
+            "##,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_enum = doc_item.into_enum_definition().unwrap();
+
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), true);
+        assert_eq!(
+            enum_def.meta.full_description().as_deref(),
+            Some(
+                "An RGB24 color enum\nEach variant is represented as a 24-bit hexadecimal RGB \
+                 string with exactly one non-zero channel."
+            )
+        );
+        assert_eq!(enum_def.definition.name().text(), "Color");
+
+        let mut found_red = false;
+        let mut found_green = false;
+        let mut found_blue = false;
+        for choice in enum_def.choices {
+            match choice.choice.name().text() {
+                "Red" => {
+                    assert_eq!(
+                        choice.meta.get(DESCRIPTION_KEY).unwrap().text().unwrap(),
+                        "Pure red"
+                    );
+                    found_red = true;
+                }
+                "Green" => {
+                    assert_eq!(
+                        choice.meta.get(DESCRIPTION_KEY).unwrap().text().unwrap(),
+                        "Pure green"
+                    );
+                    found_green = true;
+                }
+                "Blue" => {
+                    assert!(!choice.meta.contains_key(DESCRIPTION_KEY));
+                    found_blue = true;
+                }
+                other => unreachable!("unexpected choice: {other}"),
+            }
+        }
+
+        assert!(found_red);
+        assert!(found_green);
+        assert!(found_blue);
+    }
 }

@@ -325,7 +325,6 @@ impl Visitor for ElementSpacingRule {
         // flag_all_blank_lines_within() covers check_last_token()
     }
 
-    // call statement internal spacing is handled by the CallInputSpacing rule
     fn call_statement(
         &mut self,
         diagnostics: &mut Diagnostics,

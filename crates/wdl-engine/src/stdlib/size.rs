@@ -254,10 +254,8 @@ async fn compound_disk_size(
         CompoundValue::Map(map) => {
             let mut size = 0.0;
             for (k, v) in map.iter() {
-                size += match k {
-                    Some(k) => primitive_disk_size(transferer, k, unit, base_dir).await?,
-                    None => 0.0,
-                } + calculate_disk_size(transferer, v, unit, base_dir).await?;
+                size += primitive_disk_size(transferer, k, unit, base_dir).await?
+                    + calculate_disk_size(transferer, v, unit, base_dir).await?;
             }
 
             Ok(size)

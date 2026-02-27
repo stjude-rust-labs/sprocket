@@ -1577,6 +1577,20 @@ impl SlurmPartitionConfig {
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
+    /// The task monitor polling interval, in seconds.
+    ///
+    /// Defaults to 30 seconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interval: Option<u64>,
+    /// The maximum number of concurrent Slurm operations the backend will
+    /// perform.
+    ///
+    /// This controls the maximum concurrent number of `sbatch` processes the
+    /// backend will spawn to queue tasks.
+    ///
+    /// Defaults to 10 concurrent operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_concurrency: Option<u32>,
     /// Which partition, if any, to specify when submitting normal jobs to
     /// Slurm.
     ///
@@ -1605,6 +1619,9 @@ pub struct SlurmApptainerBackendConfig {
     /// Additional command-line arguments to pass to `sbatch` when submitting
     /// jobs to Slurm.
     pub extra_sbatch_args: Option<Vec<String>>,
+    /// Prefix to add to every Slurm job name before the task identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job_name_prefix: Option<String>,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where Slurm dispatches tasks.
     ///

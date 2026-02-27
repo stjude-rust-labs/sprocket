@@ -341,9 +341,8 @@ pub(crate) fn disks<'a>(
                 // Find the corresponding key; we have to scan the keys because the map is
                 // storing primitive values
                 if let Some((_, v)) = map.iter().find(|(k, _)| match (k, mount_point) {
-                    (None, None) => true,
-                    (None, Some(_)) | (Some(_), None) => false,
-                    (Some(k), Some(mount_point)) => k
+                    (_, None) => false,
+                    (k, Some(mount_point)) => k
                         .as_string()
                         .map(|k| k.as_str() == mount_point)
                         .unwrap_or(false),
