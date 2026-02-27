@@ -926,8 +926,8 @@ impl Document {
     ) -> Option<crate::types::EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
-        let choice_index = enum_ty.variants().iter().position(|v| v == choice)?;
-        Some(crate::types::EnumChoiceCacheKey::new(
+        let choice_index = enum_ty.variants().iter().position(|v| v == variant)?;
+        Some(crate::types::EnumVariantCacheKey::new(
             enum_index,
             choice_index,
         ))

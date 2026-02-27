@@ -2175,14 +2175,14 @@ pub struct EnumChoice {
     /// The type of the enum containing this choice.
     enum_ty: EnumType,
     /// The index of the choice in the enum type.
-    variant_index: usize,
+    choice_index: usize,
     /// The value of the choice.
     value: Arc<Value>,
 }
 
 impl PartialEq for EnumChoice {
     fn eq(&self, other: &Self) -> bool {
-        self.enum_ty == other.enum_ty && self.variant_index == other.variant_index
+        self.enum_ty == other.enum_ty && self.choice_index == other.choice_index
     }
 }
 
@@ -2196,7 +2196,7 @@ impl EnumChoice {
         let enum_ty = enum_ty.into();
         let value = Arc::new(value.into());
 
-        let variant_index = enum_ty
+        let choice_index = enum_ty
             .variants()
             .iter()
             .position(|v| v == name)
@@ -2204,7 +2204,7 @@ impl EnumChoice {
 
         Self {
             enum_ty,
-            variant_index,
+            choice_index,
             value,
         }
     }
@@ -2216,7 +2216,7 @@ impl EnumChoice {
 
     /// Gets the name of the choice.
     pub fn name(&self) -> &str {
-        &self.enum_ty.variants()[self.variant_index]
+        &self.enum_ty.variants()[self.choice_index]
     }
 
     /// Gets the value of the choice.
