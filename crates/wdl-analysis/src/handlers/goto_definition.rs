@@ -651,8 +651,8 @@ fn resolve_access_expression(
                 v1::EnumDefinition::cast(SyntaxNode::new_root(original_enum.node().clone()))
                     .expect("should cast to enum definition");
 
-            if let Some(choice) = enum_node
-                .variants()
+            if let Some(variant) = enum_node
+                .choices()
                 .find(|v| v.name().text() == access_ident.text())
             {
                 let choice_span = choice.name().span();
@@ -693,8 +693,8 @@ fn resolve_access_expression(
         let enum_node = v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
             .expect("should cast to enum definition");
 
-        let Some(choice) = enum_node
-            .variants()
+        let Some(variant) = enum_node
+            .choices()
             .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);
@@ -772,8 +772,8 @@ fn resolve_access_expression(
 
         let enum_node = enum_def.definition();
 
-        let Some(choice) = enum_node
-            .variants()
+        let Some(variant) = enum_node
+            .choices()
             .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);

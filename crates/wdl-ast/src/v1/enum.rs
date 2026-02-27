@@ -46,7 +46,7 @@ impl<N: TreeNode> EnumDefinition<N> {
     }
 
     /// Gets the choices in the enum definition.
-    pub fn variants(&self) -> impl Iterator<Item = EnumChoice<N>> + use<'_, N> {
+    pub fn choices(&self) -> impl Iterator<Item = EnumChoice<N>> + use<'_, N> {
         self.children()
     }
 
@@ -114,7 +114,7 @@ impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
 
         writeln!(f, " {{")?;
 
-        for choice in self.definition.variants() {
+        for choice in self.choices() {
             write!(f, "  {}", choice.name().text())?;
             if let Some(value) = choice.value() {
                 write!(f, " = {}", value.inner().text())?;
@@ -272,13 +272,13 @@ workflow test {}
                 let empty = &enums[0];
                 assert_eq!(empty.name().text(), "Empty");
                 assert!(empty.type_parameter().is_none());
-                assert_eq!(empty.variants().count(), 0);
+                assert_eq!(empty.choices().count(), 0);
 
                 // Basic enum without type parameter
                 let color = &enums[1];
                 assert_eq!(color.name().text(), "Color");
                 assert!(color.type_parameter().is_none());
-                let choices: Vec<_> = color.variants().collect();
+                let choices: Vec<_> = color.choices().collect();
                 assert_eq!(choices.len(), 3);
                 assert_eq!(choices[0].name().text(), "Red");
                 assert_eq!(choices[1].name().text(), "Green");
@@ -292,7 +292,7 @@ workflow test {}
                 assert_eq!(status.name().text(), "Status");
                 let type_param = status.type_parameter().expect("should have type parameter");
                 assert_eq!(type_param.ty().inner().text(), "String");
-                assert_eq!(status.variants().count(), 3);
+                assert_eq!(status.choices().count(), 3);
 
                 // Enum with Int type parameter and values
                 let priority = &enums[3];
@@ -301,7 +301,7 @@ workflow test {}
                     .type_parameter()
                     .expect("should have type parameter");
                 assert_eq!(type_param.ty().inner().text(), "Int");
-                let choices: Vec<_> = priority.variants().collect();
+                let choices: Vec<_> = priority.choices().collect();
                 assert_eq!(choices.len(), 3);
                 for choice in &choices {
                     assert!(choice.value().is_some());
@@ -310,7 +310,7 @@ workflow test {}
                 // Enum with mixed values (some with, some without)
                 let mixed = &enums[4];
                 assert_eq!(mixed.name().text(), "Mixed");
-                let choices: Vec<_> = mixed.variants().collect();
+                let choices: Vec<_> = mixed.choices().collect();
                 assert_eq!(choices.len(), 3);
                 assert!(choices[0].value().is_some());
                 assert!(choices[1].value().is_none());

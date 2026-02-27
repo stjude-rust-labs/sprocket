@@ -1682,9 +1682,9 @@ pub(crate) fn resolve_enum_choice_value(
 
     let choice = r#enum
         .definition()
-        .variants()
-        .find(|choice| choice.name().text() == choice_name)
-        .ok_or(unknown_enum_choice(enum_ty.name(), choice_name))?;
+        .choices()
+        .find(|variant| variant.name().text() == variant_name)
+        .ok_or(unknown_enum_variant(enum_ty.name(), variant_name))?;
 
     if let Some(value_expr) = choice.value() {
         // SAFETY: see the panic notice for this function.

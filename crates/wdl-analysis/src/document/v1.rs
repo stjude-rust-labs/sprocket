@@ -486,7 +486,7 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
         _ => return false,
     }
 
-    for result in a.variants().zip_longest(b.variants()) {
+    for result in a.choices().zip_longest(b.choices()) {
         // If the length of `a` and `b` is not equal, the enums are not equal.
         let EitherOrBoth::Both(var_a, var_b) = result else {
             return false;
@@ -607,11 +607,11 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         return;
     }
 
-    // Ensure there are no duplicate choices
-    let mut choices = IndexMap::new();
-    for choice in definition.variants() {
-        let name = choice.name();
-        match choices.get(name.text()) {
+    // Ensure there are no duplicate variants
+    let mut variants = IndexMap::new();
+    for variant in definition.choices() {
+        let name = variant.name();
+        match variants.get(name.text()) {
             Some(prev_span) => {
                 document.analysis_diagnostics.push(name_conflict(
                     name.text(),
@@ -1912,10 +1912,10 @@ fn set_enum_types(document: &mut DocumentData) {
         let mut choices = Vec::new();
         let mut choice_spans = Vec::new();
 
-        // Populate the choices and their spans
-        for choice in definition.variants() {
-            let choice_name = choice.name().text().to_string();
-            let choice_type = if let Some(value_expr) = choice.value() {
+        // Populate the variants and their spans
+        for variant in definition.choices() {
+            let variant_name = variant.name().text().to_string();
+            let variant_type = if let Some(value_expr) = variant.value() {
                 // Validate that the value is a literal expression
                 match parse_literal_value(&document.structs, &value_expr) {
                     Some(ty) => ty,

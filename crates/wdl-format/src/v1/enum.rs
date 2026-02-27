@@ -44,7 +44,7 @@ pub fn format_enum_definition(
                 stream.end_line();
                 stream.increment_indent();
             }
-            SyntaxKind::EnumChoiceNode => {
+            SyntaxKind::EnumVariantNode => {
                 choices.push(child.clone());
             }
             SyntaxKind::Comma => {
@@ -63,8 +63,8 @@ pub fn format_enum_definition(
     }
 
     let mut commas = commas.iter();
-for choice in choices {
-        (&choice).write(stream, config);
+    for choice in choices {
+        (&choice).write(stream);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
         } else if config.trailing_commas {
@@ -83,11 +83,7 @@ for choice in choices {
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_choice(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
+pub fn format_enum_choice(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
     let mut children = element.children().expect("enum choice children");
 
     let name = children.next().expect("enum choice name");
