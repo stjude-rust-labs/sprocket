@@ -56,10 +56,6 @@ impl Rule for OutputNameRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.5.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures output names are meaningful (e.g. not generic like 'output', 'out', or too short)."
     }

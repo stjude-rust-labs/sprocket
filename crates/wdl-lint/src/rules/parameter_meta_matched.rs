@@ -104,10 +104,6 @@ impl Rule for ParameterMetaMatchedRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.1.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that inputs have a matching entry in a `parameter_meta` section."
     }

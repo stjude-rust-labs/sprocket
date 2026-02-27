@@ -37,10 +37,6 @@ impl Rule for TodoCommentRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.4.0"
-    }
-
     fn description(&self) -> &'static str {
         "Flags TODO statements in comments to ensure they are not forgotten."
     }

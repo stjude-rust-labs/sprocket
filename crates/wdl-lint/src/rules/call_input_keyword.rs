@@ -39,10 +39,6 @@ impl Rule for CallInputKeywordRule {
         ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.17.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that the `input:` keyword is not used in call statements when WDL version is 1.2 \
          or later."
