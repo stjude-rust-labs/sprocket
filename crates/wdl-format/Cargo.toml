@@ -11,6 +11,8 @@ documentation = "https://docs.rs/wdl-format"
 
 [dependencies]
 nonempty.workspace = true
+serde = { workspace = true }
+clap = { workspace = true }
 thiserror.workspace = true
 wdl-ast = { path = "../wdl-ast", version = "0.21.1" }
 
