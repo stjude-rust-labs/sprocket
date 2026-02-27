@@ -147,8 +147,8 @@ note[UnusedDocComments]: unused doc comment
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:106:42
     │
-106 │         String favorite_fruit = "Banana" ## Invalid inline doc comment that should only linted once by UnusedDocComment.
-    │         ------                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+106 │         String favorite_fruit = "Banana" ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
+    │         ------                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │         │                                 
     │         documentation will not be generated for this item
     │

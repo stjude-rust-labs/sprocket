@@ -103,7 +103,7 @@ workflow test_workflow {
     # Comments seem fine here (although maybe a weird choice).
     ## But doc comments shouldn't be.
     else if (banana) {
-        String favorite_fruit = "Banana" ## Invalid inline doc comment that should only linted once by UnusedDocComment.
+        String favorite_fruit = "Banana" ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
     }
     # Seemingly, you can also put comments here,
     ## but we don't want doc comments here.
