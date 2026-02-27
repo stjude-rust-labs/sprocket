@@ -23,6 +23,7 @@ pub struct Config {
     /// The newline style.
     pub newline_style: NewlineStyle,
 }
+
 impl Default for Config {
     fn default() -> Self {
         Self {
