@@ -1214,7 +1214,7 @@ workflow test {
             .output()
             .expect("Failed to initialize git repository");
         fs::write(dir.path().join(".gitignore"), "ignored.wdl\n")
-            .expect("Failed to create .gitignore");
+            .expect("failed to create .gitignore");
         fs::write(dir.path().join("ignored.wdl"), "version 1.1\n")
             .expect("Failed to create ignored.wdl");
         fs::write(dir.path().join("included.wdl"), "version 1.1\n")
