@@ -449,7 +449,10 @@ impl Postprocessor {
 
                 if self.interrupted
                     && should_deindent(kind)
-                    && matches!(stream.0.last(), Some(&PostToken::Indent))
+                    && matches!(
+                        stream.0.last(),
+                        Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
+                    )
                 {
                     stream.0.pop();
                 }
@@ -734,12 +737,12 @@ impl Postprocessor {
             self.indent_level
         };
 
-        if self.temp_indent_needed {
-            stream.push(PostToken::TempIndent(self.temp_indent.clone()));
-        }
-
         for _ in 0..level {
             stream.push(PostToken::Indent);
+        }
+
+        if self.temp_indent_needed {
+            stream.push(PostToken::TempIndent(self.temp_indent.clone()));
         }
     }
 
