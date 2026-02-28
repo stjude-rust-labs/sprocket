@@ -299,6 +299,22 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     }
 }
 
+/// Tokens that should have a single [`PostToken::Indent`] popped from the
+/// stream if they are being added.
+fn should_deindent(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::OpenBrace
+            | SyntaxKind::OpenBracket
+            | SyntaxKind::OpenParen
+            | SyntaxKind::OpenHeredoc
+            | SyntaxKind::CloseBrace
+            | SyntaxKind::CloseBracket
+            | SyntaxKind::CloseParen
+            | SyntaxKind::CloseHeredoc
+    )
+}
+
 /// Tracks a tandem break.
 struct TandemBreak {
     /// The [`SyntaxKind`] which opened this tandem break.
@@ -432,20 +448,8 @@ impl Postprocessor {
                 }
 
                 if self.interrupted
-                    && matches!(
-                        kind,
-                        SyntaxKind::OpenBrace
-                            | SyntaxKind::OpenBracket
-                            | SyntaxKind::OpenParen
-                            | SyntaxKind::OpenHeredoc
-                            | SyntaxKind::CloseBrace
-                            | SyntaxKind::CloseBracket
-                            | SyntaxKind::CloseParen
-                    )
-                    && matches!(
-                        stream.0.last(),
-                        Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
-                    )
+                    && should_deindent(kind)
+                    && matches!(stream.0.last(), Some(&PostToken::Indent))
                 {
                     stream.0.pop();
                 }
@@ -636,16 +640,14 @@ impl Postprocessor {
                         } else {
                             break_stack.pop();
                             self.indent_level -= 1;
-                            self.interrupted = true;
                             self.end_line(&mut post_buffer);
                         }
                     }
-                } else {
-                    // The line is not too long yet and the break stack is empty.
-                    // The line might be too long after the next step, so cache the current state so
-                    // we can revert to it if necessary.
-                    cache = Some(post_buffer.clone());
                 }
+                // The line is not too long yet but the line might be too long after the next
+                // step, so cache the current state so we can revert to it if
+                // necessary.
+                cache = Some(post_buffer.clone());
             }
 
             self.step(
