@@ -6,6 +6,7 @@ mod newline;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
+pub use newline::NewlineStyle;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -26,6 +27,8 @@ pub struct Config {
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
     pub trailing_commas: bool,
+    /// The newline style to use.
+    pub newline_style: NewlineStyle,
 }
 
 impl Default for Config {
@@ -35,6 +38,7 @@ impl Default for Config {
             max_line_length: MaxLineLength::default(),
             sort_inputs: SORT_INPUTS_DEFAULT,
             trailing_commas: TRAILING_COMMAS_DEFAULT,
+            newline_style: NewlineStyle::default(),
         }
     }
 }
