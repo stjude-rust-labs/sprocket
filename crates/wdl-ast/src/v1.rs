@@ -18,8 +18,6 @@ mod workflow;
 pub use decls::*;
 pub use display::format_meta_value;
 pub use display::get_param_meta;
-pub use display::write_input_section;
-pub use display::write_output_section;
 pub use r#enum::*;
 pub use expr::*;
 pub use import::*;
