@@ -1077,7 +1077,8 @@ workflow chip {
         }
     }
     File? blacklist_ = if length(blacklists) > 1 then pool_blacklist.ta_pooled else if length(
-        blacklists) > 0 then blacklists[0] else blacklist2_
+        blacklists
+    ) > 0 then blacklists[0] else blacklist2_
     String mito_chr_name_ = select_first([
         mito_chr_name,
         read_genome_tsv.mito_chr_name,
@@ -1296,9 +1297,11 @@ workflow chip {
     Int num_rep_fastq = length(fastqs_R1)
     Int num_rep_bam = if length(bams) < num_rep_fastq then num_rep_fastq else length(bams)
     Int num_rep_nodup_bam = if length(nodup_bams) < num_rep_bam then num_rep_bam else length(
-        nodup_bams)
+        nodup_bams
+    )
     Int num_rep_ta = if length(tas) < num_rep_nodup_bam then num_rep_nodup_bam else length(
-        tas)
+        tas
+    )
     Int num_rep_peak = if length(peaks) < num_rep_ta then num_rep_ta else length(peaks)
     Int num_rep = num_rep_peak
 
@@ -1308,9 +1311,11 @@ workflow chip {
         ctl_bams
     )
     Int num_ctl_nodup_bam = if length(ctl_nodup_bams) < num_ctl_bam then num_ctl_bam else length(
-        ctl_nodup_bams)
+        ctl_nodup_bams
+    )
     Int num_ctl_ta = if length(ctl_tas) < num_ctl_nodup_bam then num_ctl_nodup_bam else length(
-        ctl_tas)
+        ctl_tas
+    )
     Int num_ctl = num_ctl_ta
 
     # sanity check for inputs
@@ -1384,7 +1389,8 @@ workflow chip {
         # to override endedness definition for individual replicate
         #     paired_end will override paired_ends[i]
         Boolean paired_end_ = if !defined(paired_end) && i < length(paired_ends) then paired_ends[
-            i] else select_first([
+            i
+        ] else select_first([
             paired_end,
         ])
 
@@ -1402,7 +1408,8 @@ workflow chip {
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
                 idx_tar = if aligner == "bwa" then bwa_idx_tar_ else if aligner == "bowtie2"
-                    then bowtie2_idx_tar_ else custom_aligner_idx_tar,
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar,
                 paired_end = paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
                 bwa_mem_read_len_limit = bwa_mem_read_len_limit,
@@ -1476,7 +1483,7 @@ workflow chip {
         }
 
         Boolean has_input_of_count_signal_track = has_output_of_bam2ta || defined(bam2ta.ta
-            )
+        )
         if (has_input_of_count_signal_track && enable_count_signal_track_) {
             # generate count signal track
             call count_signal_track { input:
@@ -1509,7 +1516,8 @@ workflow chip {
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
                 idx_tar = if aligner == "bwa" then bwa_idx_tar_ else if aligner == "bowtie2"
-                    then bowtie2_idx_tar_ else custom_aligner_idx_tar,
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar,
                 paired_end = false,
                 use_bwa_mem_for_pe = false,
                 bwa_mem_read_len_limit = 0,
@@ -1596,7 +1604,8 @@ workflow chip {
         #  (mapping with both ends for tag-aligns to be used for xcor)
         # subsample tagalign (non-mito) and cross-correlation analysis
         File? ta_xcor = if defined(bam2ta_no_dedup_R1.ta) then bam2ta_no_dedup_R1.ta else
-            if defined(bam2ta_no_dedup.ta) then bam2ta_no_dedup.ta else ta_
+            if defined(bam2ta_no_dedup.ta)
+            then bam2ta_no_dedup.ta else ta_
         Boolean paired_end_xcor = if defined(bam2ta_no_dedup_R1.ta) then false else paired_end_
 
         Boolean has_input_of_xcor = defined(ta_xcor)
@@ -1634,7 +1643,8 @@ workflow chip {
         ])
 
         Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[
-            i]) > 0
+            i
+        ]) > 0
         Boolean has_output_of_align_ctl = i < length(ctl_bams)
         if (has_input_of_align_ctl && !has_output_of_align_ctl) {
             call align as align_ctl { input:
@@ -1648,7 +1658,8 @@ workflow chip {
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
                 idx_tar = if aligner == "bwa" then bwa_idx_tar_ else if aligner == "bowtie2"
-                    then bowtie2_idx_tar_ else custom_aligner_idx_tar,
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar,
                 paired_end = ctl_paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
                 bwa_mem_read_len_limit = bwa_mem_read_len_limit,
@@ -1666,7 +1677,7 @@ workflow chip {
         File? ctl_bam_ = if has_output_of_align_ctl then ctl_bams[i] else align_ctl.bam
 
         Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam
-            )
+        )
         Boolean has_output_of_filter_ctl = i < length(ctl_nodup_bams)
         # skip if we already have output of this step
         if (has_input_of_filter_ctl && !has_output_of_filter_ctl) {
@@ -1693,7 +1704,7 @@ workflow chip {
         File? ctl_nodup_bam_ = if has_output_of_filter_ctl then ctl_nodup_bams[i] else filter_ctl.nodup_bam
 
         Boolean has_input_of_bam2ta_ctl = has_output_of_filter_ctl || defined(filter_ctl.nodup_bam
-            )
+        )
         Boolean has_output_of_bam2ta_ctl = i < length(ctl_tas)
         if (has_input_of_bam2ta_ctl && !has_output_of_bam2ta_ctl) {
             call bam2ta as bam2ta_ctl { input:
@@ -1758,7 +1769,7 @@ workflow chip {
 
     Boolean has_input_of_count_signal_track_pooled = defined(pool_ta.ta_pooled)
     if (has_input_of_count_signal_track_pooled && enable_count_signal_track_ && num_rep > 1
-        ) {
+    ) {
         call count_signal_track as count_signal_track_pooled { input:
             ta = pool_ta.ta_pooled,
             chrsz = chrsz_,
@@ -1997,7 +2008,8 @@ workflow chip {
     }
     # actually not an array
     Array[File?] chosen_ctl_ta_pooled = if !has_all_input_of_choose_ctl || align_only_
-        then [] else if chosen_ctl_ta_pooled_subsample > 0 then [
+        then []
+        else if chosen_ctl_ta_pooled_subsample > 0 then [
         subsample_ctl_pooled.ta_subsampled,
     ] else if num_ctl < 2 then [
         ctl_ta_[0],
@@ -3133,7 +3145,7 @@ task overlap {
         File bfilt_overlap_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
         File bfilt_overlap_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
         File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*"
-            )[1]
+        )[1]
         File frip_qc = if defined(ta) then glob("*.frip.qc")[0] else glob("null")[0]
     }
 
@@ -3416,17 +3428,19 @@ task read_genome_tsv {
         String? genome_name = read_string("genome_name")
         String? ref_fa = if size("ref_fa") == 0 then null_s else read_string("ref_fa")
         String? bwa_idx_tar = if size("bwa_idx_tar") == 0 then null_s else read_string("bwa_idx_tar"
-            )
+        )
         String? bowtie2_idx_tar = if size("bowtie2_idx_tar") == 0 then null_s else read_string(
-            "bowtie2_idx_tar")
+            "bowtie2_idx_tar"
+        )
         String? chrsz = if size("chrsz") == 0 then null_s else read_string("chrsz")
         String? gensz = if size("gensz") == 0 then null_s else read_string("gensz")
         String? blacklist = if size("blacklist") == 0 then null_s else read_string("blacklist"
-            )
+        )
         String? blacklist2 = if size("blacklist2") == 0 then null_s else read_string("blacklist2"
-            )
+        )
         String? mito_chr_name = if size("mito_chr_name") == 0 then null_s else read_string(
-            "mito_chr_name")
+            "mito_chr_name"
+        )
         String? regex_bfilt_peak_chr_name = if size("regex_bfilt_peak_chr_name") == 0 then "chr[\\dXY]+"
             else read_string("regex_bfilt_peak_chr_name")
     }
