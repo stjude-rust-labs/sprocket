@@ -1,5 +1,7 @@
 //! Formatting for tasks.
 
+use std::rc::Rc;
+
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::StrippedCommandPart;
 
@@ -234,13 +236,28 @@ pub fn format_command_section(
             // End the line after the open delimiter and increment indent.
             stream.increment_indent();
 
+            let mut bash_indent: Option<String> = None;
             for (part, child) in parts.iter().zip(children.by_ref()) {
                 match part {
                     StrippedCommandPart::Text(text) => {
                         // Manually format the text and ignore the child.
-                        for (i, line) in text.lines().enumerate() {
+                        let mut lines = text.lines().enumerate().peekable();
+                        while let Some((i, line)) = lines.next() {
                             if i > 0 {
                                 stream.end_line();
+                                if lines.peek().is_none() {
+                                    // save the leading whitespace to use as temporary indent
+                                    bash_indent = Some(
+                                        line.chars()
+                                            .take_while(|c| {
+                                                matches!(
+                                                    c.to_string().as_str(),
+                                                    crate::SPACE | crate::TAB
+                                                )
+                                            })
+                                            .collect(),
+                                    );
+                                }
                             }
                             stream.push_literal(line.to_owned(), SyntaxKind::LiteralCommandText);
                         }
@@ -250,9 +267,14 @@ pub fn format_command_section(
                         }
                     }
                     StrippedCommandPart::Placeholder(_) => {
-                        stream.push(PreToken::TempIndentStart);
-                        (&child).write(stream, config);
-                        stream.push(PreToken::TempIndentEnd);
+                        if let Some(ref temp_indent) = bash_indent {
+                            stream
+                                .push(PreToken::TempIndentStart(Rc::new(temp_indent.to_string())));
+                            (&child).write(stream, config);
+                            stream.push(PreToken::TempIndentEnd);
+                        } else {
+                            (&child).write(stream, config);
+                        }
                     }
                 }
             }

@@ -454,15 +454,6 @@ impl Postprocessor {
                     stream.0.pop();
                 }
 
-                if kind == SyntaxKind::LiteralCommandText {
-                    self.temp_indent = Rc::new(
-                        value
-                            .chars()
-                            .take_while(|c| matches!(c.to_string().as_str(), SPACE | crate::TAB))
-                            .collect(),
-                    );
-                }
-
                 stream.push(PostToken::Literal(value));
                 self.position = LinePosition::MiddleOfLine;
             }
@@ -536,8 +527,9 @@ impl Postprocessor {
                     self.end_line(stream);
                 }
             },
-            PreToken::TempIndentStart => {
+            PreToken::TempIndentStart(bash_indent) => {
                 self.temp_indent_needed = true;
+                self.temp_indent = bash_indent;
             }
             PreToken::TempIndentEnd => {
                 self.temp_indent_needed = false;
@@ -742,12 +734,12 @@ impl Postprocessor {
             self.indent_level
         };
 
-        for _ in 0..level {
-            stream.push(PostToken::Indent);
-        }
-
         if self.temp_indent_needed {
             stream.push(PostToken::TempIndent(self.temp_indent.clone()));
+        }
+
+        for _ in 0..level {
+            stream.push(PostToken::Indent);
         }
     }
 
