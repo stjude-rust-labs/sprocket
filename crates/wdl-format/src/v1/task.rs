@@ -236,7 +236,7 @@ pub fn format_command_section(
             // End the line after the open delimiter and increment indent.
             stream.increment_indent();
 
-            let mut bash_indent: Option<String> = None;
+            let mut bash_indent: Option<Rc<String>> = None;
             for (part, child) in parts.iter().zip(children.by_ref()) {
                 match part {
                     StrippedCommandPart::Text(text) => {
@@ -255,7 +255,8 @@ pub fn format_command_section(
                                                     crate::SPACE | crate::TAB
                                                 )
                                             })
-                                            .collect(),
+                                            .collect::<String>()
+                                            .into(),
                                     );
                                 }
                             }
@@ -268,8 +269,7 @@ pub fn format_command_section(
                     }
                     StrippedCommandPart::Placeholder(_) => {
                         if let Some(ref temp_indent) = bash_indent {
-                            stream
-                                .push(PreToken::TempIndentStart(Rc::new(temp_indent.to_string())));
+                            stream.push(PreToken::TempIndentStart(temp_indent.clone()));
                             (&child).write(stream, config);
                             stream.push(PreToken::TempIndentEnd);
                         } else {
