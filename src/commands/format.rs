@@ -53,7 +53,7 @@ pub struct Args {
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
-    /// The newline style to use (auto, unix, or windows).
+    /// The newline style to use.
     #[arg(long, value_name = "STYLE", global = true)]
     pub newline_style: Option<NewlineStyle>,
 
