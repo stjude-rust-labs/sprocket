@@ -1,5 +1,6 @@
 //! Newline style within formatting configuration.
 
+
 /// The default newline style.
 pub const DEFAULT_NEWLINE_STYLE: NewlineStyle = NewlineStyle::Auto;
 
