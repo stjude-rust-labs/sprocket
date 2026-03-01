@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.17.2"
+version = "0.18.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -32,8 +32,8 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-wdl-ast = { path = "../wdl-ast", version = "0.21.1" }
-wdl-format = { path = "../wdl-format", version = "0.15.1" }
+wdl-ast = { path = "../wdl-ast", version = "0.22.0" }
+wdl-format = { path = "../wdl-format", version = "0.16.0" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.21.0" }
 
 [dev-dependencies]
