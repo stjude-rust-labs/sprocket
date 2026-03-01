@@ -8,7 +8,7 @@ note[UnusedDocComments]: unused doc comment
 43 │       command <<<
    │       ------- documentation will not be generated for this item
    │  
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:39:5
@@ -21,7 +21,7 @@ note[UnusedDocComments]: unused doc comment
 43 │       command <<<
    │       ------- documentation will not be generated for this item
    │  
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:51:5
@@ -34,7 +34,7 @@ note[UnusedDocComments]: unused doc comment
 64 │       command <<<>>>
    │       ------- documentation will not be generated for this item
    │  
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:56:5
@@ -50,7 +50,7 @@ note[UnusedDocComments]: unused doc comment
 64 │       command <<<>>>
    │       ------- documentation will not be generated for this item
    │  
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[ElementSpacing]: extra blank line(s) found
    ┌─ tests/lints/unused-doc-comments/source.wdl:62:47
@@ -71,7 +71,7 @@ note[UnusedDocComments]: unused doc comment
 75 │     meta {
    │     ---- documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:79:5
@@ -81,7 +81,7 @@ note[UnusedDocComments]: unused doc comment
 80 │     input {
    │     ----- documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:83:22
@@ -91,7 +91,7 @@ note[UnusedDocComments]: unused doc comment
    │         │             
    │         documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:84:23
@@ -101,7 +101,7 @@ note[UnusedDocComments]: unused doc comment
    │         │              
    │         documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:89:5
@@ -111,7 +111,7 @@ note[UnusedDocComments]: unused doc comment
 90 │     call test_task {}
    │     ---- documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:92:5
@@ -122,7 +122,7 @@ note[UnusedDocComments]: unused doc comment
 94 │     Person p = Person {
    │     ------ documentation will not be generated for this item
    │
-   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+   = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:99:5
@@ -132,7 +132,7 @@ note[UnusedDocComments]: unused doc comment
 100 │     if (apple) {
     │     -- documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:104:5
@@ -142,7 +142,7 @@ note[UnusedDocComments]: unused doc comment
 105 │     else if (banana) {
     │     ---- documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:106:42
@@ -152,7 +152,7 @@ note[UnusedDocComments]: unused doc comment
     │         │                                 
     │         documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:109:5
@@ -162,7 +162,7 @@ note[UnusedDocComments]: unused doc comment
 110 │     else {
     │     ---- documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:111:9
@@ -172,7 +172,7 @@ note[UnusedDocComments]: unused doc comment
 112 │         String favorite_fruit = "Chocolate"
     │         ------ documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:115:5
@@ -182,7 +182,7 @@ note[UnusedDocComments]: unused doc comment
 116 │     output {
     │     ------ documentation will not be generated for this item
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
     ┌─ tests/lints/unused-doc-comments/source.wdl:121:1
@@ -190,5 +190,5 @@ note[UnusedDocComments]: unused doc comment
 121 │ ## Trailing Doc Comment should be linted
     │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
-    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it is bound to its associated element
+    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
