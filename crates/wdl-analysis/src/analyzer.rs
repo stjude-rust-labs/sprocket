@@ -432,6 +432,7 @@ where
                 .standard_filters(false)
                 .parents(true)
                 .follow_links(true)
+                .git_ignore(config.respect_gitignore())
                 .build();
 
             for result in walker {
@@ -1202,5 +1203,31 @@ workflow test {
             .unwrap();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn it_respects_gitignore() {
+        let dir = TempDir::new().expect("Failed to create temporary directory");
+        std::process::Command::new("git")
+            .arg("init")
+            .arg(dir.path())
+            .output()
+            .expect("Failed to initialize git repository");
+        fs::write(dir.path().join(".gitignore"), "ignored.wdl\n")
+            .expect("failed to create .gitignore");
+        fs::write(dir.path().join("ignored.wdl"), "version 1.1\n")
+            .expect("failed to create ignored.wdl");
+        fs::write(dir.path().join("included.wdl"), "version 1.1\n")
+            .expect("failed to create included.wdl");
+        // Analyze respect_gitignore = true
+        let config = Config::default().with_respect_gitignore(true);
+        let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+        analyzer
+            .add_directory(dir.path())
+            .await
+            .expect("should add directory");
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].document.uri().as_str().contains("included.wdl"));
     }
 }
