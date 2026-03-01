@@ -437,17 +437,9 @@ impl Postprocessor {
                 // This is special handling for inserting the empty string.
                 // We remove any indentation or spaces from the end of the
                 // stream and then add the empty string as a literal.
-                // Then we set the position to [`LinePosition::MiddleOfLine`]
-                // in order to trigger a newline being added before the next
-                // token.
                 if value.is_empty() {
                     self.trim_last_line(stream);
-                    stream.push(PostToken::Literal(value));
-                    self.position = LinePosition::MiddleOfLine;
-                    return;
-                }
-
-                if self.interrupted
+                } else if self.interrupted
                     && should_deindent(kind)
                     && matches!(
                         stream.0.last(),
@@ -593,29 +585,30 @@ impl Postprocessor {
 
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
-            if let Some(break_kind) = potential_line_breaks.get(&i)
-                && post_buffer.last_line_width(config) > max_length
-            {
-                // The line is already too long, and taking the next step
-                // can only make it worse. Insert a line break here.
-                self.interrupted = true;
-                self.end_line(&mut post_buffer);
+            if let Some(break_kind) = potential_line_breaks.get(&i) {
+                let mut stack_just_pushed = false;
+                if post_buffer.last_line_width(config) > max_length {
+                    // The line is already too long, and taking the next step
+                    // can only make it worse. Insert a line break here.
+                    self.interrupted = true;
+                    self.end_line(&mut post_buffer);
 
-                // check if this introduces a tandem break
-                if let Some(also_break_on) = tandem_line_break(*break_kind) {
-                    let tandem_break = TandemBreak {
-                        open: *break_kind,
-                        close: also_break_on,
-                        depth: 0,
-                    };
-                    break_stack.push(tandem_break);
-                    self.indent_level += 1;
+                    // Check if this introduces a tandem break
+                    if let Some(also_break_on) = tandem_line_break(*break_kind) {
+                        let tandem_break = TandemBreak {
+                            open: *break_kind,
+                            close: also_break_on,
+                            depth: 0,
+                        };
+                        break_stack.push(tandem_break);
+                        self.indent_level += 1;
+                        stack_just_pushed = true;
+                    }
                 }
-            } else if let Some(break_kind) = potential_line_breaks.get(&i) {
-                // The line is not too long yet, but it may need to be broken to match a prior
-                // break
+
+                // Check if we need to be break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *break_kind == top_of_stack.open {
+                    if *break_kind == top_of_stack.open && !stack_just_pushed {
                         top_of_stack.depth += 1;
                     } else if *break_kind == top_of_stack.close {
                         if top_of_stack.depth > 0 {
@@ -627,8 +620,8 @@ impl Postprocessor {
                         }
                     }
                 }
-                // The line is not too long yet but the line might be too long after the next
-                // step, so cache the current state so we can revert to it if
+
+                // Cache the current state so we can revert to it if
                 // necessary.
                 cache = Some(post_buffer.clone());
             }
