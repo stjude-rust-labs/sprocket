@@ -293,8 +293,26 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
         SyntaxKind::OpenParen => Some(SyntaxKind::CloseParen),
         SyntaxKind::OpenHeredoc => Some(SyntaxKind::CloseHeredoc),
         SyntaxKind::PlaceholderOpen => Some(SyntaxKind::CloseBrace),
+        SyntaxKind::IfKeyword => Some(SyntaxKind::ThenKeyword),
+        SyntaxKind::ThenKeyword => Some(SyntaxKind::ElseKeyword),
         _ => None,
     }
+}
+
+/// Tokens that should have a single indent popped from the
+/// stream if they are being added.
+fn should_deindent(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::OpenBrace
+            | SyntaxKind::OpenBracket
+            | SyntaxKind::OpenParen
+            | SyntaxKind::OpenHeredoc
+            | SyntaxKind::CloseBrace
+            | SyntaxKind::CloseBracket
+            | SyntaxKind::CloseParen
+            | SyntaxKind::CloseHeredoc
+    )
 }
 
 /// Tracks a tandem break.
@@ -419,39 +437,16 @@ impl Postprocessor {
                 // This is special handling for inserting the empty string.
                 // We remove any indentation or spaces from the end of the
                 // stream and then add the empty string as a literal.
-                // Then we set the position to [`LinePosition::MiddleOfLine`]
-                // in order to trigger a newline being added before the next
-                // token.
                 if value.is_empty() {
                     self.trim_last_line(stream);
-                    stream.push(PostToken::Literal(value));
-                    self.position = LinePosition::MiddleOfLine;
-                    return;
-                }
-
-                if self.interrupted
-                    && matches!(
-                        kind,
-                        SyntaxKind::OpenBrace
-                            | SyntaxKind::OpenBracket
-                            | SyntaxKind::OpenParen
-                            | SyntaxKind::OpenHeredoc
-                    )
+                } else if self.interrupted
+                    && should_deindent(kind)
                     && matches!(
                         stream.0.last(),
                         Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
                     )
                 {
                     stream.0.pop();
-                }
-
-                if kind == SyntaxKind::LiteralCommandText {
-                    self.temp_indent = Rc::new(
-                        value
-                            .chars()
-                            .take_while(|c| matches!(c.to_string().as_str(), SPACE | crate::TAB))
-                            .collect(),
-                    );
                 }
 
                 stream.push(PostToken::Literal(value));
@@ -471,13 +466,7 @@ impl Postprocessor {
                 Trivia::Comment(comment) => {
                     match comment {
                         Comment::Preceding(value) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline)
-                                    | Some(&PostToken::Indent)
-                                    | Some(&PostToken::TempIndent(_))
-                                    | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -497,10 +486,7 @@ impl Postprocessor {
                             stream.push(PostToken::Literal(value));
                         }
                         Comment::Documentation(contents) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -510,10 +496,7 @@ impl Postprocessor {
                             });
                         }
                         Comment::Directive(directive) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -527,8 +510,9 @@ impl Postprocessor {
                     self.end_line(stream);
                 }
             },
-            PreToken::TempIndentStart => {
+            PreToken::TempIndentStart(bash_indent) => {
                 self.temp_indent_needed = true;
+                self.temp_indent = bash_indent;
             }
             PreToken::TempIndentEnd => {
                 self.temp_indent_needed = false;
@@ -602,30 +586,46 @@ impl Postprocessor {
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
+                let mut stack_just_pushed = false;
+                if post_buffer.last_line_width(config) > max_length {
+                    // The line is already too long, and taking the next step
+                    // can only make it worse. Insert a line break here.
+                    self.interrupted = true;
+                    self.end_line(&mut post_buffer);
+
+                    // Check if this introduces a tandem break
+                    if let Some(also_break_on) = tandem_line_break(*break_kind) {
+                        let tandem_break = TandemBreak {
+                            open: *break_kind,
+                            close: also_break_on,
+                            depth: 0,
+                        };
+                        break_stack.push(tandem_break);
+                        self.indent_level += 1;
+                        stack_just_pushed = true;
+                    }
+                }
+
+                // Check if we need to be break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *break_kind == top_of_stack.open {
+                    if *break_kind == top_of_stack.open && !stack_just_pushed {
                         top_of_stack.depth += 1;
                     } else if *break_kind == top_of_stack.close {
                         if top_of_stack.depth > 0 {
                             top_of_stack.depth -= 1;
                         } else {
                             break_stack.pop();
-                            self.interrupted = false;
+                            self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
                         }
                     }
-                } else if post_buffer.last_line_width(config) > max_length {
-                    // The line is already too long, and taking the next step
-                    // can only make it worse. Insert a line break here.
-                    self.interrupted = true;
-                    self.end_line(&mut post_buffer);
-                } else {
-                    // The line is not too long yet, but it might be after the
-                    // next step. Cache the current state so we can revert to it
-                    // if necessary.
-                    cache = Some(post_buffer.clone());
                 }
+
+                // Cache the current state so we can revert to it if
+                // necessary.
+                cache = Some(post_buffer.clone());
             }
+
             self.step(
                 token.clone(),
                 pre_buffer.peek().map(|(_, v)| &**v),
@@ -646,19 +646,25 @@ impl Postprocessor {
                     &mut post_buffer,
                 );
 
+                // Check if this introduces a tandem break
                 // SAFETY: if cache is Some(_) this step must have a potential line break
-                let cur_token = potential_line_breaks.get(&i).unwrap();
-                if let Some(also_break_on) = tandem_line_break(*cur_token) {
+                let break_kind = potential_line_breaks.get(&i).unwrap();
+                if let Some(also_break_on) = tandem_line_break(*break_kind) {
                     let tandem_break = TandemBreak {
-                        open: *cur_token,
+                        open: *break_kind,
                         close: also_break_on,
                         depth: 0,
                     };
                     break_stack.push(tandem_break);
+                    self.indent_level += 1;
                 }
             }
         }
 
+        // reduce indent for breaks never added
+        for _ in break_stack {
+            self.indent_level -= 1;
+        }
         out_stream.extend(post_buffer);
     }
 
