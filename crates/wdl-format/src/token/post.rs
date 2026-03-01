@@ -321,6 +321,8 @@ struct TandemBreak {
     pub open: SyntaxKind,
     /// The [`SyntaxKind`] which will close this tandem break.
     pub close: SyntaxKind,
+    // TODO
+    pub alters_indent_level: bool,
     /// Token depth since opening the break.
     ///
     /// The close break is only added when `depth == 0`.
@@ -596,8 +598,10 @@ impl Postprocessor {
                         if top_of_stack.depth > 0 {
                             top_of_stack.depth -= 1;
                         } else {
-                            break_stack.pop();
-                            self.indent_level -= 1;
+                            let top = break_stack.pop().unwrap();
+                            if top.alters_indent_level {
+                                self.indent_level -= 1;
+                            }
                             self.interrupted = true;
                             self.end_line(&mut post_buffer);
                         }
@@ -617,10 +621,11 @@ impl Postprocessor {
                         let tandem_break = TandemBreak {
                             open: *break_kind,
                             close: also_break_on,
+                            alters_indent_level: false,
                             depth: 0,
                         };
                         break_stack.push(tandem_break);
-                        self.indent_level += 1;
+                        // self.indent_level += 1;
                     }
                 }
 
@@ -656,6 +661,7 @@ impl Postprocessor {
                     let tandem_break = TandemBreak {
                         open: *break_kind,
                         close: also_break_on,
+                        alters_indent_level: true,
                         depth: 0,
                     };
                     break_stack.push(tandem_break);
@@ -665,8 +671,10 @@ impl Postprocessor {
         }
 
         // reduce indent for breaks never added
-        for _ in break_stack {
-            self.indent_level -= 1;
+        for b in break_stack {
+            if b.alters_indent_level {
+                self.indent_level -= 1;
+            }
         }
         out_stream.extend(post_buffer);
     }
