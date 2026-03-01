@@ -474,13 +474,7 @@ impl Postprocessor {
                 Trivia::Comment(comment) => {
                     match comment {
                         Comment::Preceding(value) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline)
-                                    | Some(&PostToken::Indent)
-                                    | Some(&PostToken::TempIndent(_))
-                                    | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -500,10 +494,7 @@ impl Postprocessor {
                             stream.push(PostToken::Literal(value));
                         }
                         Comment::Documentation(contents) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -513,10 +504,7 @@ impl Postprocessor {
                             });
                         }
                         Comment::Directive(directive) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
