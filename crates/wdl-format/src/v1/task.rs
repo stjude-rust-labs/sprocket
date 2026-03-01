@@ -268,7 +268,9 @@ pub fn format_command_section(
                         }
                     }
                     StrippedCommandPart::Placeholder(_) => {
-                        if let Some(ref temp_indent) = bash_indent {
+                        if let Some(ref temp_indent) = bash_indent
+                            && !temp_indent.is_empty()
+                        {
                             stream.push(PreToken::TempIndentStart(temp_indent.clone()));
                             (&child).write(stream, config);
                             stream.push(PreToken::TempIndentEnd);
