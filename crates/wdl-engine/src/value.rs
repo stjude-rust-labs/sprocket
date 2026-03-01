@@ -850,8 +850,8 @@ impl Coercible for Value {
                         }
                     } else {
                         bail!(
-                            "context does not exist when creating enum choice value `{s}` in \
-                             enum `{}`",
+                            "context does not exist when creating enum choice value `{s}` in enum \
+                             `{}`",
                             enum_ty.name()
                         );
                     }

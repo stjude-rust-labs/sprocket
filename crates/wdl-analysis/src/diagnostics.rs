@@ -953,8 +953,8 @@ pub fn enum_choice_does_not_coerce_to_type(
     actual: &Type,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "cannot coerce choice `{choice_name}` in enum `{enum_name}` from type `{actual}` to \
-         type `{expected}`"
+        "cannot coerce choice `{choice_name}` in enum `{enum_name}` from type `{actual}` to type \
+         `{expected}`"
     ))
     .with_label(format!("this is the `{enum_name}` enum"), enum_span)
     .with_label(format!("this is the `{choice_name}` choice"), choice_span)

@@ -7,8 +7,8 @@ use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::EnumDefinition;
-use wdl_ast::v1::EnumVariant;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
@@ -19,13 +19,13 @@ use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
 
-/// An [`EnumVariant`] with an associated [`MetaMap`].
+/// An [`EnumChoice`] with an associated [`MetaMap`].
 #[derive(Debug)]
 pub(crate) struct DocumentedEnumChoice {
     /// The enum choice's `meta`, derived from its doc comments.
     meta: MetaMap,
     /// The AST definition of the enum choice.
-    choice: EnumVariant,
+    choice: EnumChoice,
 }
 
 impl DocumentedEnumChoice {
@@ -146,7 +146,7 @@ fn parse_meta(
     };
 
     let mut choice_docs = Vec::new();
-    for choice in definition.variants() {
+    for choice in definition.choices() {
         let meta = if enable_doc_comments && let Some(comments) = choice.doc_comments() {
             doc_comments(comments)
         } else {

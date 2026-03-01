@@ -5290,7 +5290,7 @@ mod test {
                 "contains_key(object: Object, keys: Array[String]) -> Boolean",
                 "values(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
-                  non-optional primitive type",
+                 non-optional primitive type",
                 "value(choice: V) -> T where `V`: any enum choice",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
