@@ -594,7 +594,6 @@ impl Postprocessor {
                         } else {
                             break_stack.pop();
                             self.indent_level -= 1;
-                            self.interrupted = true;
                             self.end_line(&mut post_buffer);
                         }
                     } else if *break_kind == top_of_stack.open {
