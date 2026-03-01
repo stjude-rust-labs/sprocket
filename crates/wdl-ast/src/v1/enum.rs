@@ -50,19 +50,6 @@ impl<N: TreeNode> EnumDefinition<N> {
         self.children()
     }
 
-    /// Writes a Markdown formatted description of the enum.
-    pub fn markdown_description(
-        &self,
-        f: &mut impl fmt::Write,
-        computed_type: Option<&str>,
-    ) -> fmt::Result {
-        writeln!(f, "```wdl")?;
-        write!(f, "{}", self.display(computed_type))?;
-        write!(f, "```")?;
-
-        Ok(())
-    }
-
     /// Returns an object that implements [`Display`] for printing enums that
     /// may have a pre-computed type.
     ///

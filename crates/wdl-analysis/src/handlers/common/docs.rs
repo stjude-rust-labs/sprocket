@@ -1,13 +1,27 @@
 //! Utilities for generating documentation for LSP handlers.
 
+use std::fmt::Write;
+
 use lsp_types::Documentation;
 use lsp_types::MarkupContent;
 use rowan::TextSize;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::Comment;
+use wdl_ast::DOC_COMMENT_PREFIX;
+use wdl_ast::Documented;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumDefinition;
+use wdl_ast::v1::InputSection;
+use wdl_ast::v1::MetadataSection;
+use wdl_ast::v1::MetadataValue;
+use wdl_ast::v1::OutputSection;
+use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
+use wdl_ast::v1::format_meta_value;
+use wdl_ast::v1::get_param_meta;
 
 use crate::document::Enum;
 use crate::document::Struct;
@@ -24,6 +38,267 @@ pub fn make_md_docs(definition: String) -> Option<Documentation> {
     }))
 }
 
+/// Strips [`DOC_COMMENT_PREFIX`] from each comment, then strips the minimum
+/// common leading whitespace from all non-empty lines (matching what `wdl-doc`
+/// does). Returns the normalized lines; empty lines represent paragraph breaks.
+fn normalize_doc_comments(comments: &[Comment]) -> Vec<String> {
+    // Strip the `##` prefix; skip any comment that doesn't start with it.
+    let raw: Vec<&str> = comments
+        .iter()
+        .filter_map(|c| c.inner().text().strip_prefix(DOC_COMMENT_PREFIX))
+        .collect();
+
+    // Minimum indentation among non-blank lines (usually 1 for the space after
+    // `##`).
+    let min_indent = raw
+        .iter()
+        .filter(|line| line.chars().any(|c| !c.is_whitespace()))
+        .map(|line| line.chars().take_while(|c| *c == ' ' || *c == '\t').count())
+        .min()
+        .unwrap_or(0);
+
+    raw.into_iter()
+        .map(|line| {
+            if line.chars().all(char::is_whitespace) {
+                String::new()
+            } else {
+                line[min_indent..].to_string()
+            }
+        })
+        .collect()
+}
+
+/// Converts a list of doc comments to a Markdown string.
+///
+/// Strips [`DOC_COMMENT_PREFIX`] and normalizes indentation. Returns `None` if
+/// the list is empty. All paragraphs are included.
+pub(crate) fn comments_to_string(comments: Vec<Comment>) -> Option<String> {
+    if comments.is_empty() {
+        return None;
+    }
+    let lines = normalize_doc_comments(&comments);
+    Some(lines.join("\n")).filter(|s| !s.trim().is_empty())
+}
+
+/// Returns the first paragraph of doc comments as a Markdown string.
+///
+/// A paragraph ends at the first empty line (bare `##` with no text). Returns
+/// `None` if the list is empty.
+fn first_paragraph_doc(comments: Vec<Comment>) -> Option<String> {
+    if comments.is_empty() {
+        return None;
+    }
+    let lines = normalize_doc_comments(&comments);
+    let para: Vec<&str> = lines
+        .iter()
+        .map(String::as_str)
+        .take_while(|line| !line.is_empty())
+        .collect();
+    if para.is_empty() {
+        None
+    } else {
+        Some(para.join("\n"))
+    }
+}
+
+/// Writes declarations under `header`, preferring doc comments over
+/// `param_meta` for each entry's description.
+///
+/// When `show_default` is `true`, bound declarations include their default
+/// value expression (used for inputs; outputs omit it).
+fn write_documented_decls(
+    f: &mut impl Write,
+    header: &str,
+    decls: impl Iterator<Item = Decl>,
+    param_meta: Option<&ParameterMetadataSection>,
+    show_default: bool,
+) -> std::fmt::Result {
+    let decls: Vec<Decl> = decls.collect();
+    if decls.is_empty() {
+        return Ok(());
+    }
+    writeln!(f, "\n{header}")?;
+    for decl in decls {
+        let name_text = decl.name().text().to_string();
+        let ty_text = decl.ty().inner().text().to_string();
+        let doc = match &decl {
+            Decl::Unbound(u) => first_paragraph_doc(u.doc_comments().unwrap_or_default()),
+            Decl::Bound(b) => first_paragraph_doc(b.doc_comments().unwrap_or_default()),
+        };
+        write!(f, "- **{}**: `{}`", name_text, ty_text)?;
+        if show_default && let Some(val) = decl.expr().map(|e| e.text().to_string()) {
+            write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
+        }
+        if let Some(doc_str) = doc {
+            writeln!(f, "\n{doc_str}")?;
+        } else if let Some(meta_val) = get_param_meta(&name_text, param_meta) {
+            writeln!(f)?;
+            format_meta_value(f, &meta_val, 2)?;
+            writeln!(f)?;
+        } else {
+            writeln!(f)?;
+        }
+    }
+    Ok(())
+}
+
+/// Formats the input section with doc comments preferred over parameter
+/// metadata for each declaration's description.
+fn write_documented_inputs(
+    f: &mut impl Write,
+    input: Option<&InputSection>,
+    param_meta: Option<&ParameterMetadataSection>,
+) -> std::fmt::Result {
+    let Some(input) = input else {
+        return Ok(());
+    };
+    write_documented_decls(f, "**Inputs**", input.declarations(), param_meta, true)
+}
+
+/// Formats the output section with doc comments preferred over parameter
+/// metadata for each declaration's description.
+fn write_documented_outputs(
+    f: &mut impl Write,
+    output: Option<&OutputSection>,
+    param_meta: Option<&ParameterMetadataSection>,
+) -> std::fmt::Result {
+    let Some(output) = output else {
+        return Ok(());
+    };
+    write_documented_decls(
+        f,
+        "**Outputs**",
+        output.declarations().map(Decl::Bound),
+        param_meta,
+        false,
+    )
+}
+
+/// Shared rendering logic for task and workflow definitions.
+///
+/// Renders the code fence header, optional description paragraph, and input /
+/// output sections.
+fn render_runnable_doc(
+    keyword: &str,
+    name: &str,
+    doc: Option<String>,
+    input: Option<&InputSection>,
+    output: Option<&OutputSection>,
+    param_meta: Option<&ParameterMetadataSection>,
+) -> String {
+    let mut s = String::new();
+    let _ = writeln!(s, "```wdl\n{keyword} {name}\n```\n---");
+    if let Some(desc) = doc {
+        let _ = writeln!(s, "{desc}\n");
+    }
+    let _ = write_documented_inputs(&mut s, input, param_meta);
+    let _ = write_documented_outputs(&mut s, output, param_meta);
+    s
+}
+
+/// Reads the `description` key from a metadata section as a plain string.
+fn read_meta_description(meta: Option<MetadataSection>) -> Option<String> {
+    let meta = meta?;
+    let desc = meta.items().find(|i| i.name().text() == "description")?;
+    if let MetadataValue::String(s) = desc.value() {
+        s.text().map(|t| t.text().to_string())
+    } else {
+        None
+    }
+}
+
+/// Renders markdown documentation for a task definition.
+///
+/// Doc comments are preferred over `meta.description` for the description
+/// paragraph. Inputs and outputs prefer doc comments over `parameter_meta`.
+fn render_task_doc(n: &TaskDefinition) -> String {
+    let doc = comments_to_string(n.doc_comments().unwrap_or_default())
+        .or_else(|| read_meta_description(n.metadata()));
+    render_runnable_doc(
+        "task",
+        n.name().text(),
+        doc,
+        n.input().as_ref(),
+        n.output().as_ref(),
+        n.parameter_metadata().as_ref(),
+    )
+}
+
+/// Renders markdown documentation for a workflow definition.
+///
+/// Doc comments are preferred over `meta.description` for the description
+/// paragraph. Inputs and outputs prefer doc comments over `parameter_meta`.
+fn render_workflow_doc(n: &WorkflowDefinition) -> String {
+    let doc = comments_to_string(n.doc_comments().unwrap_or_default())
+        .or_else(|| read_meta_description(n.metadata()));
+    render_runnable_doc(
+        "workflow",
+        n.name().text(),
+        doc,
+        n.input().as_ref(),
+        n.output().as_ref(),
+        n.parameter_metadata().as_ref(),
+    )
+}
+
+/// Renders markdown documentation for a struct definition.
+///
+/// Doc comments are preferred over `meta.description` for the description
+/// paragraph. Members prefer doc comments (first paragraph) over
+/// `parameter_meta`.
+fn render_struct_doc(n: &StructDefinition) -> String {
+    let mut s = String::new();
+    let _ = writeln!(s, "```wdl");
+    let _ = writeln!(s, "{n}");
+    let _ = writeln!(s, "```\n---");
+
+    let description = comments_to_string(n.doc_comments().unwrap_or_default())
+        .or_else(|| read_meta_description(n.metadata().next()));
+    if let Some(desc) = description {
+        let _ = writeln!(s, "{desc}\n");
+    }
+
+    let members: Vec<_> = n.members().collect();
+    if !members.is_empty() {
+        let _ = writeln!(s, "\n**Members**");
+        for member in members {
+            let name = member.name();
+            let _ = write!(s, "- **{}**: `{}`", name.text(), member.ty().inner().text());
+            let doc =
+                first_paragraph_doc(member.doc_comments().unwrap_or_default()).or_else(|| {
+                    get_param_meta(name.text(), n.parameter_metadata().next().as_ref()).map(
+                        |meta_val| {
+                            let mut buf = String::new();
+                            let _ = format_meta_value(&mut buf, &meta_val, 2);
+                            buf
+                        },
+                    )
+                });
+            if let Some(d) = doc {
+                let _ = writeln!(s, "\n{d}");
+            } else {
+                let _ = writeln!(s);
+            }
+        }
+    }
+
+    s
+}
+
+/// Renders markdown documentation for an enum definition.
+///
+/// Doc comments are used for the description paragraph if present.
+fn render_enum_doc(n: &EnumDefinition, computed_type: Option<&str>) -> String {
+    let mut s = String::new();
+    let _ = writeln!(s, "```wdl");
+    let _ = write!(s, "{}", n.display(computed_type));
+    let _ = write!(s, "```");
+    if let Some(desc) = comments_to_string(n.doc_comments().unwrap_or_default()) {
+        let _ = write!(s, "\n\n---\n{desc}\n");
+    }
+    s
+}
+
 /// Provides documentation for tasks which includes `inputs`, `outputs`,
 /// `metadata`, `runtime`
 pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Option<String> {
@@ -33,12 +308,7 @@ pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Opti
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(TaskDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
+            .map(|n| render_task_doc(&n)),
         Err(_) => None,
     }
 }
@@ -55,12 +325,7 @@ pub fn provide_workflow_documentation(
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(WorkflowDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
+            .map(|n| render_workflow_doc(&n)),
         Err(_) => None,
     }
 }
@@ -76,12 +341,7 @@ pub fn provide_struct_documentation(
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(StructDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
-                n.markdown_description(&mut s).ok()?;
-                Some(s)
-            }),
+            .map(|n| render_struct_doc(&n)),
         Err(_) => None,
     }
 }
@@ -94,9 +354,7 @@ pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) ->
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(EnumDefinition::cast))
-            .as_ref()
-            .and_then(|n| {
-                let mut s = String::new();
+            .map(|n| {
                 let computed_type = enum_info.ty().and_then(|ty| {
                     if let Type::Compound(CompoundType::Custom(custom_ty), _) = ty {
                         custom_ty
@@ -106,9 +364,7 @@ pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) ->
                         None
                     }
                 });
-                n.markdown_description(&mut s, computed_type.as_deref())
-                    .ok()?;
-                Some(s)
+                render_enum_doc(&n, computed_type.as_deref())
             }),
         Err(_) => None,
     }
