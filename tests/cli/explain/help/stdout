@@ -90,6 +90,7 @@ Available rules:
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
+  - UnusedDocComments
   - UnusedImport
   - UnusedInput
   - UsingFallbackVersion
