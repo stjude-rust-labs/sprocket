@@ -62,7 +62,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::StructDefinitionNode,
     SyntaxKind::EnumDefinitionNode,
     SyntaxKind::TaskDefinitionNode,
-    SyntaxKind::EnumVariantNode,
+    SyntaxKind::EnumChoiceNode,
     SyntaxKind::UnboundDeclNode,
     SyntaxKind::BoundDeclNode,
 ];
