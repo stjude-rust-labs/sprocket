@@ -1073,8 +1073,8 @@ pub struct EnumChoiceCacheKey {
     choice_index: usize,
 }
 
-impl EnumVariantCacheKey {
-    /// Constructs a new enum variant cache key.
+impl EnumChoiceCacheKey {
+    /// Constructs a new enum choice cache key.
     pub(crate) fn new(enum_index: usize, choice_index: usize) -> Self {
         Self {
             enum_index,

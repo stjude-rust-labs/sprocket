@@ -114,7 +114,7 @@ impl<N: TreeNode> fmt::Display for EnumDefinitionDisplay<'_, N> {
 
         writeln!(f, " {{")?;
 
-        for choice in self.choices() {
+        for choice in self.definition.choices() {
             write!(f, "  {}", choice.name().text())?;
             if let Some(value) = choice.value() {
                 write!(f, " = {}", value.inner().text())?;
@@ -214,7 +214,7 @@ impl<N: TreeNode> AstNode<N> for EnumChoice<N> {
     }
 }
 
-impl Documented<SyntaxNode> for EnumVariant<SyntaxNode> {
+impl Documented<SyntaxNode> for EnumChoice<SyntaxNode> {
     fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
         Some(crate::doc_comments::<SyntaxNode>(self.name().inner().preceding_trivia()).collect())
     }

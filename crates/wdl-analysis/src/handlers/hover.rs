@@ -195,9 +195,9 @@ fn resolve_hover_by_context(
                 return Ok(provide_enum_documentation(e, &root));
             }
         }
-        SyntaxKind::EnumVariantNode => {
-            let variant = EnumChoice::cast(parent_node.clone()).unwrap();
-            let variant_name = variant.name().text().to_string();
+        SyntaxKind::EnumChoiceNode => {
+            let choice = EnumChoice::cast(parent_node.clone()).unwrap();
+            let choice_name = choice.name().text().to_string();
 
             // Show the choice value (explicit or inferred)
             if let Some(value_expr) = choice.value() {
@@ -297,10 +297,10 @@ fn resolve_hover_by_context(
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
+                            // Find the specific choice
+                            if let Some(choice) = definition
                                 .choices()
-                                .find(|v| v.name().text() == member.text())
+                                .find(|c| c.name().text() == member.text())
                             {
                                 let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
@@ -373,10 +373,10 @@ fn resolve_hover_by_context(
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
+                            // Find the specific choice
+                            if let Some(choice) = definition
                                 .choices()
-                                .find(|v| v.name().text() == member.text())
+                                .find(|c| c.name().text() == member.text())
                             {
                                 let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()

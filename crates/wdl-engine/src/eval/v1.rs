@@ -70,7 +70,7 @@ pub struct Evaluator {
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
     /// Cache for evaluated enum choice values to avoid redundant AST lookups.
-    choice_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
+    choice_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
 
 impl Evaluator {

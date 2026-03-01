@@ -119,10 +119,10 @@ pub fn inlay_hints(
             }
         }
 
-        // Add hints for variants without explicit values
-        for variant in definition.choices() {
-            // Skip variants that have an explicit value
-            if variant.value().is_some() {
+        // Add hints for choices without explicit values
+        for choice in definition.choices() {
+            // Skip choices that have an explicit value
+            if choice.value().is_some() {
                 continue;
             }
 

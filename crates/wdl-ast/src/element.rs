@@ -329,7 +329,7 @@ ast_element_impl!(
         equality_expr(): EqualityExprNode => EqualityExpr => EqualityExpr,
         enum_definition(): EnumDefinitionNode => EnumDefinition => EnumDefinition,
         enum_type_parameter(): EnumTypeParameterNode => EnumTypeParameter => EnumTypeParameter,
-        enum_choice(): EnumVariantNode => EnumChoice => EnumChoice,
+        enum_choice(): EnumChoiceNode => EnumChoice => EnumChoice,
         exponentiation_expr(): ExponentiationExprNode => ExponentiationExpr => ExponentiationExpr,
         greater_equal_expr(): GreaterEqualExprNode => GreaterEqualExpr => GreaterEqualExpr,
         greater_expr(): GreaterExprNode => GreaterExpr => GreaterExpr,

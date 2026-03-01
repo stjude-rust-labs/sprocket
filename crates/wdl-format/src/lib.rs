@@ -74,7 +74,7 @@ impl Writable for &FormatElement {
                 AstNode::EnumTypeParameter(_) => {
                     v1::r#enum::format_enum_type_parameter(self, stream, config)
                 }
-                AstNode::EnumChoice(_) => v1::r#enum::format_enum_choice(self, stream),
+                AstNode::EnumChoice(_) => v1::r#enum::format_enum_choice(self, stream, config),
                 AstNode::ExponentiationExpr(_) => {
                     v1::expr::format_exponentiation_expr(self, stream, config)
                 }

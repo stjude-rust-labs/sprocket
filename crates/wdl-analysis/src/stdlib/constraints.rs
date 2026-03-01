@@ -185,6 +185,30 @@ impl Constraint for PrimitiveTypeConstraint {
     }
 }
 
+/// Represents a constraint that ensures the type is a valid `Map` key type.
+#[derive(Debug, Copy, Clone)]
+pub struct MapKeyConstraint;
+
+impl Constraint for MapKeyConstraint {
+    fn description(&self) -> &'static str {
+        "any non-optional primitive type"
+    }
+
+    fn satisfied(&self, ty: &Type) -> bool {
+        match ty {
+            Type::Union | Type::Primitive(_, false) => true,
+            Type::Primitive(_, true)
+            | Type::Compound(..)
+            | Type::None
+            | Type::Object
+            | Type::OptionalObject
+            | Type::Hidden(_)
+            | Type::Call(_)
+            | Type::TypeNameRef(_) => false,
+        }
+    }
+}
+
 /// Represents a constraint that ensures the type is a non-optional primitive
 /// type.
 #[derive(Debug, Copy, Clone)]
@@ -213,9 +237,9 @@ impl Constraint for NonOptionalPrimitiveTypeConstraint {
 
 /// Represents a constraint that ensures the type is any enumeration choice.
 #[derive(Debug, Copy, Clone)]
-pub struct MapKeyConstraint;
+pub struct EnumChoiceConstraint;
 
-impl Constraint for MapKeyConstraint {
+impl Constraint for EnumChoiceConstraint {
     fn description(&self) -> &'static str {
         "any enum choice"
     }
