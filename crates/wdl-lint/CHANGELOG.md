@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `allowed_names` configuration key for allowing certain names in the SnakeCase and
+  DeclarationName rules ([#660](https://github.com/stjude-rust-labs/sprocket/pull/660)).
+
 #### Changed
 
 * Renamed `LintDirectiveValid` to `ExceptDirectiveValid` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
@@ -27,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
+* New lint rule `UnusedDocComments` to ensure users are warned if they document unsupported syntax items ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
 
 #### Fixed
 
