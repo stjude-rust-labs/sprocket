@@ -580,7 +580,9 @@ impl Postprocessor {
         post_buffer.clear();
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
 
-        // Reset the indent level.
+        // Reset self.
+        self.interrupted = false;
+        self.position = LinePosition::StartOfLine;
         self.indent_level = starting_indent;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
@@ -596,6 +598,7 @@ impl Postprocessor {
                         } else {
                             break_stack.pop();
                             self.indent_level -= 1;
+                            self.interrupted = true;
                             self.end_line(&mut post_buffer);
                         }
                     } else if *break_kind == top_of_stack.open {
