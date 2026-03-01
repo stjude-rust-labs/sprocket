@@ -299,7 +299,7 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     }
 }
 
-/// Tokens that should have a single [`PostToken::Indent`] popped from the
+/// Tokens that should have a single indent popped from the
 /// stream if they are being added.
 fn should_deindent(kind: SyntaxKind) -> bool {
     matches!(
