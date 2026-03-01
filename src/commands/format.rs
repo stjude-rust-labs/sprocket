@@ -52,6 +52,9 @@ pub struct Args {
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
+    /// The newline style to use 
+    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
+    pub newline_style: Option<String>,
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
@@ -131,11 +134,18 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             .unwrap_or(config.format.max_line_length),
     )
     .context("failed to create max line length configuration")?;
+    let newline_style = match args.newline_style.as_deref() {
+    Some("unix") => wdl::format::NewlineStyle::Unix,
+    Some("windows") => wdl::format::NewlineStyle::Windows,
+    _ => config.format.newline_style,
+};
 
-    let config = FormatConfig::default()
+    let format_config = FormatConfig::default()
         .indent(indent)
-        .max_line_length(max_line_length);
-    let formatter = Formatter::new(config);
+        .max_line_length(max_line_length)
+        .newline_style(newline_style);
+
+    let formatter = Formatter::new(format_config);
 
     let mut errors = 0;
     match args.command {
