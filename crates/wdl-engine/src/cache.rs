@@ -285,6 +285,7 @@ pub struct KeyRequest<'a> {
     ///
     /// This field contributes to the digests stored in a cache entry.
     pub backend_inputs: &'a [Input],
+    pub excluded_keys: &'a [String],
 }
 
 /// Represents an evaluation call cache.
@@ -382,7 +383,12 @@ impl CallCache {
         let mut hasher = blake3::Hasher::new();
         request.document_uri.hash(&mut hasher);
         request.task_name.hash(&mut hasher);
-        hash_sequence(&mut hasher, request.inputs.iter());
+        let filtered_inputs:Vec<_> = request
+            .inputs
+            .iter()
+            .filter(|(k, _)| !request.excluded_keys.contains(k))
+            .collect();
+        hash_sequence(&mut hasher, filtered_inputs.into_iter());
         let key = hasher.finalize().to_hex();
 
         Ok(Key {
@@ -589,6 +595,7 @@ mod test {
                 requirements: &self.requirements,
                 hints: &self.hints,
                 backend_inputs: &self.backend_inputs,
+                excluded_keys: &[],
             }
         }
     }
@@ -1103,6 +1110,49 @@ mod test {
                 "failed to read metadata of `{}`",
                 ctx.task.paths.work_dir.display()
             )
+        );
+    }
+    #[tokio::test]
+    async fn excluded_key_does_not_affect_cache_key() {
+        let ctx = TestContext::new().await;
+
+    
+        let mut original_inputs = ctx.task.inputs.clone();
+        original_inputs.insert(
+            "extra".to_string(),
+            Value::Primitive(PrimitiveValue::String(Arc::new("original".to_string()))),
+        );
+
+        let original_request = KeyRequest {
+            inputs: &original_inputs,
+            excluded_keys: &["extra".to_string()],
+            ..ctx.task.key_request()
+        };
+
+        
+        let key = ctx.cache.key(original_request).await.unwrap();
+    
+        let mut modified_inputs = original_inputs.clone();
+        modified_inputs.insert(
+            "extra".to_string(),
+            Value::Primitive(PrimitiveValue::String(Arc::new("changed".to_string()))),
+        );
+
+        
+        let modified_key = ctx
+            .cache
+            .key(KeyRequest {
+                inputs: &modified_inputs,
+                excluded_keys: &["extra".to_string()],
+                ..ctx.task.key_request()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            key.as_str(),
+            modified_key.as_str(),
+            "excluded key should not change the cache key"
         );
     }
 }
