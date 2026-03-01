@@ -436,10 +436,12 @@ impl Postprocessor {
 
                 // This is special handling for inserting the empty string.
                 // We remove any indentation or spaces from the end of the
-                // stream and then add the empty string as a literal.
+                // stream before adding the empty string as a literal.
                 if value.is_empty() {
                     self.trim_last_line(stream);
-                } else if self.interrupted
+                }
+
+                if self.interrupted
                     && should_deindent(kind)
                     && matches!(
                         stream.0.last(),
@@ -586,7 +588,21 @@ impl Postprocessor {
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
-                let mut stack_just_pushed = false;
+                // Check if we need to be break to match a prior tandem break
+                if let Some(top_of_stack) = break_stack.last_mut() {
+                    if *break_kind == top_of_stack.close {
+                        if top_of_stack.depth > 0 {
+                            top_of_stack.depth -= 1;
+                        } else {
+                            break_stack.pop();
+                            self.indent_level -= 1;
+                            self.end_line(&mut post_buffer);
+                        }
+                    } else if *break_kind == top_of_stack.open {
+                        top_of_stack.depth += 1;
+                    }
+                }
+
                 if post_buffer.last_line_width(config) > max_length {
                     // The line is already too long, and taking the next step
                     // can only make it worse. Insert a line break here.
@@ -602,22 +618,6 @@ impl Postprocessor {
                         };
                         break_stack.push(tandem_break);
                         self.indent_level += 1;
-                        stack_just_pushed = true;
-                    }
-                }
-
-                // Check if we need to be break to match a prior tandem break
-                if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *break_kind == top_of_stack.open && !stack_just_pushed {
-                        top_of_stack.depth += 1;
-                    } else if *break_kind == top_of_stack.close {
-                        if top_of_stack.depth > 0 {
-                            top_of_stack.depth -= 1;
-                        } else {
-                            break_stack.pop();
-                            self.indent_level -= 1;
-                            self.end_line(&mut post_buffer);
-                        }
                     }
                 }
 
