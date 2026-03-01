@@ -356,11 +356,8 @@ pub struct Postprocessor {
     /// The current trivial blank line spacing policy.
     line_spacing_policy: TriviaBlankLineSpacingPolicy,
 
-    /// Whether temporary indentation is needed.
-    temp_indent_needed: bool,
-
     /// Temporary indentation to add.
-    temp_indent: Rc<String>,
+    temp_indent: Option<Rc<String>>,
 }
 
 impl Postprocessor {
@@ -513,11 +510,10 @@ impl Postprocessor {
                 }
             },
             PreToken::TempIndentStart(bash_indent) => {
-                self.temp_indent_needed = true;
-                self.temp_indent = bash_indent;
+                self.temp_indent = Some(bash_indent);
             }
             PreToken::TempIndentEnd => {
-                self.temp_indent_needed = false;
+                self.temp_indent = None;
             }
         }
     }
@@ -725,8 +721,8 @@ impl Postprocessor {
             stream.push(PostToken::Indent);
         }
 
-        if self.temp_indent_needed {
-            stream.push(PostToken::TempIndent(self.temp_indent.clone()));
+        if let Some(ref temp_indent) = self.temp_indent {
+            stream.push(PostToken::TempIndent(temp_indent.clone()));
         }
     }
 
