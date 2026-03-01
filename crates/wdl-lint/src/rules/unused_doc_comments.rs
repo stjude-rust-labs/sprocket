@@ -24,7 +24,7 @@ fn unused_doc_comment_diagnostic(comment_span: Span, target_span: Option<Span>) 
         .with_highlight(comment_span)
         .with_fix(
             "if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this \
-             comment so it is bound to its associated element",
+             comment so it documents the intended item",
         );
 
     if let Some(target_span) = target_span {
@@ -222,7 +222,7 @@ impl Visitor for UnusedDocCommentsRule {
 
         // If the visited comment isn't a doc comment, then
         // there's no need to process it!
-        if !comment.is_doc_comment() || comment.is_directive() {
+        if !comment.is_doc_comment() {
             return;
         }
 
