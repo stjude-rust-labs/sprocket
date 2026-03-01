@@ -25,6 +25,10 @@ use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::TreeNode;
 use crate::TreeToken;
+use crate::v1::CommandKeyword;
+use crate::v1::MetaKeyword;
+use crate::v1::ParameterMetaKeyword;
+use crate::v1::RequirementsKeyword;
 
 pub mod common;
 pub mod requirements;
@@ -1219,6 +1223,12 @@ impl<N: TreeNode> CommandSection<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
+
+    /// Gets the `command` keyword.
+    pub fn keyword(&self) -> CommandKeyword<N::Token> {
+        self.token()
+            .expect("CommandSection must have CommandKeyword")
+    }
 }
 
 impl<N: TreeNode> AstNode<N> for CommandSection<N> {
@@ -1337,6 +1347,12 @@ impl<N: TreeNode> RequirementsSection<N> {
         // NOTE: validation should ensure that, at most, one `container` item exists in
         // the `requirements` section.
         self.child()
+    }
+
+    /// Gets the `requirements` keyword.
+    pub fn keyword(&self) -> RequirementsKeyword<N::Token> {
+        self.token()
+            .expect("RequirementsSection must have RequirementsKeyword")
     }
 }
 
@@ -1558,6 +1574,11 @@ impl<N: TreeNode> MetadataSection<N> {
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
+    }
+
+    /// Gets the `meta` keyword.
+    pub fn keyword(&self) -> MetaKeyword<N::Token> {
+        self.token().expect("MetadataSection must have MetaKeyword")
     }
 }
 
@@ -1847,6 +1868,12 @@ impl<N: TreeNode> ParameterMetadataSection<N> {
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
+    }
+
+    /// Gets the `parameter_meta` keyword.
+    pub fn keyword(&self) -> ParameterMetaKeyword<N::Token> {
+        self.token()
+            .expect("ParameterMetadataSection must have ParameterMetaKeyword")
     }
 }
 

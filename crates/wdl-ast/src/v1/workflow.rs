@@ -28,6 +28,8 @@ use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::TreeNode;
 use crate::TreeToken;
+use crate::v1::CallKeyword;
+use crate::v1::ScatterKeyword;
 
 /// The name of the `allow_nested_inputs` workflow hint. Note that this
 /// is not a standard WDL v1.1 hint, but is used in WDL >=v1.2.
@@ -880,6 +882,12 @@ impl<N: TreeNode> ScatterStatement<N> {
     pub fn statements(&self) -> impl Iterator<Item = WorkflowStatement<N>> + use<'_, N> {
         WorkflowStatement::children(&self.0)
     }
+
+    /// Gets the `scatter` keyword.
+    pub fn keyword(&self) -> ScatterKeyword<N::Token> {
+        self.token()
+            .expect("ScatterStatement must have ScatterKeyword")
+    }
 }
 
 impl<N: TreeNode> AstNode<N> for ScatterStatement<N> {
@@ -922,6 +930,11 @@ impl<N: TreeNode> CallStatement<N> {
     /// Gets the inputs for the call statement.
     pub fn inputs(&self) -> impl Iterator<Item = CallInputItem<N>> + use<'_, N> {
         self.children()
+    }
+
+    /// Gets the `call` keyword.
+    pub fn keyword(&self) -> CallKeyword<N::Token> {
+        self.token().expect("CallStatement must have CallKeyword")
     }
 }
 

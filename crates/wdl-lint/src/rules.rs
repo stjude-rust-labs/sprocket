@@ -35,6 +35,7 @@ mod section_order;
 mod shellcheck;
 mod snake_case;
 mod todo_comment;
+mod unused_doc_comments;
 
 pub use call_input_keyword::*;
 pub use command_section_indentation::*;
@@ -71,3 +72,4 @@ pub use section_order::*;
 pub use shellcheck::*;
 pub use snake_case::*;
 pub use todo_comment::*;
+pub use unused_doc_comments::*;

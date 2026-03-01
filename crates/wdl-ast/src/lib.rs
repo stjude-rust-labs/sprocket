@@ -667,6 +667,25 @@ impl Comment {
     pub fn is_doc_comment(&self) -> bool {
         self.text().starts_with(DOC_COMMENT_PREFIX)
     }
+
+    /// Gets whether the comment is an inline comment or not.
+    pub fn is_inline_comment(&self) -> bool {
+        // If there is a preceding token that isn't whitespace with a newline, then
+        // the comment is not alone on this line.
+        if let Some(prev) = self.inner().prev_sibling_or_token() {
+            if prev.kind() == SyntaxKind::Whitespace {
+                !prev
+                    .into_token()
+                    .expect("SyntaxKind::Whitespace is a token")
+                    .text()
+                    .contains('\n')
+            } else {
+                true
+            }
+        } else {
+            false
+        }
+    }
 }
 
 /// Represents a version statement in a WDL AST.
