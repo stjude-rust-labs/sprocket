@@ -1,6 +1,6 @@
 [package]
 name = "wdl-format"
-version = "0.15.1"
+version = "0.16.0"
 description = "Formatting of WDL (Workflow Description Language) documents"
 license.workspace = true
 edition.workspace = true
@@ -13,7 +13,7 @@ documentation = "https://docs.rs/wdl-format"
 nonempty.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.21.1" }
+wdl-ast = { path = "../wdl-ast", version = "0.22.0" }
 
 [dev-dependencies]
 anyhow = { workspace = true }
