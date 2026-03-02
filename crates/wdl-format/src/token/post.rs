@@ -300,7 +300,7 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
 }
 
 /// Tokens that should have a single indent popped from the
-/// stream if they are being added.
+/// stream if they are being added at the start of a line.
 fn should_deindent(kind: SyntaxKind) -> bool {
     matches!(
         kind,
@@ -586,7 +586,7 @@ impl Postprocessor {
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
-                // Check if we need to be break to match a prior tandem break
+                // Check if we need a break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
                     if *break_kind == top_of_stack.close {
                         if top_of_stack.depth > 0 {
