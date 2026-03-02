@@ -252,7 +252,7 @@ task describe_person {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["ParameterMetaMatched"]
     }
 }

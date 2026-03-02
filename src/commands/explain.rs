@@ -1,16 +1,20 @@
 //! Implementation of the `explain` subcommand.
 
+use std::fmt::Display;
 use std::sync::LazyLock;
 
 use anyhow::anyhow;
-use clap::Parser;
 use clap::builder::PossibleValuesParser;
+use clap::Parser;
+use clap::ValueEnum;
 use colored::Colorize;
+use serde::Serialize;
+use serde_json::Value;
 use wdl::analysis;
 use wdl::lint;
-use wdl::lint::ALL_TAG_NAMES;
-use wdl::lint::Config;
+use wdl::lint::{Config, ConfigField};
 use wdl::lint::Tag;
+use wdl::lint::ALL_TAG_NAMES;
 
 use crate::commands::CommandResult;
 
@@ -29,6 +33,22 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     ids.sort();
     ids
 });
+
+#[derive(ValueEnum, Copy, Clone, Debug, Default)]
+pub enum Format {
+    #[default]
+    Default,
+    Json,
+}
+
+impl Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Format::Default => write!(f, "default"),
+            Format::Json => write!(f, "json"),
+        }
+    }
+}
 
 /// Arguments for the `explain` subcommand.
 #[derive(Parser, Debug)]
@@ -68,6 +88,123 @@ pub struct Args {
     /// Lists all tags and exits.
     #[arg(long, conflicts_with_all = ["list_all_rules"])]
     pub list_all_tags: bool,
+
+    #[arg(long, short, default_value_t = Format::default())]
+    pub format: Format,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize)]
+pub enum LintSource {
+    #[serde(rename = "wdl-lint")]
+    WdlLint,
+    #[serde(rename = "wdl-analysis")]
+    WdlAnalysis,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Rule {
+    pub source: LintSource,
+    pub id: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    pub description: &'static str,
+    pub explanation: &'static str,
+    pub examples: &'static [&'static str],
+    pub url: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub related: Option<&'static [&'static str]>,
+    pub config: Option<Vec<Value>>
+}
+
+impl Rule {
+    fn format(&self, format: Format) -> String {
+        match format {
+            Format::Default => self.to_string(),
+            Format::Json => serde_json::to_string(self).unwrap(),
+        }
+    }
+}
+
+impl Display for Rule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f,
+            "{id}",
+            id = self.id.bold().underline(),
+        )?;
+
+        match &self.tags {
+            Some(tags) => writeln!(f, " [{}]", tags.join(", ").yellow())?,
+            None => writeln!(f)?,
+        }
+
+        writeln!(f, "{desc}", desc = self.description)?;
+        writeln!(f, "\n{explanation}", explanation = self.explanation)?;
+
+        if let Some(url) = self.url {
+            writeln!(f,"\n{url}", url = url.underline().blue())?;
+        }
+
+        if let Some(related) = self.related && !related.is_empty() {
+            writeln!(f, "\n{}", "Related Rules:".bold())?;
+            let mut sorted_related = related.iter().collect::<Vec<_>>();
+            sorted_related.sort();
+            for rule in sorted_related {
+                writeln!(f, "  - {}", rule.cyan())?;
+            }
+        };
+
+        Ok(())
+    }
+}
+
+fn wdl_lint() -> impl Iterator<Item = Rule> {
+    wdl::lint::rules(&wdl::lint::Config::default()).into_iter().map(|rule| {
+        let applicable_config_fields = Config::fields()
+            .into_iter()
+            .filter(|field| field.applicable_lints.contains(&rule.id()))
+            .map(|field| {
+                serde_json::json!({
+                    "name": field.name,
+                    "description": field.description,
+                    "default": field.default,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let applicable_config_fields = if applicable_config_fields.is_empty() {
+            None
+        } else {
+            Some(applicable_config_fields)
+        };
+        
+        Rule {
+            source: LintSource::WdlLint,
+            id: rule.id(),
+            tags: Some(rule.tags().iter().map(|tag| tag.to_string()).collect()),
+            description: rule.description(),
+            explanation: rule.explanation(),
+            examples: rule.examples(),
+            url: rule.url(),
+            related: Some(rule.related_rules()),
+            config: applicable_config_fields,
+        }
+    })
+}
+
+fn wdl_analysis() -> impl Iterator<Item = Rule> {
+    wdl::analysis::rules().into_iter().map(|rule| {
+        Rule {
+            source: LintSource::WdlAnalysis,
+            id: rule.id(),
+            tags: None,
+            description: rule.description(),
+            explanation: rule.explanation(),
+            examples: rule.examples(),
+            url: None,
+            related: None,
+            config: None,
+        }
+    })
 }
 
 /// Display all rules and tags.
@@ -95,47 +232,29 @@ pub fn list_all_tags() -> String {
     result
 }
 
-/// Pretty prints a lint rule to a string.
-pub fn pretty_print_lint_rule(rule: &dyn lint::Rule) {
-    println!(
-        "{id} {tags}",
-        id = rule.id().bold().underline(),
-        tags = format!("{}", rule.tags()).yellow()
-    );
-    println!("{desc}", desc = rule.description());
-    println!("\n{explanation}", explanation = rule.explanation());
-
-    if let Some(url) = rule.url() {
-        println!("\n{url}", url = url.underline().blue());
-    }
-
-    let related = rule.related_rules();
-    if !related.is_empty() {
-        println!("\n{}", "Related Rules:".bold());
-        let mut sorted_related = related.iter().collect::<Vec<_>>();
-        sorted_related.sort();
-        sorted_related.iter().for_each(|rule| {
-            println!("  - {}", rule.cyan());
-        });
-    };
-}
-
-/// Pretty prints an analysis rule to a string.
-pub fn pretty_print_analysis_rule(rule: &dyn analysis::Rule) {
-    println!("{id}", id = rule.id().bold().underline());
-    println!("{desc}", desc = rule.description());
-    println!("\n{explanation}", explanation = rule.explanation());
-}
-
 /// Explains a lint rule.
 pub fn explain(args: Args) -> CommandResult<()> {
     if args.list_all_rules {
-        println!("{}", list_all_rules());
+        match args.format {
+            Format::Default => println!("{}", list_all_rules()),
+            Format::Json => {
+                let value = serde_json::to_value(wdl_lint().chain(wdl_analysis()).collect::<Vec<_>>()).map_err(anyhow::Error::from)?;
+                println!("{value}")
+            }
+        }
+
         return Ok(());
     }
 
     if args.list_all_tags {
-        println!("{}", list_all_tags());
+        match args.format {
+            Format::Default => println!("{}", list_all_tags()),
+            Format::Json => {
+                let value = Value::Array(ALL_TAG_NAMES.iter().map(|tag| Value::String(tag.to_string())).collect());
+                println!("{value}")
+            }
+        }
+
         return Ok(());
     }
 
@@ -172,26 +291,15 @@ pub fn explain(args: Args) -> CommandResult<()> {
     if let Some(rule_name) = args.rule_name {
         let lowercase_name = rule_name.to_lowercase();
 
-        match analysis::rules()
-            .into_iter()
-            .find(|rule| rule.id().to_lowercase() == lowercase_name)
+        match wdl_lint().chain(wdl_analysis())
+            .find(|rule| rule.id.to_lowercase() == lowercase_name)
         {
             Some(rule) => {
-                pretty_print_analysis_rule(rule.as_ref());
+                println!("{}", rule.format(args.format));
             }
             None => {
-                match lint::rules(&Config::default())
-                    .into_iter()
-                    .find(|rule| rule.id().to_lowercase() == lowercase_name)
-                {
-                    Some(rule) => {
-                        pretty_print_lint_rule(rule.as_ref());
-                    }
-                    None => {
-                        println!("{rules}\n", rules = list_all_rules());
-                        return Err(anyhow!("no rule found with the name `{rule_name}`").into());
-                    }
-                }
+                println!("{rules}\n", rules = list_all_rules());
+                return Err(anyhow!("no rule found with the name `{rule_name}`").into());
             }
         }
 
