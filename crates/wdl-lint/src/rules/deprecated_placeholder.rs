@@ -131,7 +131,7 @@ workflow example {
         TagSet::new(&[Tag::Deprecated])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["DeprecatedObject", "ExpectedRuntimeKeys"]
     }
 }

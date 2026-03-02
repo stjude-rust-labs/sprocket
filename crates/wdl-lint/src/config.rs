@@ -62,7 +62,7 @@ macro_rules! define_lint_rule_config {
 
 /// **(NOT A PUBLIC API)** A field in the `wdl-lint` [`Config`].
 #[doc(hidden)]
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ConfigField {
     /// The name of the field.
     pub name: &'static str,

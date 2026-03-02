@@ -191,7 +191,7 @@ workflow process_data {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["PascalCase"]
     }
 }
