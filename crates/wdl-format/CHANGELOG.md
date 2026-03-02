@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641)).
+* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641)
+[#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 * Added configuration for input section formatting (off by default) ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
 * Added configuration for trailing commas (on by default) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
 * `#@ except:` comment normalization and consolidation of doc comment blocks ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
