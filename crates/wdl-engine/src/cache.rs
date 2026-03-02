@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -16,6 +17,7 @@ use arrayvec::ArrayString;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::fs;
+use tracing::debug;
 use tracing::info;
 use url::Url;
 
@@ -47,6 +49,23 @@ mod lock;
 
 pub use hash::Hashable;
 
+/// Contains keys that are excluded from cache entry checking.
+///
+/// This is used to determine which keys to ignore when checking if a cache
+/// entry is valid. The `inputs` field is used when computing the cache key for
+/// a task, while the `requirements` and `hints` fields are used when checking
+/// if a cache entry is valid.
+pub struct CallCacheExclusions {
+    /// The list of cache input keys to exclude when computing keys and checking
+    /// cache entries.
+    pub inputs: HashSet<String>,
+    /// The list of cache requirement keys to exclude when checking cache
+    /// entries.
+    pub requirements: HashSet<String>,
+    /// The list of cache hint keys to exclude when checking cache entries.
+    pub hints: HashSet<String>,
+}
+
 /// Represents the internal state of the call cache.
 #[derive(Clone)]
 struct State {
@@ -67,6 +86,8 @@ struct State {
     transferer: Arc<dyn Transferer>,
     /// The content digest mode used by the cache.
     mode: ContentDigestMode,
+    /// The keys to exclude when checking cache entries for validity.
+    exclusions: Arc<CallCacheExclusions>,
 }
 
 impl State {
@@ -198,15 +219,13 @@ impl Key {
     fn ensure_matches(
         &self,
         entry: &CallCacheEntry,
-        excluded_hints: &[String],
-        excluded_inputs: &[String],
-        excluded_requirements: &[String],
+        exclusions: &CallCacheExclusions,
     ) -> Result<()> {
         fn compare_maps<K, V>(
             a: &HashMap<K, V>,
             b: &HashMap<K, V>,
             kind: &str,
-            excluded: &[String],
+            excluded: &HashSet<String>,
         ) -> Result<()>
         where
             K: std::hash::Hash + fmt::Display + Eq,
@@ -216,7 +235,7 @@ impl Key {
                 // Skip excluded keys
                 let key_str = k.to_string();
                 if excluded.contains(&key_str) {
-                    info!("{} `{}` is excluded from cache checking, skipping", kind, k);
+                    debug!("{} `{}` is excluded from cache checking, skipping", kind, k);
                     continue;
                 }
 
@@ -234,7 +253,7 @@ impl Key {
                 // Skip excluded keys
                 let key_str = k.to_string();
                 if excluded.contains(&key_str) {
-                    info!("{} `{}` is excluded from cache checking, skipping", kind, k);
+                    debug!("{} `{}` is excluded from cache checking, skipping", kind, k);
                     continue;
                 }
 
@@ -262,14 +281,14 @@ impl Key {
             &self.requirements,
             &entry.requirements,
             "task requirement",
-            excluded_requirements,
+            &exclusions.requirements,
         )?;
-        compare_maps(&self.hints, &entry.hints, "task hint", excluded_hints)?;
+        compare_maps(&self.hints, &entry.hints, "task hint", &exclusions.hints)?;
         compare_maps(
             &self.backend_inputs,
             &entry.inputs,
             "task input",
-            excluded_inputs,
+            &exclusions.inputs,
         )?;
         Ok(())
     }
@@ -341,6 +360,7 @@ impl CallCache {
         cache_dir: Option<&Path>,
         mode: ContentDigestMode,
         transferer: Arc<dyn Transferer>,
+        exclusions: Arc<CallCacheExclusions>,
     ) -> Result<Self> {
         let cache_dir = match cache_dir {
             Some(cache_dir) => cache_dir.into(),
@@ -367,6 +387,7 @@ impl CallCache {
             cache_dir: cache_dir.into(),
             transferer,
             mode,
+            exclusions,
         }))
     }
 
@@ -374,7 +395,7 @@ impl CallCache {
     ///
     /// This will calculate digests for the command, requirements, hints, and
     /// inputs.
-    pub async fn key(&self, request: KeyRequest<'_>, excluded_inputs: Vec<String>) -> Result<Key> {
+    pub async fn key(&self, request: KeyRequest<'_>) -> Result<Key> {
         // Calculate the command digest.
         let mut hasher = blake3::Hasher::new();
         request.command.hash(&mut hasher);
@@ -422,7 +443,7 @@ impl CallCache {
             request
                 .inputs
                 .iter()
-                .filter(|(k, _)| !excluded_inputs.contains(k))
+                .filter(|(k, _)| !self.0.exclusions.inputs.contains(*k))
                 .collect::<Vec<_>>()
                 .into_iter(),
         );
@@ -446,13 +467,7 @@ impl CallCache {
     ///
     /// Returns an error if the entry could not be read or if the entry is no
     /// longer valid.
-    pub async fn get(
-        &self,
-        key: &Key,
-        excluded_hints: Vec<String>,
-        excluded_inputs: Vec<String>,
-        excluded_requirements: Vec<String>,
-    ) -> Result<Option<TaskExecutionResult>> {
+    pub async fn get(&self, key: &Key) -> Result<Option<TaskExecutionResult>> {
         // Take a shared lock on the entry file
         let path = self.0.entry_path(key);
         let file = match LockedFile::acquire_shared(&path, false).await? {
@@ -473,12 +488,7 @@ impl CallCache {
         }
 
         // Ensure the key matches the cache entry
-        key.ensure_matches(
-            &entry,
-            &excluded_hints,
-            &excluded_inputs,
-            &excluded_requirements,
-        )?;
+        key.ensure_matches(&entry, &self.0.exclusions)?;
 
         let stdout = entry
             .stdout
@@ -566,8 +576,6 @@ impl CallCache {
 
 #[cfg(test)]
 mod test {
-    use std::vec;
-
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tempfile::tempdir;
@@ -697,14 +705,8 @@ mod test {
     /// Populates a call cache with the baseline cache entry.
     async fn populate_cache(cache: &CallCache, task: &Task) {
         // Get a key for the cache (should not exist)
-        let key = cache.key(task.key_request(), vec![]).await.unwrap();
-        assert!(
-            cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap()
-                .is_none()
-        );
+        let key = cache.key(task.key_request()).await.unwrap();
+        assert!(cache.get(&key).await.unwrap().is_none());
 
         // Cache an execution result
         let result = TaskExecutionResult {
@@ -716,9 +718,9 @@ mod test {
         cache.put(key, &result).await.unwrap();
 
         // Get the entry we just put and ensure the same result is returned
-        let key = cache.key(task.key_request(), vec![]).await.unwrap();
+        let key = cache.key(task.key_request()).await.unwrap();
         let cached_result = cache
-            .get(&key, vec![], vec![], vec![])
+            .get(&key)
             .await
             .unwrap()
             .expect("should have cache entry");
@@ -765,6 +767,11 @@ mod test {
                 Some(&root_dir.path().join("cache")),
                 ContentDigestMode::Strong,
                 transfer,
+                Arc::new(CallCacheExclusions {
+                    inputs: HashSet::new(),
+                    requirements: HashSet::new(),
+                    hints: HashSet::new(),
+                }),
             )
             .await
             .unwrap();
@@ -788,21 +795,14 @@ mod test {
         // Check for modified command
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    command: "modified!",
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                command: "modified!",
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "the command of the task was modified"
         );
     }
@@ -815,21 +815,14 @@ mod test {
         // Check for modified container
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    container: "modified!",
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                container: "modified!",
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "the container used by the task was modified"
         );
     }
@@ -842,21 +835,14 @@ mod test {
         // Check for modified shell
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    shell: "modified!",
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                shell: "modified!",
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "the shell used by the task was modified"
         );
     }
@@ -869,21 +855,14 @@ mod test {
         // Check for removing a requirement
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    requirements: &Default::default(),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                requirements: &Default::default(),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was removed"
         );
     }
@@ -896,27 +875,20 @@ mod test {
         // Check for adding a requirement
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    requirements: &HashMap::from_iter([
-                        (
-                            "container".into(),
-                            PrimitiveValue::new_string("ubuntu:latest").into(),
-                        ),
-                        ("memory".into(), 1000.into()),
-                    ]),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([
+                    (
+                        "container".into(),
+                        PrimitiveValue::new_string("ubuntu:latest").into(),
+                    ),
+                    ("memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `memory` was added"
         );
     }
@@ -929,24 +901,17 @@ mod test {
         // Check for modifying a requirement
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    requirements: &HashMap::from_iter([(
-                        "container".into(),
-                        PrimitiveValue::new_string("ubuntu:cthulhu").into(),
-                    )]),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:cthulhu").into(),
+                )]),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was modified"
         );
     }
@@ -959,21 +924,14 @@ mod test {
         // Check for removing a hint
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    hints: &Default::default(),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                hints: &Default::default(),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was removed"
         );
     }
@@ -986,24 +944,17 @@ mod test {
         // Check for adding a hint
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    hints: &HashMap::from_iter([
-                        ("foo".into(), PrimitiveValue::new_string("bar").into()),
-                        ("max_memory".into(), 1000.into()),
-                    ]),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("bar").into()),
+                    ("max_memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task hint `max_memory` was added"
         );
     }
@@ -1016,24 +967,17 @@ mod test {
         // Check for modifying a hint
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    hints: &HashMap::from_iter([(
-                        "foo".into(),
-                        PrimitiveValue::new_string("baz!").into(),
-                    )]),
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([(
+                    "foo".into(),
+                    PrimitiveValue::new_string("baz!").into(),
+                )]),
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was modified"
         );
     }
@@ -1046,21 +990,14 @@ mod test {
         // Check for removing a backend input
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    backend_inputs: &[],
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                backend_inputs: &[],
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "task input `{}` was removed",
                 ctx.task.paths.input.display()
@@ -1080,28 +1017,21 @@ mod test {
         // Check for adding a backend input
         let key = ctx
             .cache
-            .key(
-                KeyRequest {
-                    backend_inputs: &[
-                        ctx.task.backend_inputs[0].clone(),
-                        Input::new(
-                            ContentKind::File,
-                            EvaluationPath::from_local_path(input2.clone()),
-                            Some(GuestPath::new("/mnt/task/0/input2")),
-                        ),
-                    ],
-                    ..request
-                },
-                vec![],
-            )
+            .key(KeyRequest {
+                backend_inputs: &[
+                    ctx.task.backend_inputs[0].clone(),
+                    Input::new(
+                        ContentKind::File,
+                        EvaluationPath::from_local_path(input2.clone()),
+                        Some(GuestPath::new("/mnt/task/0/input2")),
+                    ),
+                ],
+                ..request
+            })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!("task input `{}` was added", input2.display())
         );
     }
@@ -1115,13 +1045,9 @@ mod test {
 
         // Check for modifying a backend input
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "task input `{}` was modified",
                 ctx.task.paths.input.display()
@@ -1140,13 +1066,9 @@ mod test {
 
         // Check for changed cached stdout
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "cached content `{}` was modified",
                 ctx.task.paths.stdout.display()
@@ -1163,13 +1085,9 @@ mod test {
 
         // Check for deleted cached stdout
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "failed to read metadata of `{}`",
                 ctx.task.paths.stdout.display()
@@ -1188,13 +1106,9 @@ mod test {
 
         // Check for changed cached stderr
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "cached content `{}` was modified",
                 ctx.task.paths.stderr.display()
@@ -1211,13 +1125,9 @@ mod test {
 
         // Check for deleted cached stderr
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "failed to read metadata of `{}`",
                 ctx.task.paths.stderr.display()
@@ -1236,13 +1146,9 @@ mod test {
 
         // Check for changed cached work dir
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "cached content `{}` was modified",
                 ctx.task.paths.work_dir.display()
@@ -1259,13 +1165,9 @@ mod test {
 
         // Check for deleted cached work dir
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request(), vec![]).await.unwrap();
+        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec![])
-                .await
-                .unwrap_err()
-                .to_string(),
+            ctx.cache.get(&key).await.unwrap_err().to_string(),
             format!(
                 "failed to read metadata of `{}`",
                 ctx.task.paths.work_dir.display()
@@ -1276,60 +1178,58 @@ mod test {
     #[tokio::test]
     async fn excluded_requirement_modified() {
         let ctx = TestContext::new().await;
+        // Add "memory" as an excluded requirement
+        let cache = CallCache::new(
+            Some(ctx.cache.0.cache_dir.as_path()),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::from_iter(["memory".to_string()]),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
 
         let request = ctx.task.key_request();
 
         // Add a "memory" requirement - this should NOT invalidate the cache
         // since "memory" is in the exclusion list
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    requirements: &HashMap::from_iter([
-                        (
-                            "container".into(),
-                            PrimitiveValue::new_string("ubuntu:latest").into(),
-                        ),
-                        ("memory".into(), 1000.into()),
-                    ]),
-                    ..request
-                },
-                vec![],
-            )
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([
+                    (
+                        "container".into(),
+                        PrimitiveValue::new_string("ubuntu:latest").into(),
+                    ),
+                    ("memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
 
         // This should succeed (not return an error) because "memory" is excluded
         assert!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec!["memory".to_string()])
-                .await
-                .is_ok(),
+            cache.get(&key).await.is_ok(),
             "Expected cache hit when excluded requirement is added"
         );
 
         // Modify a non-excluded requirement - this SHOULD invalidate the cache
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    requirements: &HashMap::from_iter([(
-                        "container".into(),
-                        PrimitiveValue::new_string("ubuntu:cthulhu").into(),
-                    )]),
-                    ..request
-                },
-                vec![],
-            )
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:cthulhu").into(),
+                )]),
+                ..request
+            })
             .await
             .unwrap();
 
         assert_eq!(
-            ctx.cache
-                .get(&key, vec![], vec![], vec!["memory".to_string()])
-                .await
-                .unwrap_err()
-                .to_string(),
+            cache.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was modified"
         );
     }
@@ -1337,78 +1237,82 @@ mod test {
     #[tokio::test]
     async fn excluded_hint_modified() {
         let ctx = TestContext::new().await;
+        // Add "localization_optional" as an excluded hint
+        let cache = CallCache::new(
+            Some(ctx.cache.0.cache_dir.as_path()),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::new(),
+                hints: HashSet::from_iter(["localization_optional".to_string()]),
+            }),
+        )
+        .await
+        .unwrap();
 
         let request = ctx.task.key_request();
 
         // Add a "localization_optional" hint - this should NOT invalidate the cache
         // since "localization_optional" is in the exclusion list
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    hints: &HashMap::from_iter([
-                        ("foo".into(), PrimitiveValue::new_string("bar").into()),
-                        (
-                            "localization_optional".into(),
-                            PrimitiveValue::new_string("true").into(),
-                        ),
-                    ]),
-                    ..request
-                },
-                vec![],
-            )
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("bar").into()),
+                    (
+                        "localization_optional".into(),
+                        PrimitiveValue::new_string("true").into(),
+                    ),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
 
         // This should succeed (not return an error) because "localization_optional" is
         // excluded
         assert!(
-            ctx.cache
-                .get(
-                    &key,
-                    vec!["localization_optional".to_string()],
-                    vec![],
-                    vec![]
-                )
-                .await
-                .is_ok(),
+            cache.get(&key).await.is_ok(),
             "Expected cache hit when excluded hint is added"
         );
 
         // Modify a non-excluded hint - this SHOULD invalidate the cache
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    hints: &HashMap::from_iter([(
-                        "foo".into(),
-                        PrimitiveValue::new_string("baz").into(),
-                    )]),
-                    ..request
-                },
-                vec![],
-            )
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("baz").into()),
+                    (
+                        "localization_optional".into(),
+                        PrimitiveValue::new_string("true").into(),
+                    ),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
 
         assert_eq!(
-            ctx.cache
-                .get(
-                    &key,
-                    vec!["localization_optional".to_string()],
-                    vec![],
-                    vec![]
-                )
-                .await
-                .unwrap_err()
-                .to_string(),
+            cache.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was modified"
         );
     }
 
     #[tokio::test]
     async fn excluded_input_modified() {
-        let ctx = TestContext::new().await;
+        // Create cache with "file" as an excluded input
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let cache = CallCache::new(
+            Some(&root_dir.path().join("cache")),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::from_iter(["file".to_string()]),
+                requirements: HashSet::new(),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
 
         let root_dir = tempdir().expect("failed to create temporary directory");
         let mut task = prepare_task(root_dir.path()).await;
@@ -1419,34 +1323,25 @@ mod test {
         let request = task.key_request();
 
         // Get cache key with the `file` input excepted
-        let original_key = ctx
-            .cache
-            .key(task.key_request(), vec!["file".to_string()])
-            .await
-            .unwrap();
+        let original_key = cache.key(task.key_request()).await.unwrap();
 
         // Modify the input - this should NOT invalidate the cache since the
         // input is in the exclusion list
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    inputs: &BTreeMap::from([
-                        (
-                            "file".into(),
-                            PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap())
-                                .into(),
-                        ),
-                        (
-                            "file2".into(),
-                            PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap())
-                                .into(),
-                        ),
-                    ]),
-                    ..request
-                },
-                vec!["file".to_string()],
-            )
+        let key = cache
+            .key(KeyRequest {
+                inputs: &BTreeMap::from([
+                    (
+                        "file".into(),
+                        PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap())
+                            .into(),
+                    ),
+                    (
+                        "file2".into(),
+                        PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap()).into(),
+                    ),
+                ]),
+                ..request
+            })
             .await
             .unwrap();
 
@@ -1456,19 +1351,14 @@ mod test {
             "Expected cache key to be the same when excluded input is modified"
         );
         // Modify a non-excluded input - this SHOULD be a cache miss
-        let key = ctx
-            .cache
-            .key(
-                KeyRequest {
-                    inputs: &BTreeMap::from([(
-                        "file2".into(),
-                        PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap())
-                            .into(),
-                    )]),
-                    ..request
-                },
-                vec!["file".to_string()],
-            )
+        let key = cache
+            .key(KeyRequest {
+                inputs: &BTreeMap::from([(
+                    "file2".into(),
+                    PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap()).into(),
+                )]),
+                ..request
+            })
             .await
             .unwrap();
 

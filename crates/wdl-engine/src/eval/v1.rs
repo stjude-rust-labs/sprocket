@@ -27,6 +27,7 @@ use crate::EngineEvent;
 use crate::Value;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
+use crate::cache::CallCacheExclusions;
 use crate::config::CallCachingMode;
 use crate::config::Config;
 use crate::http::HttpTransferer;
@@ -106,6 +107,11 @@ impl Evaluator {
                     config.task.cache_dir.as_deref(),
                     config.task.digests,
                     transferer.clone(),
+                    Arc::new(CallCacheExclusions {
+                        inputs: config.task.excluded_cache_inputs.clone(),
+                        requirements: config.task.excluded_cache_requirements.clone(),
+                        hints: config.task.excluded_cache_hints.clone(),
+                    }),
                 )
                 .await?,
             ),

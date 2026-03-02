@@ -774,10 +774,7 @@ impl Evaluator {
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache
-                        .key(request, self.config.task.excluded_cache_inputs.clone())
-                        .await
-                    {
+                    match cache.key(request).await {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
@@ -831,12 +828,7 @@ impl Evaluator {
                     .cache
                     .as_ref()
                     .expect("should have cache")
-                    .get(
-                        cache_key,
-                        self.config.task.excluded_cache_hints.clone(),
-                        self.config.task.excluded_cache_inputs.clone(),
-                        self.config.task.excluded_cache_requirements.clone(),
-                    )
+                    .get(cache_key)
                     .await
                 {
                     Ok(Some(results)) => {
