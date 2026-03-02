@@ -108,7 +108,7 @@ pub trait Rule: Visitor {
     /// This can be used by tools (like `sprocket explain`) to suggest other
     /// relevant rules to the user based on potential logical connections or
     /// common co-occurrences of issues.
-    fn related_rules(&self) -> &[&'static str];
+    fn related_rules(&self) -> &'static [&'static str];
 }
 
 /// Gets all of the lint rules.

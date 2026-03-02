@@ -92,7 +92,7 @@ workflow test {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }
