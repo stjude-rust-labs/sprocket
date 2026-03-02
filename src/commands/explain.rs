@@ -327,7 +327,7 @@ pub fn explain(args: Args) -> CommandResult<()> {
             .find(|rule| rule.id.to_lowercase() == lowercase_name)
         {
             Some(rule) => {
-                println!("{}", rule.format(args.format));
+                print!("{}", rule.format(args.format));
             }
             None => {
                 println!("{rules}\n", rules = list_all_rules());
