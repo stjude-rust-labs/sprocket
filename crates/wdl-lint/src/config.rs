@@ -19,6 +19,7 @@ macro_rules! define_lint_rule_config {
     ) => {
         /// The configuration for lint rules.
         #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+        #[serde(default)]
         pub struct $name {
             $(
                 $(#[doc = $doc])+
