@@ -21,6 +21,10 @@ Options:
       --list-all-tags
           Lists all tags and exits
 
+  -f, --format <FORMAT>
+          [default: default]
+          [possible values: default, json]
+
   -v, --verbose...
           Increase logging verbosity
 
