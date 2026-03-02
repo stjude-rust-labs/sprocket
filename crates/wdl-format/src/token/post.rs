@@ -600,25 +600,6 @@ impl Postprocessor {
                         top_of_stack.depth += 1;
                     }
                 }
-
-                if post_buffer.last_line_width(config) > max_length {
-                    // The line is already too long, and taking the next step
-                    // can only make it worse. Insert a line break here.
-                    self.interrupted = true;
-                    self.end_line(&mut post_buffer);
-
-                    // Check if this introduces a tandem break
-                    if let Some(also_break_on) = tandem_line_break(*break_kind) {
-                        let tandem_break = TandemBreak {
-                            open: *break_kind,
-                            close: also_break_on,
-                            depth: 0,
-                        };
-                        break_stack.push(tandem_break);
-                        self.indent_level += 1;
-                    }
-                }
-
                 // Cache the current state so we can revert to it if
                 // necessary.
                 cache = Some(post_buffer.clone());
