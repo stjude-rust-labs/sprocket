@@ -1,6 +1,8 @@
 //! Implementation of the `explain` subcommand.
 
+use std::collections::HashMap;
 use std::fmt::Display;
+use std::fmt::Write;
 use std::sync::LazyLock;
 
 use anyhow::anyhow;
@@ -13,8 +15,9 @@ use serde_json::Value;
 use wdl::analysis;
 use wdl::lint;
 use wdl::lint::ALL_TAG_NAMES;
+use wdl::lint::ALL_TAGS;
 use wdl::lint::Config;
-use wdl::lint::Tag;
+use wdl::lint::Tag as WdlLintTag;
 
 use crate::commands::CommandResult;
 
@@ -81,7 +84,7 @@ pub struct Args {
     pub tag: Option<String>,
 
     /// Display general WDL definitions.
-    #[arg(long, conflicts_with_all = ["rule_name", "tag"])]
+    #[arg(long, conflicts_with_all = ["rule_name", "tag", "format"])]
     pub definitions: bool,
 
     /// Lists all rules and exits.
@@ -144,6 +147,7 @@ pub struct Rule {
 }
 
 impl Rule {
+    /// Convert this rule to a string of the given format.
     fn format(&self, format: Format) -> String {
         match format {
             Format::Default => self.to_string(),
@@ -183,6 +187,7 @@ impl Display for Rule {
     }
 }
 
+/// All lint rules from `wdl-lint`.
 fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
@@ -217,6 +222,7 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
         })
 }
 
+/// All lint rules from `wdl-analysis`.
 fn wdl_analysis() -> impl Iterator<Item = Rule> {
     wdl::analysis::rules().into_iter().map(|rule| Rule {
         source: RuleSource::WdlAnalysis,
@@ -229,6 +235,15 @@ fn wdl_analysis() -> impl Iterator<Item = Rule> {
         related: None,
         config: None,
     })
+}
+
+/// A line rule group tag.
+#[derive(Debug, Serialize)]
+pub struct Tag {
+    /// The name of the tag.
+    pub name: String,
+    /// All lint rules grouped under this tag.
+    pub applicable_lints: Vec<&'static str>,
 }
 
 /// Display all rules and tags.
@@ -247,12 +262,35 @@ pub fn list_all_rules() -> String {
 }
 
 /// Lists all tags as a string for displaying.
+pub fn collect_all_tags() -> HashMap<WdlLintTag, Tag> {
+    let mut tags = HashMap::new();
+    for tag in ALL_TAGS.iter() {
+        tags.insert(
+            *tag,
+            Tag {
+                name: tag.to_string(),
+                applicable_lints: Vec::new(),
+            },
+        );
+    }
+
+    for rule in lint::rules(&Config::default()) {
+        for tag in rule.tags().iter() {
+            let _ = tags
+                .entry(tag)
+                .and_modify(|v| v.applicable_lints.push(rule.id()));
+        }
+    }
+
+    tags
+}
+
 pub fn list_all_tags() -> String {
     let mut result = String::from("Available tags:");
-
     for tag in ALL_TAG_NAMES.iter() {
-        result.push_str(&format!("\n  - {tag}"));
+        write!(result, "\n  - {tag}").unwrap();
     }
+
     result
 }
 
@@ -274,12 +312,16 @@ pub fn explain(args: Args) -> CommandResult<()> {
 
     if args.list_all_tags {
         match args.format {
-            Format::Default => println!("{}", list_all_tags()),
+            Format::Default => {
+                println!("{}", list_all_tags());
+            }
             Format::Json => {
+                let mut all_tags = collect_all_tags().into_values().collect::<Vec<_>>();
+                all_tags.sort_by(|a, b| a.name.cmp(&b.name));
                 let value = Value::Array(
-                    ALL_TAG_NAMES
-                        .iter()
-                        .map(|tag| Value::String(tag.to_string()))
+                    all_tags
+                        .into_iter()
+                        .map(|tag| serde_json::to_value(&tag).unwrap())
                         .collect(),
                 );
                 println!("{value}")
@@ -295,27 +337,29 @@ pub fn explain(args: Args) -> CommandResult<()> {
     };
 
     if let Some(tag) = args.tag {
-        let target = tag.parse::<Tag>().map_err(|_| {
-            println!("{}\n", list_all_tags());
+        let target = tag.parse::<WdlLintTag>().map_err(|_| {
+            println!("{}", list_all_tags());
             anyhow!("invalid tag `{tag}`")
         })?;
 
-        let rules = lint::rules(&Config::default())
-            .into_iter()
-            .filter(|rule| rule.tags().contains(target))
-            .collect::<Vec<_>>();
-
-        if rules.is_empty() {
-            println!("{}\n", list_all_tags());
+        let Some(mut tag) = collect_all_tags().remove(&target) else {
             return Err(anyhow!("no rules found with the tag `{tag}`").into());
-        } else {
-            println!("Rules with the tag `{tag}`:");
-            let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
-            rule_ids.sort();
-            for id in rule_ids {
-                println!("  - {id}");
+        };
+
+        tag.applicable_lints.sort();
+        match args.format {
+            Format::Default => {
+                println!("Rules with the tag `{}`:", tag.name);
+                for id in tag.applicable_lints {
+                    println!("  - {id}");
+                }
+            }
+            Format::Json => {
+                let value = serde_json::to_value(&tag).map_err(anyhow::Error::from)?;
+                println!("{value}");
             }
         }
+
         return Ok(());
     }
 

@@ -22,8 +22,13 @@ Options:
           Lists all tags and exits
 
   -f, --format <FORMAT>
+          The output format
+
+          Possible values:
+          - default: The default, human-readable output
+          - json:    Machine-readable JSON
+          
           [default: default]
-          [possible values: default, json]
 
   -v, --verbose...
           Increase logging verbosity
