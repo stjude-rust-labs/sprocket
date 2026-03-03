@@ -1343,19 +1343,19 @@ impl DocsTree {
                                 }
                             }
                         }
-                        div x-show="query !== ''" {
-                            h2 class="text-2xl font-bold mb-4" { "Search results" }
+                        div class="flex flex-col gap-5" x-show="query !== ''" {
+                            h2 class="text-base leading-6 font-medium" x-text="`${results.length} results for '${query}'`" {}
                             div x-show="loading" { "Loading..." }
-                            ul class="space-y-4" {
+                            ul class="flex flex-col gap-5" {
                                 // TODO: Add page icon next to title
                                 template x-for="result in results" ":key"="result.url" {
-                                    li class="border-b pb-2" {
+                                    li class="search-result" {
                                         a
                                             ":href"="result.url"
-                                            class="text-blue-500 font-bold"
+                                            class="text-2xl leading-8 text-slate-50 font-medium"
                                             x-text="result.meta.title"
                                         {}
-                                        p class="text-sm text-gray-600" x-html="result.excerpt" {}
+                                        p class="search-result-excerpt" x-html="result.excerpt" {}
                                     }
                                 }
 
