@@ -146,6 +146,8 @@ impl Config {
         }
     }
 
+    
+
     /// Returns a new configuration with the list of all known rule identifiers
     /// replaced by the argument.
     ///
