@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Hover and completion documentation now prefer doc comments over `meta`/`parameter_meta` descriptions, with existing behavior preserved as a fallback ([#649](https://github.com/stjude-rust-labs/sprocket/pull/649)).
 * Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
 
 ### Fixed
