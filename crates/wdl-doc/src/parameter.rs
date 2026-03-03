@@ -102,11 +102,6 @@ impl Parameter {
         self.decl.name().text().to_owned()
     }
 
-    /// Get the meta of the parameter.
-    pub fn meta(&self) -> &MetaMap {
-        &self.meta
-    }
-
     /// Get the type of the parameter as a string.
     pub fn ty(&self) -> String {
         self.decl.ty().to_string()
