@@ -193,7 +193,7 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Variants"
+        - Enum Choices"
     }
 
     fn tags(&self) -> crate::TagSet {

@@ -44,7 +44,7 @@ impl DocumentedEnumChoice {
 pub(crate) struct Enum {
     /// The enum's `meta`, derived from its doc comments.
     meta: MetaMap,
-    /// The enum's choices (variants).
+    /// The enum's choices.
     choices: Vec<DocumentedEnumChoice>,
     /// The AST definition of the enum.
     definition: EnumDefinition,
@@ -180,7 +180,7 @@ mod tests {
             version 1.3
             ## An RGB24 color enum
             ##
-            ## Each variant is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
+            ## Each choice is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
             enum Color[String] {
                 ## Pure red
                 Red = "#FF0000",
@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
-                "An RGB24 color enum\nEach variant is represented as a 24-bit hexadecimal RGB \
+                "An RGB24 color enum\nEach choice is represented as a 24-bit hexadecimal RGB \
                  string with exactly one non-zero channel."
             )
         );

@@ -1090,8 +1090,8 @@ pub struct EnumType {
     name: Arc<String>,
     /// The common coerced type computed from all choice values.
     inner_value_type: Arc<Type>,
-    /// The variants.
-    variants: Arc<[String]>,
+    /// The choices.
+    choices: Arc<[String]>,
 }
 
 impl EnumType {
@@ -1104,21 +1104,21 @@ impl EnumType {
         enum_name: impl Into<String>,
         enum_span: Span,
         explicit_inner_type: Type,
-        variants: Vec<(String, Type)>,
-        variant_spans: &[Span],
+        choices: Vec<(String, Type)>,
+        choice_spans: &[Span],
     ) -> Result<Self, Diagnostic> {
-        assert_eq!(variants.len(), variant_spans.len());
+        assert_eq!(choices.len(), choice_spans.len());
         let enum_name = enum_name.into();
-        let mut results = Vec::with_capacity(variants.len());
+        let mut results = Vec::with_capacity(choices.len());
 
         // Validate that all choice types are coercible to the value type.
-        for (choice_idx, (choice_name, choice_type)) in variants.iter().enumerate() {
+        for (choice_idx, (choice_name, choice_type)) in choices.iter().enumerate() {
             if !choice_type.is_coercible_to(&explicit_inner_type) {
                 return Err(enum_choice_does_not_coerce_to_type(
                     &enum_name,
                     enum_span,
                     choice_name,
-                    variant_spans[choice_idx],
+                    choice_spans[choice_idx],
                     &explicit_inner_type,
                     choice_type,
                 ));
@@ -1130,7 +1130,7 @@ impl EnumType {
         Ok(Self {
             name: Arc::new(enum_name),
             inner_value_type: explicit_inner_type.into(),
-            variants: results.into(),
+            choices: results.into(),
         })
     }
 
@@ -1138,22 +1138,22 @@ impl EnumType {
     /// through coercion.
     ///
     /// Finds the common inner type among all choice types. If the enum has no
-    /// variants, the coerced inner type is [`Type::Union`].
+    /// choices, the coerced inner type is [`Type::Union`].
     ///
     /// Returns an error if no common type can be found among the choices.
     pub fn infer(
         enum_name: impl Into<String>,
-        variants: Vec<(String, Type)>,
-        variant_spans: &[Span],
+        choices: Vec<(String, Type)>,
+        choice_spans: &[Span],
     ) -> Result<Self, Diagnostic> {
-        assert_eq!(variants.len(), variant_spans.len());
+        assert_eq!(choices.len(), choice_spans.len());
         let enum_name = enum_name.into();
 
         let mut common_ty: Option<Type> = None;
-        let mut names = Vec::with_capacity(variants.len());
-        for (i, (name, variant_ty)) in variants.into_iter().enumerate() {
+        let mut names = Vec::with_capacity(choices.len());
+        for (i, (name, choice_ty)) in choices.into_iter().enumerate() {
             match common_ty {
-                Some(current_common_ty) => match current_common_ty.common_type(&variant_ty) {
+                Some(current_common_ty) => match current_common_ty.common_type(&choice_ty) {
                     Some(new_common_ty) => {
                         common_ty = Some(new_common_ty);
                     }
@@ -1161,13 +1161,13 @@ impl EnumType {
                         return Err(no_common_inferred_type_for_enum(
                             &enum_name,
                             &current_common_ty,
-                            variant_spans[i - 1],
-                            &variant_ty,
-                            variant_spans[i],
+                            choice_spans[i - 1],
+                            &choice_ty,
+                            choice_spans[i],
                         ));
                     }
                 },
-                None => common_ty = Some(variant_ty),
+                None => common_ty = Some(choice_ty),
             }
 
             names.push(name);
@@ -1176,7 +1176,7 @@ impl EnumType {
         Ok(Self {
             name: Arc::new(enum_name),
             inner_value_type: common_ty.unwrap_or(Type::Union).into(),
-            variants: names.into(),
+            choices: names.into(),
         })
     }
 
@@ -1190,9 +1190,9 @@ impl EnumType {
         &self.inner_value_type
     }
 
-    /// Gets the variants with their types.
-    pub fn variants(&self) -> &[String] {
-        &self.variants
+    /// Gets the choices.
+    pub fn choices(&self) -> &[String] {
+        &self.choices
     }
 }
 
@@ -2266,7 +2266,7 @@ mod test {
 
     #[test]
     fn enum_type_new_with_explicit_type() {
-        // Create enum with explicit `String` type, all variants coerce to `String`.
+        // Create enum with explicit `String` type, all choices coerce to `String`.
         let status = EnumType::new(
             "Status",
             Span::new(0, 0),
@@ -2285,12 +2285,12 @@ mod test {
             status.inner_value_type(),
             &Type::from(PrimitiveType::String)
         );
-        assert_eq!(status.variants().len(), 3);
+        assert_eq!(status.choices().len(), 3);
     }
 
     #[test]
     fn enum_type_new_fails_when_not_coercible() {
-        // Try to create enum with `Int` type but `String` variants.
+        // Try to create enum with `Int` type but `String` choices.
         let result = EnumType::new(
             "Bad",
             Span::new(0, 0),
@@ -2309,7 +2309,7 @@ mod test {
 
     #[test]
     fn enum_type_infer_finds_common_type() {
-        // All `Int` variants should infer `Int` type.
+        // All `Int` choices should infer `Int` type.
         let priority = EnumType::infer(
             "Priority",
             vec![
@@ -2326,7 +2326,7 @@ mod test {
             priority.inner_value_type(),
             &Type::from(PrimitiveType::Integer)
         );
-        assert_eq!(priority.variants().len(), 3);
+        assert_eq!(priority.choices().len(), 3);
     }
 
     #[test]
@@ -2344,7 +2344,7 @@ mod test {
 
         assert_eq!(mixed.name().as_str(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
-        assert_eq!(mixed.variants().len(), 2);
+        assert_eq!(mixed.choices().len(), 2);
     }
 
     #[test]
@@ -2372,7 +2372,7 @@ mod test {
         let empty = result.unwrap();
         assert_eq!(empty.name().as_str(), "Empty");
         assert_eq!(empty.inner_value_type(), &Type::Union);
-        assert_eq!(empty.variants().len(), 0);
+        assert_eq!(empty.choices().len(), 0);
     }
 
     #[test]

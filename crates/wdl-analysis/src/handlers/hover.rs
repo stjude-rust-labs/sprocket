@@ -292,7 +292,7 @@ fn resolve_hover_by_context(
 
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
@@ -368,7 +368,7 @@ fn resolve_hover_by_context(
                     _ => (None, None),
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();

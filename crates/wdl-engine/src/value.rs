@@ -833,7 +833,7 @@ impl Coercible for Value {
                 let enum_ty = target.as_enum().unwrap();
 
                 if enum_ty
-                    .variants()
+                    .choices()
                     .iter()
                     .any(|choice_name| choice_name == s.as_str())
                 {
@@ -857,10 +857,10 @@ impl Coercible for Value {
                     }
                 }
 
-                let choices = if enum_ty.variants().is_empty() {
+                let choices = if enum_ty.choices().is_empty() {
                     None
                 } else {
-                    let mut choice_names = enum_ty.variants().to_vec();
+                    let mut choice_names = enum_ty.choices().to_vec();
                     choice_names.sort();
                     Some(format!(" (choices: `{}`)", choice_names.join("`, `")))
                 }
@@ -2197,7 +2197,7 @@ impl EnumChoice {
         let value = Arc::new(value.into());
 
         let choice_index = enum_ty
-            .variants()
+            .choices()
             .iter()
             .position(|v| v == name)
             .expect("choice name must exist in enum type");
@@ -2216,7 +2216,7 @@ impl EnumChoice {
 
     /// Gets the name of the choice.
     pub fn name(&self) -> &str {
-        &self.enum_ty.variants()[self.choice_index]
+        &self.enum_ty.choices()[self.choice_index]
     }
 
     /// Gets the value of the choice.
