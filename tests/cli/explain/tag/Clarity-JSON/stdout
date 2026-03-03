@@ -1,0 +1,1 @@
+{"name":"Clarity","applicable_lints":["CommandSectionIndentation","ConsistentNewlines","ContainerUri","DeclarationName","DocCommentTabs","DoubleQuotes","ExceptDirectiveValid","HereDocCommands","ImportPlacement","KnownRules","MetaSections","PascalCase","SnakeCase"]}

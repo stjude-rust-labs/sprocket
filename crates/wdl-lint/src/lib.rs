@@ -59,15 +59,19 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// All tag names sorted alphabetically.
-pub static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+pub static ALL_TAG_NAMES: LazyLock<Vec<String>> =
+    LazyLock::new(|| ALL_TAGS.iter().map(|t| t.to_string()).collect());
+
+/// All tags sorted alphabetically.
+pub static ALL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
     let mut tags: HashSet<Tag> = HashSet::new();
     for rule in rules(&Config::default()) {
         for tag in rule.tags().iter() {
             tags.insert(tag);
         }
     }
-    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
-    tag_names.sort();
+    let mut tag_names: Vec<Tag> = tags.into_iter().collect();
+    tag_names.sort_by_cached_key(Tag::to_string);
     tag_names
 });
 
