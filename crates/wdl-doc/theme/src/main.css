@@ -426,6 +426,15 @@
   #searchbox {
     @apply flex text-slate-400 w-full h-full px-8 outline-none bg-transparent items-center rounded-md border border-slate-700 transition-colors focus:border-slate-400 placeholder:text-slate-400;
   }
+  .search-result {
+    @apply py-4 flex flex-col gap-2 border-b border-b-slate-800;
+  }
+  .search-result-excerpt {
+    @apply text-sm leading-[1.375rem] font-normal;
+  }
+  .search-result-excerpt mark {
+    @apply text-slate-950 bg-cyan-400 rounded;
+  }
 }
 
 @layer utilities {
