@@ -225,92 +225,23 @@ impl TestIteration {
             test = self.id.test_name,
             num = self.id.iteration_num,
         );
-        let inner = async || match self.result {
-            RunResult::Workflow(result) => match result {
-                Ok(outputs) => {
-                    if self.assertions.should_fail {
-                        Ok(IterationResult::Fail(anyhow!(
-                            "{id} succeeded but was expected to fail: see `{dir}`",
-                            dir = self.run_dir.display(),
-                        )))
-                    } else if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
-                        .with_context(|| {
-                            format!(
-                                "{id} failed output assertions: see `{dir}`",
-                                dir = self.run_dir.display()
-                            )
-                        })
-                    {
-                        Ok(IterationResult::Fail(e))
-                    } else {
-                        Ok(IterationResult::Success)
-                    }
-                }
-                Err(eval_err) => {
-                    if self.assertions.should_fail {
-                        Ok(IterationResult::Success)
-                    } else {
-                        Ok(IterationResult::Fail(anyhow!(
-                            "{id} failed but was expected to succeed: see `{dir}`: {err}",
-                            dir = self.run_dir.display(),
-                            err = eval_err.to_string(),
-                        )))
-                    }
-                }
-            },
-            RunResult::Task(result) => match *result {
-                Ok(evaled_task) => {
-                    if evaled_task.exit_code() == self.assertions.exit_code {
-                        if let Some(regexes) = &self.assertions.stdout {
-                            let stdout_path = evaled_task
-                                .stdout()
-                                .as_file()
-                                .expect("stdout should be `File`");
-                            match file_matches(stdout_path.as_str(), regexes.as_slice()) {
-                                Ok(None) => {}
-                                Ok(Some(re)) => {
-                                    return Ok(IterationResult::Fail(anyhow!(
-                                        "{id} stdout did not contain `{re}`: see `{dir}`",
-                                        dir = self.run_dir.display(),
-                                    )));
-                                }
-                                Err(e) => return Err(e),
-                            }
-                        }
-                        if let Some(regexes) = &self.assertions.stderr {
-                            let stderr_path = evaled_task
-                                .stderr()
-                                .as_file()
-                                .expect("stderr should be `File`");
-                            match file_matches(stderr_path.as_str(), regexes.as_slice()) {
-                                Ok(None) => {}
-                                Ok(Some(re)) => {
-                                    return Ok(IterationResult::Fail(anyhow!(
-                                        "{id} stderr did not contain `{re}`: see `{dir}`",
-                                        dir = self.run_dir.display(),
-                                    )));
-                                }
-                                Err(e) => return Err(e),
-                            }
-                        }
-                        let res = evaled_task.into_outputs();
-                        let outputs = match res {
-                            Ok(outputs) => outputs,
-                            Err(eval_err) => {
-                                if self.assertions.exit_code == 0 {
-                                    return Err(anyhow!(
-                                        "unexpected evaluation error: {}",
-                                        eval_err.to_string()
-                                    ));
-                                }
-                                return Ok(IterationResult::Success);
-                            }
-                        };
-                        if let Err(e) = evaluate_outputs(&self.assertions.outputs, &outputs)
+        let run_dir = self.run_dir;
+        let result = self.result;
+        let assertions = self.assertions;
+        let evaluation = async {
+            match result {
+                RunResult::Workflow(result) => match result {
+                    Ok(outputs) => {
+                        if assertions.should_fail {
+                            Ok(IterationResult::Fail(anyhow!(
+                                "{id} succeeded but was expected to fail: see `{dir}`",
+                                dir = run_dir.display(),
+                            )))
+                        } else if let Err(e) = evaluate_outputs(&assertions.outputs, &outputs)
                             .with_context(|| {
                                 format!(
                                     "{id} failed output assertions: see `{dir}`",
-                                    dir = self.run_dir.display()
+                                    dir = run_dir.display()
                                 )
                             })
                         {
@@ -318,25 +249,99 @@ impl TestIteration {
                         } else {
                             Ok(IterationResult::Success)
                         }
-                    } else {
-                        Ok(IterationResult::Fail(anyhow!(
-                            "{id} exited with code `{actual}` but test expected exit code \
-                             `{expected}`: see `{dir}`",
-                            actual = evaled_task.exit_code(),
-                            expected = self.assertions.exit_code,
-                            dir = self.run_dir.display(),
-                        )))
                     }
-                }
-                Err(eval_err) => Err(anyhow!(
-                    "unexpected evaluation error: {}",
-                    eval_err.to_string()
-                )),
-            },
-        };
-        let result = inner().await;
+                    Err(eval_err) => {
+                        if assertions.should_fail {
+                            Ok(IterationResult::Success)
+                        } else {
+                            Ok(IterationResult::Fail(anyhow!(
+                                "{id} failed but was expected to succeed: see `{dir}`: {err}",
+                                dir = run_dir.display(),
+                                err = eval_err.to_string(),
+                            )))
+                        }
+                    }
+                },
+                RunResult::Task(result) => match *result {
+                    Ok(evaled_task) => {
+                        if evaled_task.exit_code() == assertions.exit_code {
+                            if let Some(regexes) = &assertions.stdout {
+                                let stdout_path = evaled_task
+                                    .stdout()
+                                    .as_file()
+                                    .expect("stdout should be `File`");
+                                match file_matches(stdout_path.as_str(), regexes.as_slice()) {
+                                    Ok(None) => {}
+                                    Ok(Some(re)) => {
+                                        return Ok(IterationResult::Fail(anyhow!(
+                                            "{id} stdout did not contain `{re}`: see `{dir}`",
+                                            dir = run_dir.display(),
+                                        )));
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            if let Some(regexes) = &assertions.stderr {
+                                let stderr_path = evaled_task
+                                    .stderr()
+                                    .as_file()
+                                    .expect("stderr should be `File`");
+                                match file_matches(stderr_path.as_str(), regexes.as_slice()) {
+                                    Ok(None) => {}
+                                    Ok(Some(re)) => {
+                                        return Ok(IterationResult::Fail(anyhow!(
+                                            "{id} stderr did not contain `{re}`: see `{dir}`",
+                                            dir = run_dir.display(),
+                                        )));
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                            let res = evaled_task.into_outputs();
+                            let outputs = match res {
+                                Ok(outputs) => outputs,
+                                Err(eval_err) => {
+                                    if assertions.exit_code == 0 {
+                                        return Err(anyhow!(
+                                            "unexpected evaluation error: {}",
+                                            eval_err.to_string()
+                                        ));
+                                    }
+                                    return Ok(IterationResult::Success);
+                                }
+                            };
+                            if let Err(e) = evaluate_outputs(&assertions.outputs, &outputs)
+                                .with_context(|| {
+                                    format!(
+                                        "{id} failed output assertions: see `{dir}`",
+                                        dir = run_dir.display()
+                                    )
+                                })
+                            {
+                                Ok(IterationResult::Fail(e))
+                            } else {
+                                Ok(IterationResult::Success)
+                            }
+                        } else {
+                            Ok(IterationResult::Fail(anyhow!(
+                                "{id} exited with code `{actual}` but test expected exit code \
+                                 `{expected}`: see `{dir}`",
+                                actual = evaled_task.exit_code(),
+                                expected = assertions.exit_code,
+                                dir = run_dir.display(),
+                            )))
+                        }
+                    }
+                    Err(eval_err) => Err(anyhow!(
+                        "unexpected evaluation error: {}",
+                        eval_err.to_string()
+                    )),
+                },
+            }
+        }
+        .await;
         if !quiet {
-            match &result {
+            match &evaluation {
                 Ok(IterationResult::Success) => {
                     println!("{id}: ✅")
                 }
@@ -348,10 +353,10 @@ impl TestIteration {
                 }
             }
         }
-        if clean && matches!(result, Ok(IterationResult::Success)) {
-            let _ = remove_dir_all(self.run_dir).await;
+        if clean && matches!(evaluation, Ok(IterationResult::Success)) {
+            let _ = remove_dir_all(run_dir).await;
         }
-        result
+        evaluation
     }
 }
 
