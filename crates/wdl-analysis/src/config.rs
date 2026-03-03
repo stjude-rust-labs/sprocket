@@ -46,7 +46,6 @@ impl Default for Config {
                 diagnostics: Default::default(),
                 fallback_version: None,
                 ignore_filename: None,
-                respect_gitignore: true,
                 all_rules: Default::default(),
                 feature_flags: FeatureFlags::default(),
             }),
@@ -147,20 +146,7 @@ impl Config {
         }
     }
 
-    /// Get whether this configuration is set to respect gitignore files.
-    pub fn respect_gitignore(&self) -> bool {
-        self.inner.respect_gitignore
-    }
-
-    /// when "true", the file walker will  skip
-    /// files when walking directories. Defaults to `true`.
-    pub fn with_respect_gitignore(&self, respect_gitignore: bool) -> Self {
-        let mut inner = (*self.inner).clone();
-        inner.respect_gitignore = respect_gitignore;
-        Self {
-            inner: Arc::new(inner),
-        }
-    }
+    
 
     /// Returns a new configuration with the list of all known rule identifiers
     /// replaced by the argument.
@@ -196,9 +182,6 @@ struct ConfigInner {
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
-    /// See [`Config::with_respect_gitignore()`]
-    #[serde(default)]
-    respect_gitignore: bool,
     /// A list of all known rule identifiers.
     #[serde(default)]
     all_rules: Vec<String>,
