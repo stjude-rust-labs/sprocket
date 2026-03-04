@@ -293,8 +293,6 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
         SyntaxKind::OpenParen => Some(SyntaxKind::CloseParen),
         SyntaxKind::OpenHeredoc => Some(SyntaxKind::CloseHeredoc),
         SyntaxKind::PlaceholderOpen => Some(SyntaxKind::CloseBrace),
-        SyntaxKind::IfKeyword => Some(SyntaxKind::ThenKeyword),
-        SyntaxKind::ThenKeyword => Some(SyntaxKind::ElseKeyword),
         _ => None,
     }
 }
@@ -445,7 +443,13 @@ impl Postprocessor {
                         Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
                     )
                 {
-                    stream.0.pop();
+                    let popped = stream.0.pop().unwrap();
+                    if matches!(popped, PostToken::TempIndent(_)) {
+                        if matches!(stream.0.last(), Some(&PostToken::Indent)) {
+                            stream.0.pop();
+                        }
+                        stream.0.push(popped);
+                    }
                 }
 
                 stream.push(PostToken::Literal(value));
