@@ -1,0 +1,55 @@
+note[SectionOrdering]: sections are not in order for workflow `foo`
+   ┌─ tests/lints/section-ordering/source.wdl:6:10
+   │
+ 6 │ workflow foo {
+   │          ^^^ this workflow contains sections that are out of order
+   ·
+10 │     parameter_meta {}
+   │     -------------- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, `input`, private declarations/calls/scatters, `output`
+
+note[SectionOrdering]: sections are not in order for task `bar`
+   ┌─ tests/lints/section-ordering/source.wdl:17:6
+   │
+17 │ task bar {
+   │      ^^^ this task contains sections that are out of order
+   ·
+20 │     parameter_meta {}
+   │     -------------- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `requirements`/`runtime`
+
+note[SectionOrdering]: sections are not in order for task `qux`
+   ┌─ tests/lints/section-ordering/source.wdl:30:6
+   │
+30 │ task qux {
+   │      ^^^ this task contains sections that are out of order
+31 │     requirements {}
+32 │     meta {}
+   │     ---- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `requirements`/`runtime`
+
+note[SectionOrdering]: sections are not in order for struct `Corge`
+   ┌─ tests/lints/section-ordering/source.wdl:45:8
+   │
+45 │ struct Corge {
+   │        ^^^^^ this struct contains sections that are out of order
+   ·
+49 │     meta {}
+   │     ---- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, members
+
+note[SectionOrdering]: sections are not in order for struct `Grault`
+   ┌─ tests/lints/section-ordering/source.wdl:53:8
+   │
+53 │ struct Grault {
+   │        ^^^^^^ this struct contains sections that are out of order
+54 │     Int x
+55 │     meta {}
+   │     ---- this section is out of order
+   │
+   = fix: order as `meta`, `parameter_meta`, members
+

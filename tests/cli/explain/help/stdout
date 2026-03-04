@@ -80,6 +80,7 @@ Available rules:
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
+  - SectionOrdering
   - ShellCheck
   - SnakeCase
   - TodoComment
