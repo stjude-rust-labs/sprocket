@@ -1,11 +1,3 @@
-note[KnownRules]: unknown rule `ElementSpacing`
-  ┌─ tests/lints/doc-comment-tabs/source.wdl:1:59
-  │
-1 │ #@ except: MetaDescription, MetaSections, RuntimeSection, ElementSpacing, TodoComment, UnusedDocComments
-  │                                                           ^^^^^^^^^^^^^^ cannot make an exception for this rule
-  │
-  = fix: remove the unknown rule from the exception list
-
 warning[DocCommentTabs]: tabs in doc comments are not recommended
   ┌─ tests/lints/doc-comment-tabs/source.wdl:5:3
   │

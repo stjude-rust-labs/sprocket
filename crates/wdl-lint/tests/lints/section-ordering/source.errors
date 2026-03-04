@@ -1,62 +1,54 @@
-note[KnownRules]: unknown rule `ElementSpacing`
-  ┌─ tests/lints/section-ordering/source.wdl:2:12
-  │
-2 │ #@ except: ElementSpacing
-  │            ^^^^^^^^^^^^^^ cannot make an exception for this rule
-  │
-  = fix: remove the unknown rule from the exception list
-
 note[SectionOrdering]: sections are not in order for workflow `foo`
-   ┌─ tests/lints/section-ordering/source.wdl:6:10
-   │
- 6 │ workflow foo {
-   │          ^^^ this workflow contains sections that are out of order
-   ·
-10 │     parameter_meta {}
-   │     -------------- this section is out of order
-   │
-   = fix: order as `meta`, `parameter_meta`, `input`, private declarations/calls/scatters, `output`
+  ┌─ tests/lints/section-ordering/source.wdl:5:10
+  │
+5 │ workflow foo {
+  │          ^^^ this workflow contains sections that are out of order
+  ·
+9 │     parameter_meta {}
+  │     -------------- this section is out of order
+  │
+  = fix: order as `meta`, `parameter_meta`, `input`, private declarations/calls/scatters, `output`
 
 note[SectionOrdering]: sections are not in order for task `bar`
-   ┌─ tests/lints/section-ordering/source.wdl:17:6
+   ┌─ tests/lints/section-ordering/source.wdl:16:6
    │
-17 │ task bar {
+16 │ task bar {
    │      ^^^ this task contains sections that are out of order
    ·
-20 │     parameter_meta {}
+19 │     parameter_meta {}
    │     -------------- this section is out of order
    │
    = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `requirements`/`runtime`
 
 note[SectionOrdering]: sections are not in order for task `qux`
-   ┌─ tests/lints/section-ordering/source.wdl:30:6
+   ┌─ tests/lints/section-ordering/source.wdl:29:6
    │
-30 │ task qux {
+29 │ task qux {
    │      ^^^ this task contains sections that are out of order
-31 │     requirements {}
-32 │     meta {}
+30 │     requirements {}
+31 │     meta {}
    │     ---- this section is out of order
    │
    = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `requirements`/`runtime`
 
 note[SectionOrdering]: sections are not in order for struct `Corge`
-   ┌─ tests/lints/section-ordering/source.wdl:45:8
+   ┌─ tests/lints/section-ordering/source.wdl:44:8
    │
-45 │ struct Corge {
+44 │ struct Corge {
    │        ^^^^^ this struct contains sections that are out of order
    ·
-49 │     meta {}
+48 │     meta {}
    │     ---- this section is out of order
    │
    = fix: order as `meta`, `parameter_meta`, members
 
 note[SectionOrdering]: sections are not in order for struct `Grault`
-   ┌─ tests/lints/section-ordering/source.wdl:53:8
+   ┌─ tests/lints/section-ordering/source.wdl:52:8
    │
-53 │ struct Grault {
+52 │ struct Grault {
    │        ^^^^^^ this struct contains sections that are out of order
-54 │     Int x
-55 │     meta {}
+53 │     Int x
+54 │     meta {}
    │     ---- this section is out of order
    │
    = fix: order as `meta`, `parameter_meta`, members
