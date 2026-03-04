@@ -70,7 +70,6 @@ Available rules:
   - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
-  - ImportSorted
   - InputName
   - InputSorted
   - KnownRules

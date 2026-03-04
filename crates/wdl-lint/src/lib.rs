@@ -118,7 +118,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::ImportPlacementRule>::default(),
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
-        Box::<rules::ImportSortedRule>::default(),
         Box::<rules::InputSortedRule>::default(),
         Box::<rules::ConsistentNewlinesRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
