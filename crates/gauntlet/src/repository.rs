@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::info;
 use tracing::trace;
+use tracing::warn;
 
 pub mod identifier;
 pub mod work_dir;
@@ -255,9 +256,13 @@ fn update_submodules_recursive(repo: &git2::Repository, depth: usize) {
             .update(true, Some(&mut opts))
             .expect("failed to update submodule");
 
-        let sub_repo = submodule
-            .open()
-            .expect("failed to open submodule as repository");
-        update_submodules_recursive(&sub_repo, depth + 1);
+        match submodule.open() {
+            Ok(sub_repo) => update_submodules_recursive(&sub_repo, depth + 1),
+            Err(e) => {
+                warn!(
+                    "skipping recursive submodule update: failed to open submodule as repository: {e}"
+                );
+            }
+        }
     }
 }
