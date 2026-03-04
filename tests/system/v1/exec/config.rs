@@ -1,6 +1,7 @@
 //! Server configuration validation tests.
 
 use anyhow::Result;
+use sprocket::MaxConcurrentRuns;
 use sprocket::ServerConfig;
 use tempfile::TempDir;
 
@@ -14,7 +15,7 @@ fn make_config(
         output_directory,
         allowed_file_paths,
         allowed_urls,
-        max_concurrent_runs,
+        max_concurrent_runs: MaxConcurrentRuns(max_concurrent_runs),
         ..Default::default()
     }
 }
@@ -307,32 +308,4 @@ fn validate_handles_trailing_slash_in_paths() -> Result<()> {
     assert_eq!(config.allowed_file_paths.len(), 1);
 
     Ok(())
-}
-
-#[test]
-fn validate_with_max_concurrent_workflows_none() {
-    let mut config = make_config("./out".into(), vec![], vec![], None);
-
-    let result = config.validate();
-    assert!(result.is_ok());
-    assert_eq!(config.max_concurrent_runs, None);
-}
-
-#[test]
-fn validate_rejects_max_concurrent_runs_zero() {
-    let mut config = make_config("./out".into(), vec![], vec![], Some(0));
-
-    let result = config.validate();
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert_eq!(err_msg, "`max_concurrent_runs` must be at least 1");
-}
-
-#[test]
-fn validate_with_max_concurrent_runs_large() {
-    let mut config = make_config("./out".into(), vec![], vec![], Some(10000));
-
-    let result = config.validate();
-    assert!(result.is_ok());
-    assert_eq!(config.max_concurrent_runs, Some(10000));
 }

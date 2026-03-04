@@ -116,22 +116,21 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version;
+    let fallback_version = config.common.wdl.fallback_version.inner();
 
-    let indent = Indent::try_new(
-        args.with_tabs || config.format.with_tabs,
-        Some(
-            args.indentation_size
-                .unwrap_or(config.format.indentation_size),
-        ),
-    )
-    .context("failed to create indentation configuration")?;
+    let indent = if args.with_tabs || args.indentation_size.is_some() {
+        Indent::try_new(args.with_tabs, args.indentation_size)
+            .context("failed to create indentation configuration")?
+    } else {
+        config.format.indent
+    };
 
-    let max_line_length = MaxLineLength::try_new(
-        args.max_line_length
-            .unwrap_or(config.format.max_line_length),
-    )
-    .context("failed to create max line length configuration")?;
+    let max_line_length = if args.max_line_length.is_some() {
+        MaxLineLength::try_new(args.max_line_length)
+            .context("failed to create max line length configuration")?
+    } else {
+        config.format.max_line_length
+    };
 
     let config = FormatConfig::default()
         .indent(indent)
