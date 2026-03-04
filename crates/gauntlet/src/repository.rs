@@ -260,7 +260,8 @@ fn update_submodules_recursive(repo: &git2::Repository, depth: usize) {
             Ok(sub_repo) => update_submodules_recursive(&sub_repo, depth + 1),
             Err(e) => {
                 warn!(
-                    "skipping recursive submodule update: failed to open submodule as repository: {e}"
+                    "skipping recursive submodule update: failed to open submodule as repository: \
+                     {e}"
                 );
             }
         }
