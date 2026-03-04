@@ -395,7 +395,7 @@ impl Postprocessor {
         if stream.is_empty() {
             self.interrupted = false;
             self.position = LinePosition::StartOfLine;
-            self.indent(stream);
+            self.end_line(stream);
         }
         match token {
             PreToken::BlankLine => {
