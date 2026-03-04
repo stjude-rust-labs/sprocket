@@ -128,7 +128,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
-        Box::<rules::ElementSpacingRule>::default(),
         Box::<rules::InputNameRule>::default(),
         Box::<rules::OutputNameRule>::default(),
         Box::new(rules::DeclarationNameRule::new(config)),

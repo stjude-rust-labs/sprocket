@@ -64,7 +64,6 @@ Available rules:
   - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
-  - ElementSpacing
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
