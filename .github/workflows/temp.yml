@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
       - name: Generate site
         run: |
-          cargo run -p sprocket -- dev doc ./crates/wdl-doc/tests/ui/base/assets --output ./crates/wdl-doc/doc
+          cargo run -p sprocket -- dev doc ./crates/wdl-doc/tests/ui/base/assets --output ./crates/wdl-doc/doc --github-url=https://github.com/stjude-rust-labs/sprocket --homepage-url=https://google.com
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
