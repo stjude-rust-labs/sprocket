@@ -1,18 +1,11 @@
 //! Newline style within formatting configuration.
 
-
-/// The default newline style.
-pub const DEFAULT_NEWLINE_STYLE: NewlineStyle = NewlineStyle::Auto;
-
-
 /// The default newline style.
 pub const DEFAULT_NEWLINE_STYLE: NewlineStyle = NewlineStyle::Auto;
 
 /// The newline style to use when formatting.
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
-
-
 pub enum NewlineStyle {
     /// Use the native newline style of the platform.
     Auto,
@@ -27,7 +20,6 @@ impl Default for NewlineStyle {
         DEFAULT_NEWLINE_STYLE
     }
 }
-
 
 impl NewlineStyle {
     /// Gets the newline string for this style.

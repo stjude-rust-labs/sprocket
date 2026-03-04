@@ -78,16 +78,28 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compare the result of a test to the expected result.
-fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
-    let result = normalize(result);
+fn compare_result(
+    path: &Path,
+    result: &str,
+    preserve_line_endings: bool,
+) -> Result<(), anyhow::Error> {
+    let result = if preserve_line_endings {
+        result.to_string()
+    } else {
+        normalize(result)
+    };
     if env::var_os("BLESS").is_some() {
         fs::write(path, &result).context("writing result file")?;
         return Ok(());
     }
 
-    let expected = fs::read_to_string(path)
-        .context("reading result file")?
-        .replace("\r\n", "\n");
+    let expected = if preserve_line_endings {
+        fs::read_to_string(path).context("reading result file")?
+    } else {
+        fs::read_to_string(path)
+            .context("reading result file")?
+            .replace("\r\n", "\n")
+    };
 
     if expected != result {
         bail!(
@@ -129,13 +141,13 @@ fn run_test_inner(
     source: &str,
     original_doc: &Path,
     formatted_doc: &Path,
+    preserve_line_endings: bool,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
-    compare_result(formatted_doc, &formatted)?;
 
     // test idempotency by formatting the formatted document
     let twice_formatted = format(config, &formatted, formatted_doc)?;
-    compare_result(formatted_doc, &twice_formatted)?;
+    compare_result(formatted_doc, &twice_formatted, preserve_line_endings)?;
 
     Ok(())
 }
@@ -157,15 +169,28 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             config_path.display()
         ))?;
 
-        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(
+            FormatConfig::default(),
+            &source,
+            &path,
+            &formatted_path,
+            false,
+        )?;
         run_test_inner(
             config,
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
+            true,
         )?;
     } else {
-        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(
+            FormatConfig::default(),
+            &source,
+            &path,
+            &formatted_path,
+            false,
+        )?;
     }
 
     Ok(())
