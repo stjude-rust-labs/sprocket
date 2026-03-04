@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 use std::io::BufReader;
 use std::io::BufWriter;
@@ -16,6 +17,7 @@ use arrayvec::ArrayString;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::fs;
+use tracing::debug;
 use tracing::info;
 use url::Url;
 
@@ -47,6 +49,23 @@ mod lock;
 
 pub use hash::Hashable;
 
+/// Contains keys that are excluded from cache entry checking.
+///
+/// This is used to determine which keys to ignore when checking if a cache
+/// entry is valid. The `inputs` field is used when computing the cache key for
+/// a task, while the `requirements` and `hints` fields are used when checking
+/// if a cache entry is valid.
+pub struct CallCacheExclusions {
+    /// The list of cache input keys to exclude when computing keys and checking
+    /// cache entries.
+    pub inputs: HashSet<String>,
+    /// The list of cache requirement keys to exclude when checking cache
+    /// entries.
+    pub requirements: HashSet<String>,
+    /// The list of cache hint keys to exclude when checking cache entries.
+    pub hints: HashSet<String>,
+}
+
 /// Represents the internal state of the call cache.
 #[derive(Clone)]
 struct State {
@@ -67,6 +86,8 @@ struct State {
     transferer: Arc<dyn Transferer>,
     /// The content digest mode used by the cache.
     mode: ContentDigestMode,
+    /// The keys to exclude when checking cache entries for validity.
+    exclusions: Arc<CallCacheExclusions>,
 }
 
 impl State {
@@ -195,13 +216,29 @@ impl Key {
     /// Ensure this [`Key`] matches the given [`CallCacheEntry`].
     ///
     /// Returns an error if there is a mismatch.
-    fn ensure_matches(&self, entry: &CallCacheEntry) -> Result<()> {
-        fn compare_maps<K, V>(a: &HashMap<K, V>, b: &HashMap<K, V>, kind: &str) -> Result<()>
+    fn ensure_matches(
+        &self,
+        entry: &CallCacheEntry,
+        exclusions: &CallCacheExclusions,
+    ) -> Result<()> {
+        fn compare_maps<K, V>(
+            a: &HashMap<K, V>,
+            b: &HashMap<K, V>,
+            kind: &str,
+            excluded: &HashSet<String>,
+        ) -> Result<()>
         where
             K: std::hash::Hash + fmt::Display + Eq,
             V: Eq,
         {
             for (k, v) in a {
+                // Skip excluded keys
+                let key_str = k.to_string();
+                if excluded.contains(&key_str) {
+                    debug!("{} `{}` is excluded from cache checking, skipping", kind, k);
+                    continue;
+                }
+
                 match b.get(k) {
                     Some(ov) => {
                         if v != ov {
@@ -213,6 +250,13 @@ impl Key {
             }
 
             for k in b.keys() {
+                // Skip excluded keys
+                let key_str = k.to_string();
+                if excluded.contains(&key_str) {
+                    debug!("{} `{}` is excluded from cache checking, skipping", kind, k);
+                    continue;
+                }
+
                 if !a.contains_key(k) {
                     bail!("{kind} `{k}` was removed");
                 }
@@ -233,9 +277,19 @@ impl Key {
             bail!("the shell used by the task was modified");
         }
 
-        compare_maps(&self.requirements, &entry.requirements, "task requirement")?;
-        compare_maps(&self.hints, &entry.hints, "task hint")?;
-        compare_maps(&self.backend_inputs, &entry.inputs, "task input")?;
+        compare_maps(
+            &self.requirements,
+            &entry.requirements,
+            "task requirement",
+            &exclusions.requirements,
+        )?;
+        compare_maps(&self.hints, &entry.hints, "task hint", &exclusions.hints)?;
+        compare_maps(
+            &self.backend_inputs,
+            &entry.inputs,
+            "task input",
+            &exclusions.inputs,
+        )?;
         Ok(())
     }
 }
@@ -306,6 +360,7 @@ impl CallCache {
         cache_dir: Option<&Path>,
         mode: ContentDigestMode,
         transferer: Arc<dyn Transferer>,
+        exclusions: Arc<CallCacheExclusions>,
     ) -> Result<Self> {
         let cache_dir = match cache_dir {
             Some(cache_dir) => cache_dir.into(),
@@ -332,6 +387,7 @@ impl CallCache {
             cache_dir: cache_dir.into(),
             transferer,
             mode,
+            exclusions,
         }))
     }
 
@@ -382,7 +438,15 @@ impl CallCache {
         let mut hasher = blake3::Hasher::new();
         request.document_uri.hash(&mut hasher);
         request.task_name.hash(&mut hasher);
-        hash_sequence(&mut hasher, request.inputs.iter());
+        hash_sequence(
+            &mut hasher,
+            request
+                .inputs
+                .iter()
+                .filter(|(k, _)| !self.0.exclusions.inputs.contains(*k))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        );
         let key = hasher.finalize().to_hex();
 
         Ok(Key {
@@ -424,7 +488,7 @@ impl CallCache {
         }
 
         // Ensure the key matches the cache entry
-        key.ensure_matches(&entry)?;
+        key.ensure_matches(&entry, &self.0.exclusions)?;
 
         let stdout = entry
             .stdout
@@ -703,6 +767,11 @@ mod test {
                 Some(&root_dir.path().join("cache")),
                 ContentDigestMode::Strong,
                 transfer,
+                Arc::new(CallCacheExclusions {
+                    inputs: HashSet::new(),
+                    requirements: HashSet::new(),
+                    hints: HashSet::new(),
+                }),
             )
             .await
             .unwrap();
@@ -1103,6 +1172,199 @@ mod test {
                 "failed to read metadata of `{}`",
                 ctx.task.paths.work_dir.display()
             )
+        );
+    }
+
+    #[tokio::test]
+    async fn excluded_requirement_modified() {
+        let ctx = TestContext::new().await;
+        // Add "memory" as an excluded requirement
+        let cache = CallCache::new(
+            Some(ctx.cache.0.cache_dir.as_path()),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::from_iter(["memory".to_string()]),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let request = ctx.task.key_request();
+
+        // Add a "memory" requirement - this should NOT invalidate the cache
+        // since "memory" is in the exclusion list
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([
+                    (
+                        "container".into(),
+                        PrimitiveValue::new_string("ubuntu:latest").into(),
+                    ),
+                    ("memory".into(), 1000.into()),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        // This should succeed (not return an error) because "memory" is excluded
+        assert!(
+            cache.get(&key).await.is_ok(),
+            "Expected cache hit when excluded requirement is added"
+        );
+
+        // Modify a non-excluded requirement - this SHOULD invalidate the cache
+        let key = cache
+            .key(KeyRequest {
+                requirements: &HashMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:cthulhu").into(),
+                )]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task requirement `container` was modified"
+        );
+    }
+
+    #[tokio::test]
+    async fn excluded_hint_modified() {
+        let ctx = TestContext::new().await;
+        // Add "localization_optional" as an excluded hint
+        let cache = CallCache::new(
+            Some(ctx.cache.0.cache_dir.as_path()),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::new(),
+                hints: HashSet::from_iter(["localization_optional".to_string()]),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let request = ctx.task.key_request();
+
+        // Add a "localization_optional" hint - this should NOT invalidate the cache
+        // since "localization_optional" is in the exclusion list
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("bar").into()),
+                    (
+                        "localization_optional".into(),
+                        PrimitiveValue::new_string("true").into(),
+                    ),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        // This should succeed (not return an error) because "localization_optional" is
+        // excluded
+        assert!(
+            cache.get(&key).await.is_ok(),
+            "Expected cache hit when excluded hint is added"
+        );
+
+        // Modify a non-excluded hint - this SHOULD invalidate the cache
+        let key = cache
+            .key(KeyRequest {
+                hints: &HashMap::from_iter([
+                    ("foo".into(), PrimitiveValue::new_string("baz").into()),
+                    (
+                        "localization_optional".into(),
+                        PrimitiveValue::new_string("true").into(),
+                    ),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "task hint `foo` was modified"
+        );
+    }
+
+    #[tokio::test]
+    async fn excluded_input_modified() {
+        // Create cache with "file" as an excluded input
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let cache = CallCache::new(
+            Some(&root_dir.path().join("cache")),
+            ContentDigestMode::Strong,
+            Arc::new(DigestTransferer::new([])),
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::from_iter(["file".to_string()]),
+                requirements: HashSet::new(),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut task = prepare_task(root_dir.path()).await;
+        task.inputs.insert(
+            "file2".into(),
+            PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap()).into(),
+        );
+        let request = task.key_request();
+
+        // Get cache key with the `file` input excepted
+        let original_key = cache.key(task.key_request()).await.unwrap();
+
+        // Modify the input - this should NOT invalidate the cache since the
+        // input is in the exclusion list
+        let key = cache
+            .key(KeyRequest {
+                inputs: &BTreeMap::from([
+                    (
+                        "file".into(),
+                        PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap())
+                            .into(),
+                    ),
+                    (
+                        "file2".into(),
+                        PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap()).into(),
+                    ),
+                ]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        // This should succeed (not return an error) because the input is excluded
+        assert!(
+            original_key.key == key.key,
+            "Expected cache key to be the same when excluded input is modified"
+        );
+        // Modify a non-excluded input - this SHOULD be a cache miss
+        let key = cache
+            .key(KeyRequest {
+                inputs: &BTreeMap::from([(
+                    "file2".into(),
+                    PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap()).into(),
+                )]),
+                ..request
+            })
+            .await
+            .unwrap();
+
+        assert_ne!(
+            original_key.key, key.key,
+            "Expected key change when non-excluded input is modified"
         );
     }
 }
