@@ -65,13 +65,7 @@ fn write_map(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
         let mut writer = BufWriter::new(fs::File::from(file));
         for (key, value) in map.iter() {
             writer
-                .write_all(
-                    key.as_ref()
-                        .expect("key should not be optional")
-                        .as_string()
-                        .unwrap()
-                        .as_bytes(),
-                )
+                .write_all(key.as_string().unwrap().as_bytes())
                 .await
                 .map_err(write_error)?;
             writer.write_all(b"\t").await.map_err(write_error)?;

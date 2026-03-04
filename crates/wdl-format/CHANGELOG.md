@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641)).
+* Added configuration for input section formatting (off by default) ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
+* Added configuration for trailing commas (on by default) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
+* `#@ except:` comment normalization and consolidation of doc comment blocks ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+## 0.15.1 - 2026-02-12
+
+#### Dependencies
+
+* Bumps dependencies.
+
+## 0.15.0 - 02-11-2026
+
+#### Added
+
+* Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
+
+### Fixed
+
+* Correctly format `ConditionalStatement` with `else if` and `else` ([#617](https://github.com/stjude-rust-labs/sprocket/pull/617)).
+
 ## 0.14.0 - 01-12-2026
 
 #### Added

@@ -2,6 +2,7 @@
 
 use wdl_ast::SyntaxKind;
 
+use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
@@ -12,17 +13,21 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_enum_definition(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("enum definition children");
 
     let enum_keyword = children.next().expect("enum keyword");
     assert!(enum_keyword.element().kind() == SyntaxKind::EnumKeyword);
-    (&enum_keyword).write(stream);
+    (&enum_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("enum name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
 
     let mut variants = Vec::new();
     let mut commas = Vec::new();
@@ -31,11 +36,11 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
     for child in children {
         match child.element().kind() {
             SyntaxKind::EnumTypeParameterNode => {
-                (&child).write(stream);
+                (&child).write(stream, config);
             }
             SyntaxKind::OpenBrace => {
                 stream.end_word();
-                (&child).write(stream);
+                (&child).write(stream, config);
                 stream.end_line();
                 stream.increment_indent();
             }
@@ -59,17 +64,17 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
 
     let mut commas = commas.iter();
     for variant in variants {
-        (&variant).write(stream);
+        (&variant).write(stream, config);
         if let Some(comma) = commas.next() {
-            (comma).write(stream);
-        } else {
+            (comma).write(stream, config);
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("enum definition close brace")).write(stream);
+    (&close_brace.expect("enum definition close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -78,22 +83,26 @@ pub fn format_enum_definition(element: &FormatElement, stream: &mut TokenStream<
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_variant(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_enum_variant(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("enum variant children");
 
     let name = children.next().expect("enum variant name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::Assignment => {
                 stream.end_word();
-                (&child).write(stream);
+                (&child).write(stream, config);
                 stream.end_word();
             }
             _ => {
-                (&child).write(stream);
+                (&child).write(stream, config);
             }
         }
     }
@@ -104,8 +113,12 @@ pub fn format_enum_variant(element: &FormatElement, stream: &mut TokenStream<Pre
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_enum_type_parameter(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_enum_type_parameter(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     for child in element.children().expect("enum type parameter children") {
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
 }

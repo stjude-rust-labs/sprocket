@@ -1,0 +1,16 @@
+error: expected map key to be a non-optional primitive type
+  ┌─ tests/analysis/map-key-none/source.wdl:6:9
+  │
+6 │     Map[String?, String] incorrect = { None: "wrong" }
+  │         ^^^^^^^
+  │         │
+  │         this is type `String?`
+
+error: expected map key to be a non-optional primitive type
+  ┌─ tests/analysis/map-key-none/source.wdl:6:40
+  │
+6 │     Map[String?, String] incorrect = { None: "wrong" }
+  │                                        ^^^^
+  │                                        │
+  │                                        this is type `None`
+

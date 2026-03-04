@@ -1,4 +1,1 @@
-failed to get constraints for task `hello_task`
-
-Caused by:
-    task requires at least 20000 GiB of memory
+failed to get constraints for task `hello_task`: task requires at least 20000 GiB of memory

@@ -33,10 +33,12 @@
 
 use std::collections::HashSet;
 
+use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::Direction;
+use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
-use wdl_ast::SyntaxToken;
 
 mod analyzer;
 pub mod config;
@@ -62,28 +64,26 @@ pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
 
-/// The prefix of `except` comments.
-pub const EXCEPT_COMMENT_PREFIX: &str = "#@ except:";
-
 /// An extension trait for syntax nodes.
-pub trait SyntaxNodeExt {
-    /// Gets an iterator over the `@except` comments for a syntax node.
-    fn except_comments(&self) -> impl Iterator<Item = SyntaxToken> + '_;
-
+pub trait Exceptable {
     /// Gets the AST node's rule exceptions set.
     ///
     /// The set is the comma-delimited list of rule identifiers that follows a
     /// `#@ except:` comment.
-    fn rule_exceptions(&self) -> HashSet<String>;
+    fn rule_exceptions(&self) -> HashSet<String> {
+        HashSet::new()
+    }
 
     /// Determines if a given rule id is excepted for the syntax node.
-    fn is_rule_excepted(&self, id: &str) -> bool;
+    fn is_rule_excepted(&self, _id: &str) -> bool {
+        true
+    }
 }
 
-impl SyntaxNodeExt for SyntaxNode {
-    fn except_comments(&self) -> impl Iterator<Item = SyntaxToken> + '_ {
+impl Exceptable for SyntaxNode {
+    fn rule_exceptions(&self) -> HashSet<String> {
         self.siblings_with_tokens(Direction::Prev)
-            .skip(1)
+            .skip(1) // self is included with siblings
             .map_while(|s| {
                 if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {
                     s.into_token()
@@ -91,32 +91,15 @@ impl SyntaxNodeExt for SyntaxNode {
                     None
                 }
             })
-            .filter(|t| t.kind() == SyntaxKind::Comment)
-    }
-
-    fn rule_exceptions(&self) -> HashSet<String> {
-        let mut set = HashSet::default();
-        for comment in self.except_comments() {
-            if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX) {
-                for id in ids.split(',') {
-                    let id = id.trim();
-                    set.insert(id.to_string());
-                }
-            }
-        }
-
-        set
+            .filter_map(Comment::cast)
+            .filter_map(|c| c.directive())
+            .flat_map(|d| match d {
+                Directive::Except(e) => e,
+            })
+            .collect()
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
-        for comment in self.except_comments() {
-            if let Some(ids) = comment.text().strip_prefix(EXCEPT_COMMENT_PREFIX)
-                && ids.split(',').any(|i| i.trim() == id)
-            {
-                return true;
-            }
-        }
-
-        false
+        self.rule_exceptions().contains(id)
     }
 }

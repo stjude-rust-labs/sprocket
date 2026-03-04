@@ -34,7 +34,10 @@
 - **`sprocket check`** performs static analysis on a document or directory of documents.
 - **`sprocket completions`** generates shell completions for Sprocket.
 - **`sprocket config`** prints configuration values.
-- **`sprocket dev`** subcommand containing developmental and experimental commands.
+- **`sprocket dev`** subcommand containing developmental and experimental commands:
+  - **`sprocket dev doc`** generates documentation for a WDL workspace.
+  - **`sprocket dev server`** runs an HTTP API server for workflow execution.
+  - **`sprocket dev test`** runs unit tests for a WDL workspace.
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
 - **`sprocket format`** formats a document or directory of documents.
 - **`sprocket inputs`** writes template input file (JSON or YAML) for a task or workflow.
@@ -166,7 +169,7 @@ For more information about our contributor policies, please read the [contributi
 
 ## ⚙️ Minimum Supported Rust Version
 
-The minimum supported Rust version is currently `1.88.0`.
+The minimum supported Rust version is currently `1.91.1`.
 
 There is a CI job that verifies the declared minimum supported version.
 
@@ -187,7 +190,7 @@ cargo install cargo-msrv
 And run the following command:
 
 ```bash
-cargo msrv --min 1.88.0
+cargo msrv --min 1.91.1
 ```
 
 If the reported version is newer than the crate's current minimum supported

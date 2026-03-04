@@ -27,6 +27,16 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
   -c, --config <CONFIG>
           Path to the configuration file
 
@@ -43,9 +53,7 @@ Options:
 
 Available rules:
   - CallInputKeyword
-  - CallInputSpacing
   - CommandSectionIndentation
-  - CommentWhitespace
   - ConciseInput
   - ConsistentNewlines
   - ContainerUri
@@ -53,31 +61,25 @@ Available rules:
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
+  - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
   - ElementSpacing
-  - EndingNewline
+  - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
   - ImportSorted
-  - ImportWhitespace
   - InputName
   - InputSorted
   - KnownRules
-  - LineWidth
-  - LintDirectiveFormatted
-  - LintDirectiveValid
   - MatchingOutputMeta
   - MetaDescription
-  - MetaKeyValueFormatting
   - MetaSections
   - OutputName
   - ParameterMetaMatched
   - PascalCase
-  - PreambleCommentPlacement
-  - PreambleFormatted
   - RedundantNone
   - RequirementsSection
   - RuntimeSection
@@ -85,15 +87,13 @@ Available rules:
   - ShellCheck
   - SnakeCase
   - TodoComment
-  - TrailingComma
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
+  - UnusedDocComments
   - UnusedImport
   - UnusedInput
   - UsingFallbackVersion
-  - VersionStatementFormatted
-  - Whitespace
 
 Available tags:
   - Clarity

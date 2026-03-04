@@ -11,29 +11,30 @@ use maud::Markup;
 use maud::PreEscaped;
 use maud::html;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::InputSection;
-use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
-use wdl_ast::v1::ParameterMetadataSection;
 
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::meta::DESCRIPTION_KEY;
+use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
+use crate::meta::MetaMapValueSource;
+use crate::meta::doc_comments;
 use crate::parameter::Group;
 use crate::parameter::InputOutput;
 use crate::parameter::Parameter;
 use crate::parameter::render_non_required_parameters_table;
 
 /// A runnable (workflow or task) in a WDL document.
-pub(crate) trait Runnable {
+pub(crate) trait Runnable: DefinitionMeta {
     /// Get the name of the runnable.
     fn name(&self) -> &str;
-
-    /// Get the [`MetaMap`] of the runnable.
-    fn meta(&self) -> &MetaMap;
 
     /// Get the inputs of the runnable.
     fn inputs(&self) -> &[Parameter];
@@ -98,43 +99,39 @@ pub(crate) trait Runnable {
         self.version().render()
     }
 
-    /// Render the description of the runnable as HTML.
-    ///
-    /// This will always return some text; in the absence of a `description`
-    /// key, it will return a default message ("No description provided").
-    fn render_description(&self, summarize: bool) -> Markup {
-        self.meta().render_description(summarize)
-    }
-
     /// Render the "run with" component of the runnable.
     fn render_run_with(&self, _assets: &Path) -> Markup {
         if let Some(wdl_path) = self.wdl_path() {
             let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
             let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
             html! {
-                div x-data="{ unix: true }" class="main__run-with-container" {
+                div x-data="{ run_with: (localStorage.getItem('run_with') ?? 'unix') }" class="main__run-with-container" {
                     div class="main__run-with-label" {
                         span class="main__run-with-label-text" {
                             "RUN WITH"
                         }
-                        button x-on:click="unix = !unix" class="main__run-with-toggle" {
-                            div x-bind:class="unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                        button x-on:click="
+                        run_with = run_with == 'unix' ? 'windows' : 'unix'
+                        localStorage.setItem('run_with', run_with)
+                        "
+                        class="main__run-with-toggle" {
+                            div x-bind:class="run_with == 'unix' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
                                 "Unix"
                             }
-                            div x-bind:class="!unix ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
+                            div x-bind:class="run_with == 'windows' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
                                 "Windows"
                             }
                         }
                     }
                     div class="main__run-with-content" {
                         p class="main__run-with-content-text" {
-                            "sprocket run --entrypoint "
+                            "sprocket run --target "
                             (self.name())
                             " "
-                            span x-show="unix" {
+                            span x-show="run_with == 'unix'" {
                                 (unix_path)
                             }
-                            span x-show="!unix" {
+                            span x-show="run_with == 'windows'" {
                                 (windows_path)
                             }
                             " [INPUTS]..."
@@ -258,37 +255,65 @@ pub(crate) trait Runnable {
     }
 }
 
-/// Parse a [`MetadataSection`] into a [`MetaMap`].
-fn parse_meta(meta: &MetadataSection) -> MetaMap {
-    meta.items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, item)
-        })
-        .collect()
-}
-
-/// Parse a [`ParameterMetadataSection`] into a [`MetaMap`].
-fn parse_parameter_meta(parameter_meta: &ParameterMetadataSection) -> MetaMap {
-    parameter_meta
-        .items()
-        .map(|m| {
-            let name = m.name().text().to_owned();
-            let item = m.value();
-            (name, item)
-        })
-        .collect()
+/// Attempts to convert a [`MetaMapValueSource`] to a [`MetaMap`] with a
+/// description.
+fn meta_to_description(value: &MetaMapValueSource) -> Option<MetaMap> {
+    match value {
+        MetaMapValueSource::Comment(_) => Some(MetaMap::from([(
+            DESCRIPTION_KEY.to_string(),
+            value.clone(),
+        )])),
+        MetaMapValueSource::MetaValue(meta) => match meta {
+            MetadataValue::Object(o) => Some(
+                o.items()
+                    .map(|item| {
+                        (
+                            item.name().text().to_string(),
+                            MetaMapValueSource::MetaValue(item.value().clone()),
+                        )
+                    })
+                    .collect(),
+            ),
+            MetadataValue::String(_s) => Some(MetaMap::from([(
+                DESCRIPTION_KEY.to_string(),
+                value.clone(),
+            )])),
+            _ => {
+                // If it's not an object or string, we don't know how to handle it.
+                None
+            }
+        },
+    }
 }
 
 /// Parse the [`InputSection`] into a vector of [`Parameter`]s.
-fn parse_inputs(input_section: &InputSection, parameter_meta: &MetaMap) -> Vec<Parameter> {
+fn parse_inputs(
+    input_section: &InputSection,
+    parameter_meta: &MetaMap,
+    enable_doc_comments: bool,
+) -> Vec<Parameter> {
     input_section
         .declarations()
         .map(|decl| {
             let name = decl.name().text().to_owned();
-            let meta = parameter_meta.get(&name);
-            Parameter::new(decl.clone(), meta.cloned(), InputOutput::Input)
+            let mut meta = parameter_meta
+                .get(&name)
+                .and_then(meta_to_description)
+                .unwrap_or_default();
+
+            if enable_doc_comments {
+                let comments = match &decl {
+                    Decl::Bound(decl) => decl.doc_comments(),
+                    Decl::Unbound(decl) => decl.doc_comments(),
+                };
+
+                if let Some(comments) = comments {
+                    // Doc comments take precedence
+                    meta.append(&mut doc_comments(comments));
+                }
+            }
+
+            Parameter::new(decl.clone(), meta, InputOutput::Input)
         })
         .collect()
 }
@@ -298,16 +323,22 @@ fn parse_outputs(
     output_section: &OutputSection,
     meta: &MetaMap,
     parameter_meta: &MetaMap,
+    enable_doc_comments: bool,
 ) -> Vec<Parameter> {
     let output_meta: MetaMap = meta
         .get("outputs")
         .and_then(|v| match v {
-            MetadataValue::Object(o) => Some(o),
+            MetaMapValueSource::MetaValue(MetadataValue::Object(o)) => Some(o),
             _ => None,
         })
         .map(|o| {
             o.items()
-                .map(|i| (i.name().text().to_owned(), i.value().clone()))
+                .map(|i| {
+                    (
+                        i.name().text().to_owned(),
+                        MetaMapValueSource::MetaValue(i.value().clone()),
+                    )
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -316,10 +347,20 @@ fn parse_outputs(
         .declarations()
         .map(|decl| {
             let name = decl.name().text().to_owned();
-            let meta = parameter_meta.get(&name).or_else(|| output_meta.get(&name));
+            let mut meta = parameter_meta
+                .get(&name)
+                .or_else(|| output_meta.get(&name))
+                .and_then(meta_to_description)
+                .unwrap_or_default();
+
+            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
+                // Doc comments take precedence
+                meta.append(&mut doc_comments(comments));
+            }
+
             Parameter::new(
                 wdl_ast::v1::Decl::Bound(decl.clone()),
-                meta.cloned(),
+                meta,
                 InputOutput::Output,
             )
         })
@@ -331,6 +372,8 @@ mod tests {
     use wdl_ast::Document;
 
     use super::*;
+    use crate::meta::DEFAULT_DESCRIPTION;
+    use crate::meta::parse_metadata_items;
     use crate::parameter::Group;
 
     #[test]
@@ -370,12 +413,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 2);
         assert_eq!(
@@ -383,6 +427,8 @@ mod tests {
                 .get("name")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -394,6 +440,8 @@ mod tests {
                 .get("description")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_string()
                 .text()
                 .unwrap()
@@ -421,12 +469,13 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         assert_eq!(meta_map.len(), 1);
         assert_eq!(
@@ -434,6 +483,8 @@ mod tests {
                 .get("a")
                 .unwrap()
                 .clone()
+                .into_meta()
+                .unwrap()
                 .unwrap_object()
                 .items()
                 .next()
@@ -470,16 +521,18 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_parameter_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let inputs = parse_inputs(
             &doc_item.as_workflow_definition().unwrap().input().unwrap(),
             &meta_map,
+            false,
         );
         assert_eq!(inputs.len(), 3);
         assert_eq!(inputs[0].name(), "a");
@@ -487,7 +540,7 @@ mod tests {
         assert_eq!(inputs[1].name(), "b");
         assert_eq!(
             inputs[1].description(false).into_string(),
-            "No description provided"
+            DEFAULT_DESCRIPTION
         );
         assert_eq!(inputs[2].name(), "c");
         assert_eq!(
@@ -523,24 +576,27 @@ mod tests {
 
         let (doc, _) = Document::parse(wdl);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
-        let meta_map = parse_meta(
-            &doc_item
+        let meta_map = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
-        let parameter_meta = parse_parameter_meta(
-            &doc_item
+        let parameter_meta = parse_metadata_items(
+            doc_item
                 .as_workflow_definition()
                 .unwrap()
                 .parameter_metadata()
-                .unwrap(),
+                .unwrap()
+                .items(),
         );
         let outputs = parse_outputs(
             &doc_item.as_workflow_definition().unwrap().output().unwrap(),
             &meta_map,
             &parameter_meta,
+            false,
         );
         assert_eq!(outputs.len(), 3);
         assert_eq!(outputs[0].name(), "a");

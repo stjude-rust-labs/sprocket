@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
+use std::fs;
 use std::fs::File;
-use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,12 +13,14 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use chrono::Utc;
 use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
+use serde_json::Value as JsonValue;
 use tokio::select;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
@@ -26,27 +28,42 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Config as EngineConfig;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
-use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::Inputs;
+use wdl::engine::TaskInputs;
+use wdl::engine::WorkflowInputs;
 use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
 
 use crate::Config;
+use crate::FileReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::config::DEFAULT_DATABASE_FILENAME;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
-use crate::eval::Evaluator;
 use crate::inputs::Invocation;
-use crate::inputs::OriginPaths;
+use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::RunContext;
+use crate::system::v1::exec::Target;
+use crate::system::v1::exec::create_run_directory;
+use crate::system::v1::exec::create_run_record;
+use crate::system::v1::exec::create_session;
+use crate::system::v1::exec::execute_target;
+use crate::system::v1::exec::open_database;
+use crate::system::v1::exec::select_target;
+use crate::system::v1::fs::OutputDirectory;
 
 /// The delay in showing the progress bar.
 ///
@@ -75,12 +92,12 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// capacity unlikely without allocating too much space unnecessarily.
 const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
-/// The name of the default "runs" directory.
-pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
-
 /// The name for the "latest" symlink.
 #[cfg(not(target_os = "windows"))]
 const LATEST: &str = "_latest";
+
+/// The log file in the output directory for writing `sprocket` output to
+const LOG_FILE_NAME: &str = "output.log";
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
@@ -103,40 +120,31 @@ pub struct Args {
     /// This argument is required if trying to run a task or workflow without
     /// any inputs.
     ///
-    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// If `target` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// If `target` is specified, it will be appended with a `.` delimiter
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub entrypoint: Option<String>,
+    pub target: Option<String>,
 
-    /// The root "runs" directory; defaults to `./runs/`.
+    /// The output directory; defaults to `./out`.
     ///
-    /// Individual invocations of `sprocket run` will nest their execution
-    /// directories beneath this root directory at the path
-    /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// invocation will be symlinked at `<entrypoint name>/_latest`.
-    #[clap(short, long, value_name = "ROOT_DIR")]
-    pub runs_dir: Option<PathBuf>,
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    /// On Unix systems, the latest run is symlinked at
+    /// `<output_dir>/runs/<target>/_latest`.
+    #[clap(short, long, value_name = "OUTPUT_DIR")]
+    pub output_dir: Option<PathBuf>,
 
-    /// The execution directory.
+    /// The output name to index on.
     ///
-    /// If this argument is supplied, the default output behavior of nesting
-    /// execution directories using the entrypoint and timestamp will be
-    /// disabled.
-    #[clap(long, conflicts_with = "runs_dir", value_name = "OUTPUT_DIR")]
-    pub output: Option<PathBuf>,
-
-    /// Overwrites the execution directory if it exists.
-    #[clap(long, conflicts_with = "runs_dir")]
-    pub overwrite: bool,
-
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
+    /// If provided, the run outputs will be indexed using the specified output
+    /// name as the key. The index allows efficient lookup of runs by output
+    /// values.
+    #[clap(long, value_name = "OUTPUT_NAME")]
+    pub index_on: Option<String>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -195,20 +203,8 @@ pub struct Args {
 }
 
 impl Args {
-    /// Applies the given configuration to the CLI arguments.
-    fn apply(&mut self, config: &Config) {
-        if self.runs_dir.is_none() {
-            self.runs_dir = Some(config.run.runs_dir.clone());
-        }
-
-        self.no_color = self.no_color || !config.common.color;
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-    }
-
     /// Applies the CLI arguments to the given engine configuration.
-    fn apply_engine_config(&self, config: &mut wdl::engine::config::Config) {
+    fn apply_engine_config(&self, config: &mut EngineConfig) {
         // Apply the Azure auth to the engine config
         if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
             let auth = config.storage.azure.auth.get_or_insert_default();
@@ -468,29 +464,31 @@ async fn progress(
 /// the returned path, as that is handled by execution itself.
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
-/// at `<root>/<entrypoint>/_latest`.
-pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
-    std::fs::create_dir_all(root)
-        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
-    let ignore_path = root.join(crate::IGNORE_FILENAME);
-    if !ignore_path.exists() {
-        let ignorefile = File::create(&ignore_path)
-            .with_context(|| format!("creating ignorefile: `{}`", ignore_path.display()))?;
-        writeln!(&ignorefile, "*")
-            .with_context(|| format!("failed to write ignorefile: {} ", ignore_path.display()))?;
-    }
-    let entrypoint_root = root.join(entrypoint);
-    std::fs::create_dir_all(&entrypoint_root).with_context(|| {
+/// at `<root>/<target>/_latest`.
+pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
+    // Create the target root directory
+    let target_root = root.join(target);
+    fs::create_dir_all(&target_root).with_context(|| {
         format!(
-            "failed to create entrypoint directory: `{}`",
-            entrypoint_root.display()
+            "failed to create target directory `{path}`",
+            path = target_root.display()
         )
     })?;
 
-    let timestamp = chrono::Utc::now();
+    // Create an ignore file at the root if one doesn't exist
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        fs::write(&ignore_path, "*").with_context(|| {
+            format!(
+                "failed to write ignorefile `{path}`",
+                path = ignore_path.display()
+            )
+        })?;
+    }
 
-    let output = entrypoint_root.join(timestamp.format("%F_%H%M%S%f").to_string());
-
+    // Format an output directory path
+    let timestamp = chrono::Utc::now().format("%F_%H%M%S%f").to_string();
+    let output = target_root.join(&timestamp);
     if output.exists() {
         bail!(
             "timestamped execution directory `{dir}` existed before execution began",
@@ -498,39 +496,61 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
         );
     }
 
+    // Replace the latest symlink to the new output path
     #[cfg(not(target_os = "windows"))]
     {
-        let latest = entrypoint_root.join(LATEST);
-        let _ = std::fs::remove_file(&latest);
-        if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
-            .is_err()
-        {
-            tracing::warn!("failed to create latest symlink: continuing with run")
-        };
+        let latest = target_root.join(LATEST);
+        let _ = fs::remove_file(&latest);
+        if let Err(e) = std::os::unix::fs::symlink(&timestamp, &latest) {
+            tracing::warn!("failed to create latest run symlink: {e}")
+        }
     }
 
     Ok(output)
 }
 
+/// Serializes engine inputs to JSON with the target name prefix on each key.
+fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
+    let serialized = serde_json::to_value(inputs)?;
+
+    let mut map = serde_json::Map::new();
+    if let JsonValue::Object(obj) = serialized {
+        for (key, value) in obj {
+            map.insert(format!("{target}.{key}"), value);
+        }
+    }
+
+    Ok(serde_json::to_string(&map)?)
+}
+
 /// The main function for the `run` subcommand.
-pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
+pub async fn run(
+    args: Args,
+    mut config: Config,
+    colorize: bool,
+    handle: FileReloadHandle,
+) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
-    args.apply(&config);
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
 
-    let style = ProgressStyle::with_template(
-        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
-    )
-    .unwrap();
+    let template = if colorize {
+        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
+    } else {
+        "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
+    };
+
+    let style = ProgressStyle::with_template(template).unwrap();
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
 
     let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .init({
             let progress_bar = progress_bar.clone();
             Box::new(move || {
@@ -578,8 +598,8 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                 source,
                 result.document().diagnostics(),
                 &[],
-                args.report_mode.unwrap_or_default(),
-                args.no_color,
+                report_mode,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
@@ -595,7 +615,9 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
 
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Invocation::coalesce(&args.inputs, args.entrypoint.clone())
+    // Parse and resolve inputs. The `into_resolved_json()` method resolves
+    // relative paths using per-input origins before serializing to JSON.
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -603,85 +625,103 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_invocation(document)?;
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (
+            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
+            inputs,
+        ),
+        None => {
+            // No inputs were provided, need explicit target
+            let target = args
+                .target
+                .as_ref()
+                .context("the `--target` option is required if no inputs are provided")?;
 
-    let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
-        inputs
-    } else {
-        // No inputs were provided
-        let origins = OriginPaths::Single(
-            std::env::current_dir()
-                .context("failed to get current directory")?
-                .as_path()
-                .into(),
-        );
+            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
 
-        if let Some(name) = args.entrypoint {
-            match (document.task_by_name(&name), document.workflow()) {
-                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) if workflow.name() == name => {
-                    (name, EngineInputs::Workflow(Default::default()), origins)
-                }
-                _ => {
-                    return Err(anyhow!(
-                        "no task or workflow with name `{name}` was found in document `{path}`",
-                        path = document.path()
-                    )
-                    .into());
-                }
-            }
-        } else {
-            return Err(
-                anyhow!("the `--entrypoint` option is required if no inputs are provided").into(),
-            );
+            let inputs = match target {
+                Target::Task(_) => TaskInputs::default().into(),
+                Target::Workflow(_) => WorkflowInputs::default().into(),
+            };
+
+            (target, inputs)
         }
     };
 
-    let output_dir = if let Some(supplied_dir) = args.output {
-        if supplied_dir.exists() {
-            if !args.overwrite {
-                return Err(anyhow!(
-                    "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
-                     its contents",
-                    dir = supplied_dir.display()
-                )
-                .into());
-            }
+    // Set up output directory structure
+    let output_dir = OutputDirectory::new(
+        args.output_dir
+            .clone()
+            .unwrap_or_else(|| config.run.output_dir.clone()),
+    );
 
-            std::fs::remove_dir_all(&supplied_dir).with_context(|| {
-                format!(
-                    "failed to remove output directory `{dir}`",
-                    dir = supplied_dir.display()
-                )
-            })?;
-        }
-        supplied_dir
-    } else {
-        setup_run_dir(
-            &args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()),
-            &entrypoint,
-        )?
-    };
+    // Create the run directory
+    let run_dir = create_run_directory(&output_dir, target.name())?;
+
+    // Now that the run directory is created, initialize file logging
+    initialize_file_logging(handle, run_dir.root())?;
 
     tracing::info!(
         "`{dir}` will be used as the execution directory",
-        dir = output_dir.display()
+        dir = run_dir.root().display()
     );
 
-    let run_kind = match &inputs {
-        EngineInputs::Task(_) => "task",
-        EngineInputs::Workflow(_) => "workflow",
+    let run_kind = match &target {
+        Target::Task(_) => "task",
+        Target::Workflow(_) => "workflow",
     };
 
-    progress_bar.pb_set_style(
-        &ProgressStyle::with_template(&format!(
+    let template = if colorize {
+        format!(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
-             {name}{{msg}}",
+             {target}{{msg}}",
             running = "running".cyan(),
-            name = entrypoint.magenta().bold()
-        ))
-        .unwrap(),
-    );
+            target = target.name().magenta().bold()
+        )
+    } else {
+        format!(
+            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
+            target = target.name()
+        )
+    };
+
+    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
+
+    // Open or create the database for provenance tracking
+    let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
+    let db = open_database(&db_path).await?;
+
+    // Create session and run records
+    let session = create_session(db.as_ref(), SprocketCommand::Run)
+        .await
+        .context("failed to create session")?;
+
+    let (run_id, run_name, _run) = create_run_record(
+        db.as_ref(),
+        session.uuid,
+        &args.source,
+        Some(target.name()),
+        &inputs_to_json(target.name(), &inputs).context("failed to serialize inputs")?,
+    )
+    .await
+    .context("failed to create run record")?;
+
+    // Update the run directory in the database
+    let run_dir_str = run_dir
+        .root()
+        .to_str()
+        .context("run directory path is not valid UTF-8")?;
+    db.update_run_directory(run_id, run_dir_str)
+        .await
+        .context("failed to update run directory")?;
+
+    let ctx = RunContext {
+        run_id,
+        run_generated_name: run_name,
+        started_at: Utc::now(),
+    };
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(
@@ -707,16 +747,25 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
         cancellation.first(),
     ));
 
-    let evaluator = Evaluator::new(
-        document,
-        &entrypoint,
-        inputs,
-        &origins,
-        config.run.engine.into(),
-        &output_dir,
-    );
+    // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
+    // passed to `execute_target()` is not used for path resolution. We pass
+    // CWD as a placeholder.
+    let cwd = std::env::current_dir().context("failed to get current working directory")?;
+    let base_dir = EvaluationPath::from(cwd.as_path());
 
-    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
+    let mut execute = Box::pin(execute_target(
+        db.clone(),
+        &ctx,
+        document.clone(),
+        config.run.engine,
+        cancellation.clone(),
+        events,
+        target,
+        inputs,
+        &run_dir,
+        &base_dir,
+        args.index_on.as_deref(),
+    ));
 
     loop {
         select! {
@@ -740,24 +789,37 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
                     },
                 }
             },
-            res = &mut evaluate => {
+            res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
 
                 return match res {
-                    Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint)).context("failed to serialize outputs")?);
+                    Ok(()) => {
+                        // Check if execution was canceled
+                        if cancellation.state() != CancellationContextState::NotCanceled {
+                            return Err(anyhow!("evaluation was interrupted").into());
+                        }
+
+                        // Read outputs from the outputs file
+                        let outputs_file = run_dir.outputs_file();
+                        if outputs_file.exists() {
+                            let outputs_json = std::fs::read_to_string(&outputs_file)
+                                .context("failed to read outputs file")?;
+                            println!("{outputs_json}");
+                        }
                         Ok(())
                     }
-                    Err(EvaluationError::Canceled) => Err(anyhow!("evaluation was interrupted").into()),
+                    Err(EvaluationError::Canceled) => {
+                        Err(anyhow!("evaluation was interrupted").into())
+                    }
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],
                             &e.backtrace,
-                            args.report_mode.unwrap_or_default(),
-                            args.no_color
+                            report_mode,
+                            colorize
                         )?;
                         Err(anyhow!("aborting due to evaluation error").into())
                     }
@@ -766,4 +828,26 @@ pub async fn run(mut args: Args, mut config: Config) -> CommandResult<()> {
             },
         }
     }
+}
+
+/// Initializes logging to `output.log` in the given run directory.
+fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<()> {
+    fs::create_dir_all(run_dir).with_context(|| {
+        format!(
+            "failed to create directory `{path}`",
+            path = run_dir.display()
+        )
+    })?;
+
+    let log_file_path = run_dir.join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path).with_context(|| {
+        format!(
+            "failed to create log file `{path}`",
+            path = log_file_path.display()
+        )
+    })?;
+
+    handle
+        .reload(layer().with_ansi(false).with_writer(log_file))
+        .context("failed to initialize file logging")
 }

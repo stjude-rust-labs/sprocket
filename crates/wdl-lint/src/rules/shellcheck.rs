@@ -777,8 +777,8 @@ mod tests {
 
     use super::ShellCheckReplacement;
     use super::normalize_replacements;
+    use crate::fix;
     use crate::fix::Fixer;
-    use crate::fix::{self};
     use crate::util::lines_with_offset;
 
     #[test]

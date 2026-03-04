@@ -12,6 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 mod command_section;
 mod docs_tree;
 mod document;
+mod r#enum;
 pub mod error;
 mod meta;
 mod parameter;
@@ -32,7 +33,6 @@ pub use docs_tree::DocsTreeBuilder;
 use docs_tree::HTMLPage;
 use docs_tree::PageType;
 use document::Document;
-pub use document::parse_preamble_comments;
 use maud::DOCTYPE;
 use maud::Markup;
 use maud::PreEscaped;
@@ -393,6 +393,8 @@ pub struct Config {
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
     /// view of the left sidebar.
     init_on_full_directory: bool,
+    /// (**EXPERIMENTAL**) Enable support for documentation comments.
+    enable_doc_comments: bool,
 }
 
 impl Config {
@@ -413,6 +415,7 @@ impl Config {
             alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: PREFER_FULL_DIRECTORY,
+            enable_doc_comments: false,
         }
     }
 
@@ -457,6 +460,18 @@ impl Config {
         self.init_on_full_directory = prefer_full_directory;
         self
     }
+
+    /// Enable support for documentation comments.
+    ///
+    /// NOTE: This is an experimental option, and will be removed in a future
+    /// major release.
+    ///
+    /// For more information, see the pre-RFC discussion
+    /// [here](https://github.com/openwdl/wdl/issues/757).
+    pub fn enable_doc_comments(mut self, enable_doc_comments: bool) -> Self {
+        self.enable_doc_comments = enable_doc_comments;
+        self
+    }
 }
 
 /// Generate HTML documentation for a workspace.
@@ -482,7 +497,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
 
     let docs_dir = absolute(&config.output_dir)?.clean();
     if !docs_dir.exists() {
-        std::fs::create_dir(&docs_dir)
+        std::fs::create_dir_all(&docs_dir)
             .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
@@ -560,8 +575,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-struct.html"));
 
-                    // TODO: handle >=v1.2 structs
-                    let r#struct = r#struct::Struct::new(s.clone(), version);
+                    let r#struct =
+                        r#struct::Struct::new(s.clone(), version, config.enable_doc_comments);
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -581,6 +596,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name, PageType::Task(task)));
@@ -601,6 +617,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(
@@ -612,7 +629,17 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
                 }
                 DocumentItem::Import(_) => {}
-                DocumentItem::Enum(_) => todo!("enum documentation support"),
+                DocumentItem::Enum(e) => {
+                    let name = e.name().text().to_owned();
+                    let path = cur_dir.join(format!("{name}-enum.html"));
+
+                    let r#enum = r#enum::Enum::new(e, version, config.enable_doc_comments);
+
+                    let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
+                    docs_tree.add_page(path.clone(), page.clone());
+                    local_pages
+                        .push((diff_paths(path, &cur_dir).expect("should diff paths"), page));
+                }
             }
         }
         let document_name = root_to_wdl
@@ -658,39 +685,11 @@ mod tests {
     use wdl_ast::Document as AstDocument;
 
     use super::*;
-    use crate::runnable::Runnable;
+    use crate::meta::DefinitionMeta;
 
     #[test]
-    fn test_parse_preamble_comments() {
+    fn test_simple_markdown_render() {
         let source = r#"
-        ## This is a comment
-        ## This is also a comment
-        version 1.0
-        workflow test {
-            input {
-                String name
-            }
-            output {
-                String greeting = "Hello, ${name}!"
-            }
-            call say_hello as say_hello {
-                input:
-                    name = name
-            }
-        }
-        "#;
-        let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        assert_eq!(preamble, "This is a comment\nThis is also a comment");
-    }
-
-    #[test]
-    fn test_markdown_render() {
-        let source = r#"
-        ## This is a paragraph.
-        ##
-        ## This is the start of a new paragraph.
-        ## And this is the same paragraph continued.
         version 1.0
         workflow test {
             meta {
@@ -699,13 +698,6 @@ mod tests {
         }
         "#;
         let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        let markdown = Markdown(&preamble).render();
-        assert_eq!(
-            markdown.into_string(),
-            "<p>This is a paragraph.</p>\n<p>This is the start of a new paragraph.\nAnd this is \
-             the same paragraph continued.</p>\n"
-        );
 
         let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
         let ast_workflow = doc_item.into_workflow_definition().unwrap();
@@ -714,6 +706,7 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
+            false,
         );
 
         let description = workflow.render_description(false);

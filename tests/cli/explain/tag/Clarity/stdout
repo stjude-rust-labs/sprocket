@@ -3,13 +3,12 @@ Rules with the tag `Clarity`:
   - ConsistentNewlines
   - ContainerUri
   - DeclarationName
+  - DocCommentTabs
   - DoubleQuotes
+  - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement
   - KnownRules
-  - LintDirectiveFormatted
-  - LintDirectiveValid
   - MetaSections
   - PascalCase
-  - PreambleCommentPlacement
   - SnakeCase

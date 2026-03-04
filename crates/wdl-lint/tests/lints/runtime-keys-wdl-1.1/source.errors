@@ -6,27 +6,35 @@ note[ExpectedRuntimeKeys]: the following runtime key is recommended by the WDL 1
    │
    = fix: include an entry for the `container` key in the `runtime` section
 
-warning[ExpectedRuntimeKeys]: the following runtime key is not reserved in the WDL 1.1 specification: `foo`; therefore, its inclusion in the `runtime` section is deprecated
-   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:51:5
+warning[ExpectedRuntimeKeys]: the runtime key `foo` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:59:9
    │
-51 │     runtime {
-   │     ^^^^^^^
-   ·
 59 │         foo: "bar"
-   │         --- the `foo` key should be removed
+   │         ^^^
    │
-   = fix: if a reserved key name was intended, correct the spelling; otherwise, remove the `foo` key
+   = fix: remove the `foo` key
 
-warning[ExpectedRuntimeKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `baz` and `foo`; therefore, their inclusion in the `runtime` section is deprecated
-   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:70:5
+warning[ExpectedRuntimeKeys]: the runtime key `foo` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:78:9
    │
-70 │     runtime {
-   │     ^^^^^^^
-   ·
 78 │         foo: "bar"
-   │         --- the `foo` key should be removed
-79 │         baz: "quux"
-   │         --- the `baz` key should be removed
+   │         ^^^
    │
-   = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `baz` and `foo` keys
+   = fix: remove the `foo` key
+
+warning[ExpectedRuntimeKeys]: the runtime key `baz` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+   ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:79:9
+   │
+79 │         baz: "quux"
+   │         ^^^
+   │
+   = fix: remove the `baz` key
+
+warning[ExpectedRuntimeKeys]: the runtime key `this_key_is_not_allowed` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+    ┌─ tests/lints/runtime-keys-wdl-1.1/source.wdl:120:9
+    │
+120 │         this_key_is_not_allowed: "baz"
+    │         ^^^^^^^^^^^^^^^^^^^^^^^
+    │
+    = fix: remove the `this_key_is_not_allowed` key
 

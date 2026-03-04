@@ -2,9 +2,9 @@
 
 version 1.1
 
-import "baz.wdl"  # following whitespace will be caught by ImportWhitespace rule
+import "baz.wdl"
 
-import "qux.wdl"  # following whitespace duplication is caught be Whitespace rule
+import "qux.wdl"
 
 
 # test comment
@@ -36,13 +36,13 @@ workflow foo {
     String q = "bar"  # The following whitespace is allowable between private declarations
 
     String r = "world"
-    String s = "hello"  # following whitespace duplication is caught be Whitespace rule
+    String s = "hello"
 
 
     call bar { input:
         s
 
-    }  # following whitespace duplication is caught be Whitespace rule
+    }
 
 
     call bar as baz { input:

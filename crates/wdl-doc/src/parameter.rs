@@ -8,12 +8,12 @@ use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::v1::Decl;
-use wdl_ast::v1::MetadataValue;
 
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::MaybeSummarized;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
+use crate::meta::MetaMapValueSource;
 use crate::meta::summarize_if_needed;
 
 /// The maximum length of an expression before it is summarized.
@@ -86,25 +86,7 @@ pub(crate) struct Parameter {
 
 impl Parameter {
     /// Create a new parameter.
-    pub fn new(decl: Decl, meta: Option<MetadataValue>, io: InputOutput) -> Self {
-        let meta = match meta {
-            Some(ref m) => {
-                match m {
-                    MetadataValue::Object(o) => o
-                        .items()
-                        .map(|item| (item.name().text().to_string(), item.value().clone()))
-                        .collect(),
-                    MetadataValue::String(_s) => {
-                        MetaMap::from([(DESCRIPTION_KEY.to_string(), m.clone())])
-                    }
-                    _ => {
-                        // If it's not an object or string, we don't know how to handle it.
-                        MetaMap::default()
-                    }
-                }
-            }
-            None => MetaMap::default(),
-        };
+    pub fn new(decl: Decl, meta: MetaMap, io: InputOutput) -> Self {
         Self { decl, meta, io }
     }
 
@@ -198,17 +180,10 @@ impl Parameter {
     /// Get the `group` meta entry of the parameter as a [`Group`], if the meta
     /// entry exists and is a String.
     pub fn group(&self) -> Option<Group> {
-        self.meta().get("group").and_then(|value| {
-            if let MetadataValue::String(s) = value {
-                Some(Group(
-                    s.text()
-                        .map(|t| t.text().to_string())
-                        .expect("meta string should not be interpolated"),
-                ))
-            } else {
-                None
-            }
-        })
+        self.meta()
+            .get("group")
+            .and_then(MetaMapValueSource::text)
+            .map(Group)
     }
 
     /// Render the description of the parameter.

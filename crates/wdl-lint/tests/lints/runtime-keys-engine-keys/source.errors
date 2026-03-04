@@ -1,16 +1,3 @@
-warning[ExpectedRuntimeKeys]: the following runtime keys are not reserved in the WDL 1.1 specification: `cromwell` and `miniwdl`; therefore, their inclusion in the `runtime` section is deprecated
-   ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:12:5
-   │
-12 │     runtime {
-   │     ^^^^^^^
-   ·
-20 │         cromwell: {}
-   │         -------- the `cromwell` key should be removed
-21 │         miniwdl: {}
-   │         ------- the `miniwdl` key should be removed
-   │
-   = fix: if reserved key names were intended, correct the spelling of each key; otherwise, remove the `cromwell` and `miniwdl` keys
-
 warning[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:13:20
    │
@@ -18,4 +5,20 @@ warning[ContainerUri]: container URI is missing a tag
    │                    ^^^^^^^^
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
+
+warning[ExpectedRuntimeKeys]: the runtime key `cromwell` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+   ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:20:9
+   │
+20 │         cromwell: {}
+   │         ^^^^^^^^
+   │
+   = fix: remove the `cromwell` key
+
+warning[ExpectedRuntimeKeys]: the runtime key `miniwdl` is not reserved in the WDL 1.1 specification; arbitrary runtime keys are deprecated
+   ┌─ tests/lints/runtime-keys-engine-keys/source.wdl:21:9
+   │
+21 │         miniwdl: {}
+   │         ^^^^^^^
+   │
+   = fix: remove the `miniwdl` key
 

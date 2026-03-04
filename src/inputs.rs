@@ -1,4 +1,4 @@
-//! Invocations (inputs and entrypoints) parsed in from the command line.
+//! Invocations (inputs and targets) parsed in from the command line.
 
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -16,9 +16,6 @@ use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
 
 pub mod file;
-pub mod origin_paths;
-
-pub use origin_paths::OriginPaths;
 
 use crate::analysis::is_supported_source_url;
 
@@ -133,13 +130,13 @@ type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 /// A command-line invocation of a WDL workflow or task.
 ///
 /// An invocation is set of inputs parsed from the command line and/or read from
-/// files, along with an optional explicit specification of a named entrypoint.
+/// files, along with an optional explicit specification of a named target.
 #[derive(Clone, Debug, Default)]
 pub struct Invocation {
     /// The actual inputs map.
     inputs: JsonInputMap,
     /// The name of the task or workflow these inputs are provided for.
-    entrypoint: Option<String>,
+    target: Option<String>,
 }
 
 impl Invocation {
@@ -154,7 +151,7 @@ impl Invocation {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = if let Some(prefix) = &self.entrypoint {
+                let key = if let Some(prefix) = &self.target {
                     format!("{prefix}.{key}")
                 } else {
                     key
@@ -174,24 +171,24 @@ impl Invocation {
 
     /// Attempts to coalesce a set of inputs into an [`Inputs`].
     ///
-    /// `entrypoint` is the task or workflow the inputs are for.
-    /// If `entrypoint` is `Some(_)` then it will be prefixed to each
+    /// `target` is the task or workflow the inputs are for.
+    /// If `target` is `Some(_)` then it will be prefixed to each
     /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
-    /// common prefix specified. If `entrypoint` is `None` then all of the
+    /// common prefix specified. If `target` is `None` then all of the
     /// inputs in `iter` must be prefixed with the task or workflow name.
-    pub async fn coalesce<T, V>(iter: T, entrypoint: Option<String>) -> Result<Self>
+    pub async fn coalesce<T, V>(iter: T, target: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
     {
-        if let Some(ep) = &entrypoint
-            && ep.contains('.')
+        if let Some(t) = &target
+            && t.contains('.')
         {
-            bail!("invalid entrypoint `{ep}`");
+            bail!("invalid target `{t}`");
         }
 
         let mut inputs = Invocation {
-            entrypoint,
+            target,
             ..Default::default()
         };
 
@@ -202,22 +199,19 @@ impl Invocation {
         Ok(inputs)
     }
 
-    /// Converts an [`EngineInvocation`] for the given [`Invocation`]
+    /// Converts to an [`Inputs`](EngineInputs).
     ///
-    /// Returns `Ok(Some(_))` if the inputs are not empty.
+    /// Relative paths in the inputs are resolved to their absolute paths based
+    /// on the input key's origin.
     ///
-    /// Returns `Ok(None)` if the inputs are empty.
+    /// Returns the target name and the engine inputs if the inputs were not
+    /// empty.
     ///
-    /// When the inputs are not empty, the return type contained in `Some(_)` is
-    /// a tuple of,
-    ///
-    /// - the name of the callee (the name of the task or workflow being run),
-    /// - the transformed engine inputs, and
-    /// - a map containing the origin path for each provided input key.
-    pub fn into_engine_invocation(
+    /// Returns `Ok(None)` if the inputs were empty.
+    pub async fn into_engine_inputs(
         self,
         document: &Document,
-    ) -> anyhow::Result<Option<(String, EngineInputs, OriginPaths)>> {
+    ) -> Result<Option<(String, EngineInputs)>> {
         let (origins, values) = self.inputs.into_iter().fold(
             (BTreeMap::new(), serde_json::Map::new()),
             |(mut origins, mut values), (key, LocatedJsonValue { origin, value })| {
@@ -227,33 +221,56 @@ impl Invocation {
             },
         );
 
-        let result = EngineInputs::parse_json_object(document, values)?;
+        let Some((target, mut inputs)) = EngineInputs::parse_json_object(document, values)? else {
+            return Ok(None);
+        };
 
-        if let Some((derived, _)) = &result
-            && let Some(ep) = &self.entrypoint
-            && derived != ep
+        if let Some(t) = &self.target
+            && target != *t
         {
             bail!(format!(
-                "supplied entrypoint `{ep}` does not match derived entrypoint `{derived}`"
+                "supplied target `{t}` does not match the target `{target}` derived from the \
+                 inputs"
             ))
         }
 
-        Ok(result.map(|(callee_name, inputs)| {
-            let callee_prefix = format!("{callee_name}.");
+        // Resolve relative paths using per-input origins
+        match &mut inputs {
+            EngineInputs::Task(task_inputs) => {
+                let task = document
+                    .task_by_name(&target)
+                    .with_context(|| format!("task `{target}` was not found"))?;
 
-            let origins = origins
-                .into_iter()
-                .map(|(key, path)| {
-                    if let Some(key) = key.strip_prefix(&callee_prefix) {
-                        (key.to_owned(), path)
-                    } else {
-                        (key, path)
-                    }
-                })
-                .collect::<BTreeMap<_, _>>();
+                task_inputs
+                    .join_paths(task, |key| {
+                        let key = format!("{target}.{key}");
+                        origins
+                            .get(&key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+            EngineInputs::Workflow(workflow_inputs) => {
+                let workflow = document.workflow().context("workflow not found")?;
 
-            (callee_name, inputs, OriginPaths::Map(origins))
-        }))
+                if workflow.name() != target {
+                    bail!("workflow `{target}` was not found");
+                }
+
+                workflow_inputs
+                    .join_paths(workflow, |key| {
+                        let key = format!("{target}.{key}");
+                        origins
+                            .get(&key)
+                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+                    })
+                    .await
+                    .context("failed to resolve input paths")?;
+            }
+        }
+
+        Ok(Some((target, inputs)))
     }
 }
 
