@@ -395,7 +395,7 @@ impl Postprocessor {
         if stream.is_empty() {
             self.interrupted = false;
             self.position = LinePosition::StartOfLine;
-            self.end_line(stream);
+            self.indent(stream);
         }
         match token {
             PreToken::BlankLine => {
@@ -694,6 +694,8 @@ impl Postprocessor {
     /// [`LinePosition::StartOfLine`]. This does not change the state.
     fn indent(&self, stream: &mut TokenStream<PostToken>) {
         assert!(self.position == LinePosition::StartOfLine);
+
+        stream.trim_while(|t| matches!(t, PostToken::Indent | PostToken::TempIndent(_)));
 
         let level = if self.interrupted {
             self.indent_level + 1
