@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::path::absolute;
 use std::rc::Rc;
 
+use ammonia::Url;
 use maud::Markup;
 use maud::html;
 use path_clean::PathClean;
@@ -19,6 +20,7 @@ use crate::AdditionalScript;
 use crate::DocError;
 use crate::Markdown;
 use crate::Render;
+use crate::config::ExternalUrls;
 use crate::document::Document;
 use crate::r#enum::Enum;
 use crate::error::DocResult;
@@ -231,6 +233,8 @@ pub struct DocsTreeBuilder {
     /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used
     /// for both dark and light themes.
     logo: Option<PathBuf>,
+    /// External URLs related to the project, rendered as buttons in the header.
+    external_urls: ExternalUrls,
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
     alt_logo: Option<PathBuf>,
@@ -256,6 +260,7 @@ impl DocsTreeBuilder {
             homepage: None,
             custom_theme: None,
             logo: None,
+            external_urls: ExternalUrls::default(),
             alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
@@ -310,6 +315,12 @@ impl DocsTreeBuilder {
         self.maybe_logo(Some(logo))
     }
 
+    /// Set the external URLs for the header.
+    pub fn external_urls(mut self, external_urls: ExternalUrls) -> Self {
+        self.external_urls = external_urls;
+        self
+    }
+
     /// Set the alt (i.e. light mode) custom logo for the left sidebar with an
     /// option.
     pub fn maybe_alt_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
@@ -356,6 +367,7 @@ impl DocsTreeBuilder {
             root: node,
             path: self.root,
             homepage: self.homepage,
+            external_urls: self.external_urls,
             additional_javascript: self.additional_javascript,
             init_on_full_directory: self.init_on_full_directory,
             init_light_mode: self.init_light_mode,
@@ -533,6 +545,8 @@ pub struct DocsTree {
     /// An optional path to a Markdown file which will be embedded in the
     /// `<root>/index.html` page.
     homepage: Option<PathBuf>,
+    /// External URLs related to the project, rendered as buttons in the header.
+    external_urls: ExternalUrls,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
@@ -1028,10 +1042,6 @@ impl DocsTree {
             div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
                 // top navbar
                 div class="sticky px-4" {
-                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
-                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
-                    }
                     div class="left-sidebar__tabs-container mt-4" {
                         button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
                             img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
@@ -1240,6 +1250,7 @@ impl DocsTree {
                 self.render_right_sidebar(PageSections::default()),
                 None,
                 &self.assets_relative_to(self.root_abs_path()),
+                &index_path,
             ),
             self.root().path(),
             &self.additional_javascript,
@@ -1278,6 +1289,92 @@ impl DocsTree {
         }
     }
 
+    /// Render the header nav.
+    fn render_header(&self, assets: &Path, path: &Path) -> Markup {
+        fn external_urls(assets: &Path, external_urls: &ExternalUrls) -> Markup {
+            fn button(assets: &Path, url: &Url, icon_name: &str) -> Markup {
+                html! {
+                    a class="header__button" target="_blank" rel="noopener noreferrer" href=(url) {
+                        img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="size-6 block light:hidden" alt=(format!("{icon_name} icon"));
+                        img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="size-6 hidden light:block" alt=(format!("{icon_name} icon"));
+                    }
+                }
+            }
+
+            let ExternalUrls { github, homepage } = external_urls;
+            if github.is_none() && homepage.is_none() {
+                return html! {};
+            }
+
+            html! {
+                div class="flex flex-row pr-6" {
+                    div class="w-px h-[80%] border-l border-slate-800 self-center pr-6" {}
+                    div class="flex flex-row gap-4 items-center" {
+                        @if let Some(github) = github {
+                            (button(assets, github, "github"))
+                        }
+                        @if let Some(homepage) = homepage {
+                            (button(assets, homepage, "link-chain"))
+                        }
+                    }
+                }
+            }
+        }
+
+        let base = path.parent().expect("path should have a parent");
+        html! {
+            div
+                class="layout__header"
+                "@keydown.window.slash"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName)) {
+                    $event.preventDefault();
+                    $refs.searchBox.focus();
+                }"
+            {
+                div class="w-full grid grid-cols-3 items-center h-12 px-6" {
+                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none block light:hidden" alt="Logo";
+                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none hidden light:block" alt="Logo";
+                    }
+                    div id="search" class="relative w-sm h-10 col-start-2 justify-self-center" {
+                        input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";
+                        img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                        img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                        img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
+                        img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
+                        div id="search-shortcut-hint" x-show="$store.search.query === ''" { "/" }
+                    }
+                    div class="flex flex-row-reverse items-start justify-between col-start-3 justify-self-end" x-data="{ showTooltip: false }" {
+                        div class="relative" {
+                            button
+                            x-on:click="
+                            document.documentElement.classList.toggle('light')
+                            theme = document.documentElement.classList.contains('light') ? 'light' : 'dark'
+                            "
+                            "@mouseenter"="showTooltip = true"
+                            "@mouseleave"="showTooltip = false"
+                            "@focusin"="showTooltip = true"
+                            "@focusout"="showTooltip = false"
+                            id="theme-toggle"
+                            class="header__button" {
+                                img src=(assets.join("moon.light.svg").to_string_lossy()) class="size-6 hidden light:block";
+                                img src=(assets.join("sun.svg").to_string_lossy()) class="size-6 block light:hidden";
+                            }
+
+                            div class="absolute top-full flex flex-col items-center left-1/2 -translate-x-1/2 mt-2" x-show="showTooltip" {
+                                div class="w-3 h-3 -mb-2 rotate-45 bg-slate-800" {}
+                                div class="relative z-10 px-3 py-2 text-sm text-slate-200 bg-slate-800 rounded-md shadow-lg whitespace-nowrap" {
+                                    "Switch theme"
+                                }
+                            }
+                        }
+                    }
+                }
+                (external_urls(assets, &self.external_urls))
+            }
+        }
+    }
+
     /// Render the main layout template with left sidebar, content, and right
     /// sidebar.
     fn render_layout(
@@ -1287,6 +1384,7 @@ impl DocsTree {
         right_sidebar: Markup,
         breadcrumbs: Option<Markup>,
         assets: &Path,
+        path: &Path,
     ) -> Markup {
         html! {
             div class="layout__container layout__container--alt-layout" x-transition x-data="{
@@ -1308,47 +1406,23 @@ impl DocsTree {
                 restoreSidebar() { this.sidebarState = 'normal'; },
                 expandSidebar() { this.sidebarState = 'xl'; }
             }" x-bind:class="containerClasses" {
+                (self.render_header(assets, path))
                 div class="layout__sidebar-left" x-transition {
-                    div class="absolute top-5 right-2 flex gap-1 z-10" x-cloak x-show="showSidebarButtons" {
-                        (self.render_sidebar_control_buttons(assets))
-                    }
                     (left_sidebar)
                 }
                 div class="layout__main-center" {
-                    div class="layout__main-center-content" x-data="search" {
-                        div class="w-full flex flex-col" {
-                            div class="w-full flex justify-between pb-4" {
-                                div id="search" class="relative h-10" {
-                                    input id="searchbox" "x-model.debounce"="query" type="text" placeholder="Search...";
-                                    img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
-                                    img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
-                                    img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="query !== ''" x-on:click="query = ''";
-                                    img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="query !== ''" x-on:click="query = ''";
-                                }
-                                div class="flex flex-row-reverse items-start justify-between" {
-                                    button
-                                    x-on:click="
-                                    document.documentElement.classList.toggle('light')
-                                    localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
-                                    "
-                                    id="theme-toggle"
-                                    class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
-                                        "☀︎"
-                                    }
-                                }
-                            }
-                            @if let Some(breadcrumbs) = breadcrumbs {
-                                div class="layout__breadcrumbs" {
-                                    (breadcrumbs)
-                                }
+                    div class="layout__main-center-content" {
+                        @if let Some(breadcrumbs) = breadcrumbs {
+                            div class="layout__breadcrumbs" {
+                                (breadcrumbs)
                             }
                         }
-                        div class="flex flex-col gap-5" x-show="query !== ''" {
-                            h2 class="text-base leading-6 font-medium" x-text="`${results.length} results for '${query}'`" {}
-                            div x-show="loading" { "Loading..." }
+                        div class="flex flex-col gap-5" x-show="$store.search.query !== ''" x-data {
+                            h2 class="text-base leading-6 font-medium" x-text="`${$store.search.results.length} results for '${$store.search.query}'`" {}
+                            div x-show="$store.search.loading" { "Loading..." }
                             ul class="flex flex-col gap-5" {
                                 // TODO: Add page icon next to title
-                                template x-for="result in results" ":key"="result.url" {
+                                template x-for="result in $store.search.results" ":key"="result.url" {
                                     li class="search-result" {
                                         a
                                             ":href"="result.url"
@@ -1359,7 +1433,7 @@ impl DocsTree {
                                     }
                                 }
 
-                                div x-show="!loading && results.length === 0" {
+                                div x-show="!$store.search.loading && $store.search.results.length === 0" {
                                     // No results found icon
                                     li class="flex place-content-center" {
                                         img src=(assets.join("search.svg").to_string_lossy()) class="size-8 block light:hidden" alt="Search icon";
@@ -1368,7 +1442,7 @@ impl DocsTree {
                                     // No results found message
                                     li class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
                                         span x-text="'No results found for'" {}
-                                        span x-text="`\"${query}\"`" class="text-slate-50" {}
+                                        span x-text="`\"${$store.search.query}\"`" class="text-slate-50" {}
                                     }
                                 }
                             }
@@ -1378,7 +1452,7 @@ impl DocsTree {
                                 (self.render_sidebar_control_buttons(assets))
                             }
                         }
-                        div x-show="query === ''" {
+                        div x-show="$store.search.query === ''" {
                             (content)
                         }
                     }
@@ -1417,6 +1491,7 @@ impl DocsTree {
                 self.render_right_sidebar(headers),
                 Some(breadcrumbs),
                 &self.assets_relative_to(base),
+                &path,
             ),
             self.root_relative_to(base),
             &self.additional_javascript,

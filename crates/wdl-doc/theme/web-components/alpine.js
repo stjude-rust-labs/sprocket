@@ -3,7 +3,7 @@ import persist from '@alpinejs/persist';
 
 Alpine.plugin(persist);
 
-Alpine.data('search', () => ({
+Alpine.store('search', {
     query: '',
     results: [],
     loading: false,
@@ -19,8 +19,8 @@ Alpine.data('search', () => ({
             console.error("Failed to load Pagefind", e);
         }
 
-        this.$watch('query', (value) => {
-            this.performSearch(value);
+        Alpine.effect(() => {
+            this.performSearch(this.query);
         });
     },
 
@@ -47,11 +47,18 @@ Alpine.data('search', () => ({
         }
     },
 
+    focusSearch(event) {
+        if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('focus-search-input'));
+    },
+
     clear() {
         this.query = '';
         this.results = [];
     }
-}));
+});
 
 window.Alpine = Alpine;
 Alpine.start();
