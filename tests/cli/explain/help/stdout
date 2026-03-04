@@ -67,7 +67,6 @@ Available rules:
   - ElementSpacing
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
-  - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
   - InputName
