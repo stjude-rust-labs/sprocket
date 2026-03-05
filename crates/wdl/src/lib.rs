@@ -42,6 +42,9 @@ pub use wdl_analysis as analysis;
 #[cfg(feature = "ast")]
 #[doc(inline)]
 pub use wdl_ast as ast;
+#[cfg(feature = "diagnostics")]
+#[doc(inline)]
+pub use wdl_diagnostics as diagnostics;
 #[cfg(feature = "doc")]
 #[doc(inline)]
 pub use wdl_doc as doc;
