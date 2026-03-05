@@ -24,7 +24,6 @@ lint = false
 except = []
 
 [run]
-backend = "third"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
@@ -48,15 +47,15 @@ excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
 
+[run.backends.default]
+type = "docker"
+cleanup = true
+
 [run.backends.first]
 type = "docker"
 cleanup = true
 
 [run.backends.second]
-type = "docker"
-cleanup = true
-
-[run.backends.third]
 type = "docker"
 cleanup = true
 
