@@ -244,6 +244,7 @@ pub fn format_command_section(
                         let mut lines = text.lines().enumerate().peekable();
                         while let Some((i, line)) = lines.next() {
                             if i > 0 {
+                                bash_indent = None;
                                 stream.end_line();
                                 if lines.peek().is_none() {
                                     // save the leading whitespace to use as temporary indent
@@ -258,14 +259,13 @@ pub fn format_command_section(
                                             .collect::<String>()
                                             .into(),
                                     );
-                                } else {
-                                    bash_indent = None;
                                 }
                             }
                             stream.push_literal(line.to_owned(), SyntaxKind::LiteralCommandText);
                         }
 
                         if text.ends_with('\n') {
+                            bash_indent = None;
                             stream.end_line();
                         }
                     }

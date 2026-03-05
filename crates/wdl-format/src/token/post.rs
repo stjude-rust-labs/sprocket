@@ -455,12 +455,6 @@ impl Postprocessor {
                     }
                 }
 
-                if kind == SyntaxKind::LiteralCommandText {
-                    // LiteralCommandText should never be preceded by a temp indent,
-                    // as the text may contain the same whitespace
-                    stream.0.pop_if(|t| matches!(t, PostToken::TempIndent(_)));
-                }
-
                 stream.push(PostToken::Literal(value));
                 self.position = LinePosition::MiddleOfLine;
             }
@@ -592,6 +586,7 @@ impl Postprocessor {
         // Reset self.
         self.interrupted = false;
         self.position = LinePosition::StartOfLine;
+        self.temp_indent = None;
         self.indent_level = starting_indent;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
