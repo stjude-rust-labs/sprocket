@@ -1421,14 +1421,20 @@ impl DocsTree {
                             h2 class="text-base leading-6 font-medium" x-text="`${$store.search.results.length} results for '${$store.search.query}'`" {}
                             div x-show="$store.search.loading" { "Loading..." }
                             ul class="flex flex-col gap-5" {
-                                // TODO: Add page icon next to title
                                 template x-for="result in $store.search.results" ":key"="result.url" {
                                     li class="search-result" {
-                                        a
-                                            ":href"="result.url"
-                                            class="text-2xl leading-8 text-slate-50 font-medium"
-                                            x-text="result.meta.title"
-                                        {}
+                                        div class="flex flex-row gap-2 items-center" {
+                                            @let assets_str = assets.to_string_lossy().replace('\\', "/");
+                                            img
+                                                class="size-6"
+                                                x-bind:src=(format!("theme === 'dark' ? `{assets_str}/${{result.meta.image_dark}}` : `{assets_str}/${{result.meta.image_light}}`"))
+                                                x-bind:alt="result.meta.image_alt || result.meta.title";
+                                            a
+                                                ":href"="result.url"
+                                                class="text-2xl leading-8 text-slate-50 font-medium"
+                                                x-text="result.meta.title"
+                                            {}
+                                        }
                                         p class="search-result-excerpt" x-html="result.excerpt" {}
                                     }
                                 }
