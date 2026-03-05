@@ -61,8 +61,8 @@ impl ApptainerRuntime {
     /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
     /// If `image_cache_dir` is provided, it is used as the directory for
-    /// caching `.sif` images. Otherwise, an `apptainer-images` subdirectory
-    /// is created within the given root.
+    /// caching `.sif` images. Otherwise, a default subdirectory is created
+    /// within the given root.
     pub fn new(root_dir: &Path, image_cache_dir: Option<&Path>) -> Result<Self> {
         let cache_dir = image_cache_dir
             .map(Path::to_path_buf)
