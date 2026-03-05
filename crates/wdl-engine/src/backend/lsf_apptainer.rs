@@ -692,8 +692,6 @@ impl LsfApptainerBackend {
             .as_lsf_apptainer()
             .context("configured backend is not LSF Apptainer")?;
 
-        let executable = backend_config.apptainer_config.executable.clone();
-
         let monitor = Monitor::new(
             Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
             backend_config.job_name_prefix.clone(),
@@ -710,7 +708,7 @@ impl LsfApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir, executable)?,
+            apptainer: ApptainerRuntime::new(run_root_dir)?,
             monitor,
             permits,
         })
@@ -888,15 +886,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+                    self.config.task.shell.as_deref(),
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?

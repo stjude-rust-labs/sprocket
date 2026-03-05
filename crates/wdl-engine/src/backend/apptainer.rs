@@ -29,7 +29,7 @@ use tracing::warn;
 
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
-use crate::config::Config;
+use crate::config::ApptainerConfig;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::v1::requirements::ContainerSource;
 
@@ -57,9 +57,6 @@ const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
 /// Represents the Apptainer container runtime.
 #[derive(Debug)]
 pub struct ApptainerRuntime {
-    /// Path to the container runtime executable (e.g., `"apptainer"` or
-    /// `"singularity"`).
-    executable: String,
     /// The cache directory for `.sif` images.
     cache_dir: PathBuf,
     /// The map of container source to `.sif` path.
@@ -67,13 +64,11 @@ pub struct ApptainerRuntime {
 }
 
 impl ApptainerRuntime {
-    /// Creates a new [`ApptainerRuntime`] with the specified root directory
-    /// and executable path.
+    /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
     /// An images cache directory will be created in the given root.
-    pub fn new(root_dir: &Path, executable: impl Into<String>) -> Result<Self> {
+    pub fn new(root_dir: &Path) -> Result<Self> {
         Ok(Self {
-            executable: executable.into(),
             cache_dir: absolute(root_dir.join(IMAGES_CACHE_DIR)).with_context(|| {
                 format!(
                     "failed to make path `{root_dir}` absolute",
@@ -95,13 +90,14 @@ impl ApptainerRuntime {
     /// GPFS.
     pub async fn generate_script(
         &self,
-        config: &Config,
+        config: &ApptainerConfig,
+        shell: Option<&str>,
         request: &ExecuteTaskRequest<'_>,
-        extra_args: impl Iterator<Item = &str>,
         token: CancellationToken,
     ) -> Result<Option<String>> {
         let path = match self
             .pull_image(
+                &config.executable,
                 request
                     .constraints
                     .container
@@ -116,7 +112,7 @@ impl ApptainerRuntime {
         };
 
         Ok(Some(
-            self.generate_apptainer_script(config, &path, request, extra_args)
+            self.generate_apptainer_script(config, shell, &path, request)
                 .await?,
         ))
     }
@@ -128,10 +124,10 @@ impl ApptainerRuntime {
     /// be called from outside this module.
     async fn generate_apptainer_script(
         &self,
-        config: &Config,
+        config: &ApptainerConfig,
+        shell: Option<&str>,
         container_sif: &Path,
         request: &ExecuteTaskRequest<'_>,
-        extra_args: impl Iterator<Item = &str>,
     ) -> Result<String> {
         // Create a temp dir for the container's execution within the attempt dir
         // hierarchy. On many HPC systems, `/tmp` is mapped to a relatively
@@ -163,7 +159,7 @@ impl ApptainerRuntime {
                 )
             })?;
 
-        let env_prefix = if self.executable.contains("singularity") {
+        let env_prefix = if config.executable.contains("singularity") {
             SINGULARITY_ENV_PREFIX
         } else {
             APPTAINER_ENV_PREFIX
@@ -174,7 +170,7 @@ impl ApptainerRuntime {
         for (k, v) in request.env.iter() {
             writeln!(&mut apptainer_command, "export {env_prefix}_{k}={v:?}")?;
         }
-        writeln!(&mut apptainer_command, "{} -v exec \\", self.executable)?;
+        writeln!(&mut apptainer_command, "{} -v exec \\", config.executable)?;
         writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
         writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
         for input in request.backend_inputs {
@@ -229,7 +225,11 @@ impl ApptainerRuntime {
             writeln!(&mut apptainer_command, "--nv \\")?;
         }
 
-        for arg in extra_args {
+        for arg in config
+            .extra_apptainer_exec_args
+            .as_deref()
+            .unwrap_or_default()
+        {
             writeln!(&mut apptainer_command, "{arg} \\")?;
         }
 
@@ -238,7 +238,7 @@ impl ApptainerRuntime {
             &mut apptainer_command,
             "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
              \\\"{GUEST_STDERR_PATH}\\\"\" \\",
-            shell = config.task.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL)
+            shell = shell.unwrap_or(DEFAULT_TASK_SHELL)
         )?;
         let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
@@ -262,6 +262,7 @@ impl ApptainerRuntime {
     /// to the previous location is returned.
     pub(crate) async fn pull_image(
         &self,
+        executable: &str,
         container: &ContainerSource,
         token: CancellationToken,
     ) -> Result<Option<PathBuf>> {
@@ -305,7 +306,7 @@ impl ApptainerRuntime {
             }
 
             let container = format!("{container:#}");
-            let executable = self.executable.clone();
+            let executable = executable.to_string();
 
             Retry::spawn_notify(
                 // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
@@ -417,8 +418,6 @@ impl ApptainerRuntime {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::empty;
-
     use indexmap::IndexMap;
     use tempfile::TempDir;
     use url::Url;
@@ -437,10 +436,11 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"), "apptainer").unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
         let _ = runtime
             .generate_script(
-                &Default::default(),
+                &ApptainerConfig::default(),
+                None,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -466,7 +466,6 @@ mod tests {
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },
-                empty(),
                 CancellationToken::new(),
             )
             .await
@@ -488,10 +487,11 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"), "apptainer").unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
         let script = runtime
             .generate_script(
-                &Default::default(),
+                &ApptainerConfig::default(),
+                None,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -517,7 +517,6 @@ mod tests {
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },
-                empty(),
                 CancellationToken::new(),
             )
             .await

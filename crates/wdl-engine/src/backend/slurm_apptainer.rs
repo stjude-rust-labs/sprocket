@@ -791,8 +791,6 @@ impl SlurmApptainerBackend {
             .as_slurm_apptainer()
             .context("configured backend is not Slurm Apptainer")?;
 
-        let executable = backend_config.apptainer_config.executable.clone();
-
         let monitor = Monitor::new(
             Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
             events.clone(),
@@ -808,7 +806,7 @@ impl SlurmApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir, executable)?,
+            apptainer: ApptainerRuntime::new(run_root_dir)?,
             monitor,
             permits,
         })
@@ -996,15 +994,9 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+                    self.config.task.shell.as_deref(),
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?
