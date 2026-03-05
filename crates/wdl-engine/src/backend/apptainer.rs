@@ -276,11 +276,7 @@ impl ApptainerRuntime {
                 }
             }
 
-            if let Some(ext) = path.extension()
-                && ext != "sif"
-            {
-                path.add_extension("sif");
-            }
+            path.add_extension("sif");
 
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await.with_context(|| {
