@@ -956,6 +956,16 @@ impl Evaluator {
                 continue;
             }
 
+            // Remap any guest symbolic links to the corresponding host paths
+            // This must occur *before* we put the result in the cache to ensure consistent
+            // work directory digesting
+            if let Err(e) = self.remap_links(&state, &result.work_dir) {
+                return Err(EvaluationError::new(
+                    state.document.clone(),
+                    task_execution_failed(&e, state.task.name(), id, state.task.name_span()),
+                ));
+            }
+
             // Task execution succeeded; update the cache entry if we have a key
             if let Some(key) = key {
                 match self
@@ -990,14 +1000,6 @@ impl Evaluator {
         // Evaluate the remaining inputs (unused), private decls, and outputs if the
         // task executed successfully
         if !evaluated.failed() {
-            // Remap any guest symbolic links to the corresponding host paths
-            if let Err(e) = self.remap_links(&state, &evaluated) {
-                return Err(EvaluationError::new(
-                    state.document.clone(),
-                    task_execution_failed(&e, state.task.name(), id, state.task.name_span()),
-                ));
-            }
-
             for index in &nodes[current..] {
                 match &graph[*index] {
                     TaskGraphNode::Decl(decl) => {
@@ -1069,14 +1071,14 @@ impl Evaluator {
     ///
     /// The link must be to a known input or an entry in the work directory
     /// tree, otherwise an error is returned.
-    fn remap_links(&self, state: &State<'_>, evaluated: &EvaluatedTask) -> Result<()> {
+    fn remap_links(&self, state: &State<'_>, work_dir: &EvaluationPath) -> Result<()> {
         // Don't remap links for backends that don't use guest paths
         if self.backend.guest_inputs_dir().is_none() {
             return Ok(());
         }
 
         // Only remap for local work directories
-        let Some(work_dir) = evaluated.work_dir().as_local() else {
+        let Some(work_dir) = work_dir.as_local() else {
             return Ok(());
         };
 
