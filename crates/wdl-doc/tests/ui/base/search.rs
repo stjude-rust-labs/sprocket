@@ -22,32 +22,32 @@ impl UiTest for Search {
     async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()> {
         driver.search("flag_filter").await?;
 
-        let has_results = driver
-            .query(By::ClassName("left-sidebar__search-result-item"))
+        let search_results = driver
+            .query(By::ClassName("search-result"))
             .wait(Duration::from_secs(5), Duration::from_millis(100))
-            .exists()
+            .any()
             .await?;
-        if !has_results {
-            bail!("expected search results");
+        if search_results.len() != 2 {
+            bail!("expected 2 search results");
         }
 
-        let search_result = driver
-            .query(By::XPath("//sprocket-tooltip[@content=\"flag_filter\"]"))
-            .wait(Duration::from_secs(5), Duration::from_millis(100))
-            .first()
-            .await?;
-        let search_result_container = search_result.parent().await?;
-        let search_result_icon = search_result_container
-            .query(By::ClassName("left-sidebar__icon"))
-            .wait(Duration::from_secs(5), Duration::from_millis(100))
-            .first()
-            .await?;
+        let mut found_struct = false;
+        let mut found_task = false;
+        for element in search_results {
+            let anchor = element.query(By::Tag("a")).first().await?;
+            match &*anchor.text().await? {
+                "FlagFilter" => found_struct = true,
+                "validate_flag_filter" => found_task = true,
+                text => bail!("unexpected search result: {text}"),
+            }
+        }
 
-        let icon_path = search_result_icon.attr("src").await?;
-        if icon_path.as_deref() != Some("assets/wdl-dir-unselected.svg") {
-            bail!(
-                "wrong icon shown—expected 'assets/wdl-dir-unselected.svg', found: {icon_path:?}"
-            );
+        if !found_struct {
+            bail!("expected to find `FlagFilter` struct");
+        }
+
+        if !found_task {
+            bail!("expected to find `validate_flag_filter` task");
         }
 
         Ok(())
