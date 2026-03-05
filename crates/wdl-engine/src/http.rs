@@ -150,9 +150,10 @@ impl HttpTransferer {
         cancel: CancellationToken,
         events: Option<broadcast::Sender<TransferEvent>>,
     ) -> Result<Self> {
-        let cache_dir: Cow<'_, Path> = match &config.http.cache_dir {
-            Some(dir) => dir.into(),
-            None => cache_dir()?.join(DOWNLOADS_CACHE_SUBDIR).into(),
+        let cache_dir: Cow<'_, Path> = if config.http.cache_dir.is_empty() {
+            cache_dir()?.join(DOWNLOADS_CACHE_SUBDIR).into()
+        } else {
+            Path::new(&config.http.cache_dir).into()
         };
 
         let temp_dir = cache_dir.join("tmp");
@@ -202,7 +203,7 @@ impl HttpTransferer {
         let copy_config = cloud_copy::Config::builder()
             .with_link_to_cache(true)
             .with_overwrite(true)
-            .with_maybe_retries(config.http.retries)
+            .with_maybe_retries(Some(config.http.retries)) // TODO?
             .with_azure(azure_config)
             .with_s3(s3_config)
             .with_google(google_config)
@@ -214,6 +215,7 @@ impl HttpTransferer {
             config
                 .http
                 .parallelism
+                .inner()
                 .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
         );
 

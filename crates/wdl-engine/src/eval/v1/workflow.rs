@@ -87,10 +87,6 @@ use crate::v1::OUTPUTS_FILE;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
-/// The default number of elements to concurrently process for a scatter
-/// statement.
-const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
-
 /// Helper for formatting a workflow or task identifier for a call statement.
 fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: &str) -> String {
     if alias != target {
@@ -1457,13 +1453,7 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
-        let max_concurrency = self
-            .evaluator
-            .config
-            .workflow
-            .scatter
-            .concurrency
-            .unwrap_or(DEFAULT_SCATTER_CONCURRENCY);
+        let max_concurrency = self.evaluator.config.workflow.scatter.concurrency;
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {

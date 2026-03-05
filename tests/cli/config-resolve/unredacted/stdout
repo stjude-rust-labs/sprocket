@@ -1,6 +1,7 @@
 [format]
 indent = 4
 max_line_length = 90
+sort_imports = true
 sort_inputs = false
 trailing_commas = true
 
@@ -31,10 +32,14 @@ output_dir = "./out"
 events_capacity = 5000
 
 [run.http]
+retries = 5
+parallelism = "available"
 
 [run.workflow.scatter]
+concurrency = 1000
 
 [run.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
@@ -90,10 +95,14 @@ experimental_features_enabled = false
 fail = "slow"
 
 [server.engine.http]
+retries = 5
+parallelism = "available"
 
 [server.engine.workflow.scatter]
+concurrency = 1000
 
 [server.engine.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"

@@ -327,24 +327,32 @@ impl<'de> Deserialize<'de> for MaxConcurrentRuns {
 
 /// Server configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerConfig {
     /// Host to bind to (default: `127.0.0.1`).
+    #[serde(default)]
     pub host: String,
     /// Port to bind to (default: `8080`).
+    #[serde(default)]
     pub port: u16,
     /// Allowed CORS origins.
+    #[serde(default)]
     pub allowed_origins: Vec<String>,
     /// Database configuration.
+    #[serde(default)]
     pub database: ServerDatabaseConfig,
     /// Directory for workflow outputs (default: `./out`).
     pub output_directory: PathBuf,
     /// Allowed file paths for file-based workflows.
+    #[serde(default)]
     pub allowed_file_paths: Vec<PathBuf>,
     /// Allowed URL prefixes for URL-based workflows.
+    #[serde(default)]
     pub allowed_urls: Vec<String>,
     /// Maximum concurrent workflows (default: "unlimited").
     pub max_concurrent_runs: MaxConcurrentRuns,
     /// The engine configuration to use during execution.
+    #[serde(default)]
     pub engine: EngineConfig,
 }
 
@@ -379,6 +387,13 @@ impl ServerConfig {
     /// Returns an error if any URL cannot be parsed or any path cannot be
     /// canonicalized.
     pub fn validate(&mut self) -> anyhow::Result<()> {
+        // Validate max concurrent workflows is at least 1
+        if let Some(max) = self.max_concurrent_runs.inner()
+            && max == 0
+        {
+            anyhow::bail!("`max_concurrent_runs` must be at least 1");
+        }
+
         // Validate that all allowed URLs can be parsed
         for url in &self.allowed_urls {
             Url::parse(url).with_context(|| format!("invalid URL in `allowed_urls`: `{}`", url))?;
