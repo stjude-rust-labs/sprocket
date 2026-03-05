@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `format.trailing_commas` and `format.sort_inputs` options to `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* TODO(other new options) Added `format.trailing_commas` and `format.sort_inputs` options to `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Intermediate `test` results are logged as they complete ([#674](https://github.com/stjude-rust-labs/sprocket/pull/674)).
 * New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
 
 ### Changed
 
+* Hover and completion documentation now prefer doc comments over `meta`/`parameter_meta` descriptions, with existing behavior preserved as a fallback ([#649](https://github.com/stjude-rust-labs/sprocket/pull/649)).
 * Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
 
 ### Fixed

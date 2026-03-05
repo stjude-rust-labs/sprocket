@@ -52,17 +52,6 @@ note[UnusedDocComments]: unused doc comment
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
-note[ElementSpacing]: extra blank line(s) found
-   ┌─ tests/lints/unused-doc-comments/source.wdl:62:47
-   │  
-62 │       # another regular comment for good measure
-   │ ╭──────────────────────────────────────────────^
-63 │ │ 
-64 │ │     command <<<>>>
-   │ ╰────^
-   │  
-   = fix: remove extra blank line(s)
-
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:74:5
    │
