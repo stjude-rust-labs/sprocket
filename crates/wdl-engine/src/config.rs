@@ -463,6 +463,11 @@ impl Default for HttpConfig {
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
+        if let Some(parallelism) = self.parallelism.inner()
+            && parallelism == 0
+        {
+            bail!("configuration value `http.parallelism` cannot be zero");
+        }
         Ok(())
     }
 }
@@ -2134,6 +2139,27 @@ mod test {
             .validate()
             .await
             .expect("configuration should validate");
+
+        let mut config = Config::default();
+        config.http.parallelism = Parallelism(Some(0));
+        assert_eq!(
+            config.validate().await.unwrap_err().to_string(),
+            "configuration value `http.parallelism` cannot be zero"
+        );
+
+        let mut config = Config::default();
+        config.http.parallelism = Parallelism(Some(5));
+        assert!(
+            config.validate().await.is_ok(),
+            "should pass for valid configuration"
+        );
+
+        let mut config = Config::default();
+        config.http.parallelism = Parallelism(None);
+        assert!(
+            config.validate().await.is_ok(),
+            "should pass for default (None)"
+        );
 
         // Test invalid LSF job name prefix
         #[cfg(unix)]
