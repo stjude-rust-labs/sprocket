@@ -342,6 +342,7 @@ pub struct ServerConfig {
     #[serde(default)]
     pub database: ServerDatabaseConfig,
     /// Directory for workflow outputs (default: `./out`).
+    #[serde(default = "default_output_directory")]
     pub output_directory: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[serde(default)]

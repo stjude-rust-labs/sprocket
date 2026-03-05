@@ -173,7 +173,7 @@ pub enum FailureMode {
 /// secrets from being redacted.
 ///
 /// </div>
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// HTTP configuration.
@@ -235,22 +235,6 @@ pub struct Config {
     /// executing tasks upon error or interruption.
     #[serde(default, rename = "fail")]
     pub failure_mode: FailureMode,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            http: Default::default(),
-            workflow: Default::default(),
-            task: Default::default(),
-            backend: "".into(),
-            backends: Default::default(),
-            storage: Default::default(),
-            suppress_env_specific_output: false,
-            experimental_features_enabled: false,
-            failure_mode: Default::default(),
-        }
-    }
 }
 
 impl Config {
