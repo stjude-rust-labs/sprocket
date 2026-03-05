@@ -444,10 +444,13 @@ impl Postprocessor {
                     )
                 {
                     let popped = stream.0.pop().unwrap();
+                    // We don't actually want to pop the TempIndent token,
+                    // but rather a regualar Indent token before the temp indent.
                     if matches!(popped, PostToken::TempIndent(_)) {
                         if matches!(stream.0.last(), Some(&PostToken::Indent)) {
                             stream.0.pop();
                         }
+                        // Restore the popped TempIndent
                         stream.0.push(popped);
                     }
                 }
@@ -690,8 +693,10 @@ impl Postprocessor {
     }
 
     /// Pushes the current indentation level to the stream.
+    ///
     /// This should only be called when the state is
-    /// [`LinePosition::StartOfLine`]. This does not change the state.
+    /// [`LinePosition::StartOfLine`]. This does not change the state
+    /// and is safe to call multiple times in a row.
     fn indent(&self, stream: &mut TokenStream<PostToken>) {
         assert!(self.position == LinePosition::StartOfLine);
 
