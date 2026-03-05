@@ -48,9 +48,18 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
+/// The environment variable prefix for Apptainer.
+const APPTAINER_ENV_PREFIX: &str = "APPTAINERENV";
+
+/// The environment variable prefix for Singularity.
+const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
+
 /// Represents the Apptainer container runtime.
 #[derive(Debug)]
 pub struct ApptainerRuntime {
+    /// Path to the container runtime executable (e.g., `"apptainer"` or
+    /// `"singularity"`).
+    executable: String,
     /// The cache directory for `.sif` images.
     cache_dir: PathBuf,
     /// The map of container source to `.sif` path.
@@ -58,11 +67,13 @@ pub struct ApptainerRuntime {
 }
 
 impl ApptainerRuntime {
-    /// Creates a new [`ApptainerRuntime`] with the specified root directory.
+    /// Creates a new [`ApptainerRuntime`] with the specified root directory
+    /// and executable path.
     ///
     /// An images cache directory will be created in the given root.
-    pub fn new(root_dir: &Path) -> Result<Self> {
+    pub fn new(root_dir: &Path, executable: impl Into<String>) -> Result<Self> {
         Ok(Self {
+            executable: executable.into(),
             cache_dir: absolute(root_dir.join(IMAGES_CACHE_DIR)).with_context(|| {
                 format!(
                     "failed to make path `{root_dir}` absolute",
@@ -152,12 +163,18 @@ impl ApptainerRuntime {
                 )
             })?;
 
+        let env_prefix = if self.executable.contains("singularity") {
+            SINGULARITY_ENV_PREFIX
+        } else {
+            APPTAINER_ENV_PREFIX
+        };
+
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
         for (k, v) in request.env.iter() {
-            writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
+            writeln!(&mut apptainer_command, "export {env_prefix}_{k}={v:?}")?;
         }
-        writeln!(&mut apptainer_command, "apptainer -v exec \\")?;
+        writeln!(&mut apptainer_command, "{} -v exec \\", self.executable)?;
         writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
         writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
         for input in request.backend_inputs {
@@ -288,6 +305,7 @@ impl ApptainerRuntime {
             }
 
             let container = format!("{container:#}");
+            let executable = self.executable.clone();
 
             Retry::spawn_notify(
                 // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
@@ -298,9 +316,12 @@ impl ApptainerRuntime {
                 ExponentialBackoff::from_millis(50)
                     .max_delay_millis(60_000)
                     .take(10),
-                || Self::try_pull_image(&container, &path),
-                |e: &anyhow::Error, _| {
-                    warn!(e = %e, "`apptainer pull` failed");
+                || Self::try_pull_image(&executable, &container, &path),
+                {
+                    let executable = executable.clone();
+                    move |e: &anyhow::Error, _| {
+                        warn!(e = %e, "`{executable} pull` failed");
+                    }
                 },
             )
             .await
@@ -328,10 +349,14 @@ impl ApptainerRuntime {
     /// whether a failure is transient, but as we gain experience recognizing
     /// its output patterns, we can enhance the fidelity of the error
     /// handling.
-    async fn try_pull_image(image: &str, path: &Path) -> Result<(), RetryError<anyhow::Error>> {
-        info!("spawning `apptainer` to pull image `{image}`");
+    async fn try_pull_image(
+        executable: &str,
+        image: &str,
+        path: &Path,
+    ) -> Result<(), RetryError<anyhow::Error>> {
+        info!("spawning `{executable}` to pull image `{image}`");
 
-        let child = Command::new("apptainer")
+        let child = Command::new(executable)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -341,7 +366,7 @@ impl ApptainerRuntime {
             .spawn()
             .with_context(|| {
                 format!(
-                    "failed to spawn `apptainer pull '{path}' '{image}'",
+                    "failed to spawn `{executable} pull '{path}' '{image}'`",
                     path = path.display()
                 )
             })
@@ -351,7 +376,7 @@ impl ApptainerRuntime {
         let output = child
             .wait_with_output()
             .await
-            .context("failed to wait for `apptainer`")
+            .context(format!("failed to wait for `{executable}`"))
             .map_err(RetryError::permanent)?;
         if !output.status.success() {
             let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
@@ -373,7 +398,7 @@ impl ApptainerRuntime {
             };
 
             let e = anyhow!(
-                "`apptainer` failed: {status}: {stderr}",
+                "`{executable}` failed: {status}: {stderr}",
                 status = output.status,
                 stderr = str::from_utf8(&output.stderr)
                     .unwrap_or("<output not UTF-8>")
@@ -412,7 +437,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), "apptainer").unwrap();
         let _ = runtime
             .generate_script(
                 &Default::default(),
@@ -463,7 +488,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), "apptainer").unwrap();
         let script = runtime
             .generate_script(
                 &Default::default(),

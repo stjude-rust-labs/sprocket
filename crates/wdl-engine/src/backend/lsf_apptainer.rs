@@ -692,6 +692,8 @@ impl LsfApptainerBackend {
             .as_lsf_apptainer()
             .context("configured backend is not LSF Apptainer")?;
 
+        let executable = backend_config.apptainer_config.executable.clone();
+
         let monitor = Monitor::new(
             Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
             backend_config.job_name_prefix.clone(),
@@ -708,7 +710,7 @@ impl LsfApptainerBackend {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir)?,
+            apptainer: ApptainerRuntime::new(run_root_dir, executable)?,
             monitor,
             permits,
         })
