@@ -57,29 +57,31 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
         }
     }
 
-    imports.sort_by(|a, b| {
-        let a = a
-            .element()
-            .as_node()
-            .expect("import statement node")
-            .as_import_statement()
-            .expect("import statement");
-        let b = b
-            .element()
-            .as_node()
-            .expect("import statement node")
-            .as_import_statement()
-            .expect("import statement");
-        let a_uri = a
-            .uri()
-            .text()
-            .expect("import uri should not be interpolated");
-        let b_uri = b
-            .uri()
-            .text()
-            .expect("import uri should not be interpolated");
-        a_uri.text().cmp(b_uri.text())
-    });
+    if config.sort_imports {
+        imports.sort_by(|a, b| {
+            let a = a
+                .element()
+                .as_node()
+                .expect("import statement node")
+                .as_import_statement()
+                .expect("import statement");
+            let b = b
+                .element()
+                .as_node()
+                .expect("import statement node")
+                .as_import_statement()
+                .expect("import statement");
+            let a_uri = a
+                .uri()
+                .text()
+                .expect("import uri should not be interpolated");
+            let b_uri = b
+                .uri()
+                .text()
+                .expect("import uri should not be interpolated");
+            a_uri.text().cmp(b_uri.text())
+        });
+    }
 
     stream.ignore_trailing_blank_lines();
 

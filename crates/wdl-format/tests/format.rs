@@ -157,9 +157,9 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             config_path.display()
         ))?;
 
-        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(config, &source, &path, &formatted_path)?;
         run_test_inner(
-            config,
+            FormatConfig::default(),
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
