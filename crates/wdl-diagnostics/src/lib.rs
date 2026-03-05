@@ -110,6 +110,18 @@ impl std::fmt::Display for Mode {
     }
 }
 
+/// Represents the supported output color modes.
+#[derive(Debug, Default, Clone, ValueEnum, Copy, PartialEq, Eq, Hash)]
+pub enum ColorMode {
+    /// Automatically colorize output depending on output device.
+    #[default]
+    Auto,
+    /// Always colorize output.
+    Always,
+    /// Never colorize output.
+    Never,
+}
+
 /// Gets the diagnostics display configuration based on the user's preferences.
 pub fn get_diagnostics_display_config(
     report_mode: Mode,

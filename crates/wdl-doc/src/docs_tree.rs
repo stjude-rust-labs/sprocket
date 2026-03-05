@@ -1036,7 +1036,7 @@ impl DocsTree {
             div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
                 // top navbar
                 div class="sticky px-4" {
-                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
+                    a id="logo" href=(self.root_index_relative_to(base).to_string_lossy()) {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
                     }
