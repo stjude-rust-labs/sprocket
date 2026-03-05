@@ -43,6 +43,8 @@ pub struct Config {
     pub(crate) output_dir: PathBuf,
     /// An optional markdown file to embed in the homepage.
     pub(crate) homepage: Option<PathBuf>,
+    /// Analyze the documents without producing an output.
+    pub(crate) check: bool,
     /// Initialize pages in light mode instead of the default dark mode.
     pub(crate) init_light_mode: bool,
     /// An optional custom theme directory.
@@ -75,6 +77,7 @@ impl Config {
             workspace: workspace.into(),
             output_dir: output_dir.into(),
             homepage: None,
+            check: false,
             init_light_mode: false,
             custom_theme: None,
             custom_logo: None,
@@ -89,6 +92,12 @@ impl Config {
     /// Overwrite the config's homepage with the new value.
     pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
         self.homepage = homepage;
+        self
+    }
+
+    /// Overwrite the config's check default with the new value.
+    pub fn check(mut self, check: bool) -> Self {
+        self.check = check;
         self
     }
 
