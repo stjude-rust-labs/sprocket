@@ -13,6 +13,10 @@ use strum::VariantArray;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
@@ -24,10 +28,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
-use crate::diagnostics::get_diagnostics_display_config;
 
 /// The [`Tag`]s which will run with the default `lint` configuration.
 const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
@@ -310,7 +310,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                         }
                     }
                 }),
-                &[],
                 report_mode,
                 colorize,
             )
