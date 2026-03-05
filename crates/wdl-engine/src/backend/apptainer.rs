@@ -276,7 +276,9 @@ impl ApptainerRuntime {
                 }
             }
 
-            if ! path.ends_with(".sif"){
+            if let Some(ext) = path.extension()
+                && ext != "sif"
+            {
                 path.add_extension("sif");
             }
 
