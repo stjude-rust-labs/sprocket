@@ -76,7 +76,6 @@ allowed_urls = []
 max_concurrent_runs = "unlimited"
 
 [server.database]
-url = ""
 
 [server.engine]
 suppress_env_specific_output = false

@@ -272,6 +272,7 @@ impl Default for RunConfig {
 pub struct ServerDatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`).
     /// If `""` provided, defaults to `sprocket.db` in the output directory.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub url: String,
 }
 
