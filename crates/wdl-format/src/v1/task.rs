@@ -258,6 +258,8 @@ pub fn format_command_section(
                                             .collect::<String>()
                                             .into(),
                                     );
+                                } else {
+                                    bash_indent = None;
                                 }
                             }
                             stream.push_literal(line.to_owned(), SyntaxKind::LiteralCommandText);
