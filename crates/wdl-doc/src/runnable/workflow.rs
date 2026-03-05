@@ -191,14 +191,14 @@ impl Workflow {
 
         headers.extend(inner_headers);
 
-        // Invisible image for search results
-        let search_image = html! {
-            img src=(assets.join("workflow-selected.svg").to_string_lossy()) class="hidden" data-pagefind-meta="image[src]" {}
-        };
-
         let markup = html! {
-            div class="main__container" data-pagefind-body {
-                (search_image)
+            div
+                class="main__container"
+                data-pagefind-body
+                meta-img-dark="workflow-selected.svg"
+                meta-img-light="workflow-selected.light.svg"
+                data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+            {
                 span class="text-brand-emerald-400" data-pagefind-ignore { "Workflow" }
                 h1 id="title" class="main__title" data-pagefind-meta="title" { (self.render_name()) }
                 div class="markdown-body mb-4" {
