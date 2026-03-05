@@ -437,8 +437,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         .additional_javascript(config.additional_javascript)
         .prefer_full_directory(config.init_on_full_directory)
         .external_urls(config.external_urls)
-        .build()
-        .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
+        .build()?;
 
     for result in results {
         let uri = result.document().uri();
