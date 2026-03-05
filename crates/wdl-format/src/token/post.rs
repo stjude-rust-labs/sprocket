@@ -455,6 +455,12 @@ impl Postprocessor {
                     }
                 }
 
+                if kind == SyntaxKind::LiteralCommandText {
+                    // LiteralCommandText should never be preceded by a temp indent,
+                    // as the text may contain the same whitespace
+                    stream.0.pop_if(|t| matches!(t, PostToken::TempIndent(_)));
+                }
+
                 stream.push(PostToken::Literal(value));
                 self.position = LinePosition::MiddleOfLine;
             }
@@ -668,7 +674,7 @@ impl Postprocessor {
     }
 
     /// Trims spaces and indents (and not newlines) from the end of the stream.
-    fn trim_last_line(&mut self, stream: &mut TokenStream<PostToken>) {
+    fn trim_last_line(&self, stream: &mut TokenStream<PostToken>) {
         stream.trim_while(|token| {
             matches!(
                 token,
@@ -700,7 +706,7 @@ impl Postprocessor {
     fn indent(&self, stream: &mut TokenStream<PostToken>) {
         assert!(self.position == LinePosition::StartOfLine);
 
-        stream.trim_while(|t| matches!(t, PostToken::Indent | PostToken::TempIndent(_)));
+        self.trim_last_line(stream);
 
         let level = if self.interrupted {
             self.indent_level + 1
