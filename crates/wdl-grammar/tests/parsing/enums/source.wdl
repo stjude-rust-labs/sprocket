@@ -27,7 +27,7 @@ enum Priority[Int] {
 enum Empty {
 }
 
-# Single variant enum
+# Single choice enum
 enum Single {
     OnlyOne
 }

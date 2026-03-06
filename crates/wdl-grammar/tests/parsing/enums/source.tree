@@ -1,4 +1,4 @@
-RootNode@0..872
+RootNode@0..871
   Comment@0..34 "## This is a test of  ..."
   Whitespace@34..36 "\n\n"
   VersionStatementNode@36..47
@@ -15,15 +15,15 @@ RootNode@0..872
     Whitespace@95..96 " "
     OpenBrace@96..97 "{"
     Whitespace@97..102 "\n    "
-    EnumVariantNode@102..105
+    EnumChoiceNode@102..105
       Ident@102..105 "Red"
     Comma@105..106 ","
     Whitespace@106..111 "\n    "
-    EnumVariantNode@111..116
+    EnumChoiceNode@111..116
       Ident@111..116 "Green"
     Comma@116..117 ","
     Whitespace@117..122 "\n    "
-    EnumVariantNode@122..126
+    EnumChoiceNode@122..126
       Ident@122..126 "Blue"
     Whitespace@126..127 "\n"
     CloseBrace@127..128 "}"
@@ -42,15 +42,15 @@ RootNode@0..872
     Whitespace@194..195 " "
     OpenBrace@195..196 "{"
     Whitespace@196..201 "\n    "
-    EnumVariantNode@201..208
+    EnumChoiceNode@201..208
       Ident@201..208 "Pending"
     Comma@208..209 ","
     Whitespace@209..214 "\n    "
-    EnumVariantNode@214..221
+    EnumChoiceNode@214..221
       Ident@214..221 "Running"
     Comma@221..222 ","
     Whitespace@222..227 "\n    "
-    EnumVariantNode@227..235
+    EnumChoiceNode@227..235
       Ident@227..235 "Complete"
     Whitespace@235..236 "\n"
     CloseBrace@236..237 "}"
@@ -69,7 +69,7 @@ RootNode@0..872
     Whitespace@310..311 " "
     OpenBrace@311..312 "{"
     Whitespace@312..317 "\n    "
-    EnumVariantNode@317..324
+    EnumChoiceNode@317..324
       Ident@317..320 "Low"
       Whitespace@320..321 " "
       Assignment@321..322 "="
@@ -78,7 +78,7 @@ RootNode@0..872
         Integer@323..324 "1"
     Comma@324..325 ","
     Whitespace@325..330 "\n    "
-    EnumVariantNode@330..340
+    EnumChoiceNode@330..340
       Ident@330..336 "Medium"
       Whitespace@336..337 " "
       Assignment@337..338 "="
@@ -87,7 +87,7 @@ RootNode@0..872
         Integer@339..340 "2"
     Comma@340..341 ","
     Whitespace@341..346 "\n    "
-    EnumVariantNode@346..354
+    EnumChoiceNode@346..354
       Ident@346..350 "High"
       Whitespace@350..351 " "
       Assignment@351..352 "="
@@ -108,191 +108,191 @@ RootNode@0..872
     Whitespace@383..384 "\n"
     CloseBrace@384..385 "}"
   Whitespace@385..387 "\n\n"
-  Comment@387..408 "# Single variant enum"
-  Whitespace@408..409 "\n"
-  EnumDefinitionNode@409..436
-    EnumKeyword@409..413 "enum"
-    Whitespace@413..414 " "
-    Ident@414..420 "Single"
-    Whitespace@420..421 " "
-    OpenBrace@421..422 "{"
-    Whitespace@422..427 "\n    "
-    EnumVariantNode@427..434
-      Ident@427..434 "OnlyOne"
-    Whitespace@434..435 "\n"
-    CloseBrace@435..436 "}"
-  Whitespace@436..438 "\n\n"
-  Comment@438..464 "# Enum with trailing  ..."
-  Whitespace@464..465 "\n"
-  EnumDefinitionNode@465..525
-    EnumKeyword@465..469 "enum"
-    Whitespace@469..470 " "
-    Ident@470..487 "WithTrailingComma"
-    Whitespace@487..488 " "
-    OpenBrace@488..489 "{"
-    Whitespace@489..494 "\n    "
-    EnumVariantNode@494..499
-      Ident@494..499 "First"
-    Comma@499..500 ","
-    Whitespace@500..505 "\n    "
-    EnumVariantNode@505..511
-      Ident@505..511 "Second"
-    Comma@511..512 ","
-    Whitespace@512..517 "\n    "
-    EnumVariantNode@517..522
-      Ident@517..522 "Third"
-    Comma@522..523 ","
-    Whitespace@523..524 "\n"
-    CloseBrace@524..525 "}"
-  Whitespace@525..527 "\n\n"
-  Comment@527..564 "# Enum with mixed ass ..."
-  Whitespace@564..565 "\n"
-  EnumDefinitionNode@565..625
-    EnumKeyword@565..569 "enum"
-    Whitespace@569..570 " "
-    Ident@570..575 "Mixed"
-    EnumTypeParameterNode@575..580
-      OpenBracket@575..576 "["
-      PrimitiveTypeNode@576..579
-        IntTypeKeyword@576..579 "Int"
-      CloseBracket@579..580 "]"
-    Whitespace@580..581 " "
-    OpenBrace@581..582 "{"
-    Whitespace@582..587 "\n    "
-    EnumVariantNode@587..596
-      Ident@587..592 "First"
-      Whitespace@592..593 " "
-      Assignment@593..594 "="
-      Whitespace@594..595 " "
-      LiteralIntegerNode@595..596
-        Integer@595..596 "1"
-    Comma@596..597 ","
-    Whitespace@597..602 "\n    "
-    EnumVariantNode@602..608
-      Ident@602..608 "Second"
-    Comma@608..609 ","
-    Whitespace@609..614 "\n    "
-    EnumVariantNode@614..623
-      Ident@614..619 "Third"
-      Whitespace@619..620 " "
-      Assignment@620..621 "="
-      Whitespace@621..622 " "
-      LiteralIntegerNode@622..623
-        Integer@622..623 "3"
-    Whitespace@623..624 "\n"
-    CloseBrace@624..625 "}"
-  Whitespace@625..627 "\n\n"
-  Comment@627..668 "# Enum with complex e ..."
-  Whitespace@668..669 "\n"
-  EnumDefinitionNode@669..770
-    EnumKeyword@669..673 "enum"
-    Whitespace@673..674 " "
-    Ident@674..681 "Complex"
-    EnumTypeParameterNode@681..689
-      OpenBracket@681..682 "["
-      PrimitiveTypeNode@682..688
-        StringTypeKeyword@682..688 "String"
-      CloseBracket@688..689 "]"
-    Whitespace@689..690 " "
-    OpenBrace@690..691 "{"
-    Whitespace@691..696 "\n    "
-    EnumVariantNode@696..707
-      Ident@696..697 "A"
-      Whitespace@697..698 " "
-      Assignment@698..699 "="
-      Whitespace@699..700 " "
-      LiteralStringNode@700..707
-        DoubleQuote@700..701 "\""
-        LiteralStringText@701..706 "hello"
-        DoubleQuote@706..707 "\""
-    Comma@707..708 ","
-    Whitespace@708..713 "\n    "
-    EnumVariantNode@713..730
-      Ident@713..714 "B"
-      Whitespace@714..715 " "
-      Assignment@715..716 "="
-      Whitespace@716..717 " "
-      AdditionExprNode@717..730
-        LiteralStringNode@717..724
-          DoubleQuote@717..718 "\""
-          LiteralStringText@718..723 "world"
-          DoubleQuote@723..724 "\""
-        Whitespace@724..725 " "
-        Plus@725..726 "+"
-        Whitespace@726..727 " "
-        LiteralStringNode@727..730
-          DoubleQuote@727..728 "\""
-          LiteralStringText@728..729 "!"
-          DoubleQuote@729..730 "\""
-    Comma@730..731 ","
-    Whitespace@731..736 "\n    "
-    EnumVariantNode@736..768
-      Ident@736..737 "C"
-      Whitespace@737..738 " "
-      Assignment@738..739 "="
-      Whitespace@739..740 " "
-      IfExprNode@740..768
-        IfKeyword@740..742 "if"
-        Whitespace@742..743 " "
-        LiteralBooleanNode@743..747
-          TrueKeyword@743..747 "true"
-        Whitespace@747..748 " "
-        ThenKeyword@748..752 "then"
-        Whitespace@752..753 " "
-        LiteralStringNode@753..758
-          DoubleQuote@753..754 "\""
-          LiteralStringText@754..757 "yes"
-          DoubleQuote@757..758 "\""
-        Whitespace@758..759 " "
-        ElseKeyword@759..763 "else"
-        Whitespace@763..764 " "
-        LiteralStringNode@764..768
-          DoubleQuote@764..765 "\""
-          LiteralStringText@765..767 "no"
-          DoubleQuote@767..768 "\""
-    Whitespace@768..769 "\n"
-    CloseBrace@769..770 "}"
-  Whitespace@770..772 "\n\n"
-  WorkflowDefinitionNode@772..871
-    WorkflowKeyword@772..780 "workflow"
-    Whitespace@780..781 " "
-    Ident@781..785 "test"
-    Whitespace@785..786 " "
-    OpenBrace@786..787 "{"
-    Whitespace@787..792 "\n    "
-    OutputSectionNode@792..869
-      OutputKeyword@792..798 "output"
-      Whitespace@798..799 " "
-      OpenBrace@799..800 "{"
-      Whitespace@800..809 "\n        "
-      BoundDeclNode@809..831
-        PrimitiveTypeNode@809..815
-          StringTypeKeyword@809..815 "String"
-        Whitespace@815..816 " "
-        Ident@816..822 "result"
-        Whitespace@822..823 " "
-        Assignment@823..824 "="
-        Whitespace@824..825 " "
-        LiteralStringNode@825..831
-          DoubleQuote@825..826 "\""
-          LiteralStringText@826..830 "done"
-          DoubleQuote@830..831 "\""
-      Whitespace@831..840 "\n        "
-      BoundDeclNode@840..863
-        TypeRefNode@840..845
-          Ident@840..845 "Mixed"
-        Whitespace@845..846 " "
-        Ident@846..849 "foo"
-        Whitespace@849..850 " "
-        Assignment@850..851 "="
-        Whitespace@851..852 " "
-        AccessExprNode@852..863
-          NameRefExprNode@852..857
-            Ident@852..857 "Mixed"
-          Dot@857..858 "."
-          Ident@858..863 "First"
-      Whitespace@863..868 "\n    "
-      CloseBrace@868..869 "}"
-    Whitespace@869..870 "\n"
-    CloseBrace@870..871 "}"
-  Whitespace@871..872 "\n"
+  Comment@387..407 "# Single choice enum"
+  Whitespace@407..408 "\n"
+  EnumDefinitionNode@408..435
+    EnumKeyword@408..412 "enum"
+    Whitespace@412..413 " "
+    Ident@413..419 "Single"
+    Whitespace@419..420 " "
+    OpenBrace@420..421 "{"
+    Whitespace@421..426 "\n    "
+    EnumChoiceNode@426..433
+      Ident@426..433 "OnlyOne"
+    Whitespace@433..434 "\n"
+    CloseBrace@434..435 "}"
+  Whitespace@435..437 "\n\n"
+  Comment@437..463 "# Enum with trailing  ..."
+  Whitespace@463..464 "\n"
+  EnumDefinitionNode@464..524
+    EnumKeyword@464..468 "enum"
+    Whitespace@468..469 " "
+    Ident@469..486 "WithTrailingComma"
+    Whitespace@486..487 " "
+    OpenBrace@487..488 "{"
+    Whitespace@488..493 "\n    "
+    EnumChoiceNode@493..498
+      Ident@493..498 "First"
+    Comma@498..499 ","
+    Whitespace@499..504 "\n    "
+    EnumChoiceNode@504..510
+      Ident@504..510 "Second"
+    Comma@510..511 ","
+    Whitespace@511..516 "\n    "
+    EnumChoiceNode@516..521
+      Ident@516..521 "Third"
+    Comma@521..522 ","
+    Whitespace@522..523 "\n"
+    CloseBrace@523..524 "}"
+  Whitespace@524..526 "\n\n"
+  Comment@526..563 "# Enum with mixed ass ..."
+  Whitespace@563..564 "\n"
+  EnumDefinitionNode@564..624
+    EnumKeyword@564..568 "enum"
+    Whitespace@568..569 " "
+    Ident@569..574 "Mixed"
+    EnumTypeParameterNode@574..579
+      OpenBracket@574..575 "["
+      PrimitiveTypeNode@575..578
+        IntTypeKeyword@575..578 "Int"
+      CloseBracket@578..579 "]"
+    Whitespace@579..580 " "
+    OpenBrace@580..581 "{"
+    Whitespace@581..586 "\n    "
+    EnumChoiceNode@586..595
+      Ident@586..591 "First"
+      Whitespace@591..592 " "
+      Assignment@592..593 "="
+      Whitespace@593..594 " "
+      LiteralIntegerNode@594..595
+        Integer@594..595 "1"
+    Comma@595..596 ","
+    Whitespace@596..601 "\n    "
+    EnumChoiceNode@601..607
+      Ident@601..607 "Second"
+    Comma@607..608 ","
+    Whitespace@608..613 "\n    "
+    EnumChoiceNode@613..622
+      Ident@613..618 "Third"
+      Whitespace@618..619 " "
+      Assignment@619..620 "="
+      Whitespace@620..621 " "
+      LiteralIntegerNode@621..622
+        Integer@621..622 "3"
+    Whitespace@622..623 "\n"
+    CloseBrace@623..624 "}"
+  Whitespace@624..626 "\n\n"
+  Comment@626..667 "# Enum with complex e ..."
+  Whitespace@667..668 "\n"
+  EnumDefinitionNode@668..769
+    EnumKeyword@668..672 "enum"
+    Whitespace@672..673 " "
+    Ident@673..680 "Complex"
+    EnumTypeParameterNode@680..688
+      OpenBracket@680..681 "["
+      PrimitiveTypeNode@681..687
+        StringTypeKeyword@681..687 "String"
+      CloseBracket@687..688 "]"
+    Whitespace@688..689 " "
+    OpenBrace@689..690 "{"
+    Whitespace@690..695 "\n    "
+    EnumChoiceNode@695..706
+      Ident@695..696 "A"
+      Whitespace@696..697 " "
+      Assignment@697..698 "="
+      Whitespace@698..699 " "
+      LiteralStringNode@699..706
+        DoubleQuote@699..700 "\""
+        LiteralStringText@700..705 "hello"
+        DoubleQuote@705..706 "\""
+    Comma@706..707 ","
+    Whitespace@707..712 "\n    "
+    EnumChoiceNode@712..729
+      Ident@712..713 "B"
+      Whitespace@713..714 " "
+      Assignment@714..715 "="
+      Whitespace@715..716 " "
+      AdditionExprNode@716..729
+        LiteralStringNode@716..723
+          DoubleQuote@716..717 "\""
+          LiteralStringText@717..722 "world"
+          DoubleQuote@722..723 "\""
+        Whitespace@723..724 " "
+        Plus@724..725 "+"
+        Whitespace@725..726 " "
+        LiteralStringNode@726..729
+          DoubleQuote@726..727 "\""
+          LiteralStringText@727..728 "!"
+          DoubleQuote@728..729 "\""
+    Comma@729..730 ","
+    Whitespace@730..735 "\n    "
+    EnumChoiceNode@735..767
+      Ident@735..736 "C"
+      Whitespace@736..737 " "
+      Assignment@737..738 "="
+      Whitespace@738..739 " "
+      IfExprNode@739..767
+        IfKeyword@739..741 "if"
+        Whitespace@741..742 " "
+        LiteralBooleanNode@742..746
+          TrueKeyword@742..746 "true"
+        Whitespace@746..747 " "
+        ThenKeyword@747..751 "then"
+        Whitespace@751..752 " "
+        LiteralStringNode@752..757
+          DoubleQuote@752..753 "\""
+          LiteralStringText@753..756 "yes"
+          DoubleQuote@756..757 "\""
+        Whitespace@757..758 " "
+        ElseKeyword@758..762 "else"
+        Whitespace@762..763 " "
+        LiteralStringNode@763..767
+          DoubleQuote@763..764 "\""
+          LiteralStringText@764..766 "no"
+          DoubleQuote@766..767 "\""
+    Whitespace@767..768 "\n"
+    CloseBrace@768..769 "}"
+  Whitespace@769..771 "\n\n"
+  WorkflowDefinitionNode@771..870
+    WorkflowKeyword@771..779 "workflow"
+    Whitespace@779..780 " "
+    Ident@780..784 "test"
+    Whitespace@784..785 " "
+    OpenBrace@785..786 "{"
+    Whitespace@786..791 "\n    "
+    OutputSectionNode@791..868
+      OutputKeyword@791..797 "output"
+      Whitespace@797..798 " "
+      OpenBrace@798..799 "{"
+      Whitespace@799..808 "\n        "
+      BoundDeclNode@808..830
+        PrimitiveTypeNode@808..814
+          StringTypeKeyword@808..814 "String"
+        Whitespace@814..815 " "
+        Ident@815..821 "result"
+        Whitespace@821..822 " "
+        Assignment@822..823 "="
+        Whitespace@823..824 " "
+        LiteralStringNode@824..830
+          DoubleQuote@824..825 "\""
+          LiteralStringText@825..829 "done"
+          DoubleQuote@829..830 "\""
+      Whitespace@830..839 "\n        "
+      BoundDeclNode@839..862
+        TypeRefNode@839..844
+          Ident@839..844 "Mixed"
+        Whitespace@844..845 " "
+        Ident@845..848 "foo"
+        Whitespace@848..849 " "
+        Assignment@849..850 "="
+        Whitespace@850..851 " "
+        AccessExprNode@851..862
+          NameRefExprNode@851..856
+            Ident@851..856 "Mixed"
+          Dot@856..857 "."
+          Ident@857..862 "First"
+      Whitespace@862..867 "\n    "
+      CloseBrace@867..868 "}"
+    Whitespace@868..869 "\n"
+    CloseBrace@869..870 "}"
+  Whitespace@870..871 "\n"

@@ -222,7 +222,7 @@ fn enum_to_symbol(
 ) -> Result<DocumentSymbol> {
     let mut children = Vec::new();
 
-    for variant in e.variants() {
+    for variant in e.choices() {
         children.push(DocumentSymbol {
             name: variant.name().text().to_string(),
             detail: None,
