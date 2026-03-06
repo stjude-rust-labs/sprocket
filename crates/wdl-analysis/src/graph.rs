@@ -345,8 +345,7 @@ impl DocumentGraphNode {
                         _ => {
                             tracing::warn!(
                             uri = %self.uri,
-                                "received edits for a document that was not previously \
-                                 parsed; falling back to a full parse from disk"
+                                "document not yet parsed, falling back to full parse"
                             );
                             return self.full_parse(tokio, client);
                         }
