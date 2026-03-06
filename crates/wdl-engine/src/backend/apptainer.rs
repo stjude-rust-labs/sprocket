@@ -88,9 +88,9 @@ impl ApptainerRuntime {
         request: &ExecuteTaskRequest<'_>,
         extra_args: impl Iterator<Item = &str>,
         token: CancellationToken,
-    ) -> Result<Option<String>> {
-        let path = match self
-            .pull_image(
+    ) -> Result<Option<(String, ContainerSource)>> {
+        let (path, container) = match self
+            .pull_first_available_image(
                 request
                     .constraints
                     .container
@@ -100,14 +100,15 @@ impl ApptainerRuntime {
             )
             .await?
         {
-            Some(path) => path,
+            Some(result) => result,
             None => return Ok(None),
         };
 
-        Ok(Some(
+        Ok(Some((
             self.generate_apptainer_script(config, &path, request, extra_args)
                 .await?,
-        ))
+            container,
+        )))
     }
 
     /// Generate the script, given a container path that's already assumed to be
@@ -316,7 +317,38 @@ impl ApptainerRuntime {
         }
     }
 
-    /// Tries to pull an image.  
+    /// Attempts to pull the first available image from a list of candidates.
+    ///
+    /// Iterates through the candidates in order, returning the path of the
+    /// first image that pulls successfully. If all candidates fail, returns
+    /// an error that includes the failure for each candidate.
+    pub(crate) async fn pull_first_available_image(
+        &self,
+        candidates: &[ContainerSource],
+        token: CancellationToken,
+    ) -> Result<Option<(PathBuf, ContainerSource)>> {
+        let mut errors = Vec::new();
+
+        for candidate in candidates {
+            match self.pull_image(candidate, token.clone()).await {
+                Ok(Some(path)) => return Ok(Some((path, candidate.clone()))),
+                Ok(None) => return Ok(None),
+                Err(e) => {
+                    warn!("failed to pull container image `{candidate:#}`: {e:#}");
+                    errors.push((candidate.clone(), e));
+                }
+            }
+        }
+
+        let mut message = String::from("all container image candidates failed to pull:");
+        for (candidate, error) in &errors {
+            message.push_str(&format!("\n  - `{candidate:#}`: {error:#}"));
+        }
+
+        bail!("{message}")
+    }
+
+    /// Tries to pull an image.
     ///
     /// The tricky thing about this function is determining whether a failure is
     /// transient or permanent. When in doubt, choose transient; the downside is
@@ -425,13 +457,13 @@ mod tests {
                     hints: &Default::default(),
                     env: &env,
                     constraints: &TaskExecutionConstraints {
-                        container: Some(
+                        container: Some(vec![
                             String::from(
                                 Url::from_file_path(root.path().join("non-existent.sif")).unwrap(),
                             )
                             .parse()
                             .unwrap(),
-                        ),
+                        ]),
                         cpu: 1.0,
                         memory: ONE_GIBIBYTE as u64,
                         gpu: Default::default(),
@@ -464,7 +496,7 @@ mod tests {
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
         let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
-        let script = runtime
+        let (script, _container) = runtime
             .generate_script(
                 &Default::default(),
                 &ExecuteTaskRequest {
@@ -476,13 +508,13 @@ mod tests {
                     hints: &Default::default(),
                     env: &env,
                     constraints: &TaskExecutionConstraints {
-                        container: Some(
+                        container: Some(vec![
                             String::from(
                                 Url::from_file_path(root.path().join("non-existent.sif")).unwrap(),
                             )
                             .parse()
                             .unwrap(),
-                        ),
+                        ]),
                         cpu: 1.0,
                         memory: ONE_GIBIBYTE as u64,
                         gpu: Default::default(),

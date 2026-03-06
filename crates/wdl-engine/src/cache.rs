@@ -507,7 +507,14 @@ impl CallCache {
             )
             .await?;
 
+        let container = if entry.container.is_empty() {
+            None
+        } else {
+            Some(entry.container.parse().unwrap())
+        };
+
         Ok(Some(TaskExecutionResult {
+            container,
             exit_code: entry.exit,
             work_dir: work,
             stdout: PrimitiveValue::new_file(String::try_from(stdout)?).into(),
@@ -710,6 +717,7 @@ mod test {
 
         // Cache an execution result
         let result = TaskExecutionResult {
+            container: None,
             exit_code: 0,
             work_dir: EvaluationPath::from_local_path(task.paths.work_dir.clone()),
             stdout: PrimitiveValue::new_file(task.paths.stdout.to_str().unwrap()).into(),

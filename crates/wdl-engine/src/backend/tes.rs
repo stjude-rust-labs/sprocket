@@ -156,21 +156,26 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container =
+        let containers =
             requirements::container(inputs, requirements, self.config.task.container.as_deref());
-        match &container {
-            ContainerSource::Docker(_) | ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+        for container in &containers {
+            match container {
+                ContainerSource::Docker(_)
+                | ContainerSource::Library(_)
+                | ContainerSource::Oras(_) => {}
+                ContainerSource::SifFile(_) => {
+                    bail!(
+                        "TES backend does not support local SIF file `{container:#}`; use a \
+                         registry-based container image instead"
+                    )
+                }
+                ContainerSource::Unknown(_) => {
+                    bail!(
+                        "TES backend does not support unknown container source `{container:#}`"
+                    )
+                }
             }
-            ContainerSource::SifFile(_) => {
-                bail!(
-                    "TES backend does not support local SIF file `{container:#}`; use a \
-                     registry-based container image instead"
-                )
-            }
-            ContainerSource::Unknown(_) => {
-                bail!("TES backend does not support unknown container source `{container:#}`")
-            }
-        };
+        }
 
         let disks = requirements::disks(inputs, requirements, hints)?;
         if disks.values().any(|d| d.ty.is_some()) {
@@ -178,7 +183,7 @@ impl TaskExecutionBackend for TesBackend {
         }
 
         Ok(TaskExecutionConstraints {
-            container: Some(container),
+            container: Some(containers),
             cpu: requirements::cpu(inputs, requirements),
             memory: requirements::memory(inputs, requirements)? as u64,
             gpu: Default::default(),
@@ -417,6 +422,7 @@ impl TaskExecutionBackend for TesBackend {
                                     .constraints
                                     .container
                                     .as_ref()
+                                    .and_then(|c| c.first())
                                     .expect("constraints should have a container")
                                 {
                                     // For Docker container image sources, omit the protocol
@@ -472,6 +478,12 @@ impl TaskExecutionBackend for TesBackend {
                 work_dir_url.path_segments_mut().unwrap().push("");
 
                 return Ok(Some(TaskExecutionResult {
+                    container: request
+                        .constraints
+                        .container
+                        .as_ref()
+                        .and_then(|c| c.first())
+                        .cloned(),
                     exit_code: status.code().expect("should have exit code"),
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),

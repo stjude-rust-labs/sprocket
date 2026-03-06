@@ -918,16 +918,19 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let container =
+        let containers =
             requirements::container(inputs, requirements, self.config.task.container.as_deref());
-        if let ContainerSource::Unknown(_) = &container {
-            bail!(
-                "Slurm Apptainer backend does not support unknown container source `{container:#}`"
-            )
+        for container in &containers {
+            if let ContainerSource::Unknown(_) = container {
+                bail!(
+                    "Slurm Apptainer backend does not support unknown container source \
+                     `{container:#}`"
+                )
+            }
         }
 
         Ok(super::TaskExecutionConstraints {
-            container: Some(container),
+            container: Some(containers),
             // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
             // Slurm partition.
             //
@@ -991,7 +994,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     )
                 })?;
 
-            let Some(apptainer_script) = self
+            let Some((apptainer_script, container)) = self
                 .apptainer
                 .generate_script(
                     &self.config,
@@ -1111,6 +1114,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             };
 
             Ok(Some(TaskExecutionResult {
+                container: Some(container),
                 exit_code: exit_code as i32,
                 work_dir: EvaluationPath::from_local_path(work_dir),
                 stdout: PrimitiveValue::new_file(
