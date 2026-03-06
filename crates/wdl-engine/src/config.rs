@@ -1297,6 +1297,14 @@ pub struct ApptainerConfig {
     #[serde(default = "default_apptainer_executable")]
     pub executable: String,
 
+    /// Path to a shared directory for caching pulled `.sif` images.
+    ///
+    /// When set, pulled images are stored in this directory and shared
+    /// across runs. When unset, images are stored in a per-run directory
+    /// that is not shared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_cache_dir: Option<PathBuf>,
+
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     pub extra_apptainer_exec_args: Option<Vec<String>>,
@@ -1314,6 +1322,7 @@ impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
             executable: default_apptainer_executable(),
+            image_cache_dir: None,
             extra_apptainer_exec_args: None,
         }
     }

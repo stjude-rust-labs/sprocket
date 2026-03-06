@@ -200,6 +200,10 @@ pub struct Args {
     /// Disables the use of the call cache for this run.
     #[clap(long)]
     pub no_call_cache: bool,
+
+    /// Optional suffix to append to the run directory name.
+    #[clap(long, value_name = "SUFFIX")]
+    pub suffix: Option<String>,
 }
 
 impl Args {
@@ -658,7 +662,7 @@ pub async fn run(
     );
 
     // Create the run directory
-    let run_dir = create_run_directory(&output_dir, target.name())?;
+    let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
 
     // Now that the run directory is created, initialize file logging
     initialize_file_logging(handle, run_dir.root())?;
