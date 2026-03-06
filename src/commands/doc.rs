@@ -9,6 +9,9 @@ use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::doc::AdditionalScript;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
@@ -21,9 +24,6 @@ use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -31,6 +31,9 @@ use crate::diagnostics::emit_diagnostics;
 pub struct Args {
     /// Path to the local WDL workspace to document.
     pub workspace: Option<Source>,
+    /// Analyze the documents without producing an output.
+    #[arg(long, conflicts_with_all = ["output", "open"])]
+    pub check: bool,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
     pub homepage: Option<PathBuf>,
@@ -209,7 +212,8 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .alt_logo(args.alt_light_logo)
         .additional_javascript(addl_js)
         .prefer_full_directory(!args.prioritize_workflows_view)
-        .enable_doc_comments(args.with_doc_comments);
+        .enable_doc_comments(args.with_doc_comments)
+        .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
     if let Err(e) = document_workspace(config).await {
@@ -230,7 +234,6 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                             false
                         }),
-                        &[],
                         args.report_mode.unwrap_or_default(),
                         colorize,
                     )

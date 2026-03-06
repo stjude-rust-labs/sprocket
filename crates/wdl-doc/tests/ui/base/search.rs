@@ -1,5 +1,6 @@
 //! Test for a valid search query.
 
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::bail;
@@ -19,7 +20,7 @@ impl UiTest for Search {
         "search"
     }
 
-    async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()> {
+    async fn run(&self, driver: &mut WebDriver, _docs_path: &Path) -> anyhow::Result<()> {
         driver.search("flag_filter").await?;
 
         let has_results = driver
