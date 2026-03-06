@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lint"
-version = "0.20.1"
+version = "0.21.0"
 description = "Lint rules for Workflow Description Language (WDL) documents"
 rust-version.workspace = true
 authors.workspace = true
@@ -23,8 +23,8 @@ serde_json = { workspace = true }
 strsim = { workspace = true }
 strum = { workspace = true }
 tracing = { workspace = true }
-wdl-analysis = { path = "../wdl-analysis", version = "0.17.2" }
-wdl-ast = { path = "../wdl-ast", version = "0.21.1" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.18.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.22.0" }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }

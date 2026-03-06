@@ -1,6 +1,6 @@
 [package]
 name = "wdl-ast"
-version = "0.21.1"
+version = "0.22.0"
 description = "An abstract syntax tree for Workflow Description Language (WDL) documents"
 authors.workspace = true
 rust-version.workspace = true
