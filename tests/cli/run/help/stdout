@@ -84,6 +84,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --suffix <SUFFIX>
+          Optional suffix to append to the run directory name
+
       --color <COLOR>
           Controls output colorization
 
