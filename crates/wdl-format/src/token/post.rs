@@ -447,9 +447,7 @@ impl Postprocessor {
                     // We don't actually want to pop the TempIndent token,
                     // but rather a regualar Indent token before the temp indent.
                     if matches!(popped, PostToken::TempIndent(_)) {
-                        if matches!(stream.0.last(), Some(&PostToken::Indent)) {
-                            stream.0.pop();
-                        }
+                        stream.0.pop_if(|t| matches!(t, PostToken::Indent));
                         // Restore the popped TempIndent
                         stream.0.push(popped);
                     }
@@ -537,6 +535,7 @@ impl Postprocessor {
         let mut post_buffer = TokenStream::<PostToken>::default();
         let mut pre_buffer = in_stream.iter().peekable();
         let starting_indent = self.indent_level;
+        let starting_temp_indent = self.temp_indent.clone();
         while let Some(token) = pre_buffer.next() {
             let next = pre_buffer.peek().copied();
             self.step(token.clone(), next, &mut post_buffer);
@@ -586,7 +585,7 @@ impl Postprocessor {
         // Reset self.
         self.interrupted = false;
         self.position = LinePosition::StartOfLine;
-        self.temp_indent = None;
+        self.temp_indent = starting_temp_indent;
         self.indent_level = starting_indent;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
