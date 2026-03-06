@@ -156,8 +156,15 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container =
-            requirements::container(inputs, requirements, self.config.task.container.as_deref());
+        let container = requirements::container(
+            inputs,
+            requirements,
+            if self.config.task.container.is_empty() {
+                None
+            } else {
+                Some(&self.config.task.container)
+            },
+        );
         match &container {
             ContainerSource::Docker(_) | ContainerSource::Library(_) | ContainerSource::Oras(_) => {
             }
@@ -424,13 +431,11 @@ impl TaskExecutionBackend for TesBackend {
                                     c => format!("{c:#}"),
                                 },
                             )
-                            .program(
-                                self.config
-                                    .task
-                                    .shell
-                                    .as_deref()
-                                    .unwrap_or(DEFAULT_TASK_SHELL),
-                            )
+                            .program(if self.config.task.shell.is_empty() {
+                                DEFAULT_TASK_SHELL
+                            } else {
+                                &self.config.task.shell
+                            })
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
                             .env(request.env.clone())

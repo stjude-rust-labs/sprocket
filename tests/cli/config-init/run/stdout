@@ -1,14 +1,16 @@
 [format]
-with_tabs = false
-indentation_size = 4
+indent = 4
 max_line_length = 90
+sort_imports = true
 sort_inputs = false
+trailing_commas = true
 
 [check]
 except = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
+hide_warnings = false
 all_lint_rules = false
 only_lint_tags = []
 filter_lint_tags = []
@@ -26,12 +28,17 @@ suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
 output_dir = "./out"
+events_capacity = 5000
 
 [run.http]
+retries = 5
+parallelism = "available"
 
 [run.workflow.scatter]
+concurrency = 1000
 
 [run.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
@@ -53,6 +60,7 @@ allowed_origins = []
 output_directory = "./out"
 allowed_file_paths = []
 allowed_urls = []
+max_concurrent_runs = "unlimited"
 
 [server.database]
 
@@ -62,10 +70,14 @@ experimental_features_enabled = false
 fail = "slow"
 
 [server.engine.http]
+retries = 5
+parallelism = "available"
 
 [server.engine.workflow.scatter]
+concurrency = 1000
 
 [server.engine.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
@@ -88,4 +100,5 @@ color = "auto"
 report_mode = "full"
 
 [common.wdl]
+fallback_version = "none"
 

@@ -923,8 +923,15 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let container =
-            requirements::container(inputs, requirements, self.config.task.container.as_deref());
+        let container = requirements::container(
+            inputs,
+            requirements,
+            if self.config.task.container.is_empty() {
+                None
+            } else {
+                Some(&self.config.task.container)
+            },
+        );
         if let ContainerSource::Unknown(_) = &container {
             bail!(
                 "Slurm Apptainer backend does not support unknown container source `{container:#}`"

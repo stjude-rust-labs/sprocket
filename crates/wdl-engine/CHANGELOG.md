@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Changed how defaults for many `Config` entries are serialized and
+  deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs
   without waiting; instead a monitor now periodically checks job status with
   `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).

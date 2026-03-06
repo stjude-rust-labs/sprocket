@@ -48,7 +48,8 @@ pub struct Args {
     )]
     pub indentation_size: Option<usize>,
 
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
@@ -115,26 +116,27 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version;
+    let fallback_version = config.common.wdl.fallback_version.inner();
 
-    let indent = Indent::try_new(
-        args.with_tabs || config.format.with_tabs,
-        Some(
-            args.indentation_size
-                .unwrap_or(config.format.indentation_size),
-        ),
-    )
-    .context("failed to create indentation configuration")?;
+    let indent = if args.with_tabs || args.indentation_size.is_some() {
+        Indent::try_new(args.with_tabs, args.indentation_size)
+            .context("failed to create indentation configuration")?
+    } else {
+        config.format.indent
+    };
 
-    let max_line_length = MaxLineLength::try_new(
-        args.max_line_length
-            .unwrap_or(config.format.max_line_length),
-    )
-    .context("failed to create max line length configuration")?;
+    let max_line_length = if let Some(max) = args.max_line_length {
+        MaxLineLength::try_new(if max == 0 { None } else { Some(max) })
+            .context("failed to create max line length configuration")?
+    } else {
+        config.format.max_line_length
+    };
 
     let config = FormatConfig::default()
         .indent(indent)
-        .max_line_length(max_line_length);
+        .max_line_length(max_line_length)
+        .sort_inputs(config.format.sort_inputs)
+        .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

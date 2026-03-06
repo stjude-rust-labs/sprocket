@@ -227,7 +227,11 @@ impl ApptainerRuntime {
             &mut apptainer_command,
             "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
              \\\"{GUEST_STDERR_PATH}\\\"\" \\",
-            shell = config.task.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL)
+            shell = if config.task.shell.is_empty() {
+                DEFAULT_TASK_SHELL
+            } else {
+                &config.task.shell
+            }
         )?;
         let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");

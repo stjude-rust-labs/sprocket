@@ -2,17 +2,19 @@
 
 use serde::Deserialize;
 use serde::Serialize;
-use thiserror::Error;
 
 use crate::SPACE;
 use crate::TAB;
 
 /// Error while creating indentation configuration.
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum IndentError {
-    /// Invalid options
+    /// Invalid space options
+    #[error("indentation with spaces must have a number of spaces")]
+    InvalidSpaceConfiguration,
+    /// Invalid tab options
     #[error("indentation with tabs cannot have a number of spaces")]
-    InvalidConfiguration,
+    InvalidTabConfiguration,
     /// Too many spaces
     #[error("`{0}` is more than the maximum allowed number of spaces: `{max}`", max = MAX_SPACE_INDENT)]
     TooManySpaces(usize),
@@ -26,7 +28,7 @@ pub const DEFAULT_INDENT: Indent = Indent::Spaces(DEFAULT_SPACE_INDENT);
 pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug)]
 pub enum Indent {
     /// Tabs.
     Tabs,
@@ -45,7 +47,7 @@ impl Indent {
     pub fn try_new(tab: bool, num_spaces: Option<usize>) -> Result<Self, IndentError> {
         match (tab, num_spaces) {
             (true, None) => Ok(Indent::Tabs),
-            (true, Some(_)) => Err(IndentError::InvalidConfiguration),
+            (true, Some(_)) => Err(IndentError::InvalidTabConfiguration),
             (false, Some(n)) => {
                 if n > MAX_SPACE_INDENT {
                     Err(IndentError::TooManySpaces(n))
@@ -53,7 +55,7 @@ impl Indent {
                     Ok(Indent::Spaces(n))
                 }
             }
-            (false, None) => Ok(Indent::default()),
+            (false, None) => Err(IndentError::InvalidSpaceConfiguration),
         }
     }
 
@@ -78,6 +80,40 @@ impl Indent {
         match self {
             Indent::Tabs => self.character().to_string(),
             Indent::Spaces(n) => self.character().repeat(*n),
+        }
+    }
+}
+
+impl Serialize for Indent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Indent::Tabs => "tabs".serialize(serializer),
+            Indent::Spaces(n) => n.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Indent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Value {
+            Num(usize),
+            Str(String),
+        }
+
+        match Value::deserialize(deserializer)? {
+            Value::Num(n) => Indent::try_new(false, Some(n)).map_err(serde::de::Error::custom),
+            Value::Str(s) if s == "tabs" => Ok(Indent::Tabs),
+            Value::Str(s) => Err(serde::de::Error::custom(format!(
+                "expected a number or \"tabs\", got \"{s}\""
+            ))),
         }
     }
 }
