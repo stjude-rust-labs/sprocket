@@ -1409,6 +1409,14 @@ impl TesBackendConfig {
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
+    /// Path to a shared directory for caching pulled `.sif` images.
+    ///
+    /// When set, pulled images are stored in this directory and shared
+    /// across runs. When unset, images are stored in a per-run directory
+    /// that is not shared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_cache_dir: Option<PathBuf>,
+
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     pub extra_apptainer_exec_args: Option<Vec<String>>,
