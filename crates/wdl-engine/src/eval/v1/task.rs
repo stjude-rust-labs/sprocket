@@ -959,7 +959,7 @@ impl Evaluator {
             // Remap any guest symbolic links to the corresponding host paths
             // This must occur *before* we put the result in the cache to ensure consistent
             // work directory digesting
-            if let Err(e) = self.remap_links(&state, &result.work_dir) {
+            if !cached && let Err(e) = self.remap_links(&state, &result.work_dir) {
                 return Err(EvaluationError::new(
                     state.document.clone(),
                     task_execution_failed(&e, state.task.name(), id, state.task.name_span()),
