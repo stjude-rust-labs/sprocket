@@ -57,7 +57,7 @@ pub enum PreToken {
     /// Command sections must account for indentation from both the
     /// WDL context and the embedded Bash context, so this is used to
     /// add additional indentation from the Bash context.
-    TempIndentStart,
+    TempIndentStart(Rc<String>),
 
     /// A temporary indent end. Used in command section formatting.
     ///
@@ -98,7 +98,7 @@ impl std::fmt::Display for PreToken {
                     }
                 },
             },
-            PreToken::TempIndentStart => write!(f, "<TempIndentStart>"),
+            PreToken::TempIndentStart(value) => write!(f, "<TempIndentStart@{value}>"),
             PreToken::TempIndentEnd => write!(f, "<TempIndentEnd>"),
         }
     }

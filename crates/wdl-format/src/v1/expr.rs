@@ -965,8 +965,17 @@ pub fn format_if_expr(
     config: &Config,
 ) {
     for child in element.children().expect("if expr children") {
+        match child.element().kind() {
+            SyntaxKind::ThenKeyword => {
+                stream.increment_indent();
+            }
+            SyntaxKind::ElseKeyword => {
+                stream.end_line();
+            }
+            _ => {}
+        }
         (&child).write(stream, config);
         stream.end_word();
     }
-    stream.trim_end(&PreToken::WordEnd);
+    stream.decrement_indent();
 }

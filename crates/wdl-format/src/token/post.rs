@@ -297,6 +297,22 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     }
 }
 
+/// Tokens that should have a single indent popped from the
+/// stream if they are being added at the start of a line.
+fn should_deindent(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::OpenBrace
+            | SyntaxKind::OpenBracket
+            | SyntaxKind::OpenParen
+            | SyntaxKind::OpenHeredoc
+            | SyntaxKind::CloseBrace
+            | SyntaxKind::CloseBracket
+            | SyntaxKind::CloseParen
+            | SyntaxKind::CloseHeredoc
+    )
+}
+
 /// Tracks a tandem break.
 struct TandemBreak {
     /// The [`SyntaxKind`] which opened this tandem break.
@@ -338,11 +354,8 @@ pub struct Postprocessor {
     /// The current trivial blank line spacing policy.
     line_spacing_policy: TriviaBlankLineSpacingPolicy,
 
-    /// Whether temporary indentation is needed.
-    temp_indent_needed: bool,
-
     /// Temporary indentation to add.
-    temp_indent: Rc<String>,
+    temp_indent: Option<Rc<String>>,
 }
 
 impl Postprocessor {
@@ -418,40 +431,26 @@ impl Postprocessor {
 
                 // This is special handling for inserting the empty string.
                 // We remove any indentation or spaces from the end of the
-                // stream and then add the empty string as a literal.
-                // Then we set the position to [`LinePosition::MiddleOfLine`]
-                // in order to trigger a newline being added before the next
-                // token.
+                // stream before adding the empty string as a literal.
                 if value.is_empty() {
                     self.trim_last_line(stream);
-                    stream.push(PostToken::Literal(value));
-                    self.position = LinePosition::MiddleOfLine;
-                    return;
                 }
 
                 if self.interrupted
-                    && matches!(
-                        kind,
-                        SyntaxKind::OpenBrace
-                            | SyntaxKind::OpenBracket
-                            | SyntaxKind::OpenParen
-                            | SyntaxKind::OpenHeredoc
-                    )
+                    && should_deindent(kind)
                     && matches!(
                         stream.0.last(),
                         Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
                     )
                 {
-                    stream.0.pop();
-                }
-
-                if kind == SyntaxKind::LiteralCommandText {
-                    self.temp_indent = Rc::new(
-                        value
-                            .chars()
-                            .take_while(|c| matches!(c.to_string().as_str(), SPACE | crate::TAB))
-                            .collect(),
-                    );
+                    let popped = stream.0.pop().unwrap();
+                    // We don't actually want to pop the TempIndent token,
+                    // but rather a regualar Indent token before the temp indent.
+                    if matches!(popped, PostToken::TempIndent(_)) {
+                        stream.0.pop_if(|t| matches!(t, PostToken::Indent));
+                        // Restore the popped TempIndent
+                        stream.0.push(popped);
+                    }
                 }
 
                 stream.push(PostToken::Literal(value));
@@ -471,13 +470,7 @@ impl Postprocessor {
                 Trivia::Comment(comment) => {
                     match comment {
                         Comment::Preceding(value) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline)
-                                    | Some(&PostToken::Indent)
-                                    | Some(&PostToken::TempIndent(_))
-                                    | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -497,10 +490,7 @@ impl Postprocessor {
                             stream.push(PostToken::Literal(value));
                         }
                         Comment::Documentation(contents) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -510,10 +500,7 @@ impl Postprocessor {
                             });
                         }
                         Comment::Directive(directive) => {
-                            if !matches!(
-                                stream.0.last(),
-                                Some(&PostToken::Newline) | Some(&PostToken::Indent) | None
-                            ) {
+                            if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
@@ -527,11 +514,11 @@ impl Postprocessor {
                     self.end_line(stream);
                 }
             },
-            PreToken::TempIndentStart => {
-                self.temp_indent_needed = true;
+            PreToken::TempIndentStart(bash_indent) => {
+                self.temp_indent = Some(bash_indent);
             }
             PreToken::TempIndentEnd => {
-                self.temp_indent_needed = false;
+                self.temp_indent = None;
             }
         }
     }
@@ -548,6 +535,7 @@ impl Postprocessor {
         let mut post_buffer = TokenStream::<PostToken>::default();
         let mut pre_buffer = in_stream.iter().peekable();
         let starting_indent = self.indent_level;
+        let starting_temp_indent = self.temp_indent.clone();
         while let Some(token) = pre_buffer.next() {
             let next = pre_buffer.peek().copied();
             self.step(token.clone(), next, &mut post_buffer);
@@ -594,7 +582,10 @@ impl Postprocessor {
         post_buffer.clear();
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
 
-        // Reset the indent level.
+        // Reset self.
+        self.interrupted = false;
+        self.position = LinePosition::StartOfLine;
+        self.temp_indent = starting_temp_indent;
         self.indent_level = starting_indent;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
@@ -602,30 +593,25 @@ impl Postprocessor {
         while let Some((i, token)) = pre_buffer.next() {
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
+                // Check if we need a break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *break_kind == top_of_stack.open {
-                        top_of_stack.depth += 1;
-                    } else if *break_kind == top_of_stack.close {
+                    if *break_kind == top_of_stack.close {
                         if top_of_stack.depth > 0 {
                             top_of_stack.depth -= 1;
                         } else {
                             break_stack.pop();
-                            self.interrupted = false;
+                            self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
                         }
+                    } else if *break_kind == top_of_stack.open {
+                        top_of_stack.depth += 1;
                     }
-                } else if post_buffer.last_line_width(config) > max_length {
-                    // The line is already too long, and taking the next step
-                    // can only make it worse. Insert a line break here.
-                    self.interrupted = true;
-                    self.end_line(&mut post_buffer);
-                } else {
-                    // The line is not too long yet, but it might be after the
-                    // next step. Cache the current state so we can revert to it
-                    // if necessary.
-                    cache = Some(post_buffer.clone());
                 }
+                // Cache the current state so we can revert to it if
+                // necessary.
+                cache = Some(post_buffer.clone());
             }
+
             self.step(
                 token.clone(),
                 pre_buffer.peek().map(|(_, v)| &**v),
@@ -646,19 +632,25 @@ impl Postprocessor {
                     &mut post_buffer,
                 );
 
+                // Check if this introduces a tandem break
                 // SAFETY: if cache is Some(_) this step must have a potential line break
-                let cur_token = potential_line_breaks.get(&i).unwrap();
-                if let Some(also_break_on) = tandem_line_break(*cur_token) {
+                let break_kind = potential_line_breaks.get(&i).unwrap();
+                if let Some(also_break_on) = tandem_line_break(*break_kind) {
                     let tandem_break = TandemBreak {
-                        open: *cur_token,
+                        open: *break_kind,
                         close: also_break_on,
                         depth: 0,
                     };
                     break_stack.push(tandem_break);
+                    self.indent_level += 1;
                 }
             }
         }
 
+        // reduce indent for breaks never added
+        for _ in break_stack {
+            self.indent_level -= 1;
+        }
         out_stream.extend(post_buffer);
     }
 
@@ -676,7 +668,7 @@ impl Postprocessor {
     }
 
     /// Trims spaces and indents (and not newlines) from the end of the stream.
-    fn trim_last_line(&mut self, stream: &mut TokenStream<PostToken>) {
+    fn trim_last_line(&self, stream: &mut TokenStream<PostToken>) {
         stream.trim_while(|token| {
             matches!(
                 token,
@@ -701,10 +693,14 @@ impl Postprocessor {
     }
 
     /// Pushes the current indentation level to the stream.
+    ///
     /// This should only be called when the state is
-    /// [`LinePosition::StartOfLine`]. This does not change the state.
+    /// [`LinePosition::StartOfLine`]. This does not change the state
+    /// and is safe to call multiple times in a row.
     fn indent(&self, stream: &mut TokenStream<PostToken>) {
         assert!(self.position == LinePosition::StartOfLine);
+
+        self.trim_last_line(stream);
 
         let level = if self.interrupted {
             self.indent_level + 1
@@ -716,8 +712,8 @@ impl Postprocessor {
             stream.push(PostToken::Indent);
         }
 
-        if self.temp_indent_needed {
-            stream.push(PostToken::TempIndent(self.temp_indent.clone()));
+        if let Some(ref temp_indent) = self.temp_indent {
+            stream.push(PostToken::TempIndent(temp_indent.clone()));
         }
     }
 
