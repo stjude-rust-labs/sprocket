@@ -41,7 +41,7 @@ codespan-reporting = "0.13.1"
 colored = "3.1.1"
 config = { version = "0.15.21", features = ["toml", "preserve_order"] }
 convert_case = "0.11.0"
-crankshaft = { version = "0.9.0", features = ["docker"] }
+crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft", rev = "d1ccadb", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 faster-hex = "0.10.0"

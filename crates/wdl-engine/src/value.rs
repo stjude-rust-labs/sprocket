@@ -3087,7 +3087,8 @@ impl Coercible for HiddenValue {
 /// Contains all evaluated requirement fields.
 #[derive(Debug, Clone)]
 pub(crate) struct TaskPostEvaluationData {
-    /// The container of the task.
+    /// The container image that was actually used for execution, if the task
+    /// runs in a container.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
     cpu: f64,
@@ -3373,10 +3374,7 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints
-                    .container
-                    .as_ref()
-                    .map(|c| Arc::new(c.to_string())),
+                container: None,
                 cpu: constraints.cpu,
                 memory: constraints
                     .memory
@@ -3504,6 +3502,12 @@ impl TaskPostEvaluationValue {
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
         &self.0.ext
+    }
+
+    /// Sets the container image after task execution has completed.
+    pub(crate) fn set_container(&mut self, container: String) {
+        let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
+        Arc::make_mut(&mut inner.data).container = Some(Arc::new(container));
     }
 
     /// Sets the return code after the task execution has completed.

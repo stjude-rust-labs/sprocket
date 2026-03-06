@@ -119,10 +119,10 @@ impl Input {
 /// Represents constraints applied to a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionConstraints {
-    /// The container the task will run in.
+    /// The container images to try, in priority order.
     ///
     /// A value of `None` indicates the task will run on the host.
-    pub container: Option<ContainerSource>,
+    pub container: Option<Vec<ContainerSource>>,
     /// The allocated number of CPUs; must be greater than 0.
     pub cpu: f64,
     /// The allocated memory in bytes; must be greater than 0.
@@ -209,6 +209,8 @@ impl<'a> ExecuteTaskRequest<'a> {
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
+    /// The container image that was actually used for execution.
+    pub container: Option<ContainerSource>,
     /// Stores the task process exit code.
     pub exit_code: i32,
     /// The task's working directory.

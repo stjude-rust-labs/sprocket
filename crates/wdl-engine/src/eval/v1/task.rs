@@ -767,6 +767,7 @@ impl Evaluator {
                         container: &constraints
                             .container
                             .as_ref()
+                            .and_then(|c| c.first())
                             .map(|c| format!("{c:#}"))
                             .unwrap_or_default(),
                         shell: &self.config.task.shell,
@@ -927,6 +928,9 @@ impl Evaluator {
                         task = state.task.name()
                     )
                 })?);
+                if let Some(container) = &result.container {
+                    task.set_container(container.to_string());
+                }
                 task.set_return_code(result.exit_code);
             }
 
