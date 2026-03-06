@@ -999,15 +999,9 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+                    self.config.task.shell.as_deref(),
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?
