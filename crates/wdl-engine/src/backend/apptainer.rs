@@ -60,13 +60,19 @@ pub struct ApptainerRuntime {
 impl ApptainerRuntime {
     /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
-    /// An images cache directory will be created in the given root.
-    pub fn new(root_dir: &Path) -> Result<Self> {
+    /// If `image_cache_dir` is provided, it is used as the directory for
+    /// caching `.sif` images. Otherwise, a default subdirectory is created
+    /// within the given root.
+    pub fn new(root_dir: &Path, image_cache_dir: Option<&Path>) -> Result<Self> {
+        let cache_dir = image_cache_dir
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| root_dir.join(IMAGES_CACHE_DIR));
+
         Ok(Self {
-            cache_dir: absolute(root_dir.join(IMAGES_CACHE_DIR)).with_context(|| {
+            cache_dir: absolute(&cache_dir).with_context(|| {
                 format!(
-                    "failed to make path `{root_dir}` absolute",
-                    root_dir = root_dir.display()
+                    "failed to make path `{path}` absolute",
+                    path = cache_dir.display()
                 )
             })?,
             images: Default::default(),
@@ -276,7 +282,7 @@ impl ApptainerRuntime {
                 }
             }
 
-            path.set_extension("sif");
+            path.add_extension("sif");
 
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await.with_context(|| {
@@ -412,7 +418,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
         let _ = runtime
             .generate_script(
                 &Default::default(),
@@ -463,7 +469,7 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs")).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
         let script = runtime
             .generate_script(
                 &Default::default(),
