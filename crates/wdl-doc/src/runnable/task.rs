@@ -176,9 +176,15 @@ impl Task {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-violet-400" { "Task" }
-                h1 id="title" class="main__title" { code { (self.name()) } }
+            div
+                class="main__container"
+                data-pagefind-body
+                meta-img-dark="task-selected.svg"
+                meta-img-light="task-selected.light.svg"
+                data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+            {
+                span class="text-brand-violet-400" data-pagefind-ignore { "Task" }
+                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
                 div class="markdown-body mb-4" {
                     (self.render_description(false))
                 }

@@ -53,7 +53,15 @@ static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Binary file extensions that should only be checked for existence.
-const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
+const BINARY_EXTENSIONS: &[&str] = &[
+    "db",
+    "sqlite",
+    "sqlite3",
+    "pagefind",
+    "pf_fragment",
+    "pf_index",
+    "pf_meta",
+];
 
 /// Transient file suffixes that should be removed during `BLESS`.
 const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];

@@ -110,9 +110,15 @@ impl Enum {
 
         let definition = self.definition.display(None);
         let markup = html! {
-            div class="main__container" {
-                p class="text-brand-lime-300" { "Enum" }
-                h1 id="title" class="main__title" { code { (name) } }
+            div
+                class="main__container"
+                data-pagefind-body
+                meta-img-dark="enum-selected.svg"
+                meta-img-light="enum-selected.light.svg"
+                data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+            {
+                p class="text-brand-lime-300" data-pagefind-ignore { "Enum" }
+                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
                 div class="markdown-body mb-4" {
                     (self.meta.render_description(false))
                 }
