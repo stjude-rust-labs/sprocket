@@ -20,6 +20,7 @@ use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
+use wdl::format::NewlineStyle;
 
 use crate::diagnostics::Mode;
 
@@ -134,6 +135,8 @@ pub struct FormatConfig {
     pub max_line_length: usize,
     /// Enable sorting of input sections.
     pub sort_inputs: bool,
+    /// The newline style to use.
+    pub newline_style: NewlineStyle,
 }
 
 impl Default for FormatConfig {
@@ -147,6 +150,7 @@ impl Default for FormatConfig {
                 .get()
                 .expect("should have a max line length"),
             sort_inputs: config.sort_inputs,
+            newline_style: NewlineStyle::default(),
         }
     }
 }

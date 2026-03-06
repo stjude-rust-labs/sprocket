@@ -9,7 +9,6 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 
 use crate::Comment;
-use crate::NEWLINE;
 use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
@@ -194,7 +193,7 @@ impl TokenStream<PreToken> {
                         // do not `trim()` the token as the whitespace may
                         // have syntactical meaning in markdown
                         documentation.push_str(t);
-                        documentation.push_str(NEWLINE);
+                        documentation.push('\n');
                     } else if let Ok(directive) = token.text().parse::<Directive>() {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
