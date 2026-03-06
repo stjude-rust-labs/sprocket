@@ -1,5 +1,4 @@
 #@ except: RequirementsSection, MetaDescription, RuntimeSection
-#@ except: ElementSpacing
 
 version 1.3
 

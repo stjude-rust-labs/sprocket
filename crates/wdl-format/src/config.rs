@@ -10,6 +10,8 @@ pub use newline::NewlineStyle;
 use serde::Deserialize;
 use serde::Serialize;
 
+/// Default for whether import sorting is enabled.
+const SORT_IMPORTS_DEFAULT: bool = true;
 /// Default for whether input sorting is enabled.
 const SORT_INPUTS_DEFAULT: bool = false;
 /// Default for whether trailing commas are enabled.
@@ -23,6 +25,8 @@ pub struct Config {
     pub indent: Indent,
     /// The maximum line length.
     pub max_line_length: MaxLineLength,
+    /// Whether to sort import statements alphabetically.
+    pub sort_imports: bool,
     /// Whether to sort input sections.
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
@@ -36,6 +40,7 @@ impl Default for Config {
         Self {
             indent: Indent::default(),
             max_line_length: MaxLineLength::default(),
+            sort_imports: SORT_IMPORTS_DEFAULT,
             sort_inputs: SORT_INPUTS_DEFAULT,
             trailing_commas: TRAILING_COMMAS_DEFAULT,
             newline_style: NewlineStyle::default(),
@@ -59,6 +64,12 @@ impl Config {
     /// Overwrite the maximum line length configuration.
     pub fn max_line_length(mut self, max_line_length: MaxLineLength) -> Self {
         self.max_line_length = max_line_length;
+        self
+    }
+
+    /// Set whether import sorting is enabled.
+    pub fn sort_imports(mut self, sort_imports: bool) -> Self {
+        self.sort_imports = sort_imports;
         self
     }
 

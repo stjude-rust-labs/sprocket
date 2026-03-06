@@ -177,7 +177,7 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             false,
         )?;
         run_test_inner(
-            config,
+            FormatConfig::default(),
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
