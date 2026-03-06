@@ -9,6 +9,9 @@ use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::doc::AdditionalScript;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
@@ -21,9 +24,6 @@ use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -230,7 +230,6 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                             false
                         }),
-                        &[],
                         args.report_mode.unwrap_or_default(),
                         colorize,
                     )
