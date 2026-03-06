@@ -125,8 +125,8 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         config.format.indent
     };
 
-    let max_line_length = if args.max_line_length.is_some() {
-        MaxLineLength::try_new(args.max_line_length)
+    let max_line_length = if let Some(max) = args.max_line_length {
+        MaxLineLength::try_new(if max == 0 { None } else { Some(max) })
             .context("failed to create max line length configuration")?
     } else {
         config.format.max_line_length
