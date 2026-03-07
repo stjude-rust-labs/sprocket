@@ -2,7 +2,6 @@
 
 use std::collections::HashSet;
 use std::fs;
-use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -343,9 +342,13 @@ impl DocumentGraphNode {
                             SyntaxNode::new_root(root.clone()).text().to_string(),
                             lines.clone(),
                         ),
-                        _ => panic!(
-                            "cannot apply edits to a document that was not previously parsed"
-                        ),
+                        _ => {
+                            tracing::warn!(
+                            uri = %self.uri,
+                                "document not yet parsed, falling back to full parse"
+                            );
+                            return self.full_parse(tokio, client);
+                        }
                     }
                 };
 
