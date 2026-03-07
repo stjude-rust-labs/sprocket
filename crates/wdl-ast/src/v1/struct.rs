@@ -2,19 +2,20 @@
 
 use std::fmt;
 
+use wdl_grammar::SyntaxTokenExt;
+
 use super::MetadataSection;
 use super::ParameterMetadataSection;
 use super::StructKeyword;
 use super::UnboundDecl;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::TreeNode;
-use crate::v1::MetadataValue;
-use crate::v1::display::format_meta_value;
-use crate::v1::display::get_param_meta;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,39 +53,6 @@ impl<N: TreeNode> StructDefinition<N> {
     ) -> impl Iterator<Item = ParameterMetadataSection<N>> + use<'_, N> {
         self.children()
     }
-
-    /// Writes a Markdown formatted description of the struct.
-    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "```wdl")?;
-        writeln!(f, "{self}")?;
-        writeln!(f, "```\n---")?;
-
-        if let Some(meta) = self.metadata().next()
-            && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
-            && let MetadataValue::String(s) = desc.value()
-            && let Some(text) = s.text()
-        {
-            writeln!(f, "{}\n", text.text())?;
-        }
-
-        let members: Vec<_> = self.members().collect();
-        if !members.is_empty() {
-            writeln!(f, "\n**Members**")?;
-            for member in members {
-                let name = member.name();
-                write!(f, "- **{}**: `{}`", name.text(), member.ty().inner().text())?;
-                if let Some(meta_val) =
-                    get_param_meta(name.text(), self.parameter_metadata().next().as_ref())
-                {
-                    writeln!(f)?;
-                    format_meta_value(f, &meta_val, 2)?;
-                }
-                writeln!(f)?;
-            }
-        }
-
-        Ok(())
-    }
 }
 
 impl<N: TreeNode> fmt::Display for StructDefinition<N> {
@@ -117,6 +85,12 @@ impl<N: TreeNode> AstNode<N> for StructDefinition<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for StructDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
 

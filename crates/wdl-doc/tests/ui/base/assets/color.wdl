@@ -21,19 +21,15 @@ enum Color[String] {
     Blue = "#0000FF" # No description
 }
 
+## Returns the caller's favorite color.
 workflow favorite_color {
-    meta {
-        description: "Returns the caller's favorite color."
-        outputs: {
-            result: "The caller's favorite color."
-        }
-    }
-
     input {
+        ## The color to check.
         Color favorite_color
     }
 
     output {
+        ## The caller's favorite color.
         Color result = favorite_color
     }
 }
@@ -76,21 +72,17 @@ task is_green {
     }
 }
 
+## Determines if a color is blue.
 task is_blue {
-    meta {
-        description: "Determines if a color is blue."
-        outputs: {
-            result: "Whether the input is blue."
-        }
-    }
-
     input {
+        ## The color to check.
         Color color
     }
 
     command { }
 
     output {
+        ## Whether the input is blue.
         Boolean result = color == Color.Blue
     }
 }

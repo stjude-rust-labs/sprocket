@@ -1,8 +1,7 @@
 //! V1 AST representation for task definitions.
 
-use std::fmt;
-
 use rowan::NodeOrToken;
+use wdl_grammar::SyntaxTokenExt;
 
 use super::BoundDecl;
 use super::Decl;
@@ -14,17 +13,22 @@ use super::LiteralString;
 use super::OpenHeredoc;
 use super::Placeholder;
 use super::StructDefinition;
+use super::TaskKeyword;
 use super::WorkflowDefinition;
 use crate::AstNode;
 use crate::AstToken;
+use crate::Comment;
+use crate::Documented;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::TreeNode;
 use crate::TreeToken;
-use crate::v1::display::write_input_section;
-use crate::v1::display::write_output_section;
+use crate::v1::CommandKeyword;
+use crate::v1::MetaKeyword;
+use crate::v1::ParameterMetaKeyword;
+use crate::v1::RequirementsKeyword;
 
 pub mod common;
 pub mod requirements;
@@ -353,6 +357,11 @@ impl<N: TreeNode> TaskDefinition<N> {
         self.token().expect("task should have a name")
     }
 
+    /// Gets the `task` keyword of the task definition.
+    pub fn keyword(&self) -> TaskKeyword<N::Token> {
+        self.token().expect("task should have a keyword")
+    }
+
     /// Gets the items of the task.
     pub fn items(&self) -> impl Iterator<Item = TaskItem<N>> + use<'_, N> {
         TaskItem::children(&self.0)
@@ -402,28 +411,6 @@ impl<N: TreeNode> TaskDefinition<N> {
     pub fn declarations(&self) -> impl Iterator<Item = BoundDecl<N>> + use<'_, N> {
         self.children()
     }
-
-    /// Writes a Markdown formatted description of the task.
-    pub fn markdown_description(&self, f: &mut impl fmt::Write) -> fmt::Result {
-        writeln!(f, "```wdl\ntask {}\n```\n---", self.name().text())?;
-
-        if let Some(meta) = self.metadata()
-            && let Some(desc) = meta.items().find(|i| i.name().text() == "description")
-            && let MetadataValue::String(s) = desc.value()
-            && let Some(text) = s.text()
-        {
-            writeln!(f, "{}\n", text.text())?;
-        }
-
-        write_input_section(f, self.input().as_ref(), self.parameter_metadata().as_ref())?;
-        write_output_section(
-            f,
-            self.output().as_ref(),
-            self.parameter_metadata().as_ref(),
-        )?;
-
-        Ok(())
-    }
 }
 
 impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {
@@ -440,6 +427,12 @@ impl<N: TreeNode> AstNode<N> for TaskDefinition<N> {
 
     fn inner(&self) -> &N {
         &self.0
+    }
+}
+
+impl Documented<SyntaxNode> for TaskDefinition<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
 
@@ -1230,6 +1223,12 @@ impl<N: TreeNode> CommandSection<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
     }
+
+    /// Gets the `command` keyword.
+    pub fn keyword(&self) -> CommandKeyword<N::Token> {
+        self.token()
+            .expect("CommandSection must have CommandKeyword")
+    }
 }
 
 impl<N: TreeNode> AstNode<N> for CommandSection<N> {
@@ -1348,6 +1347,12 @@ impl<N: TreeNode> RequirementsSection<N> {
         // NOTE: validation should ensure that, at most, one `container` item exists in
         // the `requirements` section.
         self.child()
+    }
+
+    /// Gets the `requirements` keyword.
+    pub fn keyword(&self) -> RequirementsKeyword<N::Token> {
+        self.token()
+            .expect("RequirementsSection must have RequirementsKeyword")
     }
 }
 
@@ -1569,6 +1574,11 @@ impl<N: TreeNode> MetadataSection<N> {
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
+    }
+
+    /// Gets the `meta` keyword.
+    pub fn keyword(&self) -> MetaKeyword<N::Token> {
+        self.token().expect("MetadataSection must have MetaKeyword")
     }
 }
 
@@ -1858,6 +1868,12 @@ impl<N: TreeNode> ParameterMetadataSection<N> {
     pub fn parent(&self) -> SectionParent<N> {
         SectionParent::cast(self.0.parent().expect("should have a parent"))
             .expect("parent should cast")
+    }
+
+    /// Gets the `parameter_meta` keyword.
+    pub fn keyword(&self) -> ParameterMetaKeyword<N::Token> {
+        self.token()
+            .expect("ParameterMetadataSection must have ParameterMetaKeyword")
     }
 }
 

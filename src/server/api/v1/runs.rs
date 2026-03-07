@@ -213,9 +213,15 @@ pub async fn submit_run(
     State(state): State<AppState>,
     Json(request): Json<SubmitRunRequest>,
 ) -> Result<Json<SubmitResponse>, Error> {
+    let Value::Object(inputs) = request.inputs else {
+        return Err(Error::BadRequest(
+            "inputs must be a JSON object".to_string(),
+        ));
+    };
+
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::Submit {
         source: request.source,
-        inputs: request.inputs,
+        inputs,
         target: request.target,
         index_on: request.index_on,
         rx,

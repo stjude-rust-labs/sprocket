@@ -48,8 +48,7 @@ fn collect_by_key(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     for v in array.as_slice() {
         let pair = v.as_pair().expect("value should be a pair");
         map.entry(match pair.left() {
-            Value::None(_) => None,
-            Value::Primitive(v) => Some(v.clone()),
+            Value::Primitive(v) => v.clone(),
             _ => unreachable!("value should be primitive"),
         })
         .or_default()
@@ -75,7 +74,8 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any primitive type",
+                "(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any non-optional \
+                 primitive type",
                 Callback::Sync(collect_by_key),
             )]
         },
@@ -111,14 +111,13 @@ mod test {
         let value = eval_v1_expr(
             &env,
             V1::Two,
-            "collect_by_key([('a', 1), (None, 2), ('a', 3), (None, 4), ('b', 5), ('c', 6), ('b', \
-             7)])",
+            "collect_by_key([(1, 1), (2, 2), (1, 3), (2, 4), (3, 5), (4, 6), (3, 7)])",
         )
         .await
         .unwrap();
         assert_eq!(
             value.to_string(),
-            r#"{"a": [1, 3], None: [2, 4], "b": [5, 7], "c": [6]}"#
+            r#"{1: [1, 3], 2: [2, 4], 3: [5, 7], 4: [6]}"#
         );
     }
 }

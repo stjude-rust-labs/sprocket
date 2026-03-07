@@ -175,7 +175,7 @@ pub fn format_call_statement(
 
             if let Some(comma) = commas.next() {
                 (comma).write(stream, config);
-            } else {
+            } else if config.trailing_commas {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
 

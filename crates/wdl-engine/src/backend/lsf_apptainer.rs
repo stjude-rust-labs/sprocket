@@ -380,11 +380,12 @@ struct SubmittedJob {
     ///
     /// Note: this name differs from the job name used in `bsub`.
     task_name: String,
-    /// The reciever for when the job completes.
+    /// The receiver for when the job completes.
     completed: oneshot::Receiver<Result<u8>>,
 }
 
-/// The monitor is responsible for
+/// The monitor is responsible for periodically querying LSF for job state and
+/// sending task events.
 #[derive(Debug, Clone)]
 struct Monitor {
     /// The state of the monitor.
@@ -508,7 +509,7 @@ impl Monitor {
             .context("failed to wait for `bsub` to exit")?;
         if !output.status.success() {
             bail!(
-                "`bsub` failed: {status}: {stderr}",
+                "failed to submit LSF job with `bsub` ({status})\n{stderr}",
                 status = output.status,
                 stderr = str::from_utf8(&output.stderr)
                     .unwrap_or("<output not UTF-8>")
@@ -703,11 +704,16 @@ impl LsfApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
+        let apptainer = ApptainerRuntime::new(
+            run_root_dir,
+            backend_config.apptainer_config.image_cache_dir.as_deref(),
+        )?;
+
         Ok(Self {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir),
+            apptainer,
             monitor,
             permits,
         })
@@ -885,15 +891,9 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+                    self.config.task.shell.as_deref(),
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?
@@ -975,9 +975,14 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 }
                 result = job.completed => match result.context("failed to wait for task to complete")? {
                     Ok(exit_code) => {
-                        // See WEXITSTATUS from wait(2) to explain the shift
+                        // See WEXITSTATUS from wait(2) to explain the shift and masking here
                         #[cfg(unix)]
-                        let status = ExitStatus::from_raw((exit_code as i32) << 8);
+                        let status = if exit_code >= 128 {
+                            // Treat it as a signal
+                            ExitStatus::from_raw((exit_code as i32 - 128) & 0x7f)
+                        } else {
+                            ExitStatus::from_raw((exit_code as i32) << 8)
+                        };
 
                         #[cfg(windows)]
                         let status = ExitStatus::from_raw(exit_code as u32);

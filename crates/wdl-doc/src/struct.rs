@@ -4,8 +4,8 @@ use std::path::Path;
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::MetadataValue;
@@ -81,9 +81,9 @@ impl Struct {
                 acc
             });
 
-        if enable_doc_comments {
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
-            meta.append(&mut doc_comments(definition.keyword().inner()));
+            meta.append(&mut doc_comments(comments));
         }
 
         let parameter_meta = definition
@@ -192,14 +192,12 @@ fn parse_member_meta(
                 }
             }
 
-            if enable_doc_comments {
+            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
-                if let Some(token) = decl.inner().first_token() {
-                    meta_map.append(&mut doc_comments(&token));
-                }
+                meta_map.append(&mut doc_comments(comments));
             }
 
-            Member::new(Decl::Unbound(decl.clone()), meta_map)
+            Member::new(Decl::Unbound(decl), meta_map)
         })
         .collect()
 }

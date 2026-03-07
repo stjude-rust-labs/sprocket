@@ -8,6 +8,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::DOC_COMMENT_PREFIX;
 
 use crate::Rule;
 use crate::Tag;
@@ -16,21 +17,21 @@ use crate::TagSet;
 /// The identifier for the empty doc comment rule.
 const ID: &str = "EmptyDocComment";
 
-/// Creates a diagnostic when an empty documentation comment is found.
+/// Creates a diagnostic when an empty documentation comment block is found.
 fn empty_doc_comment(span: Span) -> Diagnostic {
-    Diagnostic::note("empty doc comment")
+    Diagnostic::note("empty doc comment block")
         .with_rule(ID)
         .with_highlight(span)
-        .with_help("consider adding a comment after the `##` or removing it")
+        .with_help("consider adding meaningful documentation text or removing the comment block")
 }
 
-/// Detects empty documentation comments.
+/// Detects empty documentation comment blocks.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct EmptyDocCommentRule {
     /// The number of comment tokens to skip.
     ///
-    /// This is used when consolidating multiple comments into a single
-    /// diagnostic.
+    /// This is used to avoid processing comments that have already been
+    /// handled as part of a block.
     skip_count: usize,
 }
 
@@ -40,14 +41,16 @@ impl Rule for EmptyDocCommentRule {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that documentation comments are not empty."
+        "Ensures that documentation comment blocks are not empty."
     }
 
     fn explanation(&self) -> &'static str {
-        "Empty documentation comments (starting with `##` but containing no meaningful text) serve \
-         no purpose. Additionally, if a lint for missing documentation comments is added in the \
-         future, these empty comments could be incorrectly used to silence it. Either add \
-         meaningful text to the documentation comment or remove it entirely."
+        "Documentation comment blocks (consecutive lines starting with `##`) where all lines are \
+         empty serve no purpose. Additionally, if a lint for missing documentation comments is \
+         added in the future, these empty comment blocks could be incorrectly used to silence it. \
+         Either add meaningful text to the documentation comment block or remove it entirely. \
+         Note that blank lines within a doc block that contains non-empty lines are acceptable as \
+         paragraph separators."
     }
 
     fn tags(&self) -> TagSet {
@@ -59,7 +62,7 @@ impl Rule for EmptyDocCommentRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["CommentWhitespace", "PreambleCommentPlacement"]
+        &["CommentWhitespace"]
     }
 }
 
@@ -75,61 +78,46 @@ impl Visitor for EmptyDocCommentRule {
             return;
         }
 
-        // Check if this is an inline comment (on the same line as code)
-        // by looking at the previous sibling
-        if let Some(prior) = comment.inner().prev_sibling_or_token() {
-            let is_inline = prior.kind() != SyntaxKind::Whitespace
-                || !prior
-                    .as_token()
-                    .expect("whitespace should be a token")
-                    .text()
-                    .contains('\n');
-
-            if is_inline {
-                return;
-            }
-        }
-
-        let text = comment.text();
-
-        // Check if this is a documentation comment (starts with ##)
-        if !text.starts_with("##") {
+        // Only process documentation comments
+        if !comment.is_doc_comment() {
             return;
         }
 
-        // Extract the content after ##
-        let content = &text[2..];
+        // Collect information about the entire contiguous doc comment block
+        let first_span = comment.span();
+        let mut last_span = first_span;
+        let mut all_empty = {
+            let text = comment.text();
+            let content = text.strip_prefix(DOC_COMMENT_PREFIX).unwrap_or(text);
+            content.trim().is_empty()
+        };
 
-        // Check if the content is empty or only whitespace
-        if !content.trim().is_empty() {
-            return;
-        }
-
-        // We have an empty doc comment - now collect any consecutive empty doc comments
-        let mut span = comment.span();
         let mut current = comment.inner().next_sibling_or_token();
 
         while let Some(sibling) = current {
             match sibling.kind() {
                 SyntaxKind::Comment => {
-                    let sibling_text = sibling.as_token().expect("expected a token").text();
+                    if let Some(c) = Comment::cast(sibling.as_token().unwrap().clone()) {
+                        if c.is_doc_comment() {
+                            // Check if this comment is empty
+                            let text = c.text();
+                            let content = text.strip_prefix(DOC_COMMENT_PREFIX).unwrap_or(text);
+                            if !content.trim().is_empty() {
+                                all_empty = false;
+                            }
 
-                    // Check if this is also an empty doc comment
-                    if sibling_text.starts_with("##") && sibling_text[2..].trim().is_empty() {
-                        self.skip_count += 1;
-
-                        // Extend the span to include this comment
-                        span = Span::new(
-                            span.start(),
-                            usize::from(sibling.text_range().end()) - span.start(),
-                        );
+                            last_span = c.span();
+                            self.skip_count += 1;
+                        } else {
+                            // Hit a non-doc comment, stop collecting
+                            break;
+                        }
                     } else {
-                        // Not an empty doc comment, stop collecting
                         break;
                     }
                 }
                 SyntaxKind::Whitespace => {
-                    // Continue through whitespace to find more comments
+                    // Continue through whitespace to find more doc comments
                 }
                 _ => {
                     // Hit a non-comment, non-whitespace element, stop
@@ -140,10 +128,16 @@ impl Visitor for EmptyDocCommentRule {
             current = sibling.next_sibling_or_token();
         }
 
-        diagnostics.exceptable_add(
-            empty_doc_comment(span),
-            SyntaxElement::from(comment.inner().clone()),
-            &self.exceptable_nodes(),
-        );
+        // Only flag if all comments in the block are empty
+        if all_empty {
+            // Calculate the span for the entire block
+            let span = Span::new(first_span.start(), last_span.end() - first_span.start());
+
+            diagnostics.exceptable_add(
+                empty_doc_comment(span),
+                SyntaxElement::from(comment.inner().clone()),
+                &self.exceptable_nodes(),
+            );
+        }
     }
 }

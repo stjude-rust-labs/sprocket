@@ -39,9 +39,9 @@ warning[SnakeCase]: output name `badOut` is not snake_case
    = fix: replace `badOut` with `bad_out`
 
 warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
-   ┌─ tests/lints/snake-case/source.wdl:71:12
+   ┌─ tests/lints/snake-case/source.wdl:82:12
    │
-71 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+82 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
    │            ^^^^^^^^ this name must be snake_case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`

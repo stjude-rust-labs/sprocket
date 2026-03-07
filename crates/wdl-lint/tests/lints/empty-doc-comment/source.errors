@@ -1,65 +1,36 @@
-note[EmptyDocComment]: empty doc comment
+note[EmptyDocComment]: empty doc comment block
   ┌─ tests/lints/empty-doc-comment/source.wdl:5:1
   │
 5 │ ##
   │ ^^
   │
-  = help: consider adding a comment after the `##` or removing it
+  = help: consider adding meaningful documentation text or removing the comment block
 
-error: struct `Foo` must have at least one declared member
-  ┌─ tests/lints/empty-doc-comment/source.wdl:6:8
-  │
-6 │ struct Foo {}
-  │        ^^^ this struct cannot be empty
-
-note[EmptyDocComment]: empty doc comment
-   ┌─ tests/lints/empty-doc-comment/source.wdl:8:1
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
    │  
- 8 │ ╭ ##
- 9 │ │ 
-10 │ │ ##
+10 │ ╭ ##
+11 │ │ 
+12 │ │ ##
    │ ╰──^
    │  
-   = help: consider adding a comment after the `##` or removing it
+   = help: consider adding meaningful documentation text or removing the comment block
 
-error: struct `Qux` must have at least one declared member
-   ┌─ tests/lints/empty-doc-comment/source.wdl:16:8
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:34:1
    │
-16 │ struct Qux {}
-   │        ^^^ this struct cannot be empty
-
-error: struct `Normal` must have at least one declared member
-   ┌─ tests/lints/empty-doc-comment/source.wdl:19:8
-   │
-19 │ struct Normal {}
-   │        ^^^^^^ this struct cannot be empty
-
-note[EmptyDocComment]: empty doc comment
-   ┌─ tests/lints/empty-doc-comment/source.wdl:21:1
-   │
-21 │ ##   
+34 │ ##   
    │ ^^^^^
    │
-   = help: consider adding a comment after the `##` or removing it
+   = help: consider adding meaningful documentation text or removing the comment block
 
-error: struct `WhitespaceOnly` must have at least one declared member
-   ┌─ tests/lints/empty-doc-comment/source.wdl:22:8
-   │
-22 │ struct WhitespaceOnly {}
-   │        ^^^^^^^^^^^^^^ this struct cannot be empty
-
-note[EmptyDocComment]: empty doc comment
-   ┌─ tests/lints/empty-doc-comment/source.wdl:26:1
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:49:1
    │  
-26 │ ╭ ##
-27 │ │ ##
+49 │ ╭ ##
+50 │ │ ##
+51 │ │ ##
    │ ╰──^
    │  
-   = help: consider adding a comment after the `##` or removing it
-
-error: struct `MultipleEmpty` must have at least one declared member
-   ┌─ tests/lints/empty-doc-comment/source.wdl:29:8
-   │
-29 │ struct MultipleEmpty {}
-   │        ^^^^^^^^^^^^^ this struct cannot be empty
+   = help: consider adding meaningful documentation text or removing the comment block
 

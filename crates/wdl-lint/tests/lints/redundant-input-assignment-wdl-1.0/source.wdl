@@ -12,7 +12,7 @@ workflow test {
 
     # This should not flag any notes, since version is 1.0
     call bar { input:
-        arm,
+        arm = arm,
         bam = bam + 3,
         cam = cam,
    }

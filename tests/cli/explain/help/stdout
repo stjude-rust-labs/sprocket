@@ -53,7 +53,6 @@ Options:
 
 Available rules:
   - CallInputKeyword
-  - CallInputSpacing
   - CommandSectionIndentation
   - ConciseInput
   - ConsistentNewlines
@@ -62,23 +61,19 @@ Available rules:
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
+  - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
-  - ElementSpacing
   - EmptyDocComment
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
-  - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
-  - ImportSorted
   - InputName
   - InputSorted
   - KnownRules
-  - LineWidth
   - MatchingOutputMeta
   - MetaDescription
-  - MetaKeyValueFormatting
   - MetaSections
   - OutputName
   - ParameterMetaMatched
@@ -90,10 +85,10 @@ Available rules:
   - ShellCheck
   - SnakeCase
   - TodoComment
-  - TrailingComma
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
+  - UnusedDocComments
   - UnusedImport
   - UnusedInput
   - UsingFallbackVersion

@@ -1,1 +1,4 @@
-error: path `file://example.com/tmp/data.txt` does not exist
+error: failed to resolve input paths
+
+Caused by:
+    path `file://example.com/tmp/data.txt` does not exist

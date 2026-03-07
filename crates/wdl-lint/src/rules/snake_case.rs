@@ -1,6 +1,7 @@
 //! A lint rule for ensuring tasks, workflows, and variables are named using
 //! snake_case.
 
+use std::collections::HashSet;
 use std::fmt;
 
 use convert_case::Boundary;
@@ -23,6 +24,7 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::UnboundDecl;
 use wdl_ast::v1::WorkflowDefinition;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -71,6 +73,7 @@ fn snake_case(context: Context, name: &str, properly_cased_name: &str, span: Spa
 /// Checks if the given name is snake case, and if not adds a warning to the
 /// diagnostics.
 fn check_name(
+    allowed_names: &HashSet<String>,
     context: Context,
     name: &str,
     span: Span,
@@ -78,6 +81,10 @@ fn check_name(
     element: SyntaxElement,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
+    if allowed_names.contains(name) {
+        return;
+    }
+
     let converter = Converter::new()
         .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
         .to_case(Case::Snake);
@@ -89,7 +96,7 @@ fn check_name(
 }
 
 /// Detects non-snake_cased identifiers.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SnakeCaseRule {
     /// Whether the visitor is currently within a struct.
     within_struct: bool,
@@ -97,6 +104,20 @@ pub struct SnakeCaseRule {
     within_input: bool,
     /// Whether the visitor is currently within an output section.
     within_output: bool,
+    /// Allowed names from the config.
+    allowed_names: HashSet<String>,
+}
+
+impl SnakeCaseRule {
+    /// Create a new instance of `SnakeCaseRule`.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            within_struct: false,
+            within_input: false,
+            within_output: false,
+            allowed_names: config.allowed_names.clone(),
+        }
+    }
 }
 
 impl SnakeCaseRule {
@@ -152,7 +173,12 @@ impl Rule for SnakeCaseRule {
 
 impl Visitor for SnakeCaseRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        *self = Self {
+            allowed_names: std::mem::take(&mut self.allowed_names),
+            within_struct: false,
+            within_input: false,
+            within_output: false,
+        };
     }
 
     fn struct_definition(
@@ -215,6 +241,7 @@ impl Visitor for SnakeCaseRule {
 
         let name = task.name();
         check_name(
+            &self.allowed_names,
             Context::Task,
             name.text(),
             name.span(),
@@ -236,6 +263,7 @@ impl Visitor for SnakeCaseRule {
 
         let name = workflow.name();
         check_name(
+            &self.allowed_names,
             Context::Workflow,
             name.text(),
             name.span(),
@@ -253,6 +281,7 @@ impl Visitor for SnakeCaseRule {
         let name = decl.name();
         let context = self.determine_decl_context();
         check_name(
+            &self.allowed_names,
             context,
             name.text(),
             name.span(),
@@ -275,6 +304,7 @@ impl Visitor for SnakeCaseRule {
         let name = decl.name();
         let context = self.determine_decl_context();
         check_name(
+            &self.allowed_names,
             context,
             name.text(),
             name.span(),

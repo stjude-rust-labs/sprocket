@@ -70,6 +70,7 @@ impl From<SubmitRunError> for Error {
                 SelectTargetError::TargetRequired => Self::BadRequest(err.to_string()),
                 SelectTargetError::NoExecutableTarget => Self::BadRequest(err.to_string()),
             },
+            SubmitRunError::Json(e) => Self::BadRequest(e.to_string()),
             SubmitRunError::Database(_) => Self::Internal,
             SubmitRunError::Io(_) => Self::Internal,
         }

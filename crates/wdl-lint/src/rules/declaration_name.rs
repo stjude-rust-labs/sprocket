@@ -1,5 +1,7 @@
 //! A lint rule that disallows declaration names with type information.
 
+use std::collections::HashSet;
+
 use wdl_analysis::Diagnostics;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
@@ -13,6 +15,7 @@ use wdl_ast::v1::PrimitiveTypeKind;
 use wdl_ast::v1::Type;
 use wdl_ast::v1::UnboundDecl;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -32,8 +35,20 @@ fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Di
 }
 
 /// A rule that identifies declaration names that include their type names.
-#[derive(Debug, Default)]
-pub struct DeclarationNameRule;
+#[derive(Debug)]
+pub struct DeclarationNameRule {
+    /// Allowed names from the config.
+    allowed_names: HashSet<String>,
+}
+
+impl DeclarationNameRule {
+    /// Create a new instance of `DeclarationNameRule`.
+    pub fn new(config: &Config) -> DeclarationNameRule {
+        Self {
+            allowed_names: config.allowed_names.clone(),
+        }
+    }
+}
 
 impl Rule for DeclarationNameRule {
     fn id(&self) -> &'static str {
@@ -73,19 +88,23 @@ impl Rule for DeclarationNameRule {
 }
 
 impl Visitor for DeclarationNameRule {
-    fn reset(&mut self) {
-        *self = Self;
-    }
+    fn reset(&mut self) {}
 
     fn bound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter {
-            check_decl_name(state, &Decl::Bound(decl.clone()), &self.exceptable_nodes());
+            check_decl_name(
+                &self.allowed_names,
+                state,
+                &Decl::Bound(decl.clone()),
+                &self.exceptable_nodes(),
+            );
         }
     }
 
     fn unbound_decl(&mut self, state: &mut Diagnostics, reason: VisitReason, decl: &UnboundDecl) {
         if reason == VisitReason::Enter {
             check_decl_name(
+                &self.allowed_names,
                 state,
                 &Decl::Unbound(decl.clone()),
                 &self.exceptable_nodes(),
@@ -96,10 +115,17 @@ impl Visitor for DeclarationNameRule {
 
 /// Check declaration name for type suffixes.
 fn check_decl_name(
+    allowed_names: &HashSet<String>,
     state: &mut Diagnostics,
     decl: &Decl,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
+    let ident = decl.name();
+    let name = ident.text();
+    if allowed_names.contains(name) {
+        return;
+    }
+
     let (type_name, alt_type_name) = match decl.ty() {
         Type::Ref(_) => return, // Skip type reference types (user-defined structs)
         Type::Primitive(ty) => {
@@ -118,8 +144,6 @@ fn check_decl_name(
         Type::Object(_) => ("Object", None),
     };
 
-    let ident = decl.name();
-    let name = ident.text();
     let name_lower = name.to_lowercase();
 
     for type_name in [type_name].into_iter().chain(alt_type_name) {

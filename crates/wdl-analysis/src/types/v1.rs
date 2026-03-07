@@ -487,11 +487,15 @@ where
         ty: &v1::MapType<N>,
     ) -> Result<MapType, Diagnostic> {
         let (key_type, value_type) = ty.types();
-        let optional = key_type.is_optional();
-        Ok(MapType::new(
-            Type::Primitive(key_type.kind().into(), optional),
-            self.convert_type(&value_type)?,
-        ))
+        let key_type =
+            Type::Primitive(PrimitiveType::from(key_type.kind()), key_type.is_optional());
+
+        // The key type cannot be optional
+        if key_type.is_optional() {
+            return Err(map_key_not_primitive(ty.types().0.span(), &key_type));
+        }
+
+        Ok(MapType::new(key_type, self.convert_type(&value_type)?))
     }
 
     /// Converts an AST struct definition into a struct type.
@@ -805,7 +809,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             let (key, value) = item.key_value();
             let expected_key = self.evaluate_expr(&key)?;
             match expected_key {
-                Type::Primitive(..) | Type::None | Type::Union => {
+                Type::Primitive(_, false) | Type::Union => {
                     // OK
                 }
                 _ => {
@@ -837,18 +841,27 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     if let Some(actual_key) = self.evaluate_expr(&key)
                         && let Some(actual_value) = self.evaluate_expr(&value)
                     {
-                        match expected_key.common_type(&actual_key) {
-                            Some(ty) => {
-                                expected_key = ty;
-                                expected_key_span = key.span();
+                        // The key must be a non-optional primitive type or union
+                        match actual_key {
+                            Type::Primitive(_, false) | Type::Union => {
+                                match expected_key.common_type(&actual_key) {
+                                    Some(ty) => {
+                                        expected_key = ty;
+                                        expected_key_span = key.span();
+                                    }
+                                    _ => {
+                                        self.context.add_diagnostic(no_common_type(
+                                            &expected_key,
+                                            expected_key_span,
+                                            &actual_key,
+                                            key.span(),
+                                        ));
+                                    }
+                                }
                             }
                             _ => {
-                                self.context.add_diagnostic(no_common_type(
-                                    &expected_key,
-                                    expected_key_span,
-                                    &actual_key,
-                                    key.span(),
-                                ));
+                                self.context
+                                    .add_diagnostic(map_key_not_primitive(key.span(), &actual_key));
                             }
                         }
 

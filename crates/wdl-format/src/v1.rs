@@ -57,29 +57,31 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
         }
     }
 
-    imports.sort_by(|a, b| {
-        let a = a
-            .element()
-            .as_node()
-            .expect("import statement node")
-            .as_import_statement()
-            .expect("import statement");
-        let b = b
-            .element()
-            .as_node()
-            .expect("import statement node")
-            .as_import_statement()
-            .expect("import statement");
-        let a_uri = a
-            .uri()
-            .text()
-            .expect("import uri should not be interpolated");
-        let b_uri = b
-            .uri()
-            .text()
-            .expect("import uri should not be interpolated");
-        a_uri.text().cmp(b_uri.text())
-    });
+    if config.sort_imports {
+        imports.sort_by(|a, b| {
+            let a = a
+                .element()
+                .as_node()
+                .expect("import statement node")
+                .as_import_statement()
+                .expect("import statement");
+            let b = b
+                .element()
+                .as_node()
+                .expect("import statement node")
+                .as_import_statement()
+                .expect("import statement");
+            let a_uri = a
+                .uri()
+                .text()
+                .expect("import uri should not be interpolated");
+            let b_uri = b
+                .uri()
+                .text()
+                .expect("import uri should not be interpolated");
+            a_uri.text().cmp(b_uri.text())
+        });
+    }
 
     stream.ignore_trailing_blank_lines();
 
@@ -321,15 +323,32 @@ pub fn format_literal_input(
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
+    let mut items = Vec::new();
+    let mut commas = Vec::new();
+    let mut close_brace = None;
+
     for child in children {
-        if child.element().kind() == SyntaxKind::CloseBrace {
-            stream.decrement_indent();
-        } else {
-            assert!(child.element().kind() == SyntaxKind::LiteralInputItemNode);
+        match child.element().kind() {
+            SyntaxKind::LiteralInputItemNode => items.push(child),
+            SyntaxKind::Comma => commas.push(child),
+            SyntaxKind::CloseBrace => close_brace = Some(child),
+            _ => panic!("unexpected literal input child"),
         }
-        (&child).write(stream, config);
     }
-    stream.end_line();
+
+    let mut commas = commas.iter();
+    for item in items {
+        (&item).write(stream, config);
+        if let Some(comma) = commas.next() {
+            (comma).write(stream, config);
+        } else if config.trailing_commas {
+            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        }
+        stream.end_line();
+    }
+
+    stream.decrement_indent();
+    (&close_brace.expect("literal input close brace")).write(stream, config);
 }
 
 /// Formats a [`LiteralHintsItem`](wdl_ast::v1::LiteralHintsItem).
@@ -399,7 +418,7 @@ pub fn format_literal_hints(
         (&item).write(stream, config);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
-        } else {
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();
@@ -478,7 +497,7 @@ pub fn format_literal_output(
         (&item).write(stream, config);
         if let Some(comma) = commas.next() {
             (comma).write(stream, config);
-        } else {
+        } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }
         stream.end_line();

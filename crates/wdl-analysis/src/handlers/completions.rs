@@ -429,48 +429,29 @@ fn add_member_access_completions(
                 return Ok(());
             }
         }
-    } else if let Some(access_expr) = target_expr.as_access() {
-        // Inferred `task.meta.*` and `task.parameter_meta.*` completions.
-        // TODO: recurse on `Objects`
-        let (expr, member) = access_expr.operands();
-        if let Some(name_ref) = expr.as_name_ref()
-            && name_ref.name().text() == TASK_VAR_NAME
-        {
-            let member_name = member.text();
-            // `task.meta.*` completions.
-            if member_name == TASK_FIELD_META {
-                if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast)
-                    && let Some(meta_section) = task_def.metadata()
-                {
-                    for item in meta_section.items() {
-                        items.push(CompletionItem {
-                            label: item.name().text().to_string(),
-                            kind: Some(CompletionItemKind::PROPERTY),
-                            detail: Some(format_ty(item.value()).to_string()),
-                            documentation: make_md_docs(item.value().text().to_string()),
-                            ..Default::default()
-                        });
+    } else if let Some((metadata_field, object_path)) =
+        extract_task_metadata_access_path(&target_expr)
+    {
+        if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast) {
+            match metadata_field {
+                TaskMetadataField::Meta => {
+                    if let Some(meta_section) = task_def.metadata() {
+                        add_metadata_object_completions(meta_section.items(), &object_path, items);
                     }
                 }
-                return Ok(());
-            } else if member_name == TASK_FIELD_PARAMETER_META {
-                // `task.parameter_meta.*` completions.
-                if let Some(task_def) = node.ancestors().find_map(TaskDefinition::cast)
-                    && let Some(param_meta_section) = task_def.parameter_metadata()
-                {
-                    for item in param_meta_section.items() {
-                        items.push(CompletionItem {
-                            label: item.name().text().to_string(),
-                            kind: Some(CompletionItemKind::PROPERTY),
-                            detail: Some(format_ty(item.value()).to_string()),
-                            documentation: make_md_docs(item.value().text().to_string()),
-                            ..Default::default()
-                        });
+                TaskMetadataField::ParameterMeta => {
+                    if let Some(param_meta_section) = task_def.parameter_metadata() {
+                        add_metadata_object_completions(
+                            param_meta_section.items(),
+                            &object_path,
+                            items,
+                        );
                     }
                 }
-                return Ok(());
             }
         }
+
+        return Ok(());
     }
 
     // NOTE: we do type evaluation only for non namespaces or complex types
@@ -1160,6 +1141,79 @@ fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) ->
         .join(", ");
 
     format!("{}({})", name, params)
+}
+
+/// Which task metadata section is being accessed.
+#[derive(Clone, Copy, Debug)]
+enum TaskMetadataField {
+    /// The `meta` section.
+    Meta,
+    /// The `parameter_meta` section.
+    ParameterMeta,
+}
+
+/// Extracts `task.meta.*` and `task.parameter_meta.*` access paths.
+fn extract_task_metadata_access_path(expr: &Expr) -> Option<(TaskMetadataField, Vec<String>)> {
+    fn collect_task_access_segments(expr: &Expr, segments: &mut Vec<String>) -> bool {
+        match expr {
+            Expr::Access(access_expr) => {
+                let (operand, member) = access_expr.operands();
+                segments.push(member.text().to_string());
+                collect_task_access_segments(&operand, segments)
+            }
+            Expr::NameRef(name_ref) => name_ref.name().text() == TASK_VAR_NAME,
+            _ => false,
+        }
+    }
+
+    let mut segments = Vec::new();
+    if !collect_task_access_segments(expr, &mut segments) {
+        return None;
+    }
+
+    segments.reverse();
+    let field = match segments.first().map(String::as_str) {
+        Some(TASK_FIELD_META) => TaskMetadataField::Meta,
+        Some(TASK_FIELD_PARAMETER_META) => TaskMetadataField::ParameterMeta,
+        _ => return None,
+    };
+
+    Some((field, segments.into_iter().skip(1).collect()))
+}
+
+/// Adds metadata object member completions for the provided object path.
+fn add_metadata_object_completions(
+    root_items: impl Iterator<Item = wdl_ast::v1::MetadataObjectItem>,
+    path: &[String],
+    items: &mut Vec<CompletionItem>,
+) {
+    let mut current_items: Vec<_> = root_items.collect();
+
+    for segment in path {
+        let Some(next) = current_items
+            .iter()
+            .find(|item| item.name().text() == segment.as_str())
+        else {
+            return;
+        };
+
+        let MetadataValue::Object(object) = next.value() else {
+            return;
+        };
+
+        current_items = object.items().collect();
+    }
+
+    for item in current_items {
+        let value = item.value();
+        items.push(CompletionItem {
+            label: item.name().text().to_string(),
+            kind: Some(CompletionItemKind::PROPERTY),
+            detail: Some(format_ty(value.clone()).to_string()),
+            documentation: make_md_docs(value.text().to_string()),
+            ..Default::default()
+        });
+    }
 }
 
 /// Formats metadata value to type.

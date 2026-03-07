@@ -8,7 +8,6 @@ use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::v1::Decl;
-use wdl_ast::v1::MetadataValue;
 
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::MaybeSummarized;
@@ -87,35 +86,7 @@ pub(crate) struct Parameter {
 
 impl Parameter {
     /// Create a new parameter.
-    pub fn new(decl: Decl, meta: Option<MetaMapValueSource>, io: InputOutput) -> Self {
-        let meta = match &meta {
-            Some(m) => {
-                match m {
-                    MetaMapValueSource::Comment(_) => {
-                        MetaMap::from([(DESCRIPTION_KEY.to_string(), m.clone())])
-                    }
-                    MetaMapValueSource::MetaValue(meta) => match meta {
-                        MetadataValue::Object(o) => o
-                            .items()
-                            .map(|item| {
-                                (
-                                    item.name().text().to_string(),
-                                    MetaMapValueSource::MetaValue(item.value().clone()),
-                                )
-                            })
-                            .collect(),
-                        MetadataValue::String(_s) => {
-                            MetaMap::from([(DESCRIPTION_KEY.to_string(), m.clone())])
-                        }
-                        _ => {
-                            // If it's not an object or string, we don't know how to handle it.
-                            MetaMap::default()
-                        }
-                    },
-                }
-            }
-            None => MetaMap::default(),
-        };
+    pub fn new(decl: Decl, meta: MetaMap, io: InputOutput) -> Self {
         Self { decl, meta, io }
     }
 

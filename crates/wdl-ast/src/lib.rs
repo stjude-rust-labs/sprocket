@@ -61,6 +61,35 @@ mod element;
 
 pub use element::*;
 
+/// An [`AstNode`] that may have documentation comments attached to it.
+pub trait Documented<N: TreeNode>: AstNode<N> {
+    /// Get all comment nodes preceding this node that start with
+    /// [`DOC_COMMENT_PREFIX`].
+    ///
+    /// If doc comments don't apply to this node, `None` will be returned.
+    ///
+    /// The comments returned are ordered top to bottom.
+    fn doc_comments(&self) -> Option<Vec<Comment<N::Token>>>;
+}
+
+/// Shared doc comment extraction logic.
+pub fn doc_comments<N: TreeNode>(
+    preceding_trivia: impl IntoIterator<Item = N::Token>,
+) -> impl Iterator<Item = Comment<N::Token>> {
+    preceding_trivia
+        .into_iter()
+        .take_while(|token| {
+            token.kind() == SyntaxKind::Whitespace || token.kind() == SyntaxKind::Comment
+        })
+        .filter_map(|token| {
+            if token.kind() == SyntaxKind::Comment && token.text().starts_with(DOC_COMMENT_PREFIX) {
+                Some(Comment::<N::Token>::cast(token).expect("should be a comment"))
+            } else {
+                None
+            }
+        })
+}
+
 /// A trait that abstracts the underlying representation of a syntax tree node.
 ///
 /// The default node type is `SyntaxNode` for all AST nodes.
@@ -89,6 +118,9 @@ pub trait TreeNode: Clone + fmt::Debug + PartialEq + Eq + std::hash::Hash {
 
     /// Gets all the children of the node, including tokens.
     fn children_with_tokens(&self) -> impl Iterator<Item = NodeOrToken<Self, Self::Token>>;
+
+    /// Gets the first token of the node.
+    fn first_token(&self) -> Option<Self::Token>;
 
     /// Gets the last token of the node.
     fn last_token(&self) -> Option<Self::Token>;
@@ -339,6 +371,10 @@ impl TreeNode for SyntaxNode {
         let range = self.text_range();
         let start = usize::from(range.start());
         Span::new(start, usize::from(range.end()) - start)
+    }
+
+    fn first_token(&self) -> Option<Self::Token> {
+        self.first_token()
     }
 
     fn last_token(&self) -> Option<Self::Token> {
@@ -630,6 +666,25 @@ impl Comment {
     /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
     pub fn is_doc_comment(&self) -> bool {
         self.text().starts_with(DOC_COMMENT_PREFIX)
+    }
+
+    /// Gets whether the comment is an inline comment or not.
+    pub fn is_inline_comment(&self) -> bool {
+        // If there is a preceding token that isn't whitespace with a newline, then
+        // the comment is not alone on this line.
+        if let Some(prev) = self.inner().prev_sibling_or_token() {
+            if prev.kind() == SyntaxKind::Whitespace {
+                !prev
+                    .into_token()
+                    .expect("SyntaxKind::Whitespace is a token")
+                    .text()
+                    .contains('\n')
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 }
 

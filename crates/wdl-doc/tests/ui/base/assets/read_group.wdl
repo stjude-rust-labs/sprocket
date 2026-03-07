@@ -130,7 +130,6 @@ task get_read_groups {
     Float bam_size = size(bam, "GiB")
     Int disk_size_gb = ceil(bam_size) + 10 + modify_disk_size_gb
 
-    #@ except: LineWidth
     command <<<
         set -euo pipefail
         BAM="~{bam}" OUTFILE="read_groups.json" python - <<END

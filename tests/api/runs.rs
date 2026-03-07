@@ -1423,7 +1423,7 @@ workflow test {
     manager
         .send(RunManagerCmd::Submit {
             source: workflow_path.to_str().unwrap().to_string(),
-            inputs: json!({"test.name": "World"}),
+            inputs: json!({"test.name": "World"}).as_object().unwrap().clone(),
             target: None,
             index_on: None,
             rx: tx,
