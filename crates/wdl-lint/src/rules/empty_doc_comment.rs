@@ -4,11 +4,11 @@ use wdl_analysis::Diagnostics;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
-use wdl_ast::DOC_COMMENT_PREFIX;
 
 use crate::Rule;
 use crate::Tag;
