@@ -48,8 +48,8 @@ impl Rule for EmptyDocCommentRule {
         "Documentation comment blocks (consecutive lines starting with `##`) where all lines are \
          empty serve no purpose. Additionally, if a lint for missing documentation comments is \
          added in the future, these empty comment blocks could be incorrectly used to silence it. \
-         Either add meaningful text to the documentation comment block or remove it entirely. \
-         Note that blank lines within a doc block that contains non-empty lines are acceptable as \
+         Either add meaningful text to the documentation comment block or remove it entirely. Note \
+         that blank lines within a doc block that contains non-empty lines are acceptable as \
          paragraph separators."
     }
 
