@@ -18,9 +18,9 @@ all-features = true
 default = [
     "analysis",
     "ast",
+    "doc",
     "engine",
     "format",
-    "doc",
     "grammar",
     "lint",
     "lsp",
