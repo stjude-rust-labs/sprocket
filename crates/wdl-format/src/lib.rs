@@ -1,6 +1,7 @@
 //! Formatting facilities for WDL.
 
 pub mod config;
+mod doc_comment;
 pub mod element;
 mod token;
 pub mod v1;

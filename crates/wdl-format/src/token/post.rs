@@ -22,6 +22,7 @@ use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
+use crate::doc_comment;
 
 /// [`PostToken`]s that precede an inline comment.
 const INLINE_COMMENT_PRECEDING_TOKENS: [PostToken; 2] = [PostToken::Space, PostToken::Space];
@@ -378,6 +379,7 @@ impl Postprocessor {
         token: PreToken,
         next: Option<&PreToken>,
         stream: &mut TokenStream<PostToken>,
+        config: &Config,
     ) {
         if stream.is_empty() {
             self.interrupted = false;
@@ -504,9 +506,24 @@ impl Postprocessor {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
+                            let formatted_contents = if let Some(max) = config.max_line_length.get()
+                            {
+                                let indent_width = config.indent.num() * self.indent_level;
+                                // Subtract indentation and the "## " prefix
+                                // from max line length to get the width
+                                // available for Markdown content.
+                                let content_width = max.saturating_sub(
+                                    indent_width + doc_comment::DOC_COMMENT_PREFIX_WIDTH,
+                                );
+                                doc_comment::format_doc_comment(&contents, content_width)
+                                    .map(Rc::new)
+                                    .unwrap_or(contents)
+                            } else {
+                                contents
+                            };
                             stream.push(PostToken::Documentation {
                                 num_indents: self.indent_level,
-                                contents,
+                                contents: formatted_contents,
                             });
                         }
                         Comment::Directive(directive) => {
@@ -550,7 +567,7 @@ impl Postprocessor {
         let starting_indent = self.indent_level;
         while let Some(token) = pre_buffer.next() {
             let next = pre_buffer.peek().copied();
-            self.step(token.clone(), next, &mut post_buffer);
+            self.step(token.clone(), next, &mut post_buffer, config);
         }
 
         // If all lines are short enough, we can just add the post_buffer to the
@@ -630,6 +647,7 @@ impl Postprocessor {
                 token.clone(),
                 pre_buffer.peek().map(|(_, v)| &**v),
                 &mut post_buffer,
+                config,
             );
 
             if let Some(cache) = cache
@@ -644,6 +662,7 @@ impl Postprocessor {
                     token.clone(),
                     pre_buffer.peek().map(|(_, v)| &**v),
                     &mut post_buffer,
+                    config,
                 );
 
                 // SAFETY: if cache is Some(_) this step must have a potential line break
