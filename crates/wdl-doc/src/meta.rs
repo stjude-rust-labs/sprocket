@@ -96,25 +96,53 @@ pub(crate) trait MetaMapExt {
     /// This is a concatenation of `description` and `help`. If neither is
     /// present, this will return `None`.
     fn full_description(&self) -> Option<String>;
+    /// Get the `description` key as text.
+    fn description(&self) -> Option<String>;
     /// Returns the rendered [`Markup`] of the `description` key, optionally
     /// summarizing it.
     ///
     /// This will always return some text; in the absence of a `description`
     /// key, it will return a default message ([`DEFAULT_DESCRIPTION`]).
     fn render_description(&self, summarize: bool) -> Markup;
+    /// Returns the rendered [`Markup`] of the [`self.full_description()`].
+    ///
+    /// See [`Self::render_description()`] for defaults.
+    #[expect(dead_code, reason = "Pending design work")]
+    fn render_full_description(&self, summarize: bool) -> Markup;
     /// Returns the rendered [`Markup`] of the remaining metadata keys,
     /// excluding the keys specified in `filter_keys`.
     fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup>;
+}
+
+/// Render `text` as Markdown, optionally summarizing it.
+fn maybe_summarize_text(text: String, summarize: bool) -> Markup {
+    if !summarize {
+        return Markdown(text).render();
+    }
+
+    match summarize_if_needed(text, DESCRIPTION_MAX_LENGTH, DESCRIPTION_CLIP_LENGTH) {
+        MaybeSummarized::No(desc) => Markdown(desc).render(),
+        MaybeSummarized::Yes(summary) => {
+            html! {
+                div class="main__summary-container" {
+                    (Markdown(summary))
+                    "..."
+                    button type="button" class="main__button" x-on:click="description_expanded = !description_expanded" {
+                        b x-text="description_expanded ? 'Hide full description' : 'Show full description'" {}
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl MetaMapExt for MetaMap {
     fn full_description(&self) -> Option<String> {
         let help = self.get(HELP_KEY).and_then(MetaMapValueSource::text);
 
-        if let Some(mut description) = self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text)
-        {
+        if let Some(mut description) = self.description() {
             if let Some(help) = help {
-                description.push('\n');
+                description.push_str("\n\n");
                 description.push_str(&help);
             }
 
@@ -124,37 +152,24 @@ impl MetaMapExt for MetaMap {
         help
     }
 
+    fn description(&self) -> Option<String> {
+        self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text)
+    }
+
     fn render_description(&self, summarize: bool) -> Markup {
         let desc = self
-            .get(DESCRIPTION_KEY)
-            .map(|v| match v {
-                MetaMapValueSource::MetaValue(MetadataValue::String(s)) => {
-                    let t = s.text().expect("meta string should not be interpolated");
-                    t.text().to_string()
-                }
-                MetaMapValueSource::Comment(s) => s.to_string(),
-                _ => "ERROR: description not of type String".to_string(),
-            })
+            .description()
             .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
 
-        if !summarize {
-            return Markdown(desc).render();
-        }
+        maybe_summarize_text(desc, summarize)
+    }
 
-        match summarize_if_needed(desc, DESCRIPTION_MAX_LENGTH, DESCRIPTION_CLIP_LENGTH) {
-            MaybeSummarized::No(desc) => Markdown(desc).render(),
-            MaybeSummarized::Yes(summary) => {
-                html! {
-                    div class="main__summary-container" {
-                        (summary)
-                        "..."
-                        button type="button" class="main__button" x-on:click="description_expanded = !description_expanded" {
-                            b x-text="description_expanded ? 'Hide full description' : 'Show full description'" {}
-                        }
-                    }
-                }
-            }
-        }
+    fn render_full_description(&self, summarize: bool) -> Markup {
+        let desc = self
+            .full_description()
+            .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
+
+        maybe_summarize_text(desc, summarize)
     }
 
     fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup> {
