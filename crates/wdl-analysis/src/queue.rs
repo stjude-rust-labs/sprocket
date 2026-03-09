@@ -658,6 +658,36 @@ where
                     let start = Instant::now();
                     debug!("received request for document symbols for {document}");
 
+                    let parse_result;
+                    {
+                        let graph = self.graph.read();
+                        let index = graph.get_index(&document).unwrap();
+                        let node = graph.get(index);
+
+                        if node.needs_parse() {
+                            parse_result = Some(node.parse(&self.tokio, &self.client));
+                        } else {
+                            parse_result = None;
+                        }
+                    }
+
+                    match parse_result {
+                        Some(Ok(state)) => {
+                            let mut graph = self.graph.write();
+                            let index = graph.get_index(&document).unwrap();
+                            graph.get_mut(index).parse_completed(state);
+                        }
+                        Some(Err(e)) => {
+                            debug!(
+                                "error occurred while parsing document in document symbol \
+                                 request: {e:?}"
+                            );
+                            completed.send(None).ok();
+                            continue;
+                        }
+                        None => {}
+                    }
+
                     let graph = self.graph.read();
                     match handlers::document_symbol(&graph, &document) {
                         Ok(result) => {
