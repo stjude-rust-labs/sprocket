@@ -78,7 +78,7 @@ pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
         )
         .into());
     }
-    let output = std::process::Command::new("npm")
+    let output = std::process::Command::new(npm()?)
         .arg("install")
         .current_dir(&theme_dir)
         .output()
@@ -100,7 +100,7 @@ pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
 /// Build the web components for the theme.
 pub fn build_web_components(theme_dir: &Path) -> DocResult<()> {
     let theme_dir = absolute(theme_dir)?;
-    let output = std::process::Command::new("npm")
+    let output = std::process::Command::new(npm()?)
         .arg("run")
         .arg("build")
         .current_dir(&theme_dir)
@@ -120,10 +120,20 @@ pub fn build_web_components(theme_dir: &Path) -> DocResult<()> {
     Ok(())
 }
 
+/// Get the path to the `npx` executable.
+fn npx() -> std::io::Result<PathBuf> {
+    which::which("npx").map_err(|_| IoError::other("npx not found (is Node.js installed?)"))
+}
+
+/// Get the path to the `npm` executable.
+fn npm() -> std::io::Result<PathBuf> {
+    which::which("npm").map_err(|_| IoError::other("npm not found (is Node.js installed?)"))
+}
+
 /// Build a stylesheet for the documentation, using Tailwind CSS.
 pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
     let theme_dir = absolute(theme_dir)?;
-    let output = std::process::Command::new("npx")
+    let output = std::process::Command::new(npx()?)
         .arg("@tailwindcss/cli")
         .arg("-i")
         .arg("src/main.css")
@@ -150,7 +160,7 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
 /// Build the search index using [Pagefind](https://pagefind.app).
 pub fn build_search_index(dist_dir: &Path) -> DocResult<()> {
     let dist_dir = absolute(dist_dir)?;
-    let output = std::process::Command::new("npx")
+    let output = std::process::Command::new(npx()?)
         .arg("pagefind")
         .arg("--site")
         .arg(dist_dir)
