@@ -63,7 +63,7 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
     ) -> Result<JsonInputMap> {
         match format {
             Format::Json => match serde_json::from_str::<JsonValue>(contents)
-                .with_context(|| "failed to deserialize JSON inputs file `{path}`")?
+                .with_context(|| format!("failed to deserialize JSON inputs file `{path}`"))?
             {
                 JsonValue::Object(object) => Ok(json_map_to_inputs(object, &origin)),
                 _ => bail!(
@@ -72,10 +72,10 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
             },
             Format::Yaml => {
                 if let YamlValue::Mapping(mapping) = serde_yaml_ng::from_str::<YamlValue>(contents)
-                    .with_context(|| "failed to deserialize YAML inputs file `{path}`")?
+                    .with_context(|| format!("failed to deserialize YAML inputs file `{path}`"))?
                 {
                     let value = serde_json::to_value(mapping)
-                        .with_context(|| "invalid YAML input file `{path}`")?;
+                        .with_context(|| format!("invalid YAML input file `{path}`"))?;
 
                     if let JsonValue::Object(map) = value {
                         return Ok(json_map_to_inputs(map, &origin));

@@ -307,9 +307,10 @@ pub fn format_workflow_hints_array(
             Some(comma) => {
                 (&comma).write(stream, config);
             }
-            _ => {
+            _ if config.trailing_commas => {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
+            _ => {}
         }
         stream.end_line();
     }

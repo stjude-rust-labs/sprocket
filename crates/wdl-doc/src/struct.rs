@@ -4,8 +4,8 @@ use std::path::Path;
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::MetadataValue;
@@ -13,7 +13,6 @@ use wdl_ast::v1::StructDefinition;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
-use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -36,14 +35,11 @@ impl Member {
     fn new(decl: Decl, meta: MetaMap) -> Self {
         Self { decl, meta }
     }
+}
 
-    /// Get the [full description] of the member
-    ///
-    /// [full description]: MetaMap::full_description()
-    pub fn full_description(&self) -> String {
-        self.meta
-            .full_description()
-            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
+impl DefinitionMeta for Member {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
     }
 }
 
@@ -81,9 +77,9 @@ impl Struct {
                 acc
             });
 
-        if enable_doc_comments {
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
-            meta.append(&mut doc_comments(definition.keyword().inner()));
+            meta.append(&mut doc_comments(comments));
         }
 
         let parameter_meta = definition
@@ -111,20 +107,31 @@ impl Struct {
         let members = html! {
             div class="main__section" {
                 h2 id="struct-members" class="main__section-header" { "Members" }
-                @for member in self.members.iter() {
-                    @let member_name = member.decl.name();
-                    @let member_id = format!("member.{}", member_name.text());
-                    @let member_anchor = format!("#{member_id}");
-                    section id=(member_id) {
-                        div class="main__meta-item-member" {
-                            a href=(member_anchor) {}
-                            h3 class="main__section-subheader" { (member_name.text()) }
-                        }
+                div class="main__grid-container" {
+                    div class="main__grid-struct-member-container" {
+                        div class="main__grid-header-cell" { "Name" }
+                        div class="main__grid-header-cell" { "Type" }
+                        div class="main__grid-header-cell" { "Description" }
+                        div class="main__grid-header-separator" {}
+                        @for member in self.members.iter() {
+                            @let member_name = member.decl.name();
+                            @let member_id = format!("member.{}", member_name.text());
+                            div id=(member_id) class="main__grid-row" x-data="{ description_expanded: false }" {
+                                div class="main__grid-cell" {
+                                    code { (member_name.text()) }
+                                }
 
-                        div class="main__meta-item-member-description" {
-                            @for paragraph in member.full_description().split('\n') {
-                                p class="main__meta-item-member-description-para" { (paragraph) }
+                                div class="main__grid-cell" {
+                                    code { (member.decl.ty()) }
+                                }
+                                div class="main__grid-cell" {
+                                    (member.meta().render_description(true))
+                                }
+                                div x-show="description_expanded" class="main__grid-full-width-cell" {
+                                    (member.meta().render_description(false))
+                                }
                             }
+                            div class="main__grid-row-separator" {}
                         }
                     }
                 }
@@ -192,14 +199,12 @@ fn parse_member_meta(
                 }
             }
 
-            if enable_doc_comments {
+            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
-                if let Some(token) = decl.inner().first_token() {
-                    meta_map.append(&mut doc_comments(&token));
-                }
+                meta_map.append(&mut doc_comments(comments));
             }
 
-            Member::new(Decl::Unbound(decl.clone()), meta_map)
+            Member::new(Decl::Unbound(decl), meta_map)
         })
         .collect()
 }

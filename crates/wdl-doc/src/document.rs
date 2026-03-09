@@ -17,6 +17,8 @@ use maud::Render;
 use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxNode;
+use wdl_ast::SyntaxTokenExt;
 use wdl_ast::VersionStatement;
 
 use crate::HTMLPage;
@@ -72,7 +74,10 @@ impl Document {
 
     /// Get the preamble comments of the document as HTML if there are any.
     pub fn render_preamble(&self) -> Option<Markup> {
-        let preamble = doc_comments(self.version_statement.keyword().inner()).full_description()?;
+        let keyword = self.version_statement.keyword();
+        let preamble_comments =
+            wdl_ast::doc_comments::<SyntaxNode>(keyword.inner().preceding_trivia());
+        let preamble = doc_comments(preamble_comments).full_description()?;
 
         Some(html! {
             div class="markdown-body" {

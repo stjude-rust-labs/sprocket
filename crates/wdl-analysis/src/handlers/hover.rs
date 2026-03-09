@@ -15,6 +15,7 @@ use tracing::debug;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
@@ -23,6 +24,7 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
+use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
@@ -520,9 +522,28 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
     format!("{detail}\n\n{docs}")
 }
 
-/// Finds documentation for a variable declaration from a `parameter_meta`
-/// section.
+/// Finds documentation for a variable declaration.
+///
+/// Doc comments (`##`) on the declaration are preferred. Falls back to the
+/// matching entry in the enclosing `parameter_meta` section.
 fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
+    use crate::handlers::common::docs::comments_to_string;
+
+    // Check for doc comments on the declaration node itself via the Documented
+    // trait.
+    if let Some(doc) = token
+        .parent_ancestors()
+        .find_map(Decl::cast)
+        .and_then(|d| match &d {
+            Decl::Bound(b) => b.doc_comments(),
+            Decl::Unbound(u) => u.doc_comments(),
+        })
+        .and_then(comments_to_string)
+    {
+        return Some(doc);
+    }
+
+    // Fall back to parameter_meta.
     let parent = token.parent_ancestors().find(|p| {
         matches!(
             p.kind(),

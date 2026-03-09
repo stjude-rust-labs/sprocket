@@ -3,6 +3,7 @@ Rules with the tag `Clarity`:
   - ConsistentNewlines
   - ContainerUri
   - DeclarationName
+  - DocCommentTabs
   - DoubleQuotes
   - ExceptDirectiveValid
   - HereDocCommands

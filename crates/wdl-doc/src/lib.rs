@@ -596,6 +596,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name, PageType::Task(task)));
@@ -616,6 +617,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(
@@ -704,6 +706,7 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
+            false,
         );
 
         let description = workflow.render_description(false);

@@ -32,7 +32,7 @@ task test1 {
         inputs: input {
             a: hints {
                 foo: "bar",
-            }
+            },
         }
         f: [
             1,

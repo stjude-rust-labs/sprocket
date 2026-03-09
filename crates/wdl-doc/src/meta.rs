@@ -10,10 +10,9 @@ use maud::Markup;
 use maud::html;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::SyntaxKind;
-use wdl_ast::SyntaxTokenExt;
-use wdl_ast::TreeToken;
 use wdl_ast::v1::MetadataObjectItem;
 use wdl_ast::v1::MetadataValue;
 
@@ -97,25 +96,53 @@ pub(crate) trait MetaMapExt {
     /// This is a concatenation of `description` and `help`. If neither is
     /// present, this will return `None`.
     fn full_description(&self) -> Option<String>;
+    /// Get the `description` key as text.
+    fn description(&self) -> Option<String>;
     /// Returns the rendered [`Markup`] of the `description` key, optionally
     /// summarizing it.
     ///
     /// This will always return some text; in the absence of a `description`
     /// key, it will return a default message ([`DEFAULT_DESCRIPTION`]).
     fn render_description(&self, summarize: bool) -> Markup;
+    /// Returns the rendered [`Markup`] of the [`self.full_description()`].
+    ///
+    /// See [`Self::render_description()`] for defaults.
+    #[expect(dead_code, reason = "Pending design work")]
+    fn render_full_description(&self, summarize: bool) -> Markup;
     /// Returns the rendered [`Markup`] of the remaining metadata keys,
     /// excluding the keys specified in `filter_keys`.
     fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup>;
+}
+
+/// Render `text` as Markdown, optionally summarizing it.
+fn maybe_summarize_text(text: String, summarize: bool) -> Markup {
+    if !summarize {
+        return Markdown(text).render();
+    }
+
+    match summarize_if_needed(text, DESCRIPTION_MAX_LENGTH, DESCRIPTION_CLIP_LENGTH) {
+        MaybeSummarized::No(desc) => Markdown(desc).render(),
+        MaybeSummarized::Yes(summary) => {
+            html! {
+                div class="main__summary-container" {
+                    (Markdown(summary))
+                    "..."
+                    button type="button" class="main__button" x-on:click="description_expanded = !description_expanded" {
+                        b x-text="description_expanded ? 'Hide full description' : 'Show full description'" {}
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl MetaMapExt for MetaMap {
     fn full_description(&self) -> Option<String> {
         let help = self.get(HELP_KEY).and_then(MetaMapValueSource::text);
 
-        if let Some(mut description) = self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text)
-        {
+        if let Some(mut description) = self.description() {
             if let Some(help) = help {
-                description.push('\n');
+                description.push_str("\n\n");
                 description.push_str(&help);
             }
 
@@ -125,37 +152,24 @@ impl MetaMapExt for MetaMap {
         help
     }
 
+    fn description(&self) -> Option<String> {
+        self.get(DESCRIPTION_KEY).and_then(MetaMapValueSource::text)
+    }
+
     fn render_description(&self, summarize: bool) -> Markup {
         let desc = self
-            .get(DESCRIPTION_KEY)
-            .map(|v| match v {
-                MetaMapValueSource::MetaValue(MetadataValue::String(s)) => {
-                    let t = s.text().expect("meta string should not be interpolated");
-                    t.text().to_string()
-                }
-                MetaMapValueSource::Comment(s) => s.to_string(),
-                _ => "ERROR: description not of type String".to_string(),
-            })
+            .description()
             .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
 
-        if !summarize {
-            return Markdown(desc).render();
-        }
+        maybe_summarize_text(desc, summarize)
+    }
 
-        match summarize_if_needed(desc, DESCRIPTION_MAX_LENGTH, DESCRIPTION_CLIP_LENGTH) {
-            MaybeSummarized::No(desc) => Markdown(desc).render(),
-            MaybeSummarized::Yes(summary) => {
-                html! {
-                    div class="main__summary-container" {
-                        (summary)
-                        "..."
-                        button type="button" class="main__button" x-on:click="description_expanded = !description_expanded" {
-                            b x-text="description_expanded ? 'Hide full description' : 'Show full description'" {}
-                        }
-                    }
-                }
-            }
-        }
+    fn render_full_description(&self, summarize: bool) -> Markup {
+        let desc = self
+            .full_description()
+            .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
+
+        maybe_summarize_text(desc, summarize)
     }
 
     fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup> {
@@ -383,15 +397,12 @@ pub(crate) fn summarize_if_needed(
 }
 
 /// A doc comment paragraph
-///
-/// Internally, this retains the line breaks as they appear in the document.
-/// When rendered, the lines are joined with spaces.
 #[derive(Debug, Clone, Default)]
 pub struct Paragraph(Vec<String>);
 
 impl Display for Paragraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.join(" "))
+        write!(f, "{}", self.0.join("\n"))
     }
 }
 
@@ -414,29 +425,23 @@ impl DerefMut for Paragraph {
 /// The first paragraph of the doc comment text will be placed under the
 /// `description` key of the map. All other paragraphs will be joined with
 /// newlines and placed under the `help` key.
-pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap {
+pub(crate) fn doc_comments(comments: impl IntoIterator<Item = Comment>) -> MetaMap {
     let mut map = MetaMap::new();
 
     let mut current_paragraph = Paragraph::default();
     let mut paragraphs = Vec::new();
-    for token in token.preceding_trivia() {
-        match token.kind() {
-            SyntaxKind::Comment => {
-                let Some(comment) = token.text().strip_prefix(DOC_COMMENT_PREFIX) else {
-                    continue;
-                };
+    for doc_comment in comments {
+        let Some(comment) = doc_comment.text().strip_prefix(DOC_COMMENT_PREFIX) else {
+            continue;
+        };
 
-                if comment.trim().is_empty() {
-                    paragraphs.push(current_paragraph);
-                    current_paragraph = Paragraph::default();
-                    continue;
-                }
-
-                current_paragraph.push(comment.to_owned());
-            }
-            SyntaxKind::Whitespace => continue,
-            _ => unreachable!(),
+        if comment.trim().is_empty() {
+            paragraphs.push(current_paragraph);
+            current_paragraph = Paragraph::default();
+            continue;
         }
+
+        current_paragraph.push(comment.to_owned());
     }
 
     if !current_paragraph.is_empty() {
@@ -475,14 +480,17 @@ pub(crate) fn doc_comments<T: TreeToken + SyntaxTokenExt>(token: &T) -> MetaMap 
         }
     }
 
+    let mut paragraphs = paragraphs.into_iter();
+
     map.insert(
         DESCRIPTION_KEY.to_string(),
-        MetaMapValueSource::Comment(paragraphs.remove(0).to_string()),
+        // SAFETY: if paragraphs were empty, we would have returned early
+        MetaMapValueSource::Comment(paragraphs.next().unwrap().to_string()),
     );
 
-    let help = paragraphs.into_iter().fold(String::new(), |mut acc, p| {
+    let help = paragraphs.fold(String::new(), |mut acc, p| {
         if !acc.is_empty() {
-            acc.push('\n');
+            acc.push_str("\n\n");
         }
 
         acc.push_str(&p.to_string());
