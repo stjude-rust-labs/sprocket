@@ -31,6 +31,8 @@
 ## 🎨 Features
 
 - **`sprocket analyzer`** runs Sprocket as a LSP server, which is useful for IDE integration.
+  - Semantic highlighting now handles multiline token ranges safely for robust
+    IntelliJ/LSP4IJ compatibility.
 - **`sprocket check`** performs static analysis on a document or directory of documents.
 - **`sprocket completions`** generates shell completions for Sprocket.
 - **`sprocket config`** prints configuration values.

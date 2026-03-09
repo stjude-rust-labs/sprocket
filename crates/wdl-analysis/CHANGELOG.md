@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 * Struct literals will now error in document versions < WDL v1.1 ([#643](https://github.com/stjude-rust-labs/sprocket/pull/643)).
 
+#### Fixed
+
+* Fixed semantic token range generation for multiline tokens by splitting tokens
+  into line-local segments and validating ranges defensively to avoid invalid
+  highlight offsets in IDE clients.
+
 #### Removed
 
 * Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
