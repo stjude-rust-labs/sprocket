@@ -64,13 +64,10 @@ Available rules:
   - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
-  - ElementSpacing
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
-  - ExpressionSpacing
   - HereDocCommands
   - ImportPlacement
-  - ImportSorted
   - InputName
   - InputSorted
   - KnownRules
@@ -90,6 +87,7 @@ Available rules:
   - UnnecessaryFunctionCall
   - UnusedCall
   - UnusedDeclaration
+  - UnusedDocComments
   - UnusedImport
   - UnusedInput
   - UsingFallbackVersion

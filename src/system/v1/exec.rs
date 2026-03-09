@@ -127,8 +127,18 @@ pub async fn create_session(
 /// created pointing to the new directory.
 ///
 /// Returns the [`RunDirectory`] handle for the created directory.
-pub fn create_run_directory(output_dir: &OutputDirectory, target: &str) -> Result<RunDirectory> {
-    let run_dir_name = PathBuf::from(target).join(format!("{}", Utc::now().format("%F_%H%M%S%f")));
+pub fn create_run_directory(
+    output_dir: &OutputDirectory,
+    target: &str,
+    suffix: Option<&str>,
+) -> Result<RunDirectory> {
+    let timestamp = format!("{}", Utc::now().format("%F_%H%M%S%f"));
+    let dir_name = if let Some(suffix) = suffix {
+        format!("{}_{}", timestamp, suffix)
+    } else {
+        timestamp
+    };
+    let run_dir_name = PathBuf::from(target).join(dir_name);
 
     let run_dir = output_dir
         .ensure_workflow_run(run_dir_name)
