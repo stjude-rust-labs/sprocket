@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs
   without waiting; instead a monitor now periodically checks job status with
   `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).
+* The Slurm (with Apptainer) backend now detects the installed Slurm version at
+  runtime (via `scontrol --version`/`sinfo --version`), rejects unsupported
+  versions with clearer errors, and enables GPU submission flags based on
+  detected capabilities for better cross-cluster compatibility.
 * Removed support for constructing `Map` values with optional key types ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
 
 #### Fixed
