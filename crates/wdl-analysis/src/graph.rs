@@ -343,12 +343,23 @@ impl DocumentGraphNode {
                             lines.clone(),
                         ),
                         _ => {
+                            
                             tracing::warn!(
-                            uri = %self.uri,
-                                "document not yet parsed, falling back to full parse"
+                                uri = %self.uri,
+                                "document not yet parsed, re-fetching from disk"
                             );
-                            return self.full_parse(tokio, client);
+                            let source = match self.uri.to_file_path() {
+                                Ok(path) => fs::read_to_string(path).map_err(Into::into),
+                                Err(_) => Self::download_source(tokio, client, &self.uri),
+                            };
+                            return match source {
+                                Ok(_s) => Ok(ParseState::Error(
+                                    anyhow::anyhow!("re-fetch succeeded but parse skipped").into(),
+                                )),
+                                Err(e) => Ok(ParseState::Error(e.into())),
+                            };
                         }
+
                     }
                 };
 
