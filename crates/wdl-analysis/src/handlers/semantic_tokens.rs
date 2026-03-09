@@ -94,35 +94,18 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
         WalkEvent::Leave(_) => None,
     }) {
         if let Some((token_ty, token_modifiers_bitset)) = token_ty(&token, document) {
-            let start_pos = position(&lines, token.text_range().start())?;
-            let end_pos = position(&lines, token.text_range().end())?;
-
-            let delta_line = start_pos.line - last_line;
-            let delta_start = if delta_line == 0 {
-                start_pos.character - last_start
-            } else {
-                start_pos.character
-            };
-
-            let length = end_pos.character - start_pos.character;
-
-            let lsp_token = SemanticToken {
-                delta_line,
-                delta_start,
-                length,
-                token_type: WDL_SEMANTIC_TOKEN_TYPES
-                    .iter()
-                    .position(|tt| tt == &token_ty)
-                    .unwrap_or_else(|| {
-                        panic!("token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`")
-                    }) as u32,
+            let (line, start) = emit_token_segments(
+                &mut tokens,
+                &lines,
+                token.text_range().start(),
+                token.text(),
+                &token_ty,
                 token_modifiers_bitset,
-            };
-
-            tokens.push(lsp_token);
-
-            last_line = start_pos.line;
-            last_start = start_pos.character;
+                last_line,
+                last_start,
+            )?;
+            last_line = line;
+            last_start = start;
         }
     }
 
@@ -130,6 +113,187 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
         result_id: Some(document.id().to_string()),
         data: tokens,
     }))
+}
+
+/// Emits semantic tokens for a potentially multiline syntax token by splitting it
+/// into line-local segments.
+fn emit_token_segments(
+    tokens: &mut Vec<SemanticToken>,
+    lines: &line_index::LineIndex,
+    token_start: rowan::TextSize,
+    token_text: &str,
+    token_ty: &SemanticTokenType,
+    token_modifiers_bitset: u32,
+    mut last_line: u32,
+    mut last_start: u32,
+) -> Result<(u32, u32)> {
+    let mut segment_start_rel = 0usize;
+    for (idx, ch) in token_text.char_indices() {
+        if ch == '\n' {
+            let segment_end_rel =
+                if idx > segment_start_rel && token_text.as_bytes()[idx - 1] == b'\r' {
+                    idx - 1
+                } else {
+                    idx
+                };
+
+            let (line, start) = emit_token_segment(
+                tokens,
+                lines,
+                token_start,
+                segment_start_rel,
+                segment_end_rel,
+                token_ty,
+                token_modifiers_bitset,
+                last_line,
+                last_start,
+            )?;
+            last_line = line;
+            last_start = start;
+            segment_start_rel = idx + ch.len_utf8();
+        }
+    }
+
+    emit_token_segment(
+        tokens,
+        lines,
+        token_start,
+        segment_start_rel,
+        token_text.len(),
+        token_ty,
+        token_modifiers_bitset,
+        last_line,
+        last_start,
+    )
+}
+
+/// Emits a semantic token for a line-local segment of a syntax token.
+fn emit_token_segment(
+    tokens: &mut Vec<SemanticToken>,
+    lines: &line_index::LineIndex,
+    token_start: rowan::TextSize,
+    segment_start_rel: usize,
+    segment_end_rel: usize,
+    token_ty: &SemanticTokenType,
+    token_modifiers_bitset: u32,
+    last_line: u32,
+    last_start: u32,
+) -> Result<(u32, u32)> {
+    if segment_end_rel <= segment_start_rel {
+        return Ok((last_line, last_start));
+    }
+
+    // Normalize bounds defensively to avoid generating invalid offsets.
+    let start_rel = segment_start_rel.min(segment_end_rel);
+    let end_rel = segment_end_rel.max(segment_start_rel);
+    let Ok(start_rel) = u32::try_from(start_rel) else {
+        return Ok((last_line, last_start));
+    };
+    let Ok(end_rel) = u32::try_from(end_rel) else {
+        return Ok((last_line, last_start));
+    };
+
+    let segment_start = token_start + rowan::TextSize::from(start_rel);
+    let segment_end = token_start + rowan::TextSize::from(end_rel);
+
+    let start_pos = position(lines, segment_start)?;
+    let end_pos = position(lines, segment_end)?;
+
+    if start_pos.line != end_pos.line || end_pos.character < start_pos.character {
+        // Defensive guard: semantic tokens must be single-line and forward ranges.
+        // If this still happens, skip to avoid crashing downstream clients.
+        return Ok((last_line, last_start));
+    }
+
+    let delta_line = start_pos.line - last_line;
+    let delta_start = if delta_line == 0 {
+        start_pos.character - last_start
+    } else {
+        start_pos.character
+    };
+
+    let lsp_token = SemanticToken {
+        delta_line,
+        delta_start,
+        length: end_pos.character - start_pos.character,
+        token_type: WDL_SEMANTIC_TOKEN_TYPES
+            .iter()
+            .position(|tt| tt == token_ty)
+            .unwrap_or_else(|| panic!("token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`"))
+            as u32,
+        token_modifiers_bitset,
+    };
+
+    tokens.push(lsp_token);
+    Ok((start_pos.line, start_pos.character))
+}
+
+#[cfg(test)]
+mod tests {
+    use line_index::LineCol;
+    use line_index::LineIndex;
+    use rowan::TextSize;
+
+    use super::*;
+
+    #[test]
+    fn emits_single_line_segments_for_multiline_token() {
+        let src = "task t {\n  command <<<\nline1\nline2\n>>>\n}\n";
+        let lines = LineIndex::new(src);
+        let token_text = "line1\nline2";
+        let start = lines
+            .offset(LineCol { line: 2, col: 0 })
+            .expect("valid line/col");
+        let token_start = TextSize::from(u32::from(start));
+
+        let mut tokens = Vec::new();
+        let (last_line, last_start) = emit_token_segments(
+            &mut tokens,
+            &lines,
+            token_start,
+            token_text,
+            &SemanticTokenType::STRING,
+            0,
+            0,
+            0,
+        )
+        .expect("multiline segment emission should succeed");
+
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].delta_line, 2);
+        assert_eq!(tokens[0].delta_start, 0);
+        assert_eq!(tokens[0].length, 5);
+        assert_eq!(tokens[1].delta_line, 1);
+        assert_eq!(tokens[1].delta_start, 0);
+        assert_eq!(tokens[1].length, 5);
+        assert_eq!(last_line, 3);
+        assert_eq!(last_start, 0);
+    }
+
+    #[test]
+    fn skips_invalid_multiline_segment_defensively() {
+        let src = "line1\nline2\n";
+        let lines = LineIndex::new(src);
+        let token_start = TextSize::from(0);
+        let mut tokens = Vec::new();
+
+        let (last_line, last_start) = emit_token_segment(
+            &mut tokens,
+            &lines,
+            token_start,
+            0,
+            7,
+            &SemanticTokenType::STRING,
+            0,
+            4,
+            12,
+        )
+        .expect("defensive skip should not fail");
+
+        assert!(tokens.is_empty());
+        assert_eq!(last_line, 4);
+        assert_eq!(last_start, 12);
+    }
 }
 
 /// Determines the [`SemanticTokenType`] for a given [`SyntaxKind`]
