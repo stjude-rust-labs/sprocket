@@ -12,7 +12,6 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::io::ErrorKind;
 use std::path::Path;
 use std::process::ExitStatus;
 use std::process::Stdio;
@@ -75,151 +74,6 @@ const DEFAULT_MONITOR_INTERVAL: u64 = 30;
 
 /// The default maximum concurrency for `sbatch` and `scancel` operations.
 const DEFAULT_MAX_CONCURRENCY: u32 = 10;
-
-/// The minimum Slurm version supported by this backend.
-const MIN_SUPPORTED_SLURM_VERSION: SlurmVersion = SlurmVersion::new(23, 0, 0);
-
-/// The Slurm version where `--gpus-per-task` is considered broadly available.
-const GPUS_PER_TASK_SUPPORTED_VERSION: SlurmVersion = SlurmVersion::new(23, 2, 0);
-
-/// Represents a Slurm semantic version (major.minor.patch).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct SlurmVersion {
-    /// Slurm major version.
-    major: u64,
-    /// Slurm minor version.
-    minor: u64,
-    /// Slurm patch version.
-    patch: u64,
-}
-
-impl SlurmVersion {
-    /// Constructs a new Slurm version.
-    const fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self {
-            major,
-            minor,
-            patch,
-        }
-    }
-}
-
-impl fmt::Display for SlurmVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
-    }
-}
-
-/// Represents capabilities enabled for the detected Slurm version.
-#[derive(Debug, Clone, Copy)]
-struct SlurmCapabilities {
-    /// Whether `sbatch --gpus-per-task` should be used.
-    supports_gpus_per_task: bool,
-}
-
-impl SlurmCapabilities {
-    /// Derives capability flags from a detected Slurm version.
-    fn for_version(version: SlurmVersion) -> Self {
-        Self {
-            supports_gpus_per_task: version >= GPUS_PER_TASK_SUPPORTED_VERSION,
-        }
-    }
-}
-
-/// Parses a semantic Slurm version from command output like `slurm 25.05.0`.
-fn parse_slurm_version(output: &str) -> Result<SlurmVersion> {
-    let output = output.trim();
-    if output.is_empty() {
-        bail!("Slurm version command returned empty output");
-    }
-
-    let version_text = output
-        .split(|c: char| !(c.is_ascii_digit() || c == '.'))
-        .find(|token| token.chars().any(|c| c.is_ascii_digit()) && token.contains('.'))
-        .context("unable to locate semantic version in Slurm command output")?;
-
-    let mut parts = version_text.split('.');
-    let major = parts
-        .next()
-        .context("missing Slurm major version")?
-        .parse()
-        .with_context(|| format!("invalid Slurm major version in `{version_text}`"))?;
-    let minor = parts
-        .next()
-        .context("missing Slurm minor version")?
-        .parse()
-        .with_context(|| format!("invalid Slurm minor version in `{version_text}`"))?;
-    let patch = parts
-        .next()
-        .unwrap_or("0")
-        .parse()
-        .with_context(|| format!("invalid Slurm patch version in `{version_text}`"))?;
-
-    Ok(SlurmVersion::new(major, minor, patch))
-}
-
-/// Detects the installed Slurm version by invoking local Slurm CLI tools.
-///
-/// Runtime detection is required because HPC environments commonly run
-/// different Slurm versions across clusters, so behavior cannot safely assume
-/// one fixed release.
-fn detect_slurm_version() -> Result<SlurmVersion> {
-    let candidates = [("scontrol", ["--version"]), ("sinfo", ["--version"])];
-    let mut failures = Vec::new();
-
-    for (command_name, args) in candidates {
-        let output = match std::process::Command::new(command_name).args(args).output() {
-            Ok(output) => output,
-            Err(error) => {
-                if error.kind() == ErrorKind::NotFound {
-                    failures.push(format!("`{command_name}` was not found in PATH"));
-                } else {
-                    failures.push(format!("failed to run `{command_name} --version`: {error}"));
-                }
-                continue;
-            }
-        };
-
-        if !output.status.success() {
-            failures.push(format!(
-                "`{command_name} --version` failed with status {}: {}",
-                output.status,
-                String::from_utf8_lossy(&output.stderr).trim()
-            ));
-            continue;
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let combined = format!("{stdout}\n{stderr}");
-        match parse_slurm_version(&combined) {
-            Ok(version) => return Ok(version),
-            Err(error) => {
-                failures.push(format!(
-                    "failed to parse version from `{command_name} --version` output: {error:#}"
-                ));
-            }
-        }
-    }
-
-    bail!(
-        "failed to detect Slurm version: {}\nSlurm must be installed and accessible in PATH \
-         (`scontrol` or `sinfo`).",
-        failures.join("; ")
-    )
-}
-
-/// Ensures the detected Slurm version is within the supported range.
-fn validate_slurm_version(version: SlurmVersion) -> Result<()> {
-    if version < MIN_SUPPORTED_SLURM_VERSION {
-        bail!(
-            "detected Slurm version {version}, but this backend requires at least \
-             {MIN_SUPPORTED_SLURM_VERSION}"
-        );
-    }
-
-    Ok(())
-}
 
 /// Represents a Slurm job state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -656,8 +510,6 @@ struct SubmittedJob {
 struct Monitor {
     /// The state of the monitor.
     state: Arc<Mutex<MonitorState>>,
-    /// Slurm capabilities based on the detected version.
-    capabilities: SlurmCapabilities,
     /// A sender for notifying that the last cloned reference to this monitor
     /// has been dropped.
     _drop: Arc<oneshot::Sender<()>>,
@@ -665,14 +517,13 @@ struct Monitor {
 
 impl Monitor {
     /// Constructs a new Slurm monitor using the given update interval.
-    fn new(interval: Duration, capabilities: SlurmCapabilities, events: Events) -> Self {
+    fn new(interval: Duration, events: Events) -> Self {
         let (tx, rx) = oneshot::channel();
         let state = Arc::new(Mutex::new(MonitorState::new()));
         tokio::spawn(Self::monitor(state.clone(), interval, events, rx));
 
         Self {
             state,
-            capabilities,
             _drop: Arc::new(tx),
         }
     }
@@ -717,11 +568,7 @@ impl Monitor {
         if let Some(gpu_count) =
             requirements::gpu(request.inputs, request.requirements, request.hints)
         {
-            if self.capabilities.supports_gpus_per_task {
-                command.arg(format!("--gpus-per-task={gpu_count}"));
-            } else {
-                command.arg(format!("--gpus={gpu_count}"));
-            }
+            command.arg(format!("--gpus-per-task={gpu_count}"));
         }
 
         // Add any user-configured extra arguments.
@@ -927,8 +774,6 @@ pub struct SlurmApptainerBackend {
     monitor: Monitor,
     /// The permits for `sbatch` and `scancel` operations.
     permits: Semaphore,
-    /// The detected Slurm version for this backend instance.
-    _slurm_version: SlurmVersion,
 }
 
 impl SlurmApptainerBackend {
@@ -946,21 +791,8 @@ impl SlurmApptainerBackend {
             .as_slurm_apptainer()
             .context("configured backend is not Slurm Apptainer")?;
 
-        let slurm_version = detect_slurm_version()?;
-        validate_slurm_version(slurm_version)?;
-        let capabilities = SlurmCapabilities::for_version(slurm_version);
-        if !capabilities.supports_gpus_per_task {
-            debug!(
-                "detected Slurm version `{slurm_version}`; falling back to `sbatch --gpus` for \
-                 GPU requests"
-            );
-        } else {
-            debug!("detected Slurm version `{slurm_version}`");
-        }
-
         let monitor = Monitor::new(
             Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
-            capabilities,
             events.clone(),
         );
 
@@ -982,7 +814,6 @@ impl SlurmApptainerBackend {
             apptainer,
             monitor,
             permits,
-            _slurm_version: slurm_version,
         })
     }
 
@@ -1298,25 +1129,5 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }))
         }
         .boxed()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use pretty_assertions::assert_eq;
-
-    use super::SlurmVersion;
-    use super::parse_slurm_version;
-
-    #[test]
-    fn parses_three_component_slurm_version() {
-        let version = parse_slurm_version("slurm 25.05.0").expect("version should parse");
-        assert_eq!(version, SlurmVersion::new(25, 5, 0));
-    }
-
-    #[test]
-    fn parses_patch_version_for_older_release() {
-        let version = parse_slurm_version("slurm 23.11.4").expect("version should parse");
-        assert_eq!(version, SlurmVersion::new(23, 11, 4));
     }
 }
