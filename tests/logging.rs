@@ -53,11 +53,16 @@ task hello {
             status = result.status,
             stderr = str::from_utf8(&result.stderr).unwrap_or("<not UTF-8>")
         );
-        let output_path = read_link(dir.path().join("out/runs/hello/_latest")).expect("should have outputs symlink");
+        let output_path = read_link(dir.path().join("out/runs/hello/_latest"))
+            .expect("should have outputs symlink");
         let outputs_file = output_path.join("outputs.json");
         assert_eq!(
             str::from_utf8(&result.stdout).unwrap(),
-            format!("{{\n  \"hello.message\": \"hello world!\"\n}}\noutputs were also written to `./out/runs/hello/{}`\n", outputs_file.display())
+            format!(
+                "{{\n  \"hello.message\": \"hello world!\"\n}}\noutputs were also written to \
+                 `./out/runs/hello/{}`\n",
+                outputs_file.display()
+            )
         );
 
         // Ensure stderr has at least one message at the level
