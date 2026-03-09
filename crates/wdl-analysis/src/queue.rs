@@ -661,7 +661,11 @@ where
                     let parse_result;
                     {
                         let graph = self.graph.read();
-                        let index = graph.get_index(&document).unwrap();
+                        let Some(index) = graph.get_index(&document) else {
+                            debug!("document '{document}' not found in graph");
+                            completed.send(None).ok();
+                            continue;
+                        };
                         let node = graph.get(index);
 
                         if node.needs_parse() {
