@@ -1,3 +1,4 @@
 {
   "hello.greeting": "Hello, World!"
 }
+outputs were also written to `out/runs/hello/_TIMESTAMP_/outputs.json`
