@@ -280,9 +280,11 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// Returns true if the file is a binary file that should only be checked for
 /// existence.
 fn is_binary_file(path: &Path) -> bool {
+    // pagefind.js is platform-dependent
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
+        || path.file_name() == Some(OsStr::new("pagefind.js"))
 }
 
 /// Returns true if the path is a symlink.
