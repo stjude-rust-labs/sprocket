@@ -127,11 +127,6 @@ Some tests require the `shellcheck` binary be available on your `$PATH`. See
 instructions for installing ShellCheck
 [here](https://github.com/koalaman/shellcheck?tab=readme-ov-file#installing).
 
-If you run with the experimental Slurm + Apptainer backend, ensure Slurm is
-installed and available on your `PATH` (`scontrol` or `sinfo`), because
-Sprocket detects the local Slurm version at runtime to adapt behavior across
-different HPC cluster versions.
-
 Note that on an HPC or another environment where normal means of installing
 software are difficult, it may be easiest to wrap an `apptainer` invocation of
 `shellcheck` in a bash script, and then save it as executable in your PATH:
