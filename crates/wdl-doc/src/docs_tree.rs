@@ -1216,7 +1216,13 @@ impl DocsTree {
         let content = html! {
             @if let Some(homepage) = &self.homepage {
                 div class="main__section" {
-                    div data-pagefind-body class="markdown-body" {
+                    div
+                        class="markdown-body"
+                        data-pagefind-body
+                        meta-img-dark="home.svg"
+                        meta-img-light="home.light.svg"
+                        data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+                    {
                         (Markdown(std::fs::read_to_string(homepage).map_err(Into::<DocError>::into).with_context(|| {
                             format!("failed to read provided homepage file: `{}`", homepage.display())
                         })?).render())
