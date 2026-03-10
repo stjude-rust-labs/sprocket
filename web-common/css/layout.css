@@ -8,17 +8,17 @@
         @apply h-screen w-screen flex pl-0 md:pl-72 bg-slate-950;
     }
     .layout__sidebar-left {
-        @apply fixed left-0 top-0 h-screen w-72 dark-scrollbar z-40;
+        @apply fixed left-0 top-0 w-72 dark-scrollbar z-40 pt-8 h-[calc(100vh-theme('spacing.12'))];
     }
     .layout__main-center {
-        @apply flex-grow bg-slate-950 text-slate-300 h-screen w-screen overflow-y-auto p-10 dark-scrollbar;
+        @apply flex-grow bg-slate-950 text-slate-300 h-screen w-screen overflow-y-auto px-10 pb-10 pt-20 dark-scrollbar;
     }
     .layout__main-center-content {
         @apply xl:max-w-5xl 2xl:max-w-[1300px] xl:mx-auto;
     }
     .layout__sidebar-right {
         /* should take up w-72 space and NOT grow or shrink */
-        @apply w-72 max-xl:hidden;
+        @apply w-72 max-xl:hidden mt-12 h-[calc(100vh-theme('spacing.12'))];
     }
     /**
      * Main Content, Headers, and Text
