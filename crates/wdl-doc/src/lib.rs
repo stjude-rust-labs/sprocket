@@ -495,8 +495,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-struct.html"));
 
-                    let r#struct =
-                        r#struct::Struct::new(s.clone(), version, config.enable_doc_comments);
+                    let r#struct = r#struct::Struct::new(
+                        s.clone(),
+                        version,
+                        external_wdl,
+                        config.enable_doc_comments,
+                    );
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -553,7 +557,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = e.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-enum.html"));
 
-                    let r#enum = r#enum::Enum::new(e, version, config.enable_doc_comments);
+                    let r#enum =
+                        r#enum::Enum::new(e, version, external_wdl, config.enable_doc_comments);
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
                     docs_tree.add_page(path.clone(), page.clone());

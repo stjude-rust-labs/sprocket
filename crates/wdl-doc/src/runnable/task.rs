@@ -16,6 +16,7 @@ use crate::command_section::CommandSectionExt;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
@@ -176,38 +177,33 @@ impl Task {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div
-                class="main__container"
-                data-pagefind-body
-                meta-img-dark="task-selected.svg"
-                meta-img-light="task-selected.light.svg"
-                data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
-            {
-                span class="text-brand-violet-400" data-pagefind-ignore { "Task" }
-                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
-                div class="markdown-body mb-4" {
-                    (self.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.render_version())
-                }
-                (self.render_run_with(assets))
-                @if let Some(meta) = self.render_meta(assets) {
-                    div class="main__section" {
-                        (meta)
-                    }
-                }
-                (input_markup)
-                (self.render_outputs(assets))
-                (self.render_runtime_section())
-                (self.render_command_section())
+            span class="text-brand-violet-400" data-pagefind-ignore { "Task" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
+            div class="markdown-body mb-4" {
+                (self.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.render_version())
+            }
+            (self.render_run_with(assets))
+            @if let Some(meta) = self.render_meta(assets) {
+                div class="main__section" {
+                    (meta)
+                }
+            }
+            (input_markup)
+            (self.render_outputs(assets))
+            (self.render_runtime_section())
+            (self.render_command_section())
         };
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
         headers.push(Header::Header("Runtime".to_string(), "runtime".to_string()));
         headers.push(Header::Header("Command".to_string(), "command".to_string()));
 
-        (markup, headers)
+        (
+            main_container("task", self.wdl_path.is_none(), markup),
+            headers,
+        )
     }
 }
 

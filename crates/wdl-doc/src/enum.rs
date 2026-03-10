@@ -18,6 +18,7 @@ use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
+use crate::meta::main_container;
 
 /// An [`EnumVariant`] with an associated [`MetaMap`].
 #[derive(Debug)]
@@ -50,6 +51,8 @@ pub(crate) struct Enum {
     definition: EnumDefinition,
     /// The version of WDL this enum is defined in.
     version: VersionBadge,
+    /// Whether the enum lives outside the workspace.
+    external: bool,
 }
 
 impl DefinitionMeta for Enum {
@@ -63,6 +66,7 @@ impl Enum {
     pub fn new(
         definition: EnumDefinition,
         version: SupportedVersion,
+        external: bool,
         enable_doc_comments: bool,
     ) -> Self {
         let (meta, choices) = parse_meta(&definition, enable_doc_comments);
@@ -72,6 +76,7 @@ impl Enum {
             choices,
             definition,
             version: VersionBadge::new(version),
+            external,
         }
     }
 
@@ -110,33 +115,28 @@ impl Enum {
 
         let definition = self.definition.display(None);
         let markup = html! {
-            div
-                class="main__container"
-                data-pagefind-body
-                meta-img-dark="enum-selected.svg"
-                meta-img-light="enum-selected.light.svg"
-                data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
-            {
-                p class="text-brand-lime-300" data-pagefind-ignore { "Enum" }
-                h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
-                div class="markdown-body mb-4" {
-                    (self.meta.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.version.render())
-                }
-                div class="main__section" {
-                    sprocket-code language="wdl" {
-                        (definition)
-                    }
-                }
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (choices)
+            p class="text-brand-lime-300" data-pagefind-ignore { "Enum" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
+            div class="markdown-body mb-4" {
+                (self.meta.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.version.render())
+            }
+            div class="main__section" {
+                sprocket-code language="wdl" {
+                    (definition)
+                }
+            }
+            div class="main__section" {
+                (meta_markup)
+            }
+            (choices)
         };
-        (markup, PageSections::default())
+        (
+            main_container("enum", self.external, markup),
+            PageSections::default(),
+        )
     }
 }
 
@@ -200,7 +200,7 @@ mod tests {
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let ast_enum = doc_item.into_enum_definition().unwrap();
 
-        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), true);
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, true);
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
