@@ -731,7 +731,11 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
                 .into());
         }
         if document.has_errors() {
-            return Err(anyhow!("cannot test WDL document `{p}` with errors", p = wdl_path.display()).into());
+            return Err(anyhow!(
+                "cannot test WDL document `{p}` with errors",
+                p = wdl_path.display()
+            )
+            .into());
         }
 
         let yaml_path = match find_yaml(&wdl_path)? {
