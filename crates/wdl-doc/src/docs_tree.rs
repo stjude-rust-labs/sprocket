@@ -986,9 +986,6 @@ impl DocsTree {
                 dirClosed: '{}',
                 nodes: [{}],
                 get shownNodes() {{
-                    if (this.search !== '') {{
-                        return [];
-                    }}
                     return this.nodes.filter(node => this.showSelfCache[node.key]);
                 }},
                 dag: {{{}}},
