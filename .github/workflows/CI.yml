@@ -77,8 +77,15 @@ jobs:
         with:
           tool: nextest
 
+      # Normal wdl-doc runs can automatically install Pagefind, but since the tests run in parallel, they
+      # can step on each other's toes in CI.
+      - name: Install Pagefind
+        if: runner.os == 'Linux'
+        run: npm install -g pagefind
+
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
+        shell: bash
         run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
 
   engine-test:
@@ -106,6 +113,11 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: nextest
+
+      # See the `test` job
+      - name: Install Pagefind
+        run: npm install -g pagefind
+
       - name: Pull test images
         if: runner.os == 'Linux'
         run: |
