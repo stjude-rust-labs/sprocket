@@ -723,6 +723,17 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     for analysis in analysis_results.filter(&[&source]) {
         let document = analysis.document();
         let wdl_path = PathBuf::from(Into::<String>::into(document.path()));
+
+        if let Some(err) = analysis.error() {
+            let err = err.clone();
+            return Err(anyhow!(err)
+                .context(format!("parsing {p}", p = wdl_path.display()))
+                .into());
+        }
+        if document.has_errors() {
+            return Err(anyhow!("cannot test WDL document `{p}` with errors", p = wdl_path.display()).into());
+        }
+
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,
             None => {
