@@ -328,15 +328,6 @@
   .left-sidebar__container {
     @apply flex flex-col size-full text-nowrap pt-4 text-slate-400 border-r border-slate-900;
   }
-  .left-sidebar__searchbar-form {
-    @apply flex-none items-center gap-x-2 w-9/10 h-[40px] rounded-md border border-slate-700 mb-4;
-  }
-  .left-sidebar__searchbar {
-    @apply flex flex-row items-center size-full;
-  }
-  .left-sidebar__search-clear {
-    @apply flex size-6 hover:cursor-pointer ml-2 pr-2;
-  }
   .left-sidebar__tabs-container {
     @apply flex items-center;
   }

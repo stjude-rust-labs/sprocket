@@ -2587,37 +2587,6 @@
     text-wrap: nowrap;
     color: var(--color-slate-400);
   }
-  .left-sidebar__searchbar-form {
-    margin-bottom: calc(var(--spacing) * 4);
-    height: 40px;
-    width: calc(9/10 * 100%);
-    flex: none;
-    align-items: center;
-    column-gap: calc(var(--spacing) * 2);
-    border-radius: var(--radius-md);
-    border-style: var(--tw-border-style);
-    border-width: 1px;
-    border-color: var(--color-slate-700);
-  }
-  .left-sidebar__searchbar {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    flex-direction: row;
-    align-items: center;
-  }
-  .left-sidebar__search-clear {
-    margin-left: calc(var(--spacing) * 2);
-    display: flex;
-    width: calc(var(--spacing) * 6);
-    height: calc(var(--spacing) * 6);
-    padding-right: calc(var(--spacing) * 2);
-    &:hover {
-      @media (hover: hover) {
-        cursor: pointer;
-      }
-    }
-  }
   .left-sidebar__tabs-container {
     display: flex;
     align-items: center;

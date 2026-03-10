@@ -47,13 +47,6 @@ Alpine.store('search', {
         }
     },
 
-    focusSearch(event) {
-        if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
-
-        event.preventDefault();
-        window.dispatchEvent(new CustomEvent('focus-search-input'));
-    },
-
     clear() {
         this.query = '';
         this.results = [];
