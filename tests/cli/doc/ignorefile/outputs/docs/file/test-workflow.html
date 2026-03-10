@@ -30,9 +30,6 @@ window.pagefind = import(pagefindPath)</script><script defer src="../index.js"><
                 dirClosed: '../assets/chevron-down.svg',
                 nodes: [{&quot;key&quot;:&quot;file&quot;,&quot;display_name&quot;:&quot;file&quot;,&quot;parent&quot;:&quot;file&quot;,&quot;search_name&quot;:&quot;file/index.html&quot;,&quot;icon&quot;:&quot;../assets/wdl-dir-selected.svg&quot;,&quot;href&quot;:&quot;index.html&quot;,&quot;ancestor&quot;:true,&quot;current&quot;:false,&quot;nest_level&quot;:1,&quot;children&quot;:[&quot;file_test_workflow_html&quot;]}, {&quot;key&quot;:&quot;file_test_workflow_html&quot;,&quot;display_name&quot;:&quot;test&quot;,&quot;parent&quot;:&quot;file&quot;,&quot;search_name&quot;:&quot;file/test-workflow.html&quot;,&quot;icon&quot;:&quot;../assets/workflow-selected.svg&quot;,&quot;href&quot;:&quot;test-workflow.html&quot;,&quot;ancestor&quot;:true,&quot;current&quot;:true,&quot;nest_level&quot;:2,&quot;children&quot;:[]}],
                 get shownNodes() {
-                    if (this.search !== '') {
-                        return [];
-                    }
                     return this.nodes.filter(node =&gt; this.showSelfCache[node.key]);
                 },
                 dag: {'file': ['file_test_workflow_html'], 'file_test_workflow_html': []},
