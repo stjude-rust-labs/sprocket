@@ -24,8 +24,8 @@ Alpine.store('search', {
         });
     },
 
-    async performSearch(term) {
-        if (!term || term.trim() === '') {
+    async performSearch(query) {
+        if (!query || query.trim() === '') {
             this.results = [];
             this.loading = false;
             return;
@@ -33,8 +33,17 @@ Alpine.store('search', {
 
         this.loading = true;
 
+        const filters = {};
+        const typeFilter = query.match(/type:(\S+)/);
+        if (typeFilter) {
+            filters.type = typeFilter[1];
+            query = query.replace(typeFilter[0], "").trim();
+        }
+
         try {
-            const search = await this.pagefind.search(term);
+            const search = await this.pagefind.search(query || null, {
+                filters
+            });
 
             this.results = await Promise.all(
                 search.results.slice(0, 10).map(r => r.data())

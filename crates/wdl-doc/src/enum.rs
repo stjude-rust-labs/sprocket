@@ -115,7 +115,7 @@ impl Enum {
 
         let definition = self.definition.display(None);
         let markup = html! {
-            p class="text-brand-lime-300" data-pagefind-ignore { "Enum" }
+            p class="text-brand-lime-300" data-pagefind-filter="type:enum" { "Enum" }
             h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
             div class="markdown-body mb-4" {
                 (self.meta.render_description(false))

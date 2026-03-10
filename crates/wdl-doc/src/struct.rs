@@ -142,7 +142,7 @@ impl Struct {
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
         let markup = html! {
-            p class="text-brand-pink-400" data-pagefind-ignore { "Struct" }
+            p class="text-brand-pink-400" data-pagefind-filter="type:struct" { "Struct" }
             h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
             div class="markdown-body mb-4" {
                 (self.meta.render_description(false))

@@ -193,7 +193,7 @@ impl Workflow {
         headers.extend(inner_headers);
 
         let markup = html! {
-            span class="text-brand-emerald-400" data-pagefind-ignore { "Workflow" }
+            span class="text-brand-emerald-400" data-pagefind-filter="type:workflow" { "Workflow" }
             h1 id="title" class="main__title" data-pagefind-meta="title" { (self.render_name()) }
             div class="markdown-body mb-4" {
                 (self.render_description(false))

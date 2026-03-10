@@ -58,6 +58,7 @@ const BINARY_EXTENSIONS: &[&str] = &[
     "sqlite",
     "sqlite3",
     "pagefind",
+    "pf_filter",
     "pf_fragment",
     "pf_index",
     "pf_meta",
