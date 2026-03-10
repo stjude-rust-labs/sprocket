@@ -1339,7 +1339,7 @@ impl DocsTree {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none hidden light:block" alt="Logo";
                     }
-                    div id="search" class="relative w-sm h-10 col-start-2 justify-self-center" {
+                    div id="search" class="w-sm h-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
                         input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";
                         img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
                         img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";

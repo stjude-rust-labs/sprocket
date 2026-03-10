@@ -1608,9 +1608,6 @@
   .z-10 {
     z-index: 10;
   }
-  .col-start-2 {
-    grid-column-start: 2;
-  }
   .col-start-3 {
     grid-column-start: 3;
   }
@@ -1775,9 +1772,6 @@
   }
   .self-center {
     align-self: center;
-  }
-  .justify-self-center {
-    justify-self: center;
   }
   .justify-self-end {
     justify-self: flex-end;
