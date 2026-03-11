@@ -400,7 +400,7 @@ pub struct HttpConfig {
     pub parallelism: Parallelism,
 }
 
-/// Maximum concurrent workflows.
+/// HTTP transer paralllelism.
 #[derive(Debug, Clone, Default)]
 pub struct Parallelism(Option<usize>);
 

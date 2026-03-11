@@ -162,8 +162,8 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
-    let hide_notes = args.common.hide_notes || config.check.hide_notes;
     let hide_warnings = args.common.hide_warnings || config.check.hide_warnings;
+    let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
     let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
 
     let lint = args.lint
