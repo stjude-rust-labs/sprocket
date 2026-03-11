@@ -964,10 +964,18 @@ pub fn format_if_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    let in_chain = matches!(
+        element.element().inner().parent().map(|p| p.kind()),
+        Some(SyntaxKind::IfExprNode)
+    );
     for child in element.children().expect("if expr children") {
         match child.element().kind() {
             SyntaxKind::ThenKeyword => {
-                stream.increment_indent();
+                if !in_chain {
+                    stream.increment_indent();
+                } else {
+                    stream.end_line();
+                }
             }
             SyntaxKind::ElseKeyword => {
                 stream.end_line();
@@ -977,5 +985,8 @@ pub fn format_if_expr(
         (&child).write(stream, config);
         stream.end_word();
     }
-    stream.decrement_indent();
+
+    if !in_chain {
+        stream.decrement_indent();
+    }
 }

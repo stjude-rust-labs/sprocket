@@ -1085,8 +1085,8 @@ workflow chip {
     File? blacklist_ = if length(blacklists) > 1
         then pool_blacklist.ta_pooled
         else if length(blacklists) > 0
-            then blacklists[0]
-            else blacklist2_
+        then blacklists[0]
+        else blacklist2_
     String mito_chr_name_ = select_first([
         mito_chr_name,
         read_genome_tsv.mito_chr_name,
@@ -1121,8 +1121,8 @@ workflow chip {
     String idr_rank_ = if peak_caller_ == "spp"
         then "signal.value"
         else if peak_caller_ == "macs2"
-            then "p.value"
-            else "p.value"
+        then "p.value"
+        else "p.value"
     Int cap_num_peak_spp = 300000
     Int cap_num_peak_macs2 = 500000
     Int cap_num_peak_ = if peak_caller_ == "spp"
@@ -1179,78 +1179,78 @@ workflow chip {
             fastqs_rep10_R1,
         ]
         else if length(fastqs_rep9_R1) > 0
-            then [
-                fastqs_rep1_R1,
-                fastqs_rep2_R1,
-                fastqs_rep3_R1,
-                fastqs_rep4_R1,
-                fastqs_rep5_R1,
-                fastqs_rep6_R1,
-                fastqs_rep7_R1,
-                fastqs_rep8_R1,
-                fastqs_rep9_R1,
-            ]
-            else if length(fastqs_rep8_R1) > 0
-                then [
-                    fastqs_rep1_R1,
-                    fastqs_rep2_R1,
-                    fastqs_rep3_R1,
-                    fastqs_rep4_R1,
-                    fastqs_rep5_R1,
-                    fastqs_rep6_R1,
-                    fastqs_rep7_R1,
-                    fastqs_rep8_R1,
-                ]
-                else if length(fastqs_rep7_R1) > 0
-                    then [
-                        fastqs_rep1_R1,
-                        fastqs_rep2_R1,
-                        fastqs_rep3_R1,
-                        fastqs_rep4_R1,
-                        fastqs_rep5_R1,
-                        fastqs_rep6_R1,
-                        fastqs_rep7_R1,
-                    ]
-                    else if length(fastqs_rep6_R1) > 0
-                        then [
-                            fastqs_rep1_R1,
-                            fastqs_rep2_R1,
-                            fastqs_rep3_R1,
-                            fastqs_rep4_R1,
-                            fastqs_rep5_R1,
-                            fastqs_rep6_R1,
-                        ]
-                        else if length(fastqs_rep5_R1) > 0
-                            then [
-                                fastqs_rep1_R1,
-                                fastqs_rep2_R1,
-                                fastqs_rep3_R1,
-                                fastqs_rep4_R1,
-                                fastqs_rep5_R1,
-                            ]
-                            else if length(fastqs_rep4_R1) > 0
-                                then [
-                                    fastqs_rep1_R1,
-                                    fastqs_rep2_R1,
-                                    fastqs_rep3_R1,
-                                    fastqs_rep4_R1,
-                                ]
-                                else if length(fastqs_rep3_R1) > 0
-                                    then [
-                                        fastqs_rep1_R1,
-                                        fastqs_rep2_R1,
-                                        fastqs_rep3_R1,
-                                    ]
-                                    else if length(fastqs_rep2_R1) > 0
-                                        then [
-                                            fastqs_rep1_R1,
-                                            fastqs_rep2_R1,
-                                        ]
-                                        else if length(fastqs_rep1_R1) > 0
-                                            then [
-                                                fastqs_rep1_R1,
-                                            ]
-                                            else []
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+            fastqs_rep5_R1,
+            fastqs_rep6_R1,
+            fastqs_rep7_R1,
+            fastqs_rep8_R1,
+            fastqs_rep9_R1,
+        ]
+        else if length(fastqs_rep8_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+            fastqs_rep5_R1,
+            fastqs_rep6_R1,
+            fastqs_rep7_R1,
+            fastqs_rep8_R1,
+        ]
+        else if length(fastqs_rep7_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+            fastqs_rep5_R1,
+            fastqs_rep6_R1,
+            fastqs_rep7_R1,
+        ]
+        else if length(fastqs_rep6_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+            fastqs_rep5_R1,
+            fastqs_rep6_R1,
+        ]
+        else if length(fastqs_rep5_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+            fastqs_rep5_R1,
+        ]
+        else if length(fastqs_rep4_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+            fastqs_rep4_R1,
+        ]
+        else if length(fastqs_rep3_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+            fastqs_rep3_R1,
+        ]
+        else if length(fastqs_rep2_R1) > 0
+        then [
+            fastqs_rep1_R1,
+            fastqs_rep2_R1,
+        ]
+        else if length(fastqs_rep1_R1) > 0
+        then [
+            fastqs_rep1_R1,
+        ]
+        else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] fastqs_R2 = [
         fastqs_rep1_R2,
@@ -1280,78 +1280,78 @@ workflow chip {
             ctl_fastqs_rep10_R1,
         ]
         else if length(ctl_fastqs_rep9_R1) > 0
-            then [
-                ctl_fastqs_rep1_R1,
-                ctl_fastqs_rep2_R1,
-                ctl_fastqs_rep3_R1,
-                ctl_fastqs_rep4_R1,
-                ctl_fastqs_rep5_R1,
-                ctl_fastqs_rep6_R1,
-                ctl_fastqs_rep7_R1,
-                ctl_fastqs_rep8_R1,
-                ctl_fastqs_rep9_R1,
-            ]
-            else if length(ctl_fastqs_rep8_R1) > 0
-                then [
-                    ctl_fastqs_rep1_R1,
-                    ctl_fastqs_rep2_R1,
-                    ctl_fastqs_rep3_R1,
-                    ctl_fastqs_rep4_R1,
-                    ctl_fastqs_rep5_R1,
-                    ctl_fastqs_rep6_R1,
-                    ctl_fastqs_rep7_R1,
-                    ctl_fastqs_rep8_R1,
-                ]
-                else if length(ctl_fastqs_rep7_R1) > 0
-                    then [
-                        ctl_fastqs_rep1_R1,
-                        ctl_fastqs_rep2_R1,
-                        ctl_fastqs_rep3_R1,
-                        ctl_fastqs_rep4_R1,
-                        ctl_fastqs_rep5_R1,
-                        ctl_fastqs_rep6_R1,
-                        ctl_fastqs_rep7_R1,
-                    ]
-                    else if length(ctl_fastqs_rep6_R1) > 0
-                        then [
-                            ctl_fastqs_rep1_R1,
-                            ctl_fastqs_rep2_R1,
-                            ctl_fastqs_rep3_R1,
-                            ctl_fastqs_rep4_R1,
-                            ctl_fastqs_rep5_R1,
-                            ctl_fastqs_rep6_R1,
-                        ]
-                        else if length(ctl_fastqs_rep5_R1) > 0
-                            then [
-                                ctl_fastqs_rep1_R1,
-                                ctl_fastqs_rep2_R1,
-                                ctl_fastqs_rep3_R1,
-                                ctl_fastqs_rep4_R1,
-                                ctl_fastqs_rep5_R1,
-                            ]
-                            else if length(ctl_fastqs_rep4_R1) > 0
-                                then [
-                                    ctl_fastqs_rep1_R1,
-                                    ctl_fastqs_rep2_R1,
-                                    ctl_fastqs_rep3_R1,
-                                    ctl_fastqs_rep4_R1,
-                                ]
-                                else if length(ctl_fastqs_rep3_R1) > 0
-                                    then [
-                                        ctl_fastqs_rep1_R1,
-                                        ctl_fastqs_rep2_R1,
-                                        ctl_fastqs_rep3_R1,
-                                    ]
-                                    else if length(ctl_fastqs_rep2_R1) > 0
-                                        then [
-                                            ctl_fastqs_rep1_R1,
-                                            ctl_fastqs_rep2_R1,
-                                        ]
-                                        else if length(ctl_fastqs_rep1_R1) > 0
-                                            then [
-                                                ctl_fastqs_rep1_R1,
-                                            ]
-                                            else []
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+            ctl_fastqs_rep5_R1,
+            ctl_fastqs_rep6_R1,
+            ctl_fastqs_rep7_R1,
+            ctl_fastqs_rep8_R1,
+            ctl_fastqs_rep9_R1,
+        ]
+        else if length(ctl_fastqs_rep8_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+            ctl_fastqs_rep5_R1,
+            ctl_fastqs_rep6_R1,
+            ctl_fastqs_rep7_R1,
+            ctl_fastqs_rep8_R1,
+        ]
+        else if length(ctl_fastqs_rep7_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+            ctl_fastqs_rep5_R1,
+            ctl_fastqs_rep6_R1,
+            ctl_fastqs_rep7_R1,
+        ]
+        else if length(ctl_fastqs_rep6_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+            ctl_fastqs_rep5_R1,
+            ctl_fastqs_rep6_R1,
+        ]
+        else if length(ctl_fastqs_rep5_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+            ctl_fastqs_rep5_R1,
+        ]
+        else if length(ctl_fastqs_rep4_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+            ctl_fastqs_rep4_R1,
+        ]
+        else if length(ctl_fastqs_rep3_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+            ctl_fastqs_rep3_R1,
+        ]
+        else if length(ctl_fastqs_rep2_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+            ctl_fastqs_rep2_R1,
+        ]
+        else if length(ctl_fastqs_rep1_R1) > 0
+        then [
+            ctl_fastqs_rep1_R1,
+        ]
+        else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
     Array[Array[File]] ctl_fastqs_R2 = [
         ctl_fastqs_rep1_R2,
@@ -1491,8 +1491,8 @@ workflow chip {
                 idx_tar = if aligner == "bwa"
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
-                        then bowtie2_idx_tar_
-                        else custom_aligner_idx_tar
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar
                 ,
                 paired_end = paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
@@ -1608,8 +1608,8 @@ workflow chip {
                 idx_tar = if aligner == "bwa"
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
-                        then bowtie2_idx_tar_
-                        else custom_aligner_idx_tar
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar
                 ,
                 paired_end = false,
                 use_bwa_mem_for_pe = false,
@@ -1699,8 +1699,8 @@ workflow chip {
         File? ta_xcor = if defined(bam2ta_no_dedup_R1.ta)
             then bam2ta_no_dedup_R1.ta
             else if defined(bam2ta_no_dedup.ta)
-                then bam2ta_no_dedup.ta
-                else ta_
+            then bam2ta_no_dedup.ta
+            else ta_
         Boolean paired_end_xcor = if defined(bam2ta_no_dedup_R1.ta)
             then false
             else paired_end_
@@ -1764,8 +1764,8 @@ workflow chip {
                 idx_tar = if aligner == "bwa"
                     then bwa_idx_tar_
                     else if aligner == "bowtie2"
-                        then bowtie2_idx_tar_
-                        else custom_aligner_idx_tar
+                    then bowtie2_idx_tar_
+                    else custom_aligner_idx_tar
                 ,
                 paired_end = ctl_paired_end_,
                 use_bwa_mem_for_pe = use_bwa_mem_for_pe,
@@ -1947,8 +1947,8 @@ workflow chip {
         Boolean chosen_ctl_paired_end = if chosen_ctl_ta_id == -2
             then false
             else if chosen_ctl_ta_id == -1
-                then ctl_paired_end_[0]
-                else ctl_paired_end_[chosen_ctl_ta_id]
+            then ctl_paired_end_[0]
+            else ctl_paired_end_[chosen_ctl_ta_id]
 
         if (chosen_ctl_ta_id > -2 && chosen_ctl_ta_subsample > 0) {
             call subsample_ctl { input:
@@ -1966,22 +1966,22 @@ workflow chip {
         Array[File] chosen_ctl_tas = if chosen_ctl_ta_id <= -2
             then []
             else if chosen_ctl_ta_subsample > 0
-                then [
-                    select_first([
-                        subsample_ctl.ta_subsampled,
-                    ]),
-                ]
-                else if chosen_ctl_ta_id == -1
-                    then [
-                        select_first([
-                            pool_ta_ctl.ta_pooled,
-                        ]),
-                    ]
-                    else [
-                        select_first([
-                            ctl_ta_[chosen_ctl_ta_id],
-                        ]),
-                    ]
+            then [
+                select_first([
+                    subsample_ctl.ta_subsampled,
+                ]),
+            ]
+            else if chosen_ctl_ta_id == -1
+            then [
+                select_first([
+                    pool_ta_ctl.ta_pooled,
+                ]),
+            ]
+            else [
+                select_first([
+                    ctl_ta_[chosen_ctl_ta_id],
+                ]),
+            ]
     }
     Int chosen_ctl_ta_pooled_subsample = if has_all_input_of_choose_ctl && !align_only_
         then select_first([
@@ -2022,8 +2022,8 @@ workflow chip {
                 runtime_environment = if peak_caller_ == "spp"
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
-                        then runtime_environment_macs2
-                        else runtime_environment
+                    then runtime_environment_macs2
+                    else runtime_environment
                 ,
             }
         }
@@ -2081,8 +2081,8 @@ workflow chip {
                 runtime_environment = if peak_caller_ == "spp"
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
-                        then runtime_environment_macs2
-                        else runtime_environment
+                    then runtime_environment_macs2
+                    else runtime_environment
                 ,
             }
         }
@@ -2119,8 +2119,8 @@ workflow chip {
                 runtime_environment = if peak_caller_ == "spp"
                     then runtime_environment_spp
                     else if peak_caller_ == "macs2"
-                        then runtime_environment_macs2
-                        else runtime_environment
+                    then runtime_environment_macs2
+                    else runtime_environment
                 ,
             }
         }
@@ -2156,16 +2156,16 @@ workflow chip {
     Array[File?] chosen_ctl_ta_pooled = if !has_all_input_of_choose_ctl || align_only_
         then []
         else if chosen_ctl_ta_pooled_subsample > 0
-            then [
-                subsample_ctl_pooled.ta_subsampled,
-            ]
-            else if num_ctl < 2
-                then [
-                    ctl_ta_[0],
-                ]
-                else [
-                    pool_ta_ctl.ta_pooled,
-                ]
+        then [
+            subsample_ctl_pooled.ta_subsampled,
+        ]
+        else if num_ctl < 2
+        then [
+            ctl_ta_[0],
+        ]
+        else [
+            pool_ta_ctl.ta_pooled,
+        ]
 
     Boolean has_input_of_call_peak_pooled = defined(pool_ta.ta_pooled)
     Boolean has_output_of_call_peak_pooled = defined(peak_pooled)
@@ -2198,8 +2198,8 @@ workflow chip {
             runtime_environment = if peak_caller_ == "spp"
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
-                    then runtime_environment_macs2
-                    else runtime_environment
+                then runtime_environment_macs2
+                else runtime_environment
             ,
         }
     }
@@ -2258,8 +2258,8 @@ workflow chip {
             runtime_environment = if peak_caller_ == "spp"
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
-                    then runtime_environment_macs2
-                    else runtime_environment
+                then runtime_environment_macs2
+                else runtime_environment
             ,
         }
     }
@@ -2297,8 +2297,8 @@ workflow chip {
             runtime_environment = if peak_caller_ == "spp"
                 then runtime_environment_spp
                 else if peak_caller_ == "macs2"
-                    then runtime_environment_macs2
-                    else runtime_environment
+                then runtime_environment_macs2
+                else runtime_environment
             ,
         }
     }
