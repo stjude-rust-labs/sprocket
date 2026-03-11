@@ -1,3 +1,4 @@
 {
   "repro.out": "8388608"
 }
+outputs were also written to `./out/runs/repro/_TIMESTAMP_/outputs.json`

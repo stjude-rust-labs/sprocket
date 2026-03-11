@@ -6323,6 +6323,7 @@ dependencies = [
  "tracing-subscriber",
  "wdl-analysis",
  "wdl-ast",
+ "which",
 ]
 
 [[package]]
