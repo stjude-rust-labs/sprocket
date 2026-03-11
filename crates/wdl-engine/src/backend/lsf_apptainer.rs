@@ -900,11 +900,11 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .apptainer
                 .generate_script(
                     &backend_config.apptainer_config,
-            if self.config.task.shell.is_empty() {
-                DEFAULT_TASK_SHELL
-            } else {
-                &self.config.task.shell
-            },
+                    if self.config.task.shell.is_empty() {
+                        DEFAULT_TASK_SHELL
+                    } else {
+                        &self.config.task.shell
+                    },
                     &request,
                     self.cancellation.first(),
                 )
