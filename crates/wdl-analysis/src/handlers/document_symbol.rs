@@ -47,12 +47,12 @@ pub fn document_symbol(graph: &DocumentGraph, uri: &Url) -> Result<Option<Docume
         _ => bail!("document `{uri}` has not been parsed", uri = uri),
     };
 
-    let Some(document) = node.document() else {
-        bail!("analysis data not available for document `{}`", uri);
+    let Some(document) = node.root() else {
+        return Ok(None);
     };
 
     let mut symbols = Vec::new();
-    let Some(ast) = document.root().ast().into_v1() else {
+    let Some(ast) = document.ast().into_v1() else {
         return Ok(None);
     };
 

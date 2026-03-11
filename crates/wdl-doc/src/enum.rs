@@ -12,12 +12,12 @@ use wdl_ast::v1::EnumDefinition;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
-use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
+use crate::meta::main_container;
 
 /// An [`EnumChoice`] with an associated [`MetaMap`].
 #[derive(Debug)]
@@ -28,14 +28,9 @@ pub(crate) struct DocumentedEnumChoice {
     choice: EnumChoice,
 }
 
-impl DocumentedEnumChoice {
-    /// Get the [full description] of the choice.
-    ///
-    /// [full description]: MetaMap::full_description()
-    pub fn full_description(&self) -> String {
-        self.meta
-            .full_description()
-            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
+impl DefinitionMeta for DocumentedEnumChoice {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
     }
 }
 
@@ -50,6 +45,8 @@ pub(crate) struct Enum {
     definition: EnumDefinition,
     /// The version of WDL this enum is defined in.
     version: VersionBadge,
+    /// Whether the enum lives outside the workspace.
+    external: bool,
 }
 
 impl DefinitionMeta for Enum {
@@ -63,6 +60,7 @@ impl Enum {
     pub fn new(
         definition: EnumDefinition,
         version: SupportedVersion,
+        external: bool,
         enable_doc_comments: bool,
     ) -> Self {
         let (meta, choices) = parse_meta(&definition, enable_doc_comments);
@@ -72,6 +70,7 @@ impl Enum {
             choices,
             definition,
             version: VersionBadge::new(version),
+            external,
         }
     }
 
@@ -83,20 +82,27 @@ impl Enum {
         let choices = html! {
             div class="main__section" {
                 h2 id="choices" class="main__section-header" { "Choices" }
-                @for choice in self.choices.iter() {
-                    @let choice_name = choice.choice.name();
-                    @let choice_id = format!("choice.{}", choice_name.text());
-                    @let choice_anchor = format!("#{choice_id}");
-                    section id=(choice_id) {
-                        div class="main__meta-item-member" {
-                            a href=(choice_anchor) {}
-                            h3 class="main__section-subheader" { (choice_name.text()) }
-                        }
+                div class="main__grid-container" {
+                    div class="main__grid-enum-choice-container" {
+                        div class="main__grid-header-cell" { "Name" }
+                        div class="main__grid-header-cell" { "Description" }
+                        div class="main__grid-header-separator" {}
+                        @for choice in self.choices.iter() {
+                            @let choice_name = choice.choice.name();
+                            @let choice_id = format!("choice.{}", choice_name.text());
+                            div id=(choice_id) class="main__grid-row" x-data="{ description_expanded: false }" {
+                                div class="main__grid-cell" {
+                                    code { (choice_name.text()) }
+                                }
 
-                        div class="main__meta-item-member-description" {
-                            @for paragraph in choice.full_description().split('\n') {
-                                p class="main__meta-item-member-description-para" { (paragraph) }
+                                div class="main__grid-cell" {
+                                    (choice.meta().render_description(true))
+                                }
+                                div x-show="description_expanded" class="main__grid-full-width-cell" {
+                                    (choice.meta().render_description(false))
+                                }
                             }
+                            div class="main__grid-row-separator" {}
                         }
                     }
                 }
@@ -110,27 +116,28 @@ impl Enum {
 
         let definition = self.definition.display(None);
         let markup = html! {
-            div class="main__container" {
-                p class="text-brand-lime-300" { "Enum" }
-                h1 id="title" class="main__title" { code { (name) } }
-                div class="markdown-body mb-4" {
-                    (self.meta.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.version.render())
-                }
-                div class="main__section" {
-                    sprocket-code language="wdl" {
-                        (definition)
-                    }
-                }
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (choices)
+            p class="text-brand-lime-300" data-pagefind-filter="type:enum" { "Enum" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
+            div class="markdown-body mb-4" {
+                (self.meta.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.version.render())
+            }
+            div class="main__section" {
+                sprocket-code language="wdl" {
+                    (definition)
+                }
+            }
+            div class="main__section" {
+                (meta_markup)
+            }
+            (choices)
         };
-        (markup, PageSections::default())
+        (
+            main_container("enum", self.external, markup),
+            PageSections::default(),
+        )
     }
 }
 
@@ -194,11 +201,11 @@ mod tests {
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let ast_enum = doc_item.into_enum_definition().unwrap();
 
-        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), true);
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, true);
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
-                "An RGB24 color enum\nEach choice is represented as a 24-bit hexadecimal RGB \
+                "An RGB24 color enum\n\nEach variant is represented as a 24-bit hexadecimal RGB \
                  string with exactly one non-zero channel."
             )
         );

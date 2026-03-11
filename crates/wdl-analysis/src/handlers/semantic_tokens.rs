@@ -9,6 +9,8 @@
 
 use anyhow::Result;
 use anyhow::bail;
+use line_index::LineCol;
+use line_index::WideEncoding;
 use lsp_types::SemanticToken;
 use lsp_types::SemanticTokenModifier;
 use lsp_types::SemanticTokenType;
@@ -64,13 +66,13 @@ pub const WDL_SEMANTIC_TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::DECLARATION,
 ];
 
-/// Handles a semantic token request for a full docuement.
+/// Handles a semantic token request for a full document.
 ///
 /// It traverses the entire CST of the document, classifies each token
 /// into a semantic type, and constructs the [`SemanticTokens`].
 pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<SemanticTokens>> {
     let Some(index) = graph.get_index(uri) else {
-        bail!("docuement `{uri}` not found in graph.");
+        bail!("document `{uri}` not found in graph.");
     };
 
     let node = graph.get(index);
@@ -93,10 +95,21 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
         WalkEvent::Enter(elem) => elem.into_token(),
         WalkEvent::Leave(_) => None,
     }) {
-        if let Some((token_ty, token_modifiers_bitset)) = token_ty(&token, document) {
-            let start_pos = position(&lines, token.text_range().start())?;
-            let end_pos = position(&lines, token.text_range().end())?;
+        let Some((token_ty, token_modifiers_bitset)) = token_ty(&token, document) else {
+            continue;
+        };
 
+        let start_pos = position(&lines, token.text_range().start())?;
+        let end_pos = position(&lines, token.text_range().end())?;
+
+        let token_type = WDL_SEMANTIC_TOKEN_TYPES
+            .iter()
+            .position(|tt| tt == &token_ty)
+            .unwrap_or_else(|| {
+                panic!("token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`")
+            }) as u32;
+
+        if start_pos.line == end_pos.line {
             let delta_line = start_pos.line - last_line;
             let delta_start = if delta_line == 0 {
                 start_pos.character - last_start
@@ -104,25 +117,65 @@ pub fn semantic_tokens(graph: &DocumentGraph, uri: &Url) -> Result<Option<Semant
                 start_pos.character
             };
 
-            let length = end_pos.character - start_pos.character;
-
-            let lsp_token = SemanticToken {
+            tokens.push(SemanticToken {
                 delta_line,
                 delta_start,
-                length,
-                token_type: WDL_SEMANTIC_TOKEN_TYPES
-                    .iter()
-                    .position(|tt| tt == &token_ty)
-                    .unwrap_or_else(|| {
-                        panic!("token type `{token_ty:?}` not found in `WDL_SEMANTIC_TOKEN_TYPES`")
-                    }) as u32,
+                length: end_pos.character - start_pos.character,
+                token_type,
                 token_modifiers_bitset,
-            };
-
-            tokens.push(lsp_token);
+            });
 
             last_line = start_pos.line;
             last_start = start_pos.character;
+            continue;
+        }
+
+        // Tokens can't be multiline, need to split them up
+        for line in start_pos.line..=end_pos.line {
+            let Some(current_line_range) = lines.line(line) else {
+                continue;
+            };
+
+            let Some(utf16_line_col) = lines.to_wide(
+                WideEncoding::Utf16,
+                LineCol {
+                    line,
+                    col: u32::from(current_line_range.len()),
+                },
+            ) else {
+                continue;
+            };
+
+            let current_line_len_utf16 = utf16_line_col.col;
+
+            let (char_start, length) = if line == start_pos.line {
+                (
+                    start_pos.character,
+                    current_line_len_utf16 - start_pos.character,
+                )
+            } else if line == end_pos.line {
+                (0, end_pos.character)
+            } else {
+                (0, current_line_len_utf16)
+            };
+
+            let delta_line = line - last_line;
+            let delta_start = if delta_line == 0 {
+                char_start - last_start
+            } else {
+                char_start
+            };
+
+            tokens.push(SemanticToken {
+                delta_line,
+                delta_start,
+                length,
+                token_type,
+                token_modifiers_bitset,
+            });
+
+            last_line = line;
+            last_start = char_start;
         }
     }
 
