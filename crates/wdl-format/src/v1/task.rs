@@ -250,12 +250,7 @@ pub fn format_command_section(
                                     // save the leading whitespace to use as temporary indent
                                     bash_indent = Some(
                                         line.chars()
-                                            .take_while(|c| {
-                                                matches!(
-                                                    c.to_string().as_str(),
-                                                    crate::SPACE | crate::TAB
-                                                )
-                                            })
+                                            .take_while(|c| matches!(c, ' ' | '\t'))
                                             .collect::<String>()
                                             .into(),
                                     );

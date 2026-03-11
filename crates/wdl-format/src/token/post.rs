@@ -445,7 +445,7 @@ impl Postprocessor {
                 {
                     let popped = stream.0.pop().unwrap();
                     // We don't actually want to pop the TempIndent token,
-                    // but rather a regualar Indent token before the temp indent.
+                    // but rather a regular Indent token before the temp indent.
                     if matches!(popped, PostToken::TempIndent(_)) {
                         stream.0.pop_if(|t| matches!(t, PostToken::Indent));
                         // Restore the popped TempIndent
@@ -649,7 +649,7 @@ impl Postprocessor {
 
         // reduce indent for breaks never added
         for _ in break_stack {
-            self.indent_level -= 1;
+            self.indent_level = self.indent_level.saturating_sub(1);
         }
         out_stream.extend(post_buffer);
     }
