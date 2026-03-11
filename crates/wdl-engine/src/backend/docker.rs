@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -26,7 +25,6 @@ use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
-use tokio::process::Command;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
@@ -381,10 +379,12 @@ impl CleanupTask {
 /// Attempts to pull the first available Docker image from a list of
 /// candidates.
 ///
-/// Iterates through the candidates in order, running `docker pull` for
-/// each. Returns the first image that pulls successfully. If all fail,
-/// returns an error listing all failures.
+/// Iterates through the candidates in order, using the bollard API (via
+/// crankshaft) to ensure each image exists locally. Returns the first
+/// image that is available or pulls successfully. If all fail, returns an
+/// error listing all failures.
 async fn pull_first_available_docker_image(
+    docker: &crankshaft::docker::Docker,
     candidates: &[ContainerSource],
 ) -> Result<ContainerSource> {
     let mut errors = Vec::new();
@@ -393,25 +393,18 @@ async fn pull_first_available_docker_image(
         let image_str = candidate.to_string();
         info!("attempting to pull Docker image `{image_str}`");
 
-        let output = Command::new("docker")
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .arg("pull")
-            .arg(&image_str)
-            .output()
-            .await
-            .with_context(|| format!("failed to spawn `docker pull {image_str}`"))?;
-
-        if output.status.success() {
-            info!("successfully pulled Docker image `{image_str}`");
-            return Ok(candidate.clone());
+        match docker.ensure_image(&image_str).await {
+            Ok(()) => {
+                info!("successfully pulled Docker image `{image_str}`");
+                return Ok(candidate.clone());
+            }
+            Err(e) => {
+                let err = anyhow::anyhow!(e)
+                    .context(format!("failed to pull image `{image_str}`"));
+                warn!("failed to pull Docker image `{image_str}`: {err:#}");
+                errors.push((candidate.clone(), err));
+            }
         }
-
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let err = anyhow::anyhow!("docker pull failed: {stderr}");
-        warn!("failed to pull Docker image `{image_str}`: {err:#}");
-        errors.push((candidate.clone(), err));
     }
 
     let mut message = String::from("all Docker image candidates failed to pull:");
@@ -638,6 +631,7 @@ impl TaskExecutionBackend for DockerBackend {
             let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
             let container = pull_first_available_docker_image(
+                self.inner.client(),
                 request
                     .constraints
                     .container
