@@ -156,7 +156,7 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, writer).await
+            commands::test::test(args, config, writer, colorize).await
         }
     }
 }

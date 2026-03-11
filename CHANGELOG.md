@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* The Apptainer executable path is now configurable via the `executable` field in `ApptainerConfig`, enabling support for Singularity and custom install paths ([#682](https://github.com/stjude-rust-labs/sprocket/pull/682)).
+* Added `--suffix` argument to `run` subcommand to append a user-defined string to run directory names ([#695](https://github.com/stjude-rust-labs/sprocket/pull/695))
 * Added `image_cache_dir` configuration option to the Apptainer backend for
   sharing pulled `.sif` images across runs ([#693](https://github.com/stjude-rust-labs/sprocket/pull/693)).
 * Intermediate `test` results are logged as they complete ([#674](https://github.com/stjude-rust-labs/sprocket/pull/674)).
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* More informative errors for invalid WDL ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
 * Fixed a regression where nested inputs and task requirements/hints were not
   being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
 

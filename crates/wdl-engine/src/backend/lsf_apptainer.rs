@@ -65,6 +65,7 @@ use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
+use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
@@ -898,15 +899,13 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+            if self.config.task.shell.is_empty() {
+                DEFAULT_TASK_SHELL
+            } else {
+                &self.config.task.shell
+            },
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?
