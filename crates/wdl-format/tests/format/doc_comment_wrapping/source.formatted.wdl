@@ -21,8 +21,8 @@ version 1.2
 ## Another paragraph after the code block.
 task my_task {
     input {
-        ## This input parameter has a very long doc comment description that explains what
-        ## the parameter does and how to use it properly in the workflow.
+        ## This input parameter has a very long doc comment description that explains what the
+        ## parameter does and how to use it properly in the workflow.
         String long_param
 
         ## Short doc.
@@ -34,16 +34,16 @@ task my_task {
     >>>
 
     output {
-        ## The output file. This is a very long doc comment for the output that should
-        ## also be wrapped appropriately by the formatter.
+        ## The output file. This is a very long doc comment for the output that should also be
+        ## wrapped appropriately by the formatter.
         File result = "output.txt"
     }
 }
 
 ## Workflow-level doc comment that is short
 workflow my_workflow {
-    ## This is a deeply indented doc comment inside a workflow body that should still
-    ## respect indentation when wrapping long text in the markdown formatter.
+    ## This is a deeply indented doc comment inside a workflow body that should still respect
+    ## indentation when wrapping long text in the markdown formatter.
     input {
         ## A parameter
         String name

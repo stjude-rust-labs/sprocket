@@ -9,11 +9,13 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
 
 use crate::Comment;
+use crate::Config;
 use crate::NEWLINE;
 use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
+use crate::doc_comment;
 
 /// A token that can be written by elements.
 ///
@@ -174,7 +176,7 @@ impl TokenStream<PreToken> {
     ///
     /// This will panic if the provided token is itself trivia, as trivia
     /// cannot have trivia.
-    fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
+    fn push_preceding_trivia(&mut self, token: &wdl_ast::Token, config: &Config) {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
         let mut documentation = String::new();
@@ -208,6 +210,21 @@ impl TokenStream<PreToken> {
                 }
                 _ => unreachable!("unexpected trivia: {:?}", token),
             };
+        }
+
+        // Normalize (reformat) the collected doc comment Markdown if enabled.
+        if config.normalize_doc_comments
+            && !documentation.is_empty()
+            && let Some(max) = config.max_line_length.get()
+        {
+            // Indentation is not yet known at the PreToken stage; subtract
+            // only the doc comment prefix width ("## ") from the max line
+            // length to get the width available for Markdown content.
+            let content_width = max.saturating_sub(doc_comment::DOC_COMMENT_PREFIX_WIDTH);
+            if let Some(formatted) = doc_comment::format_doc_comment(&documentation, content_width)
+            {
+                documentation = formatted;
+            }
         }
 
         let mut trivia = trivia.into_iter().peekable();
@@ -268,8 +285,8 @@ impl TokenStream<PreToken> {
     /// # Panics
     ///
     /// This will panic if the provided token is trivia.
-    pub fn push_ast_token(&mut self, token: &wdl_ast::Token) {
-        self.push_preceding_trivia(token);
+    pub fn push_ast_token(&mut self, token: &wdl_ast::Token, config: &Config) {
+        self.push_preceding_trivia(token, config);
         self.0.push(PreToken::Literal(
             Rc::new(token.inner().text().to_owned()),
             token.inner().kind(),
@@ -285,8 +302,13 @@ impl TokenStream<PreToken> {
     /// # Panics
     ///
     /// This will panic if the provided token is trivia.
-    pub fn push_literal_in_place_of_token(&mut self, token: &wdl_ast::Token, replacement: String) {
-        self.push_preceding_trivia(token);
+    pub fn push_literal_in_place_of_token(
+        &mut self,
+        token: &wdl_ast::Token,
+        replacement: String,
+        config: &Config,
+    ) {
+        self.push_preceding_trivia(token, config);
         self.0.push(PreToken::Literal(
             Rc::new(replacement),
             token.inner().kind(),

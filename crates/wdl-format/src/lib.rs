@@ -217,7 +217,7 @@ impl Writable for &FormatElement {
                 }
             },
             Element::Token(token) => {
-                stream.push_ast_token(token);
+                stream.push_ast_token(token, config);
             }
         }
     }

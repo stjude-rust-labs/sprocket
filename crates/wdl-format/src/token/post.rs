@@ -22,7 +22,6 @@ use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
-use crate::doc_comment;
 
 /// [`PostToken`]s that precede an inline comment.
 const INLINE_COMMENT_PRECEDING_TOKENS: [PostToken; 2] = [PostToken::Space, PostToken::Space];
@@ -379,7 +378,7 @@ impl Postprocessor {
         token: PreToken,
         next: Option<&PreToken>,
         stream: &mut TokenStream<PostToken>,
-        config: &Config,
+        _config: &Config,
     ) {
         if stream.is_empty() {
             self.interrupted = false;
@@ -506,24 +505,9 @@ impl Postprocessor {
                                 self.interrupted = true;
                                 self.end_line(stream);
                             }
-                            let formatted_contents = if let Some(max) = config.max_line_length.get()
-                            {
-                                let indent_width = config.indent.num() * self.indent_level;
-                                // Subtract indentation and the "## " prefix
-                                // from max line length to get the width
-                                // available for Markdown content.
-                                let content_width = max.saturating_sub(
-                                    indent_width + doc_comment::DOC_COMMENT_PREFIX_WIDTH,
-                                );
-                                doc_comment::format_doc_comment(&contents, content_width)
-                                    .map(Rc::new)
-                                    .unwrap_or(contents)
-                            } else {
-                                contents
-                            };
                             stream.push(PostToken::Documentation {
                                 num_indents: self.indent_level,
-                                contents: formatted_contents,
+                                contents,
                             });
                         }
                         Comment::Directive(directive) => {
