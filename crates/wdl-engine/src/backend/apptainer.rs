@@ -431,6 +431,7 @@ mod tests {
     use crate::TaskInputs;
     use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
+    use crate::config::DEFAULT_TASK_SHELL;
 
     #[tokio::test]
     async fn example_task_generates() {
@@ -444,7 +445,7 @@ mod tests {
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
-                None,
+                DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -485,6 +486,8 @@ mod tests {
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
+        use crate::config::DEFAULT_TASK_SHELL;
+
         let root = TempDir::new().unwrap();
 
         let mut env = IndexMap::new();
@@ -495,7 +498,7 @@ mod tests {
         let script = runtime
             .generate_script(
                 &ApptainerConfig::default(),
-                None,
+                DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
