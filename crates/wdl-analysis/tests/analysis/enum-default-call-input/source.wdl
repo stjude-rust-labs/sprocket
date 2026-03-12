@@ -1,6 +1,6 @@
 version 1.3
 
-enum type {
+enum Type {
     A,
     B,
     C
@@ -9,7 +9,7 @@ enum type {
 task hello {
     input {
         String? name
-        type my_enum = type.A
+        Type my_enum = Type.A
     }
 
     command <<<
@@ -22,6 +22,6 @@ workflow main {
     call hello {
         input:
             name = "Alice",
-            my_enum = type.B
+            my_enum = Type.B
     }
 }
