@@ -91,7 +91,12 @@ pub fn find_all_references(
     };
 
     // TODO: better search scope for performance.
-    let search_scope: Vec<_> = graph.transitive_dependents(doc_index).collect();
+    let mut search_scope: Vec<_> = graph.transitive_dependents(doc_index).collect();
+
+    // include the current document in the search scope
+    if !search_scope.contains(&doc_index) {
+        search_scope.push(doc_index);
+    }
 
     let mut locations = Vec::new();
     for doc_index in search_scope {
