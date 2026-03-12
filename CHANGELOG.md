@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* More informative errors for invalid WDL ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
 * Fixed a regression where nested inputs and task requirements/hints were not
   being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
 
