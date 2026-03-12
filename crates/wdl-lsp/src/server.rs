@@ -838,7 +838,7 @@ impl<S: 'static> LanguageServer for Server<S> {
             .send_request::<WorkspaceConfiguration>(ConfigurationParams {
                 items: vec![ConfigurationItem {
                     scope_uri: None,
-                    section: Some(String::from("sprocket")),
+                    section: Some(String::from("sprocket.server")),
                 }],
             })
             .await;
