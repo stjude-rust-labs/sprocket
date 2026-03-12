@@ -378,6 +378,7 @@ impl Postprocessor {
         token: PreToken,
         next: Option<&PreToken>,
         stream: &mut TokenStream<PostToken>,
+        _config: &Config,
     ) {
         if stream.is_empty() {
             self.interrupted = false;
@@ -550,7 +551,7 @@ impl Postprocessor {
         let starting_indent = self.indent_level;
         while let Some(token) = pre_buffer.next() {
             let next = pre_buffer.peek().copied();
-            self.step(token.clone(), next, &mut post_buffer);
+            self.step(token.clone(), next, &mut post_buffer, config);
         }
 
         // If all lines are short enough, we can just add the post_buffer to the
@@ -630,6 +631,7 @@ impl Postprocessor {
                 token.clone(),
                 pre_buffer.peek().map(|(_, v)| &**v),
                 &mut post_buffer,
+                config,
             );
 
             if let Some(cache) = cache
@@ -644,6 +646,7 @@ impl Postprocessor {
                     token.clone(),
                     pre_buffer.peek().map(|(_, v)| &**v),
                     &mut post_buffer,
+                    config,
                 );
 
                 // SAFETY: if cache is Some(_) this step must have a potential line break

@@ -138,6 +138,7 @@ pub fn format_placeholder(
             stream.push_literal_in_place_of_token(
                 open.element().as_token().expect("token"),
                 "~{".to_owned(),
+                config,
             );
         }
         "~{" => {
@@ -169,6 +170,7 @@ pub fn format_literal_string(
                 stream.push_literal_in_place_of_token(
                     child.element().as_token().expect("token"),
                     "\"".to_owned(),
+                    config,
                 );
             }
             SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc | SyntaxKind::DoubleQuote => {
@@ -212,6 +214,7 @@ pub fn format_literal_string(
                 stream.push_literal_in_place_of_token(
                     child.element().as_token().expect("token"),
                     replacement,
+                    config,
                 );
             }
             SyntaxKind::PlaceholderNode => {

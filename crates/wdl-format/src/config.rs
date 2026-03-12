@@ -14,6 +14,9 @@ const SORT_IMPORTS_DEFAULT: bool = true;
 const SORT_INPUTS_DEFAULT: bool = false;
 /// Default for whether trailing commas are enabled.
 const TRAILING_COMMAS_DEFAULT: bool = true;
+/// Default for whether doc comment normalization (Markdown formatting) is
+/// enabled.
+const NORMALIZE_DOC_COMMENTS_DEFAULT: bool = true;
 
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -29,6 +32,13 @@ pub struct Config {
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
     pub trailing_commas: bool,
+    /// Whether to normalize (reformat) embedded Markdown in doc comments
+    /// (`##`).
+    ///
+    /// When `true` (the default), doc comment blocks are parsed as Markdown and
+    /// reflowed to respect the configured maximum line length. Set to `false`
+    /// to preserve doc comment text exactly as written.
+    pub normalize_doc_comments: bool,
 }
 
 impl Default for Config {
@@ -39,6 +49,7 @@ impl Default for Config {
             sort_imports: SORT_IMPORTS_DEFAULT,
             sort_inputs: SORT_INPUTS_DEFAULT,
             trailing_commas: TRAILING_COMMAS_DEFAULT,
+            normalize_doc_comments: NORMALIZE_DOC_COMMENTS_DEFAULT,
         }
     }
 }
@@ -71,6 +82,12 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set whether doc comment normalization is enabled.
+    pub fn normalize_doc_comments(mut self, normalize_doc_comments: bool) -> Self {
+        self.normalize_doc_comments = normalize_doc_comments;
         self
     }
 }
