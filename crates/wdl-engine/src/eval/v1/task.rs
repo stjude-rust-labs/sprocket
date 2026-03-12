@@ -123,7 +123,7 @@ const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
 const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u8 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 /// The default mount point for disk requirements when none is specified.
@@ -738,7 +738,7 @@ impl Evaluator {
             // from configuration
             let max_retries = requirements::max_retries(&inputs, &requirements, &self.config)?;
 
-            if max_retries > MAX_RETRIES {
+            if max_retries > MAX_RETRIES.into() {
                 return Err(anyhow!(
                     "task `max_retries` requirement of {max_retries} cannot exceed {MAX_RETRIES}"
                 )
@@ -765,12 +765,11 @@ impl Evaluator {
                             .as_ref()
                             .map(|c| format!("{c:#}"))
                             .unwrap_or_default(),
-                        shell: self
-                            .config
-                            .task
-                            .shell
-                            .as_deref()
-                            .unwrap_or(DEFAULT_TASK_SHELL),
+                        shell: if self.config.task.shell.is_empty() {
+                            DEFAULT_TASK_SHELL
+                        } else {
+                            &self.config.task.shell
+                        },
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
@@ -2081,7 +2080,7 @@ mod test {
 
         let mut config = Config::default();
         config.task.cache = mode;
-        config.task.cache_dir = Some(root_dir.join("cache"));
+        config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
         config
             .backends
             .insert("default".into(), BackendConfig::Local(Default::default()));

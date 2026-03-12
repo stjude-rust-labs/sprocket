@@ -1,5 +1,5 @@
 [run]
-backend = "third"
+backend = ""
 
-[run.backends.third]
+[run.backends.default]
 type = "docker"

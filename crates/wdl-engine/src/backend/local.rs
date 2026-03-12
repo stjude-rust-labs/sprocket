@@ -108,13 +108,11 @@ impl<'a> LocalTask<'a> {
                 )
             })?;
 
-            let mut command = Command::new(
-                self.config
-                    .task
-                    .shell
-                    .as_deref()
-                    .unwrap_or(DEFAULT_TASK_SHELL),
-            );
+            let mut command = Command::new(if self.config.task.shell.is_empty() {
+                DEFAULT_TASK_SHELL
+            } else {
+                &self.config.task.shell
+            });
             command
                 .current_dir(&work_dir)
                 .arg(command_path)

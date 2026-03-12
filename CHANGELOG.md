@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The Apptainer executable path is now configurable via the `executable` field in `ApptainerConfig`, enabling support for Singularity and custom install paths ([#682](https://github.com/stjude-rust-labs/sprocket/pull/682)).
 * Added `--suffix` argument to `run` subcommand to append a user-defined string to run directory names ([#695](https://github.com/stjude-rust-labs/sprocket/pull/695))
 * Added `image_cache_dir` configuration option to the Apptainer backend for
@@ -18,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Changed how defaults for many `sprocket.toml` entries are serialized and deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `format` table in `sprocket.toml` has been refactored and expanded with new options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * Hover and completion documentation now prefer doc comments over `meta`/`parameter_meta` descriptions, with existing behavior preserved as a fallback ([#649](https://github.com/stjude-rust-labs/sprocket/pull/649)).
 * Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
 

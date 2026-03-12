@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added configuration for import sorting (on by default) ([#679](https://github.com/stjude-rust-labs/sprocket/pull/679)).
 * `#@ except:` comment normalization and consolidation of doc comment blocks ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
 
+#### Changed
+
+* Changed serialization for `MaxLineLength` and `Indent` configurations ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+
 ## 0.15.1 - 2026-02-12
 
 #### Dependencies

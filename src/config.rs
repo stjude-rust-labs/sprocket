@@ -20,6 +20,7 @@ use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
+use wdl::format::Config as FormatConfig;
 
 use crate::diagnostics::Mode;
 
@@ -37,6 +38,27 @@ pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 
 /// The name of the Sprocket configuration file.
 const CONFIG_FILE_NAME: &str = "sprocket.toml";
+
+/// The capacity for the events channels.
+///
+/// This is the number of events to buffer in the events channel before
+/// receivers become lagged.
+///
+/// As `tokio::sync::broadcast` channels are used to support multiple receivers,
+/// an event is only dropped from the channel once *all* receivers have read it.
+///
+/// If the senders are sending events faster than all receivers can read the
+/// events, the channel buffer will eventually reach capacity.
+///
+/// When this happens, the oldest events in the buffer are dropped and receivers
+/// are notified via an error on the next read that they are lagging behind.
+///
+/// If the capacity is reached, Sprocket will stop displaying progress
+/// statistics.
+///
+/// The value of `5000` was chosen as a reasonable amount to make reaching
+/// capacity unlikely without allocating too much space unnecessarily.
+const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
 /// Default output directory function for serde.
 fn default_output_directory() -> PathBuf {
@@ -112,43 +134,60 @@ pub struct CommonConfig {
     pub wdl: WdlConfig,
 }
 
+/// Fallback version to use.
+#[derive(Debug, Clone, Default)]
+pub struct FallBackVersion(Option<SupportedVersion>);
+
+impl FallBackVersion {
+    /// Get the inner `Option<SupportedVersion>`.
+    pub fn inner(&self) -> Option<SupportedVersion> {
+        self.0
+    }
+}
+
+impl Serialize for FallBackVersion {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            FallBackVersion(None) => "none".serialize(serializer),
+            FallBackVersion(Some(v)) => v.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for FallBackVersion {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Value {
+            SupportedVersion(SupportedVersion),
+            Str(String),
+            Null,
+        }
+
+        match Value::deserialize(deserializer)? {
+            Value::SupportedVersion(v) => Ok(FallBackVersion(Some(v))),
+            Value::Str(s) if s == "none" => Ok(FallBackVersion(None)),
+            Value::Str(s) => Err(serde::de::Error::custom(format!(
+                "expected a supported version or \"none\", got \"{s}\""
+            ))),
+            Value::Null => Ok(FallBackVersion(None)),
+        }
+    }
+}
+
 /// WDL-specific configuration options shared across all commands.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fallback_version: Option<SupportedVersion>,
-}
-
-/// Represents the configuration for the Sprocket `format` command.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct FormatConfig {
-    /// Use tabs for indentation (default is spaces).
-    pub with_tabs: bool,
-    /// The number of spaces to use for indentation levels (default is 4).
-    pub indentation_size: usize,
-    /// The maximum line length (default is 90).
-    pub max_line_length: usize,
-    /// Enable sorting of input sections.
-    pub sort_inputs: bool,
-}
-
-impl Default for FormatConfig {
-    fn default() -> Self {
-        let config = wdl::format::Config::default();
-        Self {
-            with_tabs: false,
-            indentation_size: config.indent.num(),
-            max_line_length: config
-                .max_line_length
-                .get()
-                .expect("should have a max line length"),
-            sort_inputs: config.sort_inputs,
-        }
-    }
+    pub fallback_version: FallBackVersion,
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.
@@ -159,10 +198,12 @@ pub struct CheckConfig {
     pub except: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
     pub deny_warnings: bool,
-    /// Causes the command to fail if any notes are reported.
+    /// Causes the command to fail if any notes or warnings are reported.
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
     pub hide_notes: bool,
+    /// Hide diagnostics with `warning` and `note` severity.
+    pub hide_warnings: bool,
     /// Enable all lint rules, even those outside the default set.
     ///
     /// This cannot be `true` while `only_lint_tags` is populated.
@@ -212,7 +253,7 @@ pub struct RunConfig {
     /// made by the events channel.
     ///
     /// The default is `5000`.
-    pub events_capacity: Option<usize>,
+    pub events_capacity: usize,
 }
 
 impl Default for RunConfig {
@@ -220,7 +261,7 @@ impl Default for RunConfig {
         Self {
             engine: EngineConfig::default(),
             output_dir: default_output_directory(),
-            events_capacity: None,
+            events_capacity: DEFAULT_EVENTS_CHANNEL_CAPACITY,
         }
     }
 }
@@ -230,9 +271,59 @@ impl Default for RunConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerDatabaseConfig {
     /// Database URL (e.g., `sqlite://sprocket.db`).
-    /// If not provided, defaults to `sprocket.db` in the output directory.
-    #[serde(default)]
-    pub url: Option<String>,
+    /// If `""` provided, defaults to `sprocket.db` in the output directory.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub url: String,
+}
+
+/// Maximum concurrent workflows.
+#[derive(Debug, Clone, Default)]
+pub struct MaxConcurrentRuns(pub Option<usize>);
+
+impl MaxConcurrentRuns {
+    /// Get the inner `Option<usize>`.
+    pub fn inner(&self) -> Option<usize> {
+        self.0
+    }
+}
+
+impl Serialize for MaxConcurrentRuns {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            MaxConcurrentRuns(None) => "unlimited".serialize(serializer),
+            MaxConcurrentRuns(Some(n)) => n.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MaxConcurrentRuns {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Value {
+            Num(usize),
+            Str(String),
+            Null,
+        }
+
+        match Value::deserialize(deserializer)? {
+            Value::Num(n) if n > 0 => Ok(MaxConcurrentRuns(Some(n))),
+            Value::Num(_) => Err(serde::de::Error::custom(
+                "must be at least 1 or \"unlimited\"",
+            )),
+            Value::Str(s) if s == "unlimited" => Ok(MaxConcurrentRuns(None)),
+            Value::Str(s) => Err(serde::de::Error::custom(format!(
+                "expected a positive number or \"unlimited\", got \"{s}\""
+            ))),
+            Value::Null => Ok(MaxConcurrentRuns(None)),
+        }
+    }
 }
 
 /// Server configuration.
@@ -260,11 +351,8 @@ pub struct ServerConfig {
     /// Allowed URL prefixes for URL-based workflows.
     #[serde(default)]
     pub allowed_urls: Vec<String>,
-    /// Maximum concurrent workflows (default: `None`).
-    ///
-    /// `None` means there is no limit on the number of executions.
-    #[serde(default)]
-    pub max_concurrent_runs: Option<usize>,
+    /// Maximum concurrent workflows (default: "unlimited").
+    pub max_concurrent_runs: MaxConcurrentRuns,
     /// The engine configuration to use during execution.
     #[serde(default)]
     pub engine: EngineConfig,
@@ -280,7 +368,7 @@ impl Default for ServerConfig {
             output_directory: default_output_directory(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
-            max_concurrent_runs: None,
+            max_concurrent_runs: MaxConcurrentRuns(None),
             engine: EngineConfig::default(),
         }
     }
@@ -302,7 +390,7 @@ impl ServerConfig {
     /// canonicalized.
     pub fn validate(&mut self) -> anyhow::Result<()> {
         // Validate max concurrent workflows is at least 1
-        if let Some(max) = self.max_concurrent_runs
+        if let Some(max) = self.max_concurrent_runs.inner()
             && max == 0
         {
             anyhow::bail!("`max_concurrent_runs` must be at least 1");
@@ -344,7 +432,6 @@ impl ServerConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
     /// Number of test executions to run in parallel. The default is `50`.
-    #[serde(default)]
     pub parallelism: usize,
 }
 
