@@ -86,7 +86,7 @@ impl TestContext {
         let response_rx = BufReader::new(response_rx);
 
         let (service, socket) = LspService::new(|client| {
-            Server::new(
+            Server::<()>::new(
                 client,
                 ServerOptions {
                     lint: LintOptions {
@@ -95,6 +95,7 @@ impl TestContext {
                     },
                     ..Default::default()
                 },
+                None,
             )
         });
         let server =

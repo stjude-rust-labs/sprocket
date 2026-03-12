@@ -1,23 +1,30 @@
 //! Implementation of the LSP server.
 
 use std::ffi::OsStr;
+use std::fmt::Formatter;
 use std::mem;
 use std::path::Component;
 use std::path::PathBuf;
 use std::path::Prefix;
+use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::OnceLock;
 
 use anyhow::Result;
 use notification::Progress;
 use parking_lot::RwLock;
 use request::WorkDoneProgressCreate;
+use serde::Deserialize;
+use serde::Deserializer;
 use serde_json::to_value;
+use struct_patch::Patch;
 use tower_lsp::Client;
 use tower_lsp::LanguageServer;
 use tower_lsp::LspService;
 use tower_lsp::jsonrpc::Error as RpcError;
 use tower_lsp::jsonrpc::ErrorCode;
 use tower_lsp::jsonrpc::Result as RpcResult;
+use tower_lsp::lsp_types::request::WorkspaceConfiguration;
 use tower_lsp::lsp_types::*;
 use tracing::debug;
 use tracing::error;
@@ -94,6 +101,8 @@ struct ClientSupport {
     /// Whether or not the client supports registering work done progress
     /// tokens.
     pub work_done_progress: bool,
+    /// Whether or not the client supports configuration change notifications.
+    pub did_change_configuration: bool,
 }
 
 impl ClientSupport {
@@ -119,6 +128,16 @@ impl ClientSupport {
                 .window
                 .as_ref()
                 .map(|c| c.work_done_progress == Some(true))
+                .unwrap_or(false),
+            did_change_configuration: capabilities
+                .workspace
+                .as_ref()
+                .map(|c| {
+                    c.did_change_configuration
+                        .as_ref()
+                        .map(|c| c.dynamic_registration == Some(true))
+                        .unwrap_or(false)
+                })
                 .unwrap_or(false),
         }
     }
@@ -212,19 +231,27 @@ impl ProgressToken {
 }
 
 /// Represents options for running the LSP server.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Patch)]
+#[patch(attribute(derive(Debug, Default, Deserialize)))]
+#[patch(attribute(allow(missing_docs)))]
 pub struct ServerOptions {
     /// The name of the server.
     ///
     /// Defaults to `wdl-lsp` crate name.
-    pub name: Option<String>,
+    #[patch(skip)]
+    pub name: String,
 
     /// The version of the server.
     ///
     /// Defaults to the version of the `wdl-lsp` crate.
-    pub version: Option<String>,
+    #[patch(skip)]
+    pub version: String,
+
+    /// The verbosity level of the server.
+    pub log_level: LevelFilter,
 
     /// The options for linting.
+    #[patch(nesting)]
     pub lint: LintOptions,
 
     /// Analysis or lint rule IDs to except (ignore).
@@ -234,39 +261,110 @@ pub struct ServerOptions {
     pub ignore_filename: Option<String>,
 
     /// Feature flags for enabling experimental features.
+    #[patch(skip)]
     pub feature_flags: FeatureFlags,
 }
 
+impl Default for ServerOptions {
+    fn default() -> Self {
+        Self {
+            name: String::from(env!("CARGO_CRATE_NAME")),
+            version: String::from(env!("CARGO_PKG_VERSION")),
+            log_level: LevelFilter(tracing::metadata::LevelFilter::ERROR),
+            lint: Default::default(),
+            exceptions: Vec::new(),
+            ignore_filename: None,
+            feature_flags: Default::default(),
+        }
+    }
+}
+
 /// Options for the external linter.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Patch)]
+#[patch(attribute(derive(Debug, Default, Deserialize)))]
+#[patch(attribute(allow(missing_docs)))]
 pub struct LintOptions {
     /// Whether or not linting is enabled.
     pub enabled: bool,
     /// The lint rule configuration.
+    #[patch(skip)]
     pub config: Arc<wdl_lint::Config>,
 }
 
+/// Wrapper for [`tracing::metadata::LevelFilter`] to support deserialization.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize)]
+#[serde(transparent)]
+pub struct LevelFilter(
+    #[serde(deserialize_with = "deserialize_level_filter")] tracing::metadata::LevelFilter,
+);
+
+impl From<tracing::metadata::LevelFilter> for LevelFilter {
+    fn from(level: tracing::metadata::LevelFilter) -> Self {
+        Self(level)
+    }
+}
+
+/// Deserializer for [`tracing::metadata::LevelFilter`].
+fn deserialize_level_filter<'de, D>(
+    deserializer: D,
+) -> Result<tracing::metadata::LevelFilter, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct LevelFilterVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for LevelFilterVisitor {
+        type Value = tracing::metadata::LevelFilter;
+
+        fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(formatter, "a level filter string")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            tracing::metadata::LevelFilter::from_str(v).map_err(serde::de::Error::custom)
+        }
+    }
+
+    deserializer.deserialize_str(LevelFilterVisitor)
+}
+
+/// Reload handle for dynamic level filter setting.
+pub type FilterReloadHandle<S> =
+    tracing_subscriber::reload::Handle<tracing::metadata::LevelFilter, S>;
+
 /// Represents an LSP server for analyzing WDL documents.
 #[derive(Debug)]
-pub struct Server {
+pub struct Server<S> {
     /// The LSP client connected to the server.
     client: Client,
+    /// The features supported by the LSP client.
+    client_support: OnceLock<ClientSupport>,
+    /// The current set of workspace folders.
+    folders: Arc<RwLock<Vec<WorkspaceFolder>>>,
+    /// Mutable configuration fields.
+    config: Arc<tokio::sync::RwLock<ServerConfig>>,
+    /// Level filter reload handle.
+    log_handle: Option<FilterReloadHandle<S>>,
+}
+
+/// The server config and dependent fields.
+#[derive(Debug)]
+struct ServerConfig {
     /// The options for the server.
     options: ServerOptions,
     /// The analyzer used to analyze documents.
     analyzer: Analyzer<ProgressToken>,
-    /// The features supported by the LSP client.
-    client_support: Arc<RwLock<ClientSupport>>,
-    /// The current set of workspace folders.
-    folders: Arc<RwLock<Vec<WorkspaceFolder>>>,
 }
 
-impl Server {
-    /// Creates a new WDL language server.
-    pub fn new(client: Client, options: ServerOptions) -> Self {
-        let linting_enabled = options.lint.enabled;
-        let exceptions = options.exceptions.clone();
-        let ignore_name = options.ignore_filename.clone();
+impl ServerOptions {
+    /// Create an [`Analyzer`] based on this config.
+    fn analyzer(&self, client: Client) -> Analyzer<ProgressToken> {
+        let linting_enabled = self.lint.enabled;
+        let exceptions = self.exceptions.clone();
+        let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
 
         let mut all_rules: Vec<_> = wdl_analysis::ALL_RULE_IDS
@@ -288,47 +386,80 @@ impl Server {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(options.feature_flags);
+            .with_feature_flags(self.feature_flags);
 
-        let wdl_lint_config = options.lint.config.clone();
+        let wdl_lint_config = self.lint.config.clone();
+        Analyzer::<ProgressToken>::new_with_validator(
+            analyzer_config,
+            move |token, kind, current, total| {
+                let client = analyzer_client.clone();
+                async move {
+                    let message = format!(
+                        "{kind} {current}/{total} file{s}",
+                        s = if total > 1 { "s" } else { "" }
+                    );
+                    let percentage = ((current * 100) as f64 / total as f64) as u32;
+                    token.update(&client, message, percentage).await
+                }
+            },
+            move || {
+                let mut validator = Validator::default();
+                if linting_enabled {
+                    validator.add_visitor(Linter::new(
+                        wdl_lint::rules(&wdl_lint_config)
+                            .into_iter()
+                            .filter(|r| exceptions.contains(&r.id().into())),
+                    ));
+                }
+                validator
+            },
+        )
+    }
+}
+
+impl<S: 'static> Server<S> {
+    /// Creates a new WDL language server.
+    ///
+    /// `log_handle` can be provided to enable dynamic log level setting.
+    pub fn new(
+        client: Client,
+        options: ServerOptions,
+        log_handle: Option<FilterReloadHandle<S>>,
+    ) -> Self {
+        let analyzer = options.analyzer(client.clone());
         Self {
             client,
-            options,
-            analyzer: Analyzer::<ProgressToken>::new_with_validator(
-                analyzer_config,
-                move |token, kind, current, total| {
-                    let client = analyzer_client.clone();
-                    async move {
-                        let message = format!(
-                            "{kind} {current}/{total} file{s}",
-                            s = if total > 1 { "s" } else { "" }
-                        );
-                        let percentage = ((current * 100) as f64 / total as f64) as u32;
-                        token.update(&client, message, percentage).await
-                    }
-                },
-                move || {
-                    let mut validator = Validator::default();
-                    if linting_enabled {
-                        validator.add_visitor(Linter::new(
-                            wdl_lint::rules(&wdl_lint_config)
-                                .into_iter()
-                                .filter(|r| exceptions.contains(&r.id().into())),
-                        ));
-                    }
-                    validator
-                },
-            ),
             client_support: Default::default(),
             folders: Default::default(),
+            config: Arc::new(tokio::sync::RwLock::new(ServerConfig { options, analyzer })),
+            log_handle,
         }
     }
 
+    /// Patch the config with the new values from the client.
+    async fn apply_config_patch(&self, patch: ServerOptionsPatch) {
+        let mut config = self.config.write().await;
+        if let Some(log_level) = patch.log_level
+            && let Some(reload_handle) = self.log_handle.as_ref()
+            && let Err(e) = reload_handle.modify(|filter| *filter = log_level.0)
+        {
+            error!("failed to set log level: {e:?}");
+        }
+
+        config.options.apply(patch);
+        config.analyzer = config.options.analyzer(self.client.clone());
+    }
+
     /// Runs the server until a request is received to shut down.
-    pub async fn run(options: ServerOptions) -> Result<()> {
+    ///
+    /// See also: [`Self::new()`]
+    pub async fn run(
+        options: ServerOptions,
+        log_handle: Option<FilterReloadHandle<S>>,
+    ) -> Result<()> {
         debug!("running LSP server: {options:#?}");
 
-        let (service, socket) = LspService::new(|client| Self::new(client, options.clone()));
+        let (service, socket) = LspService::new(|client| Self::new(client, options, log_handle));
 
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
@@ -339,26 +470,21 @@ impl Server {
         Ok(())
     }
 
-    /// Gets the name of the server.
-    fn name(&self) -> &str {
-        self.options
-            .name
-            .as_deref()
-            .unwrap_or(env!("CARGO_CRATE_NAME"))
-    }
+    /// Get info about the server.
+    async fn info(&self) -> ServerInfo {
+        let config = self.config.read().await;
 
-    /// Gets the version of the server.
-    fn version(&self) -> &str {
-        self.options
-            .version
-            .as_deref()
-            .unwrap_or(env!("CARGO_PKG_VERSION"))
+        ServerInfo {
+            name: config.options.name.clone(),
+            version: Some(config.options.version.clone()),
+        }
     }
 
     /// Registers a generic watcher for all files/directories in the workspace.
-    async fn register_watcher(&self) {
-        self.client
-            .register_capability(vec![Registration {
+    async fn register_capabilities(&self, client_support: &ClientSupport) {
+        let mut registrations = Vec::new();
+        if client_support.watched_files {
+            registrations.push(Registration {
                 id: Uuid::new_v4().to_string(),
                 method: "workspace/didChangeWatchedFiles".into(),
                 register_options: Some(
@@ -372,23 +498,40 @@ impl Server {
                     })
                     .expect("should convert to value"),
                 ),
-            }])
+            });
+        }
+
+        if client_support.did_change_configuration {
+            registrations.push(Registration {
+                id: Uuid::new_v4().to_string(),
+                method: "workspace/didChangeConfiguration".into(),
+                register_options: None,
+            });
+        }
+
+        if registrations.is_empty() {
+            return;
+        }
+
+        self.client
+            .register_capability(registrations)
             .await
             .expect("failed to register capabilities with client");
     }
 }
 
 #[tower_lsp::async_trait]
-impl LanguageServer for Server {
+impl<S: 'static> LanguageServer for Server<S> {
     async fn initialize(&self, params: InitializeParams) -> RpcResult<InitializeResult> {
         debug!("received `initialize` request: {params:#?}");
 
         if let Some(folders) = params.workspace_folders {
+            let config = self.config.read().await;
             for mut folder in folders {
                 normalize_uri_path(&mut folder.uri);
                 self.folders.write().push(folder.clone());
                 if let Ok(path) = folder.uri.to_file_path()
-                    && let Err(e) = self.analyzer.add_directory(path).await
+                    && let Err(e) = config.analyzer.add_directory(path).await
                 {
                     error!(
                         "failed to add initial workspace directory {uri}: {e}",
@@ -399,8 +542,7 @@ impl LanguageServer for Server {
         }
 
         {
-            let mut client_support = self.client_support.write();
-            *client_support = ClientSupport::new(&params.capabilities);
+            let client_support = ClientSupport::new(&params.capabilities);
 
             if !client_support.pull_diagnostics {
                 return Err(RpcError {
@@ -409,6 +551,9 @@ impl LanguageServer for Server {
                     data: None,
                 });
             }
+
+            // This is guaranteed to be called once anyway
+            let _ = self.client_support.set(client_support);
         }
 
         Ok(InitializeResult {
@@ -479,22 +624,19 @@ impl LanguageServer for Server {
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
-            server_info: Some(ServerInfo {
-                name: self.name().to_string(),
-                version: Some(self.version().to_string()),
-            }),
+            server_info: Some(self.info().await),
         })
     }
 
     async fn initialized(&self, _: InitializedParams) {
-        if self.client_support.read().watched_files {
-            self.register_watcher().await;
-        }
+        let client_support = self.client_support.get().expect("should exist");
+        self.register_capabilities(client_support).await;
 
+        let info = self.info().await;
         info!(
             "{name} (v{version}) server initialized",
-            name = self.name(),
-            version = self.version()
+            name = info.name,
+            version = info.version.expect("should exist")
         );
     }
 
@@ -507,7 +649,8 @@ impl LanguageServer for Server {
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        if let Err(e) = self
+        let config = self.config.read().await;
+        if let Err(e) = config
             .analyzer
             .add_document(params.text_document.uri.clone())
             .await
@@ -519,7 +662,7 @@ impl LanguageServer for Server {
             return;
         }
 
-        if let Err(e) = self.analyzer.notify_incremental_change(
+        if let Err(e) = config.analyzer.notify_incremental_change(
             params.text_document.uri,
             IncrementalChange {
                 version: params.text_document.version,
@@ -532,6 +675,8 @@ impl LanguageServer for Server {
     }
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didChange` request: {params:#?}");
@@ -556,7 +701,7 @@ impl LanguageServer for Server {
         };
 
         // Notify the analyzer that the document has changed
-        if let Err(e) = self.analyzer.notify_incremental_change(
+        if let Err(e) = config.analyzer.notify_incremental_change(
             params.text_document.uri,
             IncrementalChange {
                 version: params.text_document.version,
@@ -580,10 +725,15 @@ impl LanguageServer for Server {
     }
 
     async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didClose` request: {params:#?}");
-        if let Err(e) = self.analyzer.notify_change(params.text_document.uri, true) {
+        if let Err(e) = config
+            .analyzer
+            .notify_change(params.text_document.uri, true)
+        {
             error!("failed to notify change: {e}");
         }
     }
@@ -592,11 +742,13 @@ impl LanguageServer for Server {
         &self,
         mut params: DocumentDiagnosticParams,
     ) -> RpcResult<DocumentDiagnosticReportResult> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
-        let results: Vec<wdl_analysis::AnalysisResult> = self
+        let results: Vec<wdl_analysis::AnalysisResult> = config
             .analyzer
             .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
             .await
@@ -606,7 +758,7 @@ impl LanguageServer for Server {
                 data: None,
             })?;
 
-        proto::document_diagnostic_report(params, results, self.name())
+        proto::document_diagnostic_report(params, results, &self.info().await.name)
             .ok_or_else(RpcError::request_cancelled)
     }
 
@@ -614,14 +766,18 @@ impl LanguageServer for Server {
         &self,
         params: WorkspaceDiagnosticParams,
     ) -> RpcResult<WorkspaceDiagnosticReportResult> {
+        let config = self.config.read().await;
+
         debug!("received `workspace/diagnostic` request: {params:#?}");
 
-        let work_done_progress = self.client_support.read().work_done_progress;
-        let progress = ProgressToken::new(&self.client, work_done_progress).await;
+        let name = self.info().await.name;
+
+        let client_support = self.client_support.get().expect("should exist");
+        let progress = ProgressToken::new(&self.client, client_support.work_done_progress).await;
         progress
-            .start(&self.client, self.name(), "analyzing...")
+            .start(&self.client, name.clone(), "analyzing...")
             .await;
-        let results = self
+        let results = config
             .analyzer
             .analyze(progress.clone())
             .await
@@ -632,19 +788,17 @@ impl LanguageServer for Server {
             })?;
         progress.complete(&self.client, "analysis complete").await;
 
-        Ok(proto::workspace_diagnostic_report(
-            params,
-            results,
-            self.name(),
-        ))
+        Ok(proto::workspace_diagnostic_report(params, results, &name))
     }
 
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
+        let config = self.config.read().await;
+
         debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
 
         // Process the removed folders
         if !params.event.removed.is_empty()
-            && let Err(e) = self
+            && let Err(e) = config
                 .analyzer
                 .remove_documents(
                     params
@@ -665,7 +819,7 @@ impl LanguageServer for Server {
         // Progress the added folders
         if !params.event.added.is_empty() {
             for folder in &params.event.added {
-                if let Err(e) = self
+                if let Err(e) = config
                     .analyzer
                     .add_directory(folder.uri.to_file_path().expect("should be a file path"))
                     .await
@@ -676,7 +830,34 @@ impl LanguageServer for Server {
         }
     }
 
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        debug!("received `workspace/didChangeConfiguration` notification: {params:#?}");
+
+        let workspace_configs = self
+            .client
+            .send_request::<WorkspaceConfiguration>(ConfigurationParams {
+                items: vec![ConfigurationItem {
+                    scope_uri: None,
+                    section: Some(String::from("sprocket")),
+                }],
+            })
+            .await;
+
+        match workspace_configs {
+            Ok(mut configs) if !configs.is_empty() => {
+                match serde_json::from_value::<ServerOptionsPatch>(configs.remove(0)) {
+                    Ok(patch) => self.apply_config_patch(patch).await,
+                    Err(e) => error!("failed to deserialize `ServerOptionsPatch`: {e:?}"),
+                }
+            }
+            Ok(_) => error!("client returned no configuration"),
+            Err(e) => error!("failed to fetch workspace configuration: {e}"),
+        }
+    }
+
     async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
+        let config = self.config.read().await;
+
         debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
 
         /// Converts a URI into a WDL file path.
@@ -707,7 +888,7 @@ impl LanguageServer for Server {
                 FileChangeType::CHANGED => {
                     if to_wdl_file_path(&event.uri).is_some() {
                         debug!("document `{uri}` has been changed", uri = event.uri);
-                        if let Err(e) = self.analyzer.notify_change(event.uri, false) {
+                        if let Err(e) = config.analyzer.notify_change(event.uri, false) {
                             error!("failed to notify change: {e}");
                         }
                     }
@@ -725,7 +906,7 @@ impl LanguageServer for Server {
         // Add any documents to the analyzer
         if !added.is_empty() {
             for file in added {
-                if let Err(e) = self
+                if let Err(e) = config
                     .analyzer
                     .add_document(path_to_uri(&file).expect("should convert to uri"))
                     .await
@@ -737,7 +918,7 @@ impl LanguageServer for Server {
 
         // Remove any documents from the analyzer
         if !deleted.is_empty()
-            && let Err(e) = self.analyzer.remove_documents(deleted).await
+            && let Err(e) = config.analyzer.remove_documents(deleted).await
         {
             error!("failed to remove documents from analyzer: {e}");
         }
@@ -747,11 +928,13 @@ impl LanguageServer for Server {
         &self,
         mut params: DocumentFormattingParams,
     ) -> RpcResult<Option<Vec<TextEdit>>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/formatting` request: {params:#?}");
 
-        let result = self
+        let result = config
             .analyzer
             .format_document(params.text_document.uri)
             .await
@@ -785,6 +968,8 @@ impl LanguageServer for Server {
         &self,
         mut params: GotoDefinitionParams,
     ) -> RpcResult<Option<GotoDefinitionResponse>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
         debug!("received `textDocument/gotoDefinition` request: {params:#?}");
@@ -794,7 +979,7 @@ impl LanguageServer for Server {
             params.text_document_position_params.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .goto_definition(
                 params.text_document_position_params.text_document.uri,
@@ -812,6 +997,8 @@ impl LanguageServer for Server {
     }
 
     async fn references(&self, mut params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/references` request: {params:#?}");
@@ -821,7 +1008,7 @@ impl LanguageServer for Server {
             params.text_document_position.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .find_all_references(
                 params.text_document_position.text_document.uri,
@@ -843,6 +1030,8 @@ impl LanguageServer for Server {
         &self,
         mut params: CompletionParams,
     ) -> RpcResult<Option<CompletionResponse>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/completion` request: {params:#?}");
@@ -852,7 +1041,7 @@ impl LanguageServer for Server {
             params.text_document_position.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .completion(
                 ProgressToken::default(),
@@ -871,6 +1060,8 @@ impl LanguageServer for Server {
     }
 
     async fn hover(&self, mut params: HoverParams) -> RpcResult<Option<Hover>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
         debug!("received `textDocument/hover` request: {params:#?}");
@@ -880,7 +1071,7 @@ impl LanguageServer for Server {
             params.text_document_position_params.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .hover(
                 params.text_document_position_params.text_document.uri,
@@ -897,6 +1088,8 @@ impl LanguageServer for Server {
     }
 
     async fn rename(&self, mut params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/rename` request: {params:#?}");
@@ -906,7 +1099,7 @@ impl LanguageServer for Server {
             params.text_document_position.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .rename(
                 params.text_document_position.text_document.uri,
@@ -928,11 +1121,13 @@ impl LanguageServer for Server {
         &self,
         mut params: SemanticTokensParams,
     ) -> RpcResult<Option<SemanticTokensResult>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
 
-        let result = self
+        let result = config
             .analyzer
             .semantic_tokens(params.text_document.uri)
             .await
@@ -949,11 +1144,13 @@ impl LanguageServer for Server {
         &self,
         mut params: DocumentSymbolParams,
     ) -> RpcResult<Option<DocumentSymbolResponse>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/documentSymbol` request: {params:#?}");
 
-        let result = self
+        let result = config
             .analyzer
             .document_symbol(params.text_document.uri)
             .await
@@ -970,9 +1167,11 @@ impl LanguageServer for Server {
         &self,
         params: WorkspaceSymbolParams,
     ) -> RpcResult<Option<Vec<SymbolInformation>>> {
+        let config = self.config.read().await;
+
         debug!("received `workspace/symbol` request: {params:#?}");
 
-        let result = self
+        let result = config
             .analyzer
             .workspace_symbol(params.query)
             .await
@@ -989,6 +1188,8 @@ impl LanguageServer for Server {
         &self,
         mut params: SignatureHelpParams,
     ) -> RpcResult<Option<SignatureHelp>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
         debug!("received `textDocument/signatureHelp` request: {params:#?}");
@@ -998,7 +1199,7 @@ impl LanguageServer for Server {
             params.text_document_position_params.position.character,
         );
 
-        let result = self
+        let result = config
             .analyzer
             .signature_help(
                 params.text_document_position_params.text_document.uri,
@@ -1016,12 +1217,15 @@ impl LanguageServer for Server {
     }
 
     async fn inlay_hint(&self, mut params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
+        let config = self.config.read().await;
+
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");
 
         // Analyze the document first to ensure we have up-to-date information
-        self.analyzer
+        config
+            .analyzer
             .analyze(ProgressToken(None))
             .await
             .map_err(|e| RpcError {
@@ -1030,7 +1234,7 @@ impl LanguageServer for Server {
                 data: None,
             })?;
 
-        let result = self
+        let result = config
             .analyzer
             .inlay_hints(params.text_document.uri, params.range)
             .await

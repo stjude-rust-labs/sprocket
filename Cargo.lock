@@ -879,7 +879,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5089,6 +5089,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "struct-patch"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e986d2cf6e819bd843319120453d837dfdfa31497c3fee4cefa614b2d182d8c"
+dependencies = [
+ "struct-patch-derive",
+]
+
+[[package]]
+name = "struct-patch-derive"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68c6387c1c7b53060605101b63d93edca618c6cf7ce61839f2ec2a527419fdb5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "strum"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6447,10 +6467,12 @@ dependencies = [
  "pretty_assertions",
  "serde",
  "serde_json",
+ "struct-patch",
  "tempfile",
  "tokio",
  "tower-lsp",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
  "wdl-analysis",
@@ -6565,7 +6587,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
