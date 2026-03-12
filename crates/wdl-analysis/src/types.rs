@@ -795,6 +795,11 @@ impl Coercible for CompoundType {
                 true
             }
 
+            // Enum -> Enum, Enum -> Enum?, Enum? -> Enum? where: same enum type
+            (Self::Custom(CustomType::Enum(src)), Self::Custom(CustomType::Enum(target))) => {
+                src.is_coercible_to(target)
+            }
+
             // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X
             // and member types -> Y
             (Self::Custom(CustomType::Struct(src)), Self::Map(target)) => {
@@ -1203,8 +1208,8 @@ impl fmt::Display for EnumType {
 }
 
 impl Coercible for EnumType {
-    fn is_coercible_to(&self, _: &Self) -> bool {
-        false
+    fn is_coercible_to(&self, target: &Self) -> bool {
+        self == target
     }
 }
 
