@@ -772,6 +772,11 @@ impl Coercible for CompoundType {
                 src.is_coercible_to(target)
             }
 
+            // Enum -> Enum, Enum -> Enum?, Enum? -> Enum? where: same enum type
+            (Self::Custom(CustomType::Enum(src)), Self::Custom(CustomType::Enum(target))) => {
+                src.is_coercible_to(target)
+            }
+
             // Map[X, Y] -> Struct, Map[X, Y] -> Struct?, Map[X, Y]? -> Struct? where: X -> String,
             // keys match member names, and Y -> member type
             (Self::Map(src), Self::Custom(CustomType::Struct(target))) => {
@@ -793,11 +798,6 @@ impl Coercible for CompoundType {
 
                 // Note: checking map keys is a runtime value constraint
                 true
-            }
-
-            // Enum -> Enum, Enum -> Enum?, Enum? -> Enum? where: same enum type
-            (Self::Custom(CustomType::Enum(src)), Self::Custom(CustomType::Enum(target))) => {
-                src.is_coercible_to(target)
             }
 
             // Struct -> Map[X, Y], Struct -> Map[X, Y]?, Struct? -> Map[X, Y]? where: String -> X

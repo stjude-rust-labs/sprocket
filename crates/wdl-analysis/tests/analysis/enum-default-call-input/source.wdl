@@ -1,24 +1,27 @@
 version 1.3
 
-enum Color {
-    Red,
-    Green,
-    Blue
+enum type {
+    A,
+    B,
+    C
 }
 
-task paint {
+task hello {
     input {
-        Color color = Color.Red
+        String? name
+        type my_enum = type.A
     }
 
     command <<<
-        echo "~{color}"
+        echo "Hello, ~{name} of type ~{my_enum}!"
     >>>
+
 }
 
 workflow main {
-    call paint {
+    call hello {
         input:
-            color = Color.Blue
+            name = "Alice",
+            my_enum = type.B
     }
 }
