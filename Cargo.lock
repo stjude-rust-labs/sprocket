@@ -6473,7 +6473,6 @@ dependencies = [
  "anyhow",
  "clap",
  "tokio",
- "tracing",
  "tracing-subscriber",
  "wdl-analysis",
  "wdl-ast",
