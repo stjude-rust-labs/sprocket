@@ -61,16 +61,7 @@ static CLI_RUN_TEST_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 });
 
 /// Binary file extensions that should only be checked for existence.
-const BINARY_EXTENSIONS: &[&str] = &[
-    "db",
-    "sqlite",
-    "sqlite3",
-    "pagefind",
-    "pf_filter",
-    "pf_fragment",
-    "pf_index",
-    "pf_meta",
-];
+const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 
 /// Transient file suffixes that should be removed during `BLESS`.
 const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
@@ -289,11 +280,9 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// Returns true if the file is a binary file that should only be checked for
 /// existence.
 fn is_binary_file(path: &Path) -> bool {
-    // pagefind.js is platform-dependent
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
-        || path.file_name() == Some(OsStr::new("pagefind.js"))
 }
 
 /// Returns true if the path is a symlink.

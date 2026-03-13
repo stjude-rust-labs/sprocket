@@ -15,11 +15,22 @@ readme = "../README.md"
 all-features = true
 
 [features]
-default = ["analysis", "ast", "engine", "format", "doc", "grammar", "lint", "lsp"]
+default = [
+    "analysis",
+    "ast",
+    "engine",
+    "format",
+    "diagnostics",
+    "doc",
+    "grammar",
+    "lint",
+    "lsp",
+]
 analysis = ["dep:wdl-analysis"]
 ast = ["dep:wdl-ast"]
+diagnostics = ["dep:wdl-diagnostics"]
 doc = ["dep:wdl-doc"]
-engine = ["dep:wdl-engine"]
+engine = ["dep:wdl-engine", "wdl-diagnostics?/backtrace"]
 format = ["dep:wdl-format"]
 grammar = ["dep:wdl-grammar"]
 lint = ["dep:wdl-lint"]
@@ -28,6 +39,7 @@ lsp = ["dep:wdl-lsp"]
 [dependencies]
 wdl-analysis = { path = "../wdl-analysis", version = "0.18.0", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.22.0", optional = true }
+wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.0", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.13.0", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.13.0", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.16.0", optional = true }

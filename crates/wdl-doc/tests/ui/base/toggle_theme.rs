@@ -1,5 +1,6 @@
 //! Test for the light/dark theme toggle.
 
+use std::path::Path;
 use std::time::Duration;
 
 use anyhow::bail;
@@ -33,7 +34,7 @@ impl UiTest for ToggleTheme {
         "toggle_theme"
     }
 
-    async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()> {
+    async fn run(&self, driver: &mut WebDriver, _docs_path: &Path) -> anyhow::Result<()> {
         match driver
             .localstorage(THEME_LOCALSTORAGE_KEY)
             .await?
