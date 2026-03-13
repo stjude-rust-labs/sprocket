@@ -19,6 +19,7 @@ use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 
 /// A member in a struct.
@@ -54,6 +55,8 @@ pub struct Struct {
     definition: StructDefinition,
     /// The version of WDL this struct is defined in.
     version: VersionBadge,
+    /// Whether the struct lives outside the workspace.
+    external: bool,
 }
 
 impl DefinitionMeta for Struct {
@@ -67,6 +70,7 @@ impl Struct {
     pub fn new(
         definition: StructDefinition,
         version: SupportedVersion,
+        external: bool,
         enable_doc_comments: bool,
     ) -> Self {
         let mut meta = definition
@@ -96,6 +100,7 @@ impl Struct {
             members,
             definition,
             version: VersionBadge::new(version),
+            external,
         }
     }
 
@@ -144,27 +149,28 @@ impl Struct {
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
         let markup = html! {
-            div class="main__container" {
-                p class="text-brand-pink-400" { "Struct" }
-                h1 id="title" class="main__title" { code { (name) } }
-                div class="markdown-body mb-4" {
-                    (self.meta.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.version.render())
-                }
-                div class="main__section" {
-                    sprocket-code language="wdl" {
-                        (self.definition)
-                    }
-                }
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (members)
+            p class="text-brand-pink-400" data-pagefind-filter="type:struct" { "Struct" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
+            div class="markdown-body mb-4" {
+                (self.meta.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.version.render())
+            }
+            div class="main__section" {
+                sprocket-code language="wdl" {
+                    (self.definition)
+                }
+            }
+            div class="main__section" {
+                (meta_markup)
+            }
+            (members)
         };
-        (markup, PageSections::default())
+        (
+            main_container("struct", self.external, markup),
+            PageSections::default(),
+        )
     }
 }
 

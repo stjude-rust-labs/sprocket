@@ -302,6 +302,11 @@ impl ApptainerRuntime {
 
             path.add_extension("sif");
 
+            if path.exists() {
+                info!(path = %path.display(), "Apptainer image `{container:#}` already cached; using existing image");
+                return Ok(path);
+            }
+
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await.with_context(|| {
                     format!(

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-03-12
+
 ### Added
 
 * The Apptainer executable path is now configurable via the `executable` field in `ApptainerConfig`, enabling support for Singularity and custom install paths ([#682](https://github.com/stjude-rust-labs/sprocket/pull/682)).
@@ -23,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed a bug that prevented `sprocket format` from working `--with-tabs` ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* More informative errors for invalid WDL while running `test` ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
 * Fixed a regression where nested inputs and task requirements/hints were not
   being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
 

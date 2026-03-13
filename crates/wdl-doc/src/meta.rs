@@ -518,3 +518,30 @@ pub(crate) trait DefinitionMeta {
         self.meta().render_description(summarize)
     }
 }
+
+/// Main container wrapper for item pages.
+///
+/// Used to determine whether the page appears in the search results.
+pub fn main_container(item_type: &str, external: bool, children: Markup) -> Markup {
+    if external {
+        return html! {
+            div
+                class="main__container"
+            {
+                (children)
+            }
+        };
+    }
+
+    html! {
+        div
+            class="main__container"
+            data-pagefind-body
+            meta-img-dark=(format!("{item_type}-selected.svg"))
+            meta-img-light=(format!("{item_type}-selected.light.svg"))
+            data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+        {
+            (children)
+        }
+    }
+}
