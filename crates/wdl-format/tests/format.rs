@@ -144,6 +144,7 @@ fn run_test_inner(
     preserve_line_endings: bool,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
+    compare_result(formatted_doc, &formatted, preserve_line_endings)?;
 
     // test idempotency by formatting the formatted document
     let twice_formatted = format(config, &formatted, formatted_doc)?;
@@ -174,14 +175,14 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             &source,
             &path,
             &formatted_path,
-            false,
+            true,
         )?;
         run_test_inner(
             config,
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
-            true,
+            false,
         )?;
     } else {
         run_test_inner(
