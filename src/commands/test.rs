@@ -44,6 +44,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::run::expand_config_run_paths;
 use crate::diagnostics::DiagnosticCounts;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
@@ -689,7 +690,7 @@ async fn summarize_results(
 /// Performs the `test` command.
 pub async fn test(
     args: Args,
-    config: Config,
+    mut config: Config,
     handle: FilterReloadHandle,
     colorize: bool,
 ) -> CommandResult<()> {
@@ -789,18 +790,16 @@ pub async fn test(
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
-    let engine = {
-        let mut engine = config.run.engine;
-        engine.task.cache = CallCachingMode::Off;
-        engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine
-    };
+
+    config.run.engine.task.cache = CallCachingMode::Off;
+    config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    expand_config_run_paths(&mut config)?;
 
     let runner = Runner {
         root: test_dir.join(RUNS_DIR),
         fixtures: fixture_origins.into(),
-        engine_config: engine.into(),
+        engine_config: config.run.engine.into(),
         log_handle: handle,
         permits: parallelism,
     };
