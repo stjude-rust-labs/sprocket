@@ -19,6 +19,7 @@ use crate::Coercible;
 use crate::EvaluationContext;
 use crate::EvaluationPath;
 use crate::HostPath;
+use crate::NoneValue;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -178,9 +179,9 @@ impl CallArgument {
     }
 
     /// Constructs a `None` call argument.
-    pub const fn none() -> Self {
+    pub fn none() -> Self {
         Self {
-            value: Value::None(Type::None),
+            value: Value::None(NoneValue::untyped()),
             span: Span::new(0, 0),
         }
     }
