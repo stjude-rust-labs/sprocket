@@ -19,6 +19,7 @@ pub mod inputs;
 pub mod lock;
 pub mod run;
 pub mod server;
+pub mod submit;
 pub mod test;
 pub mod validate;
 
@@ -137,6 +138,8 @@ pub enum DevCommands {
     Lock(lock::Args),
     /// Runs the HTTP API server for run execution.
     Server(server::Args),
+    /// Submit a workflow to a Sprocket HTTP API server.
+    Submit(submit::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }
