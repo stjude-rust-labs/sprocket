@@ -37,9 +37,6 @@ pub trait Rule: Send + Sync {
     /// which a rule is excepted or denied.
     fn id(&self) -> &'static str;
 
-    /// The `wdl-analysis` version in which this rule was added.
-    fn version(&self) -> &'static str;
-
     /// A short, single sentence description of the rule.
     fn description(&self) -> &'static str;
 
@@ -111,10 +108,6 @@ impl Rule for UnusedImportRule {
         UNUSED_IMPORT_RULE_ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.4.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that import namespaces are used in the importing document."
     }
@@ -169,10 +162,6 @@ impl Rule for UnusedInputRule {
         UNUSED_INPUT_RULE_ID
     }
 
-    fn version(&self) -> &'static str {
-        "0.4.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that task or workspace inputs are used within the declaring task or workspace."
     }
@@ -189,7 +178,7 @@ version 1.2
 workflow example {
     meta {}
 
-    inputs {
+    input {
         String unused
     }
 
@@ -227,10 +216,6 @@ impl Default for UnusedDeclarationRule {
 impl Rule for UnusedDeclarationRule {
     fn id(&self) -> &'static str {
         UNUSED_DECL_RULE_ID
-    }
-
-    fn version(&self) -> &'static str {
-        "0.4.0"
     }
 
     fn description(&self) -> &'static str {
@@ -286,10 +271,6 @@ impl Default for UnusedCallRule {
 impl Rule for UnusedCallRule {
     fn id(&self) -> &'static str {
         UNUSED_CALL_RULE_ID
-    }
-
-    fn version(&self) -> &'static str {
-        "0.4.0"
     }
 
     fn description(&self) -> &'static str {
@@ -354,10 +335,6 @@ impl Rule for UnnecessaryFunctionCall {
         UNNECESSARY_FUNCTION_CALL
     }
 
-    fn version(&self) -> &'static str {
-        "0.6.0"
-    }
-
     fn description(&self) -> &'static str {
         "Ensures that function calls are necessary."
     }
@@ -411,10 +388,6 @@ impl Default for UsingFallbackVersion {
 impl Rule for UsingFallbackVersion {
     fn id(&self) -> &'static str {
         USING_FALLBACK_VERSION
-    }
-
-    fn version(&self) -> &'static str {
-        "0.10.0"
     }
 
     fn description(&self) -> &'static str {
