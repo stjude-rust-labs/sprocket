@@ -5,6 +5,7 @@ Rules with the tag `Clarity`:
   - DeclarationName
   - DocCommentTabs
   - DoubleQuotes
+  - EmptyDocComment
   - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement
