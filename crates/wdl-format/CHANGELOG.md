@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 2026-03-12
+
 #### Added
 
-* Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration ([#667](https://github.com/stjude-rust-labs/sprocket/pull/667)).
-* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641)).
+* Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641) [#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 * Added configuration for input section formatting (off by default) ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
 * Added configuration for trailing commas (on by default) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
+* Added configuration for import sorting (on by default) ([#679](https://github.com/stjude-rust-labs/sprocket/pull/679)).
 * `#@ except:` comment normalization and consolidation of doc comment blocks ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+#### Changed
+
+* `if...then...else...` statements now always occupy multiple lines ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+
+#### Fixed
+
+* Correctly calculate bash indent when multiple placeholders are on the same line of `command` text ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 
 ## 0.15.1 - 2026-02-12
 

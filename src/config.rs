@@ -135,8 +135,8 @@ pub struct FormatConfig {
     pub max_line_length: usize,
     /// Enable sorting of input sections.
     pub sort_inputs: bool,
-    /// The newline style to use.
-    pub newline_style: NewlineStyle,
+    /// Enable adding trailing commas.
+    pub trailing_commas: bool,
 }
 
 impl Default for FormatConfig {
@@ -150,7 +150,7 @@ impl Default for FormatConfig {
                 .get()
                 .expect("should have a max line length"),
             sort_inputs: config.sort_inputs,
-            newline_style: NewlineStyle::default(),
+            trailing_commas: config.trailing_commas,
         }
     }
 }

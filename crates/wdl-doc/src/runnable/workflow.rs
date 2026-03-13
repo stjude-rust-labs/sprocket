@@ -13,6 +13,7 @@ use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
@@ -192,31 +193,32 @@ impl Workflow {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-emerald-400" { "Workflow" }
-                h1 id="title" class="main__title" { (self.render_name()) }
-                div class="markdown-body mb-4" {
-                    (self.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.render_version())
-                    @if let Some(badge) = self.render_category() {
-                        (badge)
-                    }
-                    (self.render_allow_nested_inputs())
-                }
-                (self.render_run_with(assets))
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (input_markup)
-                (self.render_outputs(assets))
+            span class="text-brand-emerald-400" data-pagefind-filter="type:workflow" { "Workflow" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { (self.render_name()) }
+            div class="markdown-body mb-4" {
+                (self.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.render_version())
+                @if let Some(badge) = self.render_category() {
+                    (badge)
+                }
+                (self.render_allow_nested_inputs())
+            }
+            (self.render_run_with(assets))
+            div class="main__section" {
+                (meta_markup)
+            }
+            (input_markup)
+            (self.render_outputs(assets))
         };
 
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
 
-        (markup, headers)
+        (
+            main_container("workflow", self.wdl_path.is_none(), markup),
+            headers,
+        )
     }
 }
 

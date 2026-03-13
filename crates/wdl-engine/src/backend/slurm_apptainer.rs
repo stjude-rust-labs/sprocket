@@ -802,11 +802,16 @@ impl SlurmApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
+        let apptainer = ApptainerRuntime::new(
+            run_root_dir,
+            backend_config.apptainer_config.image_cache_dir.as_deref(),
+        )?;
+
         Ok(Self {
             config,
             events,
             cancellation,
-            apptainer: ApptainerRuntime::new(run_root_dir)?,
+            apptainer,
             monitor,
             permits,
         })
@@ -994,15 +999,9 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let Some(apptainer_script) = self
                 .apptainer
                 .generate_script(
-                    &self.config,
+                    &backend_config.apptainer_config,
+                    self.config.task.shell.as_deref(),
                     &request,
-                    backend_config
-                        .apptainer_config
-                        .extra_apptainer_exec_args
-                        .as_deref()
-                        .unwrap_or_default()
-                        .iter()
-                        .map(String::as_str),
                     self.cancellation.first(),
                 )
                 .await?

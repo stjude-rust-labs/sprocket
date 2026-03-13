@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-03-12
+
 #### Added
 
 * Support for identifying and parsing comments with special meaning (i.e. directives and doc comments) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
@@ -23,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Support for printing `EnumDefinition`s via `EnumDefinition::display()` and `StructDefinition`s via `Display` ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551)).
+* Support `keyword` method on `CommandSection`, `RequirementsSection`, `MetadataSection`, `ParameterMetadataSection`, `ScatterStatement` and `CallStatement` for accessing the associated keyword for the syntax node ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
+* Adds an `is_inline_comment` method to `Comment` ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
 
 ## 0.20.0 - 01-12-2026
 

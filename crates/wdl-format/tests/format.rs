@@ -78,17 +78,9 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compare the result of a test to the expected result.
-fn compare_result(
-    path: &Path,
-    result: &str,
-    preserve_line_endings: bool,
-) -> Result<(), anyhow::Error> {
-    let result = if preserve_line_endings {
-        result.to_string()
-    } else {
-        normalize(result)
-    };
-    if env::var_os("BLESS").is_some() {
+fn compare_result(path: &Path, result: &str, allow_blessing: bool) -> Result<(), anyhow::Error> {
+    let result = normalize(result);
+    if allow_blessing && env::var_os("BLESS").is_some() {
         fs::write(path, &result).context("writing result file")?;
         return Ok(());
     }
@@ -144,11 +136,11 @@ fn run_test_inner(
     preserve_line_endings: bool,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
-    compare_result(formatted_doc, &formatted, preserve_line_endings)?;
+    compare_result(formatted_doc, &formatted, true)?;
 
     // test idempotency by formatting the formatted document
     let twice_formatted = format(config, &formatted, formatted_doc)?;
-    compare_result(formatted_doc, &twice_formatted, preserve_line_endings)?;
+    compare_result(formatted_doc, &twice_formatted, false).context("testing idempotency")?;
 
     Ok(())
 }
@@ -170,15 +162,9 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             config_path.display()
         ))?;
 
+        run_test_inner(config, &source, &path, &formatted_path)?;
         run_test_inner(
             FormatConfig::default(),
-            &source,
-            &path,
-            &formatted_path,
-            true,
-        )?;
-        run_test_inner(
-            config,
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),

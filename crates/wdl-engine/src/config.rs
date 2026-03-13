@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -807,6 +808,34 @@ pub struct TaskConfig {
     /// Used as part of call caching.
     #[serde(default)]
     pub digests: ContentDigestMode,
+    /// Keys of task requirements to exclude from call cache checking.
+    ///
+    /// When specified, these requirement keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for requirements that may vary between runs
+    /// but should not invalidate the cache (e.g., dynamic resource
+    /// allocation).
+    #[serde(default)]
+    pub excluded_cache_requirements: HashSet<String>,
+    /// Keys of task hints to exclude from call cache checking.
+    ///
+    /// When specified, these hint keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for hints that may vary between runs
+    /// but should not invalidate the cache.
+    #[serde(default)]
+    pub excluded_cache_hints: HashSet<String>,
+    /// Keys of task inputs to exclude from call cache checking.
+    ///
+    /// When specified, these input keys will be ignored when
+    /// calculating cache keys and validating cache entries.
+    ///
+    /// This can be useful for inputs that may vary between runs
+    /// but should not affect the task's output.
+    #[serde(default)]
+    pub excluded_cache_inputs: HashSet<String>,
 }
 
 impl TaskConfig {
@@ -1257,12 +1286,46 @@ impl TesBackendConfig {
 }
 
 /// Configuration for the Apptainer container runtime.
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
+    /// Path to the Apptainer (or Singularity) executable.
+    ///
+    /// Defaults to `"apptainer"`. Set to `"singularity"` or a full path
+    /// (e.g., `/usr/local/bin/apptainer`) if the executable is not on `PATH`
+    /// or if using Singularity instead.
+    #[serde(default = "default_apptainer_executable")]
+    pub executable: String,
+
+    /// Path to a shared directory for caching pulled `.sif` images.
+    ///
+    /// When set, pulled images are stored in this directory and shared
+    /// across runs. When unset, images are stored in a per-run directory
+    /// that is not shared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_cache_dir: Option<PathBuf>,
+
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     pub extra_apptainer_exec_args: Option<Vec<String>>,
+}
+
+/// The default Apptainer executable name.
+const DEFAULT_APPTAINER_EXECUTABLE: &str = "apptainer";
+
+/// Returns the default Apptainer executable name for serde deserialization.
+fn default_apptainer_executable() -> String {
+    String::from(DEFAULT_APPTAINER_EXECUTABLE)
+}
+
+impl Default for ApptainerConfig {
+    fn default() -> Self {
+        Self {
+            executable: default_apptainer_executable(),
+            image_cache_dir: None,
+            extra_apptainer_exec_args: None,
+        }
+    }
 }
 
 impl ApptainerConfig {

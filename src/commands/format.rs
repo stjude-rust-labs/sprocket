@@ -49,7 +49,8 @@ pub struct Args {
     )]
     pub indentation_size: Option<usize>,
 
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
@@ -121,14 +122,14 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let fallback_version = config.common.wdl.fallback_version;
 
-    let indent = Indent::try_new(
-        args.with_tabs || config.format.with_tabs,
-        Some(
-            args.indentation_size
-                .unwrap_or(config.format.indentation_size),
-        ),
-    )
-    .context("failed to create indentation configuration")?;
+    let indent = {
+        let with_tabs = args.with_tabs || config.format.with_tabs;
+        let num_spaces = args
+            .indentation_size
+            .unwrap_or(config.format.indentation_size);
+        Indent::try_new(with_tabs, if with_tabs { None } else { Some(num_spaces) })
+            .context("failed to create indentation configuration")?
+    };
 
     let max_line_length = MaxLineLength::try_new(
         args.max_line_length
@@ -140,9 +141,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let format_config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
-        .newline_style(newline_style);
-
-    let formatter = Formatter::new(format_config);
+        .sort_imports(config.format.sort_inputs)
+        .trailing_commas(config.format.trailing_commas);
+    let formatter = Formatter::new(config);
 
     let mut errors = 0;
     match args.command {
