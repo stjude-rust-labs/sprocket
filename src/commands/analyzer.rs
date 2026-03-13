@@ -5,12 +5,15 @@ use std::sync::Arc;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use wdl::analysis::FeatureFlags;
+use wdl::lsp::LevelFilter;
 use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
 use crate::Config;
+use crate::FilterReloadHandle;
 use crate::IGNORE_FILENAME;
+use crate::Subscriber;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::commands::explain::ALL_RULE_IDS;
@@ -49,20 +52,28 @@ impl Args {
 }
 
 /// Runs the `analyzer` command.
-pub async fn analyzer(mut args: Args, config: Config) -> CommandResult<()> {
+pub async fn analyzer(
+    mut args: Args,
+    config: Config,
+    handle: FilterReloadHandle,
+) -> CommandResult<()> {
     args.apply(&config);
 
-    Server::run(ServerOptions {
-        name: Some("Sprocket".into()),
-        version: Some(env!("CARGO_PKG_VERSION").into()),
-        lint: LintOptions {
-            enabled: args.lint,
-            config: Arc::new(config.check.lint),
+    Server::<Subscriber>::run(
+        ServerOptions {
+            name: "Sprocket".into(),
+            version: env!("CARGO_PKG_VERSION").into(),
+            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
+            lint: LintOptions {
+                enabled: args.lint,
+                config: Arc::new(config.check.lint),
+            },
+            exceptions: args.except,
+            ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            feature_flags: FeatureFlags::default(),
         },
-        exceptions: args.except,
-        ignore_filename: Some(IGNORE_FILENAME.to_string()),
-        feature_flags: FeatureFlags::default(),
-    })
+        Some(handle),
+    )
     .await
     .map_err(CommandError::from)
 }
