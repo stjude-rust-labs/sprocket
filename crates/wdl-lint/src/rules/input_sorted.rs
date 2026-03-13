@@ -197,15 +197,33 @@ impl Rule for InputSortedRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "Each input declaration section should be sorted. This rule enforces an opinionated \
-         sorting.\n\nIt first sorts by:\n1. required inputs\n2. optional inputs without \
-         defaults\n3. optional inputs with defaults\n4. inputs with a default value\n\nThen by the \
-         type:\n1. File\n2. Array[*]+\n3. Array[*]\n4. struct\n5. Object\n6. Map[*, *]\n7. Pair[*, \
-         *]\n8. String\n9. Boolean\n10. Float\n11. Int\n\nFor ordering of the same compound type \
-         (Array[*], Map[*, *], Pair[*, *]), drop the outermost type(Array, Map, etc.) and \
-         recursively apply above sorting on the first inner type *, with ties brokenby the second \
-         inner type. Continue this pattern as far as possible. Once this ordering is satisfied,it \
-         is up to the developer for final order of inputs of the same type."
+        r#"Each input declaration section should be sorted. This rule enforces an opinionated sorting.
+
+It first sorts by:
+
+1. required inputs
+2. optional inputs without defaults
+3. optional inputs with defaults
+4. inputs with a default value
+
+Then by the type:
+
+1. File
+2. Array[*]+
+3. Array[*]
+4. struct
+5. Object
+6. Map[*, *]
+7. Pair[*, *]
+8. String
+9. Boolean
+10. Float
+11. Int
+
+For ordering of the same compound type (Array[*], Map[*, *], Pair[*, *]), drop the outermost type(Array, Map, etc.)
+and recursively apply above sorting on the first inner type *, with ties brokenby the second inner type.
+Continue this pattern as far as possible. Once this ordering is satisfied,it is up to the developer
+for final order of inputs of the same type."#
     }
 
     fn examples(&self) -> &'static [&'static str] {
@@ -215,8 +233,8 @@ version 1.2
 
 task describe_person {
     input {
-        ?File target = stdout()
-        ?Int age
+        File? target = stdout()
+        Int? age
         String name
     }
 
@@ -231,8 +249,8 @@ version 1.2
 task describe_person {
     input {
         String name
-        ?Int age
-        ?File target = stdout()
+        Int? age
+        File? target = stdout()
     }
 
     command <<<>>>

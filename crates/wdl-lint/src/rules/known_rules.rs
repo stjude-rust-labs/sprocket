@@ -71,7 +71,7 @@ impl Rule for KnownRulesRule {
     fn examples(&self) -> &'static [&'static str] {
         &[
             r#"```wdl
-#@ except: LintThatDoesNotExit
+#@ except: LintThatDoesNotExist
 
 version 1.2
 
