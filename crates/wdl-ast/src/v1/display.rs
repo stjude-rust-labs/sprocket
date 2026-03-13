@@ -6,14 +6,11 @@
 
 use std::fmt;
 
-use crate::AstNode;
 use crate::AstToken;
 use crate::TreeNode;
-use crate::v1::InputSection;
 use crate::v1::MetadataArray;
 use crate::v1::MetadataObjectItem;
 use crate::v1::MetadataValue;
-use crate::v1::OutputSection;
 use crate::v1::ParameterMetadataSection;
 
 /// Formats a metadata value.
@@ -75,61 +72,4 @@ pub fn get_param_meta<N: TreeNode>(
     param_meta
         .and_then(|pm| pm.items().find(|i| i.name().text() == name))
         .map(|item| item.value())
-}
-
-/// Formats the input section with parameter metadata.
-pub fn write_input_section<N: TreeNode>(
-    f: &mut impl fmt::Write,
-    input: Option<&InputSection<N>>,
-    param_meta: Option<&ParameterMetadataSection<N>>,
-) -> fmt::Result {
-    if let Some(input) = input
-        && input.declarations().next().is_some()
-    {
-        writeln!(f, "\n**Inputs**")?;
-        for decl in input.declarations() {
-            let name = decl.name();
-            let default = decl.expr().map(|e| e.text().to_string());
-
-            write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
-            if let Some(val) = default {
-                // default values
-                write!(f, " = *`{}`*", val.trim_start_matches(" = "))?;
-            }
-
-            if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
-                writeln!(f)?;
-                format_meta_value(f, &meta_val, 2)?;
-                writeln!(f)?;
-            } else {
-                writeln!(f)?;
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Formats the output section with parameter metadata.
-pub fn write_output_section<N: TreeNode>(
-    f: &mut impl fmt::Write,
-    output: Option<&OutputSection<N>>,
-    param_meta: Option<&ParameterMetadataSection<N>>,
-) -> fmt::Result {
-    if let Some(output) = output
-        && output.declarations().next().is_some()
-    {
-        writeln!(f, "\n**Outputs**")?;
-        for decl in output.declarations() {
-            let name = decl.name();
-            write!(f, "- **{}**: `{}`", name.text(), decl.ty().inner().text())?;
-            if let Some(meta_val) = get_param_meta(name.text(), param_meta) {
-                writeln!(f)?;
-                format_meta_value(f, &meta_val, 2)?;
-                writeln!(f)?;
-            } else {
-                writeln!(f)?;
-            }
-        }
-    }
-    Ok(())
 }

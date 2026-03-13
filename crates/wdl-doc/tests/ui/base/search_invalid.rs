@@ -20,10 +20,10 @@ impl UiTest for SearchInvalid {
     }
 
     async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()> {
-        driver.search("does_not_exist").await?;
+        driver.search("this does not exist").await?;
 
         let no_results = driver
-            .query(By::ClassName("left-sidebar__search-result-item"))
+            .query(By::ClassName("search-result"))
             .wait(Duration::from_secs(5), Duration::from_millis(100))
             .not_exists()
             .await?;
@@ -33,7 +33,8 @@ impl UiTest for SearchInvalid {
 
         let no_results_text = driver
             .query(By::XPath(
-                "//li/span[contains(@x-text, \"No results found\")]",
+                "//div[contains(@class,'layout__main-center-content')]//span[contains(@x-text, \
+                 \"No results found for\")]",
             ))
             .wait(Duration::from_secs(5), Duration::from_millis(100))
             .exists()
