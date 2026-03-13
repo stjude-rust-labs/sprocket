@@ -62,7 +62,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::StructDefinitionNode,
     SyntaxKind::EnumDefinitionNode,
     SyntaxKind::TaskDefinitionNode,
-    SyntaxKind::EnumVariantNode,
+    SyntaxKind::EnumChoiceNode,
     SyntaxKind::UnboundDeclNode,
     SyntaxKind::BoundDeclNode,
 ];
@@ -193,7 +193,7 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Variants"
+        - Enum Choices"
     }
 
     fn tags(&self) -> crate::TagSet {
