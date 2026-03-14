@@ -123,7 +123,7 @@ pub struct Common {
     /// Hide diagnostics with `note` severity.
     #[arg(long)]
     pub hide_notes: bool,
-
+    
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
