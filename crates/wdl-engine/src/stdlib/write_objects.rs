@@ -7,7 +7,6 @@ use tempfile::NamedTempFile;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufWriter;
-use wdl_analysis::types::CompoundType;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
 use wdl_ast::Diagnostic;
@@ -65,10 +64,10 @@ fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagno
             .expect("argument should be an array");
 
         let ty = context.arguments[0].value.ty();
-        let element_type = match &ty {
-            Type::Compound(CompoundType::Array(ty), ..) => ty.element_type(),
-            _ => panic!("expected an array type for the argument"),
-        };
+        let element_type = ty
+            .as_array()
+            .expect("expected an array type for the argument")
+            .element_type();
 
         // If it's an array of objects, we need to ensure each object has the exact same
         // member names

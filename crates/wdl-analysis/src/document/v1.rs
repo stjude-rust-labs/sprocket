@@ -111,7 +111,6 @@ use crate::types::ArrayType;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
-use crate::types::CompoundType;
 use crate::types::EnumType;
 use crate::types::HiddenType;
 use crate::types::MapType;
@@ -153,11 +152,13 @@ fn is_input_used(name: &str, ty: &Type) -> bool {
     // Determine if the input is `File` or `Array[File]`
     match ty {
         Type::Primitive(PrimitiveType::File, _) => {}
-        Type::Compound(CompoundType::Array(ty), _) => match ty.element_type() {
-            Type::Primitive(PrimitiveType::File, _) => {}
-            _ => return false,
+        ty => match ty.as_array() {
+            Some(arr) => match arr.element_type() {
+                Type::Primitive(PrimitiveType::File, _) => {}
+                _ => return false,
+            },
+            None => return false,
         },
-        _ => return false,
     }
 
     let name = name.to_lowercase();
@@ -1445,10 +1446,10 @@ fn add_scatter_statement(
         EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
-    let element_ty = match ty {
-        Type::Union => Type::Union,
-        Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
-        _ => {
+    let element_ty = match ty.as_array() {
+        Some(arr) => arr.element_type().clone(),
+        None if matches!(ty, Type::Union) => Type::Union,
+        None => {
             document
                 .analysis_diagnostics
                 .push(type_is_not_array(&ty, expr.span()));
@@ -1991,20 +1992,17 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                     .filter_map(|e| infer_type_from_literal(&e))
                     .next()
                     .unwrap_or(Type::Union);
-                Some(Type::Compound(
-                    CompoundType::Array(ArrayType::new(element_type)),
-                    false,
-                ))
+                Some(ArrayType::new(element_type).into())
             }
             LiteralExpr::Pair(pair) => {
                 let (left, right) = pair.exprs();
-                Some(Type::Compound(
-                    CompoundType::Pair(PairType::new(
+                Some(
+                    PairType::new(
                         infer_type_from_literal(&left)?,
                         infer_type_from_literal(&right)?,
-                    )),
-                    false,
-                ))
+                    )
+                    .into(),
+                )
             }
             LiteralExpr::Map(map) => {
                 let mut items = map.items();
@@ -2016,10 +2014,7 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                     }
                     None => (Type::Union, Type::Union),
                 };
-                Some(Type::Compound(
-                    CompoundType::Map(MapType::new(key_type, value_type)),
-                    false,
-                ))
+                Some(MapType::new(key_type, value_type).into())
             }
             LiteralExpr::Object(obj) => {
                 for item in obj.items() {
@@ -2189,8 +2184,8 @@ fn type_check_expr(
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
-    else if let Type::Compound(CompoundType::Array(ty), _) = expected
-        && ty.is_non_empty()
+    else if let Some(arr) = expected.as_array()
+        && arr.is_non_empty()
         && expr.is_empty_array_literal()
     {
         document

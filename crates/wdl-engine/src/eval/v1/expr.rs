@@ -46,8 +46,6 @@ use wdl_analysis::stdlib::FunctionBindError;
 use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
-use wdl_analysis::types::CompoundType;
-use wdl_analysis::types::CustomType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -340,9 +338,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let valid = match option {
                     PlaceholderOption::Sep(_) => {
                         ty == Type::None
-                            || matches!(&ty,
-                        Type::Compound(CompoundType::Array(array_ty), _)
-                        if matches!(array_ty.element_type(), Type::Primitive(_, false)))
+                            || ty.as_array().is_some_and(|array_ty| {
+                                matches!(array_ty.element_type(), Type::Primitive(_, false))
+                            })
                     }
                     PlaceholderOption::Default(_) => {
                         matches!(ty, Type::Primitive(..) | Type::None)
@@ -912,14 +910,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 }
             };
 
-            match ty {
-                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
-                    struct_ty = Some(ty);
+            match ty.as_struct() {
+                Some(s) => {
+                    struct_ty = Some(s);
                 }
-                _ if segments.peek().is_some() => {
+                None if segments.peek().is_some() => {
                     return Err(not_a_struct(&segment, i == 0));
                 }
-                _ => {
+                None => {
                     // It's ok for the last one to not name a struct
                 }
             }
@@ -1580,7 +1578,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 s.text()?.text(),
             )))
         }
-        Type::Compound(CompoundType::Array(array_ty), _) => {
+        target_ty if target_ty.as_array().is_some() => {
+            let array_ty = target_ty.as_array().unwrap();
             match_literal_value!(expr, Array(arr), CompoundType::Array);
             let element_type = array_ty.element_type();
             let elements: Option<Vec<Value>> = arr
@@ -1591,7 +1590,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Array::new(array_ty.clone(), elements?).expect("array construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Pair(pair_ty), _) => {
+        target_ty if target_ty.as_pair().is_some() => {
+            let pair_ty = target_ty.as_pair().unwrap();
             match_literal_value!(expr, Pair(pair), CompoundType::Pair);
             let (left_expr, right_expr) = pair.exprs();
             let left = parse_constant_value(pair_ty.left_type(), &left_expr)?;
@@ -1600,7 +1600,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Pair::new(pair_ty.clone(), left, right).expect("pair construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Map(map_ty), _) => {
+        target_ty if target_ty.as_map().is_some() => {
+            let map_ty = target_ty.as_map().unwrap();
             match_literal_value!(expr, Map(map), CompoundType::Map);
             let key_type = map_ty.key_type();
             let value_type = map_ty.value_type();
@@ -1620,7 +1621,8 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Map::new(map_ty.clone(), entries?).expect("map construction should succeed"),
             )))
         }
-        Type::Compound(CompoundType::Custom(CustomType::Struct(struct_ty)), _) => {
+        target_ty if target_ty.as_struct().is_some() => {
+            let struct_ty = target_ty.as_struct().unwrap();
             match_literal_value!(expr, Struct(s), CustomType::Struct);
             let members: Option<indexmap::IndexMap<String, Value>> = s
                 .items()
