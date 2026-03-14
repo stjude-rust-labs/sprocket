@@ -173,7 +173,7 @@ pub enum Type {
     /// The type is a compound type.
     ///
     /// The second field is whether or not the compound type is optional.
-    Compound(CompoundType, bool),
+    Compound(Arc<CompoundType>, bool),
     /// The type is `Object`.
     Object,
     /// The type is `Object?`.
@@ -196,6 +196,13 @@ pub enum Type {
     /// A reference to a custom type name (struct or enum).
     TypeNameRef(CustomType),
 }
+
+// NOTE: `Type` was optimized to `24` bytes as part of the type representation
+// shrinking effort. Any attempts to raise this limit should be carefully
+// considered from a performance perspective.
+const _: () = {
+    assert!(std::mem::size_of::<Type>() <= 24);
+};
 
 impl Type {
     /// Casts the type to a primitive type.
@@ -223,7 +230,7 @@ impl Type {
     /// Returns `None` if the type is not an array type.
     pub fn as_array(&self) -> Option<&ArrayType> {
         match self {
-            Self::Compound(CompoundType::Array(ty), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_array(),
             _ => None,
         }
     }
@@ -233,7 +240,7 @@ impl Type {
     /// Returns `None` if the type is not a pair type.
     pub fn as_pair(&self) -> Option<&PairType> {
         match self {
-            Self::Compound(CompoundType::Pair(ty), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_pair(),
             _ => None,
         }
     }
@@ -243,7 +250,7 @@ impl Type {
     /// Returns `None` if the type is not a map type.
     pub fn as_map(&self) -> Option<&MapType> {
         match self {
-            Self::Compound(CompoundType::Map(ty), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_map(),
             _ => None,
         }
     }
@@ -253,7 +260,7 @@ impl Type {
     /// Returns `None` if the type is not a struct type.
     pub fn as_struct(&self) -> Option<&StructType> {
         match self {
-            Self::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_struct(),
             _ => None,
         }
     }
@@ -263,7 +270,7 @@ impl Type {
     /// Returns `None` if the type is not an enum type.
     pub fn as_enum(&self) -> Option<&EnumType> {
         match self {
-            Self::Compound(CompoundType::Custom(CustomType::Enum(ty)), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_enum(),
             _ => None,
         }
     }
@@ -273,7 +280,7 @@ impl Type {
     /// Returns `None` if the type is not a custom type.
     pub fn as_custom(&self) -> Option<&CustomType> {
         match self {
-            Self::Compound(CompoundType::Custom(ty), _) => Some(ty),
+            Self::Compound(ty, _) => ty.as_custom(),
             _ => None,
         }
     }
@@ -318,7 +325,7 @@ impl Type {
             return Self::Call(ty.promote_scatter());
         }
 
-        Type::Compound(ArrayType::new(self.clone()).into(), false)
+        Type::Compound(Arc::new(ArrayType::new(self.clone()).into()), false)
     }
 
     /// Calculates a common type between this type and the given type.
@@ -360,7 +367,7 @@ impl Type {
         if let (Some(this), Some(other)) = (self.as_compound(), other.as_compound())
             && let Some(ty) = this.common_type(other)
         {
-            return Some(Self::Compound(ty, self.is_optional()));
+            return Some(Self::Compound(Arc::new(ty), self.is_optional()));
         }
 
         // Check for a call type to have a common type with itself
@@ -378,7 +385,9 @@ impl Type {
     /// This is only supported for custom types (structs and enums).
     pub fn type_name_ref(&self) -> Option<Type> {
         match self {
-            Type::Compound(CompoundType::Custom(ty), _) => Some(Type::TypeNameRef(ty.clone())),
+            Type::Compound(compound, _) => {
+                compound.as_custom().map(|ty| Type::TypeNameRef(ty.clone()))
+            }
             _ => None,
         }
     }
@@ -478,7 +487,7 @@ impl Coercible for Type {
             // Struct -> Object, Struct -> Object?, Struct? -> Object?
             (Self::Compound(src, false), Self::Object)
             | (Self::Compound(src, false), Self::OptionalObject)
-            | (Self::Compound(src, _), Self::OptionalObject) => match src {
+            | (Self::Compound(src, _), Self::OptionalObject) => match src.as_ref() {
                 CompoundType::Map(src) => src
                     .key_type()
                     .is_coercible_to(&PrimitiveType::String.into()),
@@ -493,7 +502,7 @@ impl Coercible for Type {
             // struct member names and object values are coercible to struct member types
             (Self::Object, Self::Compound(target, _))
             | (Self::OptionalObject, Self::Compound(target, true)) => {
-                match target {
+                match target.as_ref() {
                     CompoundType::Map(target) => {
                         Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
                     }
@@ -513,14 +522,16 @@ impl Coercible for Type {
 
             // String -> Enum
             // Enum -> String
-            (
-                Self::Primitive(PrimitiveType::String, _),
-                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
-            )
-            | (
-                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
-                Self::Primitive(PrimitiveType::String, _),
-            ) => true,
+            (Self::Primitive(PrimitiveType::String, _), Self::Compound(compound, _))
+                if compound.as_enum().is_some() =>
+            {
+                true
+            }
+            (Self::Compound(compound, _), Self::Primitive(PrimitiveType::String, _))
+                if compound.as_enum().is_some() =>
+            {
+                true
+            }
 
             // Not coercible
             _ => false,
@@ -536,37 +547,37 @@ impl From<PrimitiveType> for Type {
 
 impl From<CompoundType> for Type {
     fn from(value: CompoundType) -> Self {
-        Self::Compound(value, false)
+        Self::Compound(Arc::new(value), false)
     }
 }
 
 impl From<ArrayType> for Type {
     fn from(value: ArrayType) -> Self {
-        Self::Compound(value.into(), false)
+        Self::Compound(Arc::new(value.into()), false)
     }
 }
 
 impl From<PairType> for Type {
     fn from(value: PairType) -> Self {
-        Self::Compound(value.into(), false)
+        Self::Compound(Arc::new(value.into()), false)
     }
 }
 
 impl From<MapType> for Type {
     fn from(value: MapType) -> Self {
-        Self::Compound(value.into(), false)
+        Self::Compound(Arc::new(value.into()), false)
     }
 }
 
 impl From<StructType> for Type {
     fn from(value: StructType) -> Self {
-        Self::Compound(value.into(), false)
+        Self::Compound(Arc::new(value.into()), false)
     }
 }
 
 impl From<EnumType> for Type {
     fn from(value: EnumType) -> Self {
-        Self::Compound(value.into(), false)
+        Self::Compound(Arc::new(value.into()), false)
     }
 }
 
@@ -587,7 +598,7 @@ pub enum CustomType {
 
 impl CustomType {
     /// Gets the name of the custom type.
-    pub fn name(&self) -> &Arc<String> {
+    pub fn name(&self) -> &str {
         match self {
             Self::Struct(ty) => ty.name(),
             Self::Enum(ty) => ty.name(),
@@ -719,7 +730,8 @@ impl CompoundType {
         // to find a common type for their inner types
         match (self, other) {
             (Self::Array(this), Self::Array(other)) => {
-                let element_type = this.element_type.common_type(&other.element_type)?;
+                let element_type =
+                    this.element_type().common_type(other.element_type())?;
                 Some(ArrayType::new(element_type).into())
             }
             (Self::Pair(this), Self::Pair(other)) => {
@@ -789,7 +801,7 @@ impl Coercible for CompoundType {
 
                 // Ensure the value type is coercible to every struct member type
                 if !target
-                    .members
+                    .members()
                     .values()
                     .all(|ty| src.value_type().is_coercible_to(ty))
                 {
@@ -809,7 +821,7 @@ impl Coercible for CompoundType {
 
                 // Ensure all the struct members are coercible to the value type
                 if !src
-                    .members
+                    .members()
                     .values()
                     .all(|ty| ty.is_coercible_to(target.value_type()))
                 {
@@ -854,56 +866,66 @@ impl From<EnumType> for CompoundType {
     }
 }
 
-/// Represents the type of an `Array`.
+/// The inner representation of an array type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ArrayType {
+struct ArrayTypeInner {
     /// The element type of the array.
-    element_type: Arc<Type>,
+    element_type: Type,
     /// Whether or not the array type is non-empty.
     non_empty: bool,
 }
 
+/// Represents the type of an `Array`.
+///
+/// Array types are cheap to clone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArrayType(Arc<ArrayTypeInner>);
+
 impl ArrayType {
     /// Constructs a new array type.
     pub fn new(element_type: impl Into<Type>) -> Self {
-        Self {
-            element_type: Arc::new(element_type.into()),
+        Self(Arc::new(ArrayTypeInner {
+            element_type: element_type.into(),
             non_empty: false,
-        }
+        }))
     }
 
     /// Constructs a new non-empty array type.
     pub fn non_empty(element_type: impl Into<Type>) -> Self {
-        Self {
-            element_type: Arc::new(element_type.into()),
+        Self(Arc::new(ArrayTypeInner {
+            element_type: element_type.into(),
             non_empty: true,
-        }
+        }))
     }
 
     /// Gets the array's element type.
     pub fn element_type(&self) -> &Type {
-        &self.element_type
+        &self.0.element_type
     }
 
     /// Determines if the array type is non-empty.
     pub fn is_non_empty(&self) -> bool {
-        self.non_empty
+        self.0.non_empty
     }
 
-    /// Consumes the array type and removes the non-empty (`+`) qualifier.
-    pub fn unqualified(self) -> ArrayType {
-        Self {
-            element_type: self.element_type,
-            non_empty: false,
+    /// Returns a new array type with the non-empty (`+`) qualifier removed.
+    pub fn unqualified(&self) -> ArrayType {
+        if self.0.non_empty {
+            Self(Arc::new(ArrayTypeInner {
+                element_type: self.0.element_type.clone(),
+                non_empty: false,
+            }))
+        } else {
+            self.clone()
         }
     }
 }
 
 impl fmt::Display for ArrayType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Array[{ty}]", ty = self.element_type)?;
+        write!(f, "Array[{ty}]", ty = self.0.element_type)?;
 
-        if self.non_empty {
+        if self.0.non_empty {
             write!(f, "+")?;
         }
 
@@ -914,7 +936,7 @@ impl fmt::Display for ArrayType {
 impl Coercible for ArrayType {
     fn is_coercible_to(&self, target: &Self) -> bool {
         // Note: non-empty constraints are enforced at runtime and are not checked here.
-        self.element_type.is_coercible_to(&target.element_type)
+        self.0.element_type.is_coercible_to(&target.0.element_type)
     }
 }
 
@@ -1009,14 +1031,24 @@ impl Coercible for MapType {
     }
 }
 
-/// Represents the type of a struct.
+/// The inner representation of a struct type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StructType {
+struct StructTypeInner {
     /// The name of the struct.
+    ///
+    /// Arc-wrapped because it is shared with the engine's `Struct` value
+    /// type when constructing struct values, avoiding allocation of a
+    /// second copy of the name string.
     name: Arc<String>,
     /// The members of the struct.
-    members: Arc<IndexMap<String, Type>>,
+    members: IndexMap<String, Type>,
 }
+
+/// Represents the type of a struct.
+///
+/// Struct types are cheap to clone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructType(Arc<StructTypeInner>);
 
 impl StructType {
     /// Constructs a new struct type definition.
@@ -1025,42 +1057,41 @@ impl StructType {
         N: Into<String>,
         T: Into<Type>,
     {
-        Self {
+        Self(Arc::new(StructTypeInner {
             name: Arc::new(name.into()),
-            members: Arc::new(
-                members
-                    .into_iter()
-                    .map(|(n, ty)| (n.into(), ty.into()))
-                    .collect(),
-            ),
-        }
+            members: members
+                .into_iter()
+                .map(|(n, ty)| (n.into(), ty.into()))
+                .collect(),
+        }))
     }
 
     /// Gets the name of the struct.
     pub fn name(&self) -> &Arc<String> {
-        &self.name
+        &self.0.name
     }
 
     /// Gets the members of the struct.
     pub fn members(&self) -> &IndexMap<String, Type> {
-        &self.members
+        &self.0.members
     }
 }
 
 impl fmt::Display for StructType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{name}", name = self.name)
+        write!(f, "{name}", name = self.0.name)
     }
 }
 
 impl Coercible for StructType {
     fn is_coercible_to(&self, target: &Self) -> bool {
-        if self.members.len() != target.members.len() {
+        if self.0.members.len() != target.0.members.len() {
             return false;
         }
 
-        self.members.iter().all(|(k, v)| {
+        self.0.members.iter().all(|(k, v)| {
             target
+                .0
                 .members
                 .get(k)
                 .map(|target| v.is_coercible_to(target))
@@ -1088,16 +1119,22 @@ impl EnumVariantCacheKey {
     }
 }
 
-/// Represents the type of an enum.
+/// The inner representation of an enum type.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EnumType {
+struct EnumTypeInner {
     /// The name of the enum.
-    name: Arc<String>,
+    name: String,
     /// The common coerced type computed from all variant values.
-    inner_value_type: Arc<Type>,
+    inner_value_type: Type,
     /// The variants.
     variants: Arc<[String]>,
 }
+
+/// Represents the type of an enum.
+///
+/// Enum types are cheap to clone.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumType(Arc<EnumTypeInner>);
 
 impl EnumType {
     /// Constructs a new enum type with a known coerced type.
@@ -1132,11 +1169,11 @@ impl EnumType {
             results.push(variant_name.to_owned());
         }
 
-        Ok(Self {
-            name: Arc::new(enum_name),
-            inner_value_type: explicit_inner_type.into(),
+        Ok(Self(Arc::new(EnumTypeInner {
+            name: enum_name,
+            inner_value_type: explicit_inner_type,
             variants: results.into(),
-        })
+        })))
     }
 
     /// Attempts to create a new enum type by computing the common inner type
@@ -1178,32 +1215,32 @@ impl EnumType {
             names.push(name);
         }
 
-        Ok(Self {
-            name: Arc::new(enum_name),
-            inner_value_type: common_ty.unwrap_or(Type::Union).into(),
+        Ok(Self(Arc::new(EnumTypeInner {
+            name: enum_name,
+            inner_value_type: common_ty.unwrap_or(Type::Union),
             variants: names.into(),
-        })
+        })))
     }
 
     /// Gets the name of the enum.
-    pub fn name(&self) -> &Arc<String> {
-        &self.name
+    pub fn name(&self) -> &str {
+        &self.0.name
     }
 
     /// Gets the inner value type that all variants coerce to.
     pub fn inner_value_type(&self) -> &Type {
-        &self.inner_value_type
+        &self.0.inner_value_type
     }
 
     /// Gets the variants with their types.
     pub fn variants(&self) -> &[String] {
-        &self.variants
+        &self.0.variants
     }
 }
 
 impl fmt::Display for EnumType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{name}", name = self.name)
+        write!(f, "{name}", name = self.0.name)
     }
 }
 
@@ -1231,22 +1268,45 @@ impl fmt::Display for CallKind {
     }
 }
 
-/// Represents the type of a call.
+/// The inner representation of a call type.
 #[derive(Debug, Clone, Eq)]
-pub struct CallType {
+struct CallTypeInner {
     /// The call kind.
     kind: CallKind,
     /// The namespace of the call.
-    namespace: Option<Arc<String>>,
+    namespace: Option<String>,
     /// The name of the task or workflow that was called.
-    name: Arc<String>,
+    name: String,
     /// The set of specified inputs in the call.
+    ///
+    /// Arc-wrapped because [`CallType::optional`] and
+    /// [`CallType::promote_scatter`] clone the inner to produce modified
+    /// copies. Keeping this field behind `Arc` makes that clone a cheap
+    /// refcount bump rather than a deep copy.
     specified: Arc<HashSet<String>>,
     /// The input types to the call.
+    ///
+    /// Arc-wrapped for the same reason as `specified`.
     inputs: Arc<IndexMap<String, Input>>,
     /// The output types from the call.
+    ///
+    /// Arc-wrapped for the same reason as `specified`, and additionally
+    /// because [`CallType::optional`] and [`CallType::promote_scatter`]
+    /// use [`Arc::make_mut`] for copy-on-write modification of outputs.
     outputs: Arc<IndexMap<String, Output>>,
 }
+
+impl PartialEq for CallTypeInner {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+/// Represents the type of a call.
+///
+/// Call types are cheap to clone.
+#[derive(Debug, Clone, Eq)]
+pub struct CallType(Arc<CallTypeInner>);
 
 impl CallType {
     /// Constructs a new call type given the task or workflow name being called.
@@ -1257,14 +1317,14 @@ impl CallType {
         inputs: Arc<IndexMap<String, Input>>,
         outputs: Arc<IndexMap<String, Output>>,
     ) -> Self {
-        Self {
+        Self(Arc::new(CallTypeInner {
             kind,
             namespace: None,
-            name: Arc::new(name.into()),
+            name: name.into(),
             specified,
             inputs,
             outputs,
-        }
+        }))
     }
 
     /// Constructs a new call type given namespace and the task or workflow name
@@ -1277,66 +1337,66 @@ impl CallType {
         inputs: Arc<IndexMap<String, Input>>,
         outputs: Arc<IndexMap<String, Output>>,
     ) -> Self {
-        Self {
+        Self(Arc::new(CallTypeInner {
             kind,
-            namespace: Some(Arc::new(namespace.into())),
-            name: Arc::new(name.into()),
+            namespace: Some(namespace.into()),
+            name: name.into(),
             specified,
             inputs,
             outputs,
-        }
+        }))
     }
 
     /// Gets the kind of the call.
     pub fn kind(&self) -> CallKind {
-        self.kind
+        self.0.kind
     }
 
     /// Gets the namespace of the call target.
     ///
     /// Returns `None` if the call is local to the current document.
     pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_ref().map(|ns| ns.as_str())
+        self.0.namespace.as_deref()
     }
 
     /// Gets the name of the call target.
     pub fn name(&self) -> &str {
-        &self.name
+        &self.0.name
     }
 
     /// Gets the set of inputs specified in the call.
     pub fn specified(&self) -> &HashSet<String> {
-        &self.specified
+        &self.0.specified
     }
 
     /// Gets the inputs of the called workflow or task.
     pub fn inputs(&self) -> &IndexMap<String, Input> {
-        &self.inputs
+        &self.0.inputs
     }
 
     /// Gets the outputs of the called workflow or task.
     pub fn outputs(&self) -> &IndexMap<String, Output> {
-        &self.outputs
+        &self.0.outputs
     }
 
     /// Makes all outputs of the call type optional.
     pub fn optional(&self) -> Self {
-        let mut ty = self.clone();
-        for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+        let mut inner = self.0.as_ref().clone();
+        for output in Arc::make_mut(&mut inner.outputs).values_mut() {
             *output = Output::new(output.ty().optional(), output.name_span());
         }
 
-        ty
+        Self(Arc::new(inner))
     }
 
     /// Promotes the call type into a scatter statement.
     pub fn promote_scatter(&self) -> Self {
-        let mut ty = self.clone();
-        for output in Arc::make_mut(&mut ty.outputs).values_mut() {
+        let mut inner = self.0.as_ref().clone();
+        for output in Arc::make_mut(&mut inner.outputs).values_mut() {
             *output = Output::new(output.ty().promote_scatter(), output.name_span());
         }
 
-        ty
+        Self(Arc::new(inner))
     }
 }
 
@@ -1349,19 +1409,19 @@ impl Coercible for CallType {
 
 impl fmt::Display for CallType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ns) = &self.namespace {
+        if let Some(ns) = &self.0.namespace {
             write!(
                 f,
                 "call to {kind} `{ns}.{name}`",
-                kind = self.kind,
-                name = self.name,
+                kind = self.0.kind,
+                name = self.0.name,
             )
         } else {
             write!(
                 f,
                 "call to {kind} `{name}`",
-                kind = self.kind,
-                name = self.name,
+                kind = self.0.kind,
+                name = self.0.name,
             )
         }
     }
@@ -1369,8 +1429,7 @@ impl fmt::Display for CallType {
 
 impl PartialEq for CallType {
     fn eq(&self, other: &Self) -> bool {
-        // Each call type instance is unique, so just compare pointer
-        std::ptr::eq(self, other)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -2285,7 +2344,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(status.name().as_ref(), "Status");
+        assert_eq!(status.name(), "Status");
         assert_eq!(
             status.inner_value_type(),
             &Type::from(PrimitiveType::String)
@@ -2326,7 +2385,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(priority.name().as_str(), "Priority");
+        assert_eq!(priority.name(), "Priority");
         assert_eq!(
             priority.inner_value_type(),
             &Type::from(PrimitiveType::Integer)
@@ -2347,7 +2406,7 @@ mod test {
         )
         .unwrap();
 
-        assert_eq!(mixed.name().as_str(), "Mixed");
+        assert_eq!(mixed.name(), "Mixed");
         assert_eq!(mixed.inner_value_type(), &Type::from(PrimitiveType::Float));
         assert_eq!(mixed.variants().len(), 2);
     }
@@ -2375,7 +2434,7 @@ mod test {
         let result = EnumType::infer("Empty", Vec::<(String, Type)>::new(), &[]);
 
         let empty = result.unwrap();
-        assert_eq!(empty.name().as_str(), "Empty");
+        assert_eq!(empty.name(), "Empty");
         assert_eq!(empty.inner_value_type(), &Type::Union);
         assert_eq!(empty.variants().len(), 0);
     }

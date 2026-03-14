@@ -506,15 +506,13 @@ where
         &mut self,
         definition: &v1::StructDefinition<N>,
     ) -> Result<StructType, Diagnostic> {
-        Ok(StructType {
-            name: Arc::new(definition.name().text().to_string()),
-            members: Arc::new(
-                definition
-                    .members()
-                    .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                    .collect::<Result<_, _>>()?,
-            ),
-        })
+        Ok(StructType::new(
+            definition.name().text().to_string(),
+            definition
+                .members()
+                .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 }
 
@@ -720,8 +718,9 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         ty == Type::Union
                             || ty == Type::None
                             || matches!(&ty,
-                        Type::Compound(CompoundType::Array(array_ty), _)
-                        if matches!(array_ty.element_type(), Type::Primitive(_, false) | Type::Union))
+                        Type::Compound(compound, _)
+                        if matches!(compound.as_ref(), CompoundType::Array(array_ty)
+                            if matches!(array_ty.element_type(), Type::Primitive(_, false) | Type::Union)))
                     }
                     PlaceholderOption::Default(_) => {
                         matches!(ty, Type::Primitive(..) | Type::Union | Type::None)
@@ -743,10 +742,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
             } else {
                 match ty {
-                    Type::Primitive(..)
-                    | Type::Union
-                    | Type::None
-                    | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
+                    Type::Primitive(..) | Type::Union | Type::None => {}
+                    Type::Compound(ref compound, _)
+                        if matches!(
+                            compound.as_ref(),
+                            CompoundType::Custom(CustomType::Enum(_))
+                        ) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
@@ -911,8 +912,11 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let name = expr.name();
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
-                let ty = match ty {
-                    Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,
+                let ty = match &ty {
+                    Type::Compound(compound, false) => match compound.as_ref() {
+                        CompoundType::Custom(CustomType::Struct(ty)) => ty,
+                        _ => panic!("type should be a required struct"),
+                    },
                     _ => panic!("type should be a required struct"),
                 };
 
@@ -922,7 +926,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Validate the member types
                 for item in expr.items() {
                     let (n, v) = item.name_value();
-                    match ty.members.get_full(n.text()) {
+                    match ty.members().get_full(n.text()) {
                         Some((index, _, expected)) => {
                             present[index] = true;
                             if let Some(actual) = self.evaluate_expr(&v)
@@ -953,8 +957,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                             return None;
                         }
 
-                        let (name, ty) = &ty.members.get_index(i).unwrap();
-                        if ty.is_optional() {
+                        let (name, member_ty) = ty.members().get_index(i).unwrap();
+                        if member_ty.is_optional() {
                             return None;
                         }
 
@@ -982,7 +986,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
 
                 Some(Type::Compound(
-                    CompoundType::Custom(CustomType::Struct(ty)),
+                    Arc::new(CompoundType::Custom(CustomType::Struct(ty.clone()))),
                     false,
                 ))
             }
@@ -1175,18 +1179,27 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, name.span().end() - start));
                 let s = s.unwrap();
-                match s.members.get(name.text()) {
+                match s.members().get(name.text()) {
                     Some(ty) => ty,
                     None => {
                         self.context
-                            .add_diagnostic(not_a_struct_member(&s.name, &name));
+                            .add_diagnostic(not_a_struct_member(s.name(), &name));
                         break;
                     }
                 }
             };
 
             match ty {
-                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => s = Some(ty),
+                Type::Compound(compound, _)
+                    if matches!(
+                        compound.as_ref(),
+                        CompoundType::Custom(CustomType::Struct(_))
+                    ) =>
+                {
+                    if let CompoundType::Custom(CustomType::Struct(st)) = compound.as_ref() {
+                        s = Some(st);
+                    }
+                }
                 _ if names.peek().is_some() => {
                     self.context.add_diagnostic(not_a_struct(&name, i == 0));
                     break;
@@ -1397,26 +1410,20 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
             // Check for other compound types
             let equal = match (&lhs_ty, &rhs_ty) {
-                (
-                    Type::Compound(CompoundType::Array(a), _),
-                    Type::Compound(CompoundType::Array(b), _),
-                ) => a == b,
-                (
-                    Type::Compound(CompoundType::Pair(a), _),
-                    Type::Compound(CompoundType::Pair(b), _),
-                ) => a == b,
-                (
-                    Type::Compound(CompoundType::Map(a), _),
-                    Type::Compound(CompoundType::Map(b), _),
-                ) => a == b,
-                (
-                    Type::Compound(CompoundType::Custom(CustomType::Struct(a)), _),
-                    Type::Compound(CompoundType::Custom(CustomType::Struct(b)), _),
-                ) => a == b,
-                (
-                    Type::Compound(CompoundType::Custom(CustomType::Enum(a)), _),
-                    Type::Compound(CompoundType::Custom(CustomType::Enum(b)), _),
-                ) => a == b,
+                (Type::Compound(a, _), Type::Compound(b, _)) => match (a.as_ref(), b.as_ref()) {
+                    (CompoundType::Array(a), CompoundType::Array(b)) => a == b,
+                    (CompoundType::Pair(a), CompoundType::Pair(b)) => a == b,
+                    (CompoundType::Map(a), CompoundType::Map(b)) => a == b,
+                    (
+                        CompoundType::Custom(CustomType::Struct(a)),
+                        CompoundType::Custom(CustomType::Struct(b)),
+                    ) => a == b,
+                    (
+                        CompoundType::Custom(CustomType::Enum(a)),
+                        CompoundType::Custom(CustomType::Enum(b)),
+                    ) => a == b,
+                    _ => false,
+                },
                 _ => false,
             };
 
@@ -1662,13 +1669,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         // Determine the expected index type and result type of the expression
         let target_ty = self.evaluate_expr(&target)?;
         let (expected_index_ty, result_ty) = match &target_ty {
-            Type::Compound(CompoundType::Array(ty), _) => (
-                Some(PrimitiveType::Integer.into()),
-                Some(ty.element_type().clone()),
-            ),
-            Type::Compound(CompoundType::Map(ty), _) => {
-                (Some(ty.key_type().clone()), Some(ty.value_type().clone()))
-            }
+            Type::Compound(compound, _) => match compound.as_ref() {
+                CompoundType::Array(ty) => (
+                    Some(PrimitiveType::Integer.into()),
+                    Some(ty.element_type().clone()),
+                ),
+                CompoundType::Map(ty) => {
+                    (Some(ty.key_type().clone()), Some(ty.value_type().clone()))
+                }
+                _ => (None, None),
+            },
             _ => (None, None),
         };
 
@@ -1731,26 +1741,28 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
-                if let Some(ty) = ty.members.get(name.text()) {
-                    return Some(ty.clone());
-                }
-
-                self.context
-                    .add_diagnostic(not_a_struct_member(ty.name(), &name));
-                return None;
-            }
-            Type::Compound(CompoundType::Pair(ty), _) => {
-                // Support `left` and `right` accessors for pairs
-                return match name.text() {
-                    "left" => Some(ty.left_type().clone()),
-                    "right" => Some(ty.right_type().clone()),
-                    _ => {
-                        self.context.add_diagnostic(not_a_pair_accessor(&name));
-                        None
+            Type::Compound(compound, _) => match compound.as_ref() {
+                CompoundType::Custom(CustomType::Struct(ty)) => {
+                    if let Some(ty) = ty.members().get(name.text()) {
+                        return Some(ty.clone());
                     }
-                };
-            }
+
+                    self.context
+                        .add_diagnostic(not_a_struct_member(ty.name(), &name));
+                    return None;
+                }
+                CompoundType::Pair(ty) => {
+                    return match name.text() {
+                        "left" => Some(ty.left_type().clone()),
+                        "right" => Some(ty.right_type().clone()),
+                        _ => {
+                            self.context.add_diagnostic(not_a_pair_accessor(&name));
+                            None
+                        }
+                    };
+                }
+                _ => {}
+            },
             Type::Call(ty) => {
                 if let Some(output) = ty.outputs().get(name.text()) {
                     return Some(output.ty().clone());
