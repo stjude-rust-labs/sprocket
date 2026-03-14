@@ -2,7 +2,6 @@
 
 use std::collections::HashSet;
 use std::fs;
-use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -343,9 +342,24 @@ impl DocumentGraphNode {
                             SyntaxNode::new_root(root.clone()).text().to_string(),
                             lines.clone(),
                         ),
-                        _ => panic!(
-                            "cannot apply edits to a document that was not previously parsed"
-                        ),
+                        _ => {
+                            
+                            tracing::warn!(
+                                uri = %self.uri,
+                                "document not yet parsed, re-fetching from disk"
+                            );
+                            let source = match self.uri.to_file_path() {
+                                Ok(path) => fs::read_to_string(path).map_err(Into::into),
+                                Err(_) => Self::download_source(tokio, client, &self.uri),
+                            };
+                            return match source {
+                                Ok(_s) => Ok(ParseState::Error(
+                                    anyhow::anyhow!("re-fetch succeeded but parse skipped").into(),
+                                )),
+                                Err(e) => Ok(ParseState::Error(e.into())),
+                            };
+                        }
+
                     }
                 };
 
