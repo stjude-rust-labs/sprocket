@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-* Added enum type coercion support so that enum values can be passed to
-  call inputs where the expected type is optional due to a default value
+* Added enum type coercion support
   ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
   [#724](https://github.com/stjude-rust-labs/sprocket/pull/724)).
 
