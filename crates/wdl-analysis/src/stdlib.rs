@@ -12,8 +12,6 @@ use wdl_ast::version::V1;
 
 use crate::types::ArrayType;
 use crate::types::Coercible;
-use crate::types::CompoundType;
-use crate::types::CustomType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -335,7 +333,8 @@ impl GenericArrayType {
                 self.element_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(CompoundType::Array(ty), false) => {
+            Type::Compound(compound, false) if compound.as_array().is_some() => {
+                let ty = compound.as_array().unwrap();
                 self.element_type.infer_type_parameters(
                     ty.element_type(),
                     params,
@@ -432,7 +431,8 @@ impl GenericPairType {
                 self.right_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(CompoundType::Pair(ty), false) => {
+            Type::Compound(compound, false) if compound.as_pair().is_some() => {
+                let ty = compound.as_pair().unwrap();
                 self.left_type
                     .infer_type_parameters(ty.left_type(), params, ignore_constraints);
                 self.right_type
@@ -523,7 +523,8 @@ impl GenericMapType {
                 self.value_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(CompoundType::Map(ty), false) => {
+            Type::Compound(compound, false) if compound.as_map().is_some() => {
+                let ty = compound.as_map().unwrap();
                 self.key_type
                     .infer_type_parameters(ty.key_type(), params, ignore_constraints);
                 self.value_type
@@ -584,10 +585,8 @@ impl GenericEnumInnerValueType {
                     .get(self.ty.param)
                     .expect("variant parameter should be present");
 
-                match variant_ty {
-                    Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                        enum_ty.inner_value_type().fmt(f)
-                    }
+                match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+                    Some(enum_ty) => enum_ty.inner_value_type().fmt(f),
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "{}", self.ty.param),
                 }
@@ -603,10 +602,8 @@ impl GenericEnumInnerValueType {
             .get(self.param)
             .expect("variant parameter should be present");
 
-        match variant_ty {
-            Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                Some(enum_ty.inner_value_type().clone())
-            }
+        match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+            Some(enum_ty) => Some(enum_ty.inner_value_type().clone()),
             // NOTE: non-enums should gracefully fail.
             _ => None,
         }
