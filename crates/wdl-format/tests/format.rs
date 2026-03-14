@@ -85,9 +85,13 @@ fn compare_result(path: &Path, result: &str, allow_blessing: bool) -> Result<(),
         return Ok(());
     }
 
-    let expected = fs::read_to_string(path)
-        .context("reading result file")?
-        .replace("\r\n", "\n");
+    let expected = if preserve_line_endings {
+        fs::read_to_string(path).context("reading result file")?
+    } else {
+        fs::read_to_string(path)
+            .context("reading result file")?
+            .replace("\r\n", "\n")
+    };
 
     if expected != result {
         bail!(
@@ -129,6 +133,7 @@ fn run_test_inner(
     source: &str,
     original_doc: &Path,
     formatted_doc: &Path,
+    preserve_line_endings: bool,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
     compare_result(formatted_doc, &formatted, true)?;
@@ -159,13 +164,20 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
 
         run_test_inner(config, &source, &path, &formatted_path)?;
         run_test_inner(
-            FormatConfig::default(),
+            config,
             &source,
             &path,
             &path.with_extension("default.formatted.wdl"),
+            false,
         )?;
     } else {
-        run_test_inner(FormatConfig::default(), &source, &path, &formatted_path)?;
+        run_test_inner(
+            FormatConfig::default(),
+            &source,
+            &path,
+            &formatted_path,
+            false,
+        )?;
     }
 
     Ok(())

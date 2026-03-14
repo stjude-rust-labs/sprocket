@@ -20,6 +20,7 @@ use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
+use wdl::format::NewlineStyle;
 
 use crate::diagnostics::Mode;
 

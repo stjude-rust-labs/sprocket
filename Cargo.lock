@@ -6385,6 +6385,7 @@ name = "wdl-format"
 version = "0.16.0"
 dependencies = [
  "anyhow",
+ "clap",
  "codespan-reporting",
  "libtest-mimic",
  "nonempty",
