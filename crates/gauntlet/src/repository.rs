@@ -233,6 +233,7 @@ impl Repository {
     }
 }
 
+/// The maximum depth to which submodules are recursively initialized.
 const MAX_SUBMODULE_DEPTH: usize = 10;
 
 /// Recursively initialize and update all submodules within `repo`,

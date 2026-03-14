@@ -602,11 +602,11 @@ impl GenericEnumInnerValueType {
             .get(self.param)
             .expect("variant parameter should be present");
 
-        match variant_ty.as_ref().and_then(|t| t.as_enum()) {
-            Some(enum_ty) => Some(enum_ty.inner_value_type().clone()),
-            // NOTE: non-enums should gracefully fail.
-            _ => None,
-        }
+        // NOTE: non-enums should gracefully fail.
+        variant_ty
+            .as_ref()
+            .and_then(|t| t.as_enum())
+            .map(|enum_ty| enum_ty.inner_value_type().clone())
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
