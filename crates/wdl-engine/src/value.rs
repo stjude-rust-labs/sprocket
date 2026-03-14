@@ -3178,7 +3178,10 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.disks.clone()))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
-                            Arc::new(CompoundType::Map(MapType::new(PrimitiveType::String, PrimitiveType::Integer))),
+                            Arc::new(CompoundType::Map(MapType::new(
+                                PrimitiveType::String,
+                                PrimitiveType::Integer,
+                            ))),
                             true,
                         ))
                     }),

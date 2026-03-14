@@ -338,11 +338,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let valid = match option {
                     PlaceholderOption::Sep(_) => {
                         ty == Type::None
-                            || ty
-                                .as_array()
-                                .is_some_and(|array_ty| {
-                                    matches!(array_ty.element_type(), Type::Primitive(_, false))
-                                })
+                            || ty.as_array().is_some_and(|array_ty| {
+                                matches!(array_ty.element_type(), Type::Primitive(_, false))
+                            })
                     }
                     PlaceholderOption::Default(_) => {
                         matches!(ty, Type::Primitive(..) | Type::None)
