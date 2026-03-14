@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.18.0"
+version = "0.18.1"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
