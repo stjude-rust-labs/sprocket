@@ -68,6 +68,7 @@ use crate::EvaluationPath;
 use crate::EvaluationResult;
 use crate::Inputs;
 use crate::Outputs;
+use crate::TypeNameRefValue;
 use crate::Value;
 use crate::WorkflowInputs;
 use crate::diagnostics::decl_evaluation_failed;
@@ -164,7 +165,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(ty));
+            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
         }
 
         Err(unknown_name(name, span))
