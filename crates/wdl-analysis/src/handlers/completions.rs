@@ -516,7 +516,9 @@ fn add_member_access_completions(
                 }
             }
         }
-        (SyntaxKind::OpenBracket, Type::Compound(ref compound, _)) if compound.as_map().is_some() => {
+        (SyntaxKind::OpenBracket, Type::Compound(ref compound, _))
+            if compound.as_map().is_some() =>
+        {
             if let Expr::NameRef(name_ref) = target_expr {
                 let var_name = name_ref.name();
 

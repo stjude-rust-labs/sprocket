@@ -730,8 +730,7 @@ impl CompoundType {
         // to find a common type for their inner types
         match (self, other) {
             (Self::Array(this), Self::Array(other)) => {
-                let element_type =
-                    this.element_type().common_type(other.element_type())?;
+                let element_type = this.element_type().common_type(other.element_type())?;
                 Some(ArrayType::new(element_type).into())
             }
             (Self::Pair(this), Self::Pair(other)) => {
