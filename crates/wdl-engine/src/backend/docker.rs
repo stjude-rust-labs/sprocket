@@ -230,7 +230,7 @@ impl<'a> DockerTask<'a> {
                             .expect("must have container")
                             .to_string(),
                     )
-                    .program(self.config.task.shell())
+                    .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
                     .env(self.request.env.clone())
@@ -464,7 +464,7 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = requirements::container(inputs, requirements, self.config.task.container());
+        let container = requirements::container(inputs, requirements, &self.config.task.container);
         match &container {
             ContainerSource::Docker(_) => {}
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {

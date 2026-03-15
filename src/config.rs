@@ -371,9 +371,7 @@ impl Config {
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
     ) -> Result<Self> {
-        // Check for a config file in the current directory
-        // Start a new Figment instance with default values
-        let mut figment = Figment::new().admerge(Serialized::from(Config::default(), "default"));
+        let mut figment = Figment::new();
 
         if !skip_config_search {
             // Start with a configuration file next to the `sprocket` executable
@@ -445,6 +443,9 @@ impl Config {
             );
             figment = figment.admerge(Toml::file(path));
         }
+        
+        // Fill unspecified values with their default
+        figment = figment.join(Serialized::defaults(Config::default()));
 
         // Get the configuration from the Figment
         figment.extract().context("failed to merge configuration")

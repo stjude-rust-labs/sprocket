@@ -89,6 +89,7 @@ max_concurrent_runs = "unlimited"
 [server.database]
 
 [server.engine]
+backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"

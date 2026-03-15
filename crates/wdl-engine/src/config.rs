@@ -36,6 +36,9 @@ pub(crate) const MAX_RETRIES: u8 = 100;
 /// The default task shell.
 pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 
+/// The default task container.
+pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
+
 /// The default backend name.
 pub(crate) const DEFAULT_BACKEND_NAME: &str = "default";
 
@@ -53,6 +56,31 @@ pub(crate) fn cache_dir() -> Result<PathBuf> {
     Ok(dirs::cache_dir()
         .context("failed to determine user cache directory")?
         .join(CACHE_DIR_ROOT))
+}
+
+/// Helper for `serde`.
+fn is_default_shell(shell: &str) -> bool {
+    shell == DEFAULT_TASK_SHELL
+}
+
+/// Helper for `serde`.
+fn is_default_container(container: &str) -> bool {
+    container == DEFAULT_TASK_CONTAINER
+}
+
+/// Helper for `serde`.
+fn get_default_shell() -> String {
+    DEFAULT_TASK_SHELL.to_string()
+}
+
+/// Helper for `serde`.
+fn get_default_container() -> String {
+    DEFAULT_TASK_CONTAINER.to_string()
+}
+
+/// Helper for `serde`.
+fn get_default_backend_name() -> String {
+    DEFAULT_BACKEND_NAME.to_string()
 }
 
 /// Represents a secret string that is, by default, redacted for serialization.
@@ -250,7 +278,7 @@ pub enum FailureMode {
 /// secrets from being redacted.
 ///
 /// </div>
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// HTTP configuration.
@@ -263,10 +291,7 @@ pub struct Config {
     #[serde(default)]
     pub task: TaskConfig,
     /// The name of the backend to use.
-    ///
-    /// If not specified and `backends` has multiple entries, it will use a name
-    /// of `default`.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default = "get_default_backend_name")]
     pub backend: String,
     /// Task execution backends configuration.
     ///
@@ -314,6 +339,22 @@ pub struct Config {
     pub failure_mode: FailureMode,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            http: Default::default(),
+            workflow: Default::default(),
+            task: Default::default(),
+            backend: get_default_backend_name(),
+            backends: Default::default(),
+            storage: Default::default(),
+            suppress_env_specific_output: Default::default(),
+            experimental_features_enabled: Default::default(),
+            failure_mode: Default::default(),
+        }
+    }
+}
+
 impl Config {
     /// Validates the evaluation configuration.
     pub async fn validate(&self) -> Result<()> {
@@ -321,16 +362,10 @@ impl Config {
         self.workflow.validate()?;
         self.task.validate()?;
 
-        if self.backend.is_empty() && self.backends.len() < 2 {
-            // This is OK, we'll use either the singular backends entry (1) or
-            // the default (0)
+        if self.backends.is_empty() && self.backend == DEFAULT_BACKEND_NAME {
+            // we'll use the default
         } else {
-            // Check the backends map for the backend name (or "default")
-            let backend = if self.backend.is_empty() {
-                DEFAULT_BACKEND_NAME
-            } else {
-                &self.backend
-            };
+            let backend = &self.backend;
             if !self.backends.contains_key(backend) {
                 bail!("a backend named `{backend}` is not present in the configuration");
             }
@@ -396,25 +431,14 @@ impl Config {
     /// Returns an error if the configuration specifies a named backend that
     /// isn't present in the configuration.
     pub fn backend(&self) -> Result<Cow<'_, BackendConfig>> {
-        if !self.backend.is_empty() || self.backends.len() >= 2 {
-            // Lookup the backend to use
-            let backend = if self.backend.is_empty() {
-                DEFAULT_BACKEND_NAME
-            } else {
-                &self.backend
-            };
+        if !self.backends.is_empty() {
+            let backend = &self.backend;
             return Ok(Cow::Borrowed(self.backends.get(backend).ok_or_else(
                 || anyhow!("a backend named `{backend}` is not present in the configuration"),
             )?));
         }
-
-        if self.backends.len() == 1 {
-            // Use the singular entry
-            Ok(Cow::Borrowed(self.backends.values().next().unwrap()))
-        } else {
-            // Use the default
-            Ok(Cow::Owned(BackendConfig::default()))
-        }
+        // Use the default
+        Ok(Cow::Owned(BackendConfig::default()))
     }
 
     /// Creates a new task execution backend based on this configuration.
@@ -865,25 +889,18 @@ pub enum ContentDigestMode {
 }
 
 /// Represents task evaluation configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
-    ///
-    /// Defaults to 0 (no retries).
-    #[serde(default)]
     pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
-    ///
-    /// Defaults to `ubuntu:latest`.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default = "get_default_container", skip_serializing_if = "is_default_container")]
     pub container: String,
     /// The default shell to use for tasks.
-    ///
-    /// Defaults to `bash`.
     ///
     /// <div class="warning">
     /// Warning: the use of a shell other than `bash` may lead to tasks that may
@@ -897,13 +914,11 @@ pub struct TaskConfig {
     ///
     /// If using this setting causes your tasks to fail, please do not file an
     /// issue. </div>
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(default = "get_default_shell", skip_serializing_if = "is_default_shell")]
     pub shell: String,
     /// The behavior when a task's `cpu` requirement cannot be met.
-    #[serde(default)]
     pub cpu_limit_behavior: TaskResourceLimitBehavior,
     /// The behavior when a task's `memory` requirement cannot be met.
-    #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
@@ -911,12 +926,10 @@ pub struct TaskConfig {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub cache_dir: String,
     /// The call caching mode to use for tasks.
-    #[serde(default)]
     pub cache: CallCachingMode,
     /// The content digest mode to use.
     ///
     /// Used as part of call caching.
-    #[serde(default)]
     pub digests: ContentDigestMode,
     /// Keys of task requirements to exclude from call cache checking.
     ///
@@ -926,7 +939,6 @@ pub struct TaskConfig {
     /// This can be useful for requirements that may vary between runs
     /// but should not invalidate the cache (e.g., dynamic resource
     /// allocation).
-    #[serde(default)]
     pub excluded_cache_requirements: HashSet<String>,
     /// Keys of task hints to exclude from call cache checking.
     ///
@@ -935,7 +947,6 @@ pub struct TaskConfig {
     ///
     /// This can be useful for hints that may vary between runs
     /// but should not invalidate the cache.
-    #[serde(default)]
     pub excluded_cache_hints: HashSet<String>,
     /// Keys of task inputs to exclude from call cache checking.
     ///
@@ -944,7 +955,6 @@ pub struct TaskConfig {
     ///
     /// This can be useful for inputs that may vary between runs
     /// but should not affect the task's output.
-    #[serde(default)]
     pub excluded_cache_inputs: HashSet<String>,
 }
 
@@ -960,6 +970,24 @@ nullable_config_type!(
     None
 );
 
+impl Default for TaskConfig {
+    fn default() -> Self {
+        Self {
+            retries: Default::default(),
+            container: get_default_container(),
+            shell: get_default_shell(),
+            cpu_limit_behavior: Default::default(),
+            memory_limit_behavior: Default::default(),
+            cache_dir: Default::default(),
+            cache: Default::default(),
+            digests: Default::default(),
+            excluded_cache_requirements: Default::default(),
+            excluded_cache_hints: Default::default(),
+            excluded_cache_inputs: Default::default(),
+        }
+    }
+}
+
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
@@ -968,24 +996,6 @@ impl TaskConfig {
         }
 
         Ok(())
-    }
-
-    /// Get the configured shell.
-    pub fn shell(&self) -> &str {
-        if self.shell.is_empty() {
-            DEFAULT_TASK_SHELL
-        } else {
-            &self.shell
-        }
-    }
-
-    /// Get the configured container (if there is one).
-    pub fn container(&self) -> Option<&str> {
-        if self.container.is_empty() {
-            None
-        } else {
-            Some(&self.container)
-        }
     }
 }
 
@@ -2023,6 +2033,7 @@ mod test {
 
         // Test a singular backend
         let config = Config {
+            backend: "foo".to_string(),
             backends: [("foo".to_string(), BackendConfig::default())].into(),
             ..Default::default()
         };

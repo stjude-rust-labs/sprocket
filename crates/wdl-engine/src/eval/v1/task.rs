@@ -115,8 +115,6 @@ pub(crate) mod requirements;
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
 
-/// The default container requirement.
-const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
 /// The default value for the `cpu` requirement.
 const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
@@ -764,7 +762,7 @@ impl Evaluator {
                             .as_ref()
                             .map(|c| format!("{c:#}"))
                             .unwrap_or_default(),
-                        shell: self.config.task.shell(),
+                        shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 

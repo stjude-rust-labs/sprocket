@@ -107,7 +107,7 @@ impl<'a> LocalTask<'a> {
                 )
             })?;
 
-            let mut command = Command::new(self.config.task.shell());
+            let mut command = Command::new(&self.config.task.shell);
             command
                 .current_dir(&work_dir)
                 .arg(command_path)
