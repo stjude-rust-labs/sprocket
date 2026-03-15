@@ -78,9 +78,9 @@ fn format_diagnostics(diagnostics: &[Diagnostic], path: &Path, source: &str) -> 
 }
 
 /// Compare the result of a test to the expected result.
-fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
+fn compare_result(path: &Path, result: &str, allow_blessing: bool) -> Result<(), anyhow::Error> {
     let result = normalize(result);
-    if env::var_os("BLESS").is_some() {
+    if allow_blessing && env::var_os("BLESS").is_some() {
         fs::write(path, &result).context("writing result file")?;
         return Ok(());
     }
@@ -131,11 +131,11 @@ fn run_test_inner(
     formatted_doc: &Path,
 ) -> anyhow::Result<()> {
     let formatted = format(config, source, original_doc)?;
-    compare_result(formatted_doc, &formatted)?;
+    compare_result(formatted_doc, &formatted, true)?;
 
     // test idempotency by formatting the formatted document
     let twice_formatted = format(config, &formatted, formatted_doc)?;
-    compare_result(formatted_doc, &twice_formatted)?;
+    compare_result(formatted_doc, &twice_formatted, false).context("testing idempotency")?;
 
     Ok(())
 }
