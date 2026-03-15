@@ -148,6 +148,83 @@ impl<'de> serde::Deserialize<'de> for SecretString {
     }
 }
 
+/// Creates a new type, which can be nulled, for use in configuration structs.
+///
+/// `nullable_config_type!(Name, Type, Sentinel, ident, Validation, Error,
+/// Default)`
+#[macro_export]
+macro_rules! nullable_config_type {
+    (
+        $name:ident,
+        $inner:ty,
+        $sentinel:literal,
+        $value:ident,
+        $validation:expr,
+        $err:expr,
+        $default:expr
+    ) => {
+        /// TODO
+        #[derive(Clone, Debug)]
+        pub struct $name(Option<$inner>);
+
+        impl $name {
+            /// TODO
+            pub fn inner(&self) -> Option<$inner> {
+                self.0
+            }
+
+            /// TODO
+            pub fn try_new(val: Option<$inner>) -> std::result::Result<Self, anyhow::Error> {
+                match val {
+                    None => Ok(Self(None)),
+                    Some($value) if $validation => Ok(Self(Some($value))),
+                    Some($value) => Err(anyhow::anyhow!($err)),
+                }
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self($default)
+            }
+        }
+
+        impl Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                match self {
+                    $name(None) => $sentinel.serialize(serializer),
+                    $name(Some(i)) => i.serialize(serializer),
+                }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(untagged)]
+                enum Value {
+                    Inner($inner),
+                    Str(String),
+                    Null,
+                }
+
+                match Value::deserialize(deserializer)? {
+                    Value::Inner(i) => $name::try_new(Some(i)).map_err(serde::de::Error::custom),
+                    Value::Str(s) if s == $sentinel => Ok($name(None)),
+                    Value::Str($value) => Err(serde::de::Error::custom($err)),
+                    Value::Null => Ok($name(None)),
+                }
+            }
+        }
+    };
+}
+
 /// Represents how an evaluation error or cancellation should be handled by the
 /// engine.
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -400,55 +477,15 @@ pub struct HttpConfig {
     pub parallelism: Parallelism,
 }
 
-/// HTTP transer paralllelism.
-#[derive(Debug, Clone, Default)]
-pub struct Parallelism(Option<usize>);
-
-impl Parallelism {
-    /// Get the inner `Option<usize>`.
-    pub fn inner(&self) -> Option<usize> {
-        self.0
-    }
-}
-
-impl Serialize for Parallelism {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Parallelism(None) => "available".serialize(serializer),
-            Parallelism(Some(n)) => n.serialize(serializer),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Parallelism {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            Num(usize),
-            Str(String),
-            Null,
-        }
-
-        match Value::deserialize(deserializer)? {
-            Value::Num(n) if n > 0 => Ok(Parallelism(Some(n))),
-            Value::Num(_) => Err(serde::de::Error::custom(
-                "must be at least 1 or \"available\"",
-            )),
-            Value::Str(s) if s == "available" => Ok(Parallelism(None)),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a positive number or \"available\", got \"{s}\""
-            ))),
-            Value::Null => Ok(Parallelism(None)),
-        }
-    }
-}
+nullable_config_type!(
+    Parallelism,
+    usize,
+    "available",
+    value,
+    (value > 0),
+    format!("expected a positive number or \"available\", got \"{value}\""),
+    None
+);
 
 impl Default for HttpConfig {
     fn default() -> Self {
@@ -911,52 +948,17 @@ pub struct TaskConfig {
     pub excluded_cache_inputs: HashSet<String>,
 }
 
-/// The default maximum number of retries to attempt if a task fails.
-#[derive(Debug, Clone, Default)]
-pub struct Retries(Option<u8>);
-
-impl Retries {
-    /// Get the inner `Option<usize>`.
-    pub fn inner(&self) -> Option<u8> {
-        self.0
-    }
-}
-
-impl Serialize for Retries {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Retries(None) => "default".serialize(serializer),
-            Retries(Some(n)) => n.serialize(serializer),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Retries {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            Num(u8),
-            Str(String),
-            Null,
-        }
-
-        match Value::deserialize(deserializer)? {
-            Value::Num(n) => Ok(Retries(Some(n))),
-            Value::Str(s) if s == "default" => Ok(Retries(None)),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a number or \"default\", got \"{s}\""
-            ))),
-            Value::Null => Ok(Retries(None)),
-        }
-    }
-}
+nullable_config_type!(
+    Retries,
+    u8,
+    "default",
+    value,
+    value <= MAX_RETRIES,
+    format!(
+        "expected a number less than or equal to {MAX_RETRIES} or \"default\", got \"{value}\""
+    ),
+    None
+);
 
 impl TaskConfig {
     /// Validates the task evaluation configuration.
@@ -966,6 +968,24 @@ impl TaskConfig {
         }
 
         Ok(())
+    }
+
+    /// Get the configured shell.
+    pub fn shell(&self) -> &str {
+        if self.shell.is_empty() {
+            DEFAULT_TASK_SHELL
+        } else {
+            &self.shell
+        }
+    }
+
+    /// Get the configured container (if there is one).
+    pub fn container(&self) -> Option<&str> {
+        if self.container.is_empty() {
+            None
+        } else {
+            Some(&self.container)
+        }
     }
 }
 

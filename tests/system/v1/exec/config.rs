@@ -15,7 +15,7 @@ fn make_config(
         output_directory,
         allowed_file_paths,
         allowed_urls,
-        max_concurrent_runs: MaxConcurrentRuns(max_concurrent_runs),
+        max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
         ..Default::default()
     }
 }

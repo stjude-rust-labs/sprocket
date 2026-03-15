@@ -86,7 +86,6 @@ use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::cache::KeyRequest;
 use crate::config::CallCachingMode;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::MAX_RETRIES;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
@@ -765,11 +764,7 @@ impl Evaluator {
                             .as_ref()
                             .map(|c| format!("{c:#}"))
                             .unwrap_or_default(),
-                        shell: if self.config.task.shell.is_empty() {
-                            DEFAULT_TASK_SHELL
-                        } else {
-                            &self.config.task.shell
-                        },
+                        shell: self.config.task.shell(),
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 

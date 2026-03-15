@@ -20,6 +20,7 @@ use tracing::warn;
 use url::Url;
 use wdl::ast::SupportedVersion;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::nullable_config_type;
 use wdl::format::Config as FormatConfig;
 
 use crate::diagnostics::Mode;
@@ -134,52 +135,15 @@ pub struct CommonConfig {
     pub wdl: WdlConfig,
 }
 
-/// Fallback version to use.
-#[derive(Debug, Clone, Default)]
-pub struct FallBackVersion(Option<SupportedVersion>);
-
-impl FallBackVersion {
-    /// Get the inner `Option<SupportedVersion>`.
-    pub fn inner(&self) -> Option<SupportedVersion> {
-        self.0
-    }
-}
-
-impl Serialize for FallBackVersion {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            FallBackVersion(None) => "none".serialize(serializer),
-            FallBackVersion(Some(v)) => v.serialize(serializer),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for FallBackVersion {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            SupportedVersion(SupportedVersion),
-            Str(String),
-            Null,
-        }
-
-        match Value::deserialize(deserializer)? {
-            Value::SupportedVersion(v) => Ok(FallBackVersion(Some(v))),
-            Value::Str(s) if s == "none" => Ok(FallBackVersion(None)),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a supported version or \"none\", got \"{s}\""
-            ))),
-            Value::Null => Ok(FallBackVersion(None)),
-        }
-    }
-}
+nullable_config_type!(
+    FallBackVersion,
+    SupportedVersion,
+    "none",
+    value,
+    true,
+    "expected a supported version or \"none\", got \"{value}\"",
+    None
+);
 
 /// WDL-specific configuration options shared across all commands.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -276,55 +240,15 @@ pub struct ServerDatabaseConfig {
     pub url: String,
 }
 
-/// Maximum concurrent workflows.
-#[derive(Debug, Clone, Default)]
-pub struct MaxConcurrentRuns(pub Option<usize>);
-
-impl MaxConcurrentRuns {
-    /// Get the inner `Option<usize>`.
-    pub fn inner(&self) -> Option<usize> {
-        self.0
-    }
-}
-
-impl Serialize for MaxConcurrentRuns {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            MaxConcurrentRuns(None) => "unlimited".serialize(serializer),
-            MaxConcurrentRuns(Some(n)) => n.serialize(serializer),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for MaxConcurrentRuns {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            Num(usize),
-            Str(String),
-            Null,
-        }
-
-        match Value::deserialize(deserializer)? {
-            Value::Num(n) if n > 0 => Ok(MaxConcurrentRuns(Some(n))),
-            Value::Num(_) => Err(serde::de::Error::custom(
-                "must be at least 1 or \"unlimited\"",
-            )),
-            Value::Str(s) if s == "unlimited" => Ok(MaxConcurrentRuns(None)),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a positive number or \"unlimited\", got \"{s}\""
-            ))),
-            Value::Null => Ok(MaxConcurrentRuns(None)),
-        }
-    }
-}
+nullable_config_type!(
+    MaxConcurrentRuns,
+    usize,
+    "unlimited",
+    value,
+    value > 0,
+    "expected a positive number or \"unlimited\", got \"{value}\"",
+    None
+);
 
 /// Server configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -530,6 +454,10 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
+        }
+
+        if self.run.events_capacity == 0 {
+            bail!("`events_capacity` must be at least 1")
         }
 
         // Validate server config

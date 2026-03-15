@@ -36,7 +36,7 @@ async fn create_test_server(
     let mut server_config = ServerConfig {
         output_directory: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir],
-        max_concurrent_runs: MaxConcurrentRuns(max_concurrent_runs),
+        max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
         ..Default::default()
     };
     server_config.validate().unwrap();

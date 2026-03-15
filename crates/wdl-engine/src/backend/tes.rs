@@ -50,7 +50,6 @@ use crate::backend::STDOUT_FILE_NAME;
 use crate::backend::WORK_DIR_NAME;
 use crate::config::Config;
 use crate::config::ContentDigestMode;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
@@ -156,15 +155,7 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = requirements::container(
-            inputs,
-            requirements,
-            if self.config.task.container.is_empty() {
-                None
-            } else {
-                Some(&self.config.task.container)
-            },
-        );
+        let container = requirements::container(inputs, requirements, self.config.task.container());
         match &container {
             ContainerSource::Docker(_) | ContainerSource::Library(_) | ContainerSource::Oras(_) => {
             }
@@ -431,11 +422,7 @@ impl TaskExecutionBackend for TesBackend {
                                     c => format!("{c:#}"),
                                 },
                             )
-                            .program(if self.config.task.shell.is_empty() {
-                                DEFAULT_TASK_SHELL
-                            } else {
-                                &self.config.task.shell
-                            })
+                            .program(self.config.task.shell())
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
                             .env(request.env.clone())

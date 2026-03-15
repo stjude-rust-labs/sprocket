@@ -65,7 +65,6 @@ use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
@@ -823,15 +822,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let container = requirements::container(
-            inputs,
-            requirements,
-            if self.config.task.container.is_empty() {
-                None
-            } else {
-                Some(&self.config.task.container)
-            },
-        );
+        let container = requirements::container(inputs, requirements, self.config.task.container());
         if let ContainerSource::Unknown(_) = &container {
             bail!("LSF Apptainer backend does not support unknown container source `{container:#}`")
         }
@@ -900,11 +891,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .apptainer
                 .generate_script(
                     &backend_config.apptainer_config,
-                    if self.config.task.shell.is_empty() {
-                        DEFAULT_TASK_SHELL
-                    } else {
-                        &self.config.task.shell
-                    },
+                    self.config.task.shell(),
                     &request,
                     self.cancellation.first(),
                 )
