@@ -9,10 +9,6 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::ValueEnum;
-use figment::Figment;
-use figment::providers::Format;
-use figment::providers::Serialized;
-use figment::providers::Toml;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::debug;
@@ -107,18 +103,25 @@ impl std::fmt::Display for ColorMode {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Configuration for the `format` command.
+    #[serde(default)]
     pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
+    #[serde(default)]
     pub check: CheckConfig,
     /// Configuration for the `analyzer` command.
+    #[serde(default)]
     pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
+    #[serde(default)]
     pub run: RunConfig,
     /// Configuration for the `server` command.
+    #[serde(default)]
     pub server: ServerConfig,
     /// Configuration for the `test` command.
+    #[serde(default)]
     pub test: TestConfig,
     /// Common configuration options for all commands.
+    #[serde(default)]
     pub common: CommonConfig,
 }
 
@@ -127,8 +130,10 @@ pub struct Config {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
+    #[serde(default)]
     pub color: ColorMode,
     /// The report mode.
+    #[serde(default)]
     pub report_mode: Mode,
     /// WDL-specific configuration.
     #[serde(default)]
@@ -141,7 +146,7 @@ nullable_config_type!(
     "none",
     value,
     true,
-    "expected a supported version or \"none\", got \"{value}\"",
+    "a supported version",
     None
 );
 
@@ -151,6 +156,7 @@ nullable_config_type!(
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
+    #[serde(default)]
     pub fallback_version: FallBackVersion,
 }
 
@@ -159,25 +165,34 @@ pub struct WdlConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
     /// Rule IDs to except from running.
+    #[serde(default)]
     pub except: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
+    #[serde(default)]
     pub deny_warnings: bool,
     /// Causes the command to fail if any notes or warnings are reported.
+    #[serde(default)]
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
+    #[serde(default)]
     pub hide_notes: bool,
     /// Hide diagnostics with `warning` and `note` severity.
+    #[serde(default)]
     pub hide_warnings: bool,
     /// Enable all lint rules, even those outside the default set.
     ///
     /// This cannot be `true` while `only_lint_tags` is populated.
+    #[serde(default)]
     pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
+    #[serde(default)]
     pub only_lint_tags: Vec<String>,
     /// Set of lint tags to filter out of the enabled lint rules.
+    #[serde(default)]
     pub filter_lint_tags: Vec<String>,
     /// Lint rule configuration.
+    #[serde(default)]
     pub lint: wdl::lint::Config,
 }
 
@@ -186,8 +201,10 @@ pub struct CheckConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AnalyzerConfig {
     /// Whether to enable lint rules.
+    #[serde(default)]
     pub lint: bool,
     /// Rule IDs to except from running.
+    #[serde(default)]
     pub except: Vec<String>,
 }
 
@@ -196,7 +213,7 @@ pub struct AnalyzerConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
     /// The engine configuration.
-    #[serde(flatten)]
+    #[serde(default, flatten)]
     pub engine: EngineConfig,
 
     /// The output directory (default: `./out`).
@@ -246,7 +263,7 @@ nullable_config_type!(
     "unlimited",
     value,
     value > 0,
-    "expected a positive number or \"unlimited\", got \"{value}\"",
+    "a positive number",
     None
 );
 
@@ -292,7 +309,7 @@ impl Default for ServerConfig {
             output_directory: default_output_directory(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
-            max_concurrent_runs: MaxConcurrentRuns(None),
+            max_concurrent_runs: Default::default(),
             engine: EngineConfig::default(),
         }
     }
@@ -371,7 +388,9 @@ impl Config {
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
     ) -> Result<Self> {
-        let mut figment = Figment::new();
+        let mut builder = config::Config::builder().add_source(
+            config::Config::try_from(&Config::default()).expect("default should serialize"),
+        );
 
         if !skip_config_search {
             // Start with a configuration file next to the `sprocket` executable
@@ -381,7 +400,7 @@ impl Config {
                 let path = parent.join(CONFIG_FILE_NAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
-                    figment = figment.admerge(Toml::file_exact(path));
+                    builder = builder.add_source(config::File::from(path))
                 }
             }
 
@@ -396,7 +415,7 @@ impl Config {
                 let path = dir.join("sprocket").join(CONFIG_FILE_NAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
-                    figment = figment.admerge(Toml::file_exact(path));
+                    builder = builder.add_source(config::File::from(path))
                 }
             }
 
@@ -404,7 +423,7 @@ impl Config {
             let path = Path::new(CONFIG_FILE_NAME);
             if path.exists() {
                 debug!("reading configuration from `{path}`", path = path.display());
-                figment = figment.admerge(Toml::file_exact(path));
+                builder = builder.add_source(config::File::from(path))
             }
 
             // If provided, check config file from environment
@@ -423,7 +442,7 @@ impl Config {
                         "reading configuration from `{path}` via `SPROCKET_CONFIG`",
                         path = path.display()
                     );
-                    figment = figment.admerge(Toml::file(path));
+                    builder = builder.add_source(config::File::from(path))
                 }
             }
         }
@@ -441,14 +460,13 @@ impl Config {
                 "reading configuration from `{path}` via CLI option",
                 path = path.display()
             );
-            figment = figment.admerge(Toml::file(path));
+            builder = builder.add_source(config::File::from(path))
         }
-        
-        // Fill unspecified values with their default
-        figment = figment.join(Serialized::defaults(Config::default()));
 
-        // Get the configuration from the Figment
-        figment.extract().context("failed to merge configuration")
+        let settings = builder.build().context("failed to merge configuration")?;
+        settings
+            .try_deserialize()
+            .context("failed to deserialize merged configuration")
     }
 
     /// Validate a configuration.

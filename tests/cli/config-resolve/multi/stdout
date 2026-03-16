@@ -32,6 +32,7 @@ output_dir = "./out"
 events_capacity = 5000
 
 [run.http]
+cache_dir = "system"
 retries = 5
 parallelism = "available"
 
@@ -42,21 +43,22 @@ concurrency = 1000
 retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
 
-[run.backends.default]
-type = "docker"
-cleanup = true
-
 [run.backends.first]
 type = "docker"
 cleanup = true
 
 [run.backends.second]
+type = "docker"
+cleanup = true
+
+[run.backends.default]
 type = "docker"
 cleanup = true
 
@@ -84,6 +86,7 @@ experimental_features_enabled = false
 fail = "slow"
 
 [server.engine.http]
+cache_dir = "system"
 retries = 5
 parallelism = "available"
 
@@ -94,11 +97,14 @@ concurrency = 1000
 retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
+
+[server.engine.backends]
 
 [server.engine.storage.azure]
 

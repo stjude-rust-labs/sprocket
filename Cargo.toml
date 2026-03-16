@@ -39,12 +39,12 @@ clap_complete = "4.5.65"
 cloud-copy = { version = "0.7.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
+config = { version = "0.15.21", features = ["toml"] }
 convert_case = "0.11.0"
 crankshaft = { version = "0.9.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
-figment = { version = "0.10.19", features = ["toml", "yaml"] }
 fs_extra = "1.3.0"
 ftree = "1.3.0"
 futures = "0.3.31"
@@ -167,9 +167,9 @@ clap_complete.workspace = true
 cloud-copy.workspace = true
 codespan-reporting.workspace = true
 colored.workspace = true
+config.workspace = true
 crankshaft.workspace = true
 dirs.workspace = true
-figment.workspace = true
 futures.workspace = true
 git-testament.workspace = true
 indexmap.workspace = true

@@ -54,7 +54,7 @@ wdl-grammar = { version = "0.21.0", path = "../wdl-grammar" }
 
 [dev-dependencies]
 approx = { workspace = true }
-figment = { workspace = true }
+config = { workspace = true }
 libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
 toml = { workspace = true }

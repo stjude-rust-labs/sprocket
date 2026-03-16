@@ -40,7 +40,7 @@ pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
 
 /// The default backend name.
-pub(crate) const DEFAULT_BACKEND_NAME: &str = "default";
+const DEFAULT_BACKEND_NAME: &str = "default";
 
 /// The maximum size, in bytes, for an LSF job name prefix.
 const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
@@ -48,7 +48,10 @@ const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
 
-/// Gets tne default root cache directory for the user.
+/// Configuration sentinel value indicating use a system cache directory.
+const CACHE_DIR_SENTINEL: &str = "system";
+
+/// Gets the default root cache directory for the user.
 pub(crate) fn cache_dir() -> Result<PathBuf> {
     /// The subdirectory within the user's cache directory for all caches
     const CACHE_DIR_ROOT: &str = "sprocket";
@@ -81,6 +84,11 @@ fn get_default_container() -> String {
 /// Helper for `serde`.
 fn get_default_backend_name() -> String {
     DEFAULT_BACKEND_NAME.to_string()
+}
+
+/// Helper for `serde`.
+fn get_sentinel_cache_dir() -> String {
+    CACHE_DIR_SENTINEL.to_string()
 }
 
 /// Represents a secret string that is, by default, redacted for serialization.
@@ -177,9 +185,6 @@ impl<'de> serde::Deserialize<'de> for SecretString {
 }
 
 /// Creates a new type, which can be nulled, for use in configuration structs.
-///
-/// `nullable_config_type!(Name, Type, Sentinel, ident, Validation, Error,
-/// Default)`
 #[macro_export]
 macro_rules! nullable_config_type {
     (
@@ -188,7 +193,7 @@ macro_rules! nullable_config_type {
         $sentinel:literal,
         $value:ident,
         $validation:expr,
-        $err:expr,
+        $expected:literal,
         $default:expr
     ) => {
         /// TODO
@@ -206,7 +211,10 @@ macro_rules! nullable_config_type {
                 match val {
                     None => Ok(Self(None)),
                     Some($value) if $validation => Ok(Self(Some($value))),
-                    Some($value) => Err(anyhow::anyhow!($err)),
+                    Some($value) => Err(anyhow::anyhow!(format!(
+                        "expected {}, got `{}`",
+                        $expected, $value
+                    ))),
                 }
             }
         }
@@ -245,7 +253,10 @@ macro_rules! nullable_config_type {
                 match Value::deserialize(deserializer)? {
                     Value::Inner(i) => $name::try_new(Some(i)).map_err(serde::de::Error::custom),
                     Value::Str(s) if s == $sentinel => Ok($name(None)),
-                    Value::Str($value) => Err(serde::de::Error::custom($err)),
+                    Value::Str($value) => Err(serde::de::Error::custom(format!(
+                        "expected {} or `{}`, got `{}`",
+                        $expected, $sentinel, $value
+                    ))),
                     Value::Null => Ok($name(None)),
                 }
             }
@@ -300,7 +311,7 @@ pub struct Config {
     ///
     /// If the collection has exactly one entry and `backend` is not specified,
     /// the singular entry will be used.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    #[serde(default)]
     pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
     #[serde(default)]
@@ -491,7 +502,9 @@ pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(
+        default = "get_sentinel_cache_dir",
+    )]
     pub cache_dir: String,
     /// The number of retries for transferring files.
     pub retries: usize,
@@ -506,17 +519,17 @@ nullable_config_type!(
     usize,
     "available",
     value,
-    (value > 0),
-    format!("expected a positive number or \"available\", got \"{value}\""),
+    value > 0,
+    "a positive number",
     None
 );
 
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
-            cache_dir: "".to_string(),
+            cache_dir: get_sentinel_cache_dir(),
             retries: 5, // default as defined in cloud_copy
-            parallelism: Parallelism(None),
+            parallelism: Default::default(),
         }
     }
 }
@@ -895,10 +908,14 @@ pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
+    #[serde(default)]
     pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
-    #[serde(default = "get_default_container", skip_serializing_if = "is_default_container")]
+    #[serde(
+        default = "get_default_container",
+        skip_serializing_if = "is_default_container"
+    )]
     pub container: String,
     /// The default shell to use for tasks.
     ///
@@ -914,22 +931,31 @@ pub struct TaskConfig {
     ///
     /// If using this setting causes your tasks to fail, please do not file an
     /// issue. </div>
-    #[serde(default = "get_default_shell", skip_serializing_if = "is_default_shell")]
+    #[serde(
+        default = "get_default_shell",
+        skip_serializing_if = "is_default_shell"
+    )]
     pub shell: String,
     /// The behavior when a task's `cpu` requirement cannot be met.
+    #[serde(default)]
     pub cpu_limit_behavior: TaskResourceLimitBehavior,
     /// The behavior when a task's `memory` requirement cannot be met.
+    #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    #[serde(
+        default = "get_sentinel_cache_dir",
+    )]
     pub cache_dir: String,
     /// The call caching mode to use for tasks.
+    #[serde(default)]
     pub cache: CallCachingMode,
     /// The content digest mode to use.
     ///
     /// Used as part of call caching.
+    #[serde(default)]
     pub digests: ContentDigestMode,
     /// Keys of task requirements to exclude from call cache checking.
     ///
@@ -939,6 +965,7 @@ pub struct TaskConfig {
     /// This can be useful for requirements that may vary between runs
     /// but should not invalidate the cache (e.g., dynamic resource
     /// allocation).
+    #[serde(default)]
     pub excluded_cache_requirements: HashSet<String>,
     /// Keys of task hints to exclude from call cache checking.
     ///
@@ -947,6 +974,7 @@ pub struct TaskConfig {
     ///
     /// This can be useful for hints that may vary between runs
     /// but should not invalidate the cache.
+    #[serde(default)]
     pub excluded_cache_hints: HashSet<String>,
     /// Keys of task inputs to exclude from call cache checking.
     ///
@@ -955,6 +983,7 @@ pub struct TaskConfig {
     ///
     /// This can be useful for inputs that may vary between runs
     /// but should not affect the task's output.
+    #[serde(default)]
     pub excluded_cache_inputs: HashSet<String>,
 }
 
@@ -964,9 +993,7 @@ nullable_config_type!(
     "default",
     value,
     value <= MAX_RETRIES,
-    format!(
-        "expected a number less than or equal to {MAX_RETRIES} or \"default\", got \"{value}\""
-    ),
+    "a number less than or equal to {MAX_RETRIES}",
     None
 );
 
@@ -978,7 +1005,7 @@ impl Default for TaskConfig {
             shell: get_default_shell(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
-            cache_dir: Default::default(),
+            cache_dir: get_sentinel_cache_dir(),
             cache: Default::default(),
             digests: Default::default(),
             excluded_cache_requirements: Default::default(),
@@ -2205,6 +2232,7 @@ mod test {
             .await
             .expect("configuration should validate");
 
+        // invalid Parallelism
         let mut config = Config::default();
         config.http.parallelism = Parallelism(Some(0));
         assert_eq!(
@@ -2212,13 +2240,13 @@ mod test {
             "configuration value `http.parallelism` cannot be zero"
         );
 
+        // valid Parallelism
         let mut config = Config::default();
         config.http.parallelism = Parallelism(Some(5));
         assert!(
             config.validate().await.is_ok(),
             "should pass for valid configuration"
         );
-
         let mut config = Config::default();
         config.http.parallelism = Parallelism(None);
         assert!(

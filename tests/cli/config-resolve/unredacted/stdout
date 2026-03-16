@@ -32,6 +32,7 @@ output_dir = "./out"
 events_capacity = 5000
 
 [run.http]
+cache_dir = "system"
 retries = 5
 parallelism = "available"
 
@@ -42,11 +43,20 @@ concurrency = 1000
 retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
+
+[run.backends.second]
+type = "tes"
+insecure = false
+
+[run.backends.second.auth]
+type = "bearer"
+token = "secret!"
 
 [run.backends.first]
 type = "tes"
@@ -56,14 +66,6 @@ insecure = false
 type = "basic"
 username = "foo"
 password = "secret!"
-
-[run.backends.second]
-type = "tes"
-insecure = false
-
-[run.backends.second.auth]
-type = "bearer"
-token = "secret!"
 
 [run.storage.azure.auth]
 account_name = "foo"
@@ -95,6 +97,7 @@ experimental_features_enabled = false
 fail = "slow"
 
 [server.engine.http]
+cache_dir = "system"
 retries = 5
 parallelism = "available"
 
@@ -105,11 +108,14 @@ concurrency = 1000
 retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
+
+[server.engine.backends]
 
 [server.engine.storage.azure]
 

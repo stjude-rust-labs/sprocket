@@ -1,6 +1,6 @@
 [format]
-indent = 4
-max_line_length = 90
+indent = "tabs"
+max_line_length = "none"
 sort_imports = true
 sort_inputs = false
 trailing_commas = true
