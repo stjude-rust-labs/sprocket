@@ -99,18 +99,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
-message = "testrun.wdl:48:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L48"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `aws_sso_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L5"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:103:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L103"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
@@ -181,11 +171,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:216:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L216"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:32:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L32"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
@@ -359,11 +344,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:128:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L128"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:148:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L148"
 
@@ -411,11 +391,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:18:3: note[ParameterMetaMatched]: parameter metadata in task `create_reference` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L18"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:29:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L29"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -564,11 +539,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
-message = "ww-fastqc.wdl:29:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L29"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
 message = "ww-fastqc.wdl:77:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L77"
 
@@ -591,11 +561,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:294:5: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L294"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:322:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L322"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -739,11 +704,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1106:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1128:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1128"
 
@@ -756,11 +716,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1143:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1143"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1169:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1169"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -809,11 +764,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:416:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L416"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:46:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L46"
 
@@ -829,11 +779,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:520:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L520"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:575:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L575"
 
@@ -846,11 +791,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:735:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L735"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:761:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L761"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -874,11 +814,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:862:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L862"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:893:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L893"
 
@@ -891,11 +826,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:941:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L941"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:972:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L972"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -961,11 +891,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:17:3: note[ParameterMetaMatched]: parameter metadata in task `readcounter_wig` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:27:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L27"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -1038,11 +963,6 @@ message = "testrun.wdl:17:10: note[MetaSections]: workflow `salmon_example` is m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L17"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:89:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L89"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:104:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L104"
@@ -1104,11 +1024,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:84:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L84"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:98:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L98"
 
@@ -1161,11 +1076,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
 message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L33"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:33:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L33"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
@@ -1253,11 +1163,6 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `sourmash_example` is 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L6"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
-message = "testrun.wdl:84:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L84"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:111:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L111"
@@ -1266,11 +1171,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:170:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L170"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:27:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L27"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -1289,11 +1189,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:84:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L84"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:99:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L99"
 
@@ -1306,11 +1201,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `sra_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L5"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:26:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L26"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -1419,11 +1309,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:125:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L125"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:155:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L155"
 
@@ -1489,11 +1374,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:30:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L30"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L56"
 
@@ -1529,11 +1409,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
-message = "ww-template.wdl:32:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:34:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L34"
 
@@ -1546,11 +1421,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:61:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
-message = "testrun.wdl:197:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/testrun.wdl/#L197"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
@@ -1599,11 +1469,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:30:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L30"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:348:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L348"
 
@@ -1646,11 +1511,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:617:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L617"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:645:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L645"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1704,11 +1564,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
-message = "ww-tritonnp.wdl:32:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L32"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:81:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L81"
 
@@ -1724,18 +1579,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
-message = "ww-varscan.wdl:27:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/ww-varscan.wdl/#L27"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
 message = "ww-varscan.wdl:51:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/ww-varscan.wdl/#L51"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
-message = "ww-varscan.wdl:75:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/ww-varscan.wdl/#L75"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/ww-varscan.wdl"
@@ -1753,29 +1598,14 @@ message = "testrun.wdl:20:10: note[MetaSections]: workflow `fastq_to_cram_exampl
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L20"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
-message = "ww-saturation.wdl:40:5: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L40"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L6"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
-message = "ww-sra-salmon.wdl:33:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L33"
-
-[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
-message = "ww-sra-star.wdl:39:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L39"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
@@ -1801,11 +1631,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:120:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
-message = "ww-leukemia.wdl:123:3: note[InputSorted]: input not sorted"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L123"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
