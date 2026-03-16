@@ -330,13 +330,40 @@ fn shellcheck_lint(
     command_text: &str,
     line_map: &HashMap<usize, Span>,
     shift_tree: &FenwickTree<usize>,
+    expr_spans: &HashMap<(usize, usize), Span>,
 ) -> Diagnostic {
     let label = format!(
         "SC{}[{}]: {}",
         diagnostic.code, diagnostic.level, diagnostic.message
     );
+    // This span is relative to the command text.
+    let diagnostic_span_in_cmd = {
+        let start = diagnostic.column + shift_tree.prefix_sum(diagnostic.line - 1, 0) - 1;
+        let end = diagnostic.end_column + shift_tree.prefix_sum(diagnostic.end_line - 1, 0) - 1;
+        (start, end)
+    };
+
+    // Check if this diagnostic falls within a placeholder's expression span.
+    // If so, use the expression span instead of the full placeholder span.
+    let refined_expr_span = expr_spans
+        .iter()
+        .find_map(|((var_start, var_end), expr_span)| {
+            if diagnostic_span_in_cmd.0 >= *var_start && diagnostic_span_in_cmd.1 <= *var_end {
+                Some(*expr_span)
+            } else {
+                None
+            }
+        });
+
     // This span is relative to the entire document.
-    let span = calculate_span(diagnostic, line_map);
+    let span = if let Some(expr_span) = refined_expr_span {
+        // Use the refined expression span instead of the full placeholder
+        expr_span
+    } else {
+        // Fallback to the original span mapping
+        calculate_span(diagnostic, line_map)
+    };
+
     let fix_msg = match diagnostic.fix {
         Some(ref fix)
             if !SHELLCHECK_IGNORE_FIX
@@ -345,12 +372,10 @@ fn shellcheck_lint(
         {
             let reps = normalize_replacements(&fix.replacements, shift_tree);
             // This span is relative to the command text.
-            let diagnostic_span = {
-                let start = diagnostic.column + shift_tree.prefix_sum(diagnostic.line - 1, 0) - 1;
-                let end =
-                    diagnostic.end_column + shift_tree.prefix_sum(diagnostic.end_line - 1, 0) - 1;
-                Span::new(start, end - start)
-            };
+            let diagnostic_span = Span::new(
+                diagnostic_span_in_cmd.0,
+                diagnostic_span_in_cmd.1 - diagnostic_span_in_cmd.0,
+            );
             create_fix_message(reps, command_text, diagnostic_span)
         }
         Some(_) | None => String::from("address the diagnostic as recommended in the message"),
@@ -531,22 +556,32 @@ fn evaluates_to_bash_literal(expr: &Expr) -> bool {
 /// it is replaced with a literal value.
 /// If it is a string, then the string is checked to see if it evaluates to a
 /// literal. Otherwise, it is replaced with a bash variable.
-fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
+fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool, Option<Span>) {
     let placeholder_len: usize = placeholder.inner().text_range().len().into();
+    let expr = placeholder.expr();
+    let expr_span = expr.span();
+    let span = if matches!(&expr, Expr::NameRef(_)) {
+        placeholder.span()
+    } else {
+        expr_span
+    };
 
     if let Some(Type::Primitive(pty, _)) = ty {
         match pty {
             PrimitiveType::Integer | PrimitiveType::Float => {
-                return ("4".repeat(placeholder_len), true);
+                return ("4".repeat(placeholder_len), true, Some(span));
             }
             PrimitiveType::Boolean => {
                 return (
                     format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
                     true,
+                    Some(span),
                 );
             }
-            PrimitiveType::String if evaluates_to_bash_literal(&placeholder.expr()) => {
-                return ("a".repeat(placeholder_len), true);
+            PrimitiveType::String => {
+                if evaluates_to_bash_literal(&expr) {
+                    return ("a".repeat(placeholder_len), true, Some(span));
+                }
             }
             _ => {}
         }
@@ -557,7 +592,20 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
     let mut bash_var = String::from("wdl");
     bash_var
         .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(3)));
-    (bash_var, false)
+    (bash_var, false, Some(span))
+}
+
+/// Result of sanitizing a command section.
+struct SanitizedCommand {
+    /// The sanitized command text with placeholders replaced.
+    text: String,
+    /// Set of declared variables.
+    decls: HashSet<String>,
+    /// Amount of whitespace stripped from the beginning.
+    amount_stripped: usize,
+    /// Mapping from (start, end) positions in sanitized text to expression
+    /// spans.
+    expr_spans: HashMap<(usize, usize), Span>,
 }
 
 /// Sanitize a [CommandSection].
@@ -569,11 +617,12 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
 fn sanitize_command(
     section: &CommandSection,
     context: &mut CommandContext<'_>,
-) -> Option<(String, HashSet<String>, usize)> {
+) -> Option<SanitizedCommand> {
     let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
     let mut in_single_quotes = false;
+    let mut expr_spans = HashMap::new();
 
     let mut evaluator = ExprTypeEvaluator::new(context);
 
@@ -586,7 +635,8 @@ fn sanitize_command(
                 }
                 StrippedCommandPart::Placeholder(placeholder) => {
                     let ty = evaluator.evaluate_expr(&placeholder.expr());
-                    let (substitution, literal_inserted) = to_bash_var(placeholder, ty);
+                    let (substitution, literal_inserted, expr_span) = to_bash_var(placeholder, ty);
+                    let var_start = sanitized_command.len();
 
                     if literal_inserted || in_single_quotes {
                         sanitized_command.push_str(&substitution);
@@ -598,9 +648,19 @@ fn sanitize_command(
                         decls.insert(substitution.clone());
                         sanitized_command.push_str(&format!("${{{substitution}}}"));
                     }
+
+                    let var_end = sanitized_command.len();
+                    if let Some(span) = expr_span {
+                        expr_spans.insert((var_start, var_end), span);
+                    }
                 }
             });
-            Some((sanitized_command, decls, amount_stripped))
+            Some(SanitizedCommand {
+                text: sanitized_command,
+                decls,
+                amount_stripped,
+                expr_spans,
+            })
         }
         _ => None,
     }
@@ -739,24 +799,22 @@ impl Visitor for ShellCheckRule {
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
-        let Some((sanitized_command, cmd_decls, amount_stripped)) =
-            sanitize_command(section, &mut context)
-        else {
+        let Some(sanitized) = sanitize_command(section, &mut context) else {
             // This is the case where the command section contains
             // mixed indentation. We silently return and allow
             // the mixed indentation lint to report this.
             return;
         };
-        let line_map = map_shellcheck_lines(section, amount_stripped);
+        let line_map = map_shellcheck_lines(section, sanitized.amount_stripped);
 
         // create a Fenwick tree where each index is a line number
         // and each value is the length of the line.
         // For efficiency, we do this only once.
-        let shift_values = lines_with_offset(&sanitized_command)
+        let shift_values = lines_with_offset(&sanitized.text)
             .map(|(_, line_start, next_start)| next_start - line_start);
         let shift_tree = FenwickTree::from_iter(shift_values);
 
-        match run_shellcheck(&sanitized_command) {
+        match run_shellcheck(&sanitized.text) {
             Ok(sc_diagnostics) => {
                 for sc_diagnostic in sc_diagnostics {
                     // Skip declarations that shellcheck is unaware of.
@@ -768,12 +826,18 @@ impl Visitor for ShellCheckRule {
                         .next()
                         .unwrap_or("");
                     if sc_diagnostic.code == SHELLCHECK_REFERENCED_UNASSIGNED
-                        && cmd_decls.contains(target_variable)
+                        && sanitized.decls.contains(target_variable)
                     {
                         continue;
                     }
                     diagnostics.exceptable_add(
-                        shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
+                        shellcheck_lint(
+                            &sc_diagnostic,
+                            &sanitized.text,
+                            &line_map,
+                            &shift_tree,
+                            &sanitized.expr_spans,
+                        ),
                         SyntaxElement::from(section.inner().clone()),
                         &self.exceptable_nodes(),
                     )
