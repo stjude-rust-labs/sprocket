@@ -38,7 +38,7 @@ jobs:
       - name: Run `spectool` compliance tests
         run: |
           spectool test \
-            "${{ github.workspace }}/target/release/sprocket run ~{path} ~{input} -t ~{target}" \
-            --redirect-stdout \
+            "${{ github.workspace }}/target/release/sprocket run ~{path} ~{input} -t ~{target} -o /tmp/out --index-on ~{target}" \
+            --output-file "/tmp/out/index/~{target}/outputs.json" \
             --all-capabilities \
             -s /tmp/wdl-spec -vv 2>&1
