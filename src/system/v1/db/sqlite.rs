@@ -52,9 +52,9 @@ const VERSION_KEY: &str = "version";
 /// Expected Sprocket directory schema version.
 const EXPECTED_VERSION: &str = "1";
 
-/// Configure 5-second timeout when database is locked to prevent spurious
-/// failures.
-const SQLITE_BUSY_TIMEOUT: &str = "5000";
+/// Configure 30-second timeout when database is locked to allow concurrent
+/// processes time to complete their writes under heavy parallel access.
+const SQLITE_BUSY_TIMEOUT: &str = "30000";
 
 /// Allocate approximately 8MB for SQLite page cache for improved query
 /// performance.
