@@ -1,6 +1,7 @@
 //! Filesystem operations for provenance tracking in v1.
 
 pub mod index;
+pub mod lock;
 
 use std::ops::Deref;
 use std::path::Path;
@@ -8,6 +9,7 @@ use std::path::PathBuf;
 
 pub use index::create_index_entries;
 pub use index::rebuild_index;
+pub use lock::FileSystemLock;
 
 /// Subdirectory name for workflow execution runs.
 pub(crate) const RUNS_DIR: &str = "runs";
