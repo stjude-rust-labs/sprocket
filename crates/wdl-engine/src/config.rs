@@ -306,11 +306,8 @@ pub struct Config {
     pub backend: String,
     /// Task execution backends configuration.
     ///
-    /// If the collection is empty and `backend` is not specified, the engine
-    /// default backend is used.
-    ///
-    /// If the collection has exactly one entry and `backend` is not specified,
-    /// the singular entry will be used.
+    /// If the collection is empty and `backend` has the default value, the
+    /// engine default backend is used.
     #[serde(default)]
     pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
@@ -502,9 +499,7 @@ pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(
-        default = "get_sentinel_cache_dir",
-    )]
+    #[serde(default = "get_sentinel_cache_dir")]
     pub cache_dir: String,
     /// The number of retries for transferring files.
     pub retries: usize,
@@ -543,6 +538,17 @@ impl HttpConfig {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
         Ok(())
+    }
+
+    /// Get the HTTP cache dir.
+    pub fn cache_dir(&self) -> Result<PathBuf> {
+        const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
+
+        if self.cache_dir == CACHE_DIR_SENTINEL {
+            cache_dir().map(|d| d.join(DOWNLOADS_CACHE_SUBDIR))
+        } else {
+            Ok(PathBuf::from(&self.cache_dir))
+        }
     }
 }
 
@@ -908,7 +914,6 @@ pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
-    #[serde(default)]
     pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
@@ -937,25 +942,19 @@ pub struct TaskConfig {
     )]
     pub shell: String,
     /// The behavior when a task's `cpu` requirement cannot be met.
-    #[serde(default)]
     pub cpu_limit_behavior: TaskResourceLimitBehavior,
     /// The behavior when a task's `memory` requirement cannot be met.
-    #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(
-        default = "get_sentinel_cache_dir",
-    )]
+    #[serde(default = "get_sentinel_cache_dir")]
     pub cache_dir: String,
     /// The call caching mode to use for tasks.
-    #[serde(default)]
     pub cache: CallCachingMode,
     /// The content digest mode to use.
     ///
     /// Used as part of call caching.
-    #[serde(default)]
     pub digests: ContentDigestMode,
     /// Keys of task requirements to exclude from call cache checking.
     ///
@@ -1023,6 +1022,15 @@ impl TaskConfig {
         }
 
         Ok(())
+    }
+
+    /// Get the configured cache dir if it is set.
+    pub fn cache_dir(&self) -> Option<PathBuf> {
+        if self.cache_dir == CACHE_DIR_SENTINEL {
+            None
+        } else {
+            Some(PathBuf::from(&self.cache_dir))
+        }
     }
 }
 

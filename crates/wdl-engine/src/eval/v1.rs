@@ -102,26 +102,19 @@ impl Evaluator {
                 info!("call caching is disabled");
                 None
             }
-            _ => {
-                let dir = if config.task.cache_dir.is_empty() {
-                    None
-                } else {
-                    Some(Path::new(&config.task.cache_dir))
-                };
-                Some(
-                    CallCache::new(
-                        dir,
-                        config.task.digests,
-                        transferer.clone(),
-                        Arc::new(CallCacheExclusions {
-                            inputs: config.task.excluded_cache_inputs.clone(),
-                            requirements: config.task.excluded_cache_requirements.clone(),
-                            hints: config.task.excluded_cache_hints.clone(),
-                        }),
-                    )
-                    .await?,
+            _ => Some(
+                CallCache::new(
+                    config.task.cache_dir().as_deref(),
+                    config.task.digests,
+                    transferer.clone(),
+                    Arc::new(CallCacheExclusions {
+                        inputs: config.task.excluded_cache_inputs.clone(),
+                        requirements: config.task.excluded_cache_requirements.clone(),
+                        hints: config.task.excluded_cache_hints.clone(),
+                    }),
                 )
-            }
+                .await?,
+            ),
         };
 
         Ok(Self {

@@ -28,7 +28,15 @@ const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8080;
 
 /// Default database filename.
-pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
+pub const DEFAULT_DATABASE_NAME: &str = "sprocket.db";
+
+/// Sentinel value for using a local database.
+const SENTINEL_DATABASE_NAME: &str = "localized";
+
+/// Helper for `serde`.
+fn get_sentinel_database_name() -> String {
+    SENTINEL_DATABASE_NAME.to_string()
+}
 
 /// Default output directory.
 pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
@@ -103,25 +111,18 @@ impl std::fmt::Display for ColorMode {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// Configuration for the `format` command.
-    #[serde(default)]
     pub format: FormatConfig,
     /// Configuration for the `check` and `lint` commands.
-    #[serde(default)]
     pub check: CheckConfig,
     /// Configuration for the `analyzer` command.
-    #[serde(default)]
     pub analyzer: AnalyzerConfig,
     /// Configuration for the `run` command.
-    #[serde(default)]
     pub run: RunConfig,
     /// Configuration for the `server` command.
-    #[serde(default)]
     pub server: ServerConfig,
     /// Configuration for the `test` command.
-    #[serde(default)]
     pub test: TestConfig,
     /// Common configuration options for all commands.
-    #[serde(default)]
     pub common: CommonConfig,
 }
 
@@ -130,13 +131,10 @@ pub struct Config {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CommonConfig {
     /// Display color output.
-    #[serde(default)]
     pub color: ColorMode,
     /// The report mode.
-    #[serde(default)]
     pub report_mode: Mode,
     /// WDL-specific configuration.
-    #[serde(default)]
     pub wdl: WdlConfig,
 }
 
@@ -156,7 +154,6 @@ nullable_config_type!(
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
-    #[serde(default)]
     pub fallback_version: FallBackVersion,
 }
 
@@ -168,21 +165,16 @@ pub struct CheckConfig {
     #[serde(default)]
     pub except: Vec<String>,
     /// Causes the command to fail if any warnings are reported.
-    #[serde(default)]
     pub deny_warnings: bool,
     /// Causes the command to fail if any notes or warnings are reported.
-    #[serde(default)]
     pub deny_notes: bool,
     /// Hide diagnostics with `note` severity.
-    #[serde(default)]
     pub hide_notes: bool,
     /// Hide diagnostics with `warning` and `note` severity.
-    #[serde(default)]
     pub hide_warnings: bool,
     /// Enable all lint rules, even those outside the default set.
     ///
     /// This cannot be `true` while `only_lint_tags` is populated.
-    #[serde(default)]
     pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
@@ -201,7 +193,6 @@ pub struct CheckConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AnalyzerConfig {
     /// Whether to enable lint rules.
-    #[serde(default)]
     pub lint: bool,
     /// Rule IDs to except from running.
     #[serde(default)]
@@ -213,7 +204,7 @@ pub struct AnalyzerConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct RunConfig {
     /// The engine configuration.
-    #[serde(default, flatten)]
+    #[serde(flatten)]
     pub engine: EngineConfig,
 
     /// The output directory (default: `./out`).
@@ -248,13 +239,21 @@ impl Default for RunConfig {
 }
 
 /// Server database configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerDatabaseConfig {
-    /// Database URL (e.g., `sqlite://sprocket.db`).
-    /// If `""` provided, defaults to `sprocket.db` in the output directory.
-    #[serde(default, skip_serializing_if = "String::is_empty")]
+    /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
+    /// in the output directory.
+    #[serde(default = "get_sentinel_database_name")]
     pub url: String,
+}
+
+impl Default for ServerDatabaseConfig {
+    fn default() -> Self {
+        Self {
+            url: get_sentinel_database_name(),
+        }
+    }
 }
 
 nullable_config_type!(
@@ -271,11 +270,9 @@ nullable_config_type!(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerConfig {
-    /// Host to bind to (default: `127.0.0.1`).
-    #[serde(default)]
+    /// Host to bind to.
     pub host: String,
-    /// Port to bind to (default: `8080`).
-    #[serde(default)]
+    /// Port to bind to.
     pub port: u16,
     /// Allowed CORS origins.
     #[serde(default)]
@@ -283,7 +280,7 @@ pub struct ServerConfig {
     /// Database configuration.
     #[serde(default)]
     pub database: ServerDatabaseConfig,
-    /// Directory for workflow outputs (default: `./out`).
+    /// Directory for workflow outputs.
     #[serde(default = "default_output_directory")]
     pub output_directory: PathBuf,
     /// Allowed file paths for file-based workflows.
@@ -292,10 +289,9 @@ pub struct ServerConfig {
     /// Allowed URL prefixes for URL-based workflows.
     #[serde(default)]
     pub allowed_urls: Vec<String>,
-    /// Maximum concurrent workflows (default: "unlimited").
+    /// Maximum concurrent workflows.
     pub max_concurrent_runs: MaxConcurrentRuns,
     /// The engine configuration to use during execution.
-    #[serde(default)]
     pub engine: EngineConfig,
 }
 
@@ -316,6 +312,18 @@ impl Default for ServerConfig {
 }
 
 impl ServerConfig {
+    /// Get the database URL.
+    pub fn database_url(&self) -> String {
+        if self.database.url == SENTINEL_DATABASE_NAME {
+            self.output_directory
+                .join(DEFAULT_DATABASE_NAME)
+                .to_string_lossy()
+                .to_string()
+        } else {
+            self.database.url.to_string()
+        }
+    }
+
     /// Validates and normalizes the server configuration.
     ///
     /// This method:

@@ -68,6 +68,7 @@ allowed_urls = []
 max_concurrent_runs = "unlimited"
 
 [server.database]
+url = "localized"
 
 [server.engine]
 backend = "default"

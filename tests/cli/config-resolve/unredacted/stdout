@@ -50,14 +50,6 @@ excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
 
-[run.backends.second]
-type = "tes"
-insecure = false
-
-[run.backends.second.auth]
-type = "bearer"
-token = "secret!"
-
 [run.backends.first]
 type = "tes"
 insecure = false
@@ -66,6 +58,14 @@ insecure = false
 type = "basic"
 username = "foo"
 password = "secret!"
+
+[run.backends.second]
+type = "tes"
+insecure = false
+
+[run.backends.second.auth]
+type = "bearer"
+token = "secret!"
 
 [run.storage.azure.auth]
 account_name = "foo"
@@ -89,6 +89,7 @@ allowed_urls = []
 max_concurrent_runs = "unlimited"
 
 [server.database]
+url = "localized"
 
 [server.engine]
 backend = "default"

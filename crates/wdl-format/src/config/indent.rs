@@ -16,7 +16,7 @@ pub enum IndentError {
     #[error("indentation with tabs cannot have a number of spaces")]
     InvalidTabConfiguration,
     /// Too many spaces
-    #[error("`{0}` is more than the maximum allowed number of spaces: `{max}`", max = MAX_SPACE_INDENT)]
+    #[error("`{0}` is more than the maximum allowed number of spaces ({max})", max = MAX_SPACE_INDENT)]
     TooManySpaces(usize),
 }
 

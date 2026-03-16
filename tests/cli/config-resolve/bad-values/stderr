@@ -1,4 +1,4 @@
 error: failed to deserialize merged configuration
 
 Caused by:
-    expected a supported version or `none`, got `foobar` for key `common.wdl.fallback_version`
+    `100` is more than the maximum allowed number of spaces (16) for key `format.indent`

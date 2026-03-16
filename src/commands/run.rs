@@ -50,7 +50,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::config::DEFAULT_DATABASE_FILENAME;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
@@ -673,7 +672,7 @@ pub async fn run(
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
     // Open or create the database for provenance tracking
-    let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
+    let db_path = config.server.database_url();
     let db = open_database(&db_path).await?;
 
     // Create session and run records

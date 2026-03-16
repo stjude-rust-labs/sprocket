@@ -8,7 +8,7 @@ use serde::Serialize;
 pub enum MaxLineLengthError {
     /// Suppplied number outside allowed range.
     #[error(
-        "`{0}` is outside the allowed range for the max line length: `{min}-{max}`",
+        "`{0}` is outside the allowed range for the max line length ({min}-{max})",
         min = MIN_MAX_LINE_LENGTH,
         max = MAX_MAX_LINE_LENGTH
     )]
