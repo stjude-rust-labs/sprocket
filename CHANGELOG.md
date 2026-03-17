@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-03-12
+
+### Added
+
+* The Apptainer executable path is now configurable via the `executable` field in `ApptainerConfig`, enabling support for Singularity and custom install paths ([#682](https://github.com/stjude-rust-labs/sprocket/pull/682)).
+* Added `--suffix` argument to `run` subcommand to append a user-defined string to run directory names ([#695](https://github.com/stjude-rust-labs/sprocket/pull/695))
+* Added `image_cache_dir` configuration option to the Apptainer backend for
+  sharing pulled `.sif` images across runs ([#693](https://github.com/stjude-rust-labs/sprocket/pull/693)).
+* Intermediate `test` results are logged as they complete ([#674](https://github.com/stjude-rust-labs/sprocket/pull/674)).
+* New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
+
+### Changed
+
+* Hover and completion documentation now prefer doc comments over `meta`/`parameter_meta` descriptions, with existing behavior preserved as a fallback ([#649](https://github.com/stjude-rust-labs/sprocket/pull/649)).
+* Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
+
+### Fixed
+
+* Fixed a bug that prevented `sprocket format` from working `--with-tabs` ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* More informative errors for invalid WDL while running `test` ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
+* Fixed a regression where nested inputs and task requirements/hints were not
+  being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
+
 ## 0.21.1 - 2026-02-12
 
 ### Dependencies

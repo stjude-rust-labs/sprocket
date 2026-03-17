@@ -1,6 +1,6 @@
 //! Common utilities for LSP handlers.
 
-mod docs;
+pub(crate) mod docs;
 mod namespace;
 mod position;
 

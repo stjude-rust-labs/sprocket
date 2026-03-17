@@ -14,6 +14,7 @@ use crate::system::v1::db::Session;
 use crate::system::v1::db::Task;
 use crate::system::v1::db::TaskLog;
 use crate::system::v1::db::TaskStatus;
+use crate::system::v1::exec::JsonObject;
 
 /// Response for run submission.
 #[derive(Debug)]
@@ -112,8 +113,8 @@ pub enum RunManagerCmd {
     Submit {
         /// WDL source path (local file path or HTTP/HTTPS URL).
         source: String,
-        /// Run inputs as JSON.
-        inputs: Value,
+        /// Run inputs.
+        inputs: JsonObject,
         /// Optional target workflow or task name to execute.
         target: Option<String>,
         /// Optional output directory to index on.

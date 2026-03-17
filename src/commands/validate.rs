@@ -12,7 +12,6 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
-use crate::inputs::OriginPaths;
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -68,7 +67,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Invocation::coalesce(&args.inputs, args.target.clone())
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -76,73 +75,53 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_invocation(document)?;
-
-    let (name, inputs, origins) = if let Some(inputs) = inputs {
-        inputs
-    } else {
-        // No inputs provided
-        let origins = OriginPaths::Single(
-            std::env::current_dir()
-                .context("failed to get current directory")?
-                .as_path()
-                .into(),
-        );
-
-        if let Some(name) = args.target {
-            match (document.task_by_name(&name), document.workflow()) {
-                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) => {
-                    if workflow.name() == name {
-                        (name, EngineInputs::Workflow(Default::default()), origins)
-                    } else {
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (target, inputs),
+        None => {
+            if let Some(name) = args.target {
+                match (document.task_by_name(&name), document.workflow()) {
+                    (Some(_), _) => (name, EngineInputs::Task(Default::default())),
+                    (None, Some(workflow)) => {
+                        if workflow.name() == name {
+                            (name, EngineInputs::Workflow(Default::default()))
+                        } else {
+                            return Err(anyhow!(
+                                "no task or workflow with name `{name}` was found in document \
+                                 `{path}`",
+                                path = document.path()
+                            )
+                            .into());
+                        }
+                    }
+                    (None, None) => {
                         return Err(anyhow!(
                             "no task or workflow with name `{name}` was found in document `{path}`",
-                            path = document.path()
+                            path = document.path(),
                         )
                         .into());
                     }
                 }
-                (None, None) => {
-                    return Err(anyhow!(
-                        "no task or workflow with name `{name}` was found in document `{path}`",
-                        path = document.path()
-                    )
-                    .into());
-                }
+            } else {
+                return Err(
+                    anyhow!("the `--target` option is required if no inputs are provided").into(),
+                );
             }
-        } else {
-            return Err(
-                anyhow!("the `--target` option is required if no inputs are provided").into(),
-            );
         }
     };
 
     match inputs {
-        EngineInputs::Task(mut inputs) => {
+        EngineInputs::Task(inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            let task = document.task_by_name(&name).unwrap();
-            inputs
-                .join_paths(task, |key| {
-                    origins
-                        .get(key)
-                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                })
-                .await?;
+            let task = document.task_by_name(&target).unwrap();
             inputs.validate(document, task, None)?
         }
-        EngineInputs::Workflow(mut inputs) => {
+        EngineInputs::Workflow(inputs) => {
             // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
             // exist that matched the user's criteria.
             let workflow = document.workflow().unwrap();
-            inputs
-                .join_paths(workflow, |key| {
-                    origins
-                        .get(key)
-                        .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                })
-                .await?;
             inputs.validate(document, workflow, None)?
         }
     }

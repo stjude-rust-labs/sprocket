@@ -4,8 +4,8 @@ use std::path::Path;
 
 use maud::Markup;
 use maud::html;
-use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::MetadataValue;
@@ -13,13 +13,13 @@ use wdl_ast::v1::StructDefinition;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
-use crate::meta::DEFAULT_DESCRIPTION;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 
 /// A member in a struct.
@@ -36,14 +36,11 @@ impl Member {
     fn new(decl: Decl, meta: MetaMap) -> Self {
         Self { decl, meta }
     }
+}
 
-    /// Get the [full description] of the member
-    ///
-    /// [full description]: MetaMap::full_description()
-    pub fn full_description(&self) -> String {
-        self.meta
-            .full_description()
-            .unwrap_or_else(|| String::from(DEFAULT_DESCRIPTION))
+impl DefinitionMeta for Member {
+    fn meta(&self) -> &MetaMap {
+        &self.meta
     }
 }
 
@@ -58,6 +55,8 @@ pub struct Struct {
     definition: StructDefinition,
     /// The version of WDL this struct is defined in.
     version: VersionBadge,
+    /// Whether the struct lives outside the workspace.
+    external: bool,
 }
 
 impl DefinitionMeta for Struct {
@@ -71,6 +70,7 @@ impl Struct {
     pub fn new(
         definition: StructDefinition,
         version: SupportedVersion,
+        external: bool,
         enable_doc_comments: bool,
     ) -> Self {
         let mut meta = definition
@@ -81,9 +81,9 @@ impl Struct {
                 acc
             });
 
-        if enable_doc_comments {
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
             // Doc comments take precedence
-            meta.append(&mut doc_comments(definition.keyword().inner()));
+            meta.append(&mut doc_comments(comments));
         }
 
         let parameter_meta = definition
@@ -100,6 +100,7 @@ impl Struct {
             members,
             definition,
             version: VersionBadge::new(version),
+            external,
         }
     }
 
@@ -111,20 +112,31 @@ impl Struct {
         let members = html! {
             div class="main__section" {
                 h2 id="struct-members" class="main__section-header" { "Members" }
-                @for member in self.members.iter() {
-                    @let member_name = member.decl.name();
-                    @let member_id = format!("member.{}", member_name.text());
-                    @let member_anchor = format!("#{member_id}");
-                    section id=(member_id) {
-                        div class="main__meta-item-member" {
-                            a href=(member_anchor) {}
-                            h3 class="main__section-subheader" { (member_name.text()) }
-                        }
+                div class="main__grid-container" {
+                    div class="main__grid-struct-member-container" {
+                        div class="main__grid-header-cell" { "Name" }
+                        div class="main__grid-header-cell" { "Type" }
+                        div class="main__grid-header-cell" { "Description" }
+                        div class="main__grid-header-separator" {}
+                        @for member in self.members.iter() {
+                            @let member_name = member.decl.name();
+                            @let member_id = format!("member.{}", member_name.text());
+                            div id=(member_id) class="main__grid-row" x-data="{ description_expanded: false }" {
+                                div class="main__grid-cell" {
+                                    code { (member_name.text()) }
+                                }
 
-                        div class="main__meta-item-member-description" {
-                            @for paragraph in member.full_description().split('\n') {
-                                p class="main__meta-item-member-description-para" { (paragraph) }
+                                div class="main__grid-cell" {
+                                    code { (member.decl.ty()) }
+                                }
+                                div class="main__grid-cell" {
+                                    (member.meta().render_description(true))
+                                }
+                                div x-show="description_expanded" class="main__grid-full-width-cell" {
+                                    (member.meta().render_description(false))
+                                }
                             }
+                            div class="main__grid-row-separator" {}
                         }
                     }
                 }
@@ -137,27 +149,28 @@ impl Struct {
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
         let markup = html! {
-            div class="main__container" {
-                p class="text-brand-pink-400" { "Struct" }
-                h1 id="title" class="main__title" { code { (name) } }
-                div class="markdown-body mb-4" {
-                    (self.meta.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.version.render())
-                }
-                div class="main__section" {
-                    sprocket-code language="wdl" {
-                        (self.definition)
-                    }
-                }
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (members)
+            p class="text-brand-pink-400" data-pagefind-filter="type:struct" { "Struct" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
+            div class="markdown-body mb-4" {
+                (self.meta.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.version.render())
+            }
+            div class="main__section" {
+                sprocket-code language="wdl" {
+                    (self.definition)
+                }
+            }
+            div class="main__section" {
+                (meta_markup)
+            }
+            (members)
         };
-        (markup, PageSections::default())
+        (
+            main_container("struct", self.external, markup),
+            PageSections::default(),
+        )
     }
 }
 
@@ -192,14 +205,12 @@ fn parse_member_meta(
                 }
             }
 
-            if enable_doc_comments {
+            if enable_doc_comments && let Some(comments) = decl.doc_comments() {
                 // Doc comments take precedence
-                if let Some(token) = decl.inner().first_token() {
-                    meta_map.append(&mut doc_comments(&token));
-                }
+                meta_map.append(&mut doc_comments(comments));
             }
 
-            Member::new(Decl::Unbound(decl.clone()), meta_map)
+            Member::new(Decl::Unbound(decl), meta_map)
         })
         .collect()
 }

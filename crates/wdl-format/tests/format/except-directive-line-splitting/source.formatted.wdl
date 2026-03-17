@@ -6,21 +6,20 @@ task test1 {
 }
 
 # Test 2: Directive slightly over length - should split into 2 lines
-#@ except: CommentWhitespace, DeprecatedObject, InputSorted, MetaDescription
+#@ except: CommentWhitespace, ContainerUri, DeprecatedObject, MetaDescription
 #@ except: ParameterMetaMatched
 task test2 {
 }
 
 # Test 3: Very long directive - should split into 3+ lines
-#@ except: CommentWhitespace, DeprecatedObject, HintsSectionKeys, InputSorted
-#@ except: MatchingOutputMeta, MetaDescription, OutputSectionKeys, ParameterMetaMatched
+#@ except: CommentWhitespace, DeprecatedObject, HintsSectionKeys, MatchingOutputMeta
+#@ except: MetaDescription, OutputSectionKeys, ParameterMetaMatched
 #@ except: RequirementsSectionKeys, RuntimeSectionKeys
 task test3 {
 }
 
-# Test 4: Already multiline - each line normalized independently
-#@ except: FirstRule, SecondRule
-#@ except: FourthRule, ThirdRule
+# Test 4: multiline - should be consolidated into one line
+#@ except: FirstRule, FourthRule, SecondRule, ThirdRule
 task test4 {
 }
 

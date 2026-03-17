@@ -1,11 +1,11 @@
 //! Implementation of a file lock used by the call cache.
 
+use std::fs;
 use std::fs::File;
 use std::fs::TryLockError;
-use std::fs::{self};
+use std::io;
 use std::io::Read;
 use std::io::Write;
-use std::io::{self};
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::Path;

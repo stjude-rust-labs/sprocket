@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::Utc;
-use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
@@ -28,6 +27,7 @@ use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::ConfigError;
+use crate::system::v1::exec::JsonObject;
 use crate::system::v1::exec::RunnableExecutor;
 use crate::system::v1::exec::create_run_record;
 use crate::system::v1::exec::create_session;
@@ -262,7 +262,7 @@ impl RunManagerSvc {
         &self,
         session_id: Uuid,
         source: String,
-        inputs: JsonValue,
+        inputs: JsonObject,
         target: Option<String>,
         index_on: Option<String>,
     ) -> Result<SubmitResponse, SubmitRunError> {
@@ -273,7 +273,7 @@ impl RunManagerSvc {
             session_id,
             &source,
             target.as_deref(),
-            &inputs,
+            &serde_json::to_string(&inputs)?,
         )
         .await?;
 
@@ -340,6 +340,9 @@ pub enum SubmitRunError {
     /// I/O error.
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    /// JSON error.
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 /// Error type for getting a run.

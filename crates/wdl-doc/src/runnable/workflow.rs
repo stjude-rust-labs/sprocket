@@ -12,6 +12,8 @@ use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::MetaMapValueSource;
+use crate::meta::doc_comments;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
@@ -50,21 +52,28 @@ impl Workflow {
         version: SupportedVersion,
         definition: WorkflowDefinition,
         wdl_path: Option<PathBuf>,
+        enable_doc_comments: bool,
     ) -> Self {
-        let meta = match definition.metadata() {
+        let mut meta = match definition.metadata() {
             Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
+
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+            // Doc comments take precedence
+            meta.append(&mut doc_comments(comments));
+        }
+
         let parameter_meta = match definition.parameter_metadata() {
             Some(pmds) => parse_metadata_items(pmds.items()),
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
-            Some(is) => parse_inputs(&is, &parameter_meta),
+            Some(is) => parse_inputs(&is, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
         let outputs = match definition.output() {
-            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
 
@@ -98,7 +107,7 @@ impl Workflow {
         if let Some(name) = self.name_override() {
             html! { (name) }
         } else {
-            html! { (self.name) }
+            html! { code { (self.name) } }
         }
     }
 
@@ -184,31 +193,32 @@ impl Workflow {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-emerald-400" { "Workflow" }
-                h1 id="title" class="main__title" { (self.render_name()) }
-                div class="markdown-body mb-4" {
-                    (self.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.render_version())
-                    @if let Some(badge) = self.render_category() {
-                        (badge)
-                    }
-                    (self.render_allow_nested_inputs())
-                }
-                (self.render_run_with(assets))
-                div class="main__section" {
-                    (meta_markup)
-                }
-                (input_markup)
-                (self.render_outputs(assets))
+            span class="text-brand-emerald-400" data-pagefind-filter="type:workflow" { "Workflow" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { (self.render_name()) }
+            div class="markdown-body mb-4" {
+                (self.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.render_version())
+                @if let Some(badge) = self.render_category() {
+                    (badge)
+                }
+                (self.render_allow_nested_inputs())
+            }
+            (self.render_run_with(assets))
+            div class="main__section" {
+                (meta_markup)
+            }
+            (input_markup)
+            (self.render_outputs(assets))
         };
 
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
 
-        (markup, headers)
+        (
+            main_container("workflow", self.wdl_path.is_none(), markup),
+            headers,
+        )
     }
 }
 
@@ -246,6 +256,8 @@ mod tests {
         let (doc, _) = Document::parse(
             r#"
             version 1.0
+
+            ## This comment should be ignored.
             workflow test {
                 input {
                     String name
@@ -265,10 +277,82 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
+            false,
         );
 
         assert_eq!(workflow.name(), "test");
+        assert!(workflow.meta().get("description").is_none());
         assert_eq!(workflow.inputs.len(), 1);
         assert_eq!(workflow.outputs.len(), 1);
+    }
+
+    #[test]
+    fn workflow_with_doc_comments() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.0
+
+            ## This is my workflow. It greets people.
+            workflow test {
+                input {
+                    ## The name to greet.
+                    String name
+                }
+                output {
+                    ## The generated greeting.
+                    String greeting = "Hello, ${name}!"
+                }
+            }
+            "#,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Zero),
+            ast_workflow,
+            None,
+            true,
+        );
+
+        assert_eq!(workflow.name(), "test");
+
+        assert_eq!(
+            workflow
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "This is my workflow. It greets people."
+        );
+        assert_eq!(workflow.inputs().len(), 1);
+        let input = &workflow.inputs()[0];
+        assert_eq!(
+            input
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The name to greet."
+        );
+
+        assert_eq!(workflow.outputs.len(), 1);
+        let output = &workflow.outputs()[0];
+        assert_eq!(
+            output
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The generated greeting."
+        );
     }
 }

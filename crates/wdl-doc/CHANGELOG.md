@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.0 - 2026-03-12
+
+#### Added
+
+* Added doc comment support for workflows and tasks ([#656](https://github.com/stjude-rust-labs/sprocket/pull/656))
+* Added content-aware search backed by [Pagefind](https://pagefind.app/) ([#616](https://github.com/stjude-rust-labs/sprocket/pull/616)).
+
+#### Fixed
+
+* Line breaks in doc comments (including preambles) are now preserved ([#653](https://github.com/stjude-rust-labs/sprocket/pull/653)).
+
 ## 0.12.1 - 2026-02-12
 
-### Dependencies
+#### Dependencies
 
 * Bumps dependencies.
 
@@ -25,7 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Literal workflow names get code formatting in the H1 header. Explicitly named workflow headers are unchanged ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
+* Moved the Table of Contents of index pages to the top (above user markdown) ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
 * Documents with analysis errors will now **fail** to prevent invalid documentation (See [#555](https://github.com/stjude-rust-labs/sprocket/issues/555)) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559))
+
+#### Fixed
+
+* The Unix/Windows toggle selection now persists between page navs ([#619](https://github.com/stjude-rust-labs/sprocket/pull/619)).
 
 ## 0.11.0 - 01-12-2026
 

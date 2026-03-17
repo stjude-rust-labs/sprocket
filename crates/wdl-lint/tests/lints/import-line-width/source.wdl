@@ -1,5 +1,3 @@
-#@ except: ImportWhitespace
-
 ## This is a test of checking for allowing the exceeding of line width maximums
 ## in import statements
 

@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
+use std::path::absolute;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -28,7 +29,7 @@ use tracing::warn;
 
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
-use crate::config::Config;
+use crate::config::ApptainerConfig;
 use crate::config::DEFAULT_TASK_SHELL;
 use crate::v1::requirements::ContainerSource;
 
@@ -47,6 +48,12 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
+/// The environment variable prefix for Apptainer.
+const APPTAINER_ENV_PREFIX: &str = "APPTAINERENV";
+
+/// The environment variable prefix for Singularity.
+const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
+
 /// Represents the Apptainer container runtime.
 #[derive(Debug)]
 pub struct ApptainerRuntime {
@@ -59,12 +66,23 @@ pub struct ApptainerRuntime {
 impl ApptainerRuntime {
     /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
-    /// An images cache directory will be created in the given root.
-    pub fn new(root_dir: &Path) -> Self {
-        Self {
-            cache_dir: root_dir.join(IMAGES_CACHE_DIR),
+    /// If `image_cache_dir` is provided, it is used as the directory for
+    /// caching `.sif` images. Otherwise, a default subdirectory is created
+    /// within the given root.
+    pub fn new(root_dir: &Path, image_cache_dir: Option<&Path>) -> Result<Self> {
+        let cache_dir = image_cache_dir
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| root_dir.join(IMAGES_CACHE_DIR));
+
+        Ok(Self {
+            cache_dir: absolute(&cache_dir).with_context(|| {
+                format!(
+                    "failed to make path `{path}` absolute",
+                    path = cache_dir.display()
+                )
+            })?,
             images: Default::default(),
-        }
+        })
     }
 
     /// Generates the script to run the given task using the Apptainer runtime.
@@ -78,13 +96,14 @@ impl ApptainerRuntime {
     /// GPFS.
     pub async fn generate_script(
         &self,
-        config: &Config,
+        config: &ApptainerConfig,
+        shell: Option<&str>,
         request: &ExecuteTaskRequest<'_>,
-        extra_args: impl Iterator<Item = &str>,
         token: CancellationToken,
     ) -> Result<Option<String>> {
         let path = match self
             .pull_image(
+                &config.executable,
                 request
                     .constraints
                     .container
@@ -99,7 +118,7 @@ impl ApptainerRuntime {
         };
 
         Ok(Some(
-            self.generate_apptainer_script(config, &path, request, extra_args)
+            self.generate_apptainer_script(config, shell, &path, request)
                 .await?,
         ))
     }
@@ -111,10 +130,10 @@ impl ApptainerRuntime {
     /// be called from outside this module.
     async fn generate_apptainer_script(
         &self,
-        config: &Config,
+        config: &ApptainerConfig,
+        shell: Option<&str>,
         container_sif: &Path,
         request: &ExecuteTaskRequest<'_>,
-        extra_args: impl Iterator<Item = &str>,
     ) -> Result<String> {
         // Create a temp dir for the container's execution within the attempt dir
         // hierarchy. On many HPC systems, `/tmp` is mapped to a relatively
@@ -146,12 +165,18 @@ impl ApptainerRuntime {
                 )
             })?;
 
+        let env_prefix = if config.executable.contains("singularity") {
+            SINGULARITY_ENV_PREFIX
+        } else {
+            APPTAINER_ENV_PREFIX
+        };
+
         let mut apptainer_command = String::new();
         writeln!(&mut apptainer_command, "#!/usr/bin/env bash")?;
         for (k, v) in request.env.iter() {
-            writeln!(&mut apptainer_command, "export APPTAINERENV_{k}={v:?}")?;
+            writeln!(&mut apptainer_command, "export {env_prefix}_{k}={v:?}")?;
         }
-        writeln!(&mut apptainer_command, "apptainer -v exec \\")?;
+        writeln!(&mut apptainer_command, "{} -v exec \\", config.executable)?;
         writeln!(&mut apptainer_command, "--pwd \"{GUEST_WORK_DIR}\" \\")?;
         writeln!(&mut apptainer_command, "--containall --cleanenv \\")?;
         for input in request.backend_inputs {
@@ -206,7 +231,11 @@ impl ApptainerRuntime {
             writeln!(&mut apptainer_command, "--nv \\")?;
         }
 
-        for arg in extra_args {
+        for arg in config
+            .extra_apptainer_exec_args
+            .as_deref()
+            .unwrap_or_default()
+        {
             writeln!(&mut apptainer_command, "{arg} \\")?;
         }
 
@@ -215,7 +244,7 @@ impl ApptainerRuntime {
             &mut apptainer_command,
             "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
              \\\"{GUEST_STDERR_PATH}\\\"\" \\",
-            shell = config.task.shell.as_deref().unwrap_or(DEFAULT_TASK_SHELL)
+            shell = shell.unwrap_or(DEFAULT_TASK_SHELL)
         )?;
         let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
@@ -239,6 +268,7 @@ impl ApptainerRuntime {
     /// to the previous location is returned.
     pub(crate) async fn pull_image(
         &self,
+        executable: &str,
         container: &ContainerSource,
         token: CancellationToken,
     ) -> Result<Option<PathBuf>> {
@@ -270,7 +300,12 @@ impl ApptainerRuntime {
                 }
             }
 
-            path.set_extension("sif");
+            path.add_extension("sif");
+
+            if path.exists() {
+                info!(path = %path.display(), "Apptainer image `{container:#}` already cached; using existing image");
+                return Ok(path);
+            }
 
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await.with_context(|| {
@@ -282,6 +317,7 @@ impl ApptainerRuntime {
             }
 
             let container = format!("{container:#}");
+            let executable = executable.to_string();
 
             Retry::spawn_notify(
                 // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
@@ -292,9 +328,12 @@ impl ApptainerRuntime {
                 ExponentialBackoff::from_millis(50)
                     .max_delay_millis(60_000)
                     .take(10),
-                || Self::try_pull_image(&container, &path),
-                |e: &anyhow::Error, _| {
-                    warn!(e = %e, "`apptainer pull` failed");
+                || Self::try_pull_image(&executable, &container, &path),
+                {
+                    let executable = executable.clone();
+                    move |e: &anyhow::Error, _| {
+                        warn!(e = %e, "`{executable} pull` failed");
+                    }
                 },
             )
             .await
@@ -322,10 +361,14 @@ impl ApptainerRuntime {
     /// whether a failure is transient, but as we gain experience recognizing
     /// its output patterns, we can enhance the fidelity of the error
     /// handling.
-    async fn try_pull_image(image: &str, path: &Path) -> Result<(), RetryError<anyhow::Error>> {
-        info!("spawning `apptainer` to pull image `{image}`");
+    async fn try_pull_image(
+        executable: &str,
+        image: &str,
+        path: &Path,
+    ) -> Result<(), RetryError<anyhow::Error>> {
+        info!("spawning `{executable}` to pull image `{image}`");
 
-        let child = Command::new("apptainer")
+        let child = Command::new(executable)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -335,7 +378,7 @@ impl ApptainerRuntime {
             .spawn()
             .with_context(|| {
                 format!(
-                    "failed to spawn `apptainer pull '{path}' '{image}'",
+                    "failed to spawn `{executable} pull '{path}' '{image}'`",
                     path = path.display()
                 )
             })
@@ -345,7 +388,7 @@ impl ApptainerRuntime {
         let output = child
             .wait_with_output()
             .await
-            .context("failed to wait for `apptainer`")
+            .context(format!("failed to wait for `{executable}`"))
             .map_err(RetryError::permanent)?;
         if !output.status.success() {
             let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
@@ -367,7 +410,7 @@ impl ApptainerRuntime {
             };
 
             let e = anyhow!(
-                "`apptainer` failed: {status}: {stderr}",
+                "`{executable}` failed: {status}: {stderr}",
                 status = output.status,
                 stderr = str::from_utf8(&output.stderr)
                     .unwrap_or("<output not UTF-8>")
@@ -386,8 +429,6 @@ impl ApptainerRuntime {
 
 #[cfg(test)]
 mod tests {
-    use std::iter::empty;
-
     use indexmap::IndexMap;
     use tempfile::TempDir;
     use url::Url;
@@ -406,10 +447,11 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
         let _ = runtime
             .generate_script(
-                &Default::default(),
+                &ApptainerConfig::default(),
+                None,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -435,7 +477,6 @@ mod tests {
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },
-                empty(),
                 CancellationToken::new(),
             )
             .await
@@ -457,10 +498,11 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"));
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
         let script = runtime
             .generate_script(
-                &Default::default(),
+                &ApptainerConfig::default(),
+                None,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -486,7 +528,6 @@ mod tests {
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },
-                empty(),
                 CancellationToken::new(),
             )
             .await

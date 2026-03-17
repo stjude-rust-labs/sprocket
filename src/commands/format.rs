@@ -12,10 +12,10 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
-use wdl::format::config::Builder;
-use wdl::format::config::Indent;
-use wdl::format::config::MaxLineLength;
+use wdl::format::Indent;
+use wdl::format::MaxLineLength;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -48,7 +48,8 @@ pub struct Args {
     )]
     pub indentation_size: Option<usize>,
 
-    /// The maximum line length (default is 90).
+    /// The maximum line length (default is 90). 0 means do not use a maximum
+    /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<usize>,
 
@@ -117,14 +118,14 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let fallback_version = config.common.wdl.fallback_version;
 
-    let indent = Indent::try_new(
-        args.with_tabs || config.format.with_tabs,
-        Some(
-            args.indentation_size
-                .unwrap_or(config.format.indentation_size),
-        ),
-    )
-    .context("failed to create indentation configuration")?;
+    let indent = {
+        let with_tabs = args.with_tabs || config.format.with_tabs;
+        let num_spaces = args
+            .indentation_size
+            .unwrap_or(config.format.indentation_size);
+        Indent::try_new(with_tabs, if with_tabs { None } else { Some(num_spaces) })
+            .context("failed to create indentation configuration")?
+    };
 
     let max_line_length = MaxLineLength::try_new(
         args.max_line_length
@@ -132,10 +133,11 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .context("failed to create max line length configuration")?;
 
-    let config = Builder::default()
+    let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
-        .build();
+        .sort_imports(config.format.sort_inputs)
+        .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

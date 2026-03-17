@@ -2,6 +2,8 @@
 with_tabs = false
 indentation_size = 4
 max_line_length = 90
+sort_inputs = false
+trailing_commas = true
 
 [check]
 except = []
@@ -14,6 +16,7 @@ filter_lint_tags = []
 
 [check.lint]
 allowed_runtime_keys = []
+allowed_names = []
 
 [analyzer]
 lint = false
@@ -35,6 +38,9 @@ cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
 digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
 
 [run.backends.first]
 type = "docker"
@@ -78,6 +84,9 @@ cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache = "off"
 digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
 
 [server.engine.storage.azure]
 

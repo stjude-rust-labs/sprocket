@@ -1,1 +1,4 @@
-error: file `/does/not/exist.txt` does not exist
+error: failed to resolve input paths
+
+Caused by:
+    file `/does/not/exist.txt` does not exist

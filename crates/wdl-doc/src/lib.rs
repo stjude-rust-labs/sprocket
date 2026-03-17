@@ -10,6 +10,7 @@
 include!(concat!(env!("OUT_DIR"), "/assets.rs"));
 
 mod command_section;
+pub mod config;
 mod docs_tree;
 mod document;
 mod r#enum;
@@ -33,7 +34,6 @@ pub use docs_tree::DocsTreeBuilder;
 use docs_tree::HTMLPage;
 use docs_tree::PageType;
 use document::Document;
-pub use document::parse_preamble_comments;
 use maud::DOCTYPE;
 use maud::Markup;
 use maud::PreEscaped;
@@ -53,6 +53,8 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::version::V1;
 
+use crate::config::AdditionalScript;
+pub use crate::config::Config;
 pub use crate::error::DocError;
 use crate::error::DocErrorKind;
 use crate::error::DocResult;
@@ -76,7 +78,7 @@ pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
         )
         .into());
     }
-    let output = std::process::Command::new("npm")
+    let output = std::process::Command::new(npm()?)
         .arg("install")
         .current_dir(&theme_dir)
         .output()
@@ -98,7 +100,7 @@ pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
 /// Build the web components for the theme.
 pub fn build_web_components(theme_dir: &Path) -> DocResult<()> {
     let theme_dir = absolute(theme_dir)?;
-    let output = std::process::Command::new("npm")
+    let output = std::process::Command::new(npm()?)
         .arg("run")
         .arg("build")
         .current_dir(&theme_dir)
@@ -118,10 +120,20 @@ pub fn build_web_components(theme_dir: &Path) -> DocResult<()> {
     Ok(())
 }
 
+/// Get the path to the `npx` executable.
+fn npx() -> std::io::Result<PathBuf> {
+    which::which("npx").map_err(|_| IoError::other("npx not found (is Node.js installed?)"))
+}
+
+/// Get the path to the `npm` executable.
+fn npm() -> std::io::Result<PathBuf> {
+    which::which("npm").map_err(|_| IoError::other("npm not found (is Node.js installed?)"))
+}
+
 /// Build a stylesheet for the documentation, using Tailwind CSS.
 pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
     let theme_dir = absolute(theme_dir)?;
-    let output = std::process::Command::new("npx")
+    let output = std::process::Command::new(npx()?)
         .arg("@tailwindcss/cli")
         .arg("-i")
         .arg("src/main.css")
@@ -140,6 +152,22 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
             format!("no output file found at `{}`", css_path.display()),
         ))
         .into());
+    }
+
+    Ok(())
+}
+
+/// Build the search index using [Pagefind](https://pagefind.app).
+pub fn build_search_index(dist_dir: &Path) -> DocResult<()> {
+    let dist_dir = absolute(dist_dir)?;
+    let output = std::process::Command::new(npx()?)
+        .arg("pagefind")
+        .arg("--site")
+        .arg(dist_dir)
+        .output()?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(NpmError::SearchIndex(IoError::other(stderr)).into());
     }
 
     Ok(())
@@ -167,6 +195,11 @@ pub(crate) fn header<P: AsRef<Path>>(
     script: &AdditionalScript,
 ) -> Markup {
     let root = root.as_ref();
+    let search_import = format!(
+        r#"const pagefindPath = new URL('{}', import.meta.url).href;
+window.pagefind = import(pagefindPath)"#,
+        root.join("pagefind").join("pagefind.js").to_string_lossy()
+    );
     html! {
         head {
             @match script {
@@ -179,8 +212,10 @@ pub(crate) fn header<P: AsRef<Path>>(
             link rel="preconnect" href="https://fonts.googleapis.com";
             link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
             link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
-            script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js" {}
-            script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" {}
+            script type="module" {
+                (PreEscaped(search_import))
+            }
+
             script defer src=(root.join("index.js").to_string_lossy()) {}
             (Css(&root.join("style.css").to_string_lossy()))
             @match script {
@@ -202,7 +237,12 @@ pub(crate) fn full_page<P: AsRef<Path>>(
 ) -> Markup {
     html! {
         (DOCTYPE)
-        html x-data=(if init_light_mode { "{ DEFAULT_THEME: 'light' }" } else { "{ DEFAULT_THEME: 'dark' }" }) x-bind:class="(localStorage.getItem('theme') ?? DEFAULT_THEME) === 'light' ? 'light' : 'dark'" x-cloak {
+        html
+            lang="en"
+            x-data=(if init_light_mode { "{ theme: $persist('light') }" } else { "{ theme: $persist('dark') }" })
+            x-bind:class="theme === 'light' ? 'light' : 'dark'"
+            x-cloak
+        {
             (header(page_title, root, script))
             body class="body--base" {
                 @match script {
@@ -353,128 +393,6 @@ async fn analyze_workspace(
     Ok(results)
 }
 
-/// The location to embed an arbitrary JaveScript `<script>` tag into each HTML
-/// page.
-#[derive(Debug)]
-pub enum AdditionalScript {
-    /// Embed the contents immediately after the opening `<head>` tag.
-    HeadOpen(String),
-    /// Embed the contents immediately before the closing `</head>` tag.
-    HeadClose(String),
-    /// Embed the contents immediately after the opening `<body>` tag.
-    BodyOpen(String),
-    /// Embed the contents immediately before the closing `</body>` tag.
-    BodyClose(String),
-    /// Don't embed any script.
-    None,
-}
-
-/// Configuration for documentation generation.
-#[derive(Debug)]
-pub struct Config {
-    /// Configuration to use for analysis.
-    analysis_config: AnalysisConfig,
-    /// WDL workspace that should be documented.
-    workspace: PathBuf,
-    /// Output location for the documentation.
-    output_dir: PathBuf,
-    /// An optional markdown file to embed in the homepage.
-    homepage: Option<PathBuf>,
-    /// Initialize pages in light mode instead of the default dark mode.
-    init_light_mode: bool,
-    /// An optional custom theme directory.
-    custom_theme: Option<PathBuf>,
-    /// An optional custom logo to embed in the left sidebar.
-    custom_logo: Option<PathBuf>,
-    /// An optional alternate (light mode) custom logo to embed in the left
-    /// sidebar.
-    alt_logo: Option<PathBuf>,
-    /// Optional JavaScript to embed in each HTML page.
-    additional_javascript: AdditionalScript,
-    /// Initialize pages on the "Full Directory" view instead of the "Workflows"
-    /// view of the left sidebar.
-    init_on_full_directory: bool,
-    /// (**EXPERIMENTAL**) Enable support for documentation comments.
-    enable_doc_comments: bool,
-}
-
-impl Config {
-    /// Create a new documentation configuration.
-    pub fn new(
-        analysis_config: AnalysisConfig,
-        workspace: impl Into<PathBuf>,
-        output_dir: impl Into<PathBuf>,
-    ) -> Self {
-        Self {
-            analysis_config,
-            workspace: workspace.into(),
-            output_dir: output_dir.into(),
-            homepage: None,
-            init_light_mode: false,
-            custom_theme: None,
-            custom_logo: None,
-            alt_logo: None,
-            additional_javascript: AdditionalScript::None,
-            init_on_full_directory: PREFER_FULL_DIRECTORY,
-            enable_doc_comments: false,
-        }
-    }
-
-    /// Overwrite the config's homepage with the new value.
-    pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
-        self.homepage = homepage;
-        self
-    }
-
-    /// Overwrite the config's light mode default with the new value.
-    pub fn init_light_mode(mut self, init_light_mode: bool) -> Self {
-        self.init_light_mode = init_light_mode;
-        self
-    }
-
-    /// Overwrite the config's custom theme with the new value.
-    pub fn custom_theme(mut self, custom_theme: Option<PathBuf>) -> Self {
-        self.custom_theme = custom_theme;
-        self
-    }
-
-    /// Overwrite the config's custom logo with the new value.
-    pub fn custom_logo(mut self, custom_logo: Option<PathBuf>) -> Self {
-        self.custom_logo = custom_logo;
-        self
-    }
-
-    /// Overwrite the config's alternate logo with the new value.
-    pub fn alt_logo(mut self, alt_logo: Option<PathBuf>) -> Self {
-        self.alt_logo = alt_logo;
-        self
-    }
-
-    /// Overwrite the config's additional JS with the new value.
-    pub fn additional_javascript(mut self, additional_javascript: AdditionalScript) -> Self {
-        self.additional_javascript = additional_javascript;
-        self
-    }
-
-    /// Overwrite the config's init_on_full_directory with the new value.
-    pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
-        self.init_on_full_directory = prefer_full_directory;
-        self
-    }
-
-    /// Enable support for documentation comments.
-    ///
-    /// NOTE: This is an experimental option, and will be removed in a future
-    /// major release.
-    ///
-    /// For more information, see the pre-RFC discussion
-    /// [here](https://github.com/openwdl/wdl/issues/757).
-    pub fn enable_doc_comments(mut self, enable_doc_comments: bool) -> Self {
-        self.enable_doc_comments = enable_doc_comments;
-        self
-    }
-}
-
 /// Generate HTML documentation for a workspace.
 ///
 /// This function will generate HTML documentation for all WDL files in the
@@ -518,6 +436,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         .maybe_alt_logo(config.alt_logo)
         .additional_javascript(config.additional_javascript)
         .prefer_full_directory(config.init_on_full_directory)
+        .external_urls(config.external_urls)
         .build()
         .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
 
@@ -576,8 +495,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = s.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-struct.html"));
 
-                    let r#struct =
-                        r#struct::Struct::new(s.clone(), version, config.enable_doc_comments);
+                    let r#struct = r#struct::Struct::new(
+                        s.clone(),
+                        version,
+                        external_wdl,
+                        config.enable_doc_comments,
+                    );
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Struct(r#struct)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -597,6 +520,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(name, PageType::Task(task)));
@@ -617,6 +541,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         } else {
                             Some(root_to_wdl.clone())
                         },
+                        config.enable_doc_comments,
                     );
 
                     let page = Rc::new(HTMLPage::new(
@@ -632,7 +557,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = e.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-enum.html"));
 
-                    let r#enum = r#enum::Enum::new(e, version, config.enable_doc_comments);
+                    let r#enum =
+                        r#enum::Enum::new(e, version, external_wdl, config.enable_doc_comments);
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -676,6 +602,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         )
     })?;
 
+    build_search_index(&docs_dir)?;
+
     Ok(())
 }
 
@@ -687,36 +615,8 @@ mod tests {
     use crate::meta::DefinitionMeta;
 
     #[test]
-    fn test_parse_preamble_comments() {
+    fn test_simple_markdown_render() {
         let source = r#"
-        ## This is a comment
-        ## This is also a comment
-        version 1.0
-        workflow test {
-            input {
-                String name
-            }
-            output {
-                String greeting = "Hello, ${name}!"
-            }
-            call say_hello as say_hello {
-                input:
-                    name = name
-            }
-        }
-        "#;
-        let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        assert_eq!(preamble, "This is a comment\nThis is also a comment");
-    }
-
-    #[test]
-    fn test_markdown_render() {
-        let source = r#"
-        ## This is a paragraph.
-        ##
-        ## This is the start of a new paragraph.
-        ## And this is the same paragraph continued.
         version 1.0
         workflow test {
             meta {
@@ -725,13 +625,6 @@ mod tests {
         }
         "#;
         let (document, _) = AstDocument::parse(source);
-        let preamble = parse_preamble_comments(&document.version_statement().unwrap());
-        let markdown = Markdown(&preamble).render();
-        assert_eq!(
-            markdown.into_string(),
-            "<p>This is a paragraph.</p>\n<p>This is the start of a new paragraph.\nAnd this is \
-             the same paragraph continued.</p>\n"
-        );
 
         let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
         let ast_workflow = doc_item.into_workflow_definition().unwrap();
@@ -740,6 +633,7 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_workflow,
             None,
+            false,
         );
 
         let description = workflow.render_description(false);

@@ -16,6 +16,7 @@ use crate::command_section::CommandSectionExt;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
+use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
 use crate::parameter::Parameter;
 
@@ -59,21 +60,28 @@ impl Task {
         version: SupportedVersion,
         definition: TaskDefinition,
         wdl_path: Option<PathBuf>,
+        enable_doc_comments: bool,
     ) -> Self {
-        let meta = match definition.metadata() {
+        let mut meta = match definition.metadata() {
             Some(mds) => parse_metadata_items(mds.items()),
             _ => MetaMap::default(),
         };
+
+        if enable_doc_comments && let Some(comments) = definition.doc_comments() {
+            // Doc comments take precedence
+            meta.append(&mut doc_comments(comments));
+        }
+
         let parameter_meta = match definition.parameter_metadata() {
             Some(pmds) => parse_metadata_items(pmds.items()),
             _ => MetaMap::default(),
         };
         let inputs = match definition.input() {
-            Some(is) => parse_inputs(&is, &parameter_meta),
+            Some(is) => parse_inputs(&is, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
         let outputs = match definition.output() {
-            Some(os) => parse_outputs(&os, &meta, &parameter_meta),
+            Some(os) => parse_outputs(&os, &meta, &parameter_meta, enable_doc_comments),
             _ => Vec::new(),
         };
 
@@ -169,32 +177,33 @@ impl Task {
         headers.extend(inner_headers);
 
         let markup = html! {
-            div class="main__container" {
-                span class="text-brand-violet-400" { "Task" }
-                h1 id="title" class="main__title" { code { (self.name()) } }
-                div class="markdown-body mb-4" {
-                    (self.render_description(false))
-                }
-                div class="main__badge-container" {
-                    (self.render_version())
-                }
-                (self.render_run_with(assets))
-                @if let Some(meta) = self.render_meta(assets) {
-                    div class="main__section" {
-                        (meta)
-                    }
-                }
-                (input_markup)
-                (self.render_outputs(assets))
-                (self.render_runtime_section())
-                (self.render_command_section())
+            span class="text-brand-violet-400" data-pagefind-filter="type:task" { "Task" }
+            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
+            div class="markdown-body mb-4" {
+                (self.render_description(false))
             }
+            div class="main__badge-container" {
+                (self.render_version())
+            }
+            (self.render_run_with(assets))
+            @if let Some(meta) = self.render_meta(assets) {
+                div class="main__section" {
+                    (meta)
+                }
+            }
+            (input_markup)
+            (self.render_outputs(assets))
+            (self.render_runtime_section())
+            (self.render_command_section())
         };
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
         headers.push(Header::Header("Runtime".to_string(), "runtime".to_string()));
         headers.push(Header::Header("Command".to_string(), "command".to_string()));
 
-        (markup, headers)
+        (
+            main_container("task", self.wdl_path.is_none(), markup),
+            headers,
+        )
     }
 }
 
@@ -233,6 +242,7 @@ mod tests {
             r#"
             version 1.0
 
+            ## This comment should be ignored.
             task my_task {
                 input {
                     String name
@@ -258,6 +268,7 @@ mod tests {
             SupportedVersion::V1(V1::Zero),
             ast_task,
             None,
+            false,
         );
 
         assert_eq!(task.name(), "my_task");
@@ -276,5 +287,79 @@ mod tests {
         );
         assert_eq!(task.inputs().len(), 1);
         assert_eq!(task.outputs().len(), 1);
+    }
+
+    #[test]
+    fn task_with_doc_comments() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.0
+
+            ## This is my task. It greets people.
+            task my_task {
+                input {
+                    ## The name to greet.
+                    String name
+                }
+                output {
+                    ## The generated greeting.
+                    String greeting = "Hello, ${name}!"
+                }
+                runtime {
+                    docker: "ubuntu:latest"
+                }
+                meta {
+                    description: "This description should be overwritten."
+                }
+            }
+            "#,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_task = doc_item.into_task_definition().unwrap();
+
+        let task = Task::new(
+            ast_task.name().text().to_owned(),
+            SupportedVersion::V1(V1::Zero),
+            ast_task,
+            None,
+            true,
+        );
+
+        assert_eq!(task.name(), "my_task");
+        assert_eq!(
+            task.meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "This is my task. It greets people."
+        );
+        assert_eq!(task.inputs().len(), 1);
+        let input = &task.inputs()[0];
+        assert_eq!(
+            input
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The name to greet."
+        );
+
+        assert_eq!(task.outputs().len(), 1);
+        let output = &task.outputs()[0];
+        assert_eq!(
+            output
+                .meta()
+                .get("description")
+                .unwrap()
+                .clone()
+                .text()
+                .unwrap(),
+            "The generated greeting."
+        );
     }
 }
