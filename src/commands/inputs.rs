@@ -476,7 +476,6 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
 
         match (document.task_by_name(&target), document.workflow()) {
             (Some(_), _) => {
-                // Task with target found.
                 let task = ast
                     .tasks()
                     .find(|task| task.name().text() == target)
