@@ -33,7 +33,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::oneshot;
 use tracing::debug;
 use tracing::error;
-use tracing::info;
+use tracing::trace;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
@@ -341,7 +341,7 @@ where
                 }) => {
                     let start = Instant::now();
                     if let Some(document) = &document {
-                        debug!("received request to document `{document}`");
+                        debug!("received request to analyze document `{document}`");
                     } else {
                         debug!("received request to analyze all documents");
                     }
@@ -516,9 +516,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing the find all references: {err:?}"
-                            );
+                            error!("find all references request failed: {err:?}");
                             completed.send(vec![]).ok();
                         }
                     }
@@ -588,7 +586,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!("error occurred while completing hover request: {err:?}");
+                            error!("hover request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -618,7 +616,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!("error occurred while completing rename request: {err:?}");
+                            error!("rename request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -643,9 +641,7 @@ where
                             completed.send(tokens).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing semantic tokens request: {err:?}"
-                            );
+                            error!("semantic tokens request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -702,9 +698,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing document symbol request: {err:?}"
-                            );
+                            error!("document symbol request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -723,9 +717,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing workspace symbol request: {err:?}"
-                            );
+                            error!("workspace symbol request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -753,9 +745,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing signature help request: {err:?}"
-                            );
+                            error!("signature help request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -778,7 +768,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!("error occurred while completing inlay hints request: {err:?}");
+                            error!("inlay hints request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -1148,7 +1138,7 @@ where
 
                 let node = graph.get_mut(dependent);
                 if !subgraph.contains(&dependent) {
-                    debug!(
+                    trace!(
                         "adding dependent document `{uri}` for analysis",
                         uri = node.uri()
                     );
@@ -1192,7 +1182,7 @@ where
         }
         document.sort_diagnostics();
 
-        info!(
+        debug!(
             "analysis of `{uri}` completed in {elapsed:?}",
             uri = graph.get(index).uri(),
             elapsed = start.elapsed()
