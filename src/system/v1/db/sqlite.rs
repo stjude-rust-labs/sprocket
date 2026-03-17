@@ -9,6 +9,7 @@ use chrono::Utc;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::sqlite::SqliteJournalMode;
+use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::sqlite::SqliteSynchronous;
 use uuid::Uuid;
 
@@ -60,6 +61,11 @@ const SQLITE_BUSY_TIMEOUT: &str = "30000";
 /// performance.
 const SQLITE_CACHE_SIZE: &str = "2000";
 
+/// Maximum number of connections in the pool. SQLite serializes writes
+/// regardless, so a small pool avoids internal contention on WAL recovery
+/// while still allowing concurrent reads.
+const MAX_POOL_CONNECTIONS: u32 = 2;
+
 /// SQLite database implementation.
 #[derive(Debug, Clone)]
 pub struct SqliteDatabase {
@@ -90,7 +96,10 @@ impl SqliteDatabase {
             .pragma("busy_timeout", SQLITE_BUSY_TIMEOUT)
             .pragma("cache_size", SQLITE_CACHE_SIZE);
 
-        let pool = SqlitePool::connect_with(options).await?;
+        let pool = SqlitePoolOptions::new()
+            .max_connections(MAX_POOL_CONNECTIONS)
+            .connect_with(options)
+            .await?;
         Self::from_pool(pool).await
     }
 
