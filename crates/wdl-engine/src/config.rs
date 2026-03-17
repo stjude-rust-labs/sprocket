@@ -196,17 +196,17 @@ macro_rules! nullable_config_type {
         $expected:literal,
         $default:expr
     ) => {
-        /// TODO
+        #[doc = concat!("Configuration for ", stringify!($name), ".")]
         #[derive(Clone, Debug)]
         pub struct $name(Option<$inner>);
 
         impl $name {
-            /// TODO
+            #[doc = concat!("Get the innner ", stringify!($inner), ".")]
             pub fn inner(&self) -> Option<$inner> {
                 self.0
             }
 
-            /// TODO
+            #[doc = concat!("Try to create a new `", stringify!($name), "` from a `", stringify!($inner), "`.")]
             pub fn try_new(val: Option<$inner>) -> std::result::Result<Self, anyhow::Error> {
                 match val {
                     None => Ok(Self(None)),
