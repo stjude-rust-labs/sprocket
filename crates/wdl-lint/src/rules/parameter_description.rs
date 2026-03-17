@@ -44,7 +44,9 @@ fn missing_description_diagnostic(name: &str, is_output: bool, span: Span) -> Di
 fn has_valid_description(value: &MetadataValue) -> bool {
     match value {
         MetadataValue::String(_) => true,
-        MetadataValue::Object(obj) => obj.items().any(|item| item.name().text() == DESCRIPTION_KEY),
+        MetadataValue::Object(obj) => obj
+            .items()
+            .any(|item| item.name().text() == DESCRIPTION_KEY),
         // NOTE: non-string/non-object types are handled by `DocMetaStrings`.
         _ => true,
     }
