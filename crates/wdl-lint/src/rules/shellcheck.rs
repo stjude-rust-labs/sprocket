@@ -237,7 +237,34 @@ impl Rule for ShellCheckRule {
     }
 
     fn examples(&self) -> &'static [&'static str] {
-        &[]
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    # Triggers SC2154
+    command <<<
+        echo "Hello $name"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    command <<<
+        name=World
+        echo "Hello $name"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {

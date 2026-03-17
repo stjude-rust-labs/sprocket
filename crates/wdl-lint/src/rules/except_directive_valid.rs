@@ -95,6 +95,8 @@ workflow example {
 }
 ```"#,
             r#"Use instead:
+
+```wdl
 version 1.2
 
 #@ except: MatchingOutputMeta

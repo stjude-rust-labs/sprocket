@@ -93,7 +93,7 @@ define_lint_rule_config! {
         /// List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]
         /// lints.
         ///
-        /// ## Example
+        /// ##### Example
         ///
         /// ```toml
         /// allowed_names = ["Foo", "counter_int"]

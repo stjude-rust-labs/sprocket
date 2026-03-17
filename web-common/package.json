@@ -2,6 +2,7 @@
   "name": "sprocket-web-common",
   "version": "1.0.0",
   "description": "Common web components shared between static sites in the sprocket repo.",
+  "private": true,
   "main": "dist/bundle.js",
   "module": "dist/bundle.js",
   "type": "module",

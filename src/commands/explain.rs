@@ -122,6 +122,7 @@ pub struct ConfigField {
     pub default: String,
 }
 
+/// A lint rule, either from `wdl-lint` or `wdl-analysis`.
 #[derive(Debug, Serialize)]
 pub struct Rule {
     /// The crate that the rule is defined in.
@@ -261,7 +262,7 @@ pub fn list_all_rules() -> String {
     result
 }
 
-/// Lists all tags as a string for displaying.
+/// Collects all `wdl-lint` rule tags and their applicable lints.
 pub fn collect_all_tags() -> HashMap<WdlLintTag, Tag> {
     let mut tags = HashMap::new();
     for tag in ALL_TAGS.iter() {
@@ -282,9 +283,14 @@ pub fn collect_all_tags() -> HashMap<WdlLintTag, Tag> {
         }
     }
 
+    for tag in tags.values_mut() {
+        tag.applicable_lints.sort();
+    }
+
     tags
 }
 
+/// Lists all tags as a string for displaying.
 pub fn list_all_tags() -> String {
     let mut result = String::from("Available tags:");
     for tag in ALL_TAG_NAMES.iter() {
@@ -342,11 +348,10 @@ pub fn explain(args: Args) -> CommandResult<()> {
             anyhow!("invalid tag `{tag}`")
         })?;
 
-        let Some(mut tag) = collect_all_tags().remove(&target) else {
+        let Some(tag) = collect_all_tags().remove(&target) else {
             return Err(anyhow!("no rules found with the tag `{tag}`").into());
         };
 
-        tag.applicable_lints.sort();
         match args.format {
             Format::Default => {
                 println!("Rules with the tag `{}`:", tag.name);
