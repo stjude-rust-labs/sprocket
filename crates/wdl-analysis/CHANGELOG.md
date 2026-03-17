@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* The `UnusedInput` rule no longer ignores `File` inputs with specific names ([#741](https://github.com/stjude-rust-labs/sprocket/pull/741)).
+
 #### Fixed
 
 * Added enum type coercion support
