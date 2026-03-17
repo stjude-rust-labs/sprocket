@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-03-12
+
 ### Added
 
 * Added `EmptyDocComment` lint rule to detect and flag empty documentation comments that serve no purpose ([#634](https://github.com/stjude-rust-labs/sprocket/pull/634)).
@@ -24,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Fixed a bug that prevented `sprocket format` from working `--with-tabs` ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* More informative errors for invalid WDL while running `test` ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
 * Fixed a regression where nested inputs and task requirements/hints were not
   being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
 
