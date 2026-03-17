@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* The outputs path message is now printed to stderr instead of stdout so
+  that stdout contains only the JSON outputs
+  ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
+
 ## 0.22.0 - 2026-03-12
 
 ### Added
