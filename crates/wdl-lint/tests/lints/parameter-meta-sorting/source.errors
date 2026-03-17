@@ -1,0 +1,13 @@
+note[ParameterMetaMatched]: parameter metadata in task `parameter_meta_matched` is out of order
+  ┌─ tests/lints/parameter-meta-sorting/source.wdl:8:5
+  │
+8 │     parameter_meta {
+  │     ^^^^^^^^^^^^^^ parameter metadata must be in the same order as inputs
+  │
+  = fix: based on the current `input` order, order the parameter metadata as:
+    w
+    p
+    t
+    q
+    b
+
