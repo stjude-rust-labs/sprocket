@@ -26,6 +26,7 @@ use tracing::debug;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
+use wdl::ast::AstNode;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -43,6 +44,8 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::diagnostics::DiagnosticCounts;
+use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
@@ -684,7 +687,12 @@ async fn summarize_results(
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> CommandResult<()> {
+pub async fn test(
+    args: Args,
+    config: Config,
+    handle: FilterReloadHandle,
+    colorize: bool,
+) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
     let (source, workspace) = match (&source, args.workspace) {
@@ -720,9 +728,38 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
     // testing. Smaller issues with test definitions will later be collected and
     // reported on after all tests execute.
     let mut documents = Vec::new();
+    let mut counts = DiagnosticCounts::default();
     for analysis in analysis_results.filter(&[&source]) {
         let document = analysis.document();
         let wdl_path = PathBuf::from(Into::<String>::into(document.path()));
+
+        if let Some(err) = analysis.error() {
+            let err = err.clone();
+            return Err(anyhow!(err)
+                .context(format!("parsing {p}", p = wdl_path.display()))
+                .into());
+        }
+        if document.has_errors() {
+            let path = document.path().to_string();
+            let source = document.root().text().to_string();
+            emit_diagnostics(
+                &path,
+                source,
+                document.diagnostics().filter(|d| {
+                    if d.severity().is_error() {
+                        counts.errors += 1;
+                        true
+                    } else {
+                        false
+                    }
+                }),
+                &[],
+                config.common.report_mode,
+                colorize,
+            )
+            .context("failed to emit diagnostics")?;
+        }
+
         let yaml_path = match find_yaml(&wdl_path)? {
             Some(p) => p,
             None => {
@@ -744,6 +781,10 @@ pub async fn test(args: Args, config: Config, handle: FilterReloadHandle) -> Com
             yaml_path.display()
         );
         documents.push((analysis, document_tests));
+    }
+
+    if let Some(e) = counts.verify_no_errors() {
+        return Err(e.into());
     }
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);

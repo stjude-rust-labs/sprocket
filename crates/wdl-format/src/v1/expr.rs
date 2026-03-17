@@ -967,9 +967,39 @@ pub fn format_if_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    let in_chain = {
+        let mut cur = element.element().inner();
+        let mut result = false;
+        while let Some(prev) = cur.prev_sibling_or_token() {
+            cur = prev;
+            if cur.kind().is_trivia() {
+                continue;
+            }
+            result = cur.kind() == SyntaxKind::ElseKeyword;
+            break;
+        }
+        result
+    };
+
     for child in element.children().expect("if expr children") {
+        match child.element().kind() {
+            SyntaxKind::ThenKeyword => {
+                if !in_chain {
+                    stream.increment_indent();
+                } else {
+                    stream.end_line();
+                }
+            }
+            SyntaxKind::ElseKeyword => {
+                stream.end_line();
+            }
+            _ => {}
+        }
         (&child).write(stream, config);
         stream.end_word();
     }
-    stream.trim_end(&PreToken::WordEnd);
+
+    if !in_chain {
+        stream.decrement_indent();
+    }
 }

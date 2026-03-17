@@ -296,30 +296,37 @@ workflow seaseq {
     ##
     ## # -------------------------------------------------
     # if multiple fastqfiles are provided
-    Boolean multi_fastq = if length(original_fastqfiles) > 1 then true else false
-    Boolean one_fastq = if length(original_fastqfiles) == 1 then true else false
+    Boolean multi_fastq = if length(original_fastqfiles) > 1
+        then true
+        else false
+    Boolean one_fastq = if length(original_fastqfiles) == 1
+        then true
+        else false
 
     if (defined(spikein_bowtie_index) || defined(spikein_reference)) {
         scatter (eachfastq in original_fastqfiles) {
             call fastqc.fastqc as spikein_indv_fastqc { input:
                 inputfile = eachfastq,
-                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
-                    "") + "/SpikeIn/FastQC" else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz",
-                    "") + "/SpikeIn/FastQC",
+                default_location = if (one_fastq)
+                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
+                ,
             }
             call util.basicfastqstats as spikein_indv_bfs { input:
                 fastqfile = eachfastq,
-                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
-                    "") + "/SpikeIn/SummaryStats" else "SAMPLE/" + sub(basename(eachfastq),
-                    ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
+                default_location = if (one_fastq)
+                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
+                ,
             }
             call bowtie.spikein_SE as spikein_indv_map { input:
                 fastqfile = eachfastq,
                 index_files = actual_spikein_bowtie_index,
                 metricsfile = spikein_indv_bfs.metrics_out,
-                default_location = if (one_fastq) then sub(basename(eachfastq), ".fastq.gz|.fq.gz",
-                    "") + "/SpikeIn/SummaryStats" else "SAMPLE/" + sub(basename(eachfastq),
-                    ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
+                default_location = if (one_fastq)
+                    then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
+                ,
             }
         }
 
@@ -423,10 +430,14 @@ workflow seaseq {
         call samtools.mergebam { input:
             bamfiles = indv_mapping.sorted_bam,
             metricsfiles = indv_bfs.metrics_out,
-            default_location = if defined(results_name) then results_name + "/BAM_files"
-                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files",
-            outputfile = if defined(results_name) then results_name + ".sorted.bam" else "AllMerge_"
-                + length(fastqfiles) + "_mapped.sorted.bam",
+            default_location = if defined(results_name)
+                then results_name + "/BAM_files"
+                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files"
+            ,
+            outputfile = if defined(results_name)
+                then results_name + ".sorted.bam"
+                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam"
+            ,
         }
 
         call fastqc.fastqc as mergebamfqc { input:

@@ -69,7 +69,6 @@ Available rules:
   - HereDocCommands
   - ImportPlacement
   - InputName
-  - InputSorted
   - KnownRules
   - MatchingOutputMeta
   - MetaDescription

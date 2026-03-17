@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Added enum type coercion support
+  ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
+  [#724](https://github.com/stjude-rust-labs/sprocket/pull/724)).
+
+## 0.18.0 - 2026-03-12
+
 #### Changed
 
 * Analysis now emits diagnostics for use of `Map` types or map literals where
