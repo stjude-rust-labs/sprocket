@@ -35,7 +35,7 @@ pub struct Args {
 
     /// The name of the task or workflow for which to generate inputs.
     #[clap(short, long, value_name = "NAME")]
-    pub name: Option<String>,
+    pub target: Option<String>,
 
     /// Show inputs with non-literal default values.
     #[arg(long)]
@@ -471,15 +471,15 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
         document.uri()
     ))?;
 
-    if let Some(name) = args.name {
-        let namespace = Key::new(name.to_owned());
+    if let Some(target) = args.target {
+        let namespace = Key::new(target.to_owned());
 
-        match (document.task_by_name(&name), document.workflow()) {
+        match (document.task_by_name(&target), document.workflow()) {
             (Some(_), _) => {
-                // Task with name found.
+                // Task with target found.
                 let task = ast
                     .tasks()
-                    .find(|task| task.name().text() == name)
+                    .find(|task| task.name().text() == target)
                     // SAFETY: we just checked that a task with this name should
                     // be found, so this should always unwrap.
                     .unwrap();
@@ -487,21 +487,21 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
                 processor.task(namespace, &task, &Default::default());
             }
             (None, Some(analysis_wf)) => {
-                if analysis_wf.name() != name {
+                if analysis_wf.name() != target {
                     return Err(anyhow!(
-                        "no task or workflow with name `{name}` was found in document `{path}`",
+                        "no task or workflow with name `{target}` was found in document `{path}`",
                         path = document.path()
                     )
                     .into());
                 }
 
                 if !analysis_wf.allows_nested_inputs() && args.nested_inputs {
-                    return Err(anyhow!("workflow `{name}` does not allow nested inputs").into());
+                    return Err(anyhow!("workflow `{target}` does not allow nested inputs").into());
                 }
 
                 let ast_wf = ast
                     .workflows()
-                    .find(|workflow| workflow.name().text() == name)
+                    .find(|workflow| workflow.name().text() == target)
                     // SAFETY: we just checked that a workflow with this name should
                     // be found, so this should always unwrap.
                     .unwrap();
@@ -510,7 +510,7 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
             }
             (None, None) => {
                 return Err(anyhow!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
+                    "no task or workflow with name `{target}` was found in document `{path}`",
                     path = document.path()
                 )
                 .into());
@@ -538,8 +538,8 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
         let first = tasks.next();
         if tasks.next().is_some() {
             return Err(anyhow!(
-                "document `{path}` contains more than one task: use the `--name` option to refer \
-                 to a specific task by name",
+                "document `{path}` contains more than one task: use the `--target` option to \
+                 refer to a specific task by name",
                 path = document.path()
             )
             .into());
