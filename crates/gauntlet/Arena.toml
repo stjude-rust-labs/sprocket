@@ -34,22 +34,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:64:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:64:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:65:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:65:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L65"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:68:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:68:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:69:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-annotsv.wdl:69:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L69"
 
 [[diagnostics]]
@@ -154,17 +154,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:198:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:198:38: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:198:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
 
 [[diagnostics]]
@@ -204,12 +204,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:61:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:61:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L61"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:69:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-aws-sso.wdl:69:47: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L69"
 
 [[diagnostics]]
@@ -249,17 +249,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:42:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:42:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L42"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:43:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:43:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L43"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:44:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedparse.wdl:44:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L44"
 
 [[diagnostics]]
@@ -294,7 +294,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:88:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-bedtools.wdl:88:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L88"
 
 [[diagnostics]]
@@ -314,12 +314,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:91:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:91:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L91"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:92:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:92:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L92"
 
 [[diagnostics]]
@@ -344,42 +344,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:148:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:148:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L148"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:149:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:149:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L149"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:150:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:150:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L150"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:151:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:151:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L151"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:157:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:157:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L157"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:158:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:158:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L158"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:159:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:159:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L159"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:165:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:165:29: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L165"
 
 [[diagnostics]]
@@ -394,22 +394,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:50:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:50:22: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L50"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:51:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L51"
+message = "ww-cnvkit.wdl:50:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L50"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:51:22: note[DoubleQuotes]: string defined with single quotes"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L51"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:51:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L51"
 
 [[diagnostics]]
@@ -419,17 +419,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:73:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:73:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:74:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:74:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L74"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:75:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:75:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L75"
 
 [[diagnostics]]
@@ -439,7 +439,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:85:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:85:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L85"
 
 [[diagnostics]]
@@ -454,12 +454,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:64:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:64:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:65:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "testrun.wdl:65:28: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L65"
 
 [[diagnostics]]
@@ -479,17 +479,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:56:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L56"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:57:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:57:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:64:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-delly.wdl:64:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L64"
 
 [[diagnostics]]
@@ -514,17 +514,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:45:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:45:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L45"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:46:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:46:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:47:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-deseq2.wdl:47:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L47"
 
 [[diagnostics]]
@@ -649,12 +649,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:479:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:479:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L479"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:486:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:486:58: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L486"
 
 [[diagnostics]]
@@ -669,12 +669,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:506:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:506:53: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L506"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:515:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "testrun.wdl:515:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L515"
 
 [[diagnostics]]
@@ -704,12 +704,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1128:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1128:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1128"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1129:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1129:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1129"
 
 [[diagnostics]]
@@ -724,12 +724,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1185:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1185:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1185"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1186:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:1186:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1186"
 
 [[diagnostics]]
@@ -749,7 +749,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:249:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:249:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L249"
 
 [[diagnostics]]
@@ -794,7 +794,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:775:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:775:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L775"
 
 [[diagnostics]]
@@ -804,7 +804,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:822:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gatk.wdl:822:33: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L822"
 
 [[diagnostics]]
@@ -814,7 +814,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:893:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
+message = "ww-gatk.wdl:893:26: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L893"
 
 [[diagnostics]]
@@ -839,8 +839,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:184:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L184"
+message = "ww-gdc.wdl:183:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L183"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -854,12 +854,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:54:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gdc.wdl:54:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L54"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:66:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gdc.wdl:66:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L66"
 
 [[diagnostics]]
@@ -894,7 +894,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
-message = "ww-ichorcna.wdl:44:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-ichorcna.wdl:44:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L44"
 
 [[diagnostics]]
@@ -924,7 +924,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
-message = "ww-manta.wdl:54:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-manta.wdl:54:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L54"
 
 [[diagnostics]]
@@ -964,27 +964,27 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:104:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:104:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L104"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:105:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:105:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:106:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:106:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L106"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:113:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:113:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L113"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:113:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:113:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L113"
 
 [[diagnostics]]
@@ -1014,7 +1014,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:36:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:36:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L36"
 
 [[diagnostics]]
@@ -1024,7 +1024,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:98:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-salmon.wdl:98:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L98"
 
 [[diagnostics]]
@@ -1049,7 +1049,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:38:62: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-samtools.wdl:38:72: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L38"
 
 [[diagnostics]]
@@ -1059,7 +1059,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:86:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-samtools.wdl:86:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L86"
 
 [[diagnostics]]
@@ -1079,17 +1079,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:51:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:51:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L51"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:70:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:70:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L70"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
-message = "ww-shapemapper.wdl:70:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-shapemapper.wdl:70:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L70"
 
 [[diagnostics]]
@@ -1139,12 +1139,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:59:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-smoove.wdl:59:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L59"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:60:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-smoove.wdl:60:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L60"
 
 [[diagnostics]]
@@ -1174,12 +1174,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:47:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:47:61: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L47"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:50:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:50:61: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L50"
 
 [[diagnostics]]
@@ -1189,7 +1189,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:99:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sourmash.wdl:99:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L99"
 
 [[diagnostics]]
@@ -1214,7 +1214,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:44:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:44:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L44"
 
 [[diagnostics]]
@@ -1224,7 +1224,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:52:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-sra.wdl:52:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L52"
 
 [[diagnostics]]
@@ -1309,42 +1309,42 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:155:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:155:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L155"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:156:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:156:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L156"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:171:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = 'ww-strelka.wdl:171:19: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L171"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:171:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = 'ww-strelka.wdl:171:43: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L171"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:178:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = 'ww-strelka.wdl:178:19: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L178"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:178:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
+message = 'ww-strelka.wdl:178:43: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L178"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:186:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:186:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L186"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:186:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:186:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L186"
 
 [[diagnostics]]
@@ -1359,12 +1359,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:187:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:187:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L187"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:187:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:187:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L187"
 
 [[diagnostics]]
@@ -1374,17 +1374,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:56:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L56"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:57:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:57:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:81:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-strelka.wdl:81:28: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L81"
 
 [[diagnostics]]
@@ -1444,12 +1444,12 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:169:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:169:25: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L169"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:169:61: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:169:63: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L169"
 
 [[diagnostics]]
@@ -1479,7 +1479,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:470:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:470:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L470"
 
 [[diagnostics]]
@@ -1489,7 +1489,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:518:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:518:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L518"
 
 [[diagnostics]]
@@ -1499,7 +1499,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:565:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-testdata.wdl:565:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L565"
 
 [[diagnostics]]
