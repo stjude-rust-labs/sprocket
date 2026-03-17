@@ -548,15 +548,25 @@ fn evaluates_to_bash_literal(expr: &Expr) -> bool {
     }
 }
 
+/// Result of converting a WDL placeholder to bash.
+struct BashVar {
+    /// The bash substitution string.
+    value: String,
+    /// Whether this is a literal (true) or bash variable (false).
+    quoted: bool,
+    /// The span of the expression in the source.
+    span: Option<Span>,
+}
+
 /// Convert a WDL placeholder to a bash variable or literal.
 ///
-/// The boolean returned indicates whether the placeholder was replaced with a
+/// The `quoted` field indicates whether the placeholder was replaced with a
 /// literal (true) or a bash variable (false).
 /// If the placeholder is an integer, float, or boolean,
 /// it is replaced with a literal value.
 /// If it is a string, then the string is checked to see if it evaluates to a
 /// literal. Otherwise, it is replaced with a bash variable.
-fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool, Option<Span>) {
+fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> BashVar {
     let placeholder_len: usize = placeholder.inner().text_range().len().into();
     let expr = placeholder.expr();
     let expr_span = expr.span();
@@ -569,18 +579,26 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool, Op
     if let Some(Type::Primitive(pty, _)) = ty {
         match pty {
             PrimitiveType::Integer | PrimitiveType::Float => {
-                return ("4".repeat(placeholder_len), true, Some(span));
+                return BashVar {
+                    value: "4".repeat(placeholder_len),
+                    quoted: true,
+                    span: Some(span),
+                };
             }
             PrimitiveType::Boolean => {
-                return (
-                    format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
-                    true,
-                    Some(span),
-                );
+                return BashVar {
+                    value: format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
+                    quoted: true,
+                    span: Some(span),
+                };
             }
             PrimitiveType::String => {
                 if evaluates_to_bash_literal(&expr) {
-                    return ("a".repeat(placeholder_len), true, Some(span));
+                    return BashVar {
+                        value: "a".repeat(placeholder_len),
+                        quoted: true,
+                        span: Some(span),
+                    };
                 }
             }
             _ => {}
@@ -592,7 +610,11 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool, Op
     let mut bash_var = String::from("wdl");
     bash_var
         .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(3)));
-    (bash_var, false, Some(span))
+    BashVar {
+        value: bash_var,
+        quoted: false,
+        span: Some(span),
+    }
 }
 
 /// Result of sanitizing a command section.
@@ -635,22 +657,23 @@ fn sanitize_command(
                 }
                 StrippedCommandPart::Placeholder(placeholder) => {
                     let ty = evaluator.evaluate_expr(&placeholder.expr());
-                    let (substitution, literal_inserted, expr_span) = to_bash_var(placeholder, ty);
+                    let bash = to_bash_var(placeholder, ty);
                     let var_start = sanitized_command.len();
 
-                    if literal_inserted || in_single_quotes {
-                        sanitized_command.push_str(&substitution);
+                    if bash.quoted || in_single_quotes {
+                        sanitized_command.push_str(&bash.value);
                     } else {
-                        let substitution = substitution
+                        let var_name = bash
+                            .value
                             .chars()
-                            .take(substitution.len().saturating_sub(3))
+                            .take(bash.value.len().saturating_sub(3))
                             .collect::<String>();
-                        decls.insert(substitution.clone());
-                        sanitized_command.push_str(&format!("${{{substitution}}}"));
+                        decls.insert(var_name.clone());
+                        sanitized_command.push_str(&format!("${{{var_name}}}"));
                     }
 
                     let var_end = sanitized_command.len();
-                    if let Some(span) = expr_span {
+                    if let Some(span) = bash.span {
                         expr_spans.insert((var_start, var_end), span);
                     }
                 }
