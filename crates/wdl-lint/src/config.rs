@@ -87,7 +87,7 @@ define_lint_rule_config! {
         /// allowed_runtime_keys = ["foo"]
         /// ```
         ///
-        /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule.
+        /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule
         #[lints(ExpectedRuntimeKeys)]
         allowed_runtime_keys: HashSet<String> = HashSet::default(),
         /// List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]
