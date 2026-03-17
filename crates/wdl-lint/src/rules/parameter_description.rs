@@ -20,52 +20,33 @@ use crate::TagSet;
 /// The identifier for the parameter description rule.
 const ID: &str = "ParameterDescription";
 
-/// The reserved key name for descriptions.
+/// The reserved key name for `description`.
 const DESCRIPTION_KEY: &str = "description";
+
+/// The key name for the `outputs` section in `meta`.
+const OUTPUTS_KEY: &str = "outputs";
 
 /// Creates a diagnostic for missing descriptions.
 fn missing_description_diagnostic(name: &str, is_output: bool, span: Span) -> Diagnostic {
     let item_type = if is_output { "output" } else { "parameter" };
     let location = if is_output { " in `meta.outputs`" } else { "" };
 
-    Diagnostic::warning(format!(
+    Diagnostic::note(format!(
         "{} `{}` is missing a description{}",
         item_type, name, location
     ))
     .with_rule(ID)
-    .with_label(
-        format!(
-            "{} should be documented with either a `String` description or an object with a \
-             `description` key",
-            item_type
-        ),
-        span,
-    )
-    .with_fix(format!("add a description for `{}`", name,))
+    .with_highlight(span)
+    .with_fix(format!("add a description for `{}`", name))
 }
 
-/// Checks if a metadata value is a valid description
+/// Checks if a metadata value is a valid description.
 fn has_valid_description(value: &MetadataValue) -> bool {
     match value {
-        // Simple string is valid
         MetadataValue::String(_) => true,
-
-        // Object must have a "description" key
-        MetadataValue::Object(obj) => {
-            for item in obj.items() {
-                let name = item.name();
-                let key = name.text();
-                if key == DESCRIPTION_KEY {
-                    // Found description key, `DocMetaStrings` will handle if it's not a string
-                    return true;
-                }
-            }
-            // No description key found
-            false
-        }
-
-        // Any other type is invalid
-        _ => false,
+        MetadataValue::Object(obj) => obj.items().any(|item| item.name().text() == DESCRIPTION_KEY),
+        // NOTE: non-string/non-object types are handled by `DocMetaStrings`.
+        _ => true,
     }
 }
 
@@ -121,28 +102,20 @@ impl Visitor for ParameterDescriptionRule {
             return;
         }
 
-        // Check for meta.outputs section
         for item in section.items() {
-            let name = item.name();
-            let key = name.text();
-
-            if key != "outputs" {
+            if item.name().text() != OUTPUTS_KEY {
                 continue;
             }
 
-            let value = item.value();
-
-            if let MetadataValue::Object(outputs_obj) = value {
-                // Check each output in the outputs object
+            if let MetadataValue::Object(outputs_obj) = item.value() {
                 for output_item in outputs_obj.items() {
-                    let output_name_ident = output_item.name();
-                    let output_name = output_name_ident.text();
-                    let output_value = output_item.value();
-
-                    // Check if this output has a valid description
-                    if !has_valid_description(&output_value) {
+                    if !has_valid_description(&output_item.value()) {
                         diagnostics.exceptable_add(
-                            missing_description_diagnostic(output_name, true, output_item.span()),
+                            missing_description_diagnostic(
+                                output_item.name().text(),
+                                true,
+                                output_item.name().span(),
+                            ),
                             SyntaxElement::from(output_item.inner().clone()),
                             &self.exceptable_nodes(),
                         );
@@ -162,16 +135,10 @@ impl Visitor for ParameterDescriptionRule {
             return;
         }
 
-        // Check each parameter in the parameter_meta section
         for item in section.items() {
-            let name = item.name();
-            let param_name = name.text();
-            let value = item.value();
-
-            // Check if this parameter has a valid description
-            if !has_valid_description(&value) {
+            if !has_valid_description(&item.value()) {
                 diagnostics.exceptable_add(
-                    missing_description_diagnostic(param_name, false, item.span()),
+                    missing_description_diagnostic(item.name().text(), false, item.name().span()),
                     SyntaxElement::from(item.inner().clone()),
                     &self.exceptable_nodes(),
                 );
