@@ -1,6 +1,7 @@
 //! Formatting facilities for WDL.
 
 pub mod config;
+mod doc_comment;
 pub mod element;
 mod token;
 pub mod v1;
@@ -216,7 +217,7 @@ impl Writable for &FormatElement {
                 }
             },
             Element::Token(token) => {
-                stream.push_ast_token(token);
+                stream.push_ast_token(token, config);
             }
         }
     }

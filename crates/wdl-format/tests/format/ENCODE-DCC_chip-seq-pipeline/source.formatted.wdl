@@ -1101,22 +1101,16 @@ workflow chip {
         basename(chrsz_),
     ])
 
-    ### temp vars (do not define these)
-    String aligner_ = if defined(custom_align_py)
-        then "custom"
-        else aligner
-    String peak_caller_ = if pipeline_type == "tf"
-        then select_first([
-            peak_caller,
-            "spp",
-        ])
-        else select_first([
-            peak_caller,
-            "macs2",
-        ])
-    String peak_type_ = if peak_caller_ == "spp"
-        then "regionPeak"
-        else "narrowPeak"
+    ## # temp vars (do not define these)
+    String aligner_ = if defined(custom_align_py) then "custom" else aligner
+    String peak_caller_ = if pipeline_type == "tf" then select_first([
+        peak_caller,
+        "spp",
+    ]) else select_first([
+        peak_caller,
+        "macs2",
+    ])
+    String peak_type_ = if peak_caller_ == "spp" then "regionPeak" else "narrowPeak"
     Boolean enable_idr = pipeline_type == "tf"  # enable_idr for TF chipseq only
     String idr_rank_ = if peak_caller_ == "spp"
         then "signal.value"
@@ -3666,7 +3660,7 @@ task qc_report {
     }
 }
 
-### workflow system tasks
+## # workflow system tasks
 task read_genome_tsv {
     input {
         File? genome_tsv

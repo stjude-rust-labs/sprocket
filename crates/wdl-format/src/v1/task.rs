@@ -180,6 +180,7 @@ pub fn format_command_section(
                     .as_token()
                     .expect("open brace should be token"),
                 "<<<".to_string(),
+                config,
             );
         }
         SyntaxKind::OpenHeredoc => {
@@ -214,6 +215,7 @@ pub fn format_command_section(
                                 .as_token()
                                 .expect("close brace should be token"),
                             ">>>".to_string(),
+                            config,
                         );
                     }
                     SyntaxKind::CloseHeredoc => {
@@ -289,6 +291,7 @@ pub fn format_command_section(
                                 .as_token()
                                 .expect("close brace should be token"),
                             ">>>".to_string(),
+                            config,
                         );
                     }
                     SyntaxKind::CloseHeredoc => {

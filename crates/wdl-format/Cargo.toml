@@ -10,6 +10,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-
 documentation = "https://docs.rs/wdl-format"
 
 [dependencies]
+md-formatter = "0.4"
 nonempty.workspace = true
 serde.workspace = true
 thiserror.workspace = true
