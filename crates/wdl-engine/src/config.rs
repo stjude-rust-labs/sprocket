@@ -31,7 +31,7 @@ use crate::convert_unit_string;
 use crate::path::is_supported_url;
 
 /// The inclusive maximum number of task retries the engine supports.
-pub(crate) const MAX_RETRIES: u8 = 100;
+pub(crate) const MAX_RETRIES: u64 = 100;
 
 /// The default task shell.
 pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
@@ -988,11 +988,11 @@ pub struct TaskConfig {
 
 nullable_config_type!(
     Retries,
-    u8,
+    u64,
     "default",
     value,
     value <= MAX_RETRIES,
-    "a number less than or equal to {MAX_RETRIES}",
+    "a number less than or equal to 100",
     None
 );
 

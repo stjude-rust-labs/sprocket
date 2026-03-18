@@ -120,7 +120,7 @@ const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
 const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u8 = 0;
+const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 /// The default mount point for disk requirements when none is specified.
@@ -735,7 +735,7 @@ impl Evaluator {
             // from configuration
             let max_retries = requirements::max_retries(&inputs, &requirements, &self.config)?;
 
-            if max_retries > MAX_RETRIES.into() {
+            if max_retries > MAX_RETRIES {
                 return Err(anyhow!(
                     "task `max_retries` requirement of {max_retries} cannot exceed {MAX_RETRIES}"
                 )

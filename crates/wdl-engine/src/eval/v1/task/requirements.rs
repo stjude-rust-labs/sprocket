@@ -504,8 +504,7 @@ pub(crate) fn max_retries(
         .task
         .retries
         .inner()
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES)
-        .into())
+        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
 #[cfg(test)]

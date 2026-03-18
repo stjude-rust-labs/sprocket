@@ -392,6 +392,10 @@ impl Default for TestConfig {
 
 impl Config {
     /// Create a new config instance by reading potential configurations.
+    ///
+    /// This will try to read and build each configuration source eagerly in
+    /// order to provide clear error diagnostics complete with path information.
+    /// This requires intermediate clones and disk reads that could be avoided.
     pub fn new<'a>(
         paths: impl IntoIterator<Item = &'a Path>,
         skip_config_search: bool,
@@ -408,7 +412,12 @@ impl Config {
                 let path = parent.join(CONFIG_FILE_NAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
-                    builder = builder.add_source(config::File::from(path))
+                    builder = builder.add_source(config::File::from(path.as_path()));
+                    let _ = builder
+                        .build_cloned()
+                        .with_context(|| format!("reading `{path}`", path = path.display()))?
+                        .try_deserialize::<Config>()
+                        .with_context(|| format!("parsing `{path}`", path = path.display()))?;
                 }
             }
 
@@ -423,7 +432,12 @@ impl Config {
                 let path = dir.join("sprocket").join(CONFIG_FILE_NAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
-                    builder = builder.add_source(config::File::from(path))
+                    builder = builder.add_source(config::File::from(path.as_path()));
+                    let _ = builder
+                        .build_cloned()
+                        .with_context(|| format!("reading `{path}`", path = path.display()))?
+                        .try_deserialize::<Config>()
+                        .with_context(|| format!("parsing `{path}`", path = path.display()))?;
                 }
             }
 
@@ -431,7 +445,12 @@ impl Config {
             let path = Path::new(CONFIG_FILE_NAME);
             if path.exists() {
                 debug!("reading configuration from `{path}`", path = path.display());
-                builder = builder.add_source(config::File::from(path))
+                builder = builder.add_source(config::File::from(path));
+                let _ = builder
+                    .build_cloned()
+                    .with_context(|| format!("reading `{path}`", path = path.display()))?
+                    .try_deserialize::<Config>()
+                    .with_context(|| format!("parsing `{path}`", path = path.display()))?;
             }
 
             // If provided, check config file from environment
@@ -446,11 +465,13 @@ impl Config {
                         path = path.display()
                     );
                 } else {
-                    debug!(
-                        "reading configuration from `{path}` via `SPROCKET_CONFIG`",
-                        path = path.display()
-                    );
-                    builder = builder.add_source(config::File::from(path))
+                    debug!("reading configuration from `{path}`", path = path.display());
+                    builder = builder.add_source(config::File::from(path));
+                    let _ = builder
+                        .build_cloned()
+                        .with_context(|| format!("reading `{path}`", path = path.display()))?
+                        .try_deserialize::<Config>()
+                        .with_context(|| format!("parsing `{path}`", path = path.display()))?;
                 }
             }
         }
@@ -463,18 +484,20 @@ impl Config {
                     path = path.display()
                 );
             }
-
-            debug!(
-                "reading configuration from `{path}` via CLI option",
-                path = path.display()
-            );
-            builder = builder.add_source(config::File::from(path))
+            debug!("reading configuration from `{path}`", path = path.display());
+            builder = builder.add_source(config::File::from(path));
+            let _ = builder
+                .build_cloned()
+                .with_context(|| format!("reading `{path}`", path = path.display()))?
+                .try_deserialize::<Config>()
+                .with_context(|| format!("parsing `{path}`", path = path.display()))?;
         }
 
-        let settings = builder.build().context("failed to merge configuration")?;
-        settings
+        builder
+            .build()
+            .context("failed to read configuration sources")?
             .try_deserialize()
-            .context("failed to deserialize merged configuration")
+            .context("failed to merge configuration sources")
     }
 
     /// Validate a configuration.
