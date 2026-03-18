@@ -74,6 +74,7 @@ Available rules:
   - MetaDescription
   - MetaSections
   - OutputName
+  - ParameterDescription
   - ParameterMetaMatched
   - PascalCase
   - RedundantNone
