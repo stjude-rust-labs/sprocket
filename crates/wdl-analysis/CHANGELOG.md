@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
 * `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
   `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `VersionVisitor` diagnostic when a document declares `version 1.4`
@@ -32,7 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Type mismatch diagnostics now distinguish between custom types and references
   to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
 * The `UnusedInput` rule no longer ignores `File` and `Array[File]` inputs with specific names ([#741](https://github.com/stjude-rust-labs/sprocket/pull/741)).
-* Declarations with reserved keyword names will now fail validation ([#751](https://github.com/stjude-rust-labs/sprocket/pull/751)).
 
 #### Fixed
 

@@ -12,11 +12,12 @@ use wdl_ast::TreeToken;
 use wdl_ast::Version;
 use wdl_ast::v1::PlaceholderOption;
 
-use crate::UNNECESSARY_FUNCTION_CALL;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
+use crate::MisleadingDeclarationOrderRule;
+use crate::UnnecessaryFunctionCall;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Type;
@@ -830,28 +831,39 @@ pub fn missing_call_input<T: TreeToken>(
 /// Creates an "unused import" diagnostic.
 pub fn unused_import(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("unused import namespace `{name}`"))
-        .with_rule(UNUSED_IMPORT_RULE_ID)
+        .with_rule(UnusedImportRule::ID)
         .with_highlight(span)
 }
 
 /// Creates an "unused input" diagnostic.
 pub fn unused_input(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("unused input `{name}`"))
-        .with_rule(UNUSED_INPUT_RULE_ID)
+        .with_rule(UnusedInputRule::ID)
         .with_highlight(span)
 }
 
 /// Creates an "unused declaration" diagnostic.
 pub fn unused_declaration(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("unused declaration `{name}`"))
-        .with_rule(UNUSED_DECL_RULE_ID)
+        .with_rule(UnusedDeclarationRule::ID)
         .with_highlight(span)
+}
+
+/// Creates a "misleading declaration order" diagnostic.
+pub fn misleading_declaration_order(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::warning("variable declaration appears after the `command` section")
+        .with_rule(MisleadingDeclarationOrderRule::ID)
+        .with_highlight(span)
+        .with_help("tasks are evaluated in dependency order, not top-to-bottom")
+        .with_fix(format!(
+            "move the declaration of `{name}` above the `command` section"
+        ))
 }
 
 /// Creates an "unused call" diagnostic.
 pub fn unused_call(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning(format!("unused call `{name}`"))
-        .with_rule(UNUSED_CALL_RULE_ID)
+        .with_rule(UnusedCallRule::ID)
         .with_highlight(span)
 }
 
@@ -863,7 +875,7 @@ pub fn unnecessary_function_call(
     label_span: Span,
 ) -> Diagnostic {
     Diagnostic::warning(format!("unnecessary call to function `{name}`"))
-        .with_rule(UNNECESSARY_FUNCTION_CALL)
+        .with_rule(UnnecessaryFunctionCall::ID)
         .with_highlight(span)
         .with_label(label.to_string(), label_span)
 }
