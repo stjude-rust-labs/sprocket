@@ -69,18 +69,15 @@ impl Visitor for EmptyDocCommentRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        // Skip if we've already processed this comment as part of a block
         if self.skip_count > 0 {
             self.skip_count -= 1;
             return;
         }
 
-        // Only process documentation comments
         if !comment.is_doc_comment() {
             return;
         }
 
-        // Collect information about the entire contiguous doc comment block
         let first_span = comment.span();
         let mut last_span = first_span;
         let mut all_empty = {
@@ -96,7 +93,6 @@ impl Visitor for EmptyDocCommentRule {
                 SyntaxKind::Comment => {
                     if let Some(c) = Comment::cast(sibling.as_token().unwrap().clone()) {
                         if c.is_doc_comment() {
-                            // Check if this comment is empty
                             let text = c.text();
                             let content = text.strip_prefix(DOC_COMMENT_PREFIX).unwrap_or(text);
                             if !content.trim().is_empty() {
@@ -106,18 +102,14 @@ impl Visitor for EmptyDocCommentRule {
                             last_span = c.span();
                             self.skip_count += 1;
                         } else {
-                            // Hit a non-doc comment, stop collecting
                             break;
                         }
                     } else {
                         break;
                     }
                 }
-                SyntaxKind::Whitespace => {
-                    // Continue through whitespace to find more doc comments
-                }
+                SyntaxKind::Whitespace => {}
                 _ => {
-                    // Hit a non-comment, non-whitespace element, stop
                     break;
                 }
             }
@@ -125,9 +117,7 @@ impl Visitor for EmptyDocCommentRule {
             current = sibling.next_sibling_or_token();
         }
 
-        // Only flag if all comments in the block are empty
         if all_empty {
-            // Calculate the span for the entire block
             let span = Span::new(first_span.start(), last_span.end() - first_span.start());
 
             diagnostics.exceptable_add(
