@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added `NoHostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#718](https://github.com/stjude-rust-labs/sprocket/issues/718)).
+* Added `NoHostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
 
 #### Removed
 
