@@ -964,6 +964,14 @@ pub fn format_if_expr(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    if config.allow_inline_if_then_else {
+        for child in element.children().expect("if expr children") {
+            (&child).write(stream, config);
+            stream.end_word();
+        }
+        return;
+    }
+
     let in_chain = {
         let mut cur = element.element().inner();
         let mut result = false;
