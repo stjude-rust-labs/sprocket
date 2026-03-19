@@ -29,6 +29,7 @@ pub use config::MaxConcurrentRuns;
 pub use config::ServerConfig;
 use git_testament::git_testament;
 use git_testament::render_testament;
+use indicatif::ProgressStyle;
 use tracing::level_filters::LevelFilter;
 use tracing::trace;
 use tracing_indicatif::IndicatifLayer;
@@ -161,7 +162,7 @@ async fn real_main() -> CommandResult<()> {
     };
 
     colored::control::set_override(colorize);
-    let (writer, file_handle) =
+    let (writer, file_handle, indicatif_writer) =
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
@@ -190,7 +191,7 @@ async fn real_main() -> CommandResult<()> {
             commands::server::server(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
-            commands::test::test(args, config, colorize).await
+            commands::test::test(args, config, colorize, indicatif_writer).await
         }
     }
 }
@@ -227,7 +228,7 @@ pub type FileReloadHandle = reload::Handle<
 fn initialize_logging(
     verbosity: Verbosity<WarnLevel>,
     colorize: bool,
-) -> Result<(FilterReloadHandle, FileReloadHandle)> {
+) -> Result<(FilterReloadHandle, FileReloadHandle, IndicatifWriter)> {
     // Try to get a default environment filter via `RUST_LOG`
     let env_filter = match EnvFilter::try_from_default_env()
         .context("invalid `RUST_LOG` environment variable")
@@ -255,7 +256,12 @@ fn initialize_logging(
 
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
-    let indicatif_layer = IndicatifLayer::new();
+    let pending_footer = ProgressStyle::with_template("    ...and {pending_progress_bars} more")?;
+    let indicatif_layer = IndicatifLayer::new()
+        .with_span_child_prefix_indent("    ")
+        .with_span_child_prefix_symbol("↳ ")
+        .with_max_progress_bars(commands::run::MAX_LINES, Some(pending_footer));
+    let indicatif_writer = indicatif_layer.get_stderr_writer();
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
@@ -264,7 +270,7 @@ fn initialize_logging(
     // Build the subscriber and set it as the global default
     let subscriber = fmt::Subscriber::builder()
         .with_max_level(LevelFilter::TRACE)
-        .with_writer(indicatif_layer.get_stderr_writer())
+        .with_writer(indicatif_writer.clone())
         .with_ansi(colorize)
         .with_ansi_sanitization(false)
         .finish()
@@ -275,7 +281,7 @@ fn initialize_logging(
     tracing::subscriber::set_global_default(subscriber)
         .context("failed to set tracing subscriber")?;
 
-    Ok((filter_reload_handle, file_reload_handle))
+    Ok((filter_reload_handle, file_reload_handle, indicatif_writer))
 }
 
 /// The Sprocket command line entrypoint.

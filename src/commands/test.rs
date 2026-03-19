@@ -2,8 +2,10 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
@@ -15,7 +17,10 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::Parser;
+use colored::Colorize as _;
+use crankshaft::events::Event;
 use indexmap::IndexMap;
+use indicatif::ProgressStyle;
 use nonempty::NonEmpty;
 use path_clean::PathClean;
 use regex::Regex;
@@ -27,13 +32,18 @@ use sprocket_test_types::TestDefinition;
 use sprocket_test_types::yaml::Spanned;
 use tokio::fs::remove_dir_all;
 use tokio::select;
+use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
+use tracing::Level;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::instrument::WithSubscriber;
+use tracing::span;
 use tracing::subscriber::NoSubscriber;
+use tracing_indicatif::IndicatifWriter;
+use tracing_indicatif::span_ext::IndicatifSpanExt;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
@@ -287,7 +297,12 @@ struct TestIteration {
 }
 
 impl TestIteration {
-    pub async fn evaluate(self, clean: bool, quiet: bool) -> Result<IterationResult> {
+    pub async fn evaluate(
+        self,
+        clean: bool,
+        quiet: bool,
+        mut indicatif_writer: IndicatifWriter,
+    ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
             doc = self.id.doc_name,
@@ -421,13 +436,13 @@ impl TestIteration {
         if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
-                    println!("{id}: ✅")
+                    writeln!(&mut indicatif_writer, "{id}: ✅")?;
                 }
                 Ok(IterationResult::Fail(_)) => {
-                    println!("{id}: ❌")
+                    writeln!(&mut indicatif_writer, "{id}: ❌")?;
                 }
                 Err(_) => {
-                    println!("{id}: ☠️")
+                    writeln!(&mut indicatif_writer, "{id}: ☠️")?;
                 }
             }
         }
@@ -458,10 +473,97 @@ struct TestTask {
     inputs: EngineInputs,
 }
 
+#[derive(Clone)]
+struct StatusBar {
+    /// The images currently being pulled.
+    pulling_images: Arc<Mutex<HashSet<String>>>,
+    span: tracing::Span,
+}
+
+impl StatusBar {
+    /// Create a disabled status bar.
+    fn disabled() -> Self {
+        Self {
+            pulling_images: Arc::new(Mutex::new(HashSet::new())),
+            span: tracing::Span::none(),
+        }
+    }
+
+    /// Create a new status bar.
+    fn new(colorize: bool) -> Self {
+        let template = if colorize {
+            "[{elapsed_precise:.cyan/blue}] {spinner:.cyan/blue} {msg}"
+        } else {
+            "[{elapsed_precise}] {spinner} {msg}"
+        };
+
+        let status_bar = span!(Level::WARN, "status bar");
+        status_bar.pb_set_style(&ProgressStyle::with_template(template).unwrap());
+
+        Self {
+            pulling_images: Arc::new(Mutex::new(HashSet::new())),
+            span: status_bar,
+        }
+    }
+
+    fn update_image_pull_status(&self, images: &HashSet<String>) {
+        const MAX_PULLING_IMAGES: usize = 3;
+
+        if images.is_empty() {
+            self.span.record("indicatif.pb_hide", true);
+            self.span.pb_reset();
+            return;
+        }
+
+        self.span.pb_start();
+
+        if images.len() == 1 {
+            self.span.pb_set_message(&format!(
+                "pulling image '{}'",
+                images.iter().next().unwrap().green()
+            ));
+            return;
+        }
+
+        let mut msg = String::from("pulling images: ");
+
+        let shown_images = std::cmp::min(MAX_PULLING_IMAGES, images.len());
+        for (idx, image) in images.iter().take(MAX_PULLING_IMAGES).enumerate() {
+            write!(msg, "'{}'", image.green()).expect("String writes won't fail");
+            if idx == shown_images - 1 {
+                if images.len() > MAX_PULLING_IMAGES {
+                    write!(msg, ", and {} more...", images.len() - MAX_PULLING_IMAGES)
+                        .expect("String writes won't fail");
+                }
+            } else {
+                write!(msg, ", ").expect("String writes won't fail");
+            }
+        }
+
+        self.span.pb_set_message(&msg);
+    }
+
+    /// Indicate the start of an image pull.
+    async fn image_pull(&self, name: String) {
+        let mut images = self.pulling_images.lock().await;
+        images.insert(name);
+        self.update_image_pull_status(&images);
+    }
+
+    /// Indicate the end of an image pull.
+    async fn image_pull_finish(&self, name: String) {
+        let mut images = self.pulling_images.lock().await;
+        images.remove(&name);
+        self.update_image_pull_status(&images);
+    }
+}
+
 struct Runner {
     root: PathBuf,
     fixtures: Arc<EvaluationPath>,
     engine_config: Arc<wdl::engine::Config>,
+    status_bar: StatusBar,
+    indicatif_writer: IndicatifWriter,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -663,7 +765,9 @@ impl Runner {
             .get_mut(&*test_iteration.id.test_name)
             .expect("should have test results");
 
-        let evaluation = test_iteration.evaluate(clean, quiet).await;
+        let evaluation = test_iteration
+            .evaluate(clean, quiet, self.indicatif_writer.clone())
+            .await;
         test_results.push(evaluation);
 
         Ok(())
@@ -682,28 +786,54 @@ impl Runner {
         let fixtures = self.fixtures.clone();
         let engine = self.engine_config.clone();
         let run_dir = root.join(id.iteration_num.to_string());
-        let events = Events::disabled();
+        let events = Events::new(1024);
         let target = id.target.clone();
         let cancellation = self.cancellation.child(FailureMode::Fast);
+        let status_bar = self.status_bar.clone();
         futures.spawn(
             async move {
-                let evaluator =
-                    Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir);
-                TestIteration {
-                    id,
-                    result: if is_workflow {
-                        RunResult::Workflow(evaluator.run(cancellation.clone(), events).await)
+                let mut crankshaft_events = events.subscribe_crankshaft().expect("should have Crankshaft events");
+
+                let run_dir_clone = run_dir.clone();
+                let cancellation_clone = cancellation.clone();
+                let mut task = Box::pin(async move {
+                    let evaluator =
+                        Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir_clone);
+
+                    if is_workflow {
+                        RunResult::Workflow(evaluator.run(cancellation_clone, events).await)
                     } else {
                         RunResult::Task(Box::new(
-                            evaluator.evaluate_task(cancellation.clone(), events).await,
+                            evaluator.evaluate_task(cancellation_clone, events).await,
                         ))
-                    },
-                    assertions,
-                    run_dir,
-                    cancellation,
+                    }
+                }.with_subscriber(NoSubscriber::new()));
+
+                loop {
+                    tokio::select! {
+                        e = crankshaft_events.recv() => {
+                            match e {
+                                Ok(Event::ImagePullStarted { name, .. }) => {
+                                    status_bar.image_pull(name).await;
+                                },
+                                Ok(Event::ImagePullFinished { name, .. } | Event::ImagePullFailed { name, .. }) => {
+                                    status_bar.image_pull_finish(name).await;
+                                },
+                                Ok(_) | Err(_) => {}
+                            }
+                        }
+                        result = &mut task => {
+                            return TestIteration {
+                                id,
+                                result,
+                                assertions,
+                                run_dir,
+                                cancellation,
+                            };
+                        }
+                    }
                 }
-            }
-            .with_subscriber(NoSubscriber::new()),
+            },
         );
     }
 }
@@ -805,7 +935,12 @@ async fn clean_all_run_root(run_root: &Path) -> Result<()> {
 }
 
 /// Performs the `test` command.
-pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn test(
+    args: Args,
+    mut config: Config,
+    colorize: bool,
+    indicatif_writer: IndicatifWriter,
+) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);
         let schema_pretty =
@@ -961,6 +1096,12 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
         root: run_dir,
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
+        status_bar: if args.no_status {
+            StatusBar::disabled()
+        } else {
+            StatusBar::new(colorize)
+        },
+        indicatif_writer,
         permits: parallelism,
         throttle: config.test.throttle,
         cancellation: cancellation.clone(),

@@ -109,7 +109,7 @@ impl Evaluator {
         let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.first(),
-            events.transfer().clone(),
+            events.transfer().cloned(),
         )?);
 
         let cache = match config.task.cache {
@@ -142,7 +142,7 @@ impl Evaluator {
             cancellation,
             transferer,
             cache,
-            events: events.engine().clone(),
+            events: events.engine().cloned(),
             names: Arc::new(Mutex::new(GeneratorIterator::new(
                 UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
                 INITIAL_EXPECTED_NAMES,

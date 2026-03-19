@@ -258,19 +258,6 @@ impl TaskMonitorSvc {
                     let _ = self.db.update_task_started(name, Utc::now()).await?;
                 }
             }
-            CrankshaftEvent::TaskContainerCreated {
-                id: _,
-                container: _,
-            } => {
-                // Intentional no-op
-            }
-            CrankshaftEvent::TaskContainerExited {
-                id: _,
-                container: _,
-                exit_status: _,
-            } => {
-                // Intentional no-op
-            }
             CrankshaftEvent::TaskCompleted { id, exit_statuses } => {
                 if let Some(name) = self.task_names.get(&id).cloned() {
                     let exit_status = exit_statuses.last().code();
@@ -315,6 +302,24 @@ impl TaskMonitorSvc {
                         .insert_task_log(name, LogSource::Stderr, &message)
                         .await?;
                 }
+            }
+            CrankshaftEvent::ImagePullStarted { id: _, name: _ }
+            | CrankshaftEvent::ImagePullFailed {
+                id: _,
+                name: _,
+                message: _,
+            }
+            | CrankshaftEvent::ImagePullFinished { id: _, name: _ }
+            | CrankshaftEvent::TaskContainerCreated {
+                id: _,
+                container: _,
+            }
+            | CrankshaftEvent::TaskContainerExited {
+                id: _,
+                container: _,
+                exit_status: _,
+            } => {
+                // Intentional no-op
             }
         }
 

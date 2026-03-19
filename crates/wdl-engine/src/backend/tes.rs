@@ -136,14 +136,14 @@ impl TesBackend {
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
             names.clone(),
-            events.crankshaft().clone(),
+            events.crankshaft().cloned(),
         )
         .await;
 
         Ok(Self {
             config,
             inner,
-            events: events.engine().clone(),
+            events: events.engine().cloned(),
             cancellation,
         })
     }
@@ -418,19 +418,19 @@ impl TaskExecutionBackend for TesBackend {
                     .name(&name)
                     .executions(NonEmpty::new(
                         Execution::builder()
-                            .image(
-                                match request
+                            .images(
+                                request
                                     .constraints
                                     .container
                                     .as_ref()
-                                    .and_then(|c| c.first())
                                     .expect("constraints should have a container")
-                                {
-                                    // For Docker container image sources, omit the protocol
-                                    ContainerSource::Docker(s) => s.clone(),
-                                    c => format!("{c:#}"),
-                                },
-                            )
+                                    .iter()
+                                    .map(|c| match c {
+                                        // For Docker container image sources, omit the protocol
+                                        ContainerSource::Docker(s) => s.clone(),
+                                        c => format!("{c:#}"),
+                                    }),
+                            )?
                             .program(&self.config.task.shell)
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
@@ -454,8 +454,8 @@ impl TaskExecutionBackend for TesBackend {
                     .volumes(volumes.clone())
                     .build();
 
-                let statuses = match self.inner.run(task, self.cancellation.second())?.await {
-                    Ok(statuses) => statuses,
+                let results = match self.inner.run(task, self.cancellation.second())?.await {
+                    Ok(results) => results,
                     Err(TaskRunError::Preempted) if preemptible > 0 => {
                         // Decrement the preemptible count and retry
                         preemptible -= 1;
@@ -465,8 +465,8 @@ impl TaskExecutionBackend for TesBackend {
                     Err(e) => return Err(e.into()),
                 };
 
-                assert_eq!(statuses.len(), 1, "there should only be one output");
-                let status = statuses.first();
+                assert_eq!(results.len(), 1, "there should only be one output");
+                let result = results.first();
 
                 // Push an empty path segment so that future joins of the work directory URL
                 // treat it as a directory
@@ -479,7 +479,7 @@ impl TaskExecutionBackend for TesBackend {
                         .as_ref()
                         .and_then(|c| c.first())
                         .cloned(),
-                    exit_code: status.code().expect("should have exit code"),
+                    exit_code: result.status.code().expect("should have exit code"),
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),
                     stderr: PrimitiveValue::new_file(stderr_url).into(),

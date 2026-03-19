@@ -29,6 +29,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
+use tracing::span;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
@@ -326,6 +327,8 @@ struct State {
     tasks: HashMap<u64, Task>,
     /// The set of currently executing tasks.
     executing: IndexSet<Arc<String>>,
+    /// The images currently being pulled.
+    pulling_images: IndexMap<String, tracing::Span>,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
@@ -380,6 +383,9 @@ impl State {
     }
 }
 
+/// The maximum number of lines to display in the progress bar.
+pub const MAX_LINES: u64 = 2;
+
 /// Displays evaluation progress.
 async fn progress(
     progress_bar: tracing::Span,
@@ -391,23 +397,25 @@ async fn progress(
     token: CancellationToken,
 ) {
     /// Helper for formatting the progress bar
-    fn message(state: &State) -> String {
+    fn message(state: &mut State) -> String {
         fn append(message: &mut String, count: usize, kind: impl std::fmt::Display) {
-            if count > 0 {
-                let comma = if message.is_empty() {
-                    message.push_str(" -");
-                    false
-                } else {
-                    true
-                };
-
-                let _ = write!(
-                    message,
-                    "{comma} {count} {kind} task{s}",
-                    comma = if comma { "," } else { "" },
-                    s = if count == 1 { "" } else { "s" }
-                );
+            if count == 0 {
+                return;
             }
+
+            let comma = if message.is_empty() {
+                message.push_str(" -");
+                false
+            } else {
+                true
+            };
+
+            let _ = write!(
+                message,
+                "{comma} {count} {kind} task{s}",
+                comma = if comma { "," } else { "" },
+                s = if count == 1 { "" } else { "s" }
+            );
         }
 
         let mut message = String::new();
@@ -459,13 +467,20 @@ async fn progress(
         )
     };
 
+    let sub_task_style_template = if colorize {
+        "{span_child_prefix}[{elapsed_precise:.cyan/blue}] {msg}"
+    } else {
+        "{span_child_prefix}[{elapsed_precise}] {msg}"
+    };
+    let sub_task_style = ProgressStyle::with_template(sub_task_style_template).unwrap();
+
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
     let mut state = State::default();
     let mut lagged = false;
     let mut tasks_canceled = false;
 
-    progress_bar.pb_set_message(&message(&state));
+    progress_bar.pb_set_message(&message(&mut state));
     progress_bar.pb_start();
 
     loop {
@@ -481,6 +496,25 @@ async fn progress(
             r = crankshaft.recv() => match r {
                 Ok(event) if !lagged => {
                     let removed = match event {
+                        CrankshaftEvent::ImagePullStarted { name, .. } => {
+                            // We can hit this multiple times for the same image
+                            if state.pulling_images.get_mut(&name).is_some() {
+                                continue;
+                            }
+
+                            let span = span!(parent: progress_bar.clone(), Level::WARN, "pull image");
+                            span.pb_set_style(&sub_task_style);
+                            span.pb_set_message(&format!("pulling image '{}'", name.green()));
+                            span.pb_start();
+
+                            state.pulling_images.insert(name, span);
+
+                            None
+                        }
+                        CrankshaftEvent::ImagePullFailed { name, .. } | CrankshaftEvent::ImagePullFinished { name, .. } => {
+                            state.pulling_images.swap_remove(&name);
+                            None
+                        }
                         CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {
                             // Work a backend runs on its own behalf is not a task of
                             // the workflow, so it is left out of the counts entirely.
@@ -589,7 +623,7 @@ async fn progress(
                         state.executing.swap_remove(&task.name);
                     }
 
-                    progress_bar.pb_set_message(&message(&state));
+                    progress_bar.pb_set_message(&message(&mut state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,
@@ -623,7 +657,7 @@ async fn progress(
                         }
                     };
 
-                    progress_bar.pb_set_message(&message(&state));
+                    progress_bar.pb_set_message(&message(&mut state));
                 }
                 Ok(_) => continue,
                 Err(RecvError::Closed) => break,

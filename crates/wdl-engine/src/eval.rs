@@ -436,18 +436,18 @@ impl Events {
     }
 
     /// Gets the sender for the Crankshaft events.
-    pub(crate) fn engine(&self) -> &Option<broadcast::Sender<EngineEvent>> {
-        &self.engine
+    pub(crate) fn engine(&self) -> Option<&broadcast::Sender<EngineEvent>> {
+        self.engine.as_ref()
     }
 
     /// Gets the sender for the Crankshaft events.
-    pub(crate) fn crankshaft(&self) -> &Option<broadcast::Sender<CrankshaftEvent>> {
-        &self.crankshaft
+    pub(crate) fn crankshaft(&self) -> Option<&broadcast::Sender<CrankshaftEvent>> {
+        self.crankshaft.as_ref()
     }
 
     /// Gets the sender for the transfer events.
-    pub(crate) fn transfer(&self) -> &Option<broadcast::Sender<TransferEvent>> {
-        &self.transfer
+    pub(crate) fn transfer(&self) -> Option<&broadcast::Sender<TransferEvent>> {
+        self.transfer.as_ref()
     }
 }
 
