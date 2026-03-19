@@ -541,7 +541,7 @@ pub(crate) fn expand_config_run_paths(config: &mut Config) -> CommandResult<()> 
             Ok(expanded) => *path = PathBuf::from(expanded),
             Err(e) => {
                 return Err(anyhow!(
-                    "failed to expand '{}' in path '{path:?}': {}",
+                    "failed to expand `{}` in path `{path:?}`: {}",
                     e.var_name.to_string_lossy(),
                     e.cause
                 )
