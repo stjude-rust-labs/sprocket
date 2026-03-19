@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of numeric offsets. Existing clients that send numeric
   `next_token` values will now receive `400 Bad Request`. The `total` field is
   retained for compatibility and still reports the full count matching current
-  filters before cursor pagination is applied.
+  filters before cursor pagination is applied
+  ([#738](https://github.com/stjude-rust-labs/sprocket/pull/738)).
 
 ## 0.22.0 - 2026-03-12
 
