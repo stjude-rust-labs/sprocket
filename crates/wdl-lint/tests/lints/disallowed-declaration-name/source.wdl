@@ -1,4 +1,4 @@
-#@ except: RequirementsSection, InputSorted, MatchingOutputMeta, MetaSections
+#@ except: RequirementsSection, MatchingOutputMeta, MetaSections
 
 version 1.3
 

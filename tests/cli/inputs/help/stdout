@@ -7,7 +7,7 @@ Arguments:
           A source WDL document or URL
 
 Options:
-  -n, --name <NAME>
+  -t, --target <NAME>
           The name of the task or workflow for which to generate inputs
 
       --show-non-literals

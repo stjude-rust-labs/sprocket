@@ -133,7 +133,6 @@ impl Rule for ParameterMetaMatchedRule {
     fn related_rules(&self) -> &[&'static str] {
         &[
             "MetaDescription",
-            "InputSorted",
             "OutputSection",
             "RequirementsSection",
             "RuntimeSection",
