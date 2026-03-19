@@ -28,6 +28,7 @@ approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
 async-trait = "0.1.89"
 axum = "0.8.8"
+base64 = "0.22.1"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
@@ -159,6 +160,7 @@ readme = "README.md"
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
+base64.workspace = true
 bon.workspace = true
 chrono.workspace = true
 clap.workspace = true

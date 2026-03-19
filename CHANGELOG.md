@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+* API pagination now uses cursor-based `next_token` values (opaque tokens)
+  instead of numeric offsets. Existing clients that send numeric
+  `next_token` values will now receive `400 Bad Request`. The `total` field is
+  retained for compatibility and still reports the full count matching current
+  filters before cursor pagination is applied.
 
 ## 0.22.0 - 2026-03-12
 
