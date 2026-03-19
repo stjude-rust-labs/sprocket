@@ -9,10 +9,14 @@ use uuid::Uuid;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::LogSource;
 use crate::system::v1::db::Run;
+use crate::system::v1::db::RunCursor;
 use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::Session;
+use crate::system::v1::db::SessionCursor;
 use crate::system::v1::db::Task;
+use crate::system::v1::db::TaskCursor;
 use crate::system::v1::db::TaskLog;
+use crate::system::v1::db::TaskLogCursor;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::JsonObject;
 
@@ -137,8 +141,8 @@ pub enum RunManagerCmd {
         status: Option<RunStatus>,
         /// Number of results to return.
         limit: Option<i64>,
-        /// Number of results to skip.
-        offset: Option<i64>,
+        /// Cursor representing the last item from the previous page.
+        cursor: Option<RunCursor>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListRunsResponse, DatabaseError>>,
     },
@@ -171,8 +175,8 @@ pub enum RunManagerCmd {
     ListSessions {
         /// Number of results to return.
         limit: Option<i64>,
-        /// Number of results to skip.
-        offset: Option<i64>,
+        /// Cursor representing the last item from the previous page.
+        cursor: Option<SessionCursor>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListSessionsResponse, DatabaseError>>,
     },
@@ -185,8 +189,8 @@ pub enum RunManagerCmd {
         status: Option<TaskStatus>,
         /// Number of results to return.
         limit: Option<i64>,
-        /// Number of results to skip.
-        offset: Option<i64>,
+        /// Cursor representing the last item from the previous page.
+        cursor: Option<TaskCursor>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListTasksResponse, DatabaseError>>,
     },
@@ -207,8 +211,8 @@ pub enum RunManagerCmd {
         stream: Option<LogSource>,
         /// Number of results to return.
         limit: Option<i64>,
-        /// Number of results to skip.
-        offset: Option<i64>,
+        /// Cursor representing the last item from the previous page.
+        cursor: Option<TaskLogCursor>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListTaskLogsResponse, DatabaseError>>,
     },

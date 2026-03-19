@@ -20,6 +20,42 @@ pub use models::TaskLog;
 pub use models::TaskStatus;
 pub use sqlite::SqliteDatabase;
 
+/// Cursor for listing sessions.
+#[derive(Debug, Clone)]
+pub struct SessionCursor {
+    /// The creation timestamp of the last item from the previous page.
+    pub created_at: DateTime<Utc>,
+    /// The UUID of the last item from the previous page.
+    pub uuid: Uuid,
+}
+
+/// Cursor for listing runs.
+#[derive(Debug, Clone)]
+pub struct RunCursor {
+    /// The creation timestamp of the last item from the previous page.
+    pub created_at: DateTime<Utc>,
+    /// The UUID of the last item from the previous page.
+    pub uuid: Uuid,
+}
+
+/// Cursor for listing tasks.
+#[derive(Debug, Clone)]
+pub struct TaskCursor {
+    /// The creation timestamp of the last item from the previous page.
+    pub created_at: DateTime<Utc>,
+    /// The task name of the last item from the previous page.
+    pub name: String,
+}
+
+/// Cursor for listing task logs.
+#[derive(Debug, Clone)]
+pub struct TaskLogCursor {
+    /// The creation timestamp of the last item from the previous page.
+    pub created_at: DateTime<Utc>,
+    /// The log row ID of the last item from the previous page.
+    pub id: i64,
+}
+
 /// Database errors.
 #[derive(Debug, Error)]
 pub enum DatabaseError {
@@ -75,7 +111,11 @@ pub trait Database: Send + Sync {
     async fn get_session(&self, id: Uuid) -> Result<Option<Session>>;
 
     /// List sessions.
-    async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>>;
+    async fn list_sessions(
+        &self,
+        limit: Option<i64>,
+        cursor: Option<SessionCursor>,
+    ) -> Result<Vec<Session>>;
 
     /// Count total sessions.
     async fn count_sessions(&self) -> Result<i64>;
@@ -145,7 +185,7 @@ pub trait Database: Send + Sync {
         &self,
         status: Option<RunStatus>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<RunCursor>,
     ) -> Result<Vec<Run>>;
 
     /// Count runs with optional filtering.
@@ -220,7 +260,7 @@ pub trait Database: Send + Sync {
         run_id: Option<Uuid>,
         status: Option<TaskStatus>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<TaskCursor>,
     ) -> Result<Vec<Task>>;
 
     /// Count total tasks with optional filters.
@@ -236,7 +276,7 @@ pub trait Database: Send + Sync {
         task_name: &str,
         source: Option<LogSource>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<TaskLogCursor>,
     ) -> Result<Vec<TaskLog>>;
 
     /// Count task logs with optional source filter.

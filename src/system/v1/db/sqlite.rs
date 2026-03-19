@@ -15,6 +15,10 @@ use uuid::Uuid;
 use super::Database;
 use super::DatabaseError;
 use super::Result;
+use super::RunCursor;
+use super::SessionCursor;
+use super::TaskCursor;
+use super::TaskLogCursor;
 use super::models::IndexLogEntry;
 use super::models::LogSource;
 use super::models::Run;
@@ -27,9 +31,6 @@ use super::models::TaskStatus;
 
 /// Default page size for pagination.
 const DEFAULT_PAGE_SIZE: i64 = 100;
-
-/// Default offset for pagination.
-const DEFAULT_OFFSET: i64 = 0;
 
 /// SQLite connection string prefix.
 const SQLITE_CONNECTION_PREFIX: &str = "sqlite:";
@@ -173,18 +174,37 @@ impl Database for SqliteDatabase {
         Ok(session)
     }
 
-    async fn list_sessions(&self, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<Session>> {
+    async fn list_sessions(
+        &self,
+        limit: Option<i64>,
+        cursor: Option<SessionCursor>,
+    ) -> Result<Vec<Session>> {
         let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-        let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
-        let sessions: Vec<Session> = sqlx::query_as(
-            "select uuid, subcommand, created_by, created_at from sessions order by created_at \
-             desc limit ? offset ?",
-        )
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(&self.pool)
-        .await?;
+        let sessions: Vec<Session> = if let Some(cursor) = cursor {
+            sqlx::query_as(
+                "select uuid, subcommand, created_by, created_at from sessions
+                  where datetime(created_at) < datetime(?)
+                  or (datetime(created_at) = datetime(?) and uuid < ?)
+                 order by created_at desc, uuid desc
+                 limit ?",
+            )
+            .bind(cursor.created_at)
+            .bind(cursor.created_at)
+            .bind(cursor.uuid.to_string())
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                "select uuid, subcommand, created_by, created_at from sessions
+                 order by created_at desc, uuid desc
+                 limit ?",
+            )
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?
+        };
 
         Ok(sessions)
     }
@@ -335,34 +355,77 @@ impl Database for SqliteDatabase {
         &self,
         status: Option<RunStatus>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<RunCursor>,
     ) -> Result<Vec<Run>> {
         let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-        let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
-        let runs: Vec<Run> = if let Some(status) = status {
-            sqlx::query_as(
-                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-                 where r.status = ? order by r.created_at desc limit ? offset ?",
-            )
-            .bind(status)
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
-        } else {
-            sqlx::query_as(
-                "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status, \
-                 r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at, \
-                 r.completed_at, r.created_at from runs r join sessions s on r.session_id = s.id \
-                 order by r.created_at desc limit ? offset ?",
-            )
-            .bind(limit)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?
+        let runs: Vec<Run> = match (status, cursor) {
+            (Some(status), Some(cursor)) => {
+                sqlx::query_as(
+                    "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status,
+                     r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at,
+                     r.completed_at, r.created_at from runs r join sessions s on r.session_id = \
+                     s.id
+                     where r.status = ?
+                     and (datetime(r.created_at) < datetime(?)
+                     or (datetime(r.created_at) = datetime(?) and r.uuid < ?))
+                     order by r.created_at desc, r.uuid desc
+                     limit ?",
+                )
+                .bind(status)
+                .bind(cursor.created_at)
+                .bind(cursor.created_at)
+                .bind(cursor.uuid.to_string())
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (Some(status), None) => {
+                sqlx::query_as(
+                    "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status,
+                     r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at,
+                     r.completed_at, r.created_at from runs r join sessions s on r.session_id = \
+                     s.id
+                     where r.status = ?
+                     order by r.created_at desc, r.uuid desc
+                     limit ?",
+                )
+                .bind(status)
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, Some(cursor)) => {
+                sqlx::query_as(
+                    "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status,
+                     r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at,
+                     r.completed_at, r.created_at from runs r join sessions s on r.session_id = \
+                     s.id
+                     where datetime(r.created_at) < datetime(?)
+                     or (datetime(r.created_at) = datetime(?) and r.uuid < ?)
+                     order by r.created_at desc, r.uuid desc
+                     limit ?",
+                )
+                .bind(cursor.created_at)
+                .bind(cursor.created_at)
+                .bind(cursor.uuid.to_string())
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            (None, None) => {
+                sqlx::query_as(
+                    "select r.uuid, s.uuid as session_uuid, r.name, r.source, r.target, r.status,
+                     r.inputs, r.outputs, r.error, r.directory, r.index_directory, r.started_at,
+                     r.completed_at, r.created_at from runs r join sessions s on r.session_id = \
+                     s.id
+                     order by r.created_at desc, r.uuid desc
+                     limit ?",
+                )
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await?
+            }
         };
 
         Ok(runs)
@@ -561,10 +624,9 @@ impl Database for SqliteDatabase {
         run_id: Option<Uuid>,
         status: Option<TaskStatus>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<TaskCursor>,
     ) -> Result<Vec<Task>> {
         let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-        let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
         let mut query = String::from(
             "select t.name, r.uuid as run_uuid, t.status, t.exit_status, t.error,
@@ -578,7 +640,13 @@ impl Database for SqliteDatabase {
         if status.is_some() {
             query.push_str(" and t.status = ?");
         }
-        query.push_str(" order by t.created_at desc limit ? offset ?");
+        if cursor.is_some() {
+            query.push_str(
+                " and (datetime(t.created_at) < datetime(?) or (datetime(t.created_at) = \
+                 datetime(?) and t.name < ?))",
+            );
+        }
+        query.push_str(" order by t.created_at desc, t.name desc limit ?");
 
         let mut q = sqlx::query_as(&query);
 
@@ -588,7 +656,13 @@ impl Database for SqliteDatabase {
         if let Some(status) = status {
             q = q.bind(status);
         }
-        q = q.bind(limit).bind(offset);
+        if let Some(cursor) = cursor {
+            q = q
+                .bind(cursor.created_at)
+                .bind(cursor.created_at)
+                .bind(cursor.name);
+        }
+        q = q.bind(limit);
 
         let tasks: Vec<Task> = q.fetch_all(&self.pool).await?;
         Ok(tasks)
@@ -642,10 +716,9 @@ impl Database for SqliteDatabase {
         task_name: &str,
         source: Option<LogSource>,
         limit: Option<i64>,
-        offset: Option<i64>,
+        cursor: Option<TaskLogCursor>,
     ) -> Result<Vec<TaskLog>> {
         let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
-        let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
         let mut query = String::from(
             "select id, task_name, source, chunk, created_at
@@ -656,7 +729,13 @@ impl Database for SqliteDatabase {
         if source.is_some() {
             query.push_str(" and source = ?");
         }
-        query.push_str(" order by created_at asc limit ? offset ?");
+        if cursor.is_some() {
+            query.push_str(
+                " and (datetime(created_at) > datetime(?) or (datetime(created_at) = datetime(?) \
+                 and id > ?))",
+            );
+        }
+        query.push_str(" order by created_at asc, id asc limit ?");
 
         let mut q = sqlx::query_as(&query);
         q = q.bind(task_name);
@@ -664,7 +743,13 @@ impl Database for SqliteDatabase {
         if let Some(source) = source {
             q = q.bind(source);
         }
-        q = q.bind(limit).bind(offset);
+        if let Some(cursor) = cursor {
+            q = q
+                .bind(cursor.created_at)
+                .bind(cursor.created_at)
+                .bind(cursor.id);
+        }
+        q = q.bind(limit);
 
         let logs: Vec<TaskLog> = q.fetch_all(&self.pool).await?;
         Ok(logs)
@@ -815,9 +900,17 @@ mod tests {
             .expect("failed to list sessions");
         assert_eq!(sessions.len(), 2);
 
-        // Test with offset
+        // Test with cursor
+        let first_page = db
+            .list_sessions(Some(1), None)
+            .await
+            .expect("failed to list sessions");
+        let cursor = SessionCursor {
+            created_at: first_page[0].created_at,
+            uuid: first_page[0].uuid,
+        };
         let sessions = db
-            .list_sessions(Some(10), Some(1))
+            .list_sessions(Some(10), Some(cursor))
             .await
             .expect("failed to list sessions");
         assert_eq!(sessions.len(), 2);
@@ -1029,9 +1122,17 @@ mod tests {
             .expect("failed to list runs");
         assert_eq!(runs.len(), 2);
 
-        // Test with offset
+        // Test with cursor
+        let first_page = db
+            .list_runs(None, Some(1), None)
+            .await
+            .expect("failed to list runs");
+        let cursor = RunCursor {
+            created_at: first_page[0].created_at,
+            uuid: first_page[0].uuid,
+        };
         let runs = db
-            .list_runs(None, Some(10), Some(1))
+            .list_runs(None, Some(10), Some(cursor))
             .await
             .expect("failed to list runs");
         assert_eq!(runs.len(), 2);
@@ -1203,9 +1304,17 @@ mod tests {
             .expect("failed to list tasks");
         assert_eq!(tasks.len(), 2);
 
-        // Test with offset
+        // Test with cursor
+        let first_page = db
+            .list_tasks(None, None, Some(1), None)
+            .await
+            .expect("failed to list tasks");
+        let cursor = TaskCursor {
+            created_at: first_page[0].created_at,
+            name: first_page[0].name.clone(),
+        };
         let tasks = db
-            .list_tasks(None, None, Some(10), Some(1))
+            .list_tasks(None, None, Some(10), Some(cursor))
             .await
             .expect("failed to list tasks");
         assert_eq!(tasks.len(), 2);
@@ -1322,9 +1431,17 @@ mod tests {
             .expect("failed to get task logs");
         assert_eq!(logs.len(), 2);
 
-        // Test with offset
+        // Test with cursor
+        let first_page = db
+            .get_task_logs("my_task", None, Some(1), None)
+            .await
+            .expect("failed to get task logs");
+        let cursor = TaskLogCursor {
+            created_at: first_page[0].created_at,
+            id: first_page[0].id,
+        };
         let logs = db
-            .get_task_logs("my_task", None, Some(10), Some(1))
+            .get_task_logs("my_task", None, Some(10), Some(cursor))
             .await
             .expect("failed to get task logs");
         assert_eq!(logs.len(), 2);
