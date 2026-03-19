@@ -3,6 +3,7 @@ Rules with the tag `Completeness`:
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - ParameterDescription
   - ParameterMetaMatched
   - RequirementsSection
   - RuntimeSection
