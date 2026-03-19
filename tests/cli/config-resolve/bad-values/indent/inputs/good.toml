@@ -1,2 +1,2 @@
 [format]
-max_line_length = "none"
+indent = "tabs"
