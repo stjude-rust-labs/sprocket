@@ -29,6 +29,7 @@ use tower_lsp::lsp_types::*;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -334,8 +335,7 @@ where
 }
 
 /// Reload handle for dynamic level filter setting.
-pub type FilterReloadHandle<S> =
-    tracing_subscriber::reload::Handle<tracing::metadata::LevelFilter, S>;
+pub type FilterReloadHandle<S> = tracing_subscriber::reload::Handle<EnvFilter, S>;
 
 /// Represents an LSP server for analyzing WDL documents.
 #[derive(Debug)]
@@ -443,7 +443,11 @@ impl<S: 'static> Server<S> {
         let mut config = self.config.write().await;
         if let Some(log_level) = patch.log_level
             && let Some(reload_handle) = self.log_handle.as_ref()
-            && let Err(e) = reload_handle.modify(|filter| *filter = log_level.0)
+            && let Err(e) = reload_handle.modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder()
+                    .parse_lossy(format!("{},{}", current_directives, log_level.0));
+            })
         {
             error!("failed to set log level: {e:?}");
         }
