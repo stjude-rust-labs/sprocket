@@ -597,11 +597,6 @@ impl Evaluator {
             .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
-        // Only override the result with `Canceled` if the cancellation has
-        // progressed to the `Canceling` state (i.e., a force cancel). In the
-        // `Waiting` state (lazy cancel), successful results are allowed to
-        // pass through—the intent of lazy cancellation is to let currently
-        // running tasks finish while preventing new tasks from starting.
         if self.cancellation.state() == CancellationContextState::Canceling {
             return Err(EvaluationError::Canceled);
         }
