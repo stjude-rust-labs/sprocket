@@ -730,7 +730,10 @@ task final_task {
             .list_tasks(Some(run_uuid), None, None, None)
             .await
             .unwrap();
-        if tasks.iter().any(|t| t.name.starts_with("slow_task-")) {
+        if tasks
+            .iter()
+            .any(|t| t.name.starts_with("slow_task-") && t.status == TaskStatus::Running)
+        {
             break;
         }
         assert!(
