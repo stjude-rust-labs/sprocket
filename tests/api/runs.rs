@@ -14,8 +14,8 @@ use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
-use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
 use tempfile::TempDir;
@@ -719,10 +719,12 @@ task final_task {
     // we issue the cancel, avoiding timing-dependent failures from Docker
     // container startup latency.
     let poll_interval = std::time::Duration::from_millis(250);
-    let deadline =
-        tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
-        let tasks = db.list_tasks(Some(run_uuid), None, None, None).await.unwrap();
+        let tasks = db
+            .list_tasks(Some(run_uuid), None, None, None)
+            .await
+            .unwrap();
         if tasks.iter().any(|t| t.name.starts_with("slow_task-")) {
             break;
         }
@@ -783,11 +785,15 @@ task final_task {
     // `final_task` should never have been created because the lazy cancel
     // prevented it from starting.
     assert!(
-        wdl_tasks.iter().any(|t| t.name.starts_with("fast_task-") && t.status == TaskStatus::Completed),
+        wdl_tasks
+            .iter()
+            .any(|t| t.name.starts_with("fast_task-") && t.status == TaskStatus::Completed),
         "fast_task should have completed"
     );
     assert!(
-        wdl_tasks.iter().any(|t| t.name.starts_with("slow_task-") && t.status == TaskStatus::Completed),
+        wdl_tasks
+            .iter()
+            .any(|t| t.name.starts_with("slow_task-") && t.status == TaskStatus::Completed),
         "slow_task should have completed"
     );
     assert!(
