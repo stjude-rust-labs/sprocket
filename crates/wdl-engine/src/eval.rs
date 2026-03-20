@@ -222,12 +222,6 @@ impl CancellationContext {
         self.second.clone()
     }
 
-    /// Determines if the user initiated the cancellation.
-    pub(crate) fn user_canceled(&self) -> bool {
-        let state = self.state.load(Ordering::SeqCst);
-        state != CANCELLATION_STATE_NOT_CANCELED && (state & CANCELLATION_STATE_ERROR == 0)
-    }
-
     /// Triggers a cancellation as a result of an error.
     ///
     /// If the context has already been canceled, this is a no-op.
@@ -766,21 +760,21 @@ mod test {
         // The first cancel should not cancel the fast token
         assert_eq!(context.cancel(), CancellationContextState::Waiting);
         assert_eq!(context.state(), CancellationContextState::Waiting);
-        assert!(context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(!context.second.is_cancelled());
 
         // The second cancel should cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
     }
@@ -793,14 +787,14 @@ mod test {
         // Fail fast should immediately cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
 
         // Subsequent cancellations have no effect
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
     }
@@ -813,21 +807,21 @@ mod test {
         // An error should not cancel the fast token
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(!context.second.is_cancelled());
 
         // A repeated error should not cancel the fast token either
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Waiting);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(!context.second.is_cancelled());
 
         // However, another cancellation will cancel both tokens
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
     }
@@ -840,21 +834,21 @@ mod test {
         // An error should cancel both tokens
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
 
         // A repeated error should not change anything
         context.error(&EvaluationError::Canceled);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
 
         // Neither should another `cancel` call
         assert_eq!(context.cancel(), CancellationContextState::Canceling);
         assert_eq!(context.state(), CancellationContextState::Canceling);
-        assert!(!context.user_canceled());
+
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
     }

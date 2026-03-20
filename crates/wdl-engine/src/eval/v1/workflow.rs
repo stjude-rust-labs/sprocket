@@ -628,7 +628,12 @@ impl Evaluator {
             .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
-        if self.cancellation.user_canceled() {
+        // Only override the result with `Canceled` if the cancellation has
+        // progressed to the `Canceling` state (i.e., a force cancel). In the
+        // `Waiting` state (lazy cancel), successful results are allowed to
+        // pass through—the intent of lazy cancellation is to let currently
+        // running tasks finish while preventing new tasks from starting.
+        if self.cancellation.state() == CancellationContextState::Canceling {
             return Err(EvaluationError::Canceled);
         }
 
