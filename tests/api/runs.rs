@@ -88,6 +88,7 @@ where
     let poll_interval = std::time::Duration::from_millis(100);
     let max_polls = (timeout_secs * 1000) / 100;
 
+    let mut last_status = None;
     for _ in 0..max_polls {
         tokio::time::sleep(poll_interval).await;
 
@@ -97,12 +98,16 @@ where
             .map_err(|e| format!("database error: {}", e))?
             .ok_or_else(|| "run not found".to_string())?;
 
+        last_status = Some(run.status);
         if predicate(&run) {
             return Ok(run.status);
         }
     }
 
-    Err(format!("{} (timeout: {} seconds)", error_msg, timeout_secs))
+    Err(format!(
+        "{} (timeout: {} seconds, last status: {:?})",
+        error_msg, timeout_secs, last_status
+    ))
 }
 
 /// Poll until run reaches any terminal state with `completed_at` set.
