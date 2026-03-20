@@ -569,6 +569,11 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
+    // Wait for the lazy cancel to be reflected in the database
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceling, 15)
+        .await
+        .expect("run should reach `Canceling` status after first cancel");
+
     // Second cancel: transitions to `Canceling` (force cancel)
     let cancel_response = app
         .clone()
