@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `--stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
+
 ### Changed
 
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
