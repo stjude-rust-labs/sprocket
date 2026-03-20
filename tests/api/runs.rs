@@ -148,6 +148,42 @@ async fn poll_for_status(
     .await
 }
 
+/// Poll until at least one task matching `prefix` reaches `Running` status.
+async fn poll_for_task_running(
+    db: &Arc<dyn Database>,
+    run_id: uuid::Uuid,
+    prefix: &str,
+    timeout_secs: u64,
+) -> Result<(), String> {
+    let poll_interval = std::time::Duration::from_millis(250);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+    loop {
+        let tasks = db
+            .list_tasks(Some(run_id), None, None, None)
+            .await
+            .map_err(|e| format!("database error: {}", e))?;
+        if tasks
+            .iter()
+            .any(|t| t.name.starts_with(prefix) && t.status == TaskStatus::Running)
+        {
+            return Ok(());
+        }
+        if tokio::time::Instant::now() >= deadline {
+            let statuses: Vec<_> = tasks
+                .iter()
+                .map(|t| format!("{}: {:?}", t.name, t.status))
+                .collect();
+            return Err(format!(
+                "timed out waiting for task `{}` to reach Running (timeout: {}s, tasks: [{}])",
+                prefix,
+                timeout_secs,
+                statuses.join(", ")
+            ));
+        }
+        tokio::time::sleep(poll_interval).await;
+    }
+}
+
 /// Simple WDL workflow for testing.
 const SIMPLE_WORKFLOW: &str = r#"
 version 1.2
@@ -445,10 +481,13 @@ task sleep_task {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id = submit_response["uuid"].as_str().unwrap();
 
-    // Wait for workflow to start running
+    // Wait for the task to actually be running inside Docker before canceling
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // Send a single cancel in slow (default) failure mode. This transitions
     // to the `Waiting` state, which prevents new tasks from starting but
@@ -549,10 +588,13 @@ task sleep_task {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id = submit_response["uuid"].as_str().unwrap();
 
-    // Wait for workflow to start running
+    // Wait for the task to actually be running inside Docker before canceling
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // First cancel: transitions to `Waiting` (lazy cancel)
     let cancel_response = app
@@ -719,29 +761,10 @@ task final_task {
         .await
         .expect("workflow should start running");
 
-    // Poll until `slow_task` has been dispatched to the backend (i.e., its
-    // record appears in the DB). This ensures it is actually in-flight before
-    // we issue the cancel, avoiding timing-dependent failures from Docker
-    // container startup latency.
-    let poll_interval = std::time::Duration::from_millis(250);
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
-    loop {
-        let tasks = db
-            .list_tasks(Some(run_uuid), None, None, None)
-            .await
-            .unwrap();
-        if tasks
-            .iter()
-            .any(|t| t.name.starts_with("slow_task-") && t.status == TaskStatus::Running)
-        {
-            break;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "timed out waiting for slow_task to be dispatched"
-        );
-        tokio::time::sleep(poll_interval).await;
-    }
+    // Wait for `slow_task` to actually be running inside Docker before canceling
+    poll_for_task_running(&db, run_uuid, "slow_task-", 60)
+        .await
+        .expect("slow_task should be running");
 
     // Send a single cancel (lazy). `slow_task` should finish but `final_task`
     // should never start.
@@ -875,10 +898,13 @@ task sleep_task {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id = submit_response["uuid"].as_str().unwrap();
 
-    // Wait for workflow to start running
+    // Wait for the task to actually be running inside Docker before canceling
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // With fast failure mode, single cancel request should go straight to Cancelled
     let cancel_response = app
@@ -960,6 +986,9 @@ task sleep_task {
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // Lazy cancel while the task is in-flight. Since this is the only task
     // and it is already executing, it should complete with its actual results.
@@ -1050,6 +1079,9 @@ task sleep_task {
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // First cancel: lazy
     let cancel_response = app
@@ -1156,6 +1188,9 @@ task sleep_task {
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     let cancel_response = app
         .clone()
