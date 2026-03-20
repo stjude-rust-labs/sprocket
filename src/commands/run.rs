@@ -637,13 +637,7 @@ pub async fn run(
             inputs,
         ),
         None => {
-            // No inputs were provided, need explicit target
-            let target = args
-                .target
-                .as_ref()
-                .context("the `--target` option is required if no inputs are provided")?;
-
-            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
+            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
 
             let inputs = match target {
                 Target::Task(_) => TaskInputs::default().into(),
