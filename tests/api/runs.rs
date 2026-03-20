@@ -789,21 +789,25 @@ task final_task {
         })
         .collect();
 
-    // `fast_task` and `slow_task` should have been created and completed;
-    // `final_task` should never have been created because the lazy cancel
-    // prevented it from starting.
-    assert!(
-        wdl_tasks
-            .iter()
-            .any(|t| t.name.starts_with("fast_task-") && t.status == TaskStatus::Completed),
-        "fast_task should have completed"
-    );
-    assert!(
-        wdl_tasks
-            .iter()
-            .any(|t| t.name.starts_with("slow_task-") && t.status == TaskStatus::Completed),
-        "slow_task should have completed"
-    );
+    // `fast_task` and `slow_task` should have been created and completed
+    // with successful exit statuses; `final_task` should never have been
+    // created because the lazy cancel prevented it from starting.
+    let fast_task = wdl_tasks
+        .iter()
+        .find(|t| t.name.starts_with("fast_task-"))
+        .expect("fast_task should exist");
+    assert_eq!(fast_task.status, TaskStatus::Completed);
+    assert_eq!(fast_task.exit_status, Some(0));
+    assert!(fast_task.completed_at.is_some());
+
+    let slow_task = wdl_tasks
+        .iter()
+        .find(|t| t.name.starts_with("slow_task-"))
+        .expect("slow_task should exist");
+    assert_eq!(slow_task.status, TaskStatus::Completed);
+    assert_eq!(slow_task.exit_status, Some(0));
+    assert!(slow_task.completed_at.is_some());
+
     assert!(
         !wdl_tasks.iter().any(|t| t.name.starts_with("final_task-")),
         "final_task should never have been created"
