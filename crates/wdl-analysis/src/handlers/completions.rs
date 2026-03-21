@@ -181,7 +181,19 @@ pub fn completion(
     };
 
     if is_member_access {
-        add_member_access_completions(document, &parent, &mut items)?;
+        let accessor_token = token.as_ref().and_then(|t| match t.kind() {
+            SyntaxKind::Dot | SyntaxKind::OpenBracket => Some(t.clone()),
+            SyntaxKind::Ident => t.prev_token().filter(|p| {
+                matches!(
+                    p.kind(),
+                    SyntaxKind::Dot | SyntaxKind::OpenBracket
+                )
+            }),
+            _ => None,
+        });
+        if let Some(ref acc) = accessor_token {
+            add_member_access_completions(document, acc, &mut items)?;
+        }
     } else {
         let mut visited_kinds = IndexSet::new();
         let mut current = Some(parent);
@@ -316,19 +328,15 @@ fn add_keyword_completions(token_set: &TokenSet, items: &mut Vec<CompletionItem>
 /// For other types, it evaluates the expression type to determine available
 /// members.
 ///
-/// The node is the parent of the `.` token. For incomplete document, it might
-/// not be fully-formed `AccessExprNode`. We find the expression to the left
-/// of the dot.
+/// The `accessor_token` is the `.` or `[` at the cursor (not merely the first such token in a
+/// parent node, which is wrong for nested accesses like `task.meta.`).
 fn add_member_access_completions(
     document: &Document,
-    node: &SyntaxNode,
+    accessor_token: &SyntaxToken,
     items: &mut Vec<CompletionItem>,
 ) -> Result<()> {
-    let Some(accessor_token) = node
-        .children_with_tokens()
-        .find(|t| matches!(t.kind(), SyntaxKind::Dot | SyntaxKind::OpenBracket))
-    else {
-        debug!("could not find accessor token `.` or `[`");
+    let Some(node) = accessor_token.parent() else {
+        debug!("accessor token has no parent");
         return Ok(());
     };
 
@@ -391,11 +399,29 @@ fn add_member_access_completions(
         return Ok(());
     }
 
-    let Some(target_node) = target_element.as_node() else {
-        return Ok(());
+    // Resolve the access expression to the left of this `.`:
+    // - If the sibling is an [`Ident`] (`meta`, `root`, …), the parent [`AccessExpr`] is the full
+    //   `a.b.c` chain (operand + member).
+    // - If the sibling is an [`Expr`] node, it is usually the *operand* subtree (`task.meta` in
+    //   `task.meta.root.`); using the parent [`AccessExpr`] there would include an incomplete
+    //   trailing access and break `task.meta.` completions — so keep the operand only.
+    let target_expr = if let Some(t) = target_element.as_token()
+        && t.kind() == SyntaxKind::Ident
+        && let Some(p) = accessor_token.parent()
+        && p.kind() == SyntaxKind::AccessExprNode
+    {
+        Expr::cast(p)
+    } else if let Some(n) = target_element.as_node() {
+        Expr::cast(n.clone())
+    } else if let Some(p) = accessor_token.parent()
+        && p.kind() == SyntaxKind::AccessExprNode
+    {
+        Expr::cast(p)
+    } else {
+        None
     };
 
-    let Some(target_expr) = Expr::cast(target_node.clone()) else {
+    let Some(target_expr) = target_expr else {
         return Ok(());
     };
 
@@ -456,7 +482,7 @@ fn add_member_access_completions(
 
     // NOTE: we do type evaluation only for non namespaces or complex types
 
-    let Some(scope) = document.find_scope_by_position(target_node.span().start()) else {
+    let Some(scope) = document.find_scope_by_position(target_expr.inner().span().start()) else {
         bail!("could not find scope for access expression")
     };
 
@@ -1144,7 +1170,7 @@ fn build_function_snippet(name: &str, sig: &crate::stdlib::FunctionSignature) ->
 }
 
 /// Which task metadata section is being accessed.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TaskMetadataField {
     /// The `meta` section.
     Meta,
@@ -1226,5 +1252,130 @@ fn format_ty(value: MetadataValue) -> &'static str {
         MetadataValue::Null(_) => "Null",
         MetadataValue::Object(_) => "Object",
         MetadataValue::Array(_) => "Array",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::AstToken;
+    use wdl_ast::v1::MetadataObjectItem;
+    use wdl_ast::v1::MetadataValue;
+
+    use super::TaskMetadataField;
+    use super::extract_task_metadata_access_path;
+
+    fn metadata_value_at_path<I>(mut items: I, path: &[String]) -> Option<MetadataValue>
+    where
+        I: Iterator<Item = MetadataObjectItem>,
+    {
+        if path.is_empty() {
+            return None;
+        }
+        let item = items.find(|it| it.name().text() == path[0])?;
+        let v = item.value();
+        if path.len() == 1 {
+            return Some(v);
+        }
+        let MetadataValue::Object(o) = v else {
+            return None;
+        };
+        metadata_value_at_path(o.items(), &path[1..])
+    }
+
+    #[test]
+    fn metadata_value_at_path_finds_nested_object_keys() {
+        let (doc, diags) = wdl_ast::Document::parse(
+            r#"version 1.3
+
+task t {
+    meta {
+        root: {
+            child_a: "a",
+            child_b: "b"
+        }
+    }
+
+    command <<<
+        true
+    >>>
+
+    output {
+        String x = 1
+    }
+}
+"#,
+        );
+        assert!(diags.is_empty(), "{diags:?}");
+        let doc_ast = doc.ast();
+        let ast = doc_ast.as_v1().unwrap();
+        let task = ast.tasks().next().unwrap();
+        let meta = task.metadata().unwrap();
+        let v = metadata_value_at_path(meta.items(), &["root".to_string()]).unwrap();
+        let MetadataValue::Object(o) = v else {
+            panic!("expected object");
+        };
+        let names: Vec<_> = o.items().map(|i| i.name().text().to_string()).collect();
+        assert!(names.contains(&"child_a".to_string()));
+        assert!(names.contains(&"child_b".to_string()));
+    }
+
+    #[test]
+    fn parameter_metadata_value_at_path_nested() {
+        let (doc, diags) = wdl_ast::Document::parse(
+            r#"version 1.3
+
+task t {
+    parameter_meta {
+        pm: {
+            inner: "x"
+        }
+    }
+
+    command <<<
+        true
+    >>>
+
+    output {
+        String x = 1
+    }
+}
+"#,
+        );
+        assert!(diags.is_empty(), "{diags:?}");
+        let doc_ast = doc.ast();
+        let ast = doc_ast.as_v1().unwrap();
+        let task = ast.tasks().next().unwrap();
+        let pm = task.parameter_metadata().unwrap();
+        let v = metadata_value_at_path(pm.items(), &["pm".to_string()]).unwrap();
+        let MetadataValue::Object(o) = v else {
+            panic!("expected object");
+        };
+        let names: Vec<_> = o.items().map(|i| i.name().text().to_string()).collect();
+        assert!(names.contains(&"inner".to_string()));
+    }
+
+    #[test]
+    fn extract_task_metadata_access_path_nested_meta_root() {
+        use wdl_ast::Document;
+
+        let wdl = r#"version 1.3
+task t {
+    meta { root: { a: "1" } }
+    command <<< true >>>
+    output { String x = task.meta.root }
+}
+"#;
+        let (doc, diags) = Document::parse(wdl);
+        assert!(diags.is_empty(), "{diags:?}");
+        let doc_ast = doc.ast();
+        let ast = doc_ast.as_v1().unwrap();
+        let task = ast.tasks().next().unwrap();
+        let decl = task.output().unwrap().declarations().next().unwrap();
+        let expr = decl.expr();
+        let got = extract_task_metadata_access_path(&expr).expect("path");
+        assert_eq!(
+            got,
+            (TaskMetadataField::Meta, vec!["root".to_string()])
+        );
     }
 }

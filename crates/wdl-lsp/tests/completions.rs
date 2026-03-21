@@ -348,6 +348,33 @@ async fn should_complete_scope_variables() {
 }
 
 #[tokio::test]
+async fn should_complete_nested_task_meta_and_parameter_meta_objects() {
+    let mut ctx = setup().await;
+
+    // After `task.meta.` in output (cursor on the last `.`)
+    // Column is past the final `.` (same idea as `taskvar.wdl` output `String s = task.`).
+    let response = completion_request(&mut ctx, "nested_meta.wdl", Position::new(15, 31)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    assert_contains(&items, "root");
+
+    // After `task.meta.root.` in output (cursor past the final `.`)
+    // Column past the final `.` (same pattern as `taskvar.wdl`: line length 24 → position 24).
+    let response = completion_request(&mut ctx, "nested_meta.wdl", Position::new(32, 39)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+    let labels: Vec<_> = items.iter().map(|i| i.label.as_str()).collect();
+    assert!(
+        labels.iter().any(|l| *l == "child_a"),
+        "expected `child_a` in {:?}",
+        labels
+    );
+    assert_contains(&items, "child_b");
+}
+
+#[tokio::test]
 async fn should_complete_task_variable_members() {
     let mut ctx = setup().await;
 
