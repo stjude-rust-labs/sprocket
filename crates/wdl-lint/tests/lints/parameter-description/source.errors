@@ -1,0 +1,16 @@
+note[ParameterDescription]: output `error_output` is missing a description in `meta.outputs`
+   ┌─ tests/lints/parameter-description/source.wdl:17:13
+   │
+17 │             error_output: {
+   │             ^^^^^^^^^^^^
+   │
+   = fix: add a description for `error_output`
+
+note[ParameterDescription]: parameter `flag_input` is missing a description
+   ┌─ tests/lints/parameter-description/source.wdl:31:9
+   │
+31 │         flag_input: {
+   │         ^^^^^^^^^^
+   │
+   = fix: add a description for `flag_input`
+

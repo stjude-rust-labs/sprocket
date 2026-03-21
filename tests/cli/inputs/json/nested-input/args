@@ -1,1 +1,1 @@
-inputs --name nested_access nested.wdl
+inputs --target nested_access nested.wdl
