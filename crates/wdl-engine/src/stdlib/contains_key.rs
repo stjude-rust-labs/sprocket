@@ -13,7 +13,6 @@ use super::Function;
 use super::Signature;
 use crate::CompoundValue;
 use crate::PrimitiveValue;
-use crate::Struct;
 use crate::Value;
 
 /// Given a Map and a key, tests whether the collection contains an entry with
@@ -82,9 +81,7 @@ fn contains_key_recursive(context: CallContext<'_>) -> Result<Value, Diagnostic>
                 map.get(&PrimitiveValue::String(key.clone())).cloned()
             }
             Value::Compound(CompoundValue::Object(object)) => object.get(key.as_str()).cloned(),
-            Value::Compound(CompoundValue::Struct(Struct { members, .. })) => {
-                members.get(key.as_str()).cloned()
-            }
+            Value::Compound(CompoundValue::Struct(s)) => s.get(key.as_str()).cloned(),
             _ => None,
         }
     }

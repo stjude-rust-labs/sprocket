@@ -52,14 +52,6 @@ static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// <project root>/tests/cli/run
-static CLI_RUN_TEST_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("cli")
-        .join("run")
-});
-
 /// Binary file extensions that should only be checked for existence.
 const BINARY_EXTENSIONS: &[&str] = &[
     "db",
@@ -306,31 +298,13 @@ fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
 ///
 /// This function:
 ///
-/// 1. Replaces timestamps printed to stdout with `_TIMESTAMP_`
-/// 2. Removes transient files (e.g., SQLite `-shm`, `-wal` files)
-/// 3. Zeroes out binary files so they exist but have no content to compare
-/// 4. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
-/// 5. Renames timestamp directories to `_TIMESTAMP_`
-fn normalize_expected_outputs(path: &Path, expected_stdout_file: &Path) -> Result<()> {
+/// 1. Removes transient files (e.g., SQLite `-shm`, `-wal` files)
+/// 2. Zeroes out binary files so they exist but have no content to compare
+/// 3. Updates symlink targets to replace timestamps with `_TIMESTAMP_`
+/// 4. Renames timestamp directories to `_TIMESTAMP_`
+fn normalize_expected_outputs(path: &Path) -> Result<()> {
     if !path.exists() {
         return Ok(());
-    }
-
-    // Update timestamp-specific paths printed to stdout
-    if expected_stdout_file.starts_with(&*CLI_RUN_TEST_DIR) {
-        let content = fs::read_to_string(expected_stdout_file)?;
-
-        let mut normalized = String::new();
-        for line in content.lines() {
-            if line.starts_with("outputs were also written to") {
-                normalized.push_str(&TIMESTAMP_PATTERN.replace(line, "_TIMESTAMP_"));
-            } else {
-                normalized.push_str(line);
-            }
-            normalized.push('\n');
-        }
-
-        fs::write(expected_stdout_file, normalized.as_bytes())?;
     }
 
     // Remove transient files and zero out binary files
@@ -552,7 +526,7 @@ fn compare_test_results(
 ) -> Result<()> {
     let expected_output_dir = test_path.join("outputs");
     let expected_stderr_file = test_path.join("stderr");
-    let expected_stdout_file = std::path::absolute(test_path.join("stdout"))?;
+    let expected_stdout_file = test_path.join("stdout");
     let expected_exit_code_file = test_path.join("exit_code");
     let expects_outputs = expected_output_dir.is_dir();
 
@@ -574,7 +548,7 @@ fn compare_test_results(
             recursive_copy(working_test_directory, &expected_output_dir).context(
                 "failed to copy output files from test results to setup new expected outputs",
             )?;
-            normalize_expected_outputs(&expected_output_dir, &expected_stdout_file)
+            normalize_expected_outputs(&expected_output_dir)
                 .context("failed to normalize expected outputs")?;
         }
     }

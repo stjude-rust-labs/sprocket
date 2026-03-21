@@ -13,7 +13,7 @@ struct Text {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
