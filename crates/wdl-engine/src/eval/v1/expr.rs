@@ -1320,7 +1320,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let mut count = 0;
                 let mut types = [const { Type::Union }; MAX_PARAMETERS];
                 let mut arguments: [CallArgument; MAX_PARAMETERS] =
-                    std::array::from_fn(|_| CallArgument::none());
+                    std::array::repeat(CallArgument::none());
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
                         let v = self.evaluate_expr(&arg).await?;

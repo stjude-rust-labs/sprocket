@@ -165,6 +165,7 @@ pub(crate) fn temp_path_to_value(
 }
 
 /// Represents a function call argument.
+#[derive(Clone)]
 pub struct CallArgument {
     /// The value of the argument.
     value: Value,
