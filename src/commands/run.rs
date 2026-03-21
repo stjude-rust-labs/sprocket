@@ -810,7 +810,7 @@ pub async fn run(
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
                             println!("{outputs_json}");
-                            println!("outputs were also written to `{path}`", path = outputs_file.display());
+                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
                         }
                         Ok(())
                     }

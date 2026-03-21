@@ -8,6 +8,7 @@ use std::hash::Hasher;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -18,7 +19,6 @@ use futures::StreamExt as _;
 use futures::TryStreamExt as _;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
-use itertools::Either;
 use ordered_float::OrderedFloat;
 use serde::ser::SerializeMap;
 use serde::ser::SerializeSeq;
@@ -205,15 +205,62 @@ pub(crate) trait Coercible: Sized {
     fn coerce(&self, context: Option<&dyn EvaluationContext>, target: &Type) -> Result<Self>;
 }
 
+/// Represents a none value with its associated optional type.
+///
+/// None values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct NoneValue(Arc<Type>);
+
+impl NoneValue {
+    /// Constructs a new `NoneValue` with the given type.
+    pub fn new(ty: Type) -> Self {
+        Self(Arc::new(ty))
+    }
+
+    /// Returns a cached [`NoneValue`] for `Type::None` (i.e., an untyped
+    /// none).
+    ///
+    /// This avoids repeated `Arc` allocations for the common case of
+    /// constructing sentinel none values (e.g., in function call argument
+    /// initialization).
+    pub fn untyped() -> Self {
+        static INSTANCE: LazyLock<NoneValue> = LazyLock::new(|| NoneValue::new(Type::None));
+        INSTANCE.clone()
+    }
+
+    /// Gets the type of the none value.
+    pub fn ty(&self) -> &Type {
+        &self.0
+    }
+}
+
+/// Represents a reference to a user-defined type name.
+///
+/// Type name reference values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TypeNameRefValue(Arc<Type>);
+
+impl TypeNameRefValue {
+    /// Constructs a new `TypeNameRefValue` with the given type.
+    pub fn new(ty: Type) -> Self {
+        Self(Arc::new(ty))
+    }
+
+    /// Gets the referenced type.
+    pub fn ty(&self) -> &Type {
+        &self.0
+    }
+}
+
 /// Represents a WDL runtime value.
 ///
 /// Values are cheap to clone.
 #[derive(Debug, Clone)]
 pub enum Value {
-    /// The value is a literal `None` value.
+    /// The value is a literal none value.
     ///
     /// The contained type is expected to be an optional type.
-    None(Type),
+    None(NoneValue),
     /// The value is a primitive value.
     Primitive(PrimitiveValue),
     /// The value is a compound value.
@@ -226,8 +273,14 @@ pub enum Value {
     /// The value is the outputs of a call.
     Call(CallValue),
     /// The value is a reference to a user-defined type.
-    TypeNameRef(Type),
+    TypeNameRef(TypeNameRefValue),
 }
+
+// NOTE: `Value` was optimized to `24` bytes in PR #727. Any attempts to raise
+// this limit should be carefully considered from a performance perspective.
+const _: () = {
+    assert!(std::mem::size_of::<Value>() <= 24);
+};
 
 impl Value {
     /// Creates an object from an iterator of V1 AST metadata items.
@@ -256,29 +309,29 @@ impl Value {
         }
     }
 
-    /// Constructs a new `None` value with the given type.
+    /// Constructs a new none value with the given type.
     ///
     /// # Panics
     ///
     /// Panics if the provided type is not optional.
     pub fn new_none(ty: Type) -> Self {
         assert!(ty.is_optional(), "the provided `None` type is not optional");
-        Self::None(ty)
+        Self::None(NoneValue::new(ty))
     }
 
     /// Gets the type of the value.
     pub fn ty(&self) -> Type {
         match self {
-            Self::None(ty) => ty.clone(),
+            Self::None(v) => v.ty().clone(),
             Self::Primitive(v) => v.ty(),
             Self::Compound(v) => v.ty(),
             Self::Hidden(v) => v.ty(),
-            Self::Call(v) => Type::Call(v.ty.clone()),
-            Self::TypeNameRef(ty) => ty.clone(),
+            Self::Call(v) => Type::Call(v.ty().clone()),
+            Self::TypeNameRef(v) => v.ty().clone(),
         }
     }
 
-    /// Determines if the value is `None`.
+    /// Determines if the value is none.
     pub fn is_none(&self) -> bool {
         matches!(self, Self::None(_))
     }
@@ -664,7 +717,7 @@ impl Value {
     /// paths transformed by the given `translate()` function.
     ///
     /// If a `File` or `Directory` value is optional and the path does not
-    /// exist, it is replaced with a WDL `None` value.
+    /// exist, it is replaced with a WDL none value.
     ///
     /// If a `File` or `Directory` value is required and the path does not
     /// exist, an error is returned.
@@ -808,7 +861,7 @@ impl fmt::Display for Value {
             Self::Compound(v) => v.fmt(f),
             Self::Hidden(v) => v.fmt(f),
             Self::Call(c) => c.fmt(f),
-            Self::TypeNameRef(ty) => ty.fmt(f),
+            Self::TypeNameRef(v) => v.ty().fmt(f),
         }
     }
 }
@@ -1560,16 +1613,22 @@ impl Coercible for PrimitiveValue {
     }
 }
 
+/// The inner representation of a pair value.
+#[derive(Debug)]
+struct PairInner {
+    /// The type of the pair.
+    ty: Type,
+    /// The left value of the pair.
+    left: Value,
+    /// The right value of the pair.
+    right: Value,
+}
+
 /// Represents a `Pair` value.
 ///
 /// Pairs are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct Pair {
-    /// The type of the pair.
-    ty: Type,
-    /// The left and right values of the pair.
-    values: Arc<(Value, Value)>,
-}
+pub struct Pair(Arc<PairInner>);
 
 impl Pair {
     /// Creates a new `Pair` value.
@@ -1606,25 +1665,26 @@ impl Pair {
     pub(crate) fn new_unchecked(ty: impl Into<Type>, left: Value, right: Value) -> Self {
         let ty = ty.into();
         assert!(ty.as_pair().is_some());
-        Self {
+        Self(Arc::new(PairInner {
             ty: ty.require(),
-            values: Arc::new((left, right)),
-        }
+            left,
+            right,
+        }))
     }
 
     /// Gets the type of the `Pair`.
     pub fn ty(&self) -> Type {
-        self.ty.clone()
+        self.0.ty.clone()
     }
 
     /// Gets the left value of the `Pair`.
     pub fn left(&self) -> &Value {
-        &self.values.0
+        &self.0.left
     }
 
     /// Gets the right value of the `Pair`.
     pub fn right(&self) -> &Value {
-        &self.values.1
+        &self.0.right
     }
 }
 
@@ -1633,24 +1693,26 @@ impl fmt::Display for Pair {
         write!(
             f,
             "({left}, {right})",
-            left = self.values.0,
-            right = self.values.1
+            left = self.0.left,
+            right = self.0.right
         )
     }
+}
+
+/// The inner representation of an array value.
+#[derive(Debug)]
+struct ArrayInner {
+    /// The type of the array.
+    ty: Type,
+    /// The array's elements.
+    elements: Vec<Value>,
 }
 
 /// Represents an `Array` value.
 ///
 /// Arrays are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct Array {
-    /// The type of the array.
-    ty: Type,
-    /// The array's elements.
-    ///
-    /// A value of `None` indicates an empty array.
-    elements: Option<Arc<Vec<Value>>>,
-}
+pub struct Array(Arc<ArrayInner>);
 
 impl Array {
     /// Creates a new `Array` value for the given array type.
@@ -1704,34 +1766,27 @@ impl Array {
             panic!("type is not an array type");
         };
 
-        Self {
-            ty,
-            elements: if elements.is_empty() {
-                None
-            } else {
-                Some(Arc::new(elements))
-            },
-        }
+        Self(Arc::new(ArrayInner { ty, elements }))
     }
 
     /// Gets the type of the `Array` value.
     pub fn ty(&self) -> Type {
-        self.ty.clone()
+        self.0.ty.clone()
     }
 
     /// Converts the array value to a slice of values.
     pub fn as_slice(&self) -> &[Value] {
-        self.elements.as_ref().map(|v| v.as_slice()).unwrap_or(&[])
+        &self.0.elements
     }
 
     /// Returns the number of elements in the array.
     pub fn len(&self) -> usize {
-        self.elements.as_ref().map(|v| v.len()).unwrap_or(0)
+        self.0.elements.len()
     }
 
     /// Returns `true` if the array has no elements.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.0.elements.is_empty()
     }
 }
 
@@ -1739,30 +1794,32 @@ impl fmt::Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
 
-        if let Some(elements) = &self.elements {
-            for (i, element) in elements.iter().enumerate() {
-                if i > 0 {
-                    write!(f, ", ")?;
-                }
-
-                write!(f, "{element}")?;
+        for (i, element) in self.0.elements.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
             }
+
+            write!(f, "{element}")?;
         }
 
         write!(f, "]")
     }
 }
 
+/// The inner representation of a map value.
+#[derive(Debug)]
+struct MapInner {
+    /// The type of the map value.
+    ty: Type,
+    /// The elements of the map value.
+    elements: IndexMap<PrimitiveValue, Value>,
+}
+
 /// Represents a `Map` value.
 ///
 /// Maps are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct Map {
-    /// The type of the map value.
-    ty: Type,
-    /// The elements of the map value.
-    elements: Option<Arc<IndexMap<PrimitiveValue, Value>>>,
-}
+pub struct Map(Arc<MapInner>);
 
 impl Map {
     /// Creates a new `Map` value.
@@ -1825,66 +1882,50 @@ impl Map {
     ) -> Self {
         let ty = ty.into();
         assert!(ty.as_map().is_some());
-        Self {
+        Self(Arc::new(MapInner {
             ty: ty.require(),
-            elements: if elements.is_empty() {
-                None
-            } else {
-                Some(Arc::new(elements))
-            },
-        }
+            elements,
+        }))
     }
 
     /// Gets the type of the `Map` value.
     pub fn ty(&self) -> Type {
-        self.ty.clone()
+        self.0.ty.clone()
     }
 
     /// Iterates the elements of the map.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (&PrimitiveValue, &Value)> {
-        self.elements
-            .as_ref()
-            .map(|m| Either::Left(m.iter()))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.0.elements.iter()
     }
 
     /// Iterates the keys of the map.
     pub fn keys(&self) -> impl ExactSizeIterator<Item = &PrimitiveValue> {
-        self.elements
-            .as_ref()
-            .map(|m| Either::Left(m.keys()))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.0.elements.keys()
     }
 
     /// Iterates the values of the map.
     pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
-        self.elements
-            .as_ref()
-            .map(|m| Either::Left(m.values()))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.0.elements.values()
     }
 
     /// Determines if the map contains the given key.
     pub fn contains_key(&self, key: &PrimitiveValue) -> bool {
-        self.elements
-            .as_ref()
-            .map(|m| m.contains_key(key))
-            .unwrap_or(false)
+        self.0.elements.contains_key(key)
     }
 
     /// Gets a value from the map by key.
     pub fn get(&self, key: &PrimitiveValue) -> Option<&Value> {
-        self.elements.as_ref().and_then(|m| m.get(key))
+        self.0.elements.get(key)
     }
 
     /// Returns the number of elements in the map.
     pub fn len(&self) -> usize {
-        self.elements.as_ref().map(|m| m.len()).unwrap_or(0)
+        self.0.elements.len()
     }
 
     /// Returns `true` if the map has no elements.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.0.elements.is_empty()
     }
 }
 
@@ -1910,9 +1951,7 @@ impl fmt::Display for Map {
 #[derive(Debug, Clone)]
 pub struct Object {
     /// The members of the object.
-    ///
-    /// A value of `None` indicates an empty object.
-    pub(crate) members: Option<Arc<IndexMap<String, Value>>>,
+    pub(crate) members: Arc<IndexMap<String, Value>>,
 }
 
 impl Object {
@@ -1921,11 +1960,7 @@ impl Object {
     /// Keys **must** be known WDL identifiers checked by the caller.
     pub(crate) fn new(members: IndexMap<String, Value>) -> Self {
         Self {
-            members: if members.is_empty() {
-                None
-            } else {
-                Some(Arc::new(members))
-            },
+            members: Arc::new(members),
         }
     }
 
@@ -1957,49 +1992,37 @@ impl Object {
 
     /// Iterates the members of the object.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
-        self.members
-            .as_ref()
-            .map(|m| Either::Left(m.iter().map(|(k, v)| (k.as_str(), v))))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.members.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Iterates the keys of the object.
     pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
-        self.members
-            .as_ref()
-            .map(|m| Either::Left(m.keys().map(|k| k.as_str())))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.members.keys().map(|k| k.as_str())
     }
 
     /// Iterates the values of the object.
     pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
-        self.members
-            .as_ref()
-            .map(|m| Either::Left(m.values()))
-            .unwrap_or(Either::Right(std::iter::empty()))
+        self.members.values()
     }
 
     /// Determines if the object contains the given key.
     pub fn contains_key(&self, key: &str) -> bool {
-        self.members
-            .as_ref()
-            .map(|m| m.contains_key(key))
-            .unwrap_or(false)
+        self.members.contains_key(key)
     }
 
     /// Gets a value from the object by key.
     pub fn get(&self, key: &str) -> Option<&Value> {
-        self.members.as_ref().and_then(|m| m.get(key))
+        self.members.get(key)
     }
 
     /// Returns the number of members in the object.
     pub fn len(&self) -> usize {
-        self.members.as_ref().map(|m| m.len()).unwrap_or(0)
+        self.members.len()
     }
 
     /// Returns `true` if the object has no members.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.members.is_empty()
     }
 }
 
@@ -2019,18 +2042,26 @@ impl fmt::Display for Object {
     }
 }
 
+/// The inner representation of a struct value.
+#[derive(Debug)]
+struct StructInner {
+    /// The type of the struct value.
+    ty: Type,
+    /// The name of the struct.
+    ///
+    /// Stored as `Arc<String>` to share the allocation with the analysis
+    /// type system rather than cloning the string on every struct
+    /// construction.
+    name: Arc<String>,
+    /// The members of the struct value.
+    members: IndexMap<String, Value>,
+}
+
 /// Represents a `Struct` value.
 ///
 /// Struct values are cheap to clone.
 #[derive(Debug, Clone)]
-pub struct Struct {
-    /// The type of the struct value.
-    ty: Type,
-    /// The name of the struct.
-    name: Arc<String>,
-    /// The members of the struct value.
-    pub(crate) members: Arc<IndexMap<String, Value>>,
-}
+pub struct Struct(Arc<StructInner>);
 
 impl Struct {
     /// Creates a new struct value.
@@ -2076,7 +2107,7 @@ impl Struct {
             .collect::<Result<IndexMap<_, _>>>()?;
 
         for (name, ty) in ty.members().iter() {
-            // Check for optional members that should be set to `None`
+            // Check for optional members that should be set to none
             if ty.is_optional() {
                 if !members.contains_key(name) {
                     members.insert(name.clone(), Value::new_none(ty.clone()));
@@ -2089,8 +2120,8 @@ impl Struct {
             }
         }
 
-        let name = ty.name().to_string();
-        Ok(Self::new_unchecked(ty, name.into(), members.into()))
+        let name = Arc::new(ty.name().to_string());
+        Ok(Self::new_unchecked(ty, name, members))
     }
 
     /// Constructs a new struct without checking the given members conform to
@@ -2102,58 +2133,58 @@ impl Struct {
     pub(crate) fn new_unchecked(
         ty: impl Into<Type>,
         name: Arc<String>,
-        members: Arc<IndexMap<String, Value>>,
+        members: impl Into<IndexMap<String, Value>>,
     ) -> Self {
         let ty = ty.into();
         assert!(ty.as_struct().is_some());
-        Self {
+        Self(Arc::new(StructInner {
             ty: ty.require(),
             name,
-            members,
-        }
+            members: members.into(),
+        }))
     }
 
     /// Gets the type of the `Struct` value.
     pub fn ty(&self) -> Type {
-        self.ty.clone()
+        self.0.ty.clone()
     }
 
     /// Gets the name of the struct.
     pub fn name(&self) -> &Arc<String> {
-        &self.name
+        &self.0.name
     }
 
     /// Iterates the members of the struct.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &Value)> {
-        self.members.iter().map(|(k, v)| (k.as_str(), v))
+        self.0.members.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Iterates the keys of the struct.
     pub fn keys(&self) -> impl ExactSizeIterator<Item = &str> {
-        self.members.keys().map(|k| k.as_str())
+        self.0.members.keys().map(|k| k.as_str())
     }
 
     /// Iterates the values of the struct.
     pub fn values(&self) -> impl ExactSizeIterator<Item = &Value> {
-        self.members.values()
+        self.0.members.values()
     }
 
     /// Determines if the struct contains the given member name.
     pub fn contains_key(&self, key: &str) -> bool {
-        self.members.contains_key(key)
+        self.0.members.contains_key(key)
     }
 
     /// Gets a value from the struct by member name.
     pub fn get(&self, key: &str) -> Option<&Value> {
-        self.members.get(key)
+        self.0.members.get(key)
     }
 }
 
 impl fmt::Display for Struct {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{name} {{", name = self.name)?;
+        write!(f, "{name} {{", name = self.0.name)?;
 
-        for (i, (k, v)) in self.members.iter().enumerate() {
+        for (i, (k, v)) in self.0.members.iter().enumerate() {
             if i > 0 {
                 write!(f, ", ")?;
             }
@@ -2165,6 +2196,17 @@ impl fmt::Display for Struct {
     }
 }
 
+/// The inner representation of an enum variant value.
+#[derive(Debug)]
+struct EnumVariantInner {
+    /// The type of the enum containing this variant.
+    enum_ty: EnumType,
+    /// The index of the variant in the enum type.
+    variant_index: usize,
+    /// The value of the variant.
+    value: Value,
+}
+
 /// An enum variant value.
 ///
 /// A variant enum is the name of the enum variant and the type of the enum from
@@ -2172,18 +2214,11 @@ impl fmt::Display for Struct {
 ///
 /// This type is cheaply cloneable.
 #[derive(Debug, Clone)]
-pub struct EnumVariant {
-    /// The type of the enum containing this variant.
-    enum_ty: EnumType,
-    /// The index of the variant in the enum type.
-    variant_index: usize,
-    /// The value of the variant.
-    value: Arc<Value>,
-}
+pub struct EnumVariant(Arc<EnumVariantInner>);
 
 impl PartialEq for EnumVariant {
     fn eq(&self, other: &Self) -> bool {
-        self.enum_ty == other.enum_ty && self.variant_index == other.variant_index
+        self.0.enum_ty == other.0.enum_ty && self.0.variant_index == other.0.variant_index
     }
 }
 
@@ -2195,7 +2230,6 @@ impl EnumVariant {
     /// Panics if the given variant name is not present in the given enum type.
     pub fn new(enum_ty: impl Into<EnumType>, name: &str, value: impl Into<Value>) -> Self {
         let enum_ty = enum_ty.into();
-        let value = Arc::new(value.into());
 
         let variant_index = enum_ty
             .variants()
@@ -2203,26 +2237,26 @@ impl EnumVariant {
             .position(|v| v == name)
             .expect("variant name must exist in enum type");
 
-        Self {
+        Self(Arc::new(EnumVariantInner {
             enum_ty,
             variant_index,
-            value,
-        }
+            value: value.into(),
+        }))
     }
 
     /// Gets the type of the enum.
     pub fn enum_ty(&self) -> EnumType {
-        self.enum_ty.clone()
+        self.0.enum_ty.clone()
     }
 
     /// Gets the name of the variant.
     pub fn name(&self) -> &str {
-        &self.enum_ty.variants()[self.variant_index]
+        &self.0.enum_ty.variants()[self.0.variant_index]
     }
 
     /// Gets the value of the variant.
     pub fn value(&self) -> &Value {
-        &self.value
+        &self.0.value
     }
 }
 
@@ -2459,15 +2493,16 @@ impl CompoundValue {
                         None => false,
                     }),
             ),
-            (
-                CompoundValue::Struct(Struct { members: left, .. }),
-                CompoundValue::Struct(Struct { members: right, .. }),
-            ) => Some(
-                left.len() == right.len()
-                    && left.iter().all(|(k, left)| match right.get(k) {
-                        Some(right) => Value::equals(left, right).unwrap_or(false),
-                        None => false,
-                    }),
+            (CompoundValue::Struct(left), CompoundValue::Struct(right)) => Some(
+                left.0.members.len() == right.0.members.len()
+                    && left
+                        .0
+                        .members
+                        .iter()
+                        .all(|(k, lv)| match right.0.members.get(k) {
+                            Some(rv) => Value::equals(lv, rv).unwrap_or(false),
+                            None => false,
+                        }),
             ),
             (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => {
                 Some(left.enum_ty() == right.enum_ty() && left.name() == right.name())
@@ -2537,25 +2572,28 @@ impl CompoundValue {
         async move {
             match self {
                 Self::Pair(pair) => {
-                    let ty = pair.ty.as_pair().expect("should be a pair type");
+                    let ty = pair.0.ty.as_pair().expect("should be a pair type");
                     let (left_optional, right_optional) =
                         (ty.left_type().is_optional(), ty.right_type().is_optional());
-                    let (fst, snd) = pair.values.as_ref();
-                    let fst = fst
+                    let fst = pair
+                        .0
+                        .left
                         .resolve_paths(left_optional, base_dir, transferer, translate)
                         .await?;
-                    let snd = snd
+                    let snd = pair
+                        .0
+                        .right
                         .resolve_paths(right_optional, base_dir, transferer, translate)
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
                 Self::Array(array) => {
-                    let ty = array.ty.as_array().expect("should be an array type");
+                    let ty = array.0.ty.as_array().expect("should be an array type");
                     let optional = ty.element_type().is_optional();
-                    if let Some(elements) = &array.elements {
-                        let resolved_elements = futures::stream::iter(elements.iter())
+                    if !array.0.elements.is_empty() {
+                        let resolved_elements = futures::stream::iter(array.0.elements.iter())
                             .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
-                            .try_collect()
+                            .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
                             ty.clone(),
@@ -2566,11 +2604,11 @@ impl CompoundValue {
                     }
                 }
                 Self::Map(map) => {
-                    let ty = map.ty.as_map().expect("should be a map type").clone();
+                    let ty = map.0.ty.as_map().expect("should be a map type").clone();
                     let (key_optional, value_optional) =
                         (ty.key_type().is_optional(), ty.value_type().is_optional());
-                    if let Some(elements) = &map.elements {
-                        let resolved_elements = futures::stream::iter(elements.iter())
+                    if !map.0.elements.is_empty() {
+                        let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
                                     .resolve_paths(key_optional, base_dir, transferer, translate)
@@ -2591,8 +2629,10 @@ impl CompoundValue {
                     }
                 }
                 Self::Object(object) => {
-                    if let Some(members) = &object.members {
-                        let resolved_members = futures::stream::iter(members.iter())
+                    if object.is_empty() {
+                        Ok(self.clone())
+                    } else {
+                        let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
                                 let resolved = v
                                     .resolve_paths(false, base_dir, transferer, translate)
@@ -2602,14 +2642,12 @@ impl CompoundValue {
                             .try_collect()
                             .await?;
                         Ok(Self::Object(Object::new(resolved_members)))
-                    } else {
-                        Ok(self.clone())
                     }
                 }
                 Self::Struct(s) => {
-                    let ty = s.ty.as_struct().expect("should be a struct type");
-                    let name = s.name();
-                    let resolved_members = futures::stream::iter(s.iter())
+                    let ty = s.0.ty.as_struct().expect("should be a struct type");
+                    let name = s.name().clone();
+                    let resolved_members: IndexMap<String, Value> = futures::stream::iter(s.iter())
                         .then(async |(n, v)| {
                             let resolved = v
                                 .resolve_paths(
@@ -2625,18 +2663,18 @@ impl CompoundValue {
                         .await?;
                     Ok(Self::Struct(Struct::new_unchecked(
                         ty.clone(),
-                        name.clone(),
-                        Arc::new(resolved_members),
+                        name,
+                        resolved_members,
                     )))
                 }
                 Self::EnumVariant(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
-                    let value = e
-                        .value
-                        .resolve_paths(optional, base_dir, transferer, translate)
-                        .await?;
+                    let value =
+                        e.0.value
+                            .resolve_paths(optional, base_dir, transferer, translate)
+                            .await?;
                     Ok(Self::EnumVariant(EnumVariant::new(
-                        e.enum_ty.clone(),
+                        e.0.enum_ty.clone(),
                         e.name(),
                         value,
                     )))
@@ -2695,8 +2733,8 @@ impl Coercible for CompoundValue {
                     return Ok(Self::Pair(Pair::new_with_context(
                         context,
                         target_ty.clone(),
-                        v.values.0.clone(),
-                        v.values.1.clone(),
+                        v.0.left.clone(),
+                        v.0.right.clone(),
                     )?));
                 }
                 // Map[X, Y] -> Struct where: X -> String
@@ -2713,42 +2751,40 @@ impl Coercible for CompoundValue {
                         );
                     }
 
-                    return Ok(Self::Struct(Struct {
-                        ty: target.clone(),
-                        name: target_ty.name().clone(),
-                        members: Arc::new(
-                            v.iter()
-                                .map(|(k, v)| {
-                                    let k = k
-                                        .coerce(context, &PrimitiveType::String.into())
-                                        .with_context(|| {
-                                            format!(
-                                                "cannot coerce a map of type `{map_type}` to \
-                                                 struct type `{target}` as the key type cannot \
-                                                 coerce to `String`",
-                                                map_type = v.ty()
-                                            )
-                                        })?
-                                        .unwrap_string();
-                                    let ty =
-                                        target_ty.members().get(k.as_ref()).with_context(|| {
-                                            format!(
-                                                "cannot coerce a map with key `{k}` to struct \
-                                                 type `{target}` as the struct does not contain a \
-                                                 member with that name"
-                                            )
-                                        })?;
-                                    let v = v.coerce(context, ty).with_context(|| {
-                                        format!("failed to coerce value of map key `{k}")
+                    return Ok(Self::Struct(Struct::new_unchecked(
+                        target.clone(),
+                        target_ty.name().clone(),
+                        v.iter()
+                            .map(|(k, v)| {
+                                let k = k
+                                    .coerce(context, &PrimitiveType::String.into())
+                                    .with_context(|| {
+                                        format!(
+                                            "cannot coerce a map of type `{map_type}` to struct \
+                                             type `{target}` as the key type cannot coerce to \
+                                             `String`",
+                                            map_type = v.ty()
+                                        )
+                                    })?
+                                    .unwrap_string();
+                                let ty =
+                                    target_ty.members().get(k.as_ref()).with_context(|| {
+                                        format!(
+                                            "cannot coerce a map with key `{k}` to struct type \
+                                             `{target}` as the struct does not contain a member \
+                                             with that name"
+                                        )
                                     })?;
-                                    Ok((k.to_string(), v))
-                                })
-                                .collect::<Result<_>>()?,
-                        ),
-                    }));
+                                let v = v.coerce(context, ty).with_context(|| {
+                                    format!("failed to coerce value of map key `{k}")
+                                })?;
+                                Ok((k.to_string(), v))
+                            })
+                            .collect::<Result<IndexMap<_, _>>>()?,
+                    )));
                 }
                 // Struct -> Map[X, Y] where: String -> X
-                (Self::Struct(Struct { members, .. }), CompoundType::Map(map_ty)) => {
+                (Self::Struct(s), CompoundType::Map(map_ty)) => {
                     let key_ty = map_ty.key_type();
                     if !Type::from(PrimitiveType::String).is_coercible_to(key_ty) {
                         bail!(
@@ -2760,7 +2796,7 @@ impl Coercible for CompoundValue {
                     let value_ty = map_ty.value_type();
                     return Ok(Self::Map(Map::new_unchecked(
                         target.clone(),
-                        members
+                        s.0.members
                             .iter()
                             .map(|(n, v)| {
                                 let v = v
@@ -2815,7 +2851,7 @@ impl Coercible for CompoundValue {
                 }
                 // Struct -> Struct
                 (Self::Struct(v), CompoundType::Custom(CustomType::Struct(struct_ty))) => {
-                    let len = v.members.len();
+                    let len = v.0.members.len();
                     let expected_len = struct_ty.members().len();
 
                     if len != expected_len {
@@ -2827,28 +2863,26 @@ impl Coercible for CompoundValue {
                         );
                     }
 
-                    return Ok(Self::Struct(Struct {
-                        ty: target.clone(),
-                        name: struct_ty.name().clone(),
-                        members: Arc::new(
-                            v.members
-                                .iter()
-                                .map(|(k, v)| {
-                                    let ty = struct_ty.members().get(k).ok_or_else(|| {
-                                        anyhow!(
-                                            "cannot coerce a struct with member `{k}` to struct \
-                                             type `{target}` as the target struct does not \
-                                             contain a member with that name",
-                                        )
-                                    })?;
-                                    let v = v.coerce(context, ty).with_context(|| {
-                                        format!("failed to coerce member `{k}`")
-                                    })?;
-                                    Ok((k.clone(), v))
-                                })
-                                .collect::<Result<_>>()?,
-                        ),
-                    }));
+                    return Ok(Self::Struct(Struct::new_unchecked(
+                        target.clone(),
+                        struct_ty.name().clone(),
+                        v.0.members
+                            .iter()
+                            .map(|(k, v)| {
+                                let ty = struct_ty.members().get(k).ok_or_else(|| {
+                                    anyhow!(
+                                        "cannot coerce a struct with member `{k}` to struct type \
+                                         `{target}` as the target struct does not contain a \
+                                         member with that name",
+                                    )
+                                })?;
+                                let v = v
+                                    .coerce(context, ty)
+                                    .with_context(|| format!("failed to coerce member `{k}`"))?;
+                                Ok((k.clone(), v))
+                            })
+                            .collect::<Result<IndexMap<_, _>>>()?,
+                    )));
                 }
                 _ => {}
             }
@@ -2879,7 +2913,7 @@ impl Coercible for CompoundValue {
                 // Struct -> Object
                 Self::Struct(v) => {
                     return Ok(Self::Object(Object {
-                        members: Some(v.members.clone()),
+                        members: Arc::new(v.0.members.clone()),
                     }));
                 }
                 _ => {}
@@ -3160,14 +3194,9 @@ impl PreviousTaskDataValue {
     }
 }
 
-/// Represents a `task` variable value before requirements evaluation (WDL
-/// 1.3+).
-///
-/// Only exposes `name`, `id`, `attempt`, `previous`, and metadata fields.
-///
-/// Task values are cheap to clone.
+/// The inner representation of a pre-evaluation task value.
 #[derive(Debug, Clone)]
-pub struct TaskPreEvaluationValue {
+struct TaskPreEvaluationInner {
     /// The task name.
     name: Arc<String>,
     /// The task id.
@@ -3191,6 +3220,15 @@ pub struct TaskPreEvaluationValue {
     previous: PreviousTaskDataValue,
 }
 
+/// Represents a `task` variable value before requirements evaluation (WDL
+/// 1.3+).
+///
+/// Only exposes `name`, `id`, `attempt`, `previous`, and metadata fields.
+///
+/// Task values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TaskPreEvaluationValue(Arc<TaskPreEvaluationInner>);
+
 impl TaskPreEvaluationValue {
     /// Constructs a new pre-evaluation task value with the given name and
     /// identifier.
@@ -3202,7 +3240,7 @@ impl TaskPreEvaluationValue {
         parameter_meta: Object,
         ext: Object,
     ) -> Self {
-        Self {
+        Self(Arc::new(TaskPreEvaluationInner {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             meta,
@@ -3210,27 +3248,29 @@ impl TaskPreEvaluationValue {
             ext,
             attempt,
             previous: PreviousTaskDataValue::empty(),
-        }
+        }))
     }
 
     /// Sets the previous task data for retry attempts.
     pub(crate) fn set_previous(&mut self, data: Arc<TaskPostEvaluationData>) {
-        self.previous = PreviousTaskDataValue::new(data);
+        Arc::get_mut(&mut self.0)
+            .expect("task value must be uniquely owned to mutate")
+            .previous = PreviousTaskDataValue::new(data);
     }
 
     /// Gets the task name.
     pub fn name(&self) -> &Arc<String> {
-        &self.name
+        &self.0.name
     }
 
     /// Gets the unique ID of the task.
     pub fn id(&self) -> &Arc<String> {
-        &self.id
+        &self.0.id
     }
 
     /// Gets current task attempt count.
     pub fn attempt(&self) -> i64 {
-        self.attempt
+        self.0.attempt
     }
 
     /// Accesses a field of the task value by name.
@@ -3238,27 +3278,23 @@ impl TaskPreEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, name: &str) -> Option<Value> {
         match name {
-            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
-            TASK_FIELD_META => Some(self.meta.clone().into()),
-            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.0.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.0.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.0.attempt.into()),
+            TASK_FIELD_META => Some(self.0.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.0.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.0.ext.clone().into()),
             TASK_FIELD_PREVIOUS => {
-                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
+                Some(HiddenValue::PreviousTaskData(self.0.previous.clone()).into())
             }
             _ => None,
         }
     }
 }
 
-/// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
-///
-/// Exposes all task fields including evaluated constraints.
-///
-/// Task values are cheap to clone.
+/// The inner representation of a post-evaluation task value.
 #[derive(Debug, Clone)]
-pub struct TaskPostEvaluationValue {
+struct TaskPostEvaluationInner {
     /// The immutable data for task values including evaluated requirements.
     data: Arc<TaskPostEvaluationData>,
     /// The task name.
@@ -3292,6 +3328,14 @@ pub struct TaskPostEvaluationValue {
     previous: PreviousTaskDataValue,
 }
 
+/// Represents a `task` variable value after requirements evaluation (WDL 1.2+).
+///
+/// Exposes all task fields including evaluated constraints.
+///
+/// Task values are cheap to clone.
+#[derive(Debug, Clone)]
+pub struct TaskPostEvaluationValue(Arc<TaskPostEvaluationInner>);
+
 impl TaskPostEvaluationValue {
     /// Constructs a new post-evaluation task value with the given name,
     /// identifier, and constraints.
@@ -3306,7 +3350,7 @@ impl TaskPostEvaluationValue {
         parameter_meta: Object,
         ext: Object,
     ) -> Self {
-        Self {
+        Self(Arc::new(TaskPostEvaluationInner {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
@@ -3352,32 +3396,32 @@ impl TaskPostEvaluationValue {
             return_code: None,
             end_time: None,
             previous: PreviousTaskDataValue::empty(),
-        }
+        }))
     }
 
     /// Gets the task name.
     pub fn name(&self) -> &Arc<String> {
-        &self.name
+        &self.0.name
     }
 
     /// Gets the unique ID of the task.
     pub fn id(&self) -> &Arc<String> {
-        &self.id
+        &self.0.id
     }
 
     /// Gets the container in which the task is executing.
     pub fn container(&self) -> Option<&Arc<String>> {
-        self.data.container.as_ref()
+        self.0.data.container.as_ref()
     }
 
     /// Gets the allocated number of cpus for the task.
     pub fn cpu(&self) -> f64 {
-        self.data.cpu
+        self.0.data.cpu
     }
 
     /// Gets the allocated memory (in bytes) for the task.
     pub fn memory(&self) -> i64 {
-        self.data.memory
+        self.0.data.memory
     }
 
     /// Gets the GPU allocations for the task.
@@ -3385,7 +3429,7 @@ impl TaskPostEvaluationValue {
     /// An array with one specification per allocated GPU; the specification is
     /// execution engine-specific.
     pub fn gpu(&self) -> &Array {
-        &self.data.gpu
+        &self.0.data.gpu
     }
 
     /// Gets the FPGA allocations for the task.
@@ -3393,7 +3437,7 @@ impl TaskPostEvaluationValue {
     /// An array with one specification per allocated FPGA; the specification is
     /// execution engine-specific.
     pub fn fpga(&self) -> &Array {
-        &self.data.fpga
+        &self.0.data.fpga
     }
 
     /// Gets the disk allocations for the task.
@@ -3403,7 +3447,7 @@ impl TaskPostEvaluationValue {
     /// The key is the mount point and the value is the initial amount of disk
     /// space allocated, in bytes.
     pub fn disks(&self) -> &Map {
-        &self.data.disks
+        &self.0.data.disks
     }
 
     /// Gets current task attempt count.
@@ -3411,56 +3455,62 @@ impl TaskPostEvaluationValue {
     /// The value must be 0 the first time the task is executed and incremented
     /// by 1 each time the task is retried (if any).
     pub fn attempt(&self) -> i64 {
-        self.attempt
+        self.0.attempt
     }
 
     /// Gets the time by which the task must be completed, as a Unix time stamp.
     ///
     /// A value of `None` indicates there is no deadline.
     pub fn end_time(&self) -> Option<i64> {
-        self.end_time
+        self.0.end_time
     }
 
     /// Gets the task's return code.
     ///
     /// Initially set to `None`, but set after task execution completes.
     pub fn return_code(&self) -> Option<i64> {
-        self.return_code
+        self.0.return_code
     }
 
     /// Gets the task's `meta` section as an object.
     pub fn meta(&self) -> &Object {
-        &self.meta
+        &self.0.meta
     }
 
     /// Gets the tasks's `parameter_meta` section as an object.
     pub fn parameter_meta(&self) -> &Object {
-        &self.parameter_meta
+        &self.0.parameter_meta
     }
 
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
-        &self.ext
+        &self.0.ext
     }
 
     /// Sets the return code after the task execution has completed.
     pub(crate) fn set_return_code(&mut self, code: i32) {
-        self.return_code = Some(code as i64);
+        Arc::get_mut(&mut self.0)
+            .expect("task value must be uniquely owned to mutate")
+            .return_code = Some(code as i64);
     }
 
     /// Sets the attempt number for the task.
     pub(crate) fn set_attempt(&mut self, attempt: i64) {
-        self.attempt = attempt;
+        Arc::get_mut(&mut self.0)
+            .expect("task value must be uniquely owned to mutate")
+            .attempt = attempt;
     }
 
     /// Sets the previous task data for retry attempts.
     pub(crate) fn set_previous(&mut self, data: Arc<TaskPostEvaluationData>) {
-        self.previous = PreviousTaskDataValue::new(data);
+        Arc::get_mut(&mut self.0)
+            .expect("task value must be uniquely owned to mutate")
+            .previous = PreviousTaskDataValue::new(data);
     }
 
     /// Gets the task post-evaluation data.
     pub(crate) fn data(&self) -> &Arc<TaskPostEvaluationData> {
-        &self.data
+        &self.0.data
     }
 
     /// Accesses a field of the task value by name.
@@ -3468,11 +3518,12 @@ impl TaskPostEvaluationValue {
     /// Returns `None` if the name is not a known field name.
     pub fn field(&self, version: SupportedVersion, name: &str) -> Option<Value> {
         match name {
-            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.name.clone()).into()),
-            TASK_FIELD_ID => Some(PrimitiveValue::String(self.id.clone()).into()),
-            TASK_FIELD_ATTEMPT => Some(self.attempt.into()),
+            TASK_FIELD_NAME => Some(PrimitiveValue::String(self.0.name.clone()).into()),
+            TASK_FIELD_ID => Some(PrimitiveValue::String(self.0.id.clone()).into()),
+            TASK_FIELD_ATTEMPT => Some(self.0.attempt.into()),
             TASK_FIELD_CONTAINER => Some(
-                self.data
+                self.0
+                    .data
                     .container
                     .clone()
                     .map(|c| PrimitiveValue::String(c).into())
@@ -3483,31 +3534,33 @@ impl TaskPostEvaluationValue {
                         )
                     }),
             ),
-            TASK_FIELD_CPU => Some(self.data.cpu.into()),
-            TASK_FIELD_MEMORY => Some(self.data.memory.into()),
-            TASK_FIELD_GPU => Some(self.data.gpu.clone().into()),
-            TASK_FIELD_FPGA => Some(self.data.fpga.clone().into()),
-            TASK_FIELD_DISKS => Some(self.data.disks.clone().into()),
-            TASK_FIELD_END_TIME => Some(self.end_time.map(Into::into).unwrap_or_else(|| {
+            TASK_FIELD_CPU => Some(self.0.data.cpu.into()),
+            TASK_FIELD_MEMORY => Some(self.0.data.memory.into()),
+            TASK_FIELD_GPU => Some(self.0.data.gpu.clone().into()),
+            TASK_FIELD_FPGA => Some(self.0.data.fpga.clone().into()),
+            TASK_FIELD_DISKS => Some(self.0.data.disks.clone().into()),
+            TASK_FIELD_END_TIME => Some(self.0.end_time.map(Into::into).unwrap_or_else(|| {
                 Value::new_none(
                     task_member_type_post_evaluation(version, TASK_FIELD_END_TIME)
                         .expect("failed to get task field type"),
                 )
             })),
-            TASK_FIELD_RETURN_CODE => Some(self.return_code.map(Into::into).unwrap_or_else(|| {
-                Value::new_none(
-                    task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                        .expect("failed to get task field type"),
-                )
-            })),
-            TASK_FIELD_META => Some(self.meta.clone().into()),
-            TASK_FIELD_PARAMETER_META => Some(self.parameter_meta.clone().into()),
-            TASK_FIELD_EXT => Some(self.ext.clone().into()),
+            TASK_FIELD_RETURN_CODE => {
+                Some(self.0.return_code.map(Into::into).unwrap_or_else(|| {
+                    Value::new_none(
+                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
+                            .expect("failed to get task field type"),
+                    )
+                }))
+            }
+            TASK_FIELD_META => Some(self.0.meta.clone().into()),
+            TASK_FIELD_PARAMETER_META => Some(self.0.parameter_meta.clone().into()),
+            TASK_FIELD_EXT => Some(self.0.ext.clone().into()),
             TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
-                Some(self.data.max_retries.into())
+                Some(self.0.data.max_retries.into())
             }
             TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
-                Some(HiddenValue::PreviousTaskData(self.previous.clone()).into())
+                Some(HiddenValue::PreviousTaskData(self.0.previous.clone()).into())
             }
             _ => None,
         }
@@ -3658,7 +3711,7 @@ impl From<Object> for OutputValue {
 #[derive(Debug, Clone)]
 pub struct CallValue {
     /// The type of the call.
-    ty: CallType,
+    ty: Arc<CallType>,
     /// The outputs of the call.
     outputs: Arc<Outputs>,
 }
@@ -3667,7 +3720,10 @@ impl CallValue {
     /// Constructs a new call value without checking the outputs conform to the
     /// call type.
     pub(crate) fn new_unchecked(ty: CallType, outputs: Arc<Outputs>) -> Self {
-        Self { ty, outputs }
+        Self {
+            ty: Arc::new(ty),
+            outputs,
+        }
     }
 
     /// Gets the type of the call.
@@ -3887,9 +3943,9 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 map.end()
             }
-            CompoundValue::Struct(Struct { members, .. }) => {
-                let mut map = serializer.serialize_map(Some(members.len()))?;
-                for (k, v) in members.iter() {
+            CompoundValue::Struct(s) => {
+                let mut map = serializer.serialize_map(Some(s.0.members.len()))?;
+                for (k, v) in s.0.members.iter() {
                     map.serialize_entry(
                         k,
                         &ValueSerializer::new(self.context, v, self.allow_pairs),
@@ -4675,8 +4731,8 @@ mod test {
             false,
         );
 
-        let value1 = Value::TypeNameRef(enum_type.clone());
-        let value2 = Value::TypeNameRef(enum_type.clone());
+        let value1 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
+        let value2 = Value::TypeNameRef(TypeNameRefValue::new(enum_type.clone()));
 
         assert_eq!(value1.ty(), value2.ty());
     }
@@ -4691,7 +4747,7 @@ mod test {
             false,
         );
 
-        let value = Value::TypeNameRef(struct_type.clone());
+        let value = Value::TypeNameRef(TypeNameRefValue::new(struct_type.clone()));
         assert_eq!(value.ty(), struct_type);
     }
 
@@ -4713,7 +4769,7 @@ mod test {
             false,
         );
 
-        let value = Value::TypeNameRef(enum_type);
+        let value = Value::TypeNameRef(TypeNameRefValue::new(enum_type));
         assert_eq!(value.to_string(), "Color");
     }
 }
