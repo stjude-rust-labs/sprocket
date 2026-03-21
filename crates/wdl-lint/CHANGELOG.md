@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* New lint rule `ParameterDescription` to ensure parameters and outputs have proper descriptions ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
+
+#### Removed
+
+* Removed the `InputSorting` rule ([#730](https://github.com/stjude-rust-labs/sprocket/pull/730))
+
 ## 0.21.0 - 2026-03-12
 
 #### Added
