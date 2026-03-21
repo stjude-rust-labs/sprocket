@@ -140,7 +140,13 @@ impl TaskInputs {
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .resolve_paths(
+                        true,
+                        ty.is_optional(),
+                        None,
+                        None,
+                        &|path| path.expand(base_dir),
+                    )
                     .await?;
             }
         }
@@ -443,7 +449,13 @@ impl WorkflowInputs {
 
             if let Ok(v) = value.coerce(None, &ty) {
                 *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
+                    .resolve_paths(
+                        true,
+                        ty.is_optional(),
+                        None,
+                        None,
+                        &|path| path.expand(base_dir),
+                    )
                     .await?;
             }
         }
