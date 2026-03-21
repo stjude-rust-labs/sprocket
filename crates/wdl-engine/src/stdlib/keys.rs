@@ -9,7 +9,6 @@ use super::Signature;
 use crate::Array;
 use crate::CompoundValue;
 use crate::PrimitiveValue;
-use crate::Struct;
 use crate::Value;
 
 /// Given a key-value type collection (Map, Struct, or Object), returns an Array
@@ -37,7 +36,7 @@ fn keys(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             .keys()
             .map(|k| PrimitiveValue::new_string(k).into())
             .collect(),
-        Value::Compound(CompoundValue::Struct(Struct { members, .. })) => members
+        Value::Compound(CompoundValue::Struct(s)) => s
             .keys()
             .map(|k| PrimitiveValue::new_string(k).into())
             .collect(),
