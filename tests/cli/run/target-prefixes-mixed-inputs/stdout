@@ -1,4 +1,3 @@
 {
   "my_task.result": "hello 42"
 }
-outputs were also written to `./out/runs/my_task/_TIMESTAMP_/outputs.json`
