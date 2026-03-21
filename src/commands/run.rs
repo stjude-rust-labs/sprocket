@@ -54,6 +54,7 @@ use crate::config::DEFAULT_DATABASE_FILENAME;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
+use crate::inputs::target_names;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
@@ -117,16 +118,20 @@ pub struct Args {
 
     /// The name of the task or workflow to run.
     ///
-    /// This argument is required if trying to run a task or workflow without
-    /// any inputs.
+    /// When no inputs are provided and `target` is not specified, the
+    /// target is inferred from the document: a workflow is selected if one
+    /// exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (e.g., multiple tasks and no workflow), an error is
+    /// returned.
     ///
-    /// If `target` is not specified, all inputs (from both files and
-    /// key-value pairs) are expected to be prefixed with the name of the
-    /// workflow or task being run.
+    /// If `target` is not specified but inputs are provided, all input
+    /// keys (from both files and key-value pairs) are expected to be
+    /// prefixed with the name of the workflow or task being run.
     ///
-    /// If `target` is specified, it will be appended with a `.` delimiter
-    /// and then prepended to all key-value pair inputs on the command line.
-    /// Keys specified within files are unchanged by this argument.
+    /// If `target` is specified, it is prepended (with a `.` delimiter)
+    /// to any input key that does not already carry the target prefix.
+    /// This applies to both file inputs and key-value pairs on the
+    /// command line.
     #[clap(short, long, value_name = "NAME")]
     pub target: Option<String>,
 
@@ -621,7 +626,8 @@ pub async fn run(
 
     // Parse and resolve inputs. The `into_resolved_json()` method resolves
     // relative paths using per-input origins before serializing to JSON.
-    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+    let (target, inputs) =
+        match Invocation::coalesce(&args.inputs, args.target.clone(), target_names(document))
         .await
         .with_context(|| {
             format!(

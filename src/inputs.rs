@@ -1,6 +1,7 @@
 //! Invocations (inputs and targets) parsed in from the command line.
 
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::LazyLock;
 
@@ -123,6 +124,15 @@ impl FromStr for Input {
     }
 }
 
+/// Collects the set of all task and workflow names from a [`Document`].
+pub fn target_names(document: &Document) -> HashSet<String> {
+    document
+        .tasks()
+        .map(|t| t.name().to_string())
+        .chain(document.workflow().map(|w| w.name().to_string()))
+        .collect()
+}
+
 /// The map structure used for parsed inputs that have not yet had their paths
 /// normalized and converted to engine values.
 type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
@@ -137,25 +147,42 @@ pub struct Invocation {
     inputs: JsonInputMap,
     /// The name of the task or workflow these inputs are provided for.
     target: Option<String>,
+    /// The set of all task and workflow names in the document. Used by
+    /// [`prefix_key()`](Invocation::prefix_key) to distinguish keys that are
+    /// already prefixed with a target name from keys that simply contain a dot.
+    target_names: HashSet<String>,
 }
 
 impl Invocation {
     /// Prefixes a key with the target name if needed.
     ///
-    /// If `self.target` is set and the key does not already start with
-    /// `"{target}."`, the target prefix is prepended. If the key already
-    /// starts with the target prefix, it is returned unchanged.
-    fn prefix_key(&self, key: String) -> String {
+    /// When `self.target` is set, the behavior depends on whether the key
+    /// contains a `.` whose left-hand side is a known target name (i.e., a
+    /// task or workflow declared in the document):
+    ///
+    /// * If the key already starts with `"{target}."`, it is returned as-is.
+    /// * If the key contains a `.` and the prefix matches a *different* known
+    ///   target, an error is returned (the key was intended for another
+    ///   target).
+    /// * Otherwise the key is prefixed with `"{target}."`.
+    fn prefix_key(&self, key: String) -> Result<String> {
         match &self.target {
-            Some(prefix) => {
-                let dot_prefix = format!("{prefix}.");
+            Some(target) => {
+                let dot_prefix = format!("{target}.");
                 if key.starts_with(&dot_prefix) {
-                    key
+                    Ok(key)
+                } else if let Some((existing_prefix, _)) = key.split_once('.')
+                    && self.target_names.contains(existing_prefix)
+                {
+                    bail!(
+                        "input key `{key}` is prefixed with target `{existing_prefix}`, which \
+                         conflicts with the supplied target `{target}`"
+                    )
                 } else {
-                    format!("{dot_prefix}{key}")
+                    Ok(format!("{dot_prefix}{key}"))
                 }
             }
-            None => key,
+            None => Ok(key),
         }
     }
 
@@ -165,14 +192,14 @@ impl Invocation {
             Input::File(url) => {
                 let inputs = file::read_input_file(&url).await?;
                 for (key, value) in inputs {
-                    self.inputs.insert(self.prefix_key(key), value);
+                    self.inputs.insert(self.prefix_key(key)?, value);
                 }
             }
             Input::Pair { key, value } => {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = self.prefix_key(key);
+                let key = self.prefix_key(key)?;
                 self.inputs.insert(
                     key,
                     LocatedJsonValue {
@@ -186,7 +213,12 @@ impl Invocation {
         Ok(())
     }
 
-    /// Attempts to coalesce a set of inputs into an [`Inputs`].
+    /// Attempts to coalesce a set of inputs into an [`Invocation`].
+    ///
+    /// `target_names` is the set of all task and workflow names in the
+    /// document. It is used by [`prefix_key()`](Invocation::prefix_key) to
+    /// distinguish keys that are already prefixed with a target name from
+    /// keys that simply contain a dot.
     ///
     /// `target` is the task or workflow the inputs are for. If `target` is
     /// `Some(_)`, then all input keys—both from [`Input::Pair`] and
@@ -194,7 +226,11 @@ impl Invocation {
     /// automatically prefixed with the target name. If `target` is `None`,
     /// all input keys must already be prefixed with the task or workflow
     /// name.
-    pub async fn coalesce<T, V>(iter: T, target: Option<String>) -> Result<Self>
+    pub async fn coalesce<T, V>(
+        iter: T,
+        target: Option<String>,
+        target_names: HashSet<String>,
+    ) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
         V: AsRef<str>,
@@ -207,6 +243,7 @@ impl Invocation {
 
         let mut inputs = Invocation {
             target,
+            target_names,
             ..Default::default()
         };
 
@@ -414,6 +451,7 @@ mod tests {
                 "./tests/fixtures/inputs_three.yml",
             ],
             Some("foo".to_string()),
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -433,6 +471,7 @@ mod tests {
                 "./tests/fixtures/inputs_one.json",
             ],
             Some("name_ex".to_string()),
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -455,6 +494,7 @@ mod tests {
                 r#"baz=false"#,
             ],
             None,
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -468,7 +508,7 @@ mod tests {
         check_integer_value(&invocation, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error = Invocation::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
+        let error = Invocation::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None, HashSet::new())
             .await
             .unwrap_err();
         assert_eq!(
@@ -485,6 +525,7 @@ mod tests {
                 "./tests/fixtures/missing.json",
             ],
             None,
+            HashSet::new(),
         )
         .await
         .unwrap_err();
@@ -497,14 +538,14 @@ mod tests {
     #[tokio::test]
     async fn coalesce_special_characters() {
         async fn check_can_coalesce_string(value: &str) {
-            let invocation = Invocation::coalesce([format!("input={}", value)], None)
+            let invocation = Invocation::coalesce([format!("input={}", value)], None, HashSet::new())
                 .await
                 .unwrap();
             let LocatedJsonValue { value: input, .. } = invocation.inputs.get("input").unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
         async fn check_cannot_coalesce_string(value: &str) {
-            let error = Invocation::coalesce([format!("input={}", value)], None)
+            let error = Invocation::coalesce([format!("input={}", value)], None, HashSet::new())
                 .await
                 .unwrap_err();
             assert_eq!(
@@ -557,12 +598,10 @@ mod tests {
 
     #[tokio::test]
     async fn file_inputs_prefixed_with_target() {
-        // inputs_one.json has keys: `foo`, `baz`, `quux` (none have dots).
-        // When `--target` is `mytask`, all keys should be prefixed with
-        // `mytask.`.
         let invocation = Invocation::coalesce(
             ["./tests/fixtures/inputs_one.json"],
             Some("mytask".to_string()),
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -581,12 +620,10 @@ mod tests {
 
     #[tokio::test]
     async fn file_inputs_already_prefixed_not_doubled() {
-        // inputs_two.json has keys: `baz`, `quux`, `new.key`.
-        // With `--target` of `new`, the key `new.key` already starts with
-        // `new.` and should NOT be double-prefixed.
         let invocation = Invocation::coalesce(
             ["./tests/fixtures/inputs_two.json"],
             Some("new".to_string()),
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -605,11 +642,10 @@ mod tests {
 
     #[tokio::test]
     async fn mixed_file_and_cli_inputs_with_target() {
-        // Mixing file inputs (inputs_one.json: `foo`, `baz`, `quux`) with
-        // CLI key-value pairs. Both should be prefixed with the target.
         let invocation = Invocation::coalesce(
             ["./tests/fixtures/inputs_one.json", r#"extra="value""#],
             Some("tgt".to_string()),
+            HashSet::new(),
         )
         .await
         .unwrap();
@@ -622,9 +658,8 @@ mod tests {
 
     #[tokio::test]
     async fn cli_inputs_already_prefixed_not_doubled() {
-        // A CLI key-value pair that already has the target prefix should
-        // not be double-prefixed.
-        let invocation = Invocation::coalesce([r#"tgt.name="hello""#], Some("tgt".to_string()))
+        let invocation =
+            Invocation::coalesce([r#"tgt.name="hello""#], Some("tgt".to_string()), HashSet::new())
             .await
             .unwrap();
 
@@ -635,6 +670,44 @@ mod tests {
         assert!(
             !invocation.inputs.contains_key("tgt.tgt.name"),
             "key `tgt.name` was double-prefixed to `tgt.tgt.name`"
+        );
+    }
+
+    #[tokio::test]
+    async fn dotted_key_prefixed_when_not_a_target() {
+        // `inputs_two.json` contains `new.key`. Since `new` is not in the
+        // target names set, the key should be treated as a plain dotted name
+        // and prefixed normally to `foo.new.key`.
+        let invocation = Invocation::coalesce(
+            ["./tests/fixtures/inputs_two.json"],
+            Some(String::from("foo")),
+            HashSet::from([String::from("foo"), String::from("bar")]),
+        )
+        .await
+        .unwrap();
+
+        assert!(invocation.inputs.contains_key("foo.new.key"));
+        assert!(invocation.inputs.contains_key("foo.baz"));
+        assert!(invocation.inputs.contains_key("foo.quux"));
+    }
+
+    #[tokio::test]
+    async fn dotted_key_conflicts_with_different_target() {
+        // `inputs_two.json` contains `new.key`. When `new` IS a known target
+        // and `--target` is `foo`, this should error because the key is
+        // prefixed with a conflicting target name.
+        let error = Invocation::coalesce(
+            ["./tests/fixtures/inputs_two.json"],
+            Some(String::from("foo")),
+            HashSet::from([String::from("foo"), String::from("new")]),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "input key `new.key` is prefixed with target `new`, which conflicts with the \
+             supplied target `foo`"
         );
     }
 }

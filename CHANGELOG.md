@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed a bug where `--target` did not prefix input file keys, causing
-  "expected the key to be prefixed" errors when rerunning a task with
+  `expected the key to be prefixed` errors when rerunning a task with
   unprefixed inputs ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
 * `sprocket run` no longer requires `--target` when the document contains a
   single workflow or a single task and no inputs are provided

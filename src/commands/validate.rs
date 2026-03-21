@@ -12,6 +12,7 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
+use crate::inputs::target_names;
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -67,7 +68,8 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+    let (target, inputs) =
+        match Invocation::coalesce(&args.inputs, args.target.clone(), target_names(document))
         .await
         .with_context(|| {
             format!(
