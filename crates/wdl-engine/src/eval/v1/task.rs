@@ -80,6 +80,7 @@ use crate::TaskInputs;
 use crate::TaskPostEvaluationData;
 use crate::TaskPostEvaluationValue;
 use crate::TaskPreEvaluationValue;
+use crate::TypeNameRefValue;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionConstraints;
@@ -257,7 +258,7 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         }
 
         if let Some(ty) = self.state.document.get_custom_type(name) {
-            return Ok(Value::TypeNameRef(ty));
+            return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty)));
         }
 
         Err(unknown_name(name, span))

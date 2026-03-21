@@ -59,12 +59,17 @@ fn as_map(context: CallContext<'_>) -> Result<Value, Diagnostic> {
             _ => unreachable!("expected a primitive type for the left value"),
         };
 
-        if elements.insert(key.clone(), pair.right().clone()).is_some() {
-            return Err(function_call_failed(
-                FUNCTION_NAME,
-                DuplicateKeyError(key),
-                context.arguments[0].span,
-            ));
+        match elements.entry(key) {
+            indexmap::map::Entry::Occupied(e) => {
+                return Err(function_call_failed(
+                    FUNCTION_NAME,
+                    DuplicateKeyError(e.key().clone()),
+                    context.arguments[0].span,
+                ));
+            }
+            indexmap::map::Entry::Vacant(e) => {
+                e.insert(pair.right().clone());
+            }
         }
     }
 
