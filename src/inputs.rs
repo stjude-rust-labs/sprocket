@@ -508,9 +508,13 @@ mod tests {
         check_integer_value(&invocation, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error = Invocation::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None, HashSet::new())
-            .await
-            .unwrap_err();
+        let error = Invocation::coalesce(
+            ["./tests/fixtures/inputs_one.json", "foo=baz[bar"],
+            None,
+            HashSet::new(),
+        )
+        .await
+        .unwrap_err();
         assert_eq!(
             error.to_string(),
             "unable to deserialize `baz[bar` as a valid WDL value"
@@ -538,9 +542,10 @@ mod tests {
     #[tokio::test]
     async fn coalesce_special_characters() {
         async fn check_can_coalesce_string(value: &str) {
-            let invocation = Invocation::coalesce([format!("input={}", value)], None, HashSet::new())
-                .await
-                .unwrap();
+            let invocation =
+                Invocation::coalesce([format!("input={}", value)], None, HashSet::new())
+                    .await
+                    .unwrap();
             let LocatedJsonValue { value: input, .. } = invocation.inputs.get("input").unwrap();
             assert_eq!(input.as_str().unwrap(), value);
         }
@@ -658,10 +663,13 @@ mod tests {
 
     #[tokio::test]
     async fn cli_inputs_already_prefixed_not_doubled() {
-        let invocation =
-            Invocation::coalesce([r#"tgt.name="hello""#], Some("tgt".to_string()), HashSet::new())
-            .await
-            .unwrap();
+        let invocation = Invocation::coalesce(
+            [r#"tgt.name="hello""#],
+            Some("tgt".to_string()),
+            HashSet::new(),
+        )
+        .await
+        .unwrap();
 
         assert!(
             invocation.inputs.contains_key("tgt.name"),
@@ -706,8 +714,8 @@ mod tests {
 
         assert_eq!(
             error.to_string(),
-            "input key `new.key` is prefixed with target `new`, which conflicts with the \
-             supplied target `foo`"
+            "input key `new.key` is prefixed with target `new`, which conflicts with the supplied \
+             target `foo`"
         );
     }
 }

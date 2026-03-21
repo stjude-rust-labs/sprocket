@@ -628,31 +628,32 @@ pub async fn run(
     // relative paths using per-input origins before serializing to JSON.
     let (target, inputs) =
         match Invocation::coalesce(&args.inputs, args.target.clone(), target_names(document))
-        .await
-        .with_context(|| {
-            format!(
-                "failed to parse inputs from `{sources}`",
-                sources = args.inputs.join("`, `")
-            )
-        })?
-        .into_engine_inputs(document)
-        .await?
-    {
-        Some((target, inputs)) => (
-            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
-            inputs,
-        ),
-        None => {
-            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to parse inputs from `{sources}`",
+                    sources = args.inputs.join("`, `")
+                )
+            })?
+            .into_engine_inputs(document)
+            .await?
+        {
+            Some((target, inputs)) => (
+                select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
+                inputs,
+            ),
+            None => {
+                let target =
+                    select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
 
-            let inputs = match target {
-                Target::Task(_) => TaskInputs::default().into(),
-                Target::Workflow(_) => WorkflowInputs::default().into(),
-            };
+                let inputs = match target {
+                    Target::Task(_) => TaskInputs::default().into(),
+                    Target::Workflow(_) => WorkflowInputs::default().into(),
+                };
 
-            (target, inputs)
-        }
-    };
+                (target, inputs)
+            }
+        };
 
     // Set up output directory structure
     let output_dir = OutputDirectory::new(
