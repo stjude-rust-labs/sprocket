@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket run` no longer requires `--target` when the document contains a
   single workflow or a single task and no inputs are provided
   ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
+* Added a filesystem lock to serialize setup operations across concurrent
+  `sprocket run` processes sharing the same output directory
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Switched SQLite from WAL to DELETE journal mode to eliminate
+  `SQLITE_PROTOCOL` errors under concurrent access
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Increased SQLite `busy_timeout` from 5s to 30s and added retry with
+  exponential backoff when opening the database
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
 
 ## 0.22.0 - 2026-03-12
 

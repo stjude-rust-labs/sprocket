@@ -5,6 +5,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -14,6 +15,9 @@ use chrono::DateTime;
 use chrono::Utc;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio_retry2::Retry;
+use tokio_retry2::RetryError;
+use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
@@ -96,14 +100,38 @@ fn create_latest_symlink(run_dir: &RunDirectory) {
     }
 }
 
+/// The maximum number of retry attempts when opening the database.
+const MAX_DB_OPEN_RETRIES: usize = 4;
+
 /// Opens or creates a SQLite database at the given path.
 ///
 /// If the database does not exist, it will be created along with any
 /// necessary parent directories. Migrations are run automatically.
+///
+/// When multiple processes attempt to open and migrate the same database
+/// concurrently, transient lock contention can cause failures. This function
+/// retries with exponential backoff to handle that gracefully.
 pub async fn open_database(path: impl AsRef<Path>) -> Result<Arc<dyn Database>> {
-    let db = SqliteDatabase::new(path)
-        .await
-        .context("failed to open database")?;
+    let path = path.as_ref();
+
+    let strategy = ExponentialBackoff::from_millis(250)
+        .max_delay(Duration::from_secs(4))
+        .take(MAX_DB_OPEN_RETRIES);
+
+    let db = Retry::spawn_notify(
+        strategy,
+        || async {
+            SqliteDatabase::new(path)
+                .await
+                .map_err(RetryError::transient)
+        },
+        |e: &DatabaseError, _| {
+            tracing::warn!("failed to open database, retrying: {e}");
+        },
+    )
+    .await
+    .context("failed to open database")?;
+
     Ok(Arc::new(db))
 }
 
