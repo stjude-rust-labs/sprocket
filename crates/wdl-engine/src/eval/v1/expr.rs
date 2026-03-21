@@ -3,7 +3,6 @@
 use std::cmp::Ordering;
 use std::fmt::Write;
 use std::iter::once;
-use std::sync::Arc;
 
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -769,7 +768,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
         }
 
         let name = struct_ty.name().clone();
-        Ok(Struct::new_unchecked(ty, name, Arc::new(members)).into())
+        Ok(Struct::new_unchecked(ty, name, members).into())
     }
 
     /// Evaluates a literal hints expression.
@@ -1320,7 +1319,8 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 // Evaluate the argument expressions
                 let mut count = 0;
                 let mut types = [const { Type::Union }; MAX_PARAMETERS];
-                let mut arguments = [const { CallArgument::none() }; MAX_PARAMETERS];
+                let mut arguments: [CallArgument; MAX_PARAMETERS] =
+                    std::array::repeat(CallArgument::none());
                 for arg in expr.arguments() {
                     if count < MAX_PARAMETERS {
                         let v = self.evaluate_expr(&arg).await?;
@@ -1506,16 +1506,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 Some(value) => Ok(value.clone()),
                 None => Err(unknown_call_io(call.ty(), &name, Io::Output)),
             },
-            Value::TypeNameRef(ty) => {
-                if let Some(ty) = ty.as_enum() {
+            Value::TypeNameRef(v) => {
+                let ty = v.ty();
+                if let Some(enum_ty) = ty.as_enum() {
                     let value = self
                         .context()
-                        .enum_variant_value(ty.name(), name.text())
-                        .map_err(|_| unknown_enum_variant_access(ty.name(), &name))?;
-                    let variant = EnumVariant::new(ty.clone(), name.text(), value);
+                        .enum_variant_value(enum_ty.name(), name.text())
+                        .map_err(|_| unknown_enum_variant_access(enum_ty.name(), &name))?;
+                    let variant = EnumVariant::new(enum_ty.clone(), name.text(), value);
                     Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
                 } else {
-                    Err(cannot_access(&ty, target.span()))
+                    Err(cannot_access(ty, target.span()))
                 }
             }
             value => Err(cannot_access(&value.ty(), target.span())),
@@ -1701,6 +1702,7 @@ pub(crate) mod test {
     use std::collections::HashMap;
     use std::fs;
     use std::path::Path;
+    use std::sync::Arc;
 
     use anyhow::Result;
     use pretty_assertions::assert_eq;
@@ -1716,6 +1718,7 @@ pub(crate) mod test {
 
     use super::*;
     use crate::EvaluationPath;
+    use crate::TypeNameRefValue;
     use crate::eval::Scope;
     use crate::eval::ScopeRef;
     use crate::http::Location;
@@ -1871,12 +1874,12 @@ pub(crate) mod test {
 
             // If the name is a reference to a struct, return it as a [`Type::TypeNameRef`].
             if let Some(ty) = self.env.structs.get(name) {
-                return Ok(Value::TypeNameRef(ty.clone()));
+                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
             }
 
             // If the name is a reference to an enum, return it as a [`Type::TypeNameRef`].
             if let Some(ty) = self.env.enums.get(name) {
-                return Ok(Value::TypeNameRef(ty.clone()));
+                return Ok(Value::TypeNameRef(TypeNameRefValue::new(ty.clone())));
             }
 
             Err(unknown_name(name, span))
