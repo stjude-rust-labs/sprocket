@@ -1,5 +1,7 @@
 //! Configuration for max line length formatting.
 
+use serde::Deserialize;
+use serde::Serialize;
 use thiserror::Error;
 
 /// Error while creating a max line length configuration.
@@ -22,7 +24,7 @@ pub const MIN_MAX_LINE_LENGTH: usize = 60;
 pub const MAX_MAX_LINE_LENGTH: usize = 240;
 
 /// The maximum line length.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct MaxLineLength(Option<usize>);
 
 impl MaxLineLength {

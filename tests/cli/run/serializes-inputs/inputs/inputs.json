@@ -1,0 +1,6 @@
+{
+  "serde_array_json.string_to_int": {
+    "a": 1,
+    "b": 2
+  }
+}

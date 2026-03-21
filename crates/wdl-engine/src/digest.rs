@@ -361,7 +361,10 @@ pub async fn calculate_remote_digest(
                 let mut url = url.clone();
 
                 {
+                    // Append the entry to the url; we must pop the last segment if it is empty as
+                    // otherwise `push` will append another empty segment
                     let mut segments = url.path_segments_mut().expect("URL should have a path");
+                    segments.pop_if_empty();
                     for segment in entry.split('/') {
                         segments.push(segment);
                     }
@@ -764,6 +767,16 @@ pub(crate) mod test {
         hasher.update(content_digest.as_bytes()); // Digest bytes
         hasher.update(&2u32.to_le_bytes()); // Number of entries
         assert_eq!(digest.to_hex(), hasher.finalize().to_hex());
+
+        // Digest of a remote "directory" with a trailing slash
+        let trailing_digest = calculate_remote_digest(
+            &transferer,
+            &"http://example.com/dir/".parse().unwrap(),
+            ContentKind::Directory,
+        )
+        .await
+        .unwrap();
+        assert_eq!(digest, trailing_digest);
 
         // Digest of a remote "directory" that is "empty"
         // We can't distinguish between a non-existent directory and an empty one

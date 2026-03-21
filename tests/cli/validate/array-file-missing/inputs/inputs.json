@@ -1,0 +1,3 @@
+{
+  "test.files": ["data/sample.txt", "/does/not/exist.txt"]
+}

@@ -383,6 +383,24 @@ async fn should_complete_task_variable_members() {
 }
 
 #[tokio::test]
+async fn should_complete_nested_task_metadata_object_members() {
+    let mut ctx = setup().await;
+
+    // Position of cursor at `String child = task.meta.nested_obj.`
+    let response = completion_request(&mut ctx, "taskmeta.wdl", Position::new(19, 44)).await;
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    assert_contains(&items, "alpha");
+    assert_contains(&items, "beta");
+    assert_contains(&items, "inner_obj");
+
+    // `sibling` is in `task.meta`, not in `task.meta.nested_obj`.
+    assert_not_contains(&items, "sibling");
+}
+
+#[tokio::test]
 async fn should_complete_runtime_keys() {
     let mut ctx = setup().await;
 

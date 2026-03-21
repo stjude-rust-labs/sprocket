@@ -1,4 +1,4 @@
-warning: unsupported WDL version `devel`; interpreting document as version `1.2`
+warning[UsingFallbackVersion]: unsupported WDL version `devel`; interpreting document as version `1.2`
   ┌─ tests/validation/unsupported-version-fallback/source.wdl:5:9
   │
 5 │ version devel

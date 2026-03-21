@@ -43,7 +43,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(map: Map[K, V]) -> Array[Pair[K, V]] where `K`: any primitive type",
+                "(map: Map[K, V]) -> Array[Pair[K, V]] where `K`: any non-optional primitive type",
                 Callback::Sync(as_pairs),
             )]
         },
@@ -55,8 +55,6 @@ mod test {
     use pretty_assertions::assert_eq;
     use wdl_ast::version::V1;
 
-    use crate::PrimitiveValue;
-    use crate::Value;
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
 
@@ -103,7 +101,7 @@ mod test {
             .collect();
         assert_eq!(elements, [("a", 1), ("c", 3), ("b", 2)]);
 
-        let value = eval_v1_expr(&env, V1::One, "as_pairs({'a': 1, None: 3, 'b': 2})")
+        let value = eval_v1_expr(&env, V1::One, "as_pairs({1: 1, 2: 2, 3: 3})")
             .await
             .unwrap();
         let elements: Vec<_> = value
@@ -114,15 +112,11 @@ mod test {
             .map(|v| {
                 let pair = v.as_pair().unwrap();
                 (
-                    match pair.left() {
-                        Value::None(_) => None,
-                        Value::Primitive(PrimitiveValue::String(s)) => Some(s.as_str()),
-                        _ => panic!("expected a String?"),
-                    },
+                    pair.left().as_integer().unwrap(),
                     pair.right().as_integer().unwrap(),
                 )
             })
             .collect();
-        assert_eq!(elements, [(Some("a"), 1), (None, 3), (Some("b"), 2)]);
+        assert_eq!(elements, [(1, 1), (2, 2), (3, 3)]);
     }
 }

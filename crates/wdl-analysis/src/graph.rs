@@ -26,7 +26,7 @@ use reqwest::Client;
 use rowan::GreenNode;
 use tokio::runtime::Handle;
 use tracing::debug;
-use tracing::info;
+use tracing::trace;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken as _;
@@ -37,6 +37,7 @@ use wdl_ast::SyntaxNode;
 use crate::Config;
 use crate::IncrementalChange;
 use crate::document::Document;
+use crate::rules::USING_FALLBACK_VERSION;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -132,7 +133,7 @@ impl DocumentGraphNode {
 
     /// Notifies the document node that there's been an incremental change.
     pub fn notify_incremental_change(&mut self, change: IncrementalChange) {
-        debug!("document `{uri}` has incrementally changed", uri = self.uri);
+        trace!("document `{uri}` has incrementally changed", uri = self.uri);
 
         // Clear the analyzed document as there has been a change
         self.document = None;
@@ -163,7 +164,7 @@ impl DocumentGraphNode {
 
     /// Notifies the document node that the document has fully changed.
     pub fn notify_change(&mut self, discard_pending: bool) {
-        info!("document `{uri}` has changed", uri = self.uri);
+        trace!("document `{uri}` has changed", uri = self.uri);
 
         // Clear the analyzed document as there has been a change
         self.document = None;
@@ -374,7 +375,7 @@ impl DocumentGraphNode {
         // Reparse from the source
         let start = Instant::now();
         let (document, mut diagnostics) = wdl_ast::Document::parse(&source);
-        info!(
+        debug!(
             "parsing of `{uri}` completed in {elapsed:?}",
             uri = self.uri,
             elapsed = start.elapsed()
@@ -402,6 +403,7 @@ impl DocumentGraphNode {
                                 "unsupported WDL version `{unrecognized}`; interpreting document \
                                  as version `{fallback}`"
                             ))
+                            .with_rule(USING_FALLBACK_VERSION)
                             .with_severity(severity)
                             .with_label(
                                 "this version of WDL is not supported",
@@ -442,7 +444,7 @@ impl DocumentGraphNode {
         /// The timeout for downloading the source, in seconds.
         const TIMEOUT_IN_SECS: u64 = 30;
 
-        info!("downloading source from `{uri}`");
+        debug!("downloading source from `{uri}`");
 
         tokio.block_on(async {
             let resp = client
@@ -577,7 +579,7 @@ impl DocumentGraph {
             // Do a BFS traversal to trigger re-analysis in dependent documents
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
                 let node = graph.get_mut(dependent);
-                debug!("document `{uri}` needs to be reanalyzed", uri = node.uri);
+                trace!("document `{uri}` needs to be reanalyzed", uri = node.uri);
                 node.document = None;
             });
         }

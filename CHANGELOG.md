@@ -7,15 +7,119 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* The outputs path message is now printed to stderr instead of stdout so
+  that stdout contains only the JSON outputs
+  ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
+* Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
+  for consistency with `run` and `validate`
+  ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+
+### Fixed
+
+* Added a filesystem lock to serialize setup operations across concurrent
+  `sprocket run` processes sharing the same output directory
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Switched SQLite from WAL to DELETE journal mode to eliminate
+  `SQLITE_PROTOCOL` errors under concurrent access
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Increased SQLite `busy_timeout` from 5s to 30s and added retry with
+  exponential backoff when opening the database
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+
+## 0.22.0 - 2026-03-12
+
 ### Added
 
-* Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
-  rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
+* The Apptainer executable path is now configurable via the `executable` field in `ApptainerConfig`, enabling support for Singularity and custom install paths ([#682](https://github.com/stjude-rust-labs/sprocket/pull/682)).
+* Added `--suffix` argument to `run` subcommand to append a user-defined string to run directory names ([#695](https://github.com/stjude-rust-labs/sprocket/pull/695))
+* Added `image_cache_dir` configuration option to the Apptainer backend for
+  sharing pulled `.sif` images across runs ([#693](https://github.com/stjude-rust-labs/sprocket/pull/693)).
+* Intermediate `test` results are logged as they complete ([#674](https://github.com/stjude-rust-labs/sprocket/pull/674)).
+* New lint rule `DocCommentTabs` to ensure doc comments do not contain tab characters ([#664](https://github.com/stjude-rust-labs/sprocket/pull/664)).
 
 ### Changed
 
-* `sprocket dev doc` will now **fail** in the presence of analysis errors 
+* Hover and completion documentation now prefer doc comments over `meta`/`parameter_meta` descriptions, with existing behavior preserved as a fallback ([#649](https://github.com/stjude-rust-labs/sprocket/pull/649)).
+* Logs are now silenced during `dev test` evaluation ([650](https://github.com/stjude-rust-labs/sprocket/pull/650)).
+
+### Fixed
+
+* Fixed a bug that prevented `sprocket format` from working `--with-tabs` ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
+* More informative errors for invalid WDL while running `test` ([#705](https://github.com/stjude-rust-labs/sprocket/pull/705)).
+* Fixed a regression where nested inputs and task requirements/hints were not
+  being respected on the `sprocket run` CLI ([#642](https://github.com/stjude-rust-labs/sprocket/pull/642)).
+
+## 0.21.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.21.0 - 02-11-2026
+
+### Added
+
+* Added "output assertions" to `sprocket dev test` for asserting on WDL
+  values ([#565](https://github.com/stjude-rust-labs/sprocket/pull/565)).
+* Added `common.wdl.fallback_version` setting to `sprocket.toml` for
+  interpreting WDL documents with unrecognized version strings (e.g., `version
+  development`) as a specific supported version
+  ([#612](https://github.com/stjude-rust-labs/sprocket/pull/612)).
+* Added `--index-on` flag to `sprocket run` for output indexing via symlinks
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added `--output-dir` flag to `sprocket run`, replacing `--runs-dir` and
+  `--output` with a unified output directory structure matching the server
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added SQLite database tracking to `sprocket run` with full provenance
+  including session, run records, and task execution details
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Added an `output.log` file to the run directory that captures all logged
+  messages from `sprocket run` ([#613](https://github.com/stjude-rust-labs/sprocket/pull/613)).
+* Added reading configuration from a `sprocket.toml` next to the sprocket
+  executable ([#588](https://github.com/stjude-rust-labs/sprocket/pull/588)).
+* Added `sprocket dev server` command for running an HTTP API server for
+  workflow execution ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added SQLite-backed database layer for tracking sessions, runs, and tasks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added index system for organizing run outputs via symlinks
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* Added setting `check.rules` to `sprocket.toml` for controlling `wdl-lint`
+  rule configuration ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553)).
+* Added the `--with-doc-comments` CLI option to `sprocket dev doc` to enable
+  support for the experimental [documentation comments](https://sprocket.bio/subcommands/doc.html#documentation-comments)
+  feature. ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551))
+
+### Changed
+
+* The `sprocket run` command now uses the same execution infrastructure as the
+  server ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Replaced `--runs-dir` and `--output` flags with `--output-dir` in `sprocket run`
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* Unified `AllowedSource` and `Source` types into a single `Source` type
+  ([#606](https://github.com/stjude-rust-labs/sprocket/pull/606)).
+* The values for the `common.report_mode` setting in `sprocket.toml` have
+  changed to lower kebab-case, e.g. `full` and `one-line` ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* The `common.color` setting in `sprocket.toml` has been changed from being a
+  boolean to an enum with values `auto` (default), `always`, and `never`. ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Replaced the `--no-color` option for a global `--color` option to control
+  output colorization and made the uncolorized output consistent ([#607](https://github.com/stjude-rust-labs/sprocket/pull/607)).
+* Renamed `--entrypoint` to `--target` in `sprocket run` and `sprocket validate`
+  ([#540](https://github.com/stjude-rust-labs/sprocket/pull/540)).
+* `sprocket dev doc` will now **fail** in the presence of analysis errors
   that would produce invalid documentation (e.g. `enum`s in versions < WDL v1.3) ([#559](https://github.com/stjude-rust-labs/sprocket/pull/559)).
+
+### Fixed
+
+* Fixed `sprocket validate` not checking that `File` and `Directory` inputs
+  exist ([#615](https://github.com/stjude-rust-labs/sprocket/pull/615)).
+* Fixed a race condition where canceled workflows would be marked as `Failed`
+  instead of `Canceled` ([#601](https://github.com/stjude-rust-labs/sprocket/pull/601)).
+
+### Dependencies
+
+* Dependencies updated to latest ([#594](https://github.com/stjude-rust-labs/sprocket/pull/594)).
 
 ## 0.20.1 - 01-12-2026
 

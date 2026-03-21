@@ -40,6 +40,17 @@ task BadTask {
     runtime {}
 }
 
+task BadButAllowedTask {
+    meta {}
+    
+    parameter_meta {}
+    
+    command <<<
+    >>>
+    
+    runtime {}
+}
+
 task good_task {
     meta {}
 

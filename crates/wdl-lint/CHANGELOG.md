@@ -9,12 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* New lint rule `ParameterDescription` to ensure parameters and outputs have proper descriptions ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
+
+#### Removed
+
+* Removed the `InputSorting` rule ([#730](https://github.com/stjude-rust-labs/sprocket/pull/730))
+
+## 0.21.0 - 2026-03-12
+
+#### Added
+
+* `allowed_names` configuration key for allowing certain names in the SnakeCase and
+  DeclarationName rules ([#660](https://github.com/stjude-rust-labs/sprocket/pull/660)).
+
+#### Changed
+
+* Renamed `LintDirectiveValid` to `ExceptDirectiveValid` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+#### Removed
+
+* Removed some "formatting only" lint rules (CallInputSpacing, CommentWhitespace, ElementSpacing, ExpressionSpacing, EndingNewline, ImportSorted, ImportWhitespace, LineWidth, LintDirectiveFormatted, MetaKeyValueFormatting, PreambleCommentPlacement, PreambleFormatted, TrailingComma, VersionStatementFormatted, Whitespace) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)) ([#665](https://github.com/stjude-rust-labs/sprocket/pull/665)).
+* Removed `util::is_inline_comment()` and `util::strip_newline()` ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+## 0.20.1 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.20.0 - 02-11-2026
+
+#### Added
+
 * Added `Config` for configuring the behavior of certain lint rules ([#553](https://github.com/stjude-rust-labs/sprocket/pull/553))
+* New lint rule `UnusedDocComments` to ensure users are warned if they document unsupported syntax items ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
 
 #### Fixed
 
 * Fixed `LineWidth` rule incorrectly emitting diagnostics for import statements ([#501](https://github.com/stjude-rust-labs/sprocket/pull/501)).
 * Fixed `ShellCheck` diagnostic spans for command sections with leading empty lines ([#545](https://github.com/stjude-rust-labs/sprocket/pull/545)).
+* Allow excepting specific runtime items with `#@ except: ExpectedRuntimeKeys`
+  ([#563](https://github.com/stjude-rust-labs/sprocket/pull/563)).
 
 ## 0.19.0 - 01-12-2026
 

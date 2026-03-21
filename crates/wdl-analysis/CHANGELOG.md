@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Added enum type coercion support
+  ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
+  [#724](https://github.com/stjude-rust-labs/sprocket/pull/724)).
+
+## 0.18.0 - 2026-03-12
+
+#### Changed
+
+* Analysis now emits diagnostics for use of `Map` types or map literals where
+  the key type is optional ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
+* Implicit input bindings will now error in document versions < WDL v1.1 ([#644](https://github.com/stjude-rust-labs/sprocket/pull/644)).
+* Changed `SyntaxNodeExt` trait to `Exceptable` and gave the methods default
+  implementations ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Struct literals will now error in document versions < WDL v1.1 ([#643](https://github.com/stjude-rust-labs/sprocket/pull/643)).
+* `Analyzer::document_symbol()` will now parse documents on-demand and no longer requires
+  analysis be performed beforehand ([#702](https://github.com/stjude-rust-labs/sprocket/pull/702)).
+
+#### Fixed
+
+* Fixed a bug in the semantic token handler, where offsets were not properly calculated for
+  multiline tokens ([#702](https://github.com/stjude-rust-labs/sprocket/pull/702)).
+
+#### Removed
+
+* Removed `EXCEPT_COMMENT_PREFIX`. Use `wdl_ast::{DIRECTIVE_COMMENT_PREFIX,Directive}` instead ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* Removed `except_comments()` method from `SyntaxNodeExt`/`Exceptable` trait ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+
+## 0.17.2 - 2026-02-12
+
+### Dependencies
+
+* Bumps dependencies.
+
+## 0.17.1 - 02-11-2026
+
+### Dependencies
+
+* Bumps `wdl-grammar` to v0.21.0 and `wdl-ast` to v0.21.1.
+
+## 0.17.0 - 02-11-2026
+
+#### Fixed
+
 * Fixed a panic when a workflow contains more than one non-empty `output`
   section ([#568](https://github.com/stjude-rust-labs/sprocket/pull/568)).
 * Fix name conflict detection to match WDL spec ([#554](https://github.com/stjude-rust-labs/sprocket/pull/554)).

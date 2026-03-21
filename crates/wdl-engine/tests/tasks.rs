@@ -267,7 +267,7 @@ fn compare_evaluation_results(
                 path = entry.path().display()
             )
         })?;
-        if !metadata.is_file() {
+        if metadata.is_dir() {
             continue;
         }
 

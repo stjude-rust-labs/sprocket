@@ -14,9 +14,6 @@ git_tag_name = "v{{ version }}"
 [changelog]
 body = """
 
-## [{{ version }}]\
-    {%- if release_link -%}\
-        ({{ release_link }})\
-    {% endif %} \
-    - {{ timestamp | date(format="%Y-%m-%d") }}
+## {{ version }} - {{ timestamp | date(format="%Y-%m-%d") }}
+
 """

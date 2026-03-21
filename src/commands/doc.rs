@@ -5,18 +5,21 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use url::Url;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
-use wdl::doc::AdditionalScript;
-use wdl::doc::Config;
+use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
+use wdl::doc::config::AdditionalScript;
+use wdl::doc::config::ExternalUrls;
 use wdl::doc::document_workspace;
 use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
+use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
@@ -38,6 +41,12 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
+    /// An optional link to the project's homepage.
+    #[arg(long, value_name = "LINK TO HOMEPAGE")]
+    pub homepage_url: Option<Url>,
+    /// An optional link to the project's GitHub repository.
+    #[arg(long, value_name = "LINK TO GITHUB")]
+    pub github_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
@@ -105,11 +114,12 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
-
-    // Diagnostics
-    /// Disables color output.
+    /// Enables support for documentation comments
+    ///
+    /// This option is *experimental* and will be removed in a future major
+    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[arg(long)]
-    pub no_color: bool,
+    pub with_doc_comments: bool,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -120,7 +130,13 @@ pub struct Args {
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args) -> CommandResult<()> {
+pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    if args.with_doc_comments {
+        tracing::warn!(
+            "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
+        );
+    }
+
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
@@ -190,16 +206,22 @@ pub async fn doc(args: Args) -> CommandResult<()> {
     }
 
     let analysis_config = AnalysisConfig::default()
+        .with_fallback_version(config.common.wdl.fallback_version)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let config = Config::new(analysis_config, &workspace, &docs_dir)
+    let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .init_light_mode(args.light_mode)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
         .alt_logo(args.alt_light_logo)
+        .external_urls(ExternalUrls {
+            homepage: args.homepage_url,
+            github: args.github_url,
+        })
         .additional_javascript(addl_js)
-        .prefer_full_directory(!args.prioritize_workflows_view);
+        .prefer_full_directory(!args.prioritize_workflows_view)
+        .enable_doc_comments(args.with_doc_comments);
 
     let mut counts = DiagnosticCounts::default();
     if let Err(e) = document_workspace(config).await {
@@ -222,7 +244,7 @@ pub async fn doc(args: Args) -> CommandResult<()> {
                         }),
                         &[],
                         args.report_mode.unwrap_or_default(),
-                        args.no_color,
+                        colorize,
                     )
                     .context("failed to emit diagnostics")?;
                 }

@@ -31,7 +31,7 @@ In the event it fails, they can be performed manually.
 
 The body of the `sprocket` GitHub releases must be updated manually, regardless of the success of the `release-plz` workflow.
 By default, the release will only include the changelog of the `sprocket` crate. Each crate's most recent CHANGELOG entries should be copy and pasted into the release notes.
-These should be ordered topologically (starting with `wdl-grammar`, ending with `sprocket` itself if that had non-dependency changes).
+These should be ordered with `sprocket` first, followed by the remaining crates topologically (starting with `wdl-grammar`).
 
 Format each section so that it looks like:
 

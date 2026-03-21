@@ -6,16 +6,15 @@ use std::sync::Arc;
 use anyhow::anyhow;
 use wdl::analysis::Document;
 use wdl::engine::CancellationContext;
+use wdl::engine::Config;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::EvaluationResult;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
-use wdl::engine::config::Config;
 use wdl::engine::v1::Evaluator as WdlEvaluator;
-
-use crate::inputs::OriginPaths;
 
 /// An evaluator for a WDL task or workflow.
 pub struct Evaluator<'a> {
@@ -28,8 +27,8 @@ pub struct Evaluator<'a> {
     /// The inputs to the task or workflow.
     inputs: Inputs,
 
-    /// The origin paths for the input keys.
-    origins: &'a OriginPaths,
+    /// The base directory to join for relative input paths.
+    base_dir: &'a EvaluationPath,
 
     /// The configuration for the WDL engine.
     config: Arc<Config>,
@@ -44,7 +43,7 @@ impl<'a> Evaluator<'a> {
         document: &'a Document,
         name: &'a str,
         inputs: Inputs,
-        origins: &'a OriginPaths,
+        base_dir: &'a EvaluationPath,
         config: Arc<Config>,
         output_dir: &'a Path,
     ) -> Self {
@@ -52,7 +51,7 @@ impl<'a> Evaluator<'a> {
             document,
             name,
             inputs,
-            origins,
+            base_dir,
             config,
             output_dir,
         }
@@ -89,13 +88,7 @@ impl<'a> Evaluator<'a> {
 
         // Ensure all the paths specified in the inputs are relative to
         // their respective origin paths.
-        inputs
-            .join_paths(task, |key| {
-                self.origins
-                    .get(key)
-                    .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-            })
-            .await?;
+        inputs.join_paths(task, |_| Ok(self.base_dir)).await?;
 
         let evaluator =
             WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
@@ -130,13 +123,7 @@ impl<'a> Evaluator<'a> {
 
                 // Ensure all the paths specified in the inputs are relative to
                 // their respective origin paths.
-                inputs
-                    .join_paths(workflow, |key| {
-                        self.origins
-                            .get(key)
-                            .ok_or(anyhow!("unable to find origin path for key `{key}`"))
-                    })
-                    .await?;
+                inputs.join_paths(workflow, |_| Ok(self.base_dir)).await?;
 
                 let evaluator =
                     WdlEvaluator::new(self.output_dir, self.config, cancellation, events).await?;
