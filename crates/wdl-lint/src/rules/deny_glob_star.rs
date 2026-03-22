@@ -1,4 +1,4 @@
-// A lint rule for disallowing the use of glob patterns with only star.
+//! A lint rule for disallowing the use of glob patterns with only star.
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::VisitReason;
@@ -20,6 +20,7 @@ use crate::TagSet;
 /// The identifier for the disallowed glob star rule.
 const ID: &str = "DenyGlobStar";
 
+/// Declaration Identifier for glob star in output
 fn glob_star_diagnostic(span: Span) -> Diagnostic {
     Diagnostic::note("glob patterns with only * should not be used in output declarations")
         .with_rule(ID)
@@ -34,7 +35,6 @@ pub struct DenyGlobStar {
     output_section: bool,
 }
 
-
 impl Rule for DenyGlobStar {
     fn id(&self) -> &'static str {
         ID
@@ -45,7 +45,8 @@ impl Rule for DenyGlobStar {
     }
 
     fn explanation(&self) -> &'static str {
-        "glob(*) captures all files; use an explicit pattern instead to avoid unintended consequences."
+        "glob(*) captures all files; use an explicit pattern instead to avoid unintended \
+         consequences."
     }
 
     fn tags(&self) -> TagSet {
@@ -69,9 +70,11 @@ impl Visitor for DenyGlobStar {
     fn reset(&mut self) {
         *self = Default::default();
     }
+
     fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
         self.output_section = reason == VisitReason::Enter;
     }
+
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
         if reason == VisitReason::Enter && self.output_section {
             check_glob_star(
