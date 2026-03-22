@@ -50,7 +50,7 @@ impl Rule for DenyGlobStar {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Correctness])
+        TagSet::new(&[Tag::Correctness, Tag::Clarity])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
