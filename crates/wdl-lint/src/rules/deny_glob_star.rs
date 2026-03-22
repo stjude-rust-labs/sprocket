@@ -22,7 +22,7 @@ const ID: &str = "DenyGlobStar";
 
 /// Declaration Identifier for glob star in output
 fn glob_star_diagnostic(span: Span) -> Diagnostic {
-    Diagnostic::note("glob patterns with only * should not be used in output declarations")
+    Diagnostic::warning("glob patterns with only * should not be used in output declarations")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix("use an explicit glob pattern to avoid unintended consequences")
