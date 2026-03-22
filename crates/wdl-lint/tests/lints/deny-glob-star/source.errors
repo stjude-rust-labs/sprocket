@@ -1,5 +1,5 @@
 note[DenyGlobStar]: glob patterns with only * should not be used in output declarations
-   ┌─ crates/wdl-lint/tests/lints/deny-glob-star/source.wdl:21:39
+   ┌─ tests/lints/deny-glob-star/source.wdl:21:39
    │
 21 │         Array[File] everything = glob("*")
    │                                       ^^^
@@ -7,9 +7,10 @@ note[DenyGlobStar]: glob patterns with only * should not be used in output decla
    = fix: use an explicit glob pattern to avoid unintended consequences
 
 note[DenyGlobStar]: glob patterns with only * should not be used in output declarations
-    ┌─ crates/wdl-lint/tests/lints/deny-glob-star/source.wdl:119:40
+    ┌─ tests/lints/deny-glob-star/source.wdl:119:40
     │
 119 │         Array[File] everything2 = glob("*")
     │                                        ^^^
     │
     = fix: use an explicit glob pattern to avoid unintended consequences
+

@@ -54,8 +54,8 @@ impl Rule for DenyGlobStar {
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Some(&[
-            SyntaxKind::WorkflowDefinitionNode,
-            SyntaxKind::CallStatementNode,
+            SyntaxKind::VersionStatementNode,
+            SyntaxKind::OutputSectionNode,
             SyntaxKind::BoundDeclNode,
         ])
     }
