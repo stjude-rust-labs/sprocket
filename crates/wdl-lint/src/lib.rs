@@ -142,6 +142,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DescriptionLengthRule>::default(),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
+        Box::<rules::DenyGlobStar>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
