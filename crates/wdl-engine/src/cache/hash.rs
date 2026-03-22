@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use blake3::Hasher;
 use num_enum::IntoPrimitive;
 use url::Url;
-use wdl_analysis::types::Type;
 
 use crate::Array;
 use crate::CompoundValue;
@@ -18,6 +17,7 @@ use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
 use crate::Map;
+use crate::NoneValue;
 use crate::Object;
 use crate::OutputValue;
 use crate::Pair;
@@ -209,7 +209,7 @@ impl Hashable for Option<PrimitiveValue> {
             None => {
                 // A `None` for an optional primitive value (used in map keys) represents a WDL
                 // `None` value, so hash it as one
-                Value::None(Type::None).hash(hasher)
+                Value::None(NoneValue::untyped()).hash(hasher)
             }
         }
     }
@@ -376,6 +376,7 @@ mod test {
     use wdl_analysis::types::PairType;
     use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
+    use wdl_analysis::types::Type;
 
     use super::*;
 
