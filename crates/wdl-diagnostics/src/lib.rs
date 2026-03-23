@@ -28,7 +28,7 @@ static ONE_LINE_CONFIG: LazyLock<TermConfig> = LazyLock::new(|| TermConfig {
 });
 
 /// A counter tracking the types of diagnostics emitted during analysis.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DiagnosticCounts {
     /// The number of errors encountered.
     pub errors: usize,
@@ -154,7 +154,8 @@ pub fn emit_diagnostics<'a>(
     Ok(())
 }
 
-/// Emits the given diagnostics to the terminal.
+/// Emits the given diagnostics to the terminal with accompanying call-stack
+/// locations.
 #[cfg(feature = "backtrace")]
 pub fn emit_diagnostics_with_backtrace<'a>(
     path: &str,
@@ -210,8 +211,7 @@ pub fn emit_diagnostics_with_backtrace<'a>(
                 } else {
                     "s"
                 }
-            )
-            .unwrap();
+            )?;
         }
     }
 

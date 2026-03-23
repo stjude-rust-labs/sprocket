@@ -1,11 +1,12 @@
 [package]
 name = "wdl-diagnostics"
 version = "0.1.0"
+description = "Utilities for reporting diagnostics in the wdl-* family of crates"
 license.workspace = true
 edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
-repository.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-diagnostics"
 rust-version.workspace = true
 
 [features]
