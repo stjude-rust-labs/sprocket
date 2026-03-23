@@ -42,7 +42,7 @@ impl Rule for DenyGlobStar {
     }
 
     fn explanation(&self) -> &'static str {
-        "glob(\"*\") captures all files; As a task grows, you may include unintended files and \
+        "glob(\"*\") captures all files; as a task grows, you may include unintended files and \
          cause unnecessary aggregation. Prefer explicit patterns to opt in only to the files you \
          need, keeping tasks easier to debug/reproduce."
     }
@@ -80,7 +80,7 @@ impl Visitor for DenyGlobStar {
         }
 
         if let Expr::Call(call) = decl.expr()
-            && call.target().text() == ("glob")
+            && call.target().text() == "glob"
         {
             for argument in call.arguments() {
                 if let Expr::Literal(LiteralExpr::String(s)) = argument
