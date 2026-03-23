@@ -136,7 +136,6 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         .indent(indent)
         .max_line_length(max_line_length)
         .sort_inputs(config.format.sort_inputs)
-        .sort_inputs(config.format.sort_inputs)
         .sort_imports(config.format.sort_imports)
         .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
