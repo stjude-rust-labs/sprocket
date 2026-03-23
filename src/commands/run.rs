@@ -63,6 +63,7 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
+use crate::system::v1::fs::FileSystemLock;
 use crate::system::v1::fs::OutputDirectory;
 
 /// The delay in showing the progress bar.
@@ -661,6 +662,18 @@ pub async fn run(
             .unwrap_or_else(|| config.run.output_dir.clone()),
     );
 
+    // Acquire an exclusive lock on the output directory to serialize setup
+    // operations across concurrent processes (e.g., database creation,
+    // directory structure initialization, and symlink management).
+    //
+    // NOTE: this lock covers setup only. Post-setup operations on shared
+    // state (e.g., index symlink creation in `set_run_success`) are not
+    // covered—concurrent processes indexing on the same name can still
+    // race on symlinks. This is acceptable because each parallel test
+    // uses a unique target name.
+    let lock = FileSystemLock::acquire(output_dir.root())
+        .context("failed to acquire lock on output directory")?;
+
     // Create the run directory
     let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
 
@@ -720,6 +733,10 @@ pub async fn run(
     db.update_run_directory(run_id, run_dir_str)
         .await
         .context("failed to update run directory")?;
+
+    // Release the lock now that setup is complete—each process has its own
+    // timestamped run directory from this point forward.
+    drop(lock);
 
     let ctx = RunContext {
         run_id,
@@ -810,7 +827,7 @@ pub async fn run(
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
                             println!("{outputs_json}");
-                            println!("outputs were also written to `{path}`", path = outputs_file.display());
+                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
                         }
                         Ok(())
                     }
