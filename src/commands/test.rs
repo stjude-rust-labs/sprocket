@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::create_dir_all;
 use std::fs::read;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
@@ -76,9 +75,6 @@ pub struct Args {
     /// Root of the workspace where the `test/` directory will be located. Test
     /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is
     /// present.
-    ///
-    /// If a `<workspace>/test/` directory does not exist, one will be created
-    /// and it will contain a `runs/` directory for test executions.
     ///
     /// If not specified and the `source` argument is a directory, it's assumed
     /// that directory is also the workspace. This can be specified in addition
@@ -713,22 +709,6 @@ fn resolve_test_paths(workspace: &Path, config: &TestConfig, args: &Args) -> (Pa
     (fixtures_dir, run_dir)
 }
 
-fn ensure_test_dirs(fixtures_dir: &Path, run_dir: &Path) -> Result<()> {
-    create_dir_all(fixtures_dir).with_context(|| {
-        format!(
-            "creating fixtures directory for tests: `{}`",
-            fixtures_dir.display()
-        )
-    })?;
-    create_dir_all(run_dir).with_context(|| {
-        format!(
-            "creating run directory for tests: `{}`",
-            run_dir.display()
-        )
-    })?;
-    Ok(())
-}
-
 /// Performs the `test` command.
 pub async fn test(
     args: Args,
@@ -831,7 +811,6 @@ pub async fn test(
     }
 
     let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config.test, &args);
-    ensure_test_dirs(&fixtures_dir, &run_dir)?;
     let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
     let engine = {
         let mut engine = config.run.engine;
@@ -880,8 +859,6 @@ pub async fn test(
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-
     use super::*;
 
     fn args_with_overrides(fixtures_dir: Option<PathBuf>, run_dir: Option<PathBuf>) -> Args {
@@ -986,15 +963,4 @@ mod tests {
         assert_eq!(run_dir, PathBuf::from("/cli-runs"));
     }
 
-    #[test]
-    fn ensure_test_dirs_creates_both_directories() {
-        let temp = TempDir::new().expect("should create temp dir");
-        let fixtures_dir = temp.path().join("fixtures");
-        let run_dir = temp.path().join("runs");
-
-        ensure_test_dirs(&fixtures_dir, &run_dir).expect("should create test directories");
-
-        assert!(fixtures_dir.is_dir());
-        assert!(run_dir.is_dir());
-    }
 }
