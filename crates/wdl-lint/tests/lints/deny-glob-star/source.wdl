@@ -29,7 +29,7 @@ task bad {
 
 task good_no_star {
     meta {
-        description: "This task should not be flagged, because the glob does not contain a star."
+        description: "This task should not be flagged, because the glob does not contain a star or is excepted."
         outputs: {
             everything: "OK",
             everything2: "EXCEPTED",
