@@ -31,7 +31,8 @@ task good_no_star {
     meta {
         description: "This task should not be flagged, because the glob does not contain a star."
         outputs: {
-            everything: "OK"
+            everything: "OK",
+            everything2: "EXCEPTED",
         }
     }
 
@@ -42,6 +43,8 @@ task good_no_star {
     output {
         # This should not be flagged, because the glob does not contain a star.
         Array[File] everything = glob("test")
+        #@ except: DenyGlobStar
+        Array[File] everything2= glob("*")
     }
     requirements {
         container: "ubuntu@sha256:foobar"
@@ -96,6 +99,30 @@ task good_star_multiline {
     requirements {
         container: "ubuntu@sha256:foobar"
     }
+}
+task good_star_excepted {
+    meta {
+        description: "This task should not be flagged, because the glob contains a star but is used intentionally."
+        outputs: {
+            everything: "EXCEPTED",
+            everything2: "EXCEPTED",
+        }
+    }
+    
+    command <<<
+        echo "Hello, World!"
+    >>>
+
+    #@ except: DenyGlobStar
+    output {
+        Array[File] everything = glob("*")
+        Array[File] everything2 = glob("*")
+    }
+ 
+    requirements {
+        container: "ubuntu@sha256:foobar"
+    }
+   
 }
 
 task bad_star_multiline {

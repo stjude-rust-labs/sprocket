@@ -1,16 +1,15 @@
-warning[DenyGlobStar]: glob patterns with only * should not be used in output declarations
-   ┌─ tests/lints/deny-glob-star/source.wdl:21:39
+warning[DenyGlobStar]: glob pattern "*" matches all files
+   ┌─ crates/wdl-lint/tests/lints/deny-glob-star/source.wdl:21:39
    │
 21 │         Array[File] everything = glob("*")
    │                                       ^^^
    │
-   = fix: use an explicit glob pattern to avoid unintended consequences
+   = fix: use a more specific pattern to avoid capturing unintended files
 
-warning[DenyGlobStar]: glob patterns with only * should not be used in output declarations
-    ┌─ tests/lints/deny-glob-star/source.wdl:119:40
+warning[DenyGlobStar]: glob pattern "*" matches all files
+    ┌─ crates/wdl-lint/tests/lints/deny-glob-star/source.wdl:146:40
     │
-119 │         Array[File] everything2 = glob("*")
+146 │         Array[File] everything2 = glob("*")
     │                                        ^^^
     │
-    = fix: use an explicit glob pattern to avoid unintended consequences
-
+    = fix: use a more specific pattern to avoid capturing unintended files
