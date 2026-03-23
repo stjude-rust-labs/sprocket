@@ -1913,7 +1913,7 @@ task test {
     }
 
     output {
-        String output = stdout()
+        String greeting = stdout()
     }
 
     command <<<
@@ -1946,6 +1946,7 @@ task test {
     String x = "private"
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -1972,7 +1973,7 @@ task test {
         let decls: Vec<_> = output.declarations().collect();
         assert_eq!(decls.len(), 1);
         assert_eq!(decls[0].ty().to_string(), "String");
-        assert_eq!(decls[0].name().text(), "output");
+        assert_eq!(decls[0].name().text(), "greeting");
         assert_eq!(decls[0].expr().unwrap_call().target().text(), "stdout");
 
         // Task command
@@ -2115,6 +2116,7 @@ task test {
     >>>
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2159,6 +2161,7 @@ then name
     >>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2208,6 +2211,7 @@ task test {
     >>>
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2273,6 +2277,7 @@ task test {
     command <<<>>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2297,6 +2302,7 @@ task test {
     command <<<     >>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2327,6 +2333,7 @@ task test {
     >>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2358,6 +2365,7 @@ task test {
     >>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2389,6 +2397,7 @@ task test {
     >>>
 }
     "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2422,6 +2431,7 @@ task test {
             "goodbye"
     >>>
         }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2450,6 +2460,7 @@ task test {
             "goodbye"
                 >>>
         }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2485,6 +2496,7 @@ task test {
       somecommand.py $line120 ~{placeholder}
     >>>
         }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -2524,6 +2536,7 @@ task test {
         let (document, diagnostics) = Document::parse(
             "version 1.2\r\ntask test {\r\n    command <<<\r\n        echo \"hello\"\r\n    \
              >>>\r\n}\r\n",
+            None,
         );
 
         assert!(diagnostics.is_empty());

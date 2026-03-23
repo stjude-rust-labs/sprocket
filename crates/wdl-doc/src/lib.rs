@@ -626,7 +626,7 @@ mod tests {
             }
         }
         "#;
-        let (document, _) = AstDocument::parse(source);
+        let (document, _) = AstDocument::parse(source, None);
 
         let doc_item = document.ast().into_v1().unwrap().items().next().unwrap();
         let ast_workflow = doc_item.into_workflow_definition().unwrap();

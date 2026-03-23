@@ -1,6 +1,10 @@
 //! Module for the WDL grammar functions.
 
+use std::str::FromStr;
+
 use super::Diagnostic;
+use super::Span;
+use super::SupportedVersion;
 use super::lexer::PreambleToken;
 use super::parser::Event;
 use super::parser::Parser;
@@ -69,14 +73,17 @@ type PreambleParser<'a> = Parser<'a, PreambleToken>;
 /// Parses a WDL document.
 ///
 /// Returns the parser events that result from parsing the document.
-pub fn document(mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Diagnostic>) {
+pub fn document(
+    mut parser: PreambleParser<'_>,
+    fallback_version: Option<SupportedVersion>,
+) -> (Vec<Event>, Vec<Diagnostic>) {
     let root = parser.start();
     // Look for a starting `version` keyword token
     // If this fails, an error is emitted and we'll skip parsing the remainder of
     // the file.
     let (mut parser, diagnostic) = match parser.peek() {
         Some((PreambleToken::VersionKeyword, _)) => {
-            match version_statement(parser) {
+            match version_statement(parser, fallback_version) {
                 (parser, None) => {
                     // A version statement was successfully parsed; continue on with parsing the
                     // rest of the document.
@@ -112,19 +119,38 @@ pub fn document(mut parser: PreambleParser<'_>) -> (Vec<Event>, Vec<Diagnostic>)
     (output.events, output.diagnostics)
 }
 
+/// Creates an "unsupported version" diagnostic.
+fn unsupported_version(version: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("unsupported WDL version `{version}`"))
+        .with_label("this version of WDL is not supported", span)
+}
+
 /// Parses the version statement of a WDL source file.
 ///
 /// Returns a diagnostic upon failure.
 fn version_statement(
     mut parser: Parser<'_, PreambleToken>,
+    fallback_version: Option<SupportedVersion>,
 ) -> (Parser<'_, PreambleToken>, Option<Diagnostic>) {
     let marker = parser.start();
     parser.require(PreambleToken::VersionKeyword);
 
     let mut parser: Parser<'_, VersionStatementToken> = parser.morph();
-    if let Err(e) = parser.expect(VersionStatementToken::Version) {
-        marker.abandon(&mut parser);
-        return (parser.morph(), Some(e));
+    match parser.expect(VersionStatementToken::Version) {
+        Ok(span) => match SupportedVersion::from_str(parser.source(span)) {
+            Ok(version) => parser.set_version(version),
+            Err(e) => {
+                if let Some(fallback) = fallback_version {
+                    parser.set_version(fallback);
+                } else {
+                    parser.diagnostic(unsupported_version(&e, span));
+                }
+            }
+        },
+        Err(e) => {
+            marker.abandon(&mut parser);
+            return (parser.morph(), Some(e));
+        }
     }
 
     marker.complete(&mut parser, SyntaxKind::VersionStatementNode);
