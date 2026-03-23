@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::create_dir_all;
 use std::fs::read;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
@@ -79,9 +78,6 @@ pub struct Args {
     /// Root of the workspace where the `test/` directory will be located. Test
     /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is
     /// present.
-    ///
-    /// If a `<workspace>/test/` directory does not exist, one will be created
-    /// and it will contain a `runs/` directory for test executions.
     ///
     /// If not specified and the `source` argument is a directory, it's assumed
     /// that directory is also the workspace. This can be specified in addition
@@ -763,22 +759,6 @@ fn resolve_test_paths(
     (fixtures_dir, run_dir)
 }
 
-fn ensure_test_dirs(fixtures_dir: &Path, run_dir: &Path) -> Result<()> {
-    create_dir_all(fixtures_dir).with_context(|| {
-        format!(
-            "failed to create test fixtures directory `{path}`",
-            path = fixtures_dir.display()
-        )
-    })?;
-    create_dir_all(run_dir).with_context(|| {
-        format!(
-            "failed to create test run directory `{path}`",
-            path = run_dir.display()
-        )
-    })?;
-    Ok(())
-}
-
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
@@ -875,7 +855,6 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
     let (fixtures_dir, run_dir) =
         resolve_test_paths(&config.test, &workspace, &args.fixtures_dir, &args.run_dir);
-    ensure_test_dirs(&fixtures_dir, &run_dir)?;
     let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
 
     config.run.engine.task.cache = CallCachingMode::Off;
@@ -954,8 +933,6 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-
     use super::*;
 
     fn args_with_overrides(fixtures_dir: Option<PathBuf>, run_dir: Option<PathBuf>) -> Args {
@@ -1064,17 +1041,5 @@ mod tests {
 
         assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
         assert_eq!(run_dir, PathBuf::from("/cli-runs"));
-    }
-
-    #[test]
-    fn ensure_test_dirs_creates_both_directories() {
-        let temp = TempDir::new().expect("should create temp dir");
-        let fixtures_dir = temp.path().join("fixtures");
-        let run_dir = temp.path().join("runs");
-
-        ensure_test_dirs(&fixtures_dir, &run_dir).expect("should create test directories");
-
-        assert!(fixtures_dir.is_dir());
-        assert!(run_dir.is_dir());
     }
 }
