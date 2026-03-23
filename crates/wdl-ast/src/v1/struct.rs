@@ -289,6 +289,7 @@ struct ComplexTypes {
     }
 }
 "#,
+            None,
         );
         assert!(diagnostics.is_empty());
         let ast = document.ast();

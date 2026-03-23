@@ -247,6 +247,7 @@ enum Mixed[Int] {
 
 workflow test {}
 "#,
+            None,
         );
         assert!(diagnostics.is_empty());
 

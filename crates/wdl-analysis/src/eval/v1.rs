@@ -1314,7 +1314,7 @@ mod test {
         }
         "#;
 
-        let (document, diagnostics) = Document::parse(source);
+        let (document, diagnostics) = Document::parse(source, None);
         assert!(
             diagnostics.is_empty(),
             "parsing should succeed without diagnostics"

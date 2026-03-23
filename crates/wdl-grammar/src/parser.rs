@@ -11,6 +11,7 @@ use logos::Logos;
 
 use super::Diagnostic;
 use super::Span;
+use super::SupportedVersion;
 use super::lexer::Lexer;
 use super::lexer::LexerResult;
 use super::lexer::TokenSet;
@@ -293,6 +294,8 @@ pub struct Interpolator<'a, T>
 where
     T: Logos<'a, Extras = ()>,
 {
+    /// The version of the document being parsed.
+    version: SupportedVersion,
     /// The lexer to use for the interpolation.
     lexer: Lexer<'a, T>,
     /// The parser events.
@@ -346,6 +349,7 @@ where
         T::Extras: Into<T2::Extras>,
     {
         Parser {
+            version: self.version,
             lexer: Some(self.lexer.morph()),
             events: self.events,
             recovery: self.recovery,
@@ -400,6 +404,8 @@ pub struct Parser<'a, T>
 where
     T: ParserToken<'a>,
 {
+    /// The version of the document being parsed.
+    version: SupportedVersion,
     /// The lexer that returns a stream of tokens for the parser.
     ///
     /// This may temporarily be `None` during string interpolation.
@@ -423,12 +429,23 @@ where
     /// Construct a new parser from the given lexer.
     pub fn new(lexer: Lexer<'a, T>) -> Self {
         Self {
+            version: Default::default(),
             lexer: Some(lexer),
             events: Default::default(),
             recovery: Default::default(),
             diagnostics: Default::default(),
             buffered: Default::default(),
         }
+    }
+
+    /// Get the version of the document.
+    pub fn version(&self) -> SupportedVersion {
+        self.version
+    }
+
+    /// Set the version of the document.
+    pub fn set_version(&mut self, version: SupportedVersion) {
+        self.version = version;
     }
 
     /// Gets the current span of the parser.
@@ -901,6 +918,7 @@ where
         F: FnOnce(Interpolator<'a, T2>) -> (Parser<'a, T>, R),
     {
         let input = Interpolator {
+            version: self.version,
             lexer: std::mem::take(&mut self.lexer)
                 .expect("lexer should exist")
                 .morph(),
@@ -924,6 +942,7 @@ where
         T::Extras: Into<T2::Extras>,
     {
         Parser {
+            version: self.version,
             lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
             recovery: self.recovery,
@@ -938,6 +957,7 @@ where
         T2: Logos<'a, Source = str, Error = (), Extras = ()> + Copy,
     {
         Interpolator {
+            version: self.version,
             lexer: self.lexer.expect("lexer should be present").morph(),
             events: self.events,
             recovery: self.recovery,
