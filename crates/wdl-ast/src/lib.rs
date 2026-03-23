@@ -17,7 +17,7 @@
 //! # let source = "version 1.1\nworkflow test {}";
 //! use wdl_ast::Document;
 //!
-//! let (document, diagnostics) = Document::parse(source);
+//! let (document, diagnostics) = Document::parse(source, None);
 //! if !diagnostics.is_empty() {
 //!     // Handle the failure to parse
 //! }
@@ -54,6 +54,7 @@ pub use wdl_grammar::SyntaxTree;
 pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::lexer;
 pub use wdl_grammar::version;
+use wdl_grammar::version::V1;
 
 pub mod v1;
 
@@ -480,13 +481,18 @@ impl<N: TreeNode> AstNode<N> for Document<N> {
 impl Document {
     /// Parses a document from the given source.
     ///
+    /// This optionally takes a `fallback_version`, which will be used if a
+    /// [`SupportedVersion`] cannot be determined from the document.
+    ///
     /// A document and its AST elements are trivially cloned.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
     /// # use wdl_ast::{Document, AstToken, Ast};
-    /// let (document, diagnostics) = Document::parse("version 1.1");
+    /// use wdl_grammar::SupportedVersion;
+    /// use wdl_grammar::version::V1;
+    /// let (document, diagnostics) = Document::parse("version 1.1", None);
     /// assert!(diagnostics.is_empty());
     ///
     /// assert_eq!(
@@ -505,8 +511,38 @@ impl Document {
     ///     Ast::Unsupported => panic!("should be a V1 AST"),
     /// }
     /// ```
-    pub fn parse(source: &str) -> (Self, Vec<Diagnostic>) {
-        let (tree, diagnostics) = SyntaxTree::parse(source);
+    ///
+    /// With a fallback version:
+    ///
+    /// ```rust
+    /// # use wdl_ast::{Document, AstToken, Ast};
+    /// # use wdl_grammar::version::{SupportedVersion, V1};
+    /// let fallback_version = SupportedVersion::V1(V1::Three);
+    ///
+    /// let (document, diagnostics) = Document::parse("version foo", Some(fallback_version));
+    /// assert!(diagnostics.is_empty());
+    ///
+    /// assert_eq!(
+    ///     document
+    ///         .version_statement()
+    ///         .expect("should have version statement")
+    ///         .version()
+    ///         .text(),
+    ///     "foo" // Not a valid version!
+    /// );
+    ///
+    /// match document.ast_with_version_fallback(Some(fallback_version)) {
+    ///     Ast::V1(ast) => {
+    ///         assert_eq!(ast.items().count(), 0);
+    ///     }
+    ///     Ast::Unsupported => panic!("should be a V1 AST"),
+    /// }
+    /// ```
+    pub fn parse(
+        source: &str,
+        fallback_version: Option<SupportedVersion>,
+    ) -> (Self, Vec<Diagnostic>) {
+        let (tree, diagnostics) = SyntaxTree::parse(source, fallback_version);
         (
             Document::cast(tree.into_syntax()).expect("document should cast"),
             diagnostics,

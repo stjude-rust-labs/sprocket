@@ -258,6 +258,7 @@ mod tests {
                 }
             }
             "#,
+            None,
         );
 
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
@@ -313,6 +314,7 @@ mod tests {
                 }
             }
             "#,
+            None,
         );
 
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
