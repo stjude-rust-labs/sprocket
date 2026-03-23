@@ -888,7 +888,7 @@ task test {{
 }}
 "#
         );
-        let (document, _diagnostics) = Document::parse(&source);
+        let (document, _diagnostics) = Document::parse(&source, None);
         document
             .ast()
             .as_v1()

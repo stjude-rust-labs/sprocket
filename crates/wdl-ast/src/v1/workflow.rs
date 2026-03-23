@@ -1395,7 +1395,7 @@ workflow test {
     }
 
     output {
-        String output = "hello, ~{name}!"
+        String greeting = "hello, ~{name}!"
     }
 
     if (do_thing) {
@@ -1430,6 +1430,7 @@ workflow test {
     String x = "private"
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -1474,7 +1475,7 @@ workflow test {
 
         // First declaration
         assert_eq!(decls[0].ty().to_string(), "String");
-        assert_eq!(decls[0].name().text(), "output");
+        assert_eq!(decls[0].name().text(), "greeting");
         let parts: Vec<_> = decls[0]
             .expr()
             .unwrap_literal()

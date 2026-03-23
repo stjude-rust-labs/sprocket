@@ -287,6 +287,7 @@ workflow bar # This is an inline comment on the workflow ident.
   # This is attached to the call keyword.
   call foo {}
 } # This is an inline comment on the workflow close brace.",
+            None,
         );
 
         assert!(diagnostics.is_empty());

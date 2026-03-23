@@ -102,7 +102,7 @@ fn compare_result(path: &Path, result: &str, allow_blessing: bool) -> Result<(),
 
 /// Parses source string into a document FormatElement
 fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, anyhow::Error> {
-    let (document, diagnostics) = Document::parse(source);
+    let (document, diagnostics) = Document::parse(source, None);
 
     if !diagnostics.is_empty() {
         bail!(

@@ -90,11 +90,6 @@ fn deprecated_version_feature_flag(flag_name: &str, span: Span) -> Diagnostic {
     .with_highlight(span)
 }
 
-/// Creates an "unsupported version" diagnostic.
-fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
-}
-
 /// Tracks the state of a deprecated version feature flag.
 #[derive(Clone, Copy, Debug, Default)]
 struct DeprecatedVersionFeatureFlag {
@@ -151,24 +146,15 @@ impl Visitor for VersionVisitor {
 
         // Emit a deprecation warning if the user explicitly disabled WDL 1.3 and we
         // encounter a WDL 1.3 document.
-        if let Some(version) = self.version {
-            match version {
-                SupportedVersion::V1(V1::Three)
-                    if self.wdl_1_3_ff.explicitly_disabled && !self.wdl_1_3_ff.warning_emitted =>
-                {
-                    diagnostics.add(deprecated_version_feature_flag(
-                        "wdl_1_3",
-                        stmt.version().span(),
-                    ));
-                    self.wdl_1_3_ff.warning_emitted = true;
-                }
-                // TODO ACF 2025-10-21: This is an unfortunate consequence of using
-                // `#[non_exhaustive]` on the version enums. We should consider removing that
-                // attribute in the future to get static assurance that downstream consumers of
-                // versions comprehensively handle the possible cases.
-                SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three) => {}
-                other => diagnostics.add(unsupported_version(other, stmt.version().span())),
-            }
+        if let Some(SupportedVersion::V1(V1::Three)) = self.version
+            && self.wdl_1_3_ff.explicitly_disabled
+            && !self.wdl_1_3_ff.warning_emitted
+        {
+            diagnostics.add(deprecated_version_feature_flag(
+                "wdl_1_3",
+                stmt.version().span(),
+            ));
+            self.wdl_1_3_ff.warning_emitted = true;
         }
     }
 

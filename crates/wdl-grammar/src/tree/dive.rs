@@ -169,6 +169,7 @@ task hello {
 workflow world {
     String another_private_declaration = true
 }"#,
+                    None,
                 );
 
                 assert!(diagnostics.is_empty());
