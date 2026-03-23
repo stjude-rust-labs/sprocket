@@ -1,0 +1,8 @@
+warning[OptionalInputSafety]: optional value `optional_flag` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly
+   ┌─ tests/lints/optional-input-safety/source.wdl:15:23
+   │
+15 │         samtools sort ~{optional_flag} ~{input_bam}
+   │                       ^^^^^^^^^^^^^^^^
+   │
+   = fix: wrap the optional in `if defined(...) then ... else ...`, or use `select_first()` / `select_all()` so `None` is handled explicitly
+
