@@ -45,8 +45,8 @@ impl Rule for DenyGlobStar {
     }
 
     fn explanation(&self) -> &'static str {
-        "glob(\"*\") captures all files; use an explicit pattern instead as you /
-        may capture unintended files and make the task harder to debug/reproduce."
+        "glob(\"*\") captures all files; use an explicit pattern instead as you may capture \
+         unintended files and make the task harder to debug/reproduce."
     }
 
     fn tags(&self) -> TagSet {
