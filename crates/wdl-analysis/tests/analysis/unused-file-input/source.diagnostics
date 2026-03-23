@@ -1,0 +1,132 @@
+warning[UnusedInput]: unused input `used`
+  ┌─ tests/analysis/unused-file-input/source.wdl:8:14
+  │
+8 │         File used
+  │              ^^^^
+
+warning[UnusedInput]: unused input `used_index`
+   ┌─ tests/analysis/unused-file-input/source.wdl:11:14
+   │
+11 │         File used_index
+   │              ^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_indexes`
+   ┌─ tests/analysis/unused-file-input/source.wdl:12:14
+   │
+12 │         File used_indexes
+   │              ^^^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_indices`
+   ┌─ tests/analysis/unused-file-input/source.wdl:13:14
+   │
+13 │         File used_indices
+   │              ^^^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_idx`
+   ┌─ tests/analysis/unused-file-input/source.wdl:14:14
+   │
+14 │         File used_idx
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_tbi`
+   ┌─ tests/analysis/unused-file-input/source.wdl:15:14
+   │
+15 │         File used_tbi
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_bai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:16:14
+   │
+16 │         File used_bai
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_crai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:17:14
+   │
+17 │         File used_crai
+   │              ^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_csi`
+   ┌─ tests/analysis/unused-file-input/source.wdl:18:14
+   │
+18 │         File used_csi
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_fai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:19:14
+   │
+19 │         File used_fai
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_dict`
+   ┌─ tests/analysis/unused-file-input/source.wdl:20:14
+   │
+20 │         File used_dict
+   │              ^^^^^^^^^
+
+warning[UnusedInput]: unused input `used`
+   ┌─ tests/analysis/unused-file-input/source.wdl:29:14
+   │
+29 │         File used
+   │              ^^^^
+
+warning[UnusedInput]: unused input `used_index`
+   ┌─ tests/analysis/unused-file-input/source.wdl:32:14
+   │
+32 │         File used_index
+   │              ^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_indexes`
+   ┌─ tests/analysis/unused-file-input/source.wdl:33:14
+   │
+33 │         File used_indexes
+   │              ^^^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_indices`
+   ┌─ tests/analysis/unused-file-input/source.wdl:34:14
+   │
+34 │         File used_indices
+   │              ^^^^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_idx`
+   ┌─ tests/analysis/unused-file-input/source.wdl:35:14
+   │
+35 │         File used_idx
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_tbi`
+   ┌─ tests/analysis/unused-file-input/source.wdl:36:14
+   │
+36 │         File used_tbi
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_bai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:37:14
+   │
+37 │         File used_bai
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_crai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:38:14
+   │
+38 │         File used_crai
+   │              ^^^^^^^^^
+
+warning[UnusedInput]: unused input `used_csi`
+   ┌─ tests/analysis/unused-file-input/source.wdl:39:14
+   │
+39 │         File used_csi
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_fai`
+   ┌─ tests/analysis/unused-file-input/source.wdl:40:14
+   │
+40 │         File used_fai
+   │              ^^^^^^^^
+
+warning[UnusedInput]: unused input `used_dict`
+   ┌─ tests/analysis/unused-file-input/source.wdl:41:14
+   │
+41 │         File used_dict
+   │              ^^^^^^^^^
+
