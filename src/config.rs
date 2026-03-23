@@ -354,7 +354,7 @@ pub struct TestConfig {
     /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fixtures_dir: Option<PathBuf>,
-    /// Optional directory to write test run directories to.
+    /// Directory to use for executing tests.
     ///
     /// If not set, runs are written to `<workspace>/test/runs`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
