@@ -123,7 +123,7 @@ pub struct Args {
     /// If not specified, defaults to `<workspace>/test/fixtures`.
     #[clap(long)]
     pub fixtures_dir: Option<PathBuf>,
-    /// Directory to write test run outputs to.
+    /// Directory to execute tests in.
     ///
     /// If not specified, defaults to `<workspace>/test/runs`.
     #[clap(long)]
