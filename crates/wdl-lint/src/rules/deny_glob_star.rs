@@ -11,7 +11,7 @@ use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Expr;
-use wdl_ast::v1::OutputSection;
+use wdl_ast::v1::LiteralExpr;
 
 use crate::Rule;
 use crate::Tag;
@@ -20,7 +20,7 @@ use crate::TagSet;
 /// The identifier for the disallowed glob star rule.
 const ID: &str = "DenyGlobStar";
 
-/// Declaration Identifier for glob star in output
+/// Creates a diagnostic for a `glob("*")` pattern in an output declaration.
 fn glob_star_diagnostic(span: Span) -> Diagnostic {
     Diagnostic::warning("glob pattern \"*\" matches all files")
         .with_rule(ID)
@@ -29,11 +29,8 @@ fn glob_star_diagnostic(span: Span) -> Diagnostic {
 }
 
 /// A lint rule for disallowing the use of glob patterns with only star.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DenyGlobStar {
-    /// Track if we're in the output section.
-    output_section: bool,
-}
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DenyGlobStar;
 
 impl Rule for DenyGlobStar {
     fn id(&self) -> &'static str {
@@ -45,8 +42,9 @@ impl Rule for DenyGlobStar {
     }
 
     fn explanation(&self) -> &'static str {
-        "glob(\"*\") captures all files; use an explicit pattern instead as you may capture \
-         unintended files and make the task harder to debug/reproduce."
+        "glob(\"*\") captures all files; As a task grows, you may include unintended files and \
+         lead to unnecessary aggregation. Prefer explicit patterns to opt in only to the files you \
+         need, keeping tasks easier to debug/reproduce."
     }
 
     fn tags(&self) -> TagSet {
@@ -68,27 +66,31 @@ impl Rule for DenyGlobStar {
 
 impl Visitor for DenyGlobStar {
     fn reset(&mut self) {
-        *self = Default::default();
-    }
-
-    fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
-        self.output_section = reason == VisitReason::Enter;
+        *self = Self;
     }
 
     fn bound_decl(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, decl: &BoundDecl) {
-        if reason == VisitReason::Enter && self.output_section {
-            // Checking if the expression contains glob("*")
-            if let Expr::Call(call) = decl.expr()
-                && call.target().text().eq("glob")
-            {
-                for argument in call.arguments() {
-                    if argument.text().to_string().eq("\"*\"") {
-                        diagnostics.exceptable_add(
-                            glob_star_diagnostic(argument.span()),
-                            SyntaxElement::from(decl.inner().clone()),
-                            &self.exceptable_nodes(),
-                        );
-                    }
+        if decl
+            .inner()
+            .parent()
+            .is_none_or(|p| p.kind() != SyntaxKind::OutputSectionNode)
+            || reason != VisitReason::Enter
+        {
+            return;
+        }
+
+        if let Expr::Call(call) = decl.expr()
+            && call.target().text() == ("glob")
+        {
+            for argument in call.arguments() {
+                if let Expr::Literal(LiteralExpr::String(s)) = argument
+                    && s.text().is_some_and(|t| t.text() == "*")
+                {
+                    diagnostics.exceptable_add(
+                        glob_star_diagnostic(s.span()),
+                        SyntaxElement::from(decl.inner().clone()),
+                        &self.exceptable_nodes(),
+                    );
                 }
             }
         }
