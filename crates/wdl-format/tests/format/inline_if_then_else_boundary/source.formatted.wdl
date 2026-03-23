@@ -1,4 +1,4 @@
-version 1.0
+version 1.3
 
 workflow inline_if_then_else_boundary {
     input {

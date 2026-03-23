@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Improved inline collapsing for simple multiline `if/then/else` expressions in postprocessing: short expressions are now collapsed inline when they fit `max_line_length`, while longer expressions remain multiline.
+
 ## 0.16.0 - 2026-03-12
 
 #### Added

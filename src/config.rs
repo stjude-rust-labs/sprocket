@@ -136,8 +136,6 @@ pub struct FormatConfig {
     pub sort_inputs: bool,
     /// Enable adding trailing commas.
     pub trailing_commas: bool,
-    /// Enable inlining short `if/then/else` expressions.
-    pub allow_inline_if_then_else: bool,
 }
 
 impl Default for FormatConfig {
@@ -152,7 +150,6 @@ impl Default for FormatConfig {
                 .expect("should have a max line length"),
             sort_inputs: config.sort_inputs,
             trailing_commas: config.trailing_commas,
-            allow_inline_if_then_else: config.allow_inline_if_then_else,
         }
     }
 }

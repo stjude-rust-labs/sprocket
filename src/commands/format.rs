@@ -137,8 +137,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         .indent(indent)
         .max_line_length(max_line_length)
         .sort_imports(config.format.sort_inputs)
-        .trailing_commas(config.format.trailing_commas)
-        .allow_inline_if_then_else(config.format.allow_inline_if_then_else);
+        .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;
