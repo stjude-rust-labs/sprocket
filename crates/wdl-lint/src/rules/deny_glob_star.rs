@@ -43,7 +43,7 @@ impl Rule for DenyGlobStar {
 
     fn explanation(&self) -> &'static str {
         "glob(\"*\") captures all files; As a task grows, you may include unintended files and \
-         lead to unnecessary aggregation. Prefer explicit patterns to opt in only to the files you \
+         cause unnecessary aggregation. Prefer explicit patterns to opt in only to the files you \
          need, keeping tasks easier to debug/reproduce."
     }
 
