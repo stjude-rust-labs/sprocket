@@ -73,6 +73,7 @@ Available rules:
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - OptionalInputSafety
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched
