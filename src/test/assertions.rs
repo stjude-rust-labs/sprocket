@@ -531,10 +531,7 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::File, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            CompoundType::Array(ArrayType::new(Type::Primitive(
-                PrimitiveType::Float,
-                false,
-            ))),
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::Float, false))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -577,10 +574,7 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::Integer, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            CompoundType::Array(ArrayType::new(Type::Primitive(
-                PrimitiveType::File,
-                false,
-            ))),
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::File, false))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -606,20 +600,14 @@ mod tests {
         assert!(last.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Array(ArrayType::new(Type::Primitive(
-                PrimitiveType::Float,
-                true,
-            ))),
+            CompoundType::Array(ArrayType::new(Type::Primitive(PrimitiveType::Float, true))),
             true,
         );
         assert!(first.validate_type_congruence(&ty).is_err());
         assert!(last.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                PrimitiveType::Integer,
-                PrimitiveType::Boolean,
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(first.validate_type_congruence(&ty).is_err());
@@ -645,10 +633,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                PrimitiveType::Integer,
-                PrimitiveType::Boolean,
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -680,20 +665,14 @@ mod tests {
         assert!(right.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Pair(PairType::new(
-                PrimitiveType::Float,
-                PrimitiveType::Integer,
-            )),
+            CompoundType::Pair(PairType::new(PrimitiveType::Float, PrimitiveType::Integer)),
             false,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
         assert!(right.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                PrimitiveType::Integer,
-                PrimitiveType::Boolean,
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
@@ -719,10 +698,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            CompoundType::Map(MapType::new(
-                PrimitiveType::Integer,
-                PrimitiveType::Boolean,
-            )),
+            CompoundType::Map(MapType::new(PrimitiveType::Integer, PrimitiveType::Boolean)),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -734,10 +710,7 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            CompoundType::Pair(PairType::new(
-                PrimitiveType::Float,
-                PrimitiveType::Integer,
-            )),
+            CompoundType::Pair(PairType::new(PrimitiveType::Float, PrimitiveType::Integer)),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
