@@ -103,6 +103,31 @@ message = "testrun.wdl:5:10: note[MetaSections]: workflow `aws_sso_example` is m
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L5"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:62:15: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:62:47: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:64:32: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:68:17: warning[OptionalInputSafety]: optional value `object_count` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L68"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:78:16: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L78"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:121:109: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L121"
@@ -229,6 +254,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
+message = "ww-bcftools.wdl:62:14: warning[OptionalInputSafety]: optional value `regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
+message = "ww-bcftools.wdl:63:52: warning[OptionalInputSafety]: optional value `regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L63"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:87:46: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L87"
 
@@ -324,6 +359,26 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:101:12: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L101"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:105:14: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L105"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:109:14: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L109"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:112:45: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L112"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
 message = "ww-bwa.wdl:133:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L133"
 
@@ -344,12 +399,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:145:49: warning[OptionalInputSafety]: optional value `normal_bam` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L145"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:148:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L148"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:149:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L149"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:149:18: warning[OptionalInputSafety]: optional value `normal_bam` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L149"
 
 [[diagnostics]]
@@ -414,12 +479,22 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:68:15: warning[OptionalInputSafety]: optional value `target_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L68"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:71:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L71"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:73:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L73"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:73:19: warning[OptionalInputSafety]: optional value `target_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L73"
 
 [[diagnostics]]
@@ -536,6 +611,81 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `fastqc_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:49:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:49:16: warning[OptionalInputSafety]: optional value `adapters` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:50:46: warning[OptionalInputSafety]: optional value `adapters` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L50"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:53:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:53:16: warning[OptionalInputSafety]: optional value `limits` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:54:44: warning[OptionalInputSafety]: optional value `limits` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L54"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:57:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L57"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:57:16: warning[OptionalInputSafety]: optional value `contaminants` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L57"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:58:50: warning[OptionalInputSafety]: optional value `contaminants` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L58"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:63:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L63"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:63:16: warning[OptionalInputSafety]: optional value `r1_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L63"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:64:47: warning[OptionalInputSafety]: optional value `r1_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:67:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:67:16: warning[OptionalInputSafety]: optional value `r2_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:68:47: warning[OptionalInputSafety]: optional value `r2_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
@@ -664,6 +814,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:488:11: note[ShellCheck]: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L488"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:496:55: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L496"
 
@@ -764,6 +919,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:439:67: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L439"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:467:17: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L467"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:468:33: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L468"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:46:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L46"
 
@@ -839,6 +1009,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:176:13: note[ShellCheck]: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L176"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:182:14: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L182"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:183:13: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L183"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:184:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L184"
 
@@ -859,7 +1044,17 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:65:14: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L65"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:66:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L66"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:66:13: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L66"
 
 [[diagnostics]]
@@ -1149,6 +1344,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
+message = "ww-smoove.wdl:71:14: warning[OptionalInputSafety]: optional value `target_regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L71"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
+message = "ww-smoove.wdl:73:25: warning[OptionalInputSafety]: optional value `target_regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L73"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:92:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L92"
 
@@ -1161,6 +1366,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sourmash_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:101:23: warning[OptionalInputSafety]: optional value `output_name` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L101"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -1299,8 +1509,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:313:21: warning[OptionalInputSafety]: optional value `germline_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L313"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:319:9: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L319"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:321:21: warning[OptionalInputSafety]: optional value `somatic_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L321"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:337:49: warning[OptionalInputSafety]: optional value `germline_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L337"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:343:49: warning[OptionalInputSafety]: optional value `somatic_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L343"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -1534,6 +1764,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:757:14: warning[OptionalInputSafety]: optional value `region` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L757"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:759:40: warning[OptionalInputSafety]: optional value `region` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L759"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:809:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L809"
 
@@ -1656,6 +1896,141 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:141:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L141"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:190:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L190"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:197:24: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L197"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:198:28: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L198"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:205:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L205"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:211:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L211"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:217:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L217"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:223:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L223"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:229:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L229"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:235:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L235"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:241:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L241"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:247:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L247"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:253:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L253"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:259:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L259"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:265:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L265"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:277:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L277"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:283:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L283"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:289:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L289"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:295:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L295"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:301:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L301"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:307:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L307"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:313:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L313"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:319:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L319"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:325:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L325"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:331:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L331"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:337:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L337"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:343:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L343"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:349:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L349"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
@@ -2091,6 +2466,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:308:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L308"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:32:18: warning[OptionalInputSafety]: optional value `md5sum` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L32"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:33:19: warning[OptionalInputSafety]: optional value `md5sum` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L33"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"

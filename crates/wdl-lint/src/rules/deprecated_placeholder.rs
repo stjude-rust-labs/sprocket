@@ -101,7 +101,11 @@ impl Rule for DeprecatedPlaceholderRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &["DeprecatedObject", "ExpectedRuntimeKeys", "OptionalInputSafety"]
+        &[
+            "DeprecatedObject",
+            "ExpectedRuntimeKeys",
+            "OptionalInputSafety",
+        ]
     }
 }
 

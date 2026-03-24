@@ -28,13 +28,17 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
+/// The identifier for the optional-input-safety lint rule.
 const ID: &str = "OptionalInputSafety";
 
+/// Standard library call names that count as explicit optional guards.
 const GUARD_CALL_TARGETS: &[&str] = &["defined", "select_first", "select_all"];
 
 /// Context for typing placeholder expressions inside a task command section.
 struct CommandScopeContext<'a> {
+    /// The analysis document being visited.
     document: Document,
+    /// The lexical scope at the start of the command section.
     scope: ScopeRef<'a>,
 }
 
@@ -83,6 +87,7 @@ impl EvaluationContext for CommandScopeContext<'_> {
 }
 
 impl<'a> CommandScopeContext<'a> {
+    /// Creates a new context for evaluating types in a command section.
     fn new(document: Document, scope: ScopeRef<'a>) -> Self {
         Self { document, scope }
     }
@@ -117,12 +122,15 @@ fn optional_expr_is_guarded<C: EvaluationContext>(
     }
 }
 
+/// Returns whether the call is to `defined`, `select_first`, or `select_all`.
 fn guard_call(call: &CallExpr) -> bool {
     let target = call.target();
     let name = target.text();
-    GUARD_CALL_TARGETS.iter().any(|&g| g == name)
+    GUARD_CALL_TARGETS.contains(&name)
 }
 
+/// Best-effort name of the placeholder subject for diagnostics (e.g. `x` in
+/// `~{x}`).
 fn placeholder_subject_name(expr: &Expr) -> Option<String> {
     match expr {
         Expr::NameRef(r) => Some(r.name().text().to_owned()),
@@ -131,13 +139,14 @@ fn placeholder_subject_name(expr: &Expr) -> Option<String> {
     }
 }
 
+/// Builds the warning diagnostic for an unguarded optional in a placeholder.
 fn optional_placeholder_diagnostic(expr: &Expr, placeholder: &Placeholder) -> Diagnostic {
     let span = placeholder.span();
     let message = if let Some(name) = placeholder_subject_name(expr) {
         format!(
-            "optional value `{name}` used in command placeholder without a guard; use \
-             `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to \
-             handle the `None` case explicitly"
+            "optional value `{name}` used in command placeholder without a guard; use `if \
+             defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle \
+             the `None` case explicitly"
         )
     } else {
         String::from(
@@ -160,6 +169,7 @@ fn optional_placeholder_diagnostic(expr: &Expr, placeholder: &Placeholder) -> Di
 /// `None`.
 #[derive(Debug, Default, Clone)]
 pub struct OptionalInputSafetyRule {
+    /// The analysis document being visited.
     document: Option<Document>,
 }
 
