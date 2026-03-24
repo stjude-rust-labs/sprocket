@@ -111,6 +111,7 @@ use crate::types::ArrayType;
 use crate::types::CallKind;
 use crate::types::CallType;
 use crate::types::Coercible;
+use crate::types::CompoundType;
 use crate::types::EnumType;
 use crate::types::HiddenType;
 use crate::types::MapType;
@@ -1386,10 +1387,10 @@ fn add_scatter_statement(
         EvaluationContext::new(document, ScopeRef::new(scopes, scope_index), config.clone());
     let mut evaluator = ExprTypeEvaluator::new(&mut context);
     let ty = evaluator.evaluate_expr(&expr).unwrap_or(Type::Union);
-    let element_ty = match ty.as_array() {
-        Some(arr) => arr.element_type().clone(),
-        None if matches!(ty, Type::Union) => Type::Union,
-        None => {
+    let element_ty = match ty {
+        Type::Union => Type::Union,
+        Type::Compound(CompoundType::Array(ty), _) => ty.element_type().clone(),
+        _ => {
             document
                 .analysis_diagnostics
                 .push(type_is_not_array(&ty, expr.span()));
@@ -2124,8 +2125,8 @@ fn type_check_expr(
     }
     // Check to see if we're assigning an empty array literal to a non-empty type; we can statically
     // flag these as errors; otherwise, non-empty array constraints are checked at runtime
-    else if let Some(arr) = expected.as_array()
-        && arr.is_non_empty()
+    else if let Type::Compound(CompoundType::Array(ty), _) = expected
+        && ty.is_non_empty()
         && expr.is_empty_array_literal()
     {
         document
