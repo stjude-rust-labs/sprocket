@@ -1,67 +1,35 @@
 name: Adds labels
 
 on:
-  pull_request_target:
+  workflow_run:
+    workflows: ["Rust CI"]
+    types:
+      - completed
 
 env:
   GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-    timeout-minutes: 60
-    env:
-      PR_NUMBER: ${{ github.event.number }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Add labels
+        continue-on-error: true
         run: |
-          # Give some breathing room at the start.
-          sleep 30
+          PR_NUMBERS=$(jq --raw-output '.workflow_run.pull_requests[].number' "$GITHUB_EVENT_PATH")
 
-          echo "Waiting for CI pipelines to start"
-          result=""
-
-          # Wait for more than one pipeline to spawn.
-          until [[ $result -gt 1 ]]; do
-            result=$(
-              gh pr checks $PR_NUMBER \
-                --json "bucket" \
-                --jq "[.[] | select(.bucket == \"pending\")] | length"
-              )
-            
-            sleep 15
-          done
-
-          # Wait for only the add labels pipeline to be remaining.
-          echo "Waiting while CI pipelines complete"
-          until [[ $result -eq 1 ]]; do
-            result=$(
-              gh pr checks $PR_NUMBER \
-                --json "bucket" \
-                --jq "[.[] | select(.bucket == \"pending\")] | length"
-              )
-            
-            sleep 15
-          done
-
-          echo "Evaluating whether there were any CI failures"
-
-          result=$(
-            gh pr checks $PR_NUMBER \
-              --json "bucket" \
-              --jq "isempty(.[] | select(.bucket == \"fail\"))"
-          )
-
-          if [[ $result == "true" ]]; then
-            gh pr edit $PR_NUMBER --remove-label "S-awaiting-pass-CI"
-          else
-            gh pr edit $PR_NUMBER --add-label "S-awaiting-pass-CI"
+          if [ -z "$PR_NUMBERS" ]; then
+            echo "No PR found for this run. Exiting."
+            exit 0
           fi
 
-          echo "Finished!"
+          for PR_NUMBER in $PR_NUMBERS; do
+            if [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+              gh pr edit "$PR_NUMBER" --remove-label "S-awaiting-pass-CI"
+            else
+              gh pr edit "$PR_NUMBER" --add-label "S-awaiting-pass-CI"
+            fi
+          done

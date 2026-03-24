@@ -123,53 +123,6 @@ use crate::types::TypeNameResolver;
 use crate::types::v1::AstTypeConverter;
 use crate::types::v1::ExprTypeEvaluator;
 
-/// Determines if an input is used based off a name heuristic.
-///
-/// To localize related files, WDL tasks typically use additional `File` or
-/// `Array[File]` inputs which aren't referenced in the task itself.
-///
-/// As such, we don't want to generate an "unused input" warning for these
-/// inputs.
-///
-/// It is expected that the name of the input is suffixed with a particular
-/// string (this list is based on the heuristic applied by `miniwdl`):
-///
-/// * index
-/// * indexes
-/// * indices
-/// * idx
-/// * tbi
-/// * bai
-/// * crai
-/// * csi
-/// * fai
-/// * dict
-fn is_input_used(name: &str, ty: &Type) -> bool {
-    /// The suffixes that cause the input to be "used"
-    const SUFFIXES: &[&str] = &[
-        "index", "indexes", "indices", "idx", "tbi", "bai", "crai", "csi", "fai", "dict",
-    ];
-
-    // Determine if the input is `File` or `Array[File]`
-    match ty {
-        Type::Primitive(PrimitiveType::File, _) => {}
-        Type::Compound(CompoundType::Array(ty), _) => match ty.element_type() {
-            Type::Primitive(PrimitiveType::File, _) => {}
-            _ => return false,
-        },
-        _ => return false,
-    }
-
-    let name = name.to_lowercase();
-    for suffix in SUFFIXES {
-        if name.ends_with(suffix) {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Adds a scope to a list of scopes.
 ///
 /// Returns the index of the newly added scope.
@@ -834,19 +787,14 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     // a single implicit dependency edge; if so, it might be unused
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
-                    if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next()) {
+                    if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
+                        && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                    {
                         let name = decl.name();
 
-                        // Determine if the input is really used based on its name and type
-                        if is_input_used(name.text(), &task.inputs[name.text()].ty) {
-                            continue;
-                        }
-
-                        if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.analysis_diagnostics.push(
-                                unused_input(name.text(), name.span()).with_severity(severity),
-                            );
-                        }
+                        document
+                            .analysis_diagnostics
+                            .push(unused_input(name.text(), name.span()).with_severity(severity));
                     }
                 }
             }
@@ -1131,24 +1079,18 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 }
 
                 // Check for unused input
-                if let Some(severity) = config.diagnostics_config().unused_input {
-                    let name = decl.name();
-                    if graph
+                if let Some(severity) = config.diagnostics_config().unused_input
+                    && graph
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                    {
-                        // Determine if the input is really used based on its name and type
-                        if is_input_used(name.text(), &inputs[name.text()].ty) {
-                            continue;
-                        }
+                    && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                {
+                    let name = decl.name();
 
-                        if !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID) {
-                            document.analysis_diagnostics.push(
-                                unused_input(name.text(), name.span()).with_severity(severity),
-                            );
-                        }
-                    }
+                    document
+                        .analysis_diagnostics
+                        .push(unused_input(name.text(), name.span()).with_severity(severity));
                 }
             }
             WorkflowGraphNode::Decl(decl) => {
