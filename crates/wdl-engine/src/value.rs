@@ -1761,10 +1761,7 @@ impl Array {
     /// Panics if the given type is not an array type.
     pub(crate) fn new_unchecked(ty: impl Into<Type>, elements: Vec<Value>) -> Self {
         let ty = match ty.into() {
-            Type::Compound(compound, _) => match compound.as_ref() {
-                CompoundType::Array(ty) => Type::from(ty.unqualified()),
-                _ => panic!("type is not an array type"),
-            },
+            Type::Compound(CompoundType::Array(ty), _) => Type::from(ty.unqualified()),
             _ => panic!("type is not an array type"),
         };
 
@@ -2707,7 +2704,7 @@ impl Coercible for CompoundValue {
         }
 
         if let Type::Compound(target_ty, _) = target {
-            match (self, target_ty.as_ref()) {
+            match (self, target_ty) {
                 // Array[X] -> Array[Y](+) where X -> Y
                 (Self::Array(v), CompoundType::Array(target_ty)) => {
                     // Don't allow coercion when the source is empty but the target has the
@@ -3156,7 +3153,7 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.gpu.clone()))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
-                            Arc::new(CompoundType::Array(ArrayType::new(PrimitiveType::String))),
+                            CompoundType::Array(ArrayType::new(PrimitiveType::String)),
                             true,
                         ))
                     }),
@@ -3167,7 +3164,7 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.fpga.clone()))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
-                            Arc::new(CompoundType::Array(ArrayType::new(PrimitiveType::String))),
+                            CompoundType::Array(ArrayType::new(PrimitiveType::String)),
                             true,
                         ))
                     }),
@@ -3178,10 +3175,10 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.disks.clone()))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
-                            Arc::new(CompoundType::Map(MapType::new(
+                            CompoundType::Map(MapType::new(
                                 PrimitiveType::String,
                                 PrimitiveType::Integer,
-                            ))),
+                            )),
                             true,
                         ))
                     }),
@@ -4723,7 +4720,7 @@ mod test {
         use wdl_analysis::types::EnumType;
 
         let enum_type = Type::Compound(
-            Arc::new(CompoundType::Custom(CustomType::Enum(
+            CompoundType::Custom(CustomType::Enum(
                 EnumType::new(
                     "MyEnum",
                     Span::new(0, 0),
@@ -4732,7 +4729,7 @@ mod test {
                     &[],
                 )
                 .expect("should create enum type"),
-            ))),
+            )),
             false,
         );
 
@@ -4745,10 +4742,10 @@ mod test {
     #[test]
     fn type_name_ref_ty() {
         let struct_type = Type::Compound(
-            Arc::new(CompoundType::Custom(CustomType::Struct(StructType::new(
+            CompoundType::Custom(CustomType::Struct(StructType::new(
                 "MyStruct",
                 empty::<(&str, Type)>(),
-            )))),
+            ))),
             false,
         );
 
@@ -4761,7 +4758,7 @@ mod test {
         use wdl_analysis::types::EnumType;
 
         let enum_type = Type::Compound(
-            Arc::new(CompoundType::Custom(CustomType::Enum(
+            CompoundType::Custom(CustomType::Enum(
                 EnumType::new(
                     "Color",
                     Span::new(0, 0),
@@ -4770,7 +4767,7 @@ mod test {
                     &[],
                 )
                 .expect("should create enum type"),
-            ))),
+            )),
             false,
         );
 

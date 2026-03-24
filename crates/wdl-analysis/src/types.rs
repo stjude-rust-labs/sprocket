@@ -173,7 +173,7 @@ pub enum Type {
     /// The type is a compound type.
     ///
     /// The second field is whether or not the compound type is optional.
-    Compound(Arc<CompoundType>, bool),
+    Compound(CompoundType, bool),
     /// The type is `Object`.
     Object,
     /// The type is `Object?`.
@@ -325,7 +325,7 @@ impl Type {
             return Self::Call(ty.promote_scatter());
         }
 
-        Type::Compound(Arc::new(ArrayType::new(self.clone()).into()), false)
+        Type::Compound(ArrayType::new(self.clone()).into(), false)
     }
 
     /// Calculates a common type between this type and the given type.
@@ -367,7 +367,7 @@ impl Type {
         if let (Some(this), Some(other)) = (self.as_compound(), other.as_compound())
             && let Some(ty) = this.common_type(other)
         {
-            return Some(Self::Compound(Arc::new(ty), self.is_optional()));
+            return Some(Self::Compound(ty, self.is_optional()));
         }
 
         // Check for a call type to have a common type with itself
@@ -487,7 +487,7 @@ impl Coercible for Type {
             // Struct -> Object, Struct -> Object?, Struct? -> Object?
             (Self::Compound(src, false), Self::Object)
             | (Self::Compound(src, false), Self::OptionalObject)
-            | (Self::Compound(src, _), Self::OptionalObject) => match src.as_ref() {
+            | (Self::Compound(src, _), Self::OptionalObject) => match src {
                 CompoundType::Map(src) => src
                     .key_type()
                     .is_coercible_to(&PrimitiveType::String.into()),
@@ -502,7 +502,7 @@ impl Coercible for Type {
             // struct member names and object values are coercible to struct member types
             (Self::Object, Self::Compound(target, _))
             | (Self::OptionalObject, Self::Compound(target, true)) => {
-                match target.as_ref() {
+                match target {
                     CompoundType::Map(target) => {
                         Type::from(PrimitiveType::String).is_coercible_to(target.key_type())
                     }
@@ -547,37 +547,37 @@ impl From<PrimitiveType> for Type {
 
 impl From<CompoundType> for Type {
     fn from(value: CompoundType) -> Self {
-        Self::Compound(Arc::new(value), false)
+        Self::Compound(value, false)
     }
 }
 
 impl From<ArrayType> for Type {
     fn from(value: ArrayType) -> Self {
-        Self::Compound(Arc::new(value.into()), false)
+        Self::Compound(value.into(), false)
     }
 }
 
 impl From<PairType> for Type {
     fn from(value: PairType) -> Self {
-        Self::Compound(Arc::new(value.into()), false)
+        Self::Compound(value.into(), false)
     }
 }
 
 impl From<MapType> for Type {
     fn from(value: MapType) -> Self {
-        Self::Compound(Arc::new(value.into()), false)
+        Self::Compound(value.into(), false)
     }
 }
 
 impl From<StructType> for Type {
     fn from(value: StructType) -> Self {
-        Self::Compound(Arc::new(value.into()), false)
+        Self::Compound(value.into(), false)
     }
 }
 
 impl From<EnumType> for Type {
     fn from(value: EnumType) -> Self {
-        Self::Compound(Arc::new(value.into()), false)
+        Self::Compound(value.into(), false)
     }
 }
 

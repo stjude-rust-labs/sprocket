@@ -197,7 +197,7 @@ impl OutputAssertion {
                     }
                 }
                 let mut valid = false;
-                match comp_ty.as_ref() {
+                match comp_ty {
                     CompoundType::Array(arr_ty) => match self {
                         Self::Length(_) | Self::Empty(_) => {
                             valid = true;
@@ -397,8 +397,6 @@ pub(crate) struct ParsedAssertions {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use wdl::analysis::types::ArrayType;
     use wdl::analysis::types::MapType;
     use wdl::analysis::types::PairType;
@@ -434,18 +432,18 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::Boolean, false);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Boolean,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Boolean,
                 false,
-            )))),
+            ))),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -463,10 +461,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::Directory, false);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Boolean,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -486,10 +484,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::File, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::String,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -509,10 +507,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::Float, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Integer,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -533,10 +531,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::File, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Float,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -556,10 +554,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::File, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::String,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -579,10 +577,10 @@ mod tests {
         let ty = Type::Primitive(PrimitiveType::Integer, true);
         assert!(assertion.validate_type_congruence(&ty).is_err());
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::File,
                 false,
-            )))),
+            ))),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -598,30 +596,30 @@ mod tests {
         let last = last.inner;
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::String,
                 false,
-            )))),
+            ))),
             false,
         );
         assert!(first.validate_type_congruence(&ty).is_ok());
         assert!(last.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Float,
                 true,
-            )))),
+            ))),
             true,
         );
         assert!(first.validate_type_congruence(&ty).is_err());
         assert!(last.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Map(MapType::new(
+            CompoundType::Map(MapType::new(
                 PrimitiveType::Integer,
                 PrimitiveType::Boolean,
-            ))),
+            )),
             true,
         );
         assert!(first.validate_type_congruence(&ty).is_err());
@@ -638,19 +636,19 @@ mod tests {
         let assertion = assertion.inner;
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Directory,
                 true,
-            )))),
+            ))),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Map(MapType::new(
+            CompoundType::Map(MapType::new(
                 PrimitiveType::Integer,
                 PrimitiveType::Boolean,
-            ))),
+            )),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -672,30 +670,30 @@ mod tests {
         let right = right.inner;
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Pair(PairType::new(
+            CompoundType::Pair(PairType::new(
                 PrimitiveType::String,
                 Type::Primitive(PrimitiveType::String, true),
-            ))),
+            )),
             true,
         );
         assert!(left.validate_type_congruence(&ty).is_ok());
         assert!(right.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Pair(PairType::new(
+            CompoundType::Pair(PairType::new(
                 PrimitiveType::Float,
                 PrimitiveType::Integer,
-            ))),
+            )),
             false,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
         assert!(right.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Map(MapType::new(
+            CompoundType::Map(MapType::new(
                 PrimitiveType::Integer,
                 PrimitiveType::Boolean,
-            ))),
+            )),
             true,
         );
         assert!(left.validate_type_congruence(&ty).is_err());
@@ -712,19 +710,19 @@ mod tests {
         let assertion = assertion.inner;
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Directory,
                 true,
-            )))),
+            ))),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Map(MapType::new(
+            CompoundType::Map(MapType::new(
                 PrimitiveType::Integer,
                 PrimitiveType::Boolean,
-            ))),
+            )),
             true,
         );
         assert!(assertion.validate_type_congruence(&ty).is_ok());
@@ -736,10 +734,10 @@ mod tests {
         assert!(assertion.validate_type_congruence(&ty).is_err());
 
         let ty = Type::Compound(
-            Arc::new(CompoundType::Pair(PairType::new(
+            CompoundType::Pair(PairType::new(
                 PrimitiveType::Float,
                 PrimitiveType::Integer,
-            ))),
+            )),
             false,
         );
         assert!(assertion.validate_type_congruence(&ty).is_err());
@@ -759,10 +757,10 @@ mod tests {
         assert!(is_none.evaluate(&o).is_err());
         assert!(is_defined.evaluate(&o).is_ok());
         let o = EngineValue::new_none(Type::Compound(
-            Arc::new(CompoundType::Array(ArrayType::new(Type::Primitive(
+            CompoundType::Array(ArrayType::new(Type::Primitive(
                 PrimitiveType::Boolean,
                 false,
-            )))),
+            ))),
             true,
         ));
         assert!(is_none.evaluate(&o).is_ok());
