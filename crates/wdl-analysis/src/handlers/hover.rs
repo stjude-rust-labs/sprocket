@@ -47,6 +47,7 @@ use crate::handlers::common::provide_workflow_documentation;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
+use crate::types::CompoundType;
 use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
@@ -335,8 +336,7 @@ fn resolve_hover_by_context(
                     // `Struct.member` is not valid in WDL.
                     return Ok(None);
                 }
-                Type::Compound(ref compound, _) if compound.as_struct().is_some() => {
-                    let s = compound.as_struct().unwrap();
+                Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(ns_name) = s.namespace() {
                             // SAFETY: we just found a struct with this namespace name and the
@@ -364,16 +364,14 @@ fn resolve_hover_by_context(
                     (s.members().get(member.text()).cloned(), doc)
                 }
                 Type::Call(c) => (c.outputs().get(member.text()).map(|o| o.ty().clone()), None),
-                Type::Compound(ref compound, _) if compound.as_pair().is_some() => {
-                    let p = compound.as_pair().unwrap();
+                Type::Compound(CompoundType::Pair(p), _) => {
                     match member.text() {
                         "left" => (Some(p.left_type().clone()), None),
                         "right" => (Some(p.right_type().clone()), None),
                         _ => (None, None),
                     }
                 }
-                Type::Compound(ref compound, _) if compound.as_enum().is_some() => {
-                    let e = compound.as_enum().unwrap();
+                Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
                     if e.variants().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {

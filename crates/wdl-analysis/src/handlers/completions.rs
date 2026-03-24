@@ -82,6 +82,7 @@ use crate::handlers::snippets;
 use crate::stdlib::Function;
 use crate::stdlib::STDLIB;
 use crate::stdlib::TypeParameters;
+use crate::types::CompoundType;
 use crate::types::CustomType;
 use crate::types::Type;
 use crate::types::v1::ExprTypeEvaluator;
@@ -464,8 +465,7 @@ fn add_member_access_completions(
     let target_type = evaluator.evaluate_expr(&target_expr).unwrap_or(Type::Union);
 
     match (accessor_token.kind(), target_type) {
-        (SyntaxKind::Dot, Type::Compound(ref compound, _)) if compound.as_struct().is_some() => {
-            let s = compound.as_struct().unwrap();
+        (SyntaxKind::Dot, Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _)) => {
             for (name, ty) in s.members() {
                 items.push(CompletionItem {
                     label: name.to_string(),
@@ -485,8 +485,7 @@ fn add_member_access_completions(
                 });
             }
         }
-        (SyntaxKind::Dot, Type::Compound(ref compound, _)) if compound.as_pair().is_some() => {
-            let p = compound.as_pair().unwrap();
+        (SyntaxKind::Dot, Type::Compound(CompoundType::Pair(p), _)) => {
             items.push(CompletionItem {
                 label: "left".to_string(),
                 kind: Some(CompletionItemKind::FIELD),
@@ -516,9 +515,7 @@ fn add_member_access_completions(
                 }
             }
         }
-        (SyntaxKind::OpenBracket, Type::Compound(ref compound, _))
-            if compound.as_map().is_some() =>
-        {
+        (SyntaxKind::OpenBracket, Type::Compound(CompoundType::Map(_), _)) => {
             if let Expr::NameRef(name_ref) = target_expr {
                 let var_name = name_ref.name();
 
