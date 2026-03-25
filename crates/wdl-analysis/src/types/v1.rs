@@ -1183,9 +1183,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             };
 
             match ty {
-                Type::Compound(CompoundType::Custom(CustomType::Struct(st)), _) => {
-                    s = Some(st);
-                }
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => s = Some(ty),
                 _ if names.peek().is_some() => {
                     self.context.add_diagnostic(not_a_struct(&name, i == 0));
                     break;
@@ -1740,6 +1738,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 return None;
             }
             Type::Compound(CompoundType::Pair(ty), _) => {
+                // Support `left` and `right` accessors for pairs
                 return match name.text() {
                     "left" => Some(ty.left_type().clone()),
                     "right" => Some(ty.right_type().clone()),
@@ -1749,7 +1748,6 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            Type::Compound(..) => {}
             Type::Call(ty) => {
                 if let Some(output) = ty.outputs().get(name.text()) {
                     return Some(output.ty().clone());

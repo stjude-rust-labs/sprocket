@@ -12,6 +12,7 @@ use wdl_ast::version::V1;
 
 use crate::types::ArrayType;
 use crate::types::Coercible;
+use crate::types::CompoundType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -333,8 +334,7 @@ impl GenericArrayType {
                 self.element_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(compound, false) if compound.as_array().is_some() => {
-                let ty = compound.as_array().unwrap();
+            Type::Compound(CompoundType::Array(ty), false) => {
                 self.element_type.infer_type_parameters(
                     ty.element_type(),
                     params,
@@ -431,8 +431,7 @@ impl GenericPairType {
                 self.right_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(compound, false) if compound.as_pair().is_some() => {
-                let ty = compound.as_pair().unwrap();
+            Type::Compound(CompoundType::Pair(ty), false) => {
                 self.left_type
                     .infer_type_parameters(ty.left_type(), params, ignore_constraints);
                 self.right_type
@@ -523,8 +522,7 @@ impl GenericMapType {
                 self.value_type
                     .infer_type_parameters(&Type::Union, params, ignore_constraints);
             }
-            Type::Compound(compound, false) if compound.as_map().is_some() => {
-                let ty = compound.as_map().unwrap();
+            Type::Compound(CompoundType::Map(ty), false) => {
                 self.key_type
                     .infer_type_parameters(ty.key_type(), params, ignore_constraints);
                 self.value_type
