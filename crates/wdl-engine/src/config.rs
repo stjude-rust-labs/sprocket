@@ -185,6 +185,9 @@ impl<'de> serde::Deserialize<'de> for SecretString {
 }
 
 /// Creates a new type, which can be nulled, for use in configuration structs.
+///
+/// The inner type cannot be a `String` or the sentinel value will never be
+/// recognized.
 #[macro_export]
 macro_rules! nullable_config_type {
     (

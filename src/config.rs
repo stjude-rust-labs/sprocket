@@ -28,21 +28,21 @@ const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_PORT: u16 = 8080;
 
 /// Default database filename.
-pub const DEFAULT_DATABASE_NAME: &str = "sprocket.db";
+pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Sentinel value for using a local database.
-const SENTINEL_DATABASE_NAME: &str = "localized";
+const SENTINEL_DATABASE_FILENAME: &str = "localized";
 
 /// Helper for `serde`.
 fn get_sentinel_database_name() -> String {
-    SENTINEL_DATABASE_NAME.to_string()
+    SENTINEL_DATABASE_FILENAME.to_string()
 }
 
 /// Default output directory.
 pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 
 /// The name of the Sprocket configuration file.
-const CONFIG_FILE_NAME: &str = "sprocket.toml";
+const CONFIG_FILENAME: &str = "sprocket.toml";
 
 /// The capacity for the events channels.
 ///
@@ -314,9 +314,9 @@ impl Default for ServerConfig {
 impl ServerConfig {
     /// Get the database URL.
     pub fn database_url(&self) -> String {
-        if self.database.url == SENTINEL_DATABASE_NAME {
+        if self.database.url == SENTINEL_DATABASE_FILENAME {
             self.output_directory
-                .join(DEFAULT_DATABASE_NAME)
+                .join(DEFAULT_DATABASE_FILENAME)
                 .to_string_lossy()
                 .to_string()
         } else {
@@ -409,7 +409,7 @@ impl Config {
             if let Ok(path) = std::env::current_exe()
                 && let Some(parent) = path.parent()
             {
-                let path = parent.join(CONFIG_FILE_NAME);
+                let path = parent.join(CONFIG_FILENAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
                     builder = builder.add_source(config::File::from(path.as_path()));
@@ -429,7 +429,7 @@ impl Config {
             let dir = dirs::config_dir();
 
             if let Some(dir) = dir {
-                let path = dir.join("sprocket").join(CONFIG_FILE_NAME);
+                let path = dir.join("sprocket").join(CONFIG_FILENAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
                     builder = builder.add_source(config::File::from(path.as_path()));
@@ -442,7 +442,7 @@ impl Config {
             }
 
             // Check PWD for a config file
-            let path = Path::new(CONFIG_FILE_NAME);
+            let path = Path::new(CONFIG_FILENAME);
             if path.exists() {
                 debug!("reading configuration from `{path}`", path = path.display());
                 builder = builder.add_source(config::File::from(path));

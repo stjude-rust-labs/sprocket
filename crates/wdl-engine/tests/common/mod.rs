@@ -80,10 +80,8 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
             let combined = config::Config::builder()
                 .add_source(config::Config::try_from(config).unwrap())
                 .add_source(config::File::from(config_override_path.as_path()).required(true))
-                .build()
-                .unwrap()
-                .try_deserialize()
-                .unwrap();
+                .build()?
+                .try_deserialize()?;
             *config = combined;
         }
     }

@@ -21,6 +21,8 @@ pub const DEFAULT_MAX_LINE_LENGTH: usize = 90;
 pub const MIN_MAX_LINE_LENGTH: usize = 60;
 /// The maximum maximum line length.
 pub const MAX_MAX_LINE_LENGTH: usize = 240;
+/// The max line length sentinel value meaning "no maximum".
+const SENTINEL: &str = "none";
 
 /// The maximum line length.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -56,7 +58,7 @@ impl Serialize for MaxLineLength {
         S: serde::Serializer,
     {
         match self {
-            MaxLineLength(None) => "none".serialize(serializer),
+            MaxLineLength(None) => SENTINEL.serialize(serializer),
             MaxLineLength(Some(n)) => n.serialize(serializer),
         }
     }
@@ -77,9 +79,9 @@ impl<'de> Deserialize<'de> for MaxLineLength {
 
         match Value::deserialize(deserializer)? {
             Value::Num(n) => MaxLineLength::try_new(Some(n)).map_err(serde::de::Error::custom),
-            Value::Str(s) if s == "none" => Ok(MaxLineLength(None)),
+            Value::Str(s) if s == SENTINEL => Ok(MaxLineLength(None)),
             Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a number or \"none\", got \"{s}\""
+                "expected a number or \"{SENTINEL}\", got \"{s}\""
             ))),
             Value::Null => Ok(MaxLineLength(None)),
         }
