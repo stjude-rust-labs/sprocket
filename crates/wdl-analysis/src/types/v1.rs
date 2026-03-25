@@ -740,8 +740,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
             } else {
                 match ty {
-                    Type::Primitive(..) | Type::Union | Type::None => {}
-                    Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
+                    Type::Primitive(..)
+                    | Type::Union
+                    | Type::None
+                    | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
