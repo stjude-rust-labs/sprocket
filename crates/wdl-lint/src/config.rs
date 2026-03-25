@@ -27,7 +27,7 @@ macro_rules! define_lint_rule_config {
             )+
         }
 
-        impl Default for Config {
+        impl Default for $name {
             fn default() -> Self {
                 Self {
                     $(
