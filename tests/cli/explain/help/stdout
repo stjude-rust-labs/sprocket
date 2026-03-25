@@ -58,6 +58,7 @@ Available rules:
   - ConsistentNewlines
   - ContainerUri
   - DeclarationName
+  - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
