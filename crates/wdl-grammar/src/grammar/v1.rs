@@ -1405,9 +1405,7 @@ fn runtime_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
 /// Parses an item in a runtime section.
 fn runtime_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "runtime key");
+    ident!(parser, marker, "runtime key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1434,9 +1432,7 @@ fn requirements_section(
 
 /// Parses an item in a requirements section.
 fn requirements_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "requirements key");
+    ident!(parser, marker, "requirements key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1477,9 +1473,7 @@ fn workflow_hints_section(
 
 /// Parses an item in a task hints section.
 fn task_hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "hint key");
+    ident!(parser, marker, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1492,9 +1486,7 @@ fn workflow_hints_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "hint key");
+    ident!(parser, marker, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, workflow_hints_value);
@@ -1563,9 +1555,7 @@ fn workflow_hints_object_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "object key");
+    ident!(parser, marker, "object key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, workflow_hints_value);
@@ -1608,9 +1598,7 @@ fn metadata_object_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "metadata key");
+    ident!(parser, marker, "metadata key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, metadata_value);
@@ -2608,9 +2596,7 @@ fn literal_hints(
 
 /// Parses a literal hints item.
 fn literal_hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    // TODO: No diagnostic is emitted here yet.
-    //       Switch to ident!() once the spec is updated: https://github.com/openwdl/wdl/issues/763
-    expected_in!(parser, marker, ANY_IDENT, "hint key");
+    ident!(parser, marker, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);

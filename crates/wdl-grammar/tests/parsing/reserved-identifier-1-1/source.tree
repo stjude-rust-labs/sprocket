@@ -1,4 +1,4 @@
-RootNode@0..304
+RootNode@0..169
   VersionStatementNode@0..11
     VersionKeyword@0..7 "version"
     Whitespace@7..8 " "
@@ -25,7 +25,7 @@ RootNode@0..304
     Whitespace@58..59 "\n"
     CloseBrace@59..60 "}"
   Whitespace@60..62 "\n\n"
-  TaskDefinitionNode@62..303
+  TaskDefinitionNode@62..168
     TaskKeyword@62..66 "task"
     Whitespace@66..67 " "
     Ident@67..70 "foo"
@@ -45,31 +45,27 @@ RootNode@0..304
       Whitespace@102..107 "\n    "
       CloseBrace@107..108 "}"
     Whitespace@108..114 "\n\n    "
-    MetadataSectionNode@114..281
+    MetadataSectionNode@114..146
       MetaKeyword@114..118 "meta"
       Whitespace@118..119 " "
       OpenBrace@119..120 "{"
       Whitespace@120..129 "\n        "
-      Comment@129..195 "# TODO: Still TBD on  ..."
-      Whitespace@195..204 "\n        "
-      Comment@204..255 "#       <https://gith ..."
-      Whitespace@255..264 "\n        "
-      MetadataObjectItemNode@264..275
-        Ident@264..268 "None"
-        Colon@268..269 ":"
-        Whitespace@269..270 " "
-        LiteralStringNode@270..275
-          DoubleQuote@270..271 "\""
-          LiteralStringText@271..274 "xyz"
-          DoubleQuote@274..275 "\""
-      Whitespace@275..280 "\n    "
-      CloseBrace@280..281 "}"
-    Whitespace@281..287 "\n\n    "
-    CommandSectionNode@287..301
-      CommandKeyword@287..294 "command"
-      Whitespace@294..295 " "
-      OpenHeredoc@295..298 "<<<"
-      CloseHeredoc@298..301 ">>>"
-    Whitespace@301..302 "\n"
-    CloseBrace@302..303 "}"
-  Whitespace@303..304 "\n"
+      MetadataObjectItemNode@129..140
+        Ident@129..133 "None"
+        Colon@133..134 ":"
+        Whitespace@134..135 " "
+        LiteralStringNode@135..140
+          DoubleQuote@135..136 "\""
+          LiteralStringText@136..139 "xyz"
+          DoubleQuote@139..140 "\""
+      Whitespace@140..145 "\n    "
+      CloseBrace@145..146 "}"
+    Whitespace@146..152 "\n\n    "
+    CommandSectionNode@152..166
+      CommandKeyword@152..159 "command"
+      Whitespace@159..160 " "
+      OpenHeredoc@160..163 "<<<"
+      CloseHeredoc@163..166 ">>>"
+    Whitespace@166..167 "\n"
+    CloseBrace@167..168 "}"
+  Whitespace@168..169 "\n"

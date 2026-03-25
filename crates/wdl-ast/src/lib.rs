@@ -54,7 +54,6 @@ pub use wdl_grammar::SyntaxTree;
 pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::lexer;
 pub use wdl_grammar::version;
-use wdl_grammar::version::V1;
 
 pub mod v1;
 
