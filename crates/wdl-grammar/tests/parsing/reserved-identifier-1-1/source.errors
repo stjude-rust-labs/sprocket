@@ -16,3 +16,9 @@ error: expected input name, but found `after` keyword
 10 │         Int after
    │             ^^^^^ unexpected `after` keyword
 
+error: expected metadata key, but found `None` keyword
+   ┌─ tests/parsing/reserved-identifier-1-1/source.wdl:14:9
+   │
+14 │         None: "xyz"
+   │         ^^^^ unexpected `None` keyword
+
