@@ -195,9 +195,13 @@ pub async fn gauntlet(args: Args) -> Result<()> {
 
         let analyzer = Analyzer::new_with_validator(
             // Don't bother duplicating analysis warnings for arena mode
-            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::new(
-                if args.arena { Vec::new() } else { rules() },
-            )),
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::new(if args.arena {
+                    Vec::new()
+                } else {
+                    rules()
+                }))
+                .with_ignore_filename(Some(".sprocketignore".into())),
             move |_: (), _, _, _| async move {},
             move || {
                 let mut validator = if args.arena {
