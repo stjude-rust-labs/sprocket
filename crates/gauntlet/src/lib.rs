@@ -81,11 +81,6 @@ pub struct Args {
     #[arg(short, long)]
     pub debug: bool,
 
-    /// If provided, only shows tests whose identifier contains the provided
-    /// string(s).
-    #[arg(short, long = "filter")]
-    pub filters: Vec<String>,
-
     /// Enables logging for all modules (not just `gauntlet`).
     #[arg(short, long)]
     pub log_all_modules: bool,
