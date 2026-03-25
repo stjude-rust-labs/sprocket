@@ -196,12 +196,12 @@ macro_rules! nullable_config_type {
         $expected:literal,
         $default:expr
     ) => {
-        #[doc = concat!("Configuration for ", stringify!($name), ".")]
+        #[doc = concat!("Configuration for [`", stringify!($name), "`].")]
         #[derive(Clone, Debug)]
         pub struct $name(Option<$inner>);
 
         impl $name {
-            #[doc = concat!("Get the innner ", stringify!($inner), ".")]
+            #[doc = concat!("Get the inner [`", stringify!($inner), "`].")]
             pub fn inner(&self) -> Option<$inner> {
                 self.0
             }
@@ -523,7 +523,7 @@ impl Default for HttpConfig {
     fn default() -> Self {
         Self {
             cache_dir: get_sentinel_cache_dir(),
-            retries: 5, // default as defined in cloud_copy
+            retries: 5, // Default as defined in `cloud_copy`.
             parallelism: Default::default(),
         }
     }
