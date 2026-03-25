@@ -1,0 +1,16 @@
+warning[DenyGlobStar]: glob pattern "*" matches all files
+   ┌─ tests/lints/deny-glob-star/source.wdl:20:39
+   │
+20 │         Array[File] everything = glob("*")
+   │                                       ^^^
+   │
+   = fix: use a more specific pattern to avoid capturing unintended files
+
+warning[DenyGlobStar]: glob pattern "*" matches all files
+   ┌─ tests/lints/deny-glob-star/source.wdl:22:40
+   │
+22 │         Array[File] everything2 = glob('*')
+   │                                        ^^^
+   │
+   = fix: use a more specific pattern to avoid capturing unintended files
+

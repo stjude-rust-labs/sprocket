@@ -136,11 +136,13 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::RequirementsSectionRule>::default(),
         Box::<rules::KnownRulesRule>::default(),
         Box::<rules::ExceptDirectiveValidRule>::default(),
+        Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
         Box::<rules::DescriptionLengthRule>::default(),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
+        Box::<rules::DenyGlobStar>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are

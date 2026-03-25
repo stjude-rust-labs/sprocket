@@ -2,7 +2,6 @@
 
 use std::fmt;
 use std::fmt::Write;
-use std::sync::Arc;
 use std::sync::LazyLock;
 
 use wdl_ast::AstNode;
@@ -506,15 +505,13 @@ where
         &mut self,
         definition: &v1::StructDefinition<N>,
     ) -> Result<StructType, Diagnostic> {
-        Ok(StructType {
-            name: Arc::new(definition.name().text().to_string()),
-            members: Arc::new(
-                definition
-                    .members()
-                    .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                    .collect::<Result<_, _>>()?,
-            ),
-        })
+        Ok(StructType::new(
+            definition.name().text().to_string(),
+            definition
+                .members()
+                .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 }
 
@@ -911,7 +908,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         let name = expr.name();
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
-                let ty = match ty {
+                let ty = match &ty {
                     Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,
                     _ => panic!("type should be a required struct"),
                 };
@@ -922,7 +919,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Validate the member types
                 for item in expr.items() {
                     let (n, v) = item.name_value();
-                    match ty.members.get_full(n.text()) {
+                    match ty.members().get_full(n.text()) {
                         Some((index, _, expected)) => {
                             present[index] = true;
                             if let Some(actual) = self.evaluate_expr(&v)
@@ -953,8 +950,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                             return None;
                         }
 
-                        let (name, ty) = &ty.members.get_index(i).unwrap();
-                        if ty.is_optional() {
+                        let (name, member_ty) = ty.members().get_index(i).unwrap();
+                        if member_ty.is_optional() {
                             return None;
                         }
 
@@ -982,7 +979,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
 
                 Some(Type::Compound(
-                    CompoundType::Custom(CustomType::Struct(ty)),
+                    CompoundType::Custom(CustomType::Struct(ty.clone())),
                     false,
                 ))
             }
@@ -1175,11 +1172,11 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, name.span().end() - start));
                 let s = s.unwrap();
-                match s.members.get(name.text()) {
+                match s.members().get(name.text()) {
                     Some(ty) => ty,
                     None => {
                         self.context
-                            .add_diagnostic(not_a_struct_member(&s.name, &name));
+                            .add_diagnostic(not_a_struct_member(s.name(), &name));
                         break;
                     }
                 }
@@ -1732,7 +1729,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 };
             }
             Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
-                if let Some(ty) = ty.members.get(name.text()) {
+                if let Some(ty) = ty.members().get(name.text()) {
                     return Some(ty.clone());
                 }
 

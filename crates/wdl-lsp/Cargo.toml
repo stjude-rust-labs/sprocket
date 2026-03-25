@@ -14,10 +14,13 @@ documentation = "https://docs.rs/wdl-lsp"
 anyhow = { workspace = true }
 line-index = { workspace = true }
 parking_lot = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+struct-patch = { workspace = true, features = ["nesting"] }
 tokio = { workspace = true }
 tower-lsp = { workspace = true }
-tracing = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 wdl-analysis = { path = "../wdl-analysis", version = "0.18.0" }
