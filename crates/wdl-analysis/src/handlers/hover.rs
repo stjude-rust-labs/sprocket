@@ -364,13 +364,11 @@ fn resolve_hover_by_context(
                     (s.members().get(member.text()).cloned(), doc)
                 }
                 Type::Call(c) => (c.outputs().get(member.text()).map(|o| o.ty().clone()), None),
-                Type::Compound(CompoundType::Pair(p), _) => {
-                    match member.text() {
-                        "left" => (Some(p.left_type().clone()), None),
-                        "right" => (Some(p.right_type().clone()), None),
-                        _ => (None, None),
-                    }
-                }
+                Type::Compound(CompoundType::Pair(p), _) => match member.text() {
+                    "left" => (Some(p.left_type().clone()), None),
+                    "right" => (Some(p.right_type().clone()), None),
+                    _ => (None, None),
+                },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
                     if e.variants().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value

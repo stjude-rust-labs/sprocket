@@ -1760,9 +1760,10 @@ impl Array {
     ///
     /// Panics if the given type is not an array type.
     pub(crate) fn new_unchecked(ty: impl Into<Type>, elements: Vec<Value>) -> Self {
-        let ty = match ty.into() {
-            Type::Compound(CompoundType::Array(ty), _) => Type::from(ty.unqualified()),
-            _ => panic!("type is not an array type"),
+        let ty = if let Type::Compound(CompoundType::Array(ty), _) = ty.into() {
+            Type::Compound(CompoundType::Array(ty.unqualified()), false)
+        } else {
+            panic!("type is not an array type");
         };
 
         Self(Arc::new(ArrayInner { ty, elements }))
@@ -3175,10 +3176,7 @@ impl PreviousTaskDataValue {
                     .map(|data| Value::from(data.disks.clone()))
                     .unwrap_or_else(|| {
                         Value::new_none(Type::Compound(
-                            CompoundType::Map(MapType::new(
-                                PrimitiveType::String,
-                                PrimitiveType::Integer,
-                            )),
+                            MapType::new(PrimitiveType::String, PrimitiveType::Integer).into(),
                             true,
                         ))
                     }),
