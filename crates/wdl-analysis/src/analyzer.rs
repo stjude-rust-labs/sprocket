@@ -226,6 +226,16 @@ impl SourceEdit {
         self.range.start..self.range.end
     }
 
+    /// Gets the encoding of the edit positions.
+    pub(crate) fn encoding(&self) -> SourcePositionEncoding {
+        self.encoding
+    }
+
+    /// Gets the replacement text of the edit.
+    pub(crate) fn text(&self) -> &str {
+        &self.text
+    }
+
     /// Applies the edit to the given string if it's in range.
     pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<()> {
         let (start, end) = match self.encoding {
