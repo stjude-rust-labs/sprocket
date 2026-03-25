@@ -1933,20 +1933,17 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                     .filter_map(|e| infer_type_from_literal(&e))
                     .next()
                     .unwrap_or(Type::Union);
-                Some(Type::Compound(
-                    CompoundType::Array(ArrayType::new(element_type)),
-                    false,
-                ))
+                Some(ArrayType::new(element_type).into())
             }
             LiteralExpr::Pair(pair) => {
                 let (left, right) = pair.exprs();
-                Some(Type::Compound(
-                    CompoundType::Pair(PairType::new(
+                Some(
+                    PairType::new(
                         infer_type_from_literal(&left)?,
                         infer_type_from_literal(&right)?,
-                    )),
-                    false,
-                ))
+                    )
+                    .into(),
+                )
             }
             LiteralExpr::Map(map) => {
                 let mut items = map.items();
@@ -1958,10 +1955,7 @@ pub fn infer_type_from_literal(expr: &Expr) -> Option<Type> {
                     }
                     None => (Type::Union, Type::Union),
                 };
-                Some(Type::Compound(
-                    CompoundType::Map(MapType::new(key_type, value_type)),
-                    false,
-                ))
+                Some(MapType::new(key_type, value_type).into())
             }
             LiteralExpr::Object(obj) => {
                 for item in obj.items() {
