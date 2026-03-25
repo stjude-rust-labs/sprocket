@@ -1,0 +1,12 @@
+error: expected metadata key, but found `version` keyword
+  ┌─ tests/parsing/reserved-meta-names/source.wdl:7:9
+  │
+7 │         version: "1.1.1"
+  │         ^^^^^^^ unexpected `version` keyword
+
+error: expected metadata key, but found `task` keyword
+   ┌─ tests/parsing/reserved-meta-names/source.wdl:11:9
+   │
+11 │         task: "foo"
+   │         ^^^^ unexpected `task` keyword
+
