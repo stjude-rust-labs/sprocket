@@ -74,6 +74,7 @@ Available rules:
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - NoHostPathLiterals
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched

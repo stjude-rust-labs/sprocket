@@ -132,6 +132,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::OutputNameRule>::default(),
         Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
+        Box::<rules::NoHostPathLiteralsRule>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
         Box::<rules::KnownRulesRule>::default(),

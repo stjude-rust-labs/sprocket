@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added `NoHostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
 * New lint rule `ParameterDescription` to ensure parameters and outputs have proper descriptions ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
 * New lint rule `DenyGlobStar` ([#749](https://github.com/stjude-rust-labs/sprocket/pull/749)).
 
