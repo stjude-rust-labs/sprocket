@@ -40,15 +40,15 @@ error: `output` literals cannot be nested within `input` literals
 89 │                     bad: output {
    │                          ^^^^^^ this `output` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `output`
+error: type mismatch: expected hidden type `hints`, but found hidden type `output`
    ┌─ tests/validation/scoped-exprs/source.wdl:89:26
    │  
 89 │                       bad: output {
-   │                       --- this expects type `hints`
+   │                       --- this expects hidden type `hints`
    │ ╭──────────────────────────^
 90 │ │ 
 91 │ │                     }
-   │ ╰─────────────────────^ this is type `output`
+   │ ╰─────────────────────^ this is hidden type `output`
 
 error: `hints` literals cannot be nested within `hints` literals
    ┌─ tests/validation/scoped-exprs/source.wdl:97:22
@@ -67,11 +67,11 @@ error: `input` literals cannot be nested within `input` literals
 101 │             inputs: input {
     │                     ^^^^^ this `input` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `input`
+error: type mismatch: expected hidden type `hints`, but found hidden type `input`
     ┌─ tests/validation/scoped-exprs/source.wdl:101:21
     │  
 101 │               inputs: input {
-    │               ------ this expects type `hints`
+    │               ------ this expects hidden type `hints`
     │ ╭─────────────────────^
 102 │ │                 a: input {
 103 │ │ 
@@ -79,7 +79,7 @@ error: type mismatch: expected type `hints`, but found type `input`
     · │
 118 │ │                 },
 119 │ │             }
-    │ ╰─────────────^ this is type `input`
+    │ ╰─────────────^ this is hidden type `input`
 
 error: `input` literals cannot be nested within `input` literals
     ┌─ tests/validation/scoped-exprs/source.wdl:102:20
@@ -89,15 +89,15 @@ error: `input` literals cannot be nested within `input` literals
 102 │                 a: input {
     │                    ^^^^^ this `input` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `input`
+error: type mismatch: expected hidden type `hints`, but found hidden type `input`
     ┌─ tests/validation/scoped-exprs/source.wdl:102:20
     │  
 102 │                   a: input {
-    │                   - this expects type `hints`
+    │                   - this expects hidden type `hints`
     │ ╭────────────────────^
 103 │ │ 
 104 │ │                 },
-    │ ╰─────────────────^ this is type `input`
+    │ ╰─────────────────^ this is hidden type `input`
 
 error: `hints` literals cannot be nested within `input` literals
     ┌─ tests/validation/scoped-exprs/source.wdl:105:20
@@ -143,15 +143,15 @@ error: `output` literals cannot be nested within `input` literals
 116 │                 c: output {
     │                    ^^^^^^ this `output` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `output`
+error: type mismatch: expected hidden type `hints`, but found hidden type `output`
     ┌─ tests/validation/scoped-exprs/source.wdl:116:20
     │  
 116 │                   c: output {
-    │                   - this expects type `hints`
+    │                   - this expects hidden type `hints`
     │ ╭────────────────────^
 117 │ │ 
 118 │ │                 },
-    │ ╰─────────────────^ this is type `output`
+    │ ╰─────────────────^ this is hidden type `output`
 
 error: `input` literals cannot be nested within `output` literals
     ┌─ tests/validation/scoped-exprs/source.wdl:122:16
@@ -161,15 +161,15 @@ error: `input` literals cannot be nested within `output` literals
 122 │             g: input {
     │                ^^^^^ this `input` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `input`
+error: type mismatch: expected hidden type `hints`, but found hidden type `input`
     ┌─ tests/validation/scoped-exprs/source.wdl:122:16
     │  
 122 │               g: input {
-    │               - this expects type `hints`
+    │               - this expects hidden type `hints`
     │ ╭────────────────^
 123 │ │ 
 124 │ │             },
-    │ ╰─────────────^ this is type `input`
+    │ ╰─────────────^ this is hidden type `input`
 
 error: `input` literals cannot be nested within `hints` literals
     ┌─ tests/validation/scoped-exprs/source.wdl:126:20
@@ -206,13 +206,13 @@ error: `output` literals cannot be nested within `output` literals
 136 │             i: output {
     │                ^^^^^^ this `output` literal cannot be nested
 
-error: type mismatch: expected type `hints`, but found type `output`
+error: type mismatch: expected hidden type `hints`, but found hidden type `output`
     ┌─ tests/validation/scoped-exprs/source.wdl:136:16
     │  
 136 │               i: output {
-    │               - this expects type `hints`
+    │               - this expects hidden type `hints`
     │ ╭────────────────^
 137 │ │ 
 138 │ │             }
-    │ ╰─────────────^ this is type `output`
+    │ ╰─────────────^ this is hidden type `output`
 

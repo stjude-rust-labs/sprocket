@@ -35,7 +35,7 @@ pub fn display_types(slice: &[Type]) -> impl fmt::Display + use<'_> {
                     }
                 }
 
-                write!(f, "type `{ty}`")?;
+                write!(f, "{ty:#}")?;
             }
 
             Ok(())
@@ -395,24 +395,72 @@ impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Primitive(ty, optional) => {
-                ty.fmt(f)?;
-                if *optional { write!(f, "?") } else { Ok(()) }
+                write!(
+                    f,
+                    "{prefix}{ty}{opt}{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    opt = if *optional { "?" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
             Self::Compound(ty, optional) => {
-                ty.fmt(f)?;
-                if *optional { write!(f, "?") } else { Ok(()) }
+                write!(
+                    f,
+                    "{prefix}{ty}{opt}{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    opt = if *optional { "?" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
             Self::Object => {
-                write!(f, "Object")
+                write!(
+                    f,
+                    "{prefix}Object{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
             Self::OptionalObject => {
-                write!(f, "Object?")
+                write!(
+                    f,
+                    "{prefix}Object?{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
-            Self::Union => write!(f, "Union"),
-            Self::None => write!(f, "None"),
-            Self::Hidden(ty) => ty.fmt(f),
+            Self::Union => {
+                write!(
+                    f,
+                    "{prefix}Union{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
+            Self::None => {
+                write!(
+                    f,
+                    "{prefix}None{suffix}",
+                    prefix = if f.alternate() { "type `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
+            Self::Hidden(ty) => {
+                write!(
+                    f,
+                    "{prefix}{ty}{suffix}",
+                    prefix = if f.alternate() { "hidden type `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
             Self::Call(ty) => ty.fmt(f),
-            Self::TypeNameRef(ty) => ty.fmt(f),
+            Self::TypeNameRef(ty) => {
+                write!(
+                    f,
+                    "{prefix}{ty}{suffix}",
+                    prefix = if f.alternate() { "type name `" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
         }
     }
 }
@@ -750,10 +798,8 @@ impl fmt::Display for CompoundType {
             Self::Array(ty) => ty.fmt(f),
             Self::Pair(ty) => ty.fmt(f),
             Self::Map(ty) => ty.fmt(f),
-            Self::Custom(ty) => match ty {
-                CustomType::Struct(ty) => ty.fmt(f),
-                CustomType::Enum(ty) => ty.fmt(f),
-            },
+            Self::Custom(CustomType::Struct(ty)) => ty.fmt(f),
+            Self::Custom(CustomType::Enum(ty)) => ty.fmt(f),
         }
     }
 }
@@ -990,7 +1036,7 @@ impl MapType {
         let key_type = key_type.into();
         assert!(
             key_type.is_union() || matches!(key_type, Type::Primitive(_, false)),
-            "map key type `{key_type}` is not a non-optional primitive"
+            "map key {key_type:#} is not a non-optional primitive"
         );
         Self(Arc::new((key_type, value_type.into())))
     }
