@@ -46,6 +46,8 @@ use wdl_analysis::stdlib::FunctionBindError;
 use wdl_analysis::stdlib::MAX_PARAMETERS;
 use wdl_analysis::types::ArrayType;
 use wdl_analysis::types::Coercible as _;
+use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::CustomType;
 use wdl_analysis::types::HiddenType;
 use wdl_analysis::types::MapType;
 use wdl_analysis::types::Optional;
@@ -1578,8 +1580,7 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 s.text()?.text(),
             )))
         }
-        target_ty if target_ty.as_array().is_some() => {
-            let array_ty = target_ty.as_array().unwrap();
+        Type::Compound(CompoundType::Array(array_ty), _) => {
             match_literal_value!(expr, Array(arr), CompoundType::Array);
             let element_type = array_ty.element_type();
             let elements: Option<Vec<Value>> = arr
@@ -1590,8 +1591,7 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Array::new(array_ty.clone(), elements?).expect("array construction should succeed"),
             )))
         }
-        target_ty if target_ty.as_pair().is_some() => {
-            let pair_ty = target_ty.as_pair().unwrap();
+        Type::Compound(CompoundType::Pair(pair_ty), _) => {
             match_literal_value!(expr, Pair(pair), CompoundType::Pair);
             let (left_expr, right_expr) = pair.exprs();
             let left = parse_constant_value(pair_ty.left_type(), &left_expr)?;
@@ -1600,8 +1600,7 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Pair::new(pair_ty.clone(), left, right).expect("pair construction should succeed"),
             )))
         }
-        target_ty if target_ty.as_map().is_some() => {
-            let map_ty = target_ty.as_map().unwrap();
+        Type::Compound(CompoundType::Map(map_ty), _) => {
             match_literal_value!(expr, Map(map), CompoundType::Map);
             let key_type = map_ty.key_type();
             let value_type = map_ty.value_type();
@@ -1621,8 +1620,7 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
                 Map::new(map_ty.clone(), entries?).expect("map construction should succeed"),
             )))
         }
-        target_ty if target_ty.as_struct().is_some() => {
-            let struct_ty = target_ty.as_struct().unwrap();
+        Type::Compound(CompoundType::Custom(CustomType::Struct(struct_ty)), _) => {
             match_literal_value!(expr, Struct(s), CustomType::Struct);
             let members: Option<indexmap::IndexMap<String, Value>> = s
                 .items()

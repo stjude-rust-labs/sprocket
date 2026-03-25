@@ -385,9 +385,7 @@ impl Type {
     /// This is only supported for custom types (structs and enums).
     pub fn type_name_ref(&self) -> Option<Type> {
         match self {
-            Type::Compound(compound, _) => {
-                compound.as_custom().map(|ty| Type::TypeNameRef(ty.clone()))
-            }
+            Type::Compound(CompoundType::Custom(ty), _) => Some(Type::TypeNameRef(ty.clone())),
             _ => None,
         }
     }
@@ -522,16 +520,14 @@ impl Coercible for Type {
 
             // String -> Enum
             // Enum -> String
-            (Self::Primitive(PrimitiveType::String, _), Self::Compound(compound, _))
-                if compound.as_enum().is_some() =>
-            {
-                true
-            }
-            (Self::Compound(compound, _), Self::Primitive(PrimitiveType::String, _))
-                if compound.as_enum().is_some() =>
-            {
-                true
-            }
+            (
+                Self::Primitive(PrimitiveType::String, _),
+                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
+            )
+            | (
+                Self::Compound(CompoundType::Custom(CustomType::Enum(_)), _),
+                Self::Primitive(PrimitiveType::String, _),
+            ) => true,
 
             // Not coercible
             _ => false,
@@ -1280,8 +1276,7 @@ struct CallTypeInner {
     ///
     /// Arc-wrapped because [`CallType::optional`] and
     /// [`CallType::promote_scatter`] clone the inner to produce modified
-    /// copies. Keeping this field behind `Arc` makes that clone a cheap
-    /// refcount bump rather than a deep copy.
+    /// copies.
     specified: Arc<HashSet<String>>,
     /// The input types to the call.
     ///
