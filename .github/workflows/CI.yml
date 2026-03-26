@@ -142,9 +142,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json
           fail_ci_if_error: true
-          comment:
-            behavior: once
-            require_changes: true
 
   docs:
     runs-on: ubuntu-latest

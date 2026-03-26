@@ -1,0 +1,3 @@
+comment:
+  behavior: once
+  require_changes: "coverage_drop"
