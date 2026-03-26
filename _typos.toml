@@ -30,6 +30,7 @@ extend-exclude = [
     "crates/wdl-engine/tests/workflow/localization/",
     "crates/wdl-engine/tests/workflows/map-to-array/",
     "crates/wdl-engine/tests/workflows/pair-to-array/",
+    "crates/gauntlet/",
 ]
 ignore-hidden = true
 
