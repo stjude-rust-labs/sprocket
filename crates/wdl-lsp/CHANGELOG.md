@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added support for the `workspace/didChangeConfiguration` notification, allowing for configuration updates without
+  restarting the server ([#722](https://github.com/stjude-rust-labs/sprocket/pull/722)).
+
 ## 0.17.2 - 2026-03-12
 
 ## 0.17.1 - 2026-02-12

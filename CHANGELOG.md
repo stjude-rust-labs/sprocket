@@ -22,6 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
 
+### Fixed
+
+* Added a filesystem lock to serialize setup operations across concurrent
+  `sprocket run` processes sharing the same output directory
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Switched SQLite from WAL to DELETE journal mode to eliminate
+  `SQLITE_PROTOCOL` errors under concurrent access
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Increased SQLite `busy_timeout` from 5s to 30s and added retry with
+  exponential backoff when opening the database
+  ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+
 ## 0.22.0 - 2026-03-12
 
 ### Added
