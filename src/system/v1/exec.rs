@@ -808,7 +808,7 @@ async fn execute_task_target(
 /// # Arguments
 ///
 /// - `db` is a reference to the database and is used to update various aspects
-///   of the datbase as execution proceeds.
+///   of the database as execution proceeds.
 /// - `ctx` is the context of the run created for this execution (run UUID, run
 ///   name, start time, etc).
 /// - `document` is the analysis document containing the task or workflow to

@@ -110,7 +110,7 @@ pub struct Args {
     /// leaving only failed and errored run directories on the file system.
     #[clap(long, conflicts_with = "clean_all")]
     pub no_clean: bool,
-    /// Clean all exectuion directories, even for tests that failed or errored.
+    /// Clean all execution directories, even for tests that failed or errored.
     #[clap(long)]
     pub clean_all: bool,
     /// The number of test executions to run in parallel.

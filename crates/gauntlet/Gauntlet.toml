@@ -1144,7 +1144,7 @@ permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9
 
 [[diagnostics]]
 document = "biowdl/tasks:/clever.wdl"
-message = "clever.wdl:28:14: warning[UnusedInput]: unused input `indexedFiteredBam`"
+message = "clever.wdl:28:14: warning[UnusedInput]: unused input `indexedFilteredBam`"
 permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/clever.wdl/#L28"
 
 [[diagnostics]]
