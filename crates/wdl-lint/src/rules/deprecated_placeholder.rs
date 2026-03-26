@@ -90,8 +90,8 @@ impl Rule for DeprecatedPlaceholderRule {
 
          - `sep` placeholder options should be replaced by the `sep()` standard library function.
          - `true/false` placeholder options should be replaced with `if`/`else` statements.
-         - `default` placeholder options should be replaced by the `select_first()` standard library \
-          function.
+         - `default` placeholder options should be replaced by the `select_first()` standard \
+         library function.
          - `${}` interpolation placeholders should be replaced by `~{}` interpolation placeholders.
 
 
