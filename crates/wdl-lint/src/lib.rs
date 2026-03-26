@@ -125,6 +125,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::MetaDescriptionRule>::default(),
         Box::<rules::DeprecatedPlaceholderRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
+        Box::<rules::EmptyDocCommentRule>::default(),
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
@@ -143,6 +144,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DescriptionLengthRule>::default(),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
+        Box::<rules::DenyGlobStar>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are

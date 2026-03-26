@@ -58,12 +58,14 @@ Available rules:
   - ConsistentNewlines
   - ContainerUri
   - DeclarationName
+  - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
+  - EmptyDocComment
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
