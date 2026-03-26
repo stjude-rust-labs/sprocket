@@ -149,6 +149,31 @@ impl Rule for SnakeCaseRule {
          naming convention makes the code easier to read and understand."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow ProcessData {
+    meta {}
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow process_data {
+    meta {}
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Naming, Tag::Style, Tag::Clarity])
     }
@@ -166,7 +191,7 @@ impl Rule for SnakeCaseRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["PascalCase"]
     }
 }

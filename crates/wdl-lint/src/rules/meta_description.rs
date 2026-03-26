@@ -63,6 +63,43 @@ impl Rule for MetaDescriptionRule {
          detailed information can be included in the `help` key."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {
+        description: "Says hello for the given name"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[
             Tag::Completeness,
@@ -78,7 +115,7 @@ impl Rule for MetaDescriptionRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[
             "ParameterMetaMatched",
             "ParameterDescription",
