@@ -27,8 +27,6 @@ use crate::document::Enum;
 use crate::document::Struct;
 use crate::document::Task;
 use crate::document::Workflow;
-use crate::types::CompoundType;
-use crate::types::Type;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -355,15 +353,10 @@ pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) ->
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(EnumDefinition::cast))
             .map(|n| {
-                let computed_type = enum_info.ty().and_then(|ty| {
-                    if let Type::Compound(CompoundType::Custom(custom_ty), _) = ty {
-                        custom_ty
-                            .as_enum()
-                            .map(|enum_ty| enum_ty.inner_value_type().to_string())
-                    } else {
-                        None
-                    }
-                });
+                let computed_type = enum_info
+                    .ty()
+                    .and_then(|ty| ty.as_enum())
+                    .map(|enum_ty| enum_ty.inner_value_type().to_string());
                 render_enum_doc(&n, computed_type.as_deref())
             }),
         Err(_) => None,

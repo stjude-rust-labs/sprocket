@@ -340,9 +340,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let valid = match option {
                     PlaceholderOption::Sep(_) => {
                         ty == Type::None
-                            || matches!(&ty,
-                        Type::Compound(CompoundType::Array(array_ty), _)
-                        if matches!(array_ty.element_type(), Type::Primitive(_, false)))
+                            || ty.as_array().is_some_and(|array_ty| {
+                                matches!(array_ty.element_type(), Type::Primitive(_, false))
+                            })
                     }
                     PlaceholderOption::Default(_) => {
                         matches!(ty, Type::Primitive(..) | Type::None)
@@ -912,14 +912,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 }
             };
 
-            match ty {
-                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
-                    struct_ty = Some(ty);
+            match ty.as_struct() {
+                Some(s) => {
+                    struct_ty = Some(s);
                 }
-                _ if segments.peek().is_some() => {
+                None if segments.peek().is_some() => {
                     return Err(not_a_struct(&segment, i == 0));
                 }
-                _ => {
+                None => {
                     // It's ok for the last one to not name a struct
                 }
             }

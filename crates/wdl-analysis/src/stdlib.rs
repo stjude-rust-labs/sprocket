@@ -13,7 +13,6 @@ use wdl_ast::version::V1;
 use crate::types::ArrayType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
-use crate::types::CustomType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -584,10 +583,8 @@ impl GenericEnumInnerValueType {
                     .get(self.ty.param)
                     .expect("variant parameter should be present");
 
-                match variant_ty {
-                    Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                        enum_ty.inner_value_type().fmt(f)
-                    }
+                match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+                    Some(enum_ty) => enum_ty.inner_value_type().fmt(f),
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "{}", self.ty.param),
                 }
@@ -603,13 +600,11 @@ impl GenericEnumInnerValueType {
             .get(self.param)
             .expect("variant parameter should be present");
 
-        match variant_ty {
-            Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                Some(enum_ty.inner_value_type().clone())
-            }
-            // NOTE: non-enums should gracefully fail.
-            _ => None,
-        }
+        // NOTE: non-enums should gracefully fail.
+        variant_ty
+            .as_ref()
+            .and_then(|t| t.as_enum())
+            .map(|enum_ty| enum_ty.inner_value_type().clone())
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
