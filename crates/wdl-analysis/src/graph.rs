@@ -369,14 +369,11 @@ impl DocumentGraphNode {
                             uri = self.uri
                         );
                         root = updated_root;
-                        diagnostics = diagnostics
-                            .into_iter()
-                            .filter(|diagnostic| {
-                                diagnostic
-                                    .labels()
-                                    .all(|label| label.span().end() <= version_span.end())
-                            })
-                            .collect();
+                        diagnostics.retain(|diagnostic| {
+                            diagnostic
+                                .labels()
+                                .all(|label| label.span().end() <= version_span.end())
+                        });
                         diagnostics.extend(body_diagnostics);
                     } else {
                         return None;
