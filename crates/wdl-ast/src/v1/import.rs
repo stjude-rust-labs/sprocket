@@ -5,8 +5,7 @@ use std::path::Path;
 
 use rowan::NodeOrToken;
 use url::Url;
-use wdl_grammar::lexer::v1::Logos;
-use wdl_grammar::lexer::v1::Token;
+use wdl_grammar::lexer::v1::is_ident;
 
 use super::AliasKeyword;
 use super::AsKeyword;
@@ -81,10 +80,8 @@ impl<N: TreeNode> ImportStatement<N> {
         };
 
         // Check to see if the stem is a valid WDL identifier
-        let mut lexer = Token::lexer(&stem);
-        match lexer.next()?.ok()? {
-            Token::Ident if lexer.next().is_none() => {}
-            _ => return None,
+        if !is_ident(&stem) {
+            return None;
         }
 
         Some((stem.to_string(), uri.span()))

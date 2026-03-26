@@ -14,7 +14,7 @@ use crate::tree::SyntaxKind;
 /// Determines if the given string is a valid WDL identifier.
 pub fn is_ident(s: &str) -> bool {
     let mut lexer = Token::lexer(s);
-    if !lexer.next().map(|r| r.is_ok()).unwrap_or(false) {
+    if !lexer.next().map(|r| r == Ok(Token::Ident)).unwrap_or(false) {
         return false;
     }
 
@@ -1551,5 +1551,26 @@ env"#,
                 (Ok(Exponentiation), 31..33),
             ],
         );
+    }
+
+    #[test]
+    fn test_is_ident() {
+        // `foo` is a valid identifier
+        assert!(is_ident("foo"));
+
+        // Identifiers can't start with a number
+        assert!(!is_ident("1foo"));
+
+        // Identifiers can't have hyphens
+        assert!(!is_ident("Foo-Bar"));
+
+        // Identifiers can have underscores
+        assert!(is_ident("Foo_Bar"));
+
+        // Identifiers can have numbers
+        assert!(is_ident("foo_bar_123"));
+
+        // Identifiers can't be keywords
+        assert!(!is_ident("output"));
     }
 }

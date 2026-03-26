@@ -221,7 +221,7 @@ fn resolve_type_reference(
         let is_aliased_import = enum_info
             .ty()
             .and_then(|t| t.as_enum())
-            .map(|st| st.name().as_str() != ident_text)
+            .map(|st| st.name() != ident_text)
             .unwrap_or(false);
 
         if is_aliased_import {
@@ -620,7 +620,7 @@ fn resolve_access_expression(
     }
 
     if let Type::TypeNameRef(CustomType::Enum(enum_ty)) = target_type {
-        let original_enum_name = enum_ty.name().as_str();
+        let original_enum_name = enum_ty.name();
 
         // Check for enum definition in imported namespaces.
         for (_, ns) in analysis_doc.namespaces() {
