@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Bumped `broadinstitute/palantir-workflows` in `Gauntlet.toml` to a commit that
+  resolves `CreateIGVSession.wdl` via a repository-relative import instead of
+  `raw.githubusercontent.com`, so gauntlet does not depend on HTTP fetching that
+  URL during analysis.
+
 #### Added
 
 * `--shellcheck` flag to run shellcheck lints in arena mode ([#264](https://github.com/stjude-rust-labs/wdl/pull/264))
