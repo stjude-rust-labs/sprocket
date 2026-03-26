@@ -665,7 +665,7 @@ fn covering_token(root: &SyntaxNode, range: TextRange) -> Option<wdl_ast::Syntax
     if range.is_empty() {
         match root.token_at_offset(range.start()) {
             TokenAtOffset::Single(token) => Some(token),
-            TokenAtOffset::Between(_, _) | TokenAtOffset::None => None,
+            TokenAtOffset::Between(..) | TokenAtOffset::None => None,
         }
     } else {
         match root.covering_element(range) {
