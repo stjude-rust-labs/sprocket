@@ -7,7 +7,7 @@ Arguments:
           A source WDL document or URL
 
 Options:
-  -n, --name <NAME>
+  -t, --target <NAME>
           The name of the task or workflow for which to generate inputs
 
       --show-non-literals
@@ -27,6 +27,16 @@ Options:
 
   -q, --quiet...
           Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
 
   -c, --config <CONFIG>
           Path to the configuration file

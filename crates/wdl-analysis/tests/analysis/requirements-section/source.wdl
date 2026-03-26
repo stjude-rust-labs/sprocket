@@ -1,6 +1,6 @@
 ## This is a test of type checking `requirements` keys. 
 
-version 1.2
+version 1.3
 
 task foo {
     command <<<>>>

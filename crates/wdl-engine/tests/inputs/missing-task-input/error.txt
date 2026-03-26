@@ -1,4 +1,1 @@
-failed to validate the inputs to task `test`
-
-Caused by:
-    missing required input `y` to task `test`
+failed to validate the inputs to task `test`: missing required input `y` to task `test`

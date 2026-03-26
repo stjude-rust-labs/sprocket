@@ -1,0 +1,9 @@
+error: conflicting workflow name `MyWorkflow`
+  ┌─ tests/analysis/structs-conflict-with-workflow/source.wdl:8:10
+  │
+4 │ struct MyWorkflow {
+  │        ---------- the struct with the conflicting name is here
+  ·
+8 │ workflow MyWorkflow {
+  │          ^^^^^^^^^^ this workflow conflicts with a previously used name
+

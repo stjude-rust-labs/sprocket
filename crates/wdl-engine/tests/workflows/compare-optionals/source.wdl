@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 workflow compare_optionals {
   Int i = 1

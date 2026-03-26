@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task test_pairs {
   Pair[Int, Array[String]] data = (5, ["hello", "goodbye"])

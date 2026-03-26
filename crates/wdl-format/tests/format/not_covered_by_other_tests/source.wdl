@@ -1,5 +1,5 @@
 ## This is a WDL file with Nodes not covered by other tests
-version 1.2
+version 1.3
 task test1 {
     parameter_meta {}
     output {Int math = 42 / 7}

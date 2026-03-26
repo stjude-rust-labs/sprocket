@@ -4,7 +4,7 @@
 ## in a `parameter_meta` section specifically in structs , and for ensuring
 ## that the order is the same as `input` section.
 
-version 1.2
+version 1.3
 
 struct Text {
     meta {
@@ -13,7 +13,7 @@ struct Text {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"

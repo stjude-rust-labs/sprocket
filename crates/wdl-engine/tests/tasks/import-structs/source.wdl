@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 import "../person-struct-task/source.wdl"
   alias Person as Patient

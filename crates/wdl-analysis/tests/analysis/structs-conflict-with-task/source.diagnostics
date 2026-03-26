@@ -1,0 +1,9 @@
+error: conflicting task name `MyTask`
+  ┌─ tests/analysis/structs-conflict-with-task/source.wdl:8:6
+  │
+4 │ struct MyTask {
+  │        ------ the struct with the conflicting name is here
+  ·
+8 │ task MyTask {
+  │      ^^^^^^ this task conflicts with a previously used name
+

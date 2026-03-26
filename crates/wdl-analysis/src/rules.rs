@@ -1,5 +1,7 @@
 //! Implementation of analysis rules.
 
+use std::sync::LazyLock;
+
 use wdl_ast::Severity;
 
 /// The rule identifier for unused import warnings.
@@ -19,6 +21,13 @@ pub const UNNECESSARY_FUNCTION_CALL: &str = "UnnecessaryFunctionCall";
 
 /// The rule identifier for unsupported version fallback warnings.
 pub const USING_FALLBACK_VERSION: &str = "UsingFallbackVersion";
+
+/// All rule IDs sorted alphabetically.
+pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids: Vec<String> = rules().iter().map(|r| r.id().to_string()).collect();
+    ids.sort();
+    ids
+});
 
 /// A trait implemented by analysis rules.
 pub trait Rule: Send + Sync {

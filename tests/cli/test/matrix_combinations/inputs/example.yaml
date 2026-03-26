@@ -1,0 +1,92 @@
+so_many_options:
+  - name: kitchen_sink
+    tags: [slow, slow]
+    inputs:
+      $files:
+        bam:
+          - test1.bam
+          - test2.bam
+          - test3.bam
+        bam_index:
+          - test1.bam.bai
+          - test2.bam.bai
+          - test3.bam.bai
+      bitwise_filter:
+        - include_if_all: "0x0"
+          exclude_if_any: "0x900"
+          include_if_any: "0x0"
+          exclude_if_all: "0x0"
+        - include_if_all: "00"
+          exclude_if_any: "0x904"
+          include_if_any: "3"
+          exclude_if_all: "0"
+      paired_end:
+        - true
+        - false
+      retain_collated_bam:
+        - true
+        - false
+      append_read_number:
+        - true
+        - false
+      output_singletons:
+        - true
+        - false
+      prefix:
+        - kitchen_sink_test
+  - name: simpler
+    inputs:
+      output_singletons:
+        - true
+        - false
+      bitwise_filter:
+        - include_if_all: "0x0"
+          exclude_if_any: "0x900"
+          include_if_any: "0x0"
+          exclude_if_all: "0x0"
+        - include_if_all: "00"
+          exclude_if_any: "0x904"
+          include_if_any: "3"
+          exclude_if_all: "0"
+      $files:
+        bam:
+          - test1.bam
+          - test2.bam
+        bam_index:
+          - test1.bam.bai
+          - test2.bam.bai
+
+has_a_reference:
+  - name: complex_groups
+    inputs:
+      output_singletons:
+        - true
+        - false
+      $files:
+        bam:
+          - test1.bam
+          - test2.bam
+        bam_index:
+          - test1.bam.bai
+          - test2.bam.bai
+        ref_fasta:
+          - hg19.fasta
+          - GRCh38.fasta
+        ref_fasta_index:
+          - hg19.fa.fai
+          - GRCh38.fa.fai
+      $other_group:
+        bitwise_filter:
+          - include_if_all: "0x0"
+            exclude_if_any: "0x900"
+            include_if_any: "0x0"
+            exclude_if_all: "0x0"
+          - include_if_all: "00"
+            exclude_if_any: "0x904"
+            include_if_any: "3"
+            exclude_if_all: "0"
+        paired_end:
+          - true
+          - false
+      prefix:
+        - i_love_iterators

@@ -1,6 +1,6 @@
-#@ except: RequirementsSection, InputSorted, MatchingOutputMeta, MetaSections
+#@ except: RequirementsSection, MatchingOutputMeta, MetaSections
 
-version 1.2
+version 1.3
 
 task test_declaration_names {
     meta {
@@ -36,6 +36,7 @@ task test_declaration_names {
     # Split by convert-case to [foo, bar, INT]
     # and INT will not flag as we don't call `to_lowercase()` on the split words.
     Int foo_bar_INT = 42
+    Int bad_but_ignored_int = 42
 
     command <<<>>>
 

@@ -1,7 +1,7 @@
 ## This is a test for the `task` variable in a task block or command section.
 ## Example taken directly from the WDL spec.
 
-version 1.2
+version 1.3
 
 task test_runtime_info_task {
   meta {

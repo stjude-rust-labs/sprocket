@@ -1,0 +1,9 @@
+error: conflicting workflow name `test`
+   ┌─ tests/analysis/enums-conflict-with-workflow/source.wdl:10:10
+   │
+ 5 │ enum test {
+   │      ---- the enum with the conflicting name is here
+   ·
+10 │ workflow test {}
+   │          ^^^^ this workflow conflicts with a previously used name
+

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 use anyhow::Context;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use codespan_reporting::diagnostic::Diagnostic;
@@ -13,18 +13,21 @@ use strum::VariantArray;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
-use wdl::cli::Analysis;
-use wdl::cli::analysis::Source;
+use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
-use super::explain::ALL_TAG_NAMES;
-use crate::IGNORE_FILENAME;
-use crate::Mode;
-use crate::emit_diagnostics;
-use crate::get_diagnostics_display_config;
+use crate::Config;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
+use crate::diagnostics::DiagnosticCounts;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
+use crate::diagnostics::get_diagnostics_display_config;
 
 /// The [`Tag`]s which will run with the default `lint` configuration.
 const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
@@ -121,10 +124,6 @@ pub struct Common {
     #[arg(long)]
     pub hide_notes: bool,
 
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -143,56 +142,6 @@ pub struct CheckArgs {
     pub lint: bool,
 }
 
-impl CheckArgs {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.common.except = self
-            .common
-            .except
-            .clone()
-            .into_iter()
-            .chain(config.check.except.clone())
-            .collect();
-        self.common.deny_notes = self.common.deny_notes || config.check.deny_notes;
-        self.common.deny_warnings =
-            self.common.deny_warnings || config.check.deny_warnings || self.common.deny_notes;
-        self.common.hide_notes = self.common.hide_notes || config.check.hide_notes;
-        self.common.no_color = self.common.no_color || !config.common.color;
-        if self.common.report_mode.is_none() {
-            self.common.report_mode = Some(config.common.report_mode);
-        }
-
-        // Linting is implied by any of these args when they are used on the CL
-        if !self.common.filter_lint_tag.is_empty()
-            || !self.common.only_lint_tag.is_empty()
-            || self.common.all_lint_rules
-        {
-            self.lint = true;
-        }
-
-        self.common.all_lint_rules = self.common.all_lint_rules || config.check.all_lint_rules;
-        self.common.filter_lint_tag = self
-            .common
-            .filter_lint_tag
-            .clone()
-            .into_iter()
-            .chain(config.check.filter_lint_tags.clone())
-            .collect();
-        if !self.common.all_lint_rules {
-            self.common.only_lint_tag = self
-                .common
-                .only_lint_tag
-                .clone()
-                .into_iter()
-                .chain(config.check.only_lint_tags.clone())
-                .collect();
-        }
-
-        self
-    }
-}
-
 /// Arguments for the `lint` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -202,39 +151,45 @@ pub struct LintArgs {
     pub common: Common,
 }
 
-impl LintArgs {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        let args = CheckArgs {
-            common: self.common,
-            lint: true,
-        }
-        .apply(config);
-        self = LintArgs {
-            common: args.common,
-        };
-
-        self
-    }
-}
-
 /// Performs the `check` subcommand.
-pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
+pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
+    let mut except = args.common.except;
+    except.extend(config.check.except.iter().cloned());
+
+    let deny_notes = args.common.deny_notes || config.check.deny_notes;
+    let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
+    let hide_notes = args.common.hide_notes || config.check.hide_notes;
+    let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
+
+    let lint = args.lint
+        || !args.common.filter_lint_tag.is_empty()
+        || !args.common.only_lint_tag.is_empty()
+        || args.common.all_lint_rules;
+
+    let all_lint_rules = args.common.all_lint_rules || config.check.all_lint_rules;
+
+    let mut filter_lint_tag = args.common.filter_lint_tag;
+    filter_lint_tag.extend(config.check.filter_lint_tags.iter().cloned());
+
+    let mut only_lint_tag = args.common.only_lint_tag;
+    if !all_lint_rules {
+        only_lint_tag.extend(config.check.only_lint_tags.iter().cloned());
+    }
+
     let mut sources = args.common.sources;
     if sources.is_empty() {
         sources.push(Source::default());
     }
 
-    // Validate provided args
     if args.common.suppress_imports {
         for source in sources.iter() {
             if let Source::Directory(dir) = source {
-                bail!(
+                return Err(anyhow!(
                     "`--suppress-imports` was specified but the provided inputs contain a \
                      directory: `{dir}`",
                     dir = dir.display()
-                );
+                )
+                .into());
             }
         }
     }
@@ -243,7 +198,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     let show_remote_diagnostics = {
         let any_remote_sources = sources
             .iter()
-            .any(|source| matches!(source, Source::Remote(_)));
+            .any(|source| matches!(source, Source::File(url) if url.scheme() != "file"));
 
         if any_remote_sources {
             info!("remote source detected, showing all remote diagnostics");
@@ -252,11 +207,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         any_remote_sources || args.common.show_remote_diagnostics
     };
 
-    report_unknown_rules(
-        &args.common.except,
-        args.common.report_mode.unwrap_or_default(),
-        args.common.no_color,
-    )?;
+    report_unknown_rules(&except, report_mode, colorize)?;
 
     let provided_source_uris = sources
         .iter()
@@ -264,13 +215,12 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         .cloned()
         .collect::<HashSet<_>>();
 
-    let enabled_tags = if args.lint {
-        if args.common.all_lint_rules {
+    let enabled_tags = if lint {
+        if all_lint_rules {
             TagSet::new(Tag::VARIANTS)
-        } else if !args.common.only_lint_tag.is_empty() {
+        } else if !only_lint_tag.is_empty() {
             TagSet::new(
-                args.common
-                    .only_lint_tag
+                only_lint_tag
                     .iter()
                     .filter_map(|t| Tag::from_str(t).ok())
                     .collect::<Vec<_>>()
@@ -283,10 +233,9 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
         TagSet::new(&[])
     };
 
-    let disabled_tags = if args.lint && !args.common.filter_lint_tag.is_empty() {
+    let disabled_tags = if lint && !filter_lint_tag.is_empty() {
         TagSet::new(
-            args.common
-                .filter_lint_tag
+            filter_lint_tag
                 .iter()
                 .filter_map(|t| Tag::from_str(t).ok())
                 .collect::<Vec<_>>()
@@ -297,34 +246,17 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
     };
 
     // Run analysis
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .extend_sources(sources)
-        .extend_exceptions(args.common.except)
+        .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .ignore_filename(Some(IGNORE_FILENAME.to_string()))
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
-    {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
-    #[derive(Default)]
-    struct Counts {
-        /// The number of errors encountered.
-        pub errors: usize,
-        /// The number of warnings encountered.
-        pub warnings: usize,
-        /// The number of notes encountered.
-        pub notes: usize,
-    }
-
-    let mut counts = Counts::default();
+    let mut counts = DiagnosticCounts::default();
 
     for result in results {
         let uri = &result.document().uri();
@@ -369,7 +301,7 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                                 return false;
                             }
 
-                            if !args.common.hide_notes {
+                            if !hide_notes {
                                 counts.notes += 1;
                                 true
                             } else {
@@ -379,42 +311,34 @@ pub async fn check(args: CheckArgs) -> anyhow::Result<()> {
                     }
                 }),
                 &[],
-                args.common.report_mode.unwrap_or_default(),
-                args.common.no_color,
+                report_mode,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
     }
 
-    if counts.errors > 0 {
-        bail!(
-            "failing due to {errors} error{s}",
-            errors = counts.errors,
-            s = if counts.errors == 1 { "" } else { "s" }
-        );
-    } else if args.common.deny_warnings && counts.warnings > 0 {
-        bail!(
-            "failing due to {warnings} warning{s} (`--deny-warnings` was specified)",
-            warnings = counts.warnings,
-            s = if counts.warnings == 1 { "" } else { "s" }
-        );
-    } else if args.common.deny_notes && counts.notes > 0 {
-        bail!(
-            "failing due to {notes} note{s} (`--deny-notes` was specified)",
-            notes = counts.notes,
-            s = if counts.notes == 1 { "" } else { "s" }
-        );
+    if let Some(e) = counts.verify_no_errors() {
+        return Err(e.into());
+    } else if deny_warnings && let Some(e) = counts.verify_no_warnings(true) {
+        return Err(e.into());
+    } else if deny_notes && let Some(e) = counts.verify_no_notes(true) {
+        return Err(e.into());
     }
 
     Ok(())
 }
 
 /// Performs the `lint` subcommand.
-pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
-    check(CheckArgs {
-        common: args.common,
-        lint: true,
-    })
+pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResult<()> {
+    check(
+        CheckArgs {
+            common: args.common,
+            lint: true,
+        },
+        config,
+        colorize,
+    )
     .await
 }
 
@@ -422,17 +346,9 @@ pub async fn lint(args: LintArgs) -> anyhow::Result<()> {
 fn report_unknown_rules(
     excepted: &[String],
     report_mode: Mode,
-    no_color: bool,
+    colorize: bool,
 ) -> anyhow::Result<()> {
-    let mut rules = wdl::analysis::rules()
-        .into_iter()
-        .map(|rule| rule.id().to_owned())
-        .collect::<Vec<_>>();
-    rules.extend(
-        wdl::lint::rules()
-            .into_iter()
-            .map(|rule| rule.id().to_owned()),
-    );
+    let rules = ALL_RULE_IDS.clone();
 
     let mut unknown_rules = excepted
         .iter()
@@ -447,7 +363,7 @@ fn report_unknown_rules(
     if !unknown_rules.is_empty() {
         unknown_rules.sort();
 
-        let (config, writer) = get_diagnostics_display_config(report_mode, no_color);
+        let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
         let mut writer = writer.lock();
         let files = SimpleFiles::<String, String>::new();
 
@@ -468,7 +384,7 @@ fn report_unknown_rules(
                 ))
                 .with_notes(notes);
 
-            codespan_reporting::term::emit(&mut writer, config, &files, &warning)
+            codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
                 .expect("failed to emit unknown rule warning");
         }
     }

@@ -1,17 +1,17 @@
 //! Implementation of the `validate` subcommand.
 
 use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
-use wdl::cli::Analysis;
-use wdl::cli::Inputs;
-use wdl::cli::analysis::Source;
-use wdl::cli::inputs::OriginPaths;
 use wdl::engine::Inputs as EngineInputs;
-use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
+use crate::Config;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
+use crate::diagnostics::Mode;
+use crate::inputs::Invocation;
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -27,15 +27,15 @@ pub struct Args {
     /// This argument is required if trying to validate a task or workflow
     /// without any inputs.
     ///
-    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// If `target` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// If `target` is specified, it will be appended with a `.` delimiter
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub entrypoint: Option<String>,
+    pub target: Option<String>,
 
     /// The inputs for the task or workflow.
     ///
@@ -43,50 +43,31 @@ pub struct Args {
     /// pairs passed in on the command line.
     pub inputs: Vec<String>,
 
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
 }
 
-impl Args {
-    /// Applies the configuration to the arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.no_color = self.no_color || !config.common.color;
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
-        }
-        self
-    }
-}
-
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args) -> Result<()> {
+pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `validate` command");
+        return Err(
+            anyhow!("directory sources are not supported for the `validate` command").into(),
+        );
     }
 
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .run()
         .await
-    {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     // SAFETY: this must exist, as we added it as the only source to be analyzed
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -94,36 +75,39 @@ pub async fn validate(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
-
-    let (name, inputs, _) = if let Some(inputs) = inputs {
-        inputs
-    } else {
-        // No inputs provided
-        let origins = OriginPaths::Single(EvaluationPath::Local(
-            std::env::current_dir().context("failed to get current directory")?,
-        ));
-
-        if let Some(name) = args.entrypoint {
-            match (document.task_by_name(&name), document.workflow()) {
-                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) => {
-                    if workflow.name() == name {
-                        (name, EngineInputs::Workflow(Default::default()), origins)
-                    } else {
-                        bail!(
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (target, inputs),
+        None => {
+            if let Some(name) = args.target {
+                match (document.task_by_name(&name), document.workflow()) {
+                    (Some(_), _) => (name, EngineInputs::Task(Default::default())),
+                    (None, Some(workflow)) => {
+                        if workflow.name() == name {
+                            (name, EngineInputs::Workflow(Default::default()))
+                        } else {
+                            return Err(anyhow!(
+                                "no task or workflow with name `{name}` was found in document \
+                                 `{path}`",
+                                path = document.path()
+                            )
+                            .into());
+                        }
+                    }
+                    (None, None) => {
+                        return Err(anyhow!(
                             "no task or workflow with name `{name}` was found in document `{path}`",
-                            path = document.path()
-                        );
+                            path = document.path(),
+                        )
+                        .into());
                     }
                 }
-                (None, None) => bail!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
-                    path = document.path()
-                ),
+            } else {
+                return Err(
+                    anyhow!("the `--target` option is required if no inputs are provided").into(),
+                );
             }
-        } else {
-            bail!("the `--entrypoint` option is required if no inputs are provided")
         }
     };
 
@@ -131,12 +115,14 @@ pub async fn validate(args: Args) -> Result<()> {
         EngineInputs::Task(inputs) => {
             // SAFETY: we wouldn't have a task inputs if a task didn't exist
             // that matched the user's criteria.
-            inputs.validate(document, document.task_by_name(&name).unwrap(), None)?
+            let task = document.task_by_name(&target).unwrap();
+            inputs.validate(document, task, None)?
         }
         EngineInputs::Workflow(inputs) => {
             // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
             // exist that matched the user's criteria.
-            inputs.validate(document, document.workflow().unwrap(), None)?
+            let workflow = document.workflow().unwrap();
+            inputs.validate(document, workflow, None)?
         }
     }
 

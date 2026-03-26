@@ -1,6 +1,6 @@
 # Make sure the default configuration rejects an unsatisfiable cpu requirement.
 
-version 1.2
+version 1.3
 
 task hello_task {
   input {

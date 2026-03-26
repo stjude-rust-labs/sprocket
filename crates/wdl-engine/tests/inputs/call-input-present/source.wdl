@@ -1,7 +1,7 @@
 ## This is a test of a call input being present.
 ## No error should be present.
 
-version 1.2
+version 1.3
 
 task foo {
     input {

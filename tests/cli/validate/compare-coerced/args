@@ -1,1 +1,1 @@
-validate source.wdl -e compare_coerced inputs.json
+validate source.wdl -t compare_coerced inputs.json

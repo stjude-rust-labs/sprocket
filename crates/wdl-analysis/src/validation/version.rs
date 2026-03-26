@@ -48,11 +48,23 @@ fn directory_type_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("use of the `Directory` type requires WDL version 1.2").with_highlight(span)
 }
 
+/// Creates an "implicit binding" requirement diagnostic.
+fn implicit_binding_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of implicit input bindings requires WDL version 1.1 or later")
+        .with_highlight(span)
+}
+
 /// Creates an "input keyword" requirement diagnostic.
 fn input_keyword_requirement(span: Span) -> Diagnostic {
     Diagnostic::error("omitting the `input` keyword in a call statement requires WDL version 1.2")
         .with_label("missing an `input` keyword before this input", span)
         .with_fix("add an `input` keyword followed by a colon before any call inputs")
+}
+
+/// Creates a "struct literal requirement" diagnostic.
+fn struct_literal_requirement(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a struct literal requires WDL version 1.1 or later")
+        .with_highlight(span)
 }
 
 /// Creates a "struct metadata requirement" diagnostic.
@@ -69,10 +81,13 @@ fn env_var_requirement(span: Span) -> Diagnostic {
         .with_highlight(span)
 }
 
-/// Creates an "experimental WDL 1.3 features required" diagnostic.
-fn wdl_1_3_required(span: Span) -> Diagnostic {
-    Diagnostic::error("use of WDL version 1.3 requires the `wdl_1_3` feature flag to be enabled")
-        .with_highlight(span)
+/// Creates a deprecation warning for a deprecated version feature flag.
+fn deprecated_version_feature_flag(flag_name: &str, span: Span) -> Diagnostic {
+    Diagnostic::warning(format!(
+        "the `{flag_name}` feature flag is deprecated; please remove this feature flag from your \
+         configuration file"
+    ))
+    .with_highlight(span)
 }
 
 /// Creates an "unsupported version" diagnostic.
@@ -80,23 +95,34 @@ fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
 }
 
+/// Tracks the state of a deprecated version feature flag.
+#[derive(Clone, Copy, Debug, Default)]
+struct DeprecatedVersionFeatureFlag {
+    /// Whether the user explicitly disabled the feature flag.
+    explicitly_disabled: bool,
+    /// Whether the deprecation warning has been emitted.
+    warning_emitted: bool,
+}
+
 /// An AST visitor that ensures the syntax present in the document matches the
 /// document's declared version.
 #[derive(Debug, Default)]
 pub struct VersionVisitor {
-    /// Whether or not experimental support for WDL 1.3 is enabled.
-    wdl_1_3: bool,
+    /// The state of the deprecated `wdl_1_3` feature flag.
+    wdl_1_3_ff: DeprecatedVersionFeatureFlag,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
 
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
-        self.wdl_1_3 = config.feature_flags().wdl_1_3();
+        self.wdl_1_3_ff.explicitly_disabled = !config.feature_flags().wdl_1_3();
     }
 
     fn reset(&mut self) {
+        let wdl_1_3_ff = self.wdl_1_3_ff;
         *self = Default::default();
+        self.wdl_1_3_ff = wdl_1_3_ff;
     }
 
     fn document(
@@ -123,18 +149,24 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && !self.wdl_1_3
-        {
+        // Emit a deprecation warning if the user explicitly disabled WDL 1.3 and we
+        // encounter a WDL 1.3 document.
+        if let Some(version) = self.version {
             match version {
-                SupportedVersion::V1(v1) if v1 <= V1::Two => {}
-                SupportedVersion::V1(V1::Three) => {
-                    diagnostics.add(wdl_1_3_required(stmt.version().span()))
+                SupportedVersion::V1(V1::Three)
+                    if self.wdl_1_3_ff.explicitly_disabled && !self.wdl_1_3_ff.warning_emitted =>
+                {
+                    diagnostics.add(deprecated_version_feature_flag(
+                        "wdl_1_3",
+                        stmt.version().span(),
+                    ));
+                    self.wdl_1_3_ff.warning_emitted = true;
                 }
                 // TODO ACF 2025-10-21: This is an unfortunate consequence of using
                 // `#[non_exhaustive]` on the version enums. We should consider removing that
                 // attribute in the future to get static assurance that downstream consumers of
                 // versions comprehensively handle the possible cases.
+                SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),
             }
         }
@@ -254,6 +286,12 @@ impl Visitor for VersionVisitor {
             {
                 diagnostics.add(directory_type_requirement(ty.span()));
             }
+
+            if version < SupportedVersion::V1(V1::One)
+                && let expr @ v1::Expr::Literal(v1::LiteralExpr::Struct(_)) = decl.expr()
+            {
+                diagnostics.add(struct_literal_requirement(expr.span()));
+            }
         }
     }
 
@@ -293,14 +331,24 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && version < SupportedVersion::V1(V1::Two)
-        {
+        let Some(version) = self.version else {
+            return;
+        };
+
+        if version < SupportedVersion::V1(V1::Two) {
             // Ensure there is a input keyword child token if there are inputs
             if let Some(input) = stmt.inputs().next()
                 && stmt.token::<InputKeyword<_>>().is_none()
             {
                 diagnostics.add(input_keyword_requirement(input.span()));
+            }
+        }
+
+        if version < SupportedVersion::V1(V1::One) {
+            for input in stmt.inputs() {
+                if input.is_implicit_bind() {
+                    diagnostics.add(implicit_binding_requirement(input.span()));
+                }
             }
         }
     }

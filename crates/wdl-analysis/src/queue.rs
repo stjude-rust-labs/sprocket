@@ -1,6 +1,5 @@
 //! Implements the analysis queue.
 
-use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
@@ -19,6 +18,7 @@ use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
+use lsp_types::InlayHint;
 use lsp_types::Location;
 use lsp_types::SemanticTokensResult;
 use lsp_types::SignatureHelp;
@@ -33,7 +33,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::oneshot;
 use tracing::debug;
 use tracing::error;
-use tracing::info;
+use tracing::trace;
 use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
@@ -89,6 +89,8 @@ pub enum Request<Context> {
     WorkspaceSymbol(WorkspaceSymbolRequest),
     /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
+    /// A request to get inlay hints for a document.
+    InlayHints(InlayHintsRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -251,6 +253,16 @@ pub struct SignatureHelpRequest {
     pub completed: oneshot::Sender<Option<SignatureHelp>>,
 }
 
+/// Represents a request for inlay hints.
+pub struct InlayHintsRequest {
+    /// The document where the request was initiated.
+    pub document: Url,
+    /// The visible range for which inlay hints should be computed.
+    pub range: lsp_types::Range,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
+}
+
 /// A simple enumeration to signal a cancellation to the caller.
 enum Cancelable<T> {
     /// The operation completed and yielded a value.
@@ -329,7 +341,7 @@ where
                 }) => {
                     let start = Instant::now();
                     if let Some(document) = &document {
-                        debug!("received request to document `{document}`");
+                        debug!("received request to analyze document `{document}`");
                     } else {
                         debug!("received request to analyze all documents");
                     }
@@ -504,9 +516,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing the find all references: {err:?}"
-                            );
+                            error!("find all references request failed: {err:?}");
                             completed.send(vec![]).ok();
                         }
                     }
@@ -576,7 +586,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!("error occurred while completing hover request: {err:?}");
+                            error!("hover request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -606,7 +616,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!("error occurred while completing rename request: {err:?}");
+                            error!("rename request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -631,9 +641,7 @@ where
                             completed.send(tokens).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing semantic tokens request: {err:?}"
-                            );
+                            error!("semantic tokens request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -646,6 +654,40 @@ where
                     let start = Instant::now();
                     debug!("received request for document symbols for {document}");
 
+                    let parse_result;
+                    {
+                        let graph = self.graph.read();
+                        let Some(index) = graph.get_index(&document) else {
+                            debug!("document '{document}' not found in graph");
+                            completed.send(None).ok();
+                            continue;
+                        };
+                        let node = graph.get(index);
+
+                        if node.needs_parse() {
+                            parse_result = Some(node.parse(&self.tokio, &self.client));
+                        } else {
+                            parse_result = None;
+                        }
+                    }
+
+                    match parse_result {
+                        Some(Ok(state)) => {
+                            let mut graph = self.graph.write();
+                            let index = graph.get_index(&document).unwrap();
+                            graph.get_mut(index).parse_completed(state);
+                        }
+                        Some(Err(e)) => {
+                            debug!(
+                                "error occurred while parsing document in document symbol \
+                                 request: {e:?}"
+                            );
+                            completed.send(None).ok();
+                            continue;
+                        }
+                        None => {}
+                    }
+
                     let graph = self.graph.read();
                     match handlers::document_symbol(&graph, &document) {
                         Ok(result) => {
@@ -656,9 +698,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing document symbol request: {err:?}"
-                            );
+                            error!("document symbol request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -677,9 +717,7 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
-                            debug!(
-                                "error occurred while completing workspace symbol request: {err:?}"
-                            );
+                            error!("workspace symbol request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -707,9 +745,30 @@ where
                             completed.send(result).ok();
                         }
                         Err(err) => {
+                            error!("signature help request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::InlayHints(InlayHintsRequest {
+                    document,
+                    range,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request for inlay hints at {document}");
+
+                    let graph = self.graph.read();
+                    match handlers::inlay_hints(&graph, &document, range) {
+                        Ok(result) => {
                             debug!(
-                                "error occurred while completing signature help request: {err:?}"
+                                "inlay hints request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
                             );
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!("inlay hints request failed: {err:?}");
                             completed.send(None).ok();
                         }
                     }
@@ -845,54 +904,48 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
-                set.iter()
-                    .filter_map(|index| {
-                        let index = *index;
-                        let node = graph.get(index);
-                        if node.document().is_some() {
-                            if graph.include_result(index) {
-                                results.push(AnalysisResult::new(node));
-                            }
-                            return None;
+
+                let handles = FuturesUnordered::new();
+                for index in set.iter().copied() {
+                    let node = graph.get(index);
+                    if node.document().is_some() {
+                        if graph.include_result(index) {
+                            results.push(AnalysisResult::new(node));
                         }
+                        continue;
+                    }
 
-                        let graph = self.graph.clone();
-                        let config = self.config.clone();
-                        let validator = self.validator.clone();
-                        Some(RayonHandle::spawn(move || {
-                            thread_local! {
-                                static VALIDATOR: RefCell<Option<crate::Validator>> = const { RefCell::new(None) };
+                    let graph = self.graph.clone();
+                    let config = self.config.clone();
+                    let validator = self.validator.clone();
+                    handles.push(RayonHandle::spawn(move || {
+                        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+                            Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
+                        }));
+
+                        let mut graph = graph.write();
+                        let node = graph.get_mut(index);
+                        match result {
+                            Ok((_, document)) => {
+                                node.analysis_completed(document);
+                                (index, Ok(()))
                             }
+                            Err(payload) => {
+                                let error = Arc::new(anyhow!(
+                                    "analysis panicked for {uri}: {msg}",
+                                    uri = node.uri(),
+                                    msg = format_panic_payload(&payload)
+                                ));
+                                error!("{error}");
 
-                            let result = panic::catch_unwind(AssertUnwindSafe(|| {
-                                VALIDATOR.with_borrow_mut(|v| {
-                                    let validator = v.get_or_insert_with(|| validator());
-                                    Self::analyze_node(&config, graph.clone(), index, validator)
-                                })
-                            }));
-
-                            let mut graph = graph.write();
-                            let node = graph.get_mut(index);
-                            match result {
-                                Ok((_, document)) => {
-                                    node.analysis_completed(document);
-                                    (index, Ok(()))
-                                }
-                                Err(payload) => {
-                                    let error = Arc::new(anyhow!(
-                                        "analysis panicked for {uri}: {msg}",
-                                        uri = node.uri(),
-                                        msg = format_panic_payload(&payload)
-                                    ));
-                                    error!("{error}");
-
-                                    node.analysis_failed(error.clone());
-                                    (index, Err(error))
-                                }
+                                node.analysis_failed(error.clone());
+                                (index, Err(error))
                             }
-                        }))
-                    })
-                    .collect::<FuturesUnordered<_>>()
+                        }
+                    }))
+                }
+
+                handles
             };
 
             let analyzed =
@@ -1085,7 +1138,7 @@ where
 
                 let node = graph.get_mut(dependent);
                 if !subgraph.contains(&dependent) {
-                    debug!(
+                    trace!(
                         "adding dependent document `{uri}` for analysis",
                         uri = node.uri()
                     );
@@ -1129,7 +1182,7 @@ where
         }
         document.sort_diagnostics();
 
-        info!(
+        debug!(
             "analysis of `{uri}` completed in {elapsed:?}",
             uri = graph.get(index).uri(),
             elapsed = start.elapsed()

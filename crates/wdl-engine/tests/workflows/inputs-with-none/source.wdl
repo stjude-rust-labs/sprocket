@@ -1,6 +1,6 @@
 ## This is a test of calls with `None` values in 1.2
 ## See: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#optional-inputs-with-defaults
-version 1.2
+version 1.3
 
 import "w.wdl"
 

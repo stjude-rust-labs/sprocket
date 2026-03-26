@@ -2,7 +2,7 @@
 
 ## This is a test for checking for redundant `= None` assignments in a `input` section.
 
-version 1.2
+version 1.3
 
 workflow optionals {
     input {

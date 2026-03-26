@@ -1,6 +1,6 @@
 ## This is a test of parsing struct meta and parameter_meta sections.
 
-version 1.2
+version 1.3
 
 struct Foo {
     Int a

@@ -1,7 +1,7 @@
 ## This is an example taken from the WDL spec: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#fully-qualified-names--namespaced-identifiers
 ## No diagnostics are expected
 
-version 1.2
+version 1.3
 
 import "other.wdl" as lib
 

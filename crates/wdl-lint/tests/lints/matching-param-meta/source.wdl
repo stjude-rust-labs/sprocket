@@ -4,7 +4,7 @@
 ## in a `parameter_meta` section, and for ensuring that
 ## the order is the same as `input` section.
 
-version 1.2
+version 1.3
 
 # This workflow has both an extraneous and missing entry
 # in the `parameter_meta` section
@@ -13,7 +13,7 @@ workflow w {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
@@ -37,7 +37,7 @@ task foo {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"
@@ -62,7 +62,7 @@ task bar {
 
     parameter_meta {
         matching: {
-            help: "a matching parameter!",
+            description: "a matching parameter!",
             foo: {
                 bar: {
                     does_not_exist: "this should not suppress a missing input lint"

@@ -1,7 +1,7 @@
 ## This is a test for https://github.com/stjude-rust-labs/wdl/issues/315
 ## This test will output an array rather than emit a diagnostic
 
-version 1.2
+version 1.3
 
 struct Sample {
   String kind

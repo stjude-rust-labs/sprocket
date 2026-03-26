@@ -1,7 +1,7 @@
 #@ except: UnusedDeclaration
 ## This is a test for forward references in a WDL task.
 
-version 1.2
+version 1.3
 
 task forward_reference {
     # OK as the forward reference is to a string

@@ -1,5 +1,5 @@
 ## This test ensures the working directory is writable even if the container uses a different user
-version 1.2
+version 1.3
 
 task test {
     command <<<

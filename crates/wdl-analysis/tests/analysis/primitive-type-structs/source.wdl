@@ -1,6 +1,6 @@
 ## This is a test of the primitive type structs constraint.
 
-version 1.2
+version 1.3
 
 struct Foo {
     String foo

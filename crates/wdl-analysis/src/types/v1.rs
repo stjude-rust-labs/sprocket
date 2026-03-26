@@ -2,7 +2,6 @@
 
 use std::fmt;
 use std::fmt::Write;
-use std::sync::Arc;
 use std::sync::LazyLock;
 
 use wdl_ast::AstNode;
@@ -53,6 +52,7 @@ use wdl_ast::v1::TASK_FIELD_NAME;
 use wdl_ast::v1::TASK_FIELD_PARAMETER_META;
 use wdl_ast::v1::TASK_FIELD_PREVIOUS;
 use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
+use wdl_ast::v1::TASK_HINT_CACHEABLE;
 use wdl_ast::v1::TASK_HINT_DISKS;
 use wdl_ast::v1::TASK_HINT_FPGA;
 use wdl_ast::v1::TASK_HINT_GPU;
@@ -89,7 +89,7 @@ use super::PrimitiveType;
 use super::StructType;
 use super::Type;
 use super::TypeNameResolver;
-use crate::SyntaxNodeExt;
+use crate::Exceptable;
 use crate::UNNECESSARY_FUNCTION_CALL;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Io;
@@ -131,6 +131,7 @@ use crate::stdlib::FunctionBindError;
 use crate::stdlib::MAX_PARAMETERS;
 use crate::stdlib::STDLIB;
 use crate::types::Coercible;
+use crate::types::CustomType;
 
 /// Gets the type of a `task` variable member for pre-evaluation contexts.
 ///
@@ -140,12 +141,10 @@ use crate::types::Coercible;
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if n == TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_PREVIOUS => Some(Type::Hidden(HiddenType::PreviousTaskData)),
         _ => None,
     }
 }
@@ -158,26 +157,20 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_NAME || n == TASK_FIELD_ID => Some(PrimitiveType::String.into()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        n if n == TASK_FIELD_MEMORY || n == TASK_FIELD_ATTEMPT => {
-            Some(PrimitiveType::Integer.into())
-        }
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone())
-        }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone()),
-        n if n == TASK_FIELD_END_TIME || n == TASK_FIELD_RETURN_CODE => {
+        TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
+        TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
+        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
             Some(Type::from(PrimitiveType::Integer).optional())
         }
-        n if n == TASK_FIELD_META || n == TASK_FIELD_PARAMETER_META || n == TASK_FIELD_EXT => {
-            Some(Type::Object)
-        }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_MAX_RETRIES => {
+        TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
+        TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
         }
-        n if version >= SupportedVersion::V1(V1::Three) && n == TASK_FIELD_PREVIOUS => {
+        TASK_FIELD_PREVIOUS if version >= SupportedVersion::V1(V1::Three) => {
             Some(Type::Hidden(HiddenType::PreviousTaskData))
         }
         _ => None,
@@ -189,14 +182,14 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
 /// Returns [`None`] if the given member name is unknown.
 pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
     match name {
-        n if n == TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
-        n if n == TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
-        n if n == TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
-        n if n == TASK_FIELD_GPU || n == TASK_FIELD_FPGA => {
-            Some(STDLIB.array_string_type().clone().optional())
+        TASK_FIELD_MEMORY => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_CPU => Some(Type::from(PrimitiveType::Float).optional()),
+        TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
+        TASK_FIELD_GPU | TASK_FIELD_FPGA => {
+            Some(Type::from(STDLIB.array_string_type().clone()).optional())
         }
-        n if n == TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().optional()),
-        n if n == TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
+        TASK_FIELD_DISKS => Some(Type::from(STDLIB.map_string_int_type().clone()).optional()),
+        TASK_FIELD_MAX_RETRIES => Some(Type::from(PrimitiveType::Integer).optional()),
         _ => None,
     }
 }
@@ -209,7 +202,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
     static CONTAINER_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `cpu` requirement.
@@ -231,7 +224,7 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_string_type().clone(),
+            STDLIB.array_string_type().clone().into(),
         ])
     });
     /// The types for the `max_retries` requirement.
@@ -241,29 +234,25 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         Box::new([
             PrimitiveType::Integer.into(),
             PrimitiveType::String.into(),
-            STDLIB.array_int_type().clone(),
+            STDLIB.array_int_type().clone().into(),
         ])
     });
 
     match name {
-        n if n == TASK_REQUIREMENT_CONTAINER || n == TASK_REQUIREMENT_CONTAINER_ALIAS => {
-            Some(&CONTAINER_TYPES)
-        }
-        n if n == TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
-        n if n == TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
-        n if n == TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_FPGA => {
-            Some(FPGA_TYPES)
-        }
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_MAX_RETRIES => {
+        TASK_REQUIREMENT_CONTAINER | TASK_REQUIREMENT_CONTAINER_ALIAS => Some(&CONTAINER_TYPES),
+        TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
+        TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
+        TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
+        TASK_REQUIREMENT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_REQUIREMENT_MAX_RETRIES if version >= SupportedVersion::V1(V1::Two) => {
             Some(MAX_RETRIES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
-        n if n == TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_REQUIREMENT_RETURN_CODES => {
+        TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
+        TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
-        n if n == TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
         _ => None,
     }
 }
@@ -280,7 +269,7 @@ pub fn task_hint_types(
     static DISKS_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
         Box::new([
             PrimitiveType::String.into(),
-            STDLIB.map_string_string_type().clone(),
+            STDLIB.map_string_string_type().clone().into(),
         ])
     });
     /// The types for the `fpga` hint.
@@ -315,41 +304,32 @@ pub fn task_hint_types(
     const OUTPUTS_HIDDEN_TYPES: &[Type] = &[Type::Hidden(HiddenType::Output)];
     /// The types for the `short_task` hint.
     const SHORT_TASK_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
+    /// The types for the `cacheable` hint
+    const CACHEABLE_TYPES: &[Type] = &[Type::Primitive(PrimitiveType::Boolean, false)];
 
     match name {
-        n if n == TASK_HINT_DISKS => Some(&DISKS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_FPGA => Some(FPGA_TYPES),
-        n if n == TASK_HINT_GPU => Some(GPU_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_INPUTS =>
-        {
+        TASK_HINT_DISKS => Some(&DISKS_TYPES),
+        TASK_HINT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
+        TASK_HINT_GPU => Some(GPU_TYPES),
+        TASK_HINT_INPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(INPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_INPUTS => Some(INPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_LOCALIZATION_OPTIONAL => {
+        TASK_HINT_INPUTS => Some(INPUTS_TYPES),
+        TASK_HINT_LOCALIZATION_OPTIONAL if version >= SupportedVersion::V1(V1::Two) => {
             Some(LOCALIZATION_OPTIONAL_TYPES)
         }
-        n if n == TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_CPU => {
-            Some(MAX_CPU_TYPES)
-        }
-        n if n == TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_MAX_MEMORY => {
-            Some(MAX_MEMORY_TYPES)
-        }
-        n if n == TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
-        n if use_hidden_types
-            && version >= SupportedVersion::V1(V1::Two)
-            && n == TASK_HINT_OUTPUTS =>
-        {
+        TASK_HINT_LOCALIZATION_OPTIONAL_ALIAS => Some(LOCALIZATION_OPTIONAL_TYPES),
+        TASK_HINT_MAX_CPU if version >= SupportedVersion::V1(V1::Two) => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_CPU_ALIAS => Some(MAX_CPU_TYPES),
+        TASK_HINT_MAX_MEMORY if version >= SupportedVersion::V1(V1::Two) => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_MAX_MEMORY_ALIAS => Some(MAX_MEMORY_TYPES),
+        TASK_HINT_OUTPUTS if use_hidden_types && version >= SupportedVersion::V1(V1::Two) => {
             Some(OUTPUTS_HIDDEN_TYPES)
         }
-        n if n == TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
-        n if version >= SupportedVersion::V1(V1::Two) && n == TASK_HINT_SHORT_TASK => {
-            Some(SHORT_TASK_TYPES)
-        }
-        n if n == TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_OUTPUTS => Some(OUTPUTS_TYPES),
+        TASK_HINT_SHORT_TASK if version >= SupportedVersion::V1(V1::Two) => Some(SHORT_TASK_TYPES),
+        TASK_HINT_SHORT_TASK_ALIAS => Some(SHORT_TASK_TYPES),
+        TASK_HINT_CACHEABLE => Some(CACHEABLE_TYPES),
         _ => None,
     }
 }
@@ -506,11 +486,15 @@ where
         ty: &v1::MapType<N>,
     ) -> Result<MapType, Diagnostic> {
         let (key_type, value_type) = ty.types();
-        let optional = key_type.is_optional();
-        Ok(MapType::new(
-            Type::Primitive(key_type.kind().into(), optional),
-            self.convert_type(&value_type)?,
-        ))
+        let key_type =
+            Type::Primitive(PrimitiveType::from(key_type.kind()), key_type.is_optional());
+
+        // The key type cannot be optional
+        if key_type.is_optional() {
+            return Err(map_key_not_primitive(ty.types().0.span(), &key_type));
+        }
+
+        Ok(MapType::new(key_type, self.convert_type(&value_type)?))
     }
 
     /// Converts an AST struct definition into a struct type.
@@ -521,13 +505,13 @@ where
         &mut self,
         definition: &v1::StructDefinition<N>,
     ) -> Result<StructType, Diagnostic> {
-        Ok(StructType {
-            name: Arc::new(definition.name().text().to_string()),
-            members: definition
+        Ok(StructType::new(
+            definition.name().text().to_string(),
+            definition
                 .members()
                 .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<_, _>>()?,
-        })
+                .collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 }
 
@@ -550,9 +534,19 @@ pub trait EvaluationContext {
     fn version(&self) -> SupportedVersion;
 
     /// Gets the type of the given name in scope.
+    ///
+    /// - If the name is a variable, returns the type of that variable. For
+    ///   example, returns the type of `foo` in the expression `foo.bar`.
+    /// - If the name refers to a custom type, returns a type name reference to
+    ///   that custom type. For example, returns a type name reference to
+    ///   `Status` in the expression `Status.Active` (where `Status`) is an
+    ///   enum.
     fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
+    ///
+    /// For example, returns the type of `MyStruct` in the expression `MyStruct
+    /// a = MyStruct { ... }`.
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
     /// Gets the task associated with the evaluation context.
@@ -594,7 +588,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     /// Evaluates the type of the given expression in the given scope.
     ///
     /// Returns `None` if the type of the expression is indeterminate.
-    pub fn evaluate_expr<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &Expr<N>) -> Option<Type> {
+    pub fn evaluate_expr<N: TreeNode + Exceptable>(&mut self, expr: &Expr<N>) -> Option<Type> {
         match expr {
             Expr::Literal(expr) => self.evaluate_literal_expr(expr),
             Expr::NameRef(r) => {
@@ -677,7 +671,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal expression.
-    fn evaluate_literal_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralExpr<N>,
     ) -> Option<Type> {
@@ -707,7 +701,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks a placeholder expression.
-    pub(crate) fn check_placeholder<N: TreeNode + SyntaxNodeExt>(
+    pub(crate) fn check_placeholder<N: TreeNode + Exceptable>(
         &mut self,
         placeholder: &Placeholder<N>,
     ) {
@@ -746,7 +740,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
             } else {
                 match ty {
-                    Type::Primitive(..) | Type::Union | Type::None => {}
+                    Type::Primitive(..)
+                    | Type::Union
+                    | Type::None
+                    | Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _) => {}
                     _ => {
                         self.context
                             .add_diagnostic(cannot_coerce_to_string(&ty, expr.span()));
@@ -759,10 +756,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal array expression.
-    fn evaluate_literal_array<N: TreeNode + SyntaxNodeExt>(
-        &mut self,
-        expr: &LiteralArray<N>,
-    ) -> Type {
+    fn evaluate_literal_array<N: TreeNode + Exceptable>(&mut self, expr: &LiteralArray<N>) -> Type {
         // Look at the first array element to determine the element type
         // The remaining elements must have a common type
         let mut elements = expr.elements();
@@ -799,10 +793,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal pair expression.
-    fn evaluate_literal_pair<N: TreeNode + SyntaxNodeExt>(
-        &mut self,
-        expr: &LiteralPair<N>,
-    ) -> Type {
+    fn evaluate_literal_pair<N: TreeNode + Exceptable>(&mut self, expr: &LiteralPair<N>) -> Type {
         let (left, right) = expr.exprs();
         let left = self.evaluate_expr(&left).unwrap_or(Type::Union);
         let right = self.evaluate_expr(&right).unwrap_or(Type::Union);
@@ -810,12 +801,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal map expression.
-    fn evaluate_literal_map<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &LiteralMap<N>) -> Type {
+    fn evaluate_literal_map<N: TreeNode + Exceptable>(&mut self, expr: &LiteralMap<N>) -> Type {
         let map_item_type = |item: LiteralMapItem<N>| {
             let (key, value) = item.key_value();
             let expected_key = self.evaluate_expr(&key)?;
             match expected_key {
-                Type::Primitive(..) | Type::None | Type::Union => {
+                Type::Primitive(_, false) | Type::Union => {
                     // OK
                 }
                 _ => {
@@ -847,18 +838,27 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     if let Some(actual_key) = self.evaluate_expr(&key)
                         && let Some(actual_value) = self.evaluate_expr(&value)
                     {
-                        match expected_key.common_type(&actual_key) {
-                            Some(ty) => {
-                                expected_key = ty;
-                                expected_key_span = key.span();
+                        // The key must be a non-optional primitive type or union
+                        match actual_key {
+                            Type::Primitive(_, false) | Type::Union => {
+                                match expected_key.common_type(&actual_key) {
+                                    Some(ty) => {
+                                        expected_key = ty;
+                                        expected_key_span = key.span();
+                                    }
+                                    _ => {
+                                        self.context.add_diagnostic(no_common_type(
+                                            &expected_key,
+                                            expected_key_span,
+                                            &actual_key,
+                                            key.span(),
+                                        ));
+                                    }
+                                }
                             }
                             _ => {
-                                self.context.add_diagnostic(no_common_type(
-                                    &expected_key,
-                                    expected_key_span,
-                                    &actual_key,
-                                    key.span(),
-                                ));
+                                self.context
+                                    .add_diagnostic(map_key_not_primitive(key.span(), &actual_key));
                             }
                         }
 
@@ -887,7 +887,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal object expression.
-    fn evaluate_literal_object<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_object<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralObject<N>,
     ) -> Type {
@@ -901,15 +901,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal struct expression.
-    fn evaluate_literal_struct<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_struct<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralStruct<N>,
     ) -> Option<Type> {
         let name = expr.name();
         match self.context.resolve_type_name(name.text(), name.span()) {
             Ok(ty) => {
-                let ty = match ty {
-                    Type::Compound(CompoundType::Struct(ty), false) => ty,
+                let ty = match &ty {
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), false) => ty,
                     _ => panic!("type should be a required struct"),
                 };
 
@@ -919,7 +919,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 // Validate the member types
                 for item in expr.items() {
                     let (n, v) = item.name_value();
-                    match ty.members.get_full(n.text()) {
+                    match ty.members().get_full(n.text()) {
                         Some((index, _, expected)) => {
                             present[index] = true;
                             if let Some(actual) = self.evaluate_expr(&v)
@@ -950,8 +950,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                             return None;
                         }
 
-                        let (name, ty) = &ty.members.get_index(i).unwrap();
-                        if ty.is_optional() {
+                        let (name, member_ty) = ty.members().get_index(i).unwrap();
+                        if member_ty.is_optional() {
                             return None;
                         }
 
@@ -978,7 +978,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         .add_diagnostic(missing_struct_members(&name, count, &members));
                 }
 
-                Some(Type::Compound(CompoundType::Struct(ty), false))
+                Some(Type::Compound(
+                    CompoundType::Custom(CustomType::Struct(ty.clone())),
+                    false,
+                ))
             }
             Err(diagnostic) => {
                 self.context.add_diagnostic(diagnostic);
@@ -988,7 +991,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `runtime` section item.
-    pub(crate) fn evaluate_runtime_item<N: TreeNode + SyntaxNodeExt>(
+    pub(crate) fn evaluate_runtime_item<N: TreeNode + Exceptable>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -1013,7 +1016,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a `requirements` section item.
-    pub(crate) fn evaluate_requirements_item<N: TreeNode + SyntaxNodeExt>(
+    pub(crate) fn evaluate_requirements_item<N: TreeNode + Exceptable>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -1053,7 +1056,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal hints expression.
-    fn evaluate_literal_hints<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_hints<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralHints<N>,
     ) -> Option<Type> {
@@ -1068,7 +1071,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
     /// Evaluates a hints item, whether in task `hints` section or a `hints`
     /// literal expression.
-    pub(crate) fn evaluate_hints_item<N: TreeNode + SyntaxNodeExt>(
+    pub(crate) fn evaluate_hints_item<N: TreeNode + Exceptable>(
         &mut self,
         name: &Ident<N::Token>,
         expr: &Expr<N>,
@@ -1089,7 +1092,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal input expression.
-    fn evaluate_literal_input<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_input<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralInput<N>,
     ) -> Option<Type> {
@@ -1105,7 +1108,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a literal output expression.
-    fn evaluate_literal_output<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_output<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LiteralOutput<N>,
     ) -> Option<Type> {
@@ -1121,7 +1124,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates a literal input/output item.
-    fn evaluate_literal_io_item<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_literal_io_item<N: TreeNode + Exceptable>(
         &mut self,
         names: impl Iterator<Item = Ident<N::Token>>,
         expr: Expr<N>,
@@ -1169,18 +1172,18 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 let start = span.unwrap().start();
                 span = Some(Span::new(start, name.span().end() - start));
                 let s = s.unwrap();
-                match s.members.get(name.text()) {
+                match s.members().get(name.text()) {
                     Some(ty) => ty,
                     None => {
                         self.context
-                            .add_diagnostic(not_a_struct_member(&s.name, &name));
+                            .add_diagnostic(not_a_struct_member(s.name(), &name));
                         break;
                     }
                 }
             };
 
             match ty {
-                Type::Compound(CompoundType::Struct(ty), _) => s = Some(ty),
+                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => s = Some(ty),
                 _ if names.peek().is_some() => {
                     self.context.add_diagnostic(not_a_struct(&name, i == 0));
                     break;
@@ -1209,7 +1212,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an `if` expression.
-    fn evaluate_if_expr<N: TreeNode + SyntaxNodeExt>(&mut self, expr: &IfExpr<N>) -> Option<Type> {
+    fn evaluate_if_expr<N: TreeNode + Exceptable>(&mut self, expr: &IfExpr<N>) -> Option<Type> {
         let (cond_expr, true_expr, false_expr) = expr.exprs();
 
         // The conditional should be a boolean
@@ -1244,7 +1247,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical not` expression.
-    fn evaluate_logical_not_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_logical_not_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LogicalNotExpr<N>,
     ) -> Option<Type> {
@@ -1260,7 +1263,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a negation expression.
-    fn evaluate_negation_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_negation_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &NegationExpr<N>,
     ) -> Option<Type> {
@@ -1285,7 +1288,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical or` expression.
-    fn evaluate_logical_or_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_logical_or_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LogicalOrExpr<N>,
     ) -> Option<Type> {
@@ -1308,7 +1311,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a `logical and` expression.
-    fn evaluate_logical_and_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_logical_and_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &LogicalAndExpr<N>,
     ) -> Option<Type> {
@@ -1331,7 +1334,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a comparison expression.
-    fn evaluate_comparison_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_comparison_expr<N: TreeNode + Exceptable>(
         &mut self,
         op: ComparisonOperator,
         lhs: &Expr<N>,
@@ -1404,8 +1407,12 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     Type::Compound(CompoundType::Map(b), _),
                 ) => a == b,
                 (
-                    Type::Compound(CompoundType::Struct(a), _),
-                    Type::Compound(CompoundType::Struct(b), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Struct(b)), _),
+                ) => a == b,
+                (
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(a)), _),
+                    Type::Compound(CompoundType::Custom(CustomType::Enum(b)), _),
                 ) => a == b,
                 _ => false,
             };
@@ -1428,7 +1435,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a numeric expression.
-    fn evaluate_numeric_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_numeric_expr<N: TreeNode + Exceptable>(
         &mut self,
         op: NumericOperator,
         span: Span,
@@ -1511,10 +1518,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of a call expression.
-    fn evaluate_call_expr<N: TreeNode + SyntaxNodeExt>(
-        &mut self,
-        expr: &CallExpr<N>,
-    ) -> Option<Type> {
+    fn evaluate_call_expr<N: TreeNode + Exceptable>(&mut self, expr: &CallExpr<N>) -> Option<Type> {
         let target = expr.target();
         match STDLIB.function(target.text()) {
             Some(f) => {
@@ -1646,7 +1650,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an index expression.
-    fn evaluate_index_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_index_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &IndexExpr<N>,
     ) -> Option<Type> {
@@ -1688,7 +1692,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Evaluates the type of an access expression.
-    fn evaluate_access_expr<N: TreeNode + SyntaxNodeExt>(
+    fn evaluate_access_expr<N: TreeNode + Exceptable>(
         &mut self,
         expr: &AccessExpr<N>,
     ) -> Option<Type> {
@@ -1724,13 +1728,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                 };
             }
-            _ => {}
-        }
-
-        // Check to see if it's a compound type or call output
-        match &ty {
-            Type::Compound(CompoundType::Struct(ty), _) => {
-                if let Some(ty) = ty.members.get(name.text()) {
+            Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
+                if let Some(ty) = ty.members().get(name.text()) {
                     return Some(ty.clone());
                 }
 
@@ -1741,8 +1740,8 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
             Type::Compound(CompoundType::Pair(ty), _) => {
                 // Support `left` and `right` accessors for pairs
                 return match name.text() {
-                    "left" => Some(ty.left_type.clone()),
-                    "right" => Some(ty.right_type.clone()),
+                    "left" => Some(ty.left_type().clone()),
+                    "right" => Some(ty.right_type().clone()),
                     _ => {
                         self.context.add_diagnostic(not_a_pair_accessor(&name));
                         None
@@ -1758,6 +1757,16 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     .add_diagnostic(unknown_call_io(ty, &name, Io::Output));
                 return None;
             }
+            Type::TypeNameRef(custom_ty) => match custom_ty {
+                CustomType::Struct(_) => {
+                    self.context
+                        .add_diagnostic(cannot_access(&ty, target.span()));
+                    return None;
+                }
+                CustomType::Enum(_) => {
+                    return Some(Type::from(CompoundType::Custom(custom_ty.clone())));
+                }
+            },
             _ => {}
         }
 

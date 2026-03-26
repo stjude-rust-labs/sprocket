@@ -1,0 +1,11 @@
+error: conflicting enum name `Status`
+  ┌─ tests/analysis/enum-conflicts-with-imported-enum/source.wdl:6:6
+  │
+4 │ import "imported.wdl"
+  │        -------------- the import that introduced the enum is here
+5 │ 
+6 │ enum Status {
+  │      ^^^^^^ this name conflicts with an imported enum
+  │
+  = fix: either rename the enum or use an `alias` clause on the import with a different name
+

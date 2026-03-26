@@ -10,7 +10,7 @@ RootNode@0..387
   VersionStatementNode@267..278
     VersionKeyword@267..274 "version"
     Whitespace@274..275 " "
-    Version@275..278 "1.2"
+    Version@275..278 "1.3"
   Whitespace@278..280 "\n\n"
   WorkflowDefinitionNode@280..386
     WorkflowKeyword@280..288 "workflow"

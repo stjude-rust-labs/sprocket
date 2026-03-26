@@ -1,6 +1,6 @@
 # This is a test of too many requirements sections in a task.
 
-version 1.2
+version 1.3
 
 task t {
     requirements {

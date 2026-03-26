@@ -7,15 +7,16 @@ on:
   pull_request:
 
 env:
+  RUST_BACKTRACE: full
+  CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
+  IN_CI: 1
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
@@ -27,8 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
@@ -44,8 +43,6 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install clippy
@@ -61,8 +58,44 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/install-shellcheck
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      # Disabling cache as the size is now consistently running out of disk for certain actions
+      # - uses: actions/cache@v4
+      #   with:
+      #     path: |
+      #       ~/.cargo/bin/
+      #       ~/.cargo/registry/index/
+      #       ~/.cargo/registry/cache/
+      #       ~/.cargo/git/db/
+      #       target/
+      #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
         with:
-          submodules: true
+          tool: nextest
+
+      # Normal wdl-doc runs can automatically install Pagefind, but since the tests run in parallel, they
+      # can step on each other's toes in CI.
+      - name: Install Pagefind
+        if: runner.os == 'Linux'
+        run: npm install -g pagefind
+
+      # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
+      - name: Run tests
+        shell: bash
+        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
+
+  engine-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
@@ -78,51 +111,30 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Setup Docker (Mac)
-        if: ${{'macos-latest' == matrix.os}}
-        run: |
-          brew update
-          brew install docker
-          brew install qemu
-          brew install colima
-          brew install lima-additional-guestagents
-          # M1 and M2 Macs that the Github Actions supplies don't support nested virtualization. This forces x86 emulation to get around this
-          #--mount /private is necessary here in order to give docker access to mac's temp directory for tests
-          colima start --mount /private --memory 4 --network-address --arch x86_64
-          echo "DOCKER_HOST=unix:///Users/runner/.colima/docker.sock" >> $GITHUB_ENV
-      - name: Setup WSL (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        uses: Vampire/setup-wsl@v5
-      - name: Install Podman (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        run: |
-          curl -L --url "https://github.com/containers/podman/releases/download/v5.5.1/podman-5.5.1-setup.exe" -o Podman.exe
-          Start-Process Podman.exe -Wait -ArgumentList "/norestart /passive" -Verb runAs;
-          Add-Content $env:GITHUB_PATH "C:\Program Files\RedHat\Podman\"
-      - name: Startup Docker (Windows)
-        if: ${{'windows-latest' == matrix.os}}
-        run: |
-          podman machine init
-          podman machine set --rootful
-          podman machine start
-          Add-Content $env:GITHUB_ENV "DOCKER_HOST=npipe:////./pipe/podman-machine-default"
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
 
-      # TODO ACF 2025-09-18: these pulls are absorbed from the `wdl` repo's CI script. Since the
-      # Sprocket CI is already setting up container runtimes on Mac and Windows, should we revisit
-      # whether these steps are Linux-only?
-      - run: docker pull ubuntu:latest
-        if: runner.os == 'Linux'
-      - run: docker pull ubuntu:focal
-        if: runner.os == 'Linux'
-      - run: docker pull ghcr.io/multiqc/multiqc:v1.31
-        if: runner.os == 'Linux'
-      - run: docker pull alpine:latest
-        if: runner.os == 'Linux'
+      # See the `test` job
+      - name: Install Pagefind
+        run: npm install -g pagefind
 
-      - run: du -d2 -h . ~/.cargo
-
+      - name: Pull test images
+        if: runner.os == 'Linux'
+        run: |
+          docker pull ubuntu:latest
+          docker pull ubuntu:focal
+          docker pull ghcr.io/multiqc/multiqc:v1.31
+          docker pull ghcr.io/stjudecloud/util:3.0.1
+          docker pull alpine:latest
       - name: Run tests
-        run: cargo -v --locked llvm-cov test --workspace --all-features --no-fail-fast --codecov --output-path codecov.json
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" != "Linux" ]]; then
+            export RUSTFLAGS="--cfg docker_tests_disabled"
+          fi
+          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -149,8 +161,6 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
@@ -164,8 +174,6 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - uses: ./.github/actions/install-shellcheck
       - run: git config --global core.autocrlf false
       - name: Update Rust
@@ -176,8 +184,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-workspace-lints
@@ -187,8 +193,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-deny
@@ -198,8 +202,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install cargo-binstall
@@ -214,8 +216,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps

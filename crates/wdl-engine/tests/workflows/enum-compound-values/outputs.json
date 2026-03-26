@@ -1,0 +1,82 @@
+{
+  "enum_compound_values.default_ports": [
+    80,
+    443,
+    8080
+  ],
+  "enum_compound_values.custom_ports": [
+    3000,
+    3001
+  ],
+  "enum_compound_values.small_range": {
+    "left": 1,
+    "right": 100
+  },
+  "enum_compound_values.large_range": {
+    "left": 1,
+    "right": 1000
+  },
+  "enum_compound_values.timeouts": {
+    "connect": 30,
+    "read": 60,
+    "write": 45
+  },
+  "enum_compound_values.retries": {
+    "max": 3,
+    "initial": 1
+  },
+  "enum_compound_values.dev_config": {
+    "port": 8080,
+    "debug": true,
+    "workers": 2
+  },
+  "enum_compound_values.prod_config": {
+    "port": 443,
+    "debug": false,
+    "workers": 8
+  },
+  "enum_compound_values.advanced_config": {
+    "ports": [
+      8080,
+      8081,
+      8082
+    ],
+    "settings": {
+      "timeout": 30,
+      "retries": 3
+    },
+    "range": {
+      "left": 1,
+      "right": 100
+    },
+    "nested": {
+      "enabled": true,
+      "level": 5
+    }
+  },
+  "enum_compound_values.web": {
+    "name": "web-01",
+    "cpu_cores": 4,
+    "network": {
+      "hostname": "web.example.com",
+      "port": 443,
+      "tls": true
+    },
+    "services": [
+      "nginx",
+      "php-fpm"
+    ]
+  },
+  "enum_compound_values.db": {
+    "name": "db-01",
+    "cpu_cores": 8,
+    "network": {
+      "hostname": "db.example.com",
+      "port": 5432,
+      "tls": true
+    },
+    "services": [
+      "postgresql"
+    ]
+  }
+}

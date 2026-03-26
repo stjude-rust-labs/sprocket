@@ -2,11 +2,12 @@
 
 use std::io;
 
-use anyhow::Result;
 use clap::Command;
 use clap::Parser;
 use clap_complete::Shell;
 use clap_complete::generate;
+
+use crate::commands::CommandResult;
 
 /// Arguments for the `completions` subcommand.
 #[derive(Parser, Debug)]
@@ -18,7 +19,7 @@ pub struct Args {
 }
 
 /// The main function for the `completions` subcommand.
-pub async fn completions(args: Args, cmd: &mut Command) -> Result<()> {
+pub async fn completions(args: Args, cmd: &mut Command) -> CommandResult<()> {
     generate(
         args.shell,
         cmd,

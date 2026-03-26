@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 workflow map_to_array {
   Map[Int, Int] m = {0: 7, 1: 42}

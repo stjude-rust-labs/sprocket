@@ -2,11 +2,11 @@
 
 target/
 .vscode/
-**/Cargo.lock
 
 rustc-ice*
 
-runs/
+out/
+!tests/**/out/
 
 .idea
 

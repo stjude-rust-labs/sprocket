@@ -296,6 +296,7 @@
   --color-brand-violet-400: #a78bfa;
   --color-brand-pink-400: #f472b6;
   --color-brand-cyan-400: #4bd8fa;
+  --color-brand-lime-300: #BEF264;
   --color-brand-red-400: #f87171;
   --color-brand-yellow-50: #fefce8;
   --color-brand-yellow-400: #facc15;
@@ -606,6 +607,7 @@
   --color-brand-violet-400: #8b5cf6;   /* Violet 500 from Figma */
   --color-brand-pink-400: #ec4899;     /* Pink 500 from Figma */
   --color-brand-cyan-400: #06b6d4;     /* Cyan 500 from Figma */
+  --color-brand-lime-300: #84CC16;     /* Lime 500 from Figma */
   --color-brand-red-400: #dc2626;      /* Red 600 from Figma */
   --color-brand-yellow-50: #291404;    /* Yellow 950 from Figma */
   --color-brand-yellow-400: #ca8a04;   /* Yellow 600 from Figma */

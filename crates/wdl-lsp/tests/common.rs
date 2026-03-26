@@ -37,6 +37,7 @@ use tower_lsp::lsp_types::notification::Notification;
 use tower_lsp::lsp_types::request::Request;
 use tower_lsp::lsp_types::request::WorkspaceDiagnosticRequest;
 use url::Url;
+use wdl_lsp::LintOptions;
 use wdl_lsp::Server;
 use wdl_lsp::ServerOptions;
 
@@ -85,12 +86,16 @@ impl TestContext {
         let response_rx = BufReader::new(response_rx);
 
         let (service, socket) = LspService::new(|client| {
-            Server::new(
+            Server::<()>::new(
                 client,
                 ServerOptions {
-                    lint: true,
+                    lint: LintOptions {
+                        enabled: true,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
+                None,
             )
         });
         let server =

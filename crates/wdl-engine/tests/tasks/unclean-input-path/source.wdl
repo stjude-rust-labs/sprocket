@@ -1,7 +1,7 @@
 ## This is a test of having an unclean input path.
 ## The input path should still translate correctly.
 
-version 1.2
+version 1.3
 
 task test {
     input {

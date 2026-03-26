@@ -4,6 +4,7 @@ use std::fmt;
 
 use crate::types::Coercible;
 use crate::types::CompoundType;
+use crate::types::CustomType;
 use crate::types::PrimitiveType;
 use crate::types::Type;
 
@@ -47,7 +48,10 @@ impl Constraint for SizeableConstraint {
                 CompoundType::Map(ty) => {
                     type_is_sizable(ty.key_type()) | type_is_sizable(ty.value_type())
                 }
-                CompoundType::Struct(s) => s.members().values().any(type_is_sizable),
+                CompoundType::Custom(CustomType::Struct(s)) => {
+                    s.members().values().any(type_is_sizable)
+                }
+                CompoundType::Custom(CustomType::Enum(_)) => false,
             }
         }
 
@@ -62,7 +66,7 @@ impl Constraint for SizeableConstraint {
                 }
                 // Treat unions as sizable as they can only be checked at runtime
                 Type::Union | Type::None => true,
-                Type::Hidden(_) | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) | Type::TypeNameRef(_) => false,
             }
         }
 
@@ -80,7 +84,7 @@ impl Constraint for StructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(ty, Type::Compound(CompoundType::Struct(_), _))
+        ty.as_struct().is_some()
     }
 }
 
@@ -95,7 +99,7 @@ impl Constraint for PrimitiveStructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        if let Type::Compound(CompoundType::Struct(ty), _) = ty {
+        if let Some(ty) = ty.as_struct() {
             return ty
                 .members()
                 .values()
@@ -125,7 +129,14 @@ impl Constraint for JsonSerializableConstraint {
                     ty.key_type().is_coercible_to(&PrimitiveType::String.into())
                         && type_is_serializable(ty.value_type())
                 }
-                CompoundType::Struct(s) => s.members().values().all(type_is_serializable),
+                CompoundType::Custom(CustomType::Struct(s)) => {
+                    s.members().values().all(type_is_serializable)
+                }
+                CompoundType::Custom(CustomType::Enum(_)) => {
+                    // Enums always serialize as a string representing the
+                    // variant name.
+                    true
+                }
             }
         }
 
@@ -139,7 +150,7 @@ impl Constraint for JsonSerializableConstraint {
                 | Type::Union
                 | Type::None => true,
                 Type::Compound(ty, _) => compound_type_is_serializable(ty),
-                Type::Hidden(_) | Type::Call(_) => false,
+                Type::Hidden(_) | Type::Call(_) | Type::TypeNameRef(_) => false,
             }
         }
 
@@ -165,8 +176,47 @@ impl Constraint for PrimitiveTypeConstraint {
             | Type::Object
             | Type::OptionalObject
             | Type::Hidden(_)
-            | Type::Call(_) => false,
+            | Type::Call(_)
+            | Type::TypeNameRef(_) => false,
         }
+    }
+}
+
+/// Represents a constraint that ensures the type is a valid `Map` key type.
+#[derive(Debug, Copy, Clone)]
+pub struct MapKeyConstraint;
+
+impl Constraint for MapKeyConstraint {
+    fn description(&self) -> &'static str {
+        "any non-optional primitive type"
+    }
+
+    fn satisfied(&self, ty: &Type) -> bool {
+        match ty {
+            Type::Union | Type::Primitive(_, false) => true,
+            Type::Primitive(_, true)
+            | Type::Compound(..)
+            | Type::None
+            | Type::Object
+            | Type::OptionalObject
+            | Type::Hidden(_)
+            | Type::Call(_)
+            | Type::TypeNameRef(_) => false,
+        }
+    }
+}
+
+/// Represents a constraint that ensures the type is any enumeration variant.
+#[derive(Debug, Copy, Clone)]
+pub struct EnumVariantConstraint;
+
+impl Constraint for EnumVariantConstraint {
+    fn description(&self) -> &'static str {
+        "any enum variant"
+    }
+
+    fn satisfied(&self, ty: &Type) -> bool {
+        ty.as_enum().is_some()
     }
 }
 
@@ -316,11 +366,31 @@ mod test {
         ));
         assert!(
             !constraint
-                .satisfied(&MapType::new(PrimitiveType::Integer, PrimitiveType::String,).into())
+                .satisfied(&MapType::new(PrimitiveType::Integer, PrimitiveType::String).into())
         );
         assert!(constraint.satisfied(
             &Type::from(StructType::new("Foo", [("foo", PrimitiveType::String)])).optional()
         ));
+    }
+
+    #[test]
+    fn test_map_key_constraint() {
+        let constraint = MapKeyConstraint;
+        assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Integer.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Float.into()));
+        assert!(constraint.satisfied(&PrimitiveType::String.into()));
+        assert!(constraint.satisfied(&PrimitiveType::File.into()));
+        assert!(constraint.satisfied(&PrimitiveType::Directory.into()));
+        assert!(constraint.satisfied(&Type::Union));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Integer).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Float).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::String).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::File).optional()));
+        assert!(!constraint.satisfied(&Type::from(PrimitiveType::Directory).optional()));
+        assert!(!constraint.satisfied(&Type::OptionalObject));
+        assert!(!constraint.satisfied(&Type::Object));
     }
 
     #[test]

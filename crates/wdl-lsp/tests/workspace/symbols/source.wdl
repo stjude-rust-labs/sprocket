@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 import "lib.wdl"
 import "lib.wdl" as lib_alias

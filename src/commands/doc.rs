@@ -3,20 +3,29 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use anyhow::anyhow;
 use clap::Parser;
+use url::Url;
 use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
-use wdl::cli::analysis::Source;
-use wdl::doc::AdditionalScript;
-use wdl::doc::Config;
+use wdl::ast::AstNode;
+use wdl::ast::Severity;
+use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
+use wdl::doc::config::AdditionalScript;
+use wdl::doc::config::ExternalUrls;
 use wdl::doc::document_workspace;
+use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
+use crate::Config;
 use crate::IGNORE_FILENAME;
+use crate::analysis::Source;
+use crate::commands::CommandResult;
+use crate::diagnostics::DiagnosticCounts;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -32,6 +41,12 @@ pub struct Args {
     /// If not supplied, the default Sprocket logo will be used.
     #[arg(long, value_name = "SVG FILE")]
     pub logo: Option<PathBuf>,
+    /// An optional link to the project's homepage.
+    #[arg(long, value_name = "LINK TO HOMEPAGE")]
+    pub homepage_url: Option<Url>,
+    /// An optional link to the project's GitHub repository.
+    #[arg(long, value_name = "LINK TO GITHUB")]
+    pub github_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
@@ -99,17 +114,33 @@ pub struct Args {
     /// `npm` and `npx` are expected to be available in the environment.
     #[arg(long, requires = "theme")]
     pub install: bool,
+    /// Enables support for documentation comments
+    ///
+    /// This option is *experimental* and will be removed in a future major
+    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+    #[arg(long)]
+    pub with_doc_comments: bool,
+
+    /// The report mode.
+    #[arg(short = 'm', long, value_name = "MODE")]
+    pub report_mode: Option<Mode>,
 }
 
 /// The default output directory for the generated documentation.
 const DEFAULT_OUTPUT_DIR: &str = "docs";
 
 /// Generate documentation for a WDL workspace.
-pub async fn doc(args: Args) -> Result<()> {
+pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    if args.with_doc_comments {
+        tracing::warn!(
+            "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
+        );
+    }
+
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
         workspace
     } else {
-        bail!("`workspace` must be a local directory for the `doc` command")
+        return Err(anyhow!("`workspace` must be a local directory for the `doc` command").into());
     };
     if args.install {
         if let Some(theme_path) = &args.theme {
@@ -117,7 +148,10 @@ pub async fn doc(args: Args) -> Result<()> {
                 format!("failed to install theme from `{}`", theme_path.display())
             })?;
         } else {
-            bail!("the `--install` flag requires the `--theme` argument to be specified");
+            return Err(anyhow!(
+                "the `--install` flag requires the `--theme` argument to be specified"
+            )
+            .into());
         }
     }
 
@@ -168,31 +202,71 @@ pub async fn doc(args: Args) -> Result<()> {
     let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
     if args.overwrite && docs_dir.exists() {
-        std::fs::remove_dir_all(&docs_dir)?;
+        std::fs::remove_dir_all(&docs_dir).context("failed to delete docs directory")?;
     }
 
     let analysis_config = AnalysisConfig::default()
+        .with_fallback_version(config.common.wdl.fallback_version)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
-    let config = Config::new(analysis_config, &workspace, &docs_dir)
+    let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .homepage(args.homepage)
         .init_light_mode(args.light_mode)
         .custom_theme(args.theme)
         .custom_logo(args.logo)
         .alt_logo(args.alt_light_logo)
+        .external_urls(ExternalUrls {
+            homepage: args.homepage_url,
+            github: args.github_url,
+        })
         .additional_javascript(addl_js)
-        .prefer_full_directory(!args.prioritize_workflows_view);
+        .prefer_full_directory(!args.prioritize_workflows_view)
+        .enable_doc_comments(args.with_doc_comments);
 
-    document_workspace(config).await.with_context(|| {
-        format!(
-            "failed to generate documentation for workspace at `{}`",
-            workspace.display()
-        )
-    })?;
+    let mut counts = DiagnosticCounts::default();
+    if let Err(e) = document_workspace(config).await {
+        match e.kind() {
+            DocErrorKind::AnalysisFailed(analysis_results) => {
+                for result in analysis_results {
+                    let path = result.document().path().to_string();
+                    let source = result.document().root().text().to_string();
+
+                    emit_diagnostics(
+                        &path,
+                        source,
+                        result.document().diagnostics().filter(|d| {
+                            if d.severity() == Severity::Error {
+                                counts.errors += 1;
+                                return true;
+                            }
+
+                            false
+                        }),
+                        &[],
+                        args.report_mode.unwrap_or_default(),
+                        colorize,
+                    )
+                    .context("failed to emit diagnostics")?;
+                }
+            }
+            _ => {
+                return Err(anyhow::Error::new(e)
+                    .context(format!(
+                        "failed to generate documentation for workspace at `{}`",
+                        workspace.display()
+                    ))
+                    .into());
+            }
+        }
+    }
+
+    if let Some(e) = counts.verify_no_errors() {
+        return Err(e.into());
+    }
 
     if args.open {
         opener::open(docs_dir.join("index.html")).context("failed to open documentation")?;
     }
 
-    anyhow::Ok(())
+    Ok(())
 }

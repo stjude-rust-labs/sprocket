@@ -1,8 +1,11 @@
 //! Formatting for tasks.
 
+use std::rc::Rc;
+
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::StrippedCommandPart;
 
+use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
 use crate::Trivia;
@@ -14,24 +17,28 @@ use crate::element::FormatElement;
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_task_definition(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("task definition children");
 
     stream.ignore_trailing_blank_lines();
 
     let task_keyword = children.next().expect("task keyword");
     assert!(task_keyword.element().kind() == SyntaxKind::TaskKeyword);
-    (&task_keyword).write(stream);
+    (&task_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("task name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
 
@@ -88,24 +95,24 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
     }
 
     if let Some(meta) = meta {
-        (&meta).write(stream);
+        (&meta).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream);
+        (&parameter_meta).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(input) = input {
-        (&input).write(stream);
+        (&input).write(stream, config);
         stream.blank_line();
     }
 
     stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
-        (&child).write(stream);
+        (&child).write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
     if !body_empty {
@@ -113,37 +120,37 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
     }
 
     if let Some(command) = command {
-        (&command).write(stream);
+        (&command).write(stream, config);
         stream.blank_line();
     }
 
     if let Some(output) = output {
-        (&output).write(stream);
+        (&output).write(stream, config);
         stream.blank_line();
     }
 
     match requirements {
         Some(requirements) => {
-            (&requirements).write(stream);
+            (&requirements).write(stream, config);
             stream.blank_line();
         }
         _ => {
             if let Some(runtime) = runtime {
-                (&runtime).write(stream);
+                (&runtime).write(stream, config);
                 stream.blank_line();
             }
         }
     }
 
     if let Some(hints) = hints {
-        (&hints).write(stream);
+        (&hints).write(stream, config);
         stream.blank_line();
     }
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("task close brace")).write(stream);
+    (&close_brace.expect("task close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -152,12 +159,16 @@ pub fn format_task_definition(element: &FormatElement, stream: &mut TokenStream<
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_command_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("command section children");
 
     let command_keyword = children.next().expect("command keyword");
     assert!(command_keyword.element().kind() == SyntaxKind::CommandKeyword);
-    (&command_keyword).write(stream);
+    (&command_keyword).write(stream, config);
     stream.end_word();
 
     let open_delimiter = children.next().expect("open delimiter");
@@ -172,7 +183,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
             );
         }
         SyntaxKind::OpenHeredoc => {
-            (&open_delimiter).write(stream);
+            (&open_delimiter).write(stream, config);
         }
         _ => {
             unreachable!(
@@ -206,10 +217,10 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
                         );
                     }
                     SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream);
+                        (&child).write(stream, config);
                     }
                     SyntaxKind::LiteralCommandText | SyntaxKind::PlaceholderNode => {
-                        (&child).write(stream);
+                        (&child).write(stream, config);
                     }
                     _ => {
                         unreachable!(
@@ -225,25 +236,44 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
             // End the line after the open delimiter and increment indent.
             stream.increment_indent();
 
+            let mut bash_indent: Option<Rc<String>> = None;
             for (part, child) in parts.iter().zip(children.by_ref()) {
                 match part {
                     StrippedCommandPart::Text(text) => {
                         // Manually format the text and ignore the child.
-                        for (i, line) in text.lines().enumerate() {
+                        let mut lines = text.lines().enumerate().peekable();
+                        while let Some((i, line)) = lines.next() {
                             if i > 0 {
+                                bash_indent = None;
                                 stream.end_line();
+                                if lines.peek().is_none() {
+                                    // save the leading whitespace to use as temporary indent
+                                    bash_indent = Some(
+                                        line.chars()
+                                            .take_while(|c| matches!(c, ' ' | '\t'))
+                                            .collect::<String>()
+                                            .into(),
+                                    );
+                                }
                             }
                             stream.push_literal(line.to_owned(), SyntaxKind::LiteralCommandText);
                         }
 
                         if text.ends_with('\n') {
+                            bash_indent = None;
                             stream.end_line();
                         }
                     }
                     StrippedCommandPart::Placeholder(_) => {
-                        stream.push(PreToken::TempIndentStart);
-                        (&child).write(stream);
-                        stream.push(PreToken::TempIndentEnd);
+                        if let Some(ref temp_indent) = bash_indent
+                            && !temp_indent.is_empty()
+                        {
+                            stream.push(PreToken::TempIndentStart(temp_indent.clone()));
+                            (&child).write(stream, config);
+                            stream.push(PreToken::TempIndentEnd);
+                        } else {
+                            (&child).write(stream, config);
+                        }
                     }
                 }
             }
@@ -262,7 +292,7 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
                         );
                     }
                     SyntaxKind::CloseHeredoc => {
-                        (&child).write(stream);
+                        (&child).write(stream, config);
                     }
                     _ => {
                         unreachable!(
@@ -282,20 +312,24 @@ pub fn format_command_section(element: &FormatElement, stream: &mut TokenStream<
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_requirements_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_requirements_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("requirements item children");
 
     let name = children.next().expect("requirements item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
 
     let colon = children.next().expect("requirements item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("requirements item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 }
 
 /// Formats a [`RequirementsSection`](wdl_ast::v1::RequirementsSection).
@@ -303,17 +337,21 @@ pub fn format_requirements_item(element: &FormatElement, stream: &mut TokenStrea
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_requirements_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("requirements section children");
 
     let requirements_keyword = children.next().expect("requirements keyword");
     assert!(requirements_keyword.element().kind() == SyntaxKind::RequirementsKeyword);
-    (&requirements_keyword).write(stream);
+    (&requirements_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -337,12 +375,12 @@ pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenSt
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("requirements close brace")).write(stream);
+    (&close_brace.expect("requirements close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -351,20 +389,24 @@ pub fn format_requirements_section(element: &FormatElement, stream: &mut TokenSt
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_task_hints_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_task_hints_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("task hints item children");
 
     let name = children.next().expect("task hints item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
 
     let colon = children.next().expect("task hints item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("task hints item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 
     assert!(children.next().is_none());
 }
@@ -374,20 +416,24 @@ pub fn format_task_hints_item(element: &FormatElement, stream: &mut TokenStream<
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_runtime_item(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_runtime_item(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("runtime item children");
 
     let name = children.next().expect("runtime item name");
     assert!(name.element().kind() == SyntaxKind::Ident);
-    (&name).write(stream);
+    (&name).write(stream, config);
 
     let colon = children.next().expect("runtime item colon");
     assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream);
+    (&colon).write(stream, config);
     stream.end_word();
 
     let value = children.next().expect("runtime item value");
-    (&value).write(stream);
+    (&value).write(stream, config);
 }
 
 /// Formats a [`RuntimeSection`](wdl_ast::v1::RuntimeSection).
@@ -395,17 +441,21 @@ pub fn format_runtime_item(element: &FormatElement, stream: &mut TokenStream<Pre
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_runtime_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("runtime section children");
 
     let runtime_keyword = children.next().expect("runtime keyword");
     assert!(runtime_keyword.element().kind() == SyntaxKind::RuntimeKeyword);
-    (&runtime_keyword).write(stream);
+    (&runtime_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -429,12 +479,12 @@ pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("runtime close brace")).write(stream);
+    (&close_brace.expect("runtime close brace")).write(stream, config);
     stream.end_line();
 }
 
@@ -443,17 +493,21 @@ pub fn format_runtime_section(element: &FormatElement, stream: &mut TokenStream<
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
-pub fn format_task_hints_section(element: &FormatElement, stream: &mut TokenStream<PreToken>) {
+pub fn format_task_hints_section(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
     let mut children = element.children().expect("task hints section children");
 
     let hints_keyword = children.next().expect("hints keyword");
     assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
-    (&hints_keyword).write(stream);
+    (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
     assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
-    (&open_brace).write(stream);
+    (&open_brace).write(stream, config);
     stream.increment_indent();
 
     let mut items = Vec::new();
@@ -477,11 +531,11 @@ pub fn format_task_hints_section(element: &FormatElement, stream: &mut TokenStre
     }
 
     for item in items {
-        (&item).write(stream);
+        (&item).write(stream, config);
         stream.end_line();
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("task hints close brace")).write(stream);
+    (&close_brace.expect("task hints close brace")).write(stream, config);
     stream.end_line();
 }

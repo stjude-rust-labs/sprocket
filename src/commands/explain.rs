@@ -1,17 +1,18 @@
 //! Implementation of the `explain` subcommand.
 
-use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use anyhow::Ok;
 use anyhow::anyhow;
-use anyhow::bail;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use colored::Colorize;
 use wdl::analysis;
 use wdl::lint;
+use wdl::lint::ALL_TAG_NAMES;
+use wdl::lint::Config;
 use wdl::lint::Tag;
+
+use crate::commands::CommandResult;
 
 /// Usage string for the `explain` subcommand.
 const USAGE: &str = "sprocket explain [RULE]
@@ -20,26 +21,13 @@ const USAGE: &str = "sprocket explain [RULE]
 
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
-    let mut ids: Vec<String> = analysis::rules()
+    let mut ids: Vec<String> = analysis::ALL_RULE_IDS
         .iter()
-        .map(|r| r.id().to_string())
+        .chain(lint::ALL_RULE_IDS.iter())
+        .map(ToString::to_string)
         .collect();
-    ids.extend(lint::rules().iter().map(|r| r.id().to_string()));
     ids.sort();
     ids
-});
-
-/// All tag names sorted alphabetically.
-pub static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
-    let mut tags: HashSet<Tag> = HashSet::new();
-    for rule in lint::rules() {
-        for tag in rule.tags().iter() {
-            tags.insert(tag);
-        }
-    }
-    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
-    tag_names.sort();
-    tag_names
 });
 
 /// Arguments for the `explain` subcommand.
@@ -140,7 +128,7 @@ pub fn pretty_print_analysis_rule(rule: &dyn analysis::Rule) {
 }
 
 /// Explains a lint rule.
-pub fn explain(args: Args) -> anyhow::Result<()> {
+pub fn explain(args: Args) -> CommandResult<()> {
     if args.list_all_rules {
         println!("{}", list_all_rules());
         return Ok(());
@@ -162,14 +150,14 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
             anyhow!("invalid tag `{tag}`")
         })?;
 
-        let rules = lint::rules()
+        let rules = lint::rules(&Config::default())
             .into_iter()
             .filter(|rule| rule.tags().contains(target))
             .collect::<Vec<_>>();
 
         if rules.is_empty() {
             println!("{}\n", list_all_tags());
-            bail!("no rules found with the tag `{tag}`");
+            return Err(anyhow!("no rules found with the tag `{tag}`").into());
         } else {
             println!("Rules with the tag `{tag}`:");
             let mut rule_ids = rules.iter().map(|rule| rule.id()).collect::<Vec<_>>();
@@ -192,7 +180,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
                 pretty_print_analysis_rule(rule.as_ref());
             }
             None => {
-                match lint::rules()
+                match lint::rules(&Config::default())
                     .into_iter()
                     .find(|rule| rule.id().to_lowercase() == lowercase_name)
                 {
@@ -201,7 +189,7 @@ pub fn explain(args: Args) -> anyhow::Result<()> {
                     }
                     None => {
                         println!("{rules}\n", rules = list_all_rules());
-                        bail!("no rule found with the name `{rule_name}`");
+                        return Err(anyhow!("no rule found with the name `{rule_name}`").into());
                     }
                 }
             }

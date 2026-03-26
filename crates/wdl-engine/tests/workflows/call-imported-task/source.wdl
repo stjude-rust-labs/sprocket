@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 import "../input-ref-call/source.wdl" as ns1
 

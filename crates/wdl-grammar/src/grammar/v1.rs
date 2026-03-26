@@ -32,6 +32,7 @@ pub type Parser<'a> = parser::Parser<'a, Token>;
 const TOP_EXPECTED_SET: TokenSet = TokenSet::new(&[
     Token::ImportKeyword as u8,
     Token::StructKeyword as u8,
+    Token::EnumKeyword as u8,
     Token::TaskKeyword as u8,
     Token::WorkflowKeyword as u8,
 ]);
@@ -40,6 +41,7 @@ const TOP_EXPECTED_SET: TokenSet = TokenSet::new(&[
 const TOP_EXPECTED_NAMES: &[&str] = &[
     "import statement",
     "struct definition",
+    "enum definition",
     "task definition",
     "workflow definition",
 ];
@@ -85,6 +87,10 @@ pub const STRUCT_SECTION_KEYWORDS: TokenSet = TYPE_EXPECTED_SET
     ]))
     .without(TokenSet::new(&[Token::Ident as u8]));
 
+/// The recovery set for enum sections.
+const ENUM_SECTION_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
 /// The recovery set for input items.
 const INPUT_ITEM_RECOVERY_SET: TokenSet =
     TYPE_EXPECTED_SET.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -119,6 +125,9 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
     "parameter metadata section",
     "struct member declaration",
 ];
+
+/// The expected names of items in an enum definition.
+const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &["enum variant declaration"];
 
 /// The expected set of tokens in a task definition.
 pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -457,6 +466,7 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
     match parser.peek() {
         Some((Token::ImportKeyword, _)) => import_statement(parser, marker),
         Some((Token::StructKeyword, _)) => struct_definition(parser, marker),
+        Some((Token::EnumKeyword, _)) => enum_definition(parser, marker),
         Some((Token::TaskKeyword, _)) => task_definition(parser, marker),
         Some((Token::WorkflowKeyword, _)) => workflow_definition(parser, marker),
         found => {
@@ -530,6 +540,79 @@ fn struct_member_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
     expected_in!(parser, marker, ANY_IDENT, "struct member name");
     parser.update_last_token_kind(SyntaxKind::Ident);
     marker.complete(parser, SyntaxKind::UnboundDeclNode);
+    Ok(())
+}
+
+/// Parses an enum definition.
+fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    parser.require(Token::EnumKeyword);
+    expected!(parser, marker, Token::Ident, "enum name");
+
+    // Optional type parameter, i.e., `[<type>]`.
+    if parser.peek().map(|(t, _)| t) == Some(Token::OpenBracket) {
+        let optional_type_marker = parser.start();
+        match parser.matching(
+            Token::OpenBracket,
+            Token::CloseBracket,
+            false,
+            |parser, _| {
+                let ty_marker = parser.start();
+                ty(parser, ty_marker).map_err(|(ty_marker, diagnostic)| {
+                    ty_marker.abandon(parser);
+                    diagnostic
+                })
+            },
+        ) {
+            Ok(_) => {
+                optional_type_marker.complete(parser, SyntaxKind::EnumTypeParameterNode);
+            }
+            Err(e) => {
+                optional_type_marker.abandon(parser);
+                return Err((marker, e));
+            }
+        }
+    }
+
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        ENUM_SECTION_RECOVERY_SET,
+        enum_variant
+    );
+
+    marker.complete(parser, SyntaxKind::EnumDefinitionNode);
+    Ok(())
+}
+
+/// Parses a variant in an enum definition.
+fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    match parser.peek() {
+        Some((Token::Ident, _)) => {
+            parser.require(Token::Ident);
+
+            // Optional value, i.e., `= <expr>`.
+            if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
+                parser.require(Token::Assignment);
+                let expr_marker = parser.start();
+                if let Err((expr_marker, diagnostic)) = expr(parser, expr_marker) {
+                    expr_marker.abandon(parser);
+                    return Err((marker, diagnostic));
+                }
+            }
+
+            marker.complete(parser, SyntaxKind::EnumVariantNode);
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err((
+                marker,
+                expected_one_of(ENUM_ITEM_EXPECTED_NAMES, found, span),
+            ));
+        }
+    }
     Ok(())
 }
 

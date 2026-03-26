@@ -1,11 +1,21 @@
 //! Implementation of the language server protocol (LSP) subcommand.
 
+use std::sync::Arc;
+
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
+use wdl::analysis::FeatureFlags;
+use wdl::lsp::LevelFilter;
+use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
 
+use crate::Config;
+use crate::FilterReloadHandle;
 use crate::IGNORE_FILENAME;
+use crate::Subscriber;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 use crate::commands::explain::ALL_RULE_IDS;
 
 /// Arguments for the `analyzer` subcommand.
@@ -34,29 +44,36 @@ pub struct Args {
 }
 
 impl Args {
-    /// Applies the configuration from the given config file to the command line
-    /// arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.lint = self.lint || config.analyzer.lint;
-        self.except = self
-            .except
-            .clone()
-            .into_iter()
-            .chain(config.analyzer.except.clone())
-            .collect();
-
-        self
+    /// Applies the given configuration to the CLI arguments.
+    fn apply(&mut self, config: &Config) {
+        self.lint |= config.analyzer.lint;
+        self.except.extend(config.analyzer.except.iter().cloned());
     }
 }
 
 /// Runs the `analyzer` command.
-pub async fn analyzer(args: Args) -> anyhow::Result<()> {
-    Server::run(ServerOptions {
-        name: Some("Sprocket".into()),
-        version: Some(env!("CARGO_PKG_VERSION").into()),
-        lint: args.lint,
-        exceptions: args.except,
-        ignore_filename: Some(IGNORE_FILENAME.to_string()),
-    })
+pub async fn analyzer(
+    mut args: Args,
+    config: Config,
+    handle: FilterReloadHandle,
+) -> CommandResult<()> {
+    args.apply(&config);
+
+    Server::<Subscriber>::run(
+        ServerOptions {
+            name: "Sprocket".into(),
+            version: env!("CARGO_PKG_VERSION").into(),
+            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
+            lint: LintOptions {
+                enabled: args.lint,
+                config: Arc::new(config.check.lint),
+            },
+            exceptions: args.except,
+            ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            feature_flags: FeatureFlags::default(),
+        },
+        Some(handle),
+    )
     .await
+    .map_err(CommandError::from)
 }

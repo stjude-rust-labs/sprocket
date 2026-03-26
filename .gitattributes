@@ -4,6 +4,10 @@
 # Ensure that WDL files always use LF line endings.
 *.wdl text eol=lf
 
+# Enable automatic line endings for these files as `sprocket format` uses the native line endings
+tests/cli/format/check/format_check_does_not_overwrite_file/inputs/file.wdl text eol=auto
+tests/cli/format/check/format_check_does_not_overwrite_file/outputs/file.wdl text eol=auto
+
 # Ensure that the wdl-doc file tests use LF line endings.
 crates/wdl-doc/tests/output_docs/**/*.html text eol=lf
 crates/wdl-doc/tests/output_docs/style.css text eol=lf

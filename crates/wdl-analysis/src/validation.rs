@@ -10,7 +10,7 @@ use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
 use crate::Config;
-use crate::SyntaxNodeExt;
+use crate::Exceptable;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::document::Document;
@@ -217,6 +217,17 @@ impl Visitor for Validator {
     ) {
         for visitor in self.visitors.iter_mut() {
             visitor.struct_definition(diagnostics, reason, def);
+        }
+    }
+
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &v1::EnumDefinition,
+    ) {
+        for visitor in self.visitors.iter_mut() {
+            visitor.enum_definition(diagnostics, reason, def);
         }
     }
 

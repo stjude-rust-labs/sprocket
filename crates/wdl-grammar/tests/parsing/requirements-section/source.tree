@@ -4,7 +4,7 @@ RootNode@0..291
   VersionStatementNode@54..65
     VersionKeyword@54..61 "version"
     Whitespace@61..62 " "
-    Version@62..65 "1.2"
+    Version@62..65 "1.3"
   Whitespace@65..67 "\n\n"
   TaskDefinitionNode@67..290
     TaskKeyword@67..71 "task"

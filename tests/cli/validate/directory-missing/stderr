@@ -1,0 +1,4 @@
+error: failed to resolve input paths
+
+Caused by:
+    directory `/does/not/exist` does not exist

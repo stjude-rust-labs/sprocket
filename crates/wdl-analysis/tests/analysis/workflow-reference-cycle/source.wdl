@@ -1,6 +1,6 @@
 ## This is a test of a reference cycle in a workflow.
 
-version 1.2
+version 1.3
 
 task my_task {
     input {

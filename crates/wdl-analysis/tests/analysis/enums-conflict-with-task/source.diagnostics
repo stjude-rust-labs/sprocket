@@ -1,0 +1,9 @@
+error: conflicting task name `Status`
+   ┌─ tests/analysis/enums-conflict-with-task/source.wdl:4:6
+   │
+ 4 │ task Status {
+   │      ^^^^^^ this task conflicts with a previously used name
+   ·
+11 │ enum Status {
+   │      ------ the enum with the conflicting name is here
+

@@ -13,30 +13,26 @@ use std::thread::available_parallelism;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use anyhow::bail;
+use cloud_copy::ContentDigest;
 use cloud_copy::HttpClient;
 use cloud_copy::TransferEvent;
 use cloud_copy::UrlExt;
-use cloud_copy::rewrite_url;
 use futures::FutureExt;
 use futures::future::BoxFuture;
-use secrecy::ExposeSecret;
 use tempfile::NamedTempFile;
 use tempfile::TempPath;
 use tokio::sync::OnceCell;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
-use tracing::Level;
 use tracing::debug;
-use tracing::warn;
 use url::Url;
 
 use crate::config::Config;
+use crate::config::cache_dir;
 
-/// The default cache subdirectory that is appended to the system cache
-/// directory.
-const DEFAULT_CACHE_SUBDIR: &str = "wdl";
+/// The default cache subdirectory for the HTTP downloads cache.
+const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
 
 /// Represents a location of a downloaded file.
 #[derive(Debug, Clone)]
@@ -69,13 +65,6 @@ impl AsRef<Path> for Location {
 
 /// Represents a file transferer.
 pub trait Transferer: Send + Sync {
-    /// Applies any required authentication to the URL.
-    ///
-    /// The URL will also be rewritten from storage-specific schemes to HTTPS.
-    ///
-    /// If the provided URL does not need to be modified, it is returned as-is.
-    fn apply_auth<'a>(&self, url: &'a Url) -> Result<Cow<'a, Url>>;
-
     /// Downloads a file or directory to a temporary path.
     fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>>;
 
@@ -97,7 +86,8 @@ pub trait Transferer: Send + Sync {
 
     /// Walks a given storage URL as if it were a directory.
     ///
-    /// Returns a list of relative paths from the given URL.
+    /// Returns a list of relative paths from the given URL that are in
+    /// lexicographical order.
     ///
     /// If the given storage URL is not a directory, an empty list is returned.
     fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>>;
@@ -107,6 +97,11 @@ pub trait Transferer: Send + Sync {
     /// Returns `Ok(true)` if a HEAD request returns success or if a walk of the
     /// URL returns at least one contained URL.
     fn exists<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<bool>>;
+
+    /// Gets the content digest of the resource identified by the given URL.
+    ///
+    /// Returns `Ok(None)` if the resource has no associated content digest.
+    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>>;
 }
 
 /// Used to cache results of transferer operations.
@@ -122,14 +117,14 @@ struct Cache {
     walks: HashMap<Url, Arc<OnceCell<Arc<[String]>>>>,
     /// Stores the results of checking for URL existence.
     exists: HashMap<Url, Arc<OnceCell<bool>>>,
+    /// Stores the results of retrieving content digests a URL.
+    digests: HashMap<Url, Arc<OnceCell<Option<Arc<ContentDigest>>>>>,
 }
 
 /// Represents the internal state of `HttpTransferer`.
 struct HttpTransfererInner {
-    /// The evaluation configuration to use.
-    config: Arc<Config>,
     /// The configuration for transferring files.
-    copy_config: cloud_copy::Config,
+    config: cloud_copy::Config,
     /// The HTTP client to use.
     client: HttpClient,
     /// The cached results of transferer operations.
@@ -155,12 +150,9 @@ impl HttpTransferer {
         cancel: CancellationToken,
         events: Option<broadcast::Sender<TransferEvent>>,
     ) -> Result<Self> {
-        let cache_dir: Cow<'_, Path> = match &config.http.cache {
+        let cache_dir: Cow<'_, Path> = match &config.http.cache_dir {
             Some(dir) => dir.into(),
-            None => dirs::cache_dir()
-                .context("failed to determine system cache directory")?
-                .join(DEFAULT_CACHE_SUBDIR)
-                .into(),
+            None => cache_dir()?.join(DOWNLOADS_CACHE_SUBDIR).into(),
         };
 
         let temp_dir = cache_dir.join("tmp");
@@ -171,7 +163,52 @@ impl HttpTransferer {
             )
         })?;
 
-        let client = HttpClient::new_with_cache(cache_dir);
+        let azure_config = config
+            .storage
+            .azure
+            .auth
+            .as_ref()
+            .map(|auth| {
+                cloud_copy::AzureConfig::default()
+                    .with_auth(auth.account_name.clone(), auth.access_key.inner().clone())
+            })
+            .unwrap_or_default();
+
+        let s3_config = config
+            .storage
+            .s3
+            .auth
+            .as_ref()
+            .map(|auth| {
+                cloud_copy::S3Config::default().with_auth(
+                    auth.access_key_id.clone(),
+                    auth.secret_access_key.inner().clone(),
+                )
+            })
+            .unwrap_or_default()
+            .with_maybe_region(config.storage.s3.region.clone());
+
+        let google_config = config
+            .storage
+            .google
+            .auth
+            .as_ref()
+            .map(|auth| {
+                cloud_copy::GoogleConfig::default()
+                    .with_auth(auth.access_key.clone(), auth.secret.inner().clone())
+            })
+            .unwrap_or_default();
+
+        let copy_config = cloud_copy::Config::builder()
+            .with_link_to_cache(true)
+            .with_overwrite(true)
+            .with_maybe_retries(config.http.retries)
+            .with_azure(azure_config)
+            .with_s3(s3_config)
+            .with_google(google_config)
+            .build();
+
+        let client = HttpClient::new_with_cache(copy_config.clone(), cache_dir);
 
         let semaphore = Semaphore::new(
             config
@@ -180,37 +217,8 @@ impl HttpTransferer {
                 .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
         );
 
-        let copy_config = cloud_copy::Config {
-            link_to_cache: true,
-            overwrite: true,
-            retries: config.http.retries,
-            s3: cloud_copy::S3Config {
-                region: config.storage.s3.region.clone(),
-                auth: config
-                    .storage
-                    .s3
-                    .auth
-                    .as_ref()
-                    .map(|auth| cloud_copy::S3AuthConfig {
-                        access_key_id: auth.access_key_id.clone(),
-                        secret_access_key: auth.secret_access_key.inner().clone(),
-                    }),
-                ..Default::default()
-            },
-            google: cloud_copy::GoogleConfig {
-                auth: config.storage.google.auth.as_ref().map(|auth| {
-                    cloud_copy::GoogleAuthConfig {
-                        access_key: auth.access_key.clone(),
-                        secret: auth.secret.inner().clone(),
-                    }
-                }),
-            },
-            ..Default::default()
-        };
-
         Ok(Self(Arc::new(HttpTransfererInner {
-            config,
-            copy_config,
+            config: copy_config,
             client,
             cache: Default::default(),
             temp_dir,
@@ -222,74 +230,8 @@ impl HttpTransferer {
 }
 
 impl Transferer for HttpTransferer {
-    fn apply_auth<'a>(&self, url: &'a Url) -> Result<Cow<'a, Url>> {
-        /// The Azure Blob Storage domain suffix.
-        const AZURE_STORAGE_DOMAIN_SUFFIX: &str = ".blob.core.windows.net";
-
-        /// The name of the special root container in Azure Blob Storage.
-        const ROOT_CONTAINER_NAME: &str = "$root";
-
-        let url = rewrite_url(&self.0.copy_config, url)?;
-
-        // Attempt to extract the account from the domain
-        let account = match url.host().and_then(|host| match host {
-            url::Host::Domain(domain) => domain.strip_suffix(AZURE_STORAGE_DOMAIN_SUFFIX),
-            _ => None,
-        }) {
-            Some(account) => account,
-            None => return Ok(url),
-        };
-
-        // If the URL already has query parameters, don't modify it
-        if url.query().is_some() {
-            return Ok(url);
-        }
-
-        // Determine the container name; if there's only one path segment, then use the
-        // root container name
-        let container = match url.path_segments().and_then(|mut segments| {
-            match (segments.next(), segments.next()) {
-                (Some(_), None) => Some(ROOT_CONTAINER_NAME),
-                (Some(container), Some(_)) => Some(container),
-                _ => None,
-            }
-        }) {
-            Some(container) => container,
-            None => return Ok(url),
-        };
-
-        // Apply the auth token if there is one
-        if let Some(token) = self
-            .0
-            .config
-            .storage
-            .azure
-            .auth
-            .get(account)
-            .and_then(|containers| containers.get(container))
-        {
-            if url.scheme() == "https" {
-                let token = token.inner().expose_secret();
-                let token = token.strip_prefix('?').unwrap_or(token);
-                let mut url = url.into_owned();
-                url.set_query(Some(token));
-                return Ok(Cow::Owned(url));
-            }
-
-            // Warn if the scheme isn't https, as we won't be applying the auth.
-            warn!(
-                "Azure Blob Storage URL `{url}` is not using HTTPS: authentication will not be \
-                 used"
-            );
-        }
-
-        Ok(url)
-    }
-
     fn download<'a>(&'a self, source: &'a Url) -> BoxFuture<'a, Result<Location>> {
         async move {
-            let source = self.apply_auth(source)?;
-
             // File URLs don't need to be downloaded
             if source.scheme() == "file" {
                 return Ok(Location::Path(
@@ -301,11 +243,7 @@ impl Transferer for HttpTransferer {
 
             let download = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache
-                    .downloads
-                    .entry(source.as_ref().clone())
-                    .or_default()
-                    .clone()
+                cache.downloads.entry(source.clone()).or_default().clone()
             };
 
             // Get an existing result or initialize a new one exactly once
@@ -326,12 +264,10 @@ impl Transferer for HttpTransferer {
                             .into_temp_path();
 
                         // Perform the download (always overwrite the local temp file)
-                        let mut config = self.0.copy_config.clone();
-                        config.overwrite = true;
                         cloud_copy::copy(
-                            config,
+                            self.0.config.clone(),
                             self.0.client.clone(),
-                            source.as_ref(),
+                            source,
                             &*temp_path,
                             self.0.cancel.clone(),
                             self.0.events.clone(),
@@ -351,13 +287,11 @@ impl Transferer for HttpTransferer {
 
     fn upload<'a>(&'a self, source: &'a Path, destination: &'a Url) -> BoxFuture<'a, Result<()>> {
         async move {
-            let destination = self.apply_auth(destination)?;
-
             let upload = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
                 cache
                     .uploads
-                    .entry(destination.as_ref().clone())
+                    .entry(destination.clone())
                     .or_default()
                     .clone()
             };
@@ -375,13 +309,13 @@ impl Transferer for HttpTransferer {
                             .context("failed to acquire permit")?;
 
                         // Perform the upload (do not overwrite)
-                        let mut config = self.0.copy_config.clone();
-                        config.overwrite = false;
+                        let mut config = self.0.config.clone();
+                        config.set_overwrite(false);
                         match cloud_copy::copy(
                             config,
                             self.0.client.clone(),
                             source,
-                            destination.as_ref(),
+                            destination,
                             self.0.cancel.clone(),
                             self.0.events.clone(),
                         )
@@ -403,8 +337,6 @@ impl Transferer for HttpTransferer {
 
     fn size<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<u64>>> {
         async move {
-            let url = self.apply_auth(url)?;
-
             // Check for local file
             if url.scheme() == "file" {
                 let path = url
@@ -421,55 +353,25 @@ impl Transferer for HttpTransferer {
 
             let size = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.sizes.entry(url.as_ref().clone()).or_default().clone()
+                cache.sizes.entry(url.clone()).or_default().clone()
             };
 
             // Get an existing result or initialize a new one exactly once
             Ok(*size
                 .get_or_try_init(|| async {
-                    let permit = self
+                    let _permit = self
                         .0
                         .semaphore
                         .acquire()
                         .await
                         .context("failed to acquire permit")?;
 
-                    // Perform the HEAD request
-                    debug!("sending HEAD for `{url}`", url = url.display());
-                    let response =
-                        self.0
-                            .client
-                            .head(url.as_str())
-                            .send()
-                            .await
-                            .with_context(|| {
-                                format!("failed to retrieve size of `{url}`", url = url.display())
-                            })?;
-
-                    drop(permit);
-
-                    let status = response.status();
-                    if !status.is_success() {
-                        if tracing::enabled!(Level::DEBUG)
-                            && let Ok(text) = response.text().await
-                        {
-                            debug!(
-                                "response from HEAD of `{url}` was `{text}`",
-                                url = url.display()
-                            );
-                        }
-
-                        bail!(
-                            "failed to retrieve size of `{url}`: server responded with status \
-                             {status}",
-                            url = url.display()
-                        );
-                    }
-
-                    Ok(response
-                        .headers()
-                        .get("content-length")
-                        .and_then(|v| v.to_str().ok().and_then(|v| v.parse().ok())))
+                    // Get the size
+                    cloud_copy::size(self.0.config.clone(), self.0.client.clone(), url.clone())
+                        .await
+                        .with_context(|| {
+                            format!("failed to retrieve size of `{url}`", url = url.display())
+                        })
                 })
                 .await?)
         }
@@ -478,11 +380,9 @@ impl Transferer for HttpTransferer {
 
     fn walk<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
         async move {
-            let url = self.apply_auth(url)?;
-
             let walk = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache.walks.entry(url.as_ref().clone()).or_default().clone()
+                cache.walks.entry(url.clone()).or_default().clone()
             };
 
             // Get an existing result or initialize a new one exactly once
@@ -495,16 +395,15 @@ impl Transferer for HttpTransferer {
                         .await
                         .context("failed to acquire permit")?;
 
-                    anyhow::Ok(
-                        cloud_copy::walk(
-                            self.0.copy_config.clone(),
-                            self.0.client.clone(),
-                            url.as_ref().clone(),
-                        )
-                        .await
-                        .with_context(|| format!("failed to walk URL `{url}`"))?
-                        .into(),
-                    )
+                    let mut entries =
+                        cloud_copy::walk(self.0.config.clone(), self.0.client.clone(), url.clone())
+                            .await
+                            .with_context(|| format!("failed to walk URL `{url}`"))?;
+
+                    // We return the entries in lexicographical order
+                    entries.sort();
+
+                    anyhow::Ok(entries.into())
                 })
                 .await?
                 .clone())
@@ -522,19 +421,45 @@ impl Transferer for HttpTransferer {
                 return Ok(path.exists());
             }
 
-            let url = self.apply_auth(url)?;
-
             let exists = {
                 let mut cache = self.0.cache.lock().expect("failed to lock cache");
-                cache
-                    .exists
-                    .entry(url.as_ref().clone())
-                    .or_default()
-                    .clone()
+                cache.exists.entry(url.clone()).or_default().clone()
             };
 
             // Get an existing result or initialize a new one exactly once
             Ok(*exists
+                .get_or_try_init(|| async {
+                    let _permit = self
+                        .0
+                        .semaphore
+                        .acquire()
+                        .await
+                        .context("failed to acquire permit")?;
+
+                    // Determine if the URL exists
+                    cloud_copy::exists(self.0.config.clone(), self.0.client.clone(), url.clone())
+                        .await
+                        .with_context(|| {
+                            format!(
+                                "failed to determine existence of `{url}`",
+                                url = url.display()
+                            )
+                        })
+                })
+                .await?)
+        }
+        .boxed()
+    }
+
+    fn digest<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Option<Arc<ContentDigest>>>> {
+        async move {
+            let digest = {
+                let mut cache = self.0.cache.lock().expect("failed to lock cache");
+                cache.digests.entry(url.clone()).or_default().clone()
+            };
+
+            // Get an existing result or initialize a new one exactly once
+            Ok(digest
                 .get_or_try_init(|| async {
                     let permit = self
                         .0
@@ -543,41 +468,18 @@ impl Transferer for HttpTransferer {
                         .await
                         .context("failed to acquire permit")?;
 
-                    // Perform the HEAD request
-                    debug!("sending HEAD for `{url}`", url = url.display());
-                    let response =
-                        self.0
-                            .client
-                            .head(url.as_str())
-                            .send()
-                            .await
-                            .with_context(|| {
-                                format!(
-                                    "failed to determine existence of `{url}`",
-                                    url = url.display()
-                                )
-                            })?;
-
+                    debug!("retrieving content digest for `{url}`", url = url.display());
+                    let digest = cloud_copy::get_content_digest(
+                        self.0.config.clone(),
+                        self.0.client.clone(),
+                        url.clone(),
+                    )
+                    .await?;
                     drop(permit);
-
-                    let status = response.status();
-                    if !status.is_success() {
-                        // The URL might be a "directory"; check to see if a walk produces at least
-                        // one URL
-                        if status.as_u16() == 404 {
-                            return Ok(!self.walk(&url).await?.is_empty());
-                        }
-
-                        bail!(
-                            "failed to check existence of `{url}`: server responded with status \
-                             {status}",
-                            url = url.display()
-                        );
-                    }
-
-                    Ok(true)
+                    anyhow::Ok(digest.map(Into::into))
                 })
-                .await?)
+                .await?
+                .clone())
         }
         .boxed()
     }

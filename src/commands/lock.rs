@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use anyhow::Result;
-use anyhow::bail;
+use anyhow::Context;
 use chrono::prelude::*;
 use clap::Parser;
 use crankshaft::docker::Docker;
@@ -14,8 +13,12 @@ use serde::Serialize;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
-use wdl::cli::Analysis;
-use wdl::cli::analysis::Source;
+
+use crate::Config;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
 
 /// Name for the lock file.
 const LOCK_FILE: &str = "sprocket.lock";
@@ -43,21 +46,19 @@ struct Lock {
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args) -> Result<()> {
+pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
         .join(LOCK_FILE);
 
     let s = args.source.unwrap_or_default();
-    let results = match Analysis::default().add_source(s).run().await {
-        Ok(results) => results,
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+    let results = Analysis::default()
+        .add_source(s)
+        .fallback_version(config.common.wdl.fallback_version)
+        .run()
+        .await
+        .map_err(CommandError::from)?;
 
     let mut images: HashSet<String> = HashSet::new();
     for result in results {
@@ -102,7 +103,7 @@ pub async fn lock(args: Args) -> Result<()> {
     let time = Utc::now();
 
     let mut map: HashMap<String, String> = HashMap::new();
-    let docker = Docker::with_defaults()?;
+    let docker = Docker::with_defaults().context("failed to connect to Docker daemon")?;
 
     for image in images {
         let prefix = image.split(':').next().unwrap_or("");
@@ -124,8 +125,8 @@ pub async fn lock(args: Args) -> Result<()> {
         timestamp: time.to_string(),
         images: map,
     };
-    let data = toml::to_string_pretty(&lock)?;
-    std::fs::write(output_path, data)?;
+    let data = toml::to_string_pretty(&lock).context("failed to serialize lock contents")?;
+    std::fs::write(output_path, data).context("failed to write lock file")?;
 
     Ok(())
 }

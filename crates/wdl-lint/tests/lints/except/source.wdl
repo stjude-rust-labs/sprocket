@@ -1,7 +1,5 @@
-#@ except: CommentWhitespace, Whitespace, EndingNewline, Unknown
-
+#@ except: Unknown
 ## This is a test of the `#@ except` comments.
-## The above exceptions apply to the whole file.
 
 version 1.1
 
@@ -12,11 +10,6 @@ struct OK {         # OK
     Int OKTOO       # OK
 }
 
-
-# Intentional extraneous whitespace lines that should not be a warning
-# because we've excepted the rule for the entire document
-
-
 # This applies to the specified members only
 struct Ok {         # OK
     #@ except: SnakeCase,AlsoUnknown
@@ -24,17 +17,10 @@ struct Ok {         # OK
     Int NotOk       # NOT OK
 }
 
-#@ except: MetaSections, Whitespace
+#@ except: MetaSections
 workflow test {
     String bad = 'bad string'   # NOT OK
     String good =
         #@ except: DoubleQuotes
         'good string'           # OK
 }
-
-
-# Lots of trailing whitespace too!
-
-
-
-

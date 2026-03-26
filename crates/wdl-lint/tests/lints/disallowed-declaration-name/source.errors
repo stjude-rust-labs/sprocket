@@ -79,9 +79,9 @@ warning[SnakeCase]: private declaration name `foo_bar_INT` is not snake_case
    = fix: replace `foo_bar_INT` with `foo_bar_int`
 
 note[DeclarationName]: declaration identifier 'result_int' contains type name 'Int'
-   ┌─ tests/lints/disallowed-declaration-name/source.wdl:45:13
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:46:13
    │
-45 │         Int result_int = 42
+46 │         Int result_int = 42
    │             ^^^^^^^^^^
    │
    = fix: rename the identifier to not include the type name

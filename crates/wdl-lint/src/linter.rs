@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document as AnalysisDocument;
-use wdl_analysis::SyntaxNodeExt;
+use wdl_analysis::Exceptable;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -15,6 +15,7 @@ use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 
+use crate::Config;
 use crate::Rule;
 use crate::rules;
 
@@ -66,7 +67,10 @@ impl Linter {
 impl Default for Linter {
     fn default() -> Self {
         Self {
-            rules: rules().into_iter().map(|r| (r.id(), r)).collect(),
+            rules: rules(&Config::default())
+                .into_iter()
+                .map(|r| (r.id(), r))
+                .collect(),
             document_exceptions: HashSet::default(),
         }
     }

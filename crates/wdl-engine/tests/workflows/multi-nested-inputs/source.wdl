@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 import "../test-allow-nested-inputs/source.wdl" as test_allow_nested_inputs
 

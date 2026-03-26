@@ -1,6 +1,9 @@
 //! Implementation of the `run` subcommand.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::fs;
+use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,38 +11,60 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
+use chrono::Utc;
 use clap::Parser;
 use colored::Colorize as _;
-use crankshaft::events::Event;
+use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
+use serde_json::Value as JsonValue;
 use tokio::select;
-use tokio::sync::broadcast;
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
+use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
-use wdl::cli::Analysis;
-use wdl::cli::Evaluator;
-use wdl::cli::Inputs;
-use wdl::cli::analysis::AnalysisResults;
-use wdl::cli::analysis::Source;
-use wdl::cli::inputs::OriginPaths;
-use wdl::engine;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Config as EngineConfig;
+use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
+use wdl::engine::EvaluationPath;
 use wdl::engine::Events;
-use wdl::engine::Inputs as EngineInputs;
+use wdl::engine::Inputs;
+use wdl::engine::TaskInputs;
+use wdl::engine::WorkflowInputs;
+use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::SecretString;
-use wdl::engine::path::EvaluationPath;
 
-use crate::Mode;
-use crate::emit_diagnostics;
+use crate::Config;
+use crate::FileReloadHandle;
+use crate::analysis::Analysis;
+use crate::analysis::Source;
+use crate::commands::CommandError;
+use crate::commands::CommandResult;
+use crate::config::DEFAULT_DATABASE_FILENAME;
+use crate::diagnostics::Mode;
+use crate::diagnostics::emit_diagnostics;
+use crate::inputs::Invocation;
+use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::RunContext;
+use crate::system::v1::exec::Target;
+use crate::system::v1::exec::create_run_directory;
+use crate::system::v1::exec::create_run_record;
+use crate::system::v1::exec::create_session;
+use crate::system::v1::exec::execute_target;
+use crate::system::v1::exec::open_database;
+use crate::system::v1::exec::select_target;
+use crate::system::v1::fs::FileSystemLock;
+use crate::system::v1::fs::OutputDirectory;
 
 /// The delay in showing the progress bar.
 ///
@@ -61,19 +86,19 @@ const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
 /// When this happens, the oldest events in the buffer are dropped and receivers
 /// are notified via an error on the next read that they are lagging behind.
 ///
-/// For `sprocket`, we'll notify the user that the progress indicators might not
-/// be correct should this occur.
+/// If the capacity is reached, Sprocket will stop displaying progress
+/// statistics.
 ///
-/// The value of `100` was chosen simply as a reasonable default that will make
-/// lagging unlikely.
-const EVENTS_CHANNEL_CAPACITY: usize = 100;
-
-/// The name of the default "runs" directory.
-pub(crate) const DEFAULT_RUNS_DIR: &str = "runs";
+/// The value of `5000` was chosen as a reasonable amount to make reaching
+/// capacity unlikely without allocating too much space unnecessarily.
+const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
 /// The name for the "latest" symlink.
 #[cfg(not(target_os = "windows"))]
 const LATEST: &str = "_latest";
+
+/// The log file in the output directory for writing `sprocket` output to
+const LOG_FILE_NAME: &str = "output.log";
 
 /// Arguments to the `run` subcommand.
 #[derive(Parser, Debug)]
@@ -96,44 +121,49 @@ pub struct Args {
     /// This argument is required if trying to run a task or workflow without
     /// any inputs.
     ///
-    /// If `entrypoint` is not specified, all inputs (from both files and
+    /// If `target` is not specified, all inputs (from both files and
     /// key-value pairs) are expected to be prefixed with the name of the
     /// workflow or task being run.
     ///
-    /// If `entrypoint` is specified, it will be appended with a `.` delimiter
+    /// If `target` is specified, it will be appended with a `.` delimiter
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub entrypoint: Option<String>,
+    pub target: Option<String>,
 
-    /// The root "runs" directory; defaults to `./runs/`.
+    /// The output directory; defaults to `./out`.
     ///
-    /// Individual invocations of `sprocket run` will nest their execution
-    /// directories beneath this root directory at the path
-    /// `<entrypoint name>/<timestamp>/`. On Unix systems, the latest `run`
-    /// invocation will be symlinked at `<entrypoint name>/_latest`.
-    #[clap(short, long, value_name = "ROOT_DIR")]
-    pub runs_dir: Option<PathBuf>,
+    /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
+    /// On Unix systems, the latest run is symlinked at
+    /// `<output_dir>/runs/<target>/_latest`.
+    #[clap(short, long, value_name = "OUTPUT_DIR")]
+    pub output_dir: Option<PathBuf>,
 
-    /// The execution directory.
+    /// The output name to index on.
     ///
-    /// If this argument is supplied, the default output behavior of nesting
-    /// execution directories using the entrypoint and timestamp will be
-    /// disabled.
-    #[clap(long, conflicts_with = "runs_dir", value_name = "OUTPUT_DIR")]
-    pub output: Option<PathBuf>,
-
-    /// Overwrites the execution directory if it exists.
-    #[clap(long, conflicts_with = "runs_dir")]
-    pub overwrite: bool,
-
-    /// Disables color output.
-    #[arg(long)]
-    pub no_color: bool,
+    /// If provided, the run outputs will be indexed using the specified output
+    /// name as the key. The index allows efficient lookup of runs by output
+    /// values.
+    #[clap(long, value_name = "OUTPUT_NAME")]
+    pub index_on: Option<String>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
+
+    /// The Azure Storage account name to use.
+    #[clap(long, env, value_name = "NAME", requires = "azure_access_key")]
+    pub azure_account_name: Option<String>,
+
+    /// The Azure Storage access key to use.
+    #[clap(
+        long,
+        env,
+        hide_env_values(true),
+        value_name = "KEY",
+        requires = "azure_account_name"
+    )]
+    pub azure_access_key: Option<SecretString>,
 
     /// The AWS Access Key ID to use; overrides configuration.
     #[clap(long, env, value_name = "ID", requires = "aws_secret_access_key")]
@@ -168,37 +198,38 @@ pub struct Args {
     )]
     pub google_hmac_secret: Option<SecretString>,
 
-    /// The engine configuration to use.
-    ///
-    /// This is not exposed via [`clap`] and is not settable by users.
-    /// It will always be overwritten by the engine config provided by the user
-    /// (which will be set with `Default::default()` if the user does not
-    /// explicitly set `run` config values).
-    #[clap(skip)]
-    pub engine: engine::config::Config,
+    /// Disables the use of the call cache for this run.
+    #[clap(long)]
+    pub no_call_cache: bool,
+
+    /// Optional suffix to append to the run directory name.
+    #[clap(long, value_name = "SUFFIX")]
+    pub suffix: Option<String>,
 }
 
 impl Args {
-    /// Applies the configuration to the arguments.
-    pub fn apply(mut self, config: crate::config::Config) -> Self {
-        self.engine = config.run.engine;
-        if self.runs_dir.is_none() {
-            self.runs_dir = Some(config.run.runs_dir);
-        }
+    /// Applies the CLI arguments to the given engine configuration.
+    fn apply_engine_config(&self, config: &mut EngineConfig) {
+        // Apply the Azure auth to the engine config
+        if self.azure_account_name.is_some() || self.azure_access_key.is_some() {
+            let auth = config.storage.azure.auth.get_or_insert_default();
+            if let Some(key) = &self.azure_account_name {
+                auth.account_name = key.clone();
+            }
 
-        self.no_color = self.no_color || !config.common.color;
-        if self.report_mode.is_none() {
-            self.report_mode = Some(config.common.report_mode);
+            if let Some(access_key) = &self.azure_access_key {
+                auth.access_key = access_key.clone();
+            }
         }
 
         // Apply the AWS default region to the engine config
         if let Some(region) = &self.aws_default_region {
-            self.engine.storage.s3.region = Some(region.clone());
+            config.storage.s3.region = Some(region.clone());
         }
 
         // Apply the AWS auth to the engine config
         if self.aws_access_key_id.is_some() || self.aws_secret_access_key.is_some() {
-            let auth = self.engine.storage.s3.auth.get_or_insert_default();
+            let auth = config.storage.s3.auth.get_or_insert_default();
             if let Some(key) = &self.aws_access_key_id {
                 auth.access_key_id = key.clone();
             }
@@ -210,7 +241,7 @@ impl Args {
 
         // Apply the Google auth to the engine config
         if self.google_hmac_access_key.is_some() || self.google_hmac_secret.is_some() {
-            let auth = self.engine.storage.google.auth.get_or_insert_default();
+            let auth = config.storage.google.auth.get_or_insert_default();
             if let Some(key) = &self.google_hmac_access_key {
                 auth.access_key = key.clone();
             }
@@ -220,7 +251,10 @@ impl Args {
             }
         }
 
-        self
+        // Disable the call cache if requested
+        if self.no_call_cache {
+            config.task.cache = CallCachingMode::Off;
+        }
     }
 }
 
@@ -252,93 +286,174 @@ impl std::fmt::Display for Tasks<'_> {
     }
 }
 
+/// Represents information about a Crankshaft task.
+struct Task {
+    /// The name of the task.
+    name: Arc<String>,
+    /// The per-task cancellation token.
+    ///
+    /// This is used to cancel Crankshaft tasks that haven't yet executed.
+    token: CancellationToken,
+}
+
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
     /// The map of task identifiers to names.
-    tasks: HashMap<u64, Arc<String>>,
+    tasks: HashMap<u64, Task>,
     /// The set of currently executing tasks.
     executing: IndexSet<Arc<String>>,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
     completed: usize,
+    /// The number of canceled tasks.
+    canceled: usize,
+    /// The number of parked tasks.
+    parked: usize,
+    /// The number of task results reused from the cache.
+    cached: usize,
 }
 
 /// Displays evaluation progress.
-async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
+async fn progress(
+    progress_bar: tracing::Span,
+    mut crankshaft: Receiver<CrankshaftEvent>,
+    mut engine: Receiver<EngineEvent>,
+    token: CancellationToken,
+) {
     /// Helper for formatting the progress bar
     fn message(state: &State) -> String {
-        let executing = state.executing.len();
-        let ready = state.tasks.len() - executing;
-        format!(
-            " - {c} {completed} task{s1}, {r} {ready} task{s2}, {e} {executing} \
-             task{s3}{sep}{tasks}",
-            c = state.completed,
-            completed = "completed".cyan(),
-            s1 = if state.completed == 1 { "" } else { "s" },
-            r = ready,
-            ready = "ready".cyan(),
-            s2 = if ready == 1 { "" } else { "s" },
-            e = executing,
-            executing = "executing".cyan(),
-            s3 = if executing == 1 { "" } else { "s" },
-            sep = if executing == 0 { "" } else { ": " },
-            tasks = Tasks(&state.executing)
-        )
+        fn append(message: &mut String, count: usize, kind: impl std::fmt::Display) {
+            if count > 0 {
+                let comma = if message.is_empty() {
+                    message.push_str(" -");
+                    false
+                } else {
+                    true
+                };
+
+                let _ = write!(
+                    message,
+                    "{comma} {count} {kind} task{s}",
+                    comma = if comma { "," } else { "" },
+                    s = if count == 1 { "" } else { "s" }
+                );
+            }
+        }
+
+        let mut message = String::new();
+        append(&mut message, state.completed, "completed".green());
+        append(&mut message, state.cached, "cached".green());
+        append(&mut message, state.failed, "failed".red());
+        append(&mut message, state.canceled, "canceled".red());
+        append(
+            &mut message,
+            (state.tasks.len() - state.executing.len()) + state.parked,
+            "waiting".yellow(),
+        );
+        append(&mut message, state.executing.len(), "executing".cyan());
+
+        if !state.executing.is_empty() {
+            let _ = write!(&mut message, ": {tasks}", tasks = Tasks(&state.executing));
+        }
+
+        message
     }
 
     let mut state = State::default();
     let mut lagged = false;
+    let mut tasks_canceled = false;
 
-    pb.pb_set_message(&message(&state));
-    pb.pb_start();
+    progress_bar.pb_set_message(&message(&state));
+    progress_bar.pb_start();
 
     loop {
-        match events.recv().await {
-            Ok(event) if !lagged => {
-                let message = match event {
-                    Event::TaskCreated { id, name, .. } => {
-                        state.tasks.insert(id, name.into());
-                        message(&state)
-                    }
-                    Event::TaskStarted { id } => {
-                        if let Some(name) = state.tasks.get(&id).cloned() {
-                            state.executing.insert(name);
-                        }
-                        message(&state)
-                    }
-                    Event::TaskCompleted { id, .. } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
-                        }
-                        state.completed += 1;
-                        message(&state)
-                    }
-                    Event::TaskFailed { id, .. } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
-                        }
-                        state.failed += 1;
-                        message(&state)
-                    }
-                    Event::TaskCanceled { id } | Event::TaskPreempted { id } => {
-                        if let Some(name) = state.tasks.remove(&id) {
-                            state.executing.swap_remove(&name);
-                        }
-                        state.failed += 1;
-                        message(&state)
-                    }
-                    _ => continue,
-                };
+        tokio::select! {
+            _ = token.cancelled(), if !tasks_canceled => {
+                // Upon the initial cancellation, immediately cancel any Crankshaft task that is not executing.
+                for task in state.tasks.values().filter(|t| !state.executing.contains(&t.name)) {
+                    task.token.cancel();
+                }
 
-                pb.pb_set_message(&message);
+                tasks_canceled = true;
             }
-            Ok(_) => continue,
-            Err(RecvError::Closed) => break,
-            Err(RecvError::Lagged(_)) => {
-                lagged = true;
-                pb.pb_set_message(" - evaluation progress is unavailable due to missed events");
+            r = crankshaft.recv() => match r {
+                Ok(event) if !lagged => {
+                    let removed = match event {
+                        CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {
+                            // If there has already been an initial cancellation, immediately signal the new task to cancel
+                            if token.is_cancelled() {
+                                task_token.cancel();
+                            }
+
+                            state.tasks.insert(id, Task { name: name.into(), token: task_token });
+                            None
+                        }
+                        CrankshaftEvent::TaskStarted { id } => {
+                            if let Some(task) = state.tasks.get(&id) {
+                                state.executing.insert(task.name.clone());
+                            }
+
+                            None
+                        }
+                        CrankshaftEvent::TaskCompleted { id, .. } => {
+                            state.completed += 1;
+                            Some(id)
+                        }
+                        CrankshaftEvent::TaskFailed { id, .. } | CrankshaftEvent::TaskPreempted { id } => {
+                            state.failed += 1;
+                            Some(id)
+                        }
+                        CrankshaftEvent::TaskCanceled { id } => {
+                            state.canceled += 1;
+                            Some(id)
+                        }
+                        CrankshaftEvent::TaskContainerCreated { .. }
+                        | CrankshaftEvent::TaskContainerExited { .. }
+                        | CrankshaftEvent::TaskStdout { .. }
+                        | CrankshaftEvent::TaskStderr { .. } => continue,
+                    };
+
+                    if let Some(id) = removed && let Some(task) = state.tasks.remove(&id) {
+                        state.executing.swap_remove(&task.name);
+                    }
+
+                    progress_bar.pb_set_message(&message(&state));
+                }
+                Ok(_) => continue,
+                Err(RecvError::Closed) => break,
+                Err(RecvError::Lagged(_)) => {
+                    lagged = true;
+                    progress_bar.pb_set_message(" - progress is unavailable due to missed events");
+                }
+            },
+            r = engine.recv() => match r {
+                Ok(event) if !lagged => {
+                    match event {
+                        EngineEvent::ReusedCachedExecutionResult { .. } => {
+                            state.cached += 1;
+                        }
+                        EngineEvent::TaskParked => {
+                            state.parked += 1;
+                        }
+                        EngineEvent::TaskUnparked { canceled } => {
+                            state.parked = state.parked.saturating_sub(1);
+
+                            if canceled {
+                                state.canceled += 1;
+                            }
+                        }
+                    };
+
+                    progress_bar.pb_set_message(&message(&state));
+                }
+                Ok(_) => continue,
+                Err(RecvError::Closed) => break,
+                Err(RecvError::Lagged(_)) => {
+                    lagged = true;
+                    progress_bar.pb_set_message(" - progress is unavailable due to missed events");
+                }
             }
         }
     }
@@ -347,20 +462,38 @@ async fn progress(mut events: broadcast::Receiver<Event>, pb: tracing::Span) {
 /// Determines the timestamped execution directory and performs any necessary
 /// staging prior to execution.
 ///
+/// Staging includes writing a `.sprocketignore` file with contents `*` in the
+/// `root` if an existing ignorefile is not found.
+///
 /// Notably, this function does not actually create the execution directory at
 /// the returned path, as that is handled by execution itself.
 ///
 /// If running on a Unix system, a symlink to the returned path will be created
-/// at `<root>/<entrypoint>/_latest`.
-pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
-    let root = root.join(entrypoint);
-    std::fs::create_dir_all(&root)
-        .with_context(|| format!("failed to create directory: `{dir}`", dir = root.display()))?;
+/// at `<root>/<target>/_latest`.
+pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
+    // Create the target root directory
+    let target_root = root.join(target);
+    fs::create_dir_all(&target_root).with_context(|| {
+        format!(
+            "failed to create target directory `{path}`",
+            path = target_root.display()
+        )
+    })?;
 
-    let timestamp = chrono::Utc::now();
+    // Create an ignore file at the root if one doesn't exist
+    let ignore_path = root.join(crate::IGNORE_FILENAME);
+    if !ignore_path.exists() {
+        fs::write(&ignore_path, "*").with_context(|| {
+            format!(
+                "failed to write ignorefile `{path}`",
+                path = ignore_path.display()
+            )
+        })?;
+    }
 
-    let output = root.join(timestamp.format("%F_%H%M%S%f").to_string());
-
+    // Format an output directory path
+    let timestamp = chrono::Utc::now().format("%F_%H%M%S%f").to_string();
+    let output = target_root.join(&timestamp);
     if output.exists() {
         bail!(
             "timestamped execution directory `{dir}` existed before execution began",
@@ -368,76 +501,94 @@ pub fn setup_run_dir(root: &Path, entrypoint: &str) -> Result<PathBuf> {
         );
     }
 
+    // Replace the latest symlink to the new output path
     #[cfg(not(target_os = "windows"))]
     {
-        let latest = root.join(LATEST);
-        let _ = std::fs::remove_file(&latest);
-        if std::os::unix::fs::symlink(output.file_name().expect("should have basename"), &latest)
-            .is_err()
-        {
-            tracing::warn!("failed to create latest symlink: continuing with run")
-        };
+        let latest = target_root.join(LATEST);
+        let _ = fs::remove_file(&latest);
+        if let Err(e) = std::os::unix::fs::symlink(&timestamp, &latest) {
+            tracing::warn!("failed to create latest run symlink: {e}")
+        }
     }
 
     Ok(output)
 }
 
-/// The main function for the `run` subcommand.
-pub async fn run(args: Args) -> Result<()> {
-    if let Source::Directory(_) = args.source {
-        bail!("directory sources are not supported for the `run` command");
+/// Serializes engine inputs to JSON with the target name prefix on each key.
+fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
+    let serialized = serde_json::to_value(inputs)?;
+
+    let mut map = serde_json::Map::new();
+    if let JsonValue::Object(obj) = serialized {
+        for (key, value) in obj {
+            map.insert(format!("{target}.{key}"), value);
+        }
     }
 
-    let style = ProgressStyle::with_template(
-        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}",
-    )
-    .unwrap();
+    Ok(serde_json::to_string(&map)?)
+}
 
-    let span = tracing::span!(Level::WARN, "progress");
+/// The main function for the `run` subcommand.
+pub async fn run(
+    args: Args,
+    mut config: Config,
+    colorize: bool,
+    handle: FileReloadHandle,
+) -> CommandResult<()> {
+    if let Source::Directory(_) = args.source {
+        return Err(anyhow!("directory sources are not supported for the `run` command").into());
+    }
+
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
+    args.apply_engine_config(&mut config.run.engine);
+
+    let template = if colorize {
+        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
+    } else {
+        "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
+    };
+
+    let style = ProgressStyle::with_template(template).unwrap();
+
+    let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
 
-    let results = match Analysis::default()
+    let results = Analysis::default()
         .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
         .init({
-            let span = span.clone();
+            let progress_bar = progress_bar.clone();
             Box::new(move || {
-                span.pb_set_style(&style);
+                progress_bar.pb_set_style(&style);
             })
         })
         .progress({
-            let span = span.clone();
+            let progress_bar = progress_bar.clone();
             move |kind, completed, total| {
-                let span = span.clone();
+                let progress_bar = progress_bar.clone();
                 async move {
                     if start.elapsed() < PROGRESS_BAR_DELAY_BEFORE_RENDER {
                         return;
                     }
 
                     if completed == 0 {
-                        span.pb_start();
-                        span.pb_set_length(total.try_into().unwrap());
-                        span.pb_set_message(&format!("{kind}"));
+                        progress_bar.pb_start();
+                        progress_bar.pb_set_length(total.try_into().unwrap());
+                        progress_bar.pb_set_message(&format!("{kind}"));
                     }
 
-                    span.pb_set_position(completed.try_into().unwrap());
+                    progress_bar.pb_set_position(completed.try_into().unwrap());
                 }
                 .boxed()
             }
         })
         .run()
         .await
-    {
-        Ok(results) => results.into_inner(),
-        Err(errors) => {
-            // SAFETY: this is a non-empty, so it must always have a first
-            // element.
-            bail!(errors.into_iter().next().unwrap())
-        }
-    };
+        .map_err(CommandError::from)?;
 
     // Emits diagnostics for all analyzed documents
     let mut errors = 0;
-    for result in &results {
+    for result in results.as_slice() {
         let mut diagnostics = result.document().diagnostics().peekable();
         if diagnostics.peek().is_some() {
             let path = result.document().path().to_string();
@@ -452,26 +603,26 @@ pub async fn run(args: Args) -> Result<()> {
                 source,
                 result.document().diagnostics(),
                 &[],
-                args.report_mode.unwrap_or_default(),
-                args.no_color,
+                report_mode,
+                colorize,
             )
             .context("failed to emit diagnostics")?;
         }
     }
 
     if errors > 0 {
-        bail!(
+        return Err(anyhow!(
             "aborting due to previous {errors} error{s}",
             s = if errors == 1 { "" } else { "s" }
-        );
+        )
+        .into());
     }
 
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let results = AnalysisResults::try_new(results).unwrap();
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let inputs = Inputs::coalesce(&args.inputs, args.entrypoint.clone())
+    // Parse and resolve inputs. The `into_resolved_json()` method resolves
+    // relative paths using per-input origins before serializing to JSON.
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
         .await
         .with_context(|| {
             format!(
@@ -479,109 +630,163 @@ pub async fn run(args: Args) -> Result<()> {
                 sources = args.inputs.join("`, `")
             )
         })?
-        .into_engine_inputs(document)?;
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (
+            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
+            inputs,
+        ),
+        None => {
+            // No inputs were provided, need explicit target
+            let target = args
+                .target
+                .as_ref()
+                .context("the `--target` option is required if no inputs are provided")?;
 
-    let (entrypoint, inputs, origins) = if let Some(inputs) = inputs {
-        inputs
-    } else {
-        // No inputs were provided
-        let origins = OriginPaths::Single(EvaluationPath::Local(
-            std::env::current_dir().context("failed to get current directory")?,
-        ));
+            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
 
-        if let Some(name) = args.entrypoint {
-            match (document.task_by_name(&name), document.workflow()) {
-                (Some(_), _) => (name, EngineInputs::Task(Default::default()), origins),
-                (None, Some(workflow)) => {
-                    if workflow.name() == name {
-                        (name, EngineInputs::Workflow(Default::default()), origins)
-                    } else {
-                        bail!(
-                            "no task or workflow with name `{name}` was found in document `{path}`",
-                            path = document.path()
-                        );
-                    }
-                }
-                (None, None) => bail!(
-                    "no task or workflow with name `{name}` was found in document `{path}`",
-                    path = document.path()
-                ),
-            }
-        } else {
-            bail!("the `--entrypoint` option is required if no inputs are provided")
+            let inputs = match target {
+                Target::Task(_) => TaskInputs::default().into(),
+                Target::Workflow(_) => WorkflowInputs::default().into(),
+            };
+
+            (target, inputs)
         }
     };
 
-    let output_dir = if let Some(supplied_dir) = args.output {
-        if supplied_dir.exists() {
-            if !args.overwrite {
-                bail!(
-                    "output directory `{dir}` exists; use the `--overwrite` option to overwrite \
-                     its contents",
-                    dir = supplied_dir.display()
-                );
-            }
+    // Set up output directory structure
+    let output_dir = OutputDirectory::new(
+        args.output_dir
+            .clone()
+            .unwrap_or_else(|| config.run.output_dir.clone()),
+    );
 
-            std::fs::remove_dir_all(&supplied_dir).with_context(|| {
-                format!(
-                    "failed to remove output directory `{dir}`",
-                    dir = supplied_dir.display()
-                )
-            })?;
-        }
-        supplied_dir
-    } else {
-        setup_run_dir(
-            &args.runs_dir.unwrap_or(DEFAULT_RUNS_DIR.into()),
-            &entrypoint,
-        )?
-    };
+    // Acquire an exclusive lock on the output directory to serialize setup
+    // operations across concurrent processes (e.g., database creation,
+    // directory structure initialization, and symlink management).
+    //
+    // NOTE: this lock covers setup only. Post-setup operations on shared
+    // state (e.g., index symlink creation in `set_run_success`) are not
+    // covered—concurrent processes indexing on the same name can still
+    // race on symlinks. This is acceptable because each parallel test
+    // uses a unique target name.
+    let lock = FileSystemLock::acquire(output_dir.root())
+        .context("failed to acquire lock on output directory")?;
+
+    // Create the run directory
+    let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
+
+    // Now that the run directory is created, initialize file logging
+    initialize_file_logging(handle, run_dir.root())?;
 
     tracing::info!(
         "`{dir}` will be used as the execution directory",
-        dir = output_dir.display()
+        dir = run_dir.root().display()
     );
 
-    let run_kind = match &inputs {
-        EngineInputs::Task(_) => "task",
-        EngineInputs::Workflow(_) => "workflow",
+    let run_kind = match &target {
+        Target::Task(_) => "task",
+        Target::Workflow(_) => "workflow",
     };
 
-    span.pb_set_style(
-        &ProgressStyle::with_template(&format!(
+    let template = if colorize {
+        format!(
             "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
-             {name}{{msg}}",
+             {target}{{msg}}",
             running = "running".cyan(),
-            name = entrypoint.magenta().bold()
-        ))
-        .unwrap(),
-    );
+            target = target.name().magenta().bold()
+        )
+    } else {
+        format!(
+            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
+            target = target.name()
+        )
+    };
 
-    let cancellation = CancellationContext::new(args.engine.failure_mode);
-    let events = Events::all(EVENTS_CHANNEL_CAPACITY);
+    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
+
+    // Open or create the database for provenance tracking
+    let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
+    let db = open_database(&db_path).await?;
+
+    // Create session and run records
+    let session = create_session(db.as_ref(), SprocketCommand::Run)
+        .await
+        .context("failed to create session")?;
+
+    let (run_id, run_name, _run) = create_run_record(
+        db.as_ref(),
+        session.uuid,
+        &args.source,
+        Some(target.name()),
+        &inputs_to_json(target.name(), &inputs).context("failed to serialize inputs")?,
+    )
+    .await
+    .context("failed to create run record")?;
+
+    // Update the run directory in the database
+    let run_dir_str = run_dir
+        .root()
+        .to_str()
+        .context("run directory path is not valid UTF-8")?;
+    db.update_run_directory(run_id, run_dir_str)
+        .await
+        .context("failed to update run directory")?;
+
+    // Release the lock now that setup is complete—each process has its own
+    // timestamped run directory from this point forward.
+    drop(lock);
+
+    let ctx = RunContext {
+        run_id,
+        run_generated_name: run_name,
+        started_at: Utc::now(),
+    };
+
+    let cancellation = CancellationContext::new(config.run.engine.failure_mode);
+    let events = Events::new(
+        config
+            .run
+            .events_capacity
+            .unwrap_or(DEFAULT_EVENTS_CHANNEL_CAPACITY),
+    );
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
-        cancellation.token(),
+        cancellation.first(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
+        progress_bar,
         events
             .subscribe_crankshaft()
             .expect("should have Crankshaft events"),
-        span,
+        events
+            .subscribe_engine()
+            .expect("should have engine events"),
+        cancellation.first(),
     ));
 
-    let evaluator = Evaluator::new(
-        document,
-        &entrypoint,
-        inputs,
-        origins,
-        args.engine,
-        &output_dir,
-    );
+    // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
+    // passed to `execute_target()` is not used for path resolution. We pass
+    // CWD as a placeholder.
+    let cwd = std::env::current_dir().context("failed to get current working directory")?;
+    let base_dir = EvaluationPath::from(cwd.as_path());
 
-    let mut evaluate = evaluator.run(cancellation.clone(), events).boxed();
+    let mut execute = Box::pin(execute_target(
+        db.clone(),
+        &ctx,
+        document.clone(),
+        config.run.engine,
+        cancellation.clone(),
+        events,
+        target,
+        inputs,
+        &run_dir,
+        &base_dir,
+        args.index_on.as_deref(),
+    ));
 
     loop {
         select! {
@@ -591,7 +796,7 @@ pub async fn run(args: Args) -> Result<()> {
             _ = tokio::signal::ctrl_c() => {
                 // If we've already been waiting for executing tasks to cancel, immediately bail out
                 if cancellation.state() == CancellationContextState::Canceling {
-                    bail!("evaluation was interrupted");
+                    return Err(anyhow!("evaluation was interrupted").into());
                 }
 
                 // Log the message indicating whether we're waiting on completion or waiting on cancellation
@@ -605,30 +810,66 @@ pub async fn run(args: Args) -> Result<()> {
                     },
                 }
             },
-            res = &mut evaluate => {
+            res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
 
                 return match res {
-                    Ok(outputs) => {
-                        println!("{}", serde_json::to_string_pretty(&outputs.with_name(&entrypoint))?);
+                    Ok(()) => {
+                        // Check if execution was canceled
+                        if cancellation.state() != CancellationContextState::NotCanceled {
+                            return Err(anyhow!("evaluation was interrupted").into());
+                        }
+
+                        // Read outputs from the outputs file
+                        let outputs_file = run_dir.outputs_file();
+                        if outputs_file.exists() {
+                            let outputs_json = std::fs::read_to_string(&outputs_file)
+                                .context("failed to read outputs file")?;
+                            println!("{outputs_json}");
+                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
+                        }
                         Ok(())
                     }
-                    Err(EvaluationError::Canceled) => bail!("evaluation was interrupted"),
+                    Err(EvaluationError::Canceled) => {
+                        Err(anyhow!("evaluation was interrupted").into())
+                    }
                     Err(EvaluationError::Source(e)) => {
                         emit_diagnostics(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],
                             &e.backtrace,
-                            args.report_mode.unwrap_or_default(),
-                            args.no_color
+                            report_mode,
+                            colorize
                         )?;
-                        bail!("aborting due to evaluation error");
+                        Err(anyhow!("aborting due to evaluation error").into())
                     }
-                    Err(EvaluationError::Other(e)) => Err(e)
+                    Err(EvaluationError::Other(e)) => Err(e.into())
                 };
             },
         }
     }
+}
+
+/// Initializes logging to `output.log` in the given run directory.
+fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<()> {
+    fs::create_dir_all(run_dir).with_context(|| {
+        format!(
+            "failed to create directory `{path}`",
+            path = run_dir.display()
+        )
+    })?;
+
+    let log_file_path = run_dir.join(LOG_FILE_NAME);
+    let log_file = File::create(&log_file_path).with_context(|| {
+        format!(
+            "failed to create log file `{path}`",
+            path = log_file_path.display()
+        )
+    })?;
+
+    handle
+        .reload(layer().with_ansi(false).with_writer(log_file))
+        .context("failed to initialize file logging")
 }

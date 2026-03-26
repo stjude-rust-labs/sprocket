@@ -23,15 +23,20 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
+mod config;
 pub(crate) mod fix;
 mod linter;
 pub mod rules;
 mod tags;
 pub(crate) mod util;
 
+pub use config::Config;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
@@ -40,6 +45,29 @@ pub use wdl_ast as ast;
 
 /// The definitions of WDL concepts and terminology used in the linting rules.
 pub const DEFINITIONS_TEXT: &str = include_str!("../DEFINITIONS.md");
+
+/// All rule IDs sorted alphabetically.
+pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids: Vec<String> = rules(&Config::default())
+        .iter()
+        .map(|r| r.id().to_string())
+        .collect();
+    ids.sort();
+    ids
+});
+
+/// All tag names sorted alphabetically.
+pub static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut tags: HashSet<Tag> = HashSet::new();
+    for rule in rules(&Config::default()) {
+        for tag in rule.tags().iter() {
+            tags.insert(tag);
+        }
+    }
+    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
+    tag_names.sort();
+    tag_names
+});
 
 /// A trait implemented by lint rules.
 pub trait Rule: Visitor {
@@ -79,54 +107,43 @@ pub trait Rule: Visitor {
 }
 
 /// Gets all of the lint rules.
-pub fn rules() -> Vec<Box<dyn Rule>> {
+pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
     let rules: Vec<Box<dyn Rule>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
-        Box::<rules::SnakeCaseRule>::default(),
+        Box::new(rules::SnakeCaseRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
-        Box::<rules::EndingNewlineRule>::default(),
-        Box::<rules::PreambleFormattedRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
-        Box::<rules::WhitespaceRule>::default(),
         Box::<rules::CommandSectionIndentationRule>::default(),
         Box::<rules::ImportPlacementRule>::default(),
         Box::<rules::PascalCaseRule>::default(),
-        Box::<rules::ImportWhitespaceRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
-        Box::<rules::ImportSortedRule>::default(),
-        Box::<rules::InputSortedRule>::default(),
-        Box::<rules::LineWidthRule>::default(),
         Box::<rules::ConsistentNewlinesRule>::default(),
-        Box::<rules::CallInputSpacingRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
         Box::<rules::SectionOrderingRule>::default(),
         Box::<rules::DeprecatedObjectRule>::default(),
         Box::<rules::MetaDescriptionRule>::default(),
         Box::<rules::DeprecatedPlaceholderRule>::default(),
-        Box::<rules::ExpectedRuntimeKeysRule>::default(),
+        Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
+        Box::<rules::EmptyDocCommentRule>::default(),
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
-        Box::<rules::CommentWhitespaceRule>::default(),
-        Box::<rules::TrailingCommaRule>::default(),
-        Box::<rules::ElementSpacingRule>::default(),
-        Box::<rules::MetaKeyValueFormattingRule>::default(),
-        Box::<rules::ExpressionSpacingRule>::default(),
         Box::<rules::InputNameRule>::default(),
         Box::<rules::OutputNameRule>::default(),
-        Box::<rules::DeclarationNameRule>::default(),
+        Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
         Box::<rules::KnownRulesRule>::default(),
-        Box::<rules::LintDirectiveValidRule>::default(),
-        Box::<rules::VersionStatementFormattedRule>::default(),
-        Box::<rules::PreambleCommentPlacementRule>::default(),
-        Box::<rules::LintDirectiveFormattedRule>::default(),
+        Box::<rules::ExceptDirectiveValidRule>::default(),
+        Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
         Box::<rules::DescriptionLengthRule>::default(),
+        Box::<rules::DocCommentTabsRule>::default(),
+        Box::<rules::UnusedDocCommentsRule>::default(),
+        Box::<rules::DenyGlobStar>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are

@@ -1,5 +1,5 @@
 ## Example from https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#arrayx
-version 1.2
+version 1.3
 
 task sum {
   input {

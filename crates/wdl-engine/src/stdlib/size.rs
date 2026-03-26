@@ -18,13 +18,16 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::CompoundValue;
+use crate::EvaluationPath;
+use crate::EvaluationPathKind;
+use crate::HiddenValue;
 use crate::PrimitiveValue;
 use crate::StorageUnit;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 use crate::http::Transferer;
-use crate::path;
-use crate::path::EvaluationPath;
+use crate::is_file_url;
+use crate::is_supported_url;
 use crate::stdlib::ensure_local_path;
 
 /// The name of the function defined in this file for use in diagnostics.
@@ -65,30 +68,37 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
         // If the first argument is a string, we need to check if it's a file or
         // directory and treat it as such.
         let value = match context.arguments[0].value.as_string() {
-            Some(s) => {
-                // If the path is a URL that isn't `file` schemed, treat as a file
-                if !path::is_file_url(s) && path::is_url(s) {
-                    PrimitiveValue::File(s.clone().into()).into()
-                } else {
-                    let path = ensure_local_path(context.base_dir(), s).map_err(|e| {
-                        function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
-                    })?;
+            Some(_) => {
+                // Coerce the string to a file to ensure we do any guest-to-host translation
+                let path = context
+                    .coerce_argument(0, PrimitiveType::File)
+                    .unwrap_file();
 
-                    let metadata = fs::metadata(&path)
+                // If the path is a URL that isn't `file` schemed, treat as a file
+                if !is_file_url(&path.0) && is_supported_url(&path.0) {
+                    PrimitiveValue::File(path).into()
+                } else {
+                    let local_path =
+                        ensure_local_path(context.base_dir(), &path.0).map_err(|e| {
+                            function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
+                        })?;
+
+                    let metadata = fs::metadata(&local_path)
                         .await
                         .with_context(|| {
                             format!(
-                                "failed to read metadata for file `{path}`",
-                                path = path.display()
+                                "failed to read metadata for path `{path}`",
+                                path = local_path.display()
                             )
                         })
                         .map_err(|e| {
                             function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
                         })?;
+
                     if metadata.is_dir() {
-                        PrimitiveValue::Directory(s.clone().into()).into()
+                        PrimitiveValue::Directory(path).into()
                     } else {
-                        PrimitiveValue::File(s.clone().into()).into()
+                        PrimitiveValue::File(path).into()
                     }
                 }
             }
@@ -139,7 +149,9 @@ async fn file_path_size(
     path: &str,
 ) -> Result<u64> {
     // If the path is a URL, get the resource size
-    if let Some(url) = path::parse_url(path) {
+    if is_supported_url(path)
+        && let Ok(url) = path.parse()
+    {
         return resource_size(transferer, &url).await;
     }
 
@@ -148,9 +160,9 @@ async fn file_path_size(
         return file_size(path).await;
     }
 
-    match base_dir.join(path)? {
-        EvaluationPath::Local(path) => file_size(path).await,
-        EvaluationPath::Remote(url) => resource_size(transferer, &url).await,
+    match base_dir.join(path)?.kind() {
+        EvaluationPathKind::Local(path) => file_size(path).await,
+        EvaluationPathKind::Remote(url) => resource_size(transferer, url).await,
     }
 }
 
@@ -172,16 +184,26 @@ fn calculate_disk_size<'a>(
             Value::None(_) => Ok(0.0),
             Value::Primitive(v) => primitive_disk_size(transferer, v, unit, base_dir).await,
             Value::Compound(v) => compound_disk_size(transferer, v, unit, base_dir).await,
-            Value::Hints(_) => bail!("the size of a hints value cannot be calculated"),
-            Value::Input(_) => bail!("the size of an input value cannot be calculated"),
-            Value::Output(_) => bail!("the size of an output value cannot be calculated"),
-            Value::TaskPreEvaluation(_) | Value::TaskPostEvaluation(_) => {
+            Value::Hidden(HiddenValue::Hints(_)) => {
+                bail!("the size of a hints value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Input(_)) => {
+                bail!("the size of an input value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::Output(_)) => {
+                bail!("the size of an output value cannot be calculated")
+            }
+            Value::Hidden(HiddenValue::TaskPreEvaluation(_))
+            | Value::Hidden(HiddenValue::TaskPostEvaluation(_)) => {
                 bail!("the size of a task variable cannot be calculated")
             }
-            Value::PreviousTaskData(_) => {
+            Value::Hidden(HiddenValue::PreviousTaskData(_)) => {
                 bail!("the size of a task.previous value cannot be calculated")
             }
             Value::Call(_) => bail!("the size of a call value cannot be calculated"),
+            Value::TypeNameRef(_) => {
+                bail!("the size of a type name reference cannot be calculated")
+            }
         }
     }
     .boxed()
@@ -232,10 +254,8 @@ async fn compound_disk_size(
         CompoundValue::Map(map) => {
             let mut size = 0.0;
             for (k, v) in map.iter() {
-                size += match k {
-                    Some(k) => primitive_disk_size(transferer, k, unit, base_dir).await?,
-                    None => 0.0,
-                } + calculate_disk_size(transferer, v, unit, base_dir).await?;
+                size += primitive_disk_size(transferer, k, unit, base_dir).await?
+                    + calculate_disk_size(transferer, v, unit, base_dir).await?;
             }
 
             Ok(size)
@@ -255,6 +275,9 @@ async fn compound_disk_size(
             }
 
             Ok(size)
+        }
+        CompoundValue::EnumVariant(_) => {
+            bail!("the size of an enum variant cannot be calculated")
         }
     }
 }
@@ -375,7 +398,7 @@ mod test {
         );
         env.insert_name(
             "dir",
-            PrimitiveValue::new_directory(env.base_dir().to_str().expect("should be UTF-8")),
+            PrimitiveValue::new_directory(env.base_dir().to_string()),
         );
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "size('foo', 'invalid')")
@@ -399,10 +422,10 @@ mod test {
         assert!(
             diagnostic
                 .message()
-                .starts_with("call to function `size` failed: failed to read metadata for file")
+                .starts_with("call to function `size` failed: failed to read metadata for path")
         );
 
-        let source = format!("size('{path}', 'B')", path = env.base_dir().display());
+        let source = format!("size('{path}', 'B')", path = env.base_dir());
         let value = eval_v1_expr(&env, V1::Two, &source).await.unwrap();
         approx::assert_relative_eq!(value.unwrap_float(), 60.0);
 

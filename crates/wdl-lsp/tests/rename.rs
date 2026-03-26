@@ -147,3 +147,39 @@ async fn should_not_rename_shadowed_declaration() {
         assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
     }
 }
+
+#[tokio::test]
+async fn should_rename_enum() {
+    let mut ctx = TestContext::new("rename");
+    ctx.initialize().await;
+
+    // Position of `Status` in `enum Status`
+    let edit = rename_request(&mut ctx, "enum.wdl", Position::new(2, 7), "State")
+        .await
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    let edits = changes
+        .get(&ctx.doc_uri("enum.wdl"))
+        .expect("should have edits for enum.wdl");
+
+    assert_eq!(edits.len(), 5); // enum definition + two variable declarations + two member access
+}
+
+#[tokio::test]
+async fn should_rename_enum_variant() {
+    let mut ctx = TestContext::new("rename");
+    ctx.initialize().await;
+
+    // Position of `Active` in variant definition
+    let edit = rename_request(&mut ctx, "enum.wdl", Position::new(3, 4), "Running")
+        .await
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    let edits = changes
+        .get(&ctx.doc_uri("enum.wdl"))
+        .expect("should have edits for enum.wdl");
+
+    assert_eq!(edits.len(), 2); // variant definition + one usage
+}

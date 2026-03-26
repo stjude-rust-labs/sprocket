@@ -2,14 +2,14 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashSet;
+use std::io::Error as IoError;
+use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::rc::Rc;
 
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::bail;
+use ammonia::Url;
 use maud::Markup;
 use maud::html;
 use path_clean::PathClean;
@@ -17,9 +17,14 @@ use pathdiff::diff_paths;
 use serde::Serialize;
 
 use crate::AdditionalScript;
+use crate::DocError;
 use crate::Markdown;
 use crate::Render;
+use crate::config::ExternalUrls;
 use crate::document::Document;
+use crate::r#enum::Enum;
+use crate::error::DocResult;
+use crate::error::ResultContextExt;
 use crate::full_page;
 use crate::get_assets;
 use crate::r#struct::Struct;
@@ -40,6 +45,8 @@ pub(crate) enum PageType {
     Index(Document),
     /// A struct page.
     Struct(Struct),
+    /// An enum page.
+    Enum(Enum),
     /// A task page.
     Task(Task),
     /// A workflow page.
@@ -226,6 +233,8 @@ pub struct DocsTreeBuilder {
     /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used
     /// for both dark and light themes.
     logo: Option<PathBuf>,
+    /// External URLs related to the project, rendered as buttons in the header.
+    external_urls: ExternalUrls,
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
     alt_logo: Option<PathBuf>,
@@ -251,6 +260,7 @@ impl DocsTreeBuilder {
             homepage: None,
             custom_theme: None,
             logo: None,
+            external_urls: ExternalUrls::default(),
             alt_logo: None,
             additional_javascript: AdditionalScript::None,
             init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
@@ -270,10 +280,11 @@ impl DocsTreeBuilder {
     }
 
     /// Set the custom theme for the docs with an option.
-    pub fn maybe_custom_theme(mut self, theme: Option<impl AsRef<Path>>) -> Result<Self> {
+    pub fn maybe_custom_theme(mut self, theme: Option<impl AsRef<Path>>) -> DocResult<Self> {
         self.custom_theme = if let Some(t) = theme {
             Some(
                 absolute(t.as_ref())
+                    .map_err(Into::<DocError>::into)
                     .with_context(|| {
                         format!(
                             "failed to resolve absolute path for custom theme: `{}`",
@@ -289,7 +300,7 @@ impl DocsTreeBuilder {
     }
 
     /// Set the custom theme for the docs.
-    pub fn custom_theme(self, theme: impl AsRef<Path>) -> Result<Self> {
+    pub fn custom_theme(self, theme: impl AsRef<Path>) -> DocResult<Self> {
         self.maybe_custom_theme(Some(theme))
     }
 
@@ -302,6 +313,12 @@ impl DocsTreeBuilder {
     /// Set the custom logo for the left sidebar.
     pub fn logo(self, logo: impl Into<PathBuf>) -> Self {
         self.maybe_logo(Some(logo))
+    }
+
+    /// Set the external URLs for the header.
+    pub fn external_urls(mut self, external_urls: ExternalUrls) -> Self {
+        self.external_urls = external_urls;
+        self
     }
 
     /// Set the alt (i.e. light mode) custom logo for the left sidebar with an
@@ -336,13 +353,8 @@ impl DocsTreeBuilder {
     }
 
     /// Build the docs tree.
-    pub fn build(self) -> Result<DocsTree> {
-        self.write_assets().with_context(|| {
-            format!(
-                "failed to write assets to output directory: `{}`",
-                self.root.display()
-            )
-        })?;
+    pub fn build(self) -> DocResult<DocsTree> {
+        self.write_assets()?;
 
         let node = Node::new(
             self.root
@@ -355,6 +367,7 @@ impl DocsTreeBuilder {
             root: node,
             path: self.root,
             homepage: self.homepage,
+            external_urls: self.external_urls,
             additional_javascript: self.additional_javascript,
             init_on_full_directory: self.init_on_full_directory,
             init_light_mode: self.init_light_mode,
@@ -368,28 +381,35 @@ impl DocsTreeBuilder {
     /// `index.js` files to the root unless a custom theme is
     /// provided, in which case it will copy the `style.css` and `index.js`
     /// files from the custom theme's `dist` directory.
-    fn write_assets(&self) -> Result<()> {
+    fn write_assets(&self) -> DocResult<()> {
         let dir = &self.root;
         let custom_theme = self.custom_theme.as_ref();
         let assets_dir = dir.join("assets");
-        std::fs::create_dir_all(&assets_dir).with_context(|| {
-            format!(
-                "failed to create assets directory: `{}`",
-                assets_dir.display()
-            )
-        })?;
+        std::fs::create_dir_all(&assets_dir)
+            .map_err(Into::<DocError>::into)
+            .with_context(|| {
+                format!(
+                    "failed to create assets directory: `{}`",
+                    assets_dir.display()
+                )
+            })?;
 
         if let Some(custom_theme) = custom_theme {
             if !custom_theme.exists() {
-                bail!(
-                    "custom theme directory does not exist: `{}`",
-                    custom_theme.display()
-                );
+                return Err(IoError::new(
+                    ErrorKind::NotFound,
+                    format!(
+                        "custom theme does not exist at `{}`",
+                        custom_theme.display()
+                    ),
+                )
+                .into());
             }
             std::fs::copy(
                 custom_theme.join("dist").join("style.css"),
                 dir.join("style.css"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to copy stylesheet from `{}` to `{}`",
@@ -401,6 +421,7 @@ impl DocsTreeBuilder {
                 custom_theme.join("dist").join("index.js"),
                 dir.join("index.js"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to copy web components from `{}` to `{}`",
@@ -413,6 +434,7 @@ impl DocsTreeBuilder {
                 dir.join("style.css"),
                 include_str!("../theme/dist/style.css"),
             )
+            .map_err(Into::<DocError>::into)
             .with_context(|| {
                 format!(
                     "failed to write default stylesheet to `{}`",
@@ -420,6 +442,7 @@ impl DocsTreeBuilder {
                 )
             })?;
             std::fs::write(dir.join("index.js"), include_str!("../theme/dist/index.js"))
+                .map_err(Into::<DocError>::into)
                 .with_context(|| {
                     format!(
                         "failed to write default web components to `{}`",
@@ -431,6 +454,7 @@ impl DocsTreeBuilder {
         for (file_name, bytes) in get_assets() {
             let path = assets_dir.join(file_name);
             std::fs::write(&path, bytes)
+                .map_err(Into::<DocError>::into)
                 .with_context(|| format!("failed to write asset to `{}`", path.display()))?;
         }
         // The above `get_assets()` call will write the default logos; then the
@@ -438,57 +462,69 @@ impl DocsTreeBuilder {
         match (&self.logo, &self.alt_logo) {
             (Some(dark_logo), Some(light_logo)) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(dark_logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy dark theme custom logo from `{}` to `{}`",
-                        dark_logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(dark_logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy dark theme custom logo from `{}` to `{}`",
+                            dark_logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(light_logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy light theme custom logo from `{}` to `{}`",
-                        light_logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(light_logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy light theme custom logo from `{}` to `{}`",
+                            light_logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (Some(logo), None) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (None, Some(logo)) => {
                 let logo_path = assets_dir.join(LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
                 let logo_path = assets_dir.join(LIGHT_LOGO_FILE_NAME);
-                std::fs::copy(logo, &logo_path).with_context(|| {
-                    format!(
-                        "failed to copy custom logo from `{}` to `{}`",
-                        logo.display(),
-                        logo_path.display()
-                    )
-                })?;
+                std::fs::copy(logo, &logo_path)
+                    .map_err(Into::<DocError>::into)
+                    .with_context(|| {
+                        format!(
+                            "failed to copy custom logo from `{}` to `{}`",
+                            logo.display(),
+                            logo_path.display()
+                        )
+                    })?;
             }
             (None, None) => {}
         }
@@ -509,6 +545,8 @@ pub struct DocsTree {
     /// An optional path to a Markdown file which will be embedded in the
     /// `<root>/index.html` page.
     homepage: Option<PathBuf>,
+    /// External URLs related to the project, rendered as buttons in the header.
+    external_urls: ExternalUrls,
     /// Optional JavaScript to embed in each HTML page.
     additional_javascript: AdditionalScript,
     /// Initialize pages on the "Full Directory" view instead of the "Workflows"
@@ -869,6 +907,14 @@ impl DocsTree {
                                 "struct-unselected.svg"
                             },
                         )),
+                        PageType::Enum(_) => Some(self.get_asset(
+                            base,
+                            if ancestor {
+                                "enum-selected.svg"
+                            } else {
+                                "enum-unselected.svg"
+                            },
+                        )),
                         PageType::Workflow(_) => Some(self.get_asset(
                             base,
                             if ancestor {
@@ -936,21 +982,10 @@ impl DocsTree {
         let data = format!(
             r#"{{
                 showWorkflows: $persist({}).using(sessionStorage),
-                search: $persist('').using(sessionStorage),
                 dirOpen: '{}',
                 dirClosed: '{}',
                 nodes: [{}],
-                get searchedNodes() {{
-                    if (this.search === '') {{
-                        return [];
-                    }}
-                    this.showWorkflows = false;
-                    return this.nodes.filter(node => node.search_name.toLowerCase().includes(this.search.toLowerCase()));
-                }},
                 get shownNodes() {{
-                    if (this.search !== '') {{
-                        return [];
-                    }}
                     return this.nodes.filter(node => this.showSelfCache[node.key]);
                 }},
                 dag: {{{}}},
@@ -1004,17 +1039,6 @@ impl DocsTree {
             div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
                 // top navbar
                 div class="sticky px-4" {
-                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 block light:hidden" alt="Logo";
-                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none mb-8 hidden light:block" alt="Logo";
-                    }
-                    div class="relative w-full h-10" {
-                        input id="searchbox" "x-model.debounce"="search" type="text" placeholder="Search..." class="left-sidebar__searchbox";
-                        img src=(self.get_asset(base, "search.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
-                        img src=(self.get_asset(base, "search.light.svg")) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
-                        img src=(self.get_asset(base, "x-mark.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
-                        img src=(self.get_asset(base, "x-mark.light.svg")) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="search !== ''" x-on:click="search = ''";
-                    }
                     div class="left-sidebar__tabs-container mt-4" {
                         button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
                             img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
@@ -1031,10 +1055,10 @@ impl DocsTree {
                 // Main content
                 div x-cloak class="left-sidebar__content-container pt-4" {
                     // Full directory view
-                    ul x-show="! showWorkflows || search != ''" class="left-sidebar__content" {
+                    ul x-show="! showWorkflows" class="left-sidebar__content" {
                         // Root node for the directory tree
                         sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) x-show="search === ''" aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
+                            a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
                                 div class="left-sidebar__content-item-container crop-ellipsis" {
                                     div class="relative shrink-0" {
                                         img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
@@ -1062,31 +1086,9 @@ impl DocsTree {
                                 }
                             }
                         }
-                        // Search results
-                        template x-for="node in searchedNodes" {
-                            li class="left-sidebar__search-result-item" {
-                                p class="text-xs text-slate-500 crop-ellipsis" x-text="node.parent" {}
-                                div class="left-sidebar__search-result-item-container" {
-                                    img x-bind:src="node.icon" class="left-sidebar__icon" alt="Node icon";
-                                    sprocket-tooltip class="crop-ellipsis" x-bind:content="node.display_name" {
-                                        a x-bind:href="node.href" x-text="node.display_name" {}
-                                    }
-                                }
-                            }
-                        }
-                        // No results found icon
-                        li x-show="search !== '' && searchedNodes.length === 0" class="flex place-content-center" {
-                            img src=(self.get_asset(base, "search.svg")) class="size-8 block light:hidden" alt="Search icon";
-                            img src=(self.get_asset(base, "search.light.svg")) class="size-8 hidden light:block" alt="Search icon";
-                        }
-                        // No results found message
-                        li x-show="search !== '' && searchedNodes.length === 0" class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
-                            span x-text="'No results found for'" {}
-                            span x-text="`\"${search}\"`" class="text-slate-50" {}
-                        }
                     }
                     // Workflows view
-                    ul x-show="showWorkflows && search === ''" class="left-sidebar__content" {
+                    ul x-show="showWorkflows" class="left-sidebar__content" {
                         (self.sidebar_workflows_view(path))
                     }
                 }
@@ -1174,7 +1176,7 @@ impl DocsTree {
         };
 
         html! {
-            div class="layout__breadcrumb-container" {
+            div class="layout__breadcrumb-container" data-pagefind-ignore="all" {
                 (root_crumb)
                 @for crumb in breadcrumbs {
                     span { " / " }
@@ -1189,7 +1191,7 @@ impl DocsTree {
     }
 
     /// Render every page in the tree.
-    pub fn render_all(&self) -> Result<()> {
+    pub fn render_all(&self) -> DocResult<()> {
         let root = self.root();
 
         for node in root.depth_first_traversal() {
@@ -1201,21 +1203,27 @@ impl DocsTree {
             }
         }
 
-        self.write_homepage()
-            .with_context(|| "failed to write homepage".to_string())?;
+        self.write_homepage()?;
+
         Ok(())
     }
 
     /// Write the homepage to disk.
-    fn write_homepage(&self) -> Result<()> {
+    fn write_homepage(&self) -> DocResult<()> {
         let index_path = self.root_abs_path().join("index.html");
 
         let left_sidebar = self.render_left_sidebar(&index_path);
         let content = html! {
             @if let Some(homepage) = &self.homepage {
                 div class="main__section" {
-                    div class="markdown-body" {
-                        (Markdown(std::fs::read_to_string(homepage).with_context(|| {
+                    div
+                        class="markdown-body"
+                        data-pagefind-body
+                        meta-img-dark="home.svg"
+                        meta-img-light="home.light.svg"
+                        data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
+                    {
+                        (Markdown(std::fs::read_to_string(homepage).map_err(Into::<DocError>::into).with_context(|| {
                             format!("failed to read provided homepage file: `{}`", homepage.display())
                         })?).render())
                     }
@@ -1245,12 +1253,14 @@ impl DocsTree {
                 self.render_right_sidebar(PageSections::default()),
                 None,
                 &self.assets_relative_to(self.root_abs_path()),
+                &index_path,
             ),
             self.root().path(),
             &self.additional_javascript,
             self.init_light_mode,
         );
         std::fs::write(&index_path, html.into_string())
+            .map_err(Into::<DocError>::into)
             .with_context(|| format!("failed to write homepage to `{}`", index_path.display()))?;
         Ok(())
     }
@@ -1282,6 +1292,92 @@ impl DocsTree {
         }
     }
 
+    /// Render the header nav.
+    fn render_header(&self, assets: &Path, path: &Path) -> Markup {
+        fn external_urls(assets: &Path, external_urls: &ExternalUrls) -> Markup {
+            fn button(assets: &Path, url: &Url, icon_name: &str) -> Markup {
+                html! {
+                    a class="header__button" target="_blank" rel="noopener noreferrer" href=(url) {
+                        img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="size-6 block light:hidden" alt=(format!("{icon_name} icon"));
+                        img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="size-6 hidden light:block" alt=(format!("{icon_name} icon"));
+                    }
+                }
+            }
+
+            let ExternalUrls { github, homepage } = external_urls;
+            if github.is_none() && homepage.is_none() {
+                return html! {};
+            }
+
+            html! {
+                div class="flex flex-row pr-6" {
+                    div class="w-px h-[80%] border-l border-slate-800 self-center pr-6" {}
+                    div class="flex flex-row gap-4 items-center" {
+                        @if let Some(github) = github {
+                            (button(assets, github, "github"))
+                        }
+                        @if let Some(homepage) = homepage {
+                            (button(assets, homepage, "link-chain"))
+                        }
+                    }
+                }
+            }
+        }
+
+        let base = path.parent().expect("path should have a parent");
+        html! {
+            div
+                class="layout__header"
+                "@keydown.window.slash"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName)) {
+                    $event.preventDefault();
+                    $refs.searchBox.focus();
+                }"
+            {
+                div class="w-full grid grid-cols-3 items-center h-12 px-6" {
+                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none block light:hidden" alt="Logo";
+                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none hidden light:block" alt="Logo";
+                    }
+                    div id="search" class="w-sm h-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
+                        input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";
+                        img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
+                        img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
+                        img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
+                        img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
+                        div id="search-shortcut-hint" x-show="$store.search.query === ''" { "/" }
+                    }
+                    div class="flex flex-row-reverse items-start justify-between col-start-3 justify-self-end" x-data="{ showTooltip: false }" {
+                        div class="relative" {
+                            button
+                            x-on:click="
+                            document.documentElement.classList.toggle('light')
+                            theme = document.documentElement.classList.contains('light') ? 'light' : 'dark'
+                            "
+                            "@mouseenter"="showTooltip = true"
+                            "@mouseleave"="showTooltip = false"
+                            "@focusin"="showTooltip = true"
+                            "@focusout"="showTooltip = false"
+                            id="theme-toggle"
+                            class="header__button" {
+                                img src=(assets.join("moon.light.svg").to_string_lossy()) class="size-6 hidden light:block";
+                                img src=(assets.join("sun.svg").to_string_lossy()) class="size-6 block light:hidden";
+                            }
+
+                            div class="absolute top-full flex flex-col items-center left-1/2 -translate-x-1/2 mt-2" x-show="showTooltip" {
+                                div class="w-3 h-3 -mb-2 rotate-45 bg-slate-800" {}
+                                div class="relative z-10 px-3 py-2 text-sm text-slate-200 bg-slate-800 rounded-md shadow-lg whitespace-nowrap" {
+                                    "Switch theme"
+                                }
+                            }
+                        }
+                    }
+                }
+                (external_urls(assets, &self.external_urls))
+            }
+        }
+    }
+
     /// Render the main layout template with left sidebar, content, and right
     /// sidebar.
     fn render_layout(
@@ -1291,6 +1387,7 @@ impl DocsTree {
         right_sidebar: Markup,
         breadcrumbs: Option<Markup>,
         assets: &Path,
+        path: &Path,
     ) -> Markup {
         html! {
             div class="layout__container layout__container--alt-layout" x-transition x-data="{
@@ -1312,35 +1409,61 @@ impl DocsTree {
                 restoreSidebar() { this.sidebarState = 'normal'; },
                 expandSidebar() { this.sidebarState = 'xl'; }
             }" x-bind:class="containerClasses" {
+                (self.render_header(assets, path))
                 div class="layout__sidebar-left" x-transition {
-                    div class="absolute top-5 right-2 flex gap-1 z-10" x-cloak x-show="showSidebarButtons" {
-                        (self.render_sidebar_control_buttons(assets))
-                    }
                     (left_sidebar)
                 }
                 div class="layout__main-center" {
                     div class="layout__main-center-content" {
-                        div {
-                            div class="flex gap-1 mb-3" x-show="showCenterButtons" {
-                                (self.render_sidebar_control_buttons(assets))
+                        @if let Some(breadcrumbs) = breadcrumbs {
+                            div class="layout__breadcrumbs" {
+                                (breadcrumbs)
                             }
-                            div class="flex flex-row-reverse items-start justify-between" {
-                                button
-                                x-on:click="
-                                document.documentElement.classList.toggle('light')
-                                localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark')
-                                "
-                                class="border border-slate-700 rounded-md h-8 flex items-center justify-center text-slate-300 text-lg w-8 cursor-pointer hover:border-slate-500" {
-                                    "☀︎"
+                        }
+                        div class="flex flex-col gap-5" x-show="$store.search.query !== ''" x-data {
+                            h2 class="text-base leading-6 font-medium" x-text="`${$store.search.results.length} results for '${$store.search.query}'`" {}
+                            div x-show="$store.search.loading" { "Loading..." }
+                            ul class="flex flex-col gap-5" {
+                                template x-for="result in $store.search.results" ":key"="result.url" {
+                                    li class="search-result" {
+                                        div class="flex flex-row gap-2 items-center" {
+                                            @let assets_str = assets.to_string_lossy().replace('\\', "/");
+                                            img
+                                                class="size-6"
+                                                x-bind:src=(format!("theme === 'dark' ? `{assets_str}/${{result.meta.image_dark}}` : `{assets_str}/${{result.meta.image_light}}`"))
+                                                x-bind:alt="result.meta.image_alt || result.meta.title";
+                                            a
+                                                ":href"="result.url"
+                                                class="text-2xl leading-8 text-slate-50 font-medium"
+                                                x-text="result.meta.title"
+                                            {}
+                                        }
+                                        p class="search-result-excerpt" x-html="result.excerpt" {}
+                                    }
                                 }
-                                @if let Some(breadcrumbs) = breadcrumbs {
-                                    div class="layout__breadcrumbs" {
-                                        (breadcrumbs)
+
+                                div x-show="!$store.search.loading && $store.search.results.length === 0" {
+                                    // No results found icon
+                                    li class="flex place-content-center" {
+                                        img src=(assets.join("search.svg").to_string_lossy()) class="size-8 block light:hidden" alt="Search icon";
+                                        img src=(assets.join("search.light.svg").to_string_lossy()) class="size-8 hidden light:block" alt="Search icon";
+                                    }
+                                    // No results found message
+                                    li class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
+                                        span x-text="'No results found for'" {}
+                                        span x-text="`\"${$store.search.query}\"`" class="text-slate-50" {}
                                     }
                                 }
                             }
                         }
-                        (content)
+                        div {
+                            div class="flex gap-1 mb-3" x-show="showCenterButtons" {
+                                (self.render_sidebar_control_buttons(assets))
+                            }
+                        }
+                        div x-show="$store.search.query === ''" {
+                            (content)
+                        }
                     }
                 }
                 div class="layout__sidebar-right" {
@@ -1353,13 +1476,14 @@ impl DocsTree {
     /// Write a page to disk at the designated path.
     ///
     /// Path is expected to be an absolute path.
-    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> Result<()> {
+    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> DocResult<()> {
         let path = path.into();
         let base = path.parent().expect("path should have a parent");
 
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
-            PageType::Struct(s) => s.render(),
+            PageType::Struct(s) => s.render(&self.assets_relative_to(base)),
+            PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
             PageType::Task(t) => t.render(&self.assets_relative_to(base)),
             PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),
         };
@@ -1376,12 +1500,14 @@ impl DocsTree {
                 self.render_right_sidebar(headers),
                 Some(breadcrumbs),
                 &self.assets_relative_to(base),
+                &path,
             ),
             self.root_relative_to(base),
             &self.additional_javascript,
             self.init_light_mode,
         );
         std::fs::write(&path, html.into_string())
+            .map_err(Into::<DocError>::into)
             .with_context(|| format!("failed to write page at `{}`", path.display()))?;
         Ok(())
     }

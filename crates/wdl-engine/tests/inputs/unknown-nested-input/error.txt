@@ -1,5 +1,1 @@
-failed to parse input file `tests/inputs/unknown-nested-input/inputs.json`
-
-Caused by:
-    0: invalid input key `bar.foo.baz`
-    1: task `foo` does not have an input named `baz`
+failed to parse input file `tests/inputs/unknown-nested-input/inputs.json`: invalid input key `bar.foo.baz`: task `foo` does not have an input named `baz`

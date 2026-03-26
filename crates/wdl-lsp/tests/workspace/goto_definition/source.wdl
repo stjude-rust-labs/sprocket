@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 import "lib.wdl" as lib
 
@@ -36,6 +36,9 @@ workflow main {
 
     #@ except: UnusedDeclaration
     String p_name = p.name
+
+    #@ except: UnusedDeclaration
+    lib.Priority priority = lib.Priority.High
 
     output {
         Int result = t3.result

@@ -7,9 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-03-12
+
 #### Added
 
+* Support for identifying and parsing comments with special meaning (i.e. directives and doc comments) ([#614](https://github.com/stjude-rust-labs/sprocket/pull/614)).
+* `Documented` trait for extracting doc comments from supported node types ([#659](https://github.com/stjude-rust-labs/sprocket/pull/659)).
+
+## 0.21.1 - 02-11-2026
+
+### Dependencies
+
+* Bumps `wdl-grammar` to v0.21.0.
+
+## 0.21.0 - 02-11-2026
+
+#### Added
+
+* Support for printing `EnumDefinition`s via `EnumDefinition::display()` and `StructDefinition`s via `Display` ([#551](https://github.com/stjude-rust-labs/sprocket/pull/551)).
+* Support `keyword` method on `CommandSection`, `RequirementsSection`, `MetadataSection`, `ParameterMetadataSection`, `ScatterStatement` and `CallStatement` for accessing the associated keyword for the syntax node ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
+* Adds an `is_inline_comment` method to `Comment` ([#590](https://github.com/stjude-rust-labs/sprocket/pull/590)).
+
+## 0.20.0 - 01-12-2026
+
+#### Fixed
+
+* Fixed `allows_nested_inputs()` not handling WDL v1.3 workflows
+  ([#534](https://github.com/stjude-rust-labs/sprocket/pull/534)).
+
+## 0.19.0 - 11-21-2025
+
+#### Added
+
+* Added AST representation for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
+
+#### Removed
+
+* Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
+
 
 ## 0.18.0 - 10-14-2025
 

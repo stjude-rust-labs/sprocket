@@ -1,7 +1,7 @@
 ## This is a test of using environment variable declarations in 1.2
 ## No diagnostics should be emitted
 
-version 1.2
+version 1.3
 
 task test {
     input {

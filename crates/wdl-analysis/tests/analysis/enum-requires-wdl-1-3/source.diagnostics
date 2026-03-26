@@ -1,0 +1,20 @@
+error: enums are not supported in WDL v1.2
+  ┌─ tests/analysis/enum-requires-wdl-1-3/source.wdl:5:6
+  │
+5 │ enum Status {
+  │      ^^^^^^ this enum is not supported
+  │
+  = fix: use WDL v1.3 or higher to use enums
+
+error: unknown type name `Status`
+   ┌─ tests/analysis/enum-requires-wdl-1-3/source.wdl:12:5
+   │
+12 │     Status s = Status.Active
+   │     ^^^^^^
+
+error: unknown name `Status`
+   ┌─ tests/analysis/enum-requires-wdl-1-3/source.wdl:12:16
+   │
+12 │     Status s = Status.Active
+   │                ^^^^^^
+

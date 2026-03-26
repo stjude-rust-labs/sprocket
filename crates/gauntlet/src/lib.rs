@@ -219,7 +219,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
         );
 
         let before = Instant::now();
-        analyzer.add_directory(repo_root.clone()).await?;
+        analyzer.add_directory(&repo_root).await?;
         let results = analyzer.analyze(()).await?;
         let elapsed = before.elapsed();
         total_time += elapsed;
@@ -267,8 +267,13 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                         continue;
                     }
                     let mut buffer = Buffer::no_color();
-                    term::emit(&mut buffer, &config, &file, &diagnostic.to_codespan(()))
-                        .context("failed to write diagnostic")?;
+                    term::emit_to_write_style(
+                        &mut buffer,
+                        &config,
+                        &file,
+                        &diagnostic.to_codespan(()),
+                    )
+                    .context("failed to write diagnostic")?;
 
                     let byte_start = diagnostic
                         .labels()

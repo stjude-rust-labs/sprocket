@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task test_map {
   Map[Int, Int] int_to_int = {1: 10, 2: 11}

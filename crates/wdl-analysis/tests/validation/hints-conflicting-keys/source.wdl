@@ -1,6 +1,6 @@
 ## This is a test of conflicting `hints` keys.
 
-version 1.2
+version 1.3
 
 task test {
     command <<<>>>

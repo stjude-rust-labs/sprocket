@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task compare_coerced {
   Array[Int] i = [1, 2, 3]

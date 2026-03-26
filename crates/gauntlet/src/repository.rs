@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::info;
 use tracing::trace;
+use tracing::warn;
 
 pub mod identifier;
 pub mod work_dir;
@@ -164,7 +165,12 @@ impl Repository {
                         format!("https://github.com/{}.git", self.identifier).as_str(),
                         &repo_root,
                     )
-                    .expect("failed to clone repository")
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "failed to clone repository `{identifier}`: {e}",
+                            identifier = self.identifier
+                        )
+                    })
             }
         };
 
@@ -187,23 +193,7 @@ impl Repository {
             }
         }
 
-        for mut submodule in git_repo
-            .submodules()
-            .expect("failed to load repository submodules")
-        {
-            let mut co = git2::build::CheckoutBuilder::new();
-            co.force();
-            let mut opts = git2::SubmoduleUpdateOptions::new();
-            opts.checkout(co);
-
-            submodule
-                .update(true, Some(&mut opts))
-                .expect("failed to update submodule");
-
-            // TODO ACF 2025-07-08: this does not account for recursive
-            // submodules, though with our current set of repos that
-            // does not cause us problems in practice.
-        }
+        update_submodules_recursive(&git_repo, 0);
 
         repo_root
     }
@@ -226,7 +216,12 @@ impl Repository {
                 format!("https://github.com/{}.git", self.identifier).as_str(),
                 &repo_root,
             )
-            .expect("failed to clone repository");
+            .unwrap_or_else(|e| {
+                panic!(
+                    "failed to clone repository `{identifier}`: {e}",
+                    identifier = self.identifier
+                )
+            });
 
         // Update the commit hash.
         let head = git_repo.head().expect("failed to get head");
@@ -235,5 +230,41 @@ impl Repository {
         let mut bytes = [0u8; 20];
         bytes.copy_from_slice(commit.id().as_bytes());
         self.commit_hash = Some(RawHash(bytes));
+    }
+}
+
+/// The maximum depth to which submodules are recursively initialized.
+const MAX_SUBMODULE_DEPTH: usize = 10;
+
+/// Recursively initialize and update all submodules within `repo`,
+/// including nested submodules up to [`MAX_SUBMODULE_DEPTH`] levels deep.
+fn update_submodules_recursive(repo: &git2::Repository, depth: usize) {
+    assert!(
+        depth < MAX_SUBMODULE_DEPTH,
+        "submodule recursion depth exceeded {MAX_SUBMODULE_DEPTH}"
+    );
+
+    for mut submodule in repo
+        .submodules()
+        .expect("failed to load repository submodules")
+    {
+        let mut co = git2::build::CheckoutBuilder::new();
+        co.force();
+        let mut opts = git2::SubmoduleUpdateOptions::new();
+        opts.checkout(co);
+
+        submodule
+            .update(true, Some(&mut opts))
+            .expect("failed to update submodule");
+
+        match submodule.open() {
+            Ok(sub_repo) => update_submodules_recursive(&sub_repo, depth + 1),
+            Err(e) => {
+                warn!(
+                    "skipping recursive submodule update: failed to open submodule as repository: \
+                     {e}"
+                );
+            }
+        }
     }
 }

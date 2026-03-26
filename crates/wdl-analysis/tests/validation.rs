@@ -53,7 +53,9 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
                 .into_owned();
             let test_runtime = runtime.clone();
             Some(Trial::test(test_name, move || {
-                Ok(test_runtime.block_on(run_test(&path))?)
+                Ok(test_runtime
+                    .block_on(run_test(&path))
+                    .map_err(|e| format!("{e:?}"))?)
             }))
         })
         .collect()
@@ -79,7 +81,7 @@ fn format_diagnostics<'a>(
     let file = SimpleFile::new(path.as_os_str().to_str().unwrap(), source);
     let mut buffer = Buffer::no_color();
     for diagnostic in diagnostics {
-        term::emit(
+        term::emit_to_write_style(
             &mut buffer,
             &CodespanConfig::default(),
             &file,
