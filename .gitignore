@@ -1,5 +1,8 @@
 .DS_Store
 
+# Local tool binaries (e.g. shellcheck for `gauntlet --arena`)
+.tools/
+
 target/
 .vscode/
 

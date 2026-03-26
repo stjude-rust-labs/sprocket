@@ -192,7 +192,7 @@ impl GenericType {
             Self::Map(map) => map.infer_type_parameters(ty, params, ignore_constraints),
             Self::EnumInnerValue(_) => {
                 // NOTE: this is an intentional no-op—the value type is derived
-                // from the variant parameter, not inferred from arguments.
+                // from the choice parameter, not inferred from arguments.
             }
         }
     }
@@ -578,12 +578,12 @@ impl GenericEnumInnerValueType {
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let (_, variant_ty) = self
+                let (_, choice_ty) = self
                     .params
                     .get(self.ty.param)
-                    .expect("variant parameter should be present");
+                    .expect("choice parameter should be present");
 
-                match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+                match choice_ty.as_ref().and_then(|t| t.as_enum()) {
                     Some(enum_ty) => enum_ty.inner_value_type().fmt(f),
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "{}", self.ty.param),
@@ -596,12 +596,12 @@ impl GenericEnumInnerValueType {
 
     /// Realizes the generic type to the enum's inner value type.
     fn realize(&self, params: &TypeParameters<'_>) -> Option<Type> {
-        let (_, variant_ty) = params
+        let (_, choice_ty) = params
             .get(self.param)
-            .expect("variant parameter should be present");
+            .expect("choice parameter should be present");
 
         // NOTE: non-enums should gracefully fail.
-        variant_ty
+        choice_ty
             .as_ref()
             .and_then(|t| t.as_enum())
             .map(|enum_ty| enum_ty.inner_value_type().clone())
@@ -611,7 +611,7 @@ impl GenericEnumInnerValueType {
     fn assert_type_parameters(&self, parameters: &[TypeParameter]) {
         assert!(
             parameters.iter().any(|p| p.name == self.param),
-            "generic enum variant type references unknown type parameter `{}`",
+            "generic enum choice type references unknown type parameter `{}`",
             self.param
         );
     }
@@ -4910,7 +4910,7 @@ task values_map {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", MapKeyConstraint)
+                        .type_parameter("K", NonOptionalPrimitiveTypeConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "pairs",
@@ -4969,22 +4969,22 @@ task collect_by_key {
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::Three))
                         .any_type_parameter("T")
-                        .type_parameter("V", EnumVariantConstraint)
+                        .type_parameter("V", EnumChoiceConstraint)
                         .parameter(
-                            "variant",
+                            "choice",
                             GenericType::Parameter("V"),
-                            "An enum variant of any enum type.",
+                            "An enum choice of any enum type.",
                         )
                         .ret(GenericEnumInnerValueType::new("T"))
                         .definition(
                             r##"
-Returns the underlying value associated with an enum variant.
+Returns the underlying value associated with an enum choice.
 
 **Parameters**
 
-1. `Enum`: an enum variant of any enum type.
+1. `Enum`: an enum choice of any enum type.
 
-**Returns**: The variant's associated value.
+**Returns**: The choice's associated value.
 
 Example: test_enum_value.wdl
 
@@ -5010,11 +5010,11 @@ workflow test_enum_value {
   }
 
   output {
-    String variant_name = "~{color}"   # "Red"
+    String choice_name = "~{color}"   # "Red"
     String hex_value = value(color)    # "#FF0000"
     Int priority_num = value(priority) # 10
     Boolean values_equal = value(Color.Red) == value(Color.Red) # true
-    Boolean variants_equal = Color.Red == Color.Red             # true
+    Boolean choices_equal = Color.Red == Color.Red              # true
   }
 }
 ```
@@ -5286,7 +5286,7 @@ mod test {
                 "values(map: Map[K, V]) -> Array[V] where `K`: any non-optional primitive type",
                 "collect_by_key(pairs: Array[Pair[K, V]]) -> Map[K, Array[V]] where `K`: any \
                  non-optional primitive type",
-                "value(variant: V) -> T where `V`: any enum variant",
+                "value(choice: V) -> T where `V`: any enum choice",
                 "defined(value: X) -> Boolean",
                 "length(array: Array[X]) -> Int",
                 "length(map: Map[K, V]) -> Int",

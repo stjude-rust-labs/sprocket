@@ -7,8 +7,8 @@ use maud::html;
 use wdl_ast::AstToken;
 use wdl_ast::Documented;
 use wdl_ast::SupportedVersion;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::EnumDefinition;
-use wdl_ast::v1::EnumVariant;
 
 use crate::VersionBadge;
 use crate::docs_tree::PageSections;
@@ -19,13 +19,13 @@ use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
 use crate::meta::main_container;
 
-/// An [`EnumVariant`] with an associated [`MetaMap`].
+/// An [`EnumChoice`] with an associated [`MetaMap`].
 #[derive(Debug)]
 pub(crate) struct DocumentedEnumChoice {
     /// The enum choice's `meta`, derived from its doc comments.
     meta: MetaMap,
     /// The AST definition of the enum choice.
-    choice: EnumVariant,
+    choice: EnumChoice,
 }
 
 impl DefinitionMeta for DocumentedEnumChoice {
@@ -39,7 +39,7 @@ impl DefinitionMeta for DocumentedEnumChoice {
 pub(crate) struct Enum {
     /// The enum's `meta`, derived from its doc comments.
     meta: MetaMap,
-    /// The enum's choices (variants).
+    /// The enum's choices.
     choices: Vec<DocumentedEnumChoice>,
     /// The AST definition of the enum.
     definition: EnumDefinition,
@@ -153,7 +153,7 @@ fn parse_meta(
     };
 
     let mut choice_docs = Vec::new();
-    for choice in definition.variants() {
+    for choice in definition.choices() {
         let meta = if enable_doc_comments && let Some(comments) = choice.doc_comments() {
             doc_comments(comments)
         } else {
@@ -187,7 +187,7 @@ mod tests {
             version 1.3
             ## An RGB24 color enum
             ##
-            ## Each variant is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
+            ## Each choice is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
             enum Color[String] {
                 ## Pure red
                 Red = "#FF0000",
@@ -205,7 +205,7 @@ mod tests {
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(
-                "An RGB24 color enum\n\nEach variant is represented as a 24-bit hexadecimal RGB \
+                "An RGB24 color enum\n\nEach choice is represented as a 24-bit hexadecimal RGB \
                  string with exactly one non-zero channel."
             )
         );

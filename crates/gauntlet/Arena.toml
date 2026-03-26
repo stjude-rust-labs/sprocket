@@ -538,6 +538,31 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:49:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:53:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:57:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L57"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:63:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L63"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:67:10: note[ShellCheck]: Use -n instead of ! -z."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
 message = "ww-fastqc.wdl:77:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L77"
 
@@ -660,6 +685,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:486:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L486"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:488:11: note[ShellCheck]: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L488"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -835,6 +865,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:170:7: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L170"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:176:13: note[ShellCheck]: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead."
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L176"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
