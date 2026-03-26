@@ -9193,6 +9193,11 @@ message = "ww-delly.wdl:36:10: warning[UnusedInput]: unused input `reference_fas
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-delly/ww-delly.wdl/#L36"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-diamond/testrun.wdl"
+message = "testrun.wdl:7:20: error: unknown task or workflow `download_diamond_data`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-diamond/testrun.wdl/#L7"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1271:10: warning[UnusedInput]: unused input `bam_index`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-gatk/ww-gatk.wdl/#L1271"
@@ -9318,6 +9323,11 @@ message = "ww-strelka.wdl:36:10: warning[UnusedInput]: unused input `ref_fasta_i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-strelka/ww-strelka.wdl/#L36"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/testrun.wdl"
+message = "testrun.wdl:62:20: error: unknown task or workflow `download_diamond_data`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-testdata/testrun.wdl/#L62"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:36:10: warning[UnusedInput]: unused input `bam_index_path`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-tritonnp/ww-tritonnp.wdl/#L36"
@@ -9326,251 +9336,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:40:10: warning[UnusedInput]: unused input `reference_genome_index`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-tritonnp/ww-tritonnp.wdl/#L40"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:147:13: error: expected metadata key, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:147:14: error: expected `,`, but found `output` keyword"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:147:21: error: expected `,`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:147:21: error: expected `:`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:147:25: error: expected `:`, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L147"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:16: warning[UnusedInput]: unused input `outfile_name`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:40: error: expected expression, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:41: error: expected `,`, but found `input` keyword"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:47: error: expected `,`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:47: error: expected `{`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:47: error: unknown name `file`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:156:52: error: expected expression, but found `,`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L156"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:163:14: error: expected output name, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L163"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:163:26: error: expected output name, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L163"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:164:5: error: expected output name, but found `}`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L164"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:176:13: error: expected metadata key, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L176"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:176:14: error: expected `,`, but found `output` keyword"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L176"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:176:21: error: expected `,`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L176"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:176:21: error: expected `:`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L176"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:176:25: error: expected `:`, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L176"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:16: warning[UnusedInput]: unused input `prefix`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:34: error: expected expression, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:35: error: expected `,`, but found `input` keyword"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:41: error: expected `,`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:41: error: expected `{`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:41: error: unknown name `file`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:185:46: error: expected expression, but found `,`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L185"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:192:14: error: expected output name, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L192"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:192:26: error: expected output name, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L192"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:192:37: error: expected output name, but found `+`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L192"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:209:23: error: expected `:`, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L209"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:209:9: error: expected metadata key, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L209"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:210:56: error: expected metadata key, but found `,`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L210"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:217:23: error: expected declaration name, but found `>`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L217"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:217:9: error: expected input section, command section, output section, runtime section, metadata section, parameter metadata section, or private declaration, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L217"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:218:24: error: expected declaration name, but found `:`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L218"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:219:20: error: expected declaration name, but found `:`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L219"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:220:20: error: expected declaration name, but found `:`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L220"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:221:20: error: expected declaration name, but found `:`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L221"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:222:20: error: expected declaration name, but found `:`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L222"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:224:9: error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `}`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L224"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:35: error: expected expression, but found `<`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:36: error: expected `,`, but found `input` keyword"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:42: error: expected `,`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:42: error: expected `{`, but found identifier"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:42: error: unknown name `files`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:47:48: error: expected expression, but found `,`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L47"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:49:42: error: unknown name `X`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L49"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/template/task-examples.wdl"
-message = "task-examples.wdl:50:45: error: unknown name `Y`"
-permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/template/task-examples.wdl/#L50"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"

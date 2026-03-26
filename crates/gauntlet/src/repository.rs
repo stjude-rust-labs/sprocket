@@ -70,10 +70,6 @@ pub struct Repository {
 
     /// The commit hash for the [`Repository`].
     commit_hash: Option<RawHash>,
-
-    /// A list of documents that should be filtered out from the repository.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    filters: Vec<String>,
 }
 
 impl Repository {
@@ -122,7 +118,6 @@ impl Repository {
         Self {
             identifier,
             commit_hash: Some(commit_hash),
-            filters: Default::default(),
         }
     }
 
@@ -134,11 +129,6 @@ impl Repository {
     /// Gets the commit hash from the [`Repository`] by reference.
     pub fn commit_hash(&self) -> &Option<RawHash> {
         &self.commit_hash
-    }
-
-    /// Gets the file path filters for the repository.
-    pub fn filters(&self) -> &[String] {
-        &self.filters
     }
 
     /// Check out files from the [`Repository`].
