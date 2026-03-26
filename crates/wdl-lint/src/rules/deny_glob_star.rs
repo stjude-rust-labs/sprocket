@@ -38,13 +38,49 @@ impl Rule for DenyGlobStar {
     }
 
     fn description(&self) -> &'static str {
-        "Ensures glob(\"*\") is not used in output declarations."
+        "Ensures `glob(\"*\")` is not used in output declarations."
     }
 
     fn explanation(&self) -> &'static str {
-        "glob(\"*\") captures all files; as a task grows, you may include unintended files and \
+        "`glob(\"*\")` captures all files; as a task grows, you may include unintended files and \
          cause unnecessary aggregation. Prefer explicit patterns to opt in only to the files you \
          need, keeping tasks easier to debug/reproduce."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task generate_files {
+    command <<<
+        touch foo.txt
+        touch bar.txt
+    >>>
+
+    output {
+        Array[File] files = glob("*")
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task generate_files {
+    command <<<
+        touch foo.txt
+        touch bar.txt
+    >>>
+
+    output {
+        # Specifically collect the .txt files
+        Array[File] files = glob("*.txt")
+    }
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {
@@ -59,7 +95,7 @@ impl Rule for DenyGlobStar {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }

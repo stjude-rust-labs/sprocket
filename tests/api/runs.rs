@@ -15,6 +15,7 @@ use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
 use tempfile::TempDir;
@@ -87,6 +88,7 @@ where
     let poll_interval = std::time::Duration::from_millis(100);
     let max_polls = (timeout_secs * 1000) / 100;
 
+    let mut last_status = None;
     for _ in 0..max_polls {
         tokio::time::sleep(poll_interval).await;
 
@@ -96,12 +98,16 @@ where
             .map_err(|e| format!("database error: {}", e))?
             .ok_or_else(|| "run not found".to_string())?;
 
+        last_status = Some(run.status);
         if predicate(&run) {
             return Ok(run.status);
         }
     }
 
-    Err(format!("{} (timeout: {} seconds)", error_msg, timeout_secs))
+    Err(format!(
+        "{} (timeout: {} seconds, last status: {:?})",
+        error_msg, timeout_secs, last_status
+    ))
 }
 
 /// Poll until run reaches any terminal state with `completed_at` set.
@@ -140,6 +146,42 @@ async fn poll_for_status(
         &format!("run did not reach status {:?}", expected),
     )
     .await
+}
+
+/// Poll until at least one task matching `prefix` reaches `Running` status.
+async fn poll_for_task_running(
+    db: &Arc<dyn Database>,
+    run_id: uuid::Uuid,
+    prefix: &str,
+    timeout_secs: u64,
+) -> Result<(), String> {
+    let poll_interval = std::time::Duration::from_millis(250);
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+    loop {
+        let tasks = db
+            .list_tasks(Some(run_id), None, None, None)
+            .await
+            .map_err(|e| format!("database error: {}", e))?;
+        if tasks
+            .iter()
+            .any(|t| t.name.starts_with(prefix) && t.status == TaskStatus::Running)
+        {
+            return Ok(());
+        }
+        if tokio::time::Instant::now() >= deadline {
+            let statuses: Vec<_> = tasks
+                .iter()
+                .map(|t| format!("{}: {:?}", t.name, t.status))
+                .collect();
+            return Err(format!(
+                "timed out waiting for task `{}` to reach Running (timeout: {}s, tasks: [{}])",
+                prefix,
+                timeout_secs,
+                statuses.join(", ")
+            ));
+        }
+        tokio::time::sleep(poll_interval).await;
+    }
 }
 
 /// Simple WDL workflow for testing.
@@ -379,21 +421,32 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
 
 #[sqlx::test]
 #[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
-async fn cancel_running_run(pool: sqlx::SqlitePool) {
+async fn cancel_running_run_lazy(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
-    // Write long-running WDL to a file
+    // Write a WDL workflow whose single task sleeps briefly, produces output,
+    // then completes. The sleep must be long enough for us to issue a cancel
+    // while the task is still running.
     let wdl_content = r#"
 version 1.2
 
 workflow long_test {
     call sleep_task
+
+    output {
+        String result = sleep_task.result
+    }
 }
 
 task sleep_task {
     command <<<
-        sleep 30
+        sleep 5
+        echo -n "completed"
     >>>
+
+    output {
+        String result = read_string(stdout())
+    }
 
     runtime {
         container: "ubuntu:latest"
@@ -428,12 +481,18 @@ task sleep_task {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id = submit_response["uuid"].as_str().unwrap();
 
-    // Wait for workflow to start running
-    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 120)
+    // Wait for the task to actually be running inside Docker before canceling
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
-    // First cancel request (with slow failure mode, should go to Canceling)
+    // Send a single cancel in slow (default) failure mode. This transitions
+    // to the `Waiting` state, which prevents new tasks from starting but
+    // lets currently running tasks finish. Since the only task is already
+    // executing, it should complete successfully.
     let cancel_response = app
         .clone()
         .oneshot(
@@ -448,58 +507,333 @@ task sleep_task {
 
     assert_eq!(cancel_response.status(), StatusCode::OK);
 
-    // Verify workflow is canceling or canceled in database
-    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
-
-    assert!(
-        matches!(run.status, RunStatus::Canceling | RunStatus::Canceled),
-        "expected `Canceling` or `Canceled`, got `{}`",
-        run.status
-    );
-    assert!(run.started_at.is_some());
-    if run.status == RunStatus::Canceled {
-        assert!(run.completed_at.is_some());
-    } else {
-        assert!(run.completed_at.is_none());
-    }
-    assert!(run.outputs.is_none());
-
-    // If still `Canceling`, send a second cancel request to force `Canceled`
-    if run.status == RunStatus::Canceling {
-        let cancel_response2 = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method("POST")
-                    .uri(format!("/api/v1/runs/{}/cancel", run_id))
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(cancel_response2.status(), StatusCode::OK);
-    }
-
-    // Poll for the run to reach `Canceled` status
-    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
+    // The run should complete successfully despite the lazy cancellation
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Completed, 30)
         .await
-        .expect("run should reach `Canceled` status after cancellation");
+        .expect("run should complete successfully after lazy cancellation");
 
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
     assert!(run.started_at.is_some());
     assert!(run.completed_at.is_some());
-    assert!(run.outputs.is_none());
+    assert!(
+        run.outputs.is_some(),
+        "lazy-canceled run that completed should have outputs"
+    );
 
-    // Verify no results were indexed
-    let index_entries = db
-        .list_index_log_entries_by_run(run_id.parse().unwrap())
+    let outputs: serde_json::Value = serde_json::from_str(&run.outputs.unwrap()).unwrap();
+    assert_eq!(
+        outputs["long_test.result"], "completed",
+        "task output should be preserved after lazy cancellation"
+    );
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn cancel_running_run_force(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
+
+    // Write a WDL workflow whose task sleeps long enough for us to issue two
+    // cancel requests (lazy then force) while it is still running.
+    let wdl_content = r#"
+version 1.2
+
+workflow long_test {
+    call sleep_task
+
+    output {
+        String result = sleep_task.result
+    }
+}
+
+task sleep_task {
+    command <<<
+        sleep 30
+        echo -n "completed"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("long.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    // Submit workflow
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
         .await
         .unwrap();
-    assert_eq!(
-        index_entries.len(),
-        0,
-        "canceled workflow should not have indexed results"
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
+
+    // Wait for the task to actually be running inside Docker before canceling
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
+        .await
+        .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
+
+    // First cancel: transitions to `Waiting` (lazy cancel)
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    // Wait for the lazy cancel to be reflected in the database
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceling, 15)
+        .await
+        .expect("run should reach `Canceling` status after first cancel");
+
+    // Second cancel: transitions to `Canceling` (force cancel)
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    // The run should be canceled
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 15)
+        .await
+        .expect("run should reach `Canceled` status after force cancellation");
+
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    assert!(run.started_at.is_some());
+    assert!(run.completed_at.is_some());
+    assert!(
+        run.outputs.is_none(),
+        "force-canceled run should not have outputs"
+    );
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn cancel_running_run_lazy_prevents_new_tasks(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
+
+    // Write a workflow with three sequential tasks. The first completes
+    // immediately, the second sleeps (giving us time to cancel), and the third
+    // depends on the second so it has not yet started when the cancel arrives.
+    //
+    // With lazy cancel:
+    //   - `fast_task`: already completed before the cancel
+    //   - `slow_task`: in-flight, allowed to finish
+    //   - `final_task`: not yet started, should be canceled
+    //
+    // Because `final_task` never runs, the workflow cannot produce its outputs,
+    // so the overall run ends as `Canceled`.
+    let wdl_content = r#"
+version 1.2
+
+workflow sequential_test {
+    call fast_task
+    call slow_task { input: dep = fast_task.result }
+    call final_task { input: dep = slow_task.result }
+
+    output {
+        String fast = fast_task.result
+        String slow = slow_task.result
+        String final_result = final_task.result
+    }
+}
+
+task fast_task {
+    command <<<
+        echo -n "fast_done"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+
+task slow_task {
+    input {
+        String dep
+    }
+
+    command <<<
+        sleep 5
+        echo -n "slow_done"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+
+task final_task {
+    input {
+        String dep
+    }
+
+    command <<<
+        echo -n "final_done"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("sequential.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    // Submit workflow
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
+
+    // Wait for workflow to start running
+    let run_uuid: uuid::Uuid = run_id.parse().unwrap();
+    poll_for_status(&db, run_uuid, RunStatus::Running, 30)
+        .await
+        .expect("workflow should start running");
+
+    // Wait for `slow_task` to actually be running inside Docker before canceling
+    poll_for_task_running(&db, run_uuid, "slow_task-", 60)
+        .await
+        .expect("slow_task should be running");
+
+    // Send a single cancel (lazy). `slow_task` should finish but `final_task`
+    // should never start.
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    // The run should be canceled because the workflow could not fully complete.
+    // Use `poll_for_completion` rather than `poll_for_status` to avoid a race
+    // where the status is updated to `Canceled` before `completed_at` is set.
+    let status = poll_for_completion(&db, run_uuid, 30)
+        .await
+        .expect("run should reach a terminal status after lazy cancellation");
+    assert_eq!(status, RunStatus::Canceled);
+
+    let run = db.get_run(run_uuid).await.unwrap().unwrap();
+    assert!(run.started_at.is_some());
+    assert!(
+        run.outputs.is_none(),
+        "partially-canceled workflow should not have outputs"
+    );
+
+    // Verify individual task statuses via the database. Filter out internal
+    // tasks (e.g., `docker-chown-*`) so we only inspect the WDL call tasks.
+    let tasks = db
+        .list_tasks(Some(run_uuid), None, None, None)
+        .await
+        .unwrap();
+    let wdl_tasks: Vec<_> = tasks
+        .iter()
+        .filter(|t| {
+            t.name.starts_with("fast_task-")
+                || t.name.starts_with("slow_task-")
+                || t.name.starts_with("final_task-")
+        })
+        .collect();
+
+    // `fast_task` and `slow_task` should have been created and completed
+    // with successful exit statuses; `final_task` should never have been
+    // created because the lazy cancel prevented it from starting.
+    let fast_task = wdl_tasks
+        .iter()
+        .find(|t| t.name.starts_with("fast_task-"))
+        .expect("fast_task should exist");
+    assert_eq!(fast_task.status, TaskStatus::Completed);
+    assert_eq!(fast_task.exit_status, Some(0));
+    assert!(fast_task.completed_at.is_some());
+
+    let slow_task = wdl_tasks
+        .iter()
+        .find(|t| t.name.starts_with("slow_task-"))
+        .expect("slow_task should exist");
+    assert_eq!(slow_task.status, TaskStatus::Completed);
+    assert_eq!(slow_task.exit_status, Some(0));
+    assert!(slow_task.completed_at.is_some());
+
+    assert!(
+        !wdl_tasks.iter().any(|t| t.name.starts_with("final_task-")),
+        "final_task should never have been created"
     );
 }
 
@@ -564,10 +898,13 @@ task sleep_task {
     let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
     let run_id = submit_response["uuid"].as_str().unwrap();
 
-    // Wait for workflow to start running
-    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 120)
+    // Wait for the task to actually be running inside Docker before canceling
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
         .await
         .expect("workflow should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
 
     // With fast failure mode, single cancel request should go straight to Cancelled
     let cancel_response = app
@@ -588,6 +925,290 @@ task sleep_task {
     poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
         .await
         .expect("run should reach `Canceled` status after cancel");
+
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    assert!(run.started_at.is_some());
+    assert!(run.completed_at.is_some());
+    assert!(run.outputs.is_none());
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn cancel_task_target_lazy(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
+
+    let wdl_content = r#"
+version 1.2
+
+task sleep_task {
+    command <<<
+        sleep 5
+        echo -n "completed"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("task.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+        "target": "sleep_task",
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
+        .await
+        .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
+
+    // Lazy cancel while the task is in-flight. Since this is the only task
+    // and it is already executing, it should complete with its actual results.
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Completed, 30)
+        .await
+        .expect("task target should complete after lazy cancellation");
+
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    assert!(run.started_at.is_some());
+    assert!(run.completed_at.is_some());
+    assert!(
+        run.outputs.is_some(),
+        "lazy-canceled task target should have outputs"
+    );
+
+    let outputs: serde_json::Value = serde_json::from_str(&run.outputs.unwrap()).unwrap();
+    assert_eq!(
+        outputs["sleep_task.result"], "completed",
+        "task output should be preserved after lazy cancellation"
+    );
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn cancel_task_target_force(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
+
+    let wdl_content = r#"
+version 1.2
+
+task sleep_task {
+    command <<<
+        sleep 30
+        echo -n "completed"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("task.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+        "target": "sleep_task",
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
+        .await
+        .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
+
+    // First cancel: lazy
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceling, 15)
+        .await
+        .expect("task target should reach `Canceling` after first cancel");
+
+    // Second cancel: force
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 15)
+        .await
+        .expect("task target should reach `Canceled` after force cancellation");
+
+    let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
+    assert!(run.started_at.is_some());
+    assert!(run.completed_at.is_some());
+    assert!(
+        run.outputs.is_none(),
+        "force-canceled task target should not have outputs"
+    );
+}
+
+#[sqlx::test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+async fn cancel_task_target_fast_mode(pool: sqlx::SqlitePool) {
+    let engine_config = wdl::engine::Config {
+        failure_mode: wdl::engine::config::FailureMode::Fast,
+        ..Default::default()
+    };
+
+    let (app, db, temp) = create_test_server()
+        .pool(pool)
+        .engine(engine_config)
+        .call()
+        .await;
+
+    let wdl_content = r#"
+version 1.2
+
+task sleep_task {
+    command <<<
+        sleep 30
+    >>>
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("task.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+        "target": "sleep_task",
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id = submit_response["uuid"].as_str().unwrap();
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Running, 30)
+        .await
+        .expect("task should start running");
+    poll_for_task_running(&db, run_id.parse().unwrap(), "sleep_task-", 60)
+        .await
+        .expect("sleep_task should be running");
+
+    let cancel_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(cancel_response.status(), StatusCode::OK);
+
+    poll_for_status(&db, run_id.parse().unwrap(), RunStatus::Canceled, 30)
+        .await
+        .expect("task target should reach `Canceled` after fast mode cancel");
 
     let run = db.get_run(run_id.parse().unwrap()).await.unwrap().unwrap();
     assert!(run.started_at.is_some());

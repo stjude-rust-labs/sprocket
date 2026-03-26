@@ -90,12 +90,44 @@ impl Rule for DeprecatedPlaceholderRule {
 
          - `sep` placeholder options should be replaced by the `sep()` standard library function.
          - `true/false` placeholder options should be replaced with `if`/`else` statements.
-         - `default` placeholder options should be replaced by the `select_first()` standard \
-         library function.
+         - `default` placeholder options should be replaced by the `select_first()` standard library \
+          function.
          - `${}` interpolation placeholders should be replaced by `~{}` interpolation placeholders.
 
-         This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this \
-         was the version where the deprecation was introduced."
+
+This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this was the \
+         version where the deprecation was introduced."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep="," names}"
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep(",", names)}"
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
@@ -111,7 +143,7 @@ impl Rule for DeprecatedPlaceholderRule {
         TagSet::new(&[Tag::Deprecated])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["DeprecatedObject", "ExpectedRuntimeKeys"]
     }
 }
