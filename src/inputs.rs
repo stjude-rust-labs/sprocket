@@ -146,17 +146,20 @@ impl Invocation {
     ///
     /// * If the key already starts with `"{target}."`, it is returned as-is.
     /// * Otherwise the key is prefixed with `"{target}."`.
-    fn prefix_key(&self, key: String) -> Result<String> {
+    fn prefix_key(&self, key: String) -> String {
         match &self.target {
             Some(target) => {
-                let dot_prefix = format!("{target}.");
-                if key.starts_with(&dot_prefix) {
-                    Ok(key)
+                if key
+                    .strip_prefix(target)
+                    .and_then(|r| r.strip_prefix('.'))
+                    .is_some()
+                {
+                    key
                 } else {
-                    Ok(format!("{dot_prefix}{key}"))
+                    format!("{target}.{key}")
                 }
             }
-            None => Ok(key),
+            None => key,
         }
     }
 
@@ -166,14 +169,14 @@ impl Invocation {
             Input::File(url) => {
                 let inputs = file::read_input_file(&url).await?;
                 for (key, value) in inputs {
-                    self.inputs.insert(self.prefix_key(key)?, value);
+                    self.inputs.insert(self.prefix_key(key), value);
                 }
             }
             Input::Pair { key, value } => {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = self.prefix_key(key)?;
+                let key = self.prefix_key(key);
                 self.inputs.insert(
                     key,
                     LocatedJsonValue {
