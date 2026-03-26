@@ -1,7 +1,7 @@
 RootNode@0..237
   Comment@0..81 "## This is a test for ..."
   Whitespace@81..82 "\n"
-  Comment@82..151 "## The comments should ..."
+  Comment@82..151 "## The comments shoul ..."
   Whitespace@151..153 "\n\n"
   VersionStatementNode@153..164
     VersionKeyword@153..160 "version"

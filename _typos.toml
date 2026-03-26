@@ -31,9 +31,6 @@ extend-exclude = [
     "crates/wdl-engine/tests/workflows/map-to-array/",
     "crates/wdl-engine/tests/workflows/pair-to-array/",
     "crates/gauntlet/",
+    "crates/wdl-grammar/tests/parsing/"
 ]
 ignore-hidden = true
-
-[type.po]
-extend-glob = ["*.po"]
-check-file = false
