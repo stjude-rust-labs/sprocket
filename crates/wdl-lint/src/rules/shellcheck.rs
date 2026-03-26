@@ -248,7 +248,7 @@ impl Rule for ShellCheckRule {
     }
 
     fn related_rules(&self) -> &[&'static str] {
-        &[]
+        &["OptionalInputSafety"]
     }
 }
 
