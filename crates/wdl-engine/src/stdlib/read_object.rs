@@ -168,7 +168,7 @@ mod test {
         env.write_file("too-few-columns.tsv", "foo\tbar\nbaz\n");
         env.write_file("too-many-columns.tsv", "foo\tbar\nbaz\tqux\twrong\n");
         env.write_file("duplicate.tsv", "foo\tbar\tfoo\nbaz\tqux\tfoo\n");
-        env.write_file("invalid-name.tsv", "foo\tbar-wrong\tfoo\nbaz\tqux\tfoo\n");
+        env.write_file("invalid-name.tsv", "foo\ttask\tfoo\nbaz\tqux\tfoo\n");
 
         let diagnostic = eval_v1_expr(&env, V1::Two, "read_object('empty.tsv')")
             .await
@@ -229,7 +229,7 @@ mod test {
         assert_eq!(
             diagnostic.message(),
             "call to function `read_object` failed: line 1 of file `invalid-name.tsv` contains \
-             invalid column name `bar-wrong`: column name must be a valid WDL identifier"
+             invalid column name `task`: column name must be a valid WDL identifier"
         );
 
         for file in ["object.tsv", "https://example.com/object.tsv"] {
