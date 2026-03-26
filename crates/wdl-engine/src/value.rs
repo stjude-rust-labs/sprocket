@@ -880,53 +880,53 @@ impl Coercible for Value {
                     bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
             }
-            // String -> Enum Variant
+            // String -> Enum Choice
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
                 // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
 
                 if enum_ty
-                    .variants()
+                    .choices()
                     .iter()
-                    .any(|variant_name| variant_name == s.as_str())
+                    .any(|choice_name| choice_name == s.as_str())
                 {
                     if let Some(context) = context {
-                        if let Ok(value) = context.enum_variant_value(enum_ty.name(), s) {
-                            return Ok(Value::Compound(CompoundValue::EnumVariant(
-                                EnumVariant::new(enum_ty.clone(), s.as_str(), value),
+                        if let Ok(value) = context.enum_choice_value(enum_ty.name(), s) {
+                            return Ok(Value::Compound(CompoundValue::EnumChoice(
+                                EnumChoice::new(enum_ty.clone(), s.as_str(), value),
                             )));
                         } else {
                             bail!(
-                                "enum variant value lookup failed for variant `{s}` in enum `{}`",
+                                "enum choice value lookup failed for choice `{s}` in enum `{}`",
                                 enum_ty.name()
                             );
                         }
                     } else {
                         bail!(
-                            "context does not exist when creating enum variant value `{s}` in \
-                             enum `{}`",
+                            "context does not exist when creating enum choice value `{s}` in enum \
+                             `{}`",
                             enum_ty.name()
                         );
                     }
                 }
 
-                let variants = if enum_ty.variants().is_empty() {
+                let choices = if enum_ty.choices().is_empty() {
                     None
                 } else {
-                    let mut variant_names = enum_ty.variants().to_vec();
-                    variant_names.sort();
-                    Some(format!(" (variants: `{}`)", variant_names.join("`, `")))
+                    let mut choice_names = enum_ty.choices().to_vec();
+                    choice_names.sort();
+                    Some(format!(" (choices: `{}`)", choice_names.join("`, `")))
                 }
                 .unwrap_or_default();
 
                 bail!(
-                    "cannot coerce type `String` to type `{target}`: variant `{s}` not found in \
-                     enum `{}`{variants}",
+                    "cannot coerce type `String` to type `{target}`: choice `{s}` not found in \
+                     enum `{}`{choices}",
                     enum_ty.name()
                 );
             }
-            // Enum Variant -> String
-            Self::Compound(CompoundValue::EnumVariant(e))
+            // Enum Choice -> String
+            Self::Compound(CompoundValue::EnumChoice(e))
                 if target
                     .as_primitive()
                     .map(|t| matches!(t, PrimitiveType::String))
@@ -2196,50 +2196,49 @@ impl fmt::Display for Struct {
     }
 }
 
-/// The inner representation of an enum variant value.
+/// The inner representation of an enum choice value.
 #[derive(Debug)]
-struct EnumVariantInner {
-    /// The type of the enum containing this variant.
+struct EnumChoiceInner {
+    /// The type of the enum containing this choice.
     enum_ty: EnumType,
-    /// The index of the variant in the enum type.
-    variant_index: usize,
-    /// The value of the variant.
+    /// The index of the choice in the enum type.
+    choice_index: usize,
+    /// The value of the choice.
     value: Value,
 }
 
-/// An enum variant value.
+/// An enum choice value.
 ///
-/// A variant enum is the name of the enum variant and the type of the enum from
-/// which that variant can be looked up.
+/// An enum choice is identified by its enum type and choice name.
 ///
 /// This type is cheaply cloneable.
 #[derive(Debug, Clone)]
-pub struct EnumVariant(Arc<EnumVariantInner>);
+pub struct EnumChoice(Arc<EnumChoiceInner>);
 
-impl PartialEq for EnumVariant {
+impl PartialEq for EnumChoice {
     fn eq(&self, other: &Self) -> bool {
-        self.0.enum_ty == other.0.enum_ty && self.0.variant_index == other.0.variant_index
+        self.0.enum_ty == other.0.enum_ty && self.0.choice_index == other.0.choice_index
     }
 }
 
-impl EnumVariant {
-    /// Attempts to create a new enum variant from a enum type and variant name.
+impl EnumChoice {
+    /// Attempts to create a new enum choice from an enum type and choice name.
     ///
     /// # Panics
     ///
-    /// Panics if the given variant name is not present in the given enum type.
+    /// Panics if the given choice name is not present in the given enum type.
     pub fn new(enum_ty: impl Into<EnumType>, name: &str, value: impl Into<Value>) -> Self {
         let enum_ty = enum_ty.into();
 
-        let variant_index = enum_ty
-            .variants()
+        let choice_index = enum_ty
+            .choices()
             .iter()
             .position(|v| v == name)
-            .expect("variant name must exist in enum type");
+            .expect("choice name must exist in enum type");
 
-        Self(Arc::new(EnumVariantInner {
+        Self(Arc::new(EnumChoiceInner {
             enum_ty,
-            variant_index,
+            choice_index,
             value: value.into(),
         }))
     }
@@ -2249,26 +2248,26 @@ impl EnumVariant {
         self.0.enum_ty.clone()
     }
 
-    /// Gets the name of the variant.
+    /// Gets the name of the choice.
     pub fn name(&self) -> &str {
-        &self.0.enum_ty.variants()[self.0.variant_index]
+        &self.0.enum_ty.choices()[self.0.choice_index]
     }
 
-    /// Gets the value of the variant.
+    /// Gets the value of the choice.
     pub fn value(&self) -> &Value {
         &self.0.value
     }
 }
 
-/// Displays the variant name when an enum is used in string interpolation.
+/// Displays the choice name when an enum is used in string interpolation.
 ///
 /// # Design Decision
 ///
-/// When an enum variant is interpolated in a WDL string (e.g., `"~{Color.Red}"`
-/// where `Red = "#FF0000"`), this implementation displays the **variant name**
+/// When an enum choice is interpolated in a WDL string (e.g., `"~{Color.Red}"`
+/// where `Red = "#FF0000"`), this implementation displays the **choice name**
 /// (`"Red"`) rather than the underlying **value** (`"#FF0000"`).
 ///
-/// This design choice treats enum variants as named identifiers, providing
+/// This design choice treats enum choices as named identifiers, providing
 /// stable, human-readable output that doesn't depend on the underlying value
 /// representation. To access the underlying value explicitly, use the `value()`
 /// standard library function.
@@ -2284,7 +2283,7 @@ impl EnumVariant {
 /// String name = "~{Color.Red}"       # Produces "Red"
 /// String hex_value = value(Color.Red)  # Produces "#FF0000"
 /// ```
-impl fmt::Display for EnumVariant {
+impl fmt::Display for EnumChoice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
     }
@@ -2305,8 +2304,8 @@ pub enum CompoundValue {
     Object(Object),
     /// The value is a struct.
     Struct(Struct),
-    /// The value is an enum variant.
-    EnumVariant(EnumVariant),
+    /// The value is an enum choice.
+    EnumChoice(EnumChoice),
 }
 
 impl CompoundValue {
@@ -2318,7 +2317,7 @@ impl CompoundValue {
             CompoundValue::Map(v) => v.ty(),
             CompoundValue::Object(v) => v.ty(),
             CompoundValue::Struct(v) => v.ty(),
-            CompoundValue::EnumVariant(v) => v.enum_ty().into(),
+            CompoundValue::EnumChoice(v) => v.enum_ty().into(),
         }
     }
 
@@ -2432,25 +2431,25 @@ impl CompoundValue {
         }
     }
 
-    /// Gets the value as an `EnumVariant`.
+    /// Gets the value as an `EnumChoice`.
     ///
-    /// Returns `None` if the value is not an `EnumVariant`.
-    pub fn as_enum_variant(&self) -> Option<&EnumVariant> {
+    /// Returns `None` if the value is not an `EnumChoice`.
+    pub fn as_enum_choice(&self) -> Option<&EnumChoice> {
         match self {
-            Self::EnumVariant(v) => Some(v),
+            Self::EnumChoice(v) => Some(v),
             _ => None,
         }
     }
 
-    /// Unwraps the value into an `EnumVariant`.
+    /// Unwraps the value into an `EnumChoice`.
     ///
     /// # Panics
     ///
-    /// Panics if the value is not an `EnumVariant`.
-    pub fn unwrap_enum_variant(self) -> EnumVariant {
+    /// Panics if the value is not an `EnumChoice`.
+    pub fn unwrap_enum_choice(self) -> EnumChoice {
         match self {
-            Self::EnumVariant(v) => v,
-            _ => panic!("value is not an enum"),
+            Self::EnumChoice(v) => v,
+            _ => panic!("value is not an enum choice"),
         }
     }
 
@@ -2504,7 +2503,7 @@ impl CompoundValue {
                             None => false,
                         }),
             ),
-            (CompoundValue::EnumVariant(left), CompoundValue::EnumVariant(right)) => {
+            (CompoundValue::EnumChoice(left), CompoundValue::EnumChoice(right)) => {
                 Some(left.enum_ty() == right.enum_ty() && left.name() == right.name())
             }
             _ => None,
@@ -2550,7 +2549,7 @@ impl CompoundValue {
                     v.visit_paths(cb)?;
                 }
             }
-            Self::EnumVariant(e) => {
+            Self::EnumChoice(e) => {
                 e.value().visit_paths(cb)?;
             }
         }
@@ -2667,13 +2666,14 @@ impl CompoundValue {
                         resolved_members,
                     )))
                 }
-                Self::EnumVariant(e) => {
+                Self::EnumChoice(e) => {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
                             .resolve_paths(optional, base_dir, transferer, translate)
                             .await?;
-                    Ok(Self::EnumVariant(EnumVariant::new(
+
+                    Ok(Self::EnumChoice(EnumChoice::new(
                         e.0.enum_ty.clone(),
                         e.name(),
                         value,
@@ -2693,7 +2693,7 @@ impl fmt::Display for CompoundValue {
             Self::Map(v) => v.fmt(f),
             Self::Object(v) => v.fmt(f),
             Self::Struct(v) => v.fmt(f),
-            Self::EnumVariant(v) => v.fmt(f),
+            Self::EnumChoice(v) => v.fmt(f),
         }
     }
 }
@@ -3954,7 +3954,7 @@ impl serde::Serialize for CompoundValueSerializer<'_> {
 
                 map.end()
             }
-            CompoundValue::EnumVariant(e) => serializer.serialize_str(e.name()),
+            CompoundValue::EnumChoice(e) => serializer.serialize_str(e.name()),
         }
     }
 }
@@ -4119,7 +4119,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4235,7 +4235,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 
@@ -4329,7 +4329,7 @@ mod test {
                 unimplemented!()
             }
 
-            fn enum_variant_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
+            fn enum_choice_value(&self, _: &str, _: &str) -> Result<Value, Diagnostic> {
                 unimplemented!()
             }
 

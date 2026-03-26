@@ -1,6 +1,6 @@
-error: unknown variant named `InvalidVariant` for enum `Status`
+error: unknown choice named `InvalidVariant` for enum `Status`
    ┌─ tests/workflows/enum-unknown-variant/source.wdl:10:23
    │
 10 │     Status s = Status.InvalidVariant
-   │                       ^^^^^^^^^^^^^^ the variant is referenced here
+   │                       ^^^^^^^^^^^^^^ the choice is referenced here
 

@@ -12,23 +12,23 @@ use crate::diagnostics::function_call_failed;
 /// The name of the standard library function.
 const FUNCTION_NAME: &str = "value";
 
-/// Returns the underlying value associated with an enum variant.
+/// Returns the underlying value associated with an enum choice.
 fn value(context: CallContext<'_>) -> Result<Value, Diagnostic> {
     debug_assert_eq!(context.arguments.len(), 1);
 
-    let variant = context.arguments[0]
+    let choice = context.arguments[0]
         .value
         .as_compound()
-        .and_then(|c| c.as_enum_variant())
+        .and_then(|c| c.as_enum_choice())
         .ok_or_else(|| {
             function_call_failed(
                 FUNCTION_NAME,
-                "expected an enum variant value",
+                "expected an enum choice value",
                 context.call_site,
             )
         })?;
 
-    Ok(variant.value().clone())
+    Ok(choice.value().clone())
 }
 
 /// Gets the function describing `value`.
@@ -36,7 +36,7 @@ pub const fn descriptor() -> Function {
     Function::new(
         const {
             &[Signature::new(
-                "(variant: V) -> T where `V`: any enum variant",
+                "(choice: V) -> T where `V`: any enum choice",
                 Callback::Sync(value),
             )]
         },
@@ -57,7 +57,7 @@ mod test {
     use crate::Value;
     use crate::v1::test::TestEnv;
     use crate::v1::test::eval_v1_expr;
-    use crate::value::EnumVariant;
+    use crate::value::EnumChoice;
 
     #[tokio::test]
     async fn value() {
@@ -77,7 +77,7 @@ mod test {
         .unwrap();
         env.insert_enum("Color", enum_ty.clone());
 
-        let color_red = EnumVariant::new(
+        let color_red = EnumChoice::new(
             enum_ty.clone(),
             "Red",
             PrimitiveValue::String(Arc::new(String::from("#FF0000"))),
@@ -85,7 +85,7 @@ mod test {
 
         env.insert_name(
             "color_red",
-            Value::Compound(CompoundValue::EnumVariant(color_red)),
+            Value::Compound(CompoundValue::EnumChoice(color_red)),
         );
 
         let result = eval_v1_expr(&env, V1::Three, "value(color_red)")
@@ -105,18 +105,17 @@ mod test {
         )
         .unwrap();
 
-        let status_active =
-            EnumVariant::new(int_enum.clone(), "Active", PrimitiveValue::Integer(1));
+        let status_active = EnumChoice::new(int_enum.clone(), "Active", PrimitiveValue::Integer(1));
         let status_inactive =
-            EnumVariant::new(int_enum.clone(), "Inactive", PrimitiveValue::Integer(42));
+            EnumChoice::new(int_enum.clone(), "Inactive", PrimitiveValue::Integer(42));
 
         env.insert_name(
             "status_active",
-            Value::Compound(CompoundValue::EnumVariant(status_active)),
+            Value::Compound(CompoundValue::EnumChoice(status_active)),
         );
         env.insert_name(
             "status_inactive",
-            Value::Compound(CompoundValue::EnumVariant(status_inactive)),
+            Value::Compound(CompoundValue::EnumChoice(status_inactive)),
         );
 
         let result = eval_v1_expr(&env, V1::Three, "value(status_active)")
@@ -139,7 +138,7 @@ mod test {
         assert_eq!(
             diagnostic.message(),
             "type mismatch: argument to function `value` expects type `V` where `V`: any enum \
-             variant, but found type `String`"
+             choice, but found type `String`"
         );
     }
 }

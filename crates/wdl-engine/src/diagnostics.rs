@@ -190,28 +190,28 @@ pub(crate) fn unknown_enum(name: &str) -> Diagnostic {
     Diagnostic::error(format!("unknown enum `{name}`"))
 }
 
-/// Creates an "unknown enum variant" diagnostic.
+/// Creates an "unknown enum choice" diagnostic.
 ///
-/// This is distinguished from an "unknown enum variant access" diagnostic
+/// This is distinguished from an "unknown enum choice access" diagnostic
 /// because we don't have a span to point to that contains the supposed enum
-/// variant name.
-pub(crate) fn unknown_enum_variant(enum_name: &str, variant_name: &str) -> Diagnostic {
+/// choice name.
+pub(crate) fn unknown_enum_choice(enum_name: &str, choice_name: &str) -> Diagnostic {
     Diagnostic::error(format!(
-        "unknown variant named `{variant_name}` for enum `{enum_name}`",
+        "unknown choice named `{choice_name}` for enum `{enum_name}`",
     ))
 }
 
-/// Creates an "unknown enum variant access" diagnostic.
+/// Creates an "unknown enum choice access" diagnostic.
 ///
-/// This is distinguished from an "unknown enum variant" diagnostic because we
-/// have a span to point to that contains the supposed enum variant name.
-pub(crate) fn unknown_enum_variant_access<T: TreeToken>(
+/// This is distinguished from an "unknown enum choice" diagnostic because we
+/// have a span to point to that contains the supposed enum choice name.
+pub(crate) fn unknown_enum_choice_access<T: TreeToken>(
     enum_name: &str,
-    variant_name: &Ident<T>,
+    choice_name: &Ident<T>,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "unknown variant named `{variant_name}` for enum `{enum_name}`",
-        variant_name = variant_name.text()
+        "unknown choice named `{choice_name}` for enum `{enum_name}`",
+        choice_name = choice_name.text()
     ))
-    .with_label("the variant is referenced here", variant_name.span())
+    .with_label("the choice is referenced here", choice_name.span())
 }
