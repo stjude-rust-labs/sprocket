@@ -20,9 +20,8 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
-pub use api::v1::error::ErrorResponse;
-pub use api::v1::runs::SubmitResponse;
-pub use api::v1::runs::SubmitRunRequest;
+pub(crate) use api::v1::error::ErrorResponse;
+pub(crate) use api::v1::runs::SubmitRunRequest;
 
 /// The default channel buffer size.
 ///
