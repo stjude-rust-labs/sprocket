@@ -17,9 +17,7 @@ macro_rules! define_lint_rule_config {
             )+
         }
     ) => {
-        /// The configuration for lint rules.
-        #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-        #[serde(default)]
+        $(#[$meta])*
         pub struct $name {
             $(
                 $(#[doc = $doc])+
@@ -78,6 +76,7 @@ pub struct ConfigField {
 define_lint_rule_config! {
     /// The configuration for lint rules.
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+    #[serde(default)]
     pub struct Config {
         /// List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.
         ///

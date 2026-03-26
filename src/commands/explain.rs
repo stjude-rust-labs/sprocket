@@ -134,7 +134,7 @@ pub struct Rule {
     pub tags: Option<Vec<String>>,
     /// A short description of the rule (possibly Markdown formatted).
     pub description: &'static str,
-    /// An extended descriptions of the rule (possibly Markdown formatted).
+    /// An extended description of the rule (possibly Markdown formatted).
     pub explanation: &'static str,
     /// Markdown-formatted examples that would trigger the rule.
     pub examples: &'static [&'static str],
@@ -152,7 +152,7 @@ impl Rule {
     fn format(&self, format: Format) -> String {
         match format {
             Format::Default => self.to_string(),
-            Format::Json => serde_json::to_string(self).unwrap(),
+            Format::Json => serde_json::to_string(self).expect("Rule should be JSON serializable"),
         }
     }
 }
@@ -238,7 +238,7 @@ fn wdl_analysis() -> impl Iterator<Item = Rule> {
     })
 }
 
-/// A line rule group tag.
+/// A lint rule group tag.
 #[derive(Debug, Serialize)]
 pub struct Tag {
     /// The name of the tag.

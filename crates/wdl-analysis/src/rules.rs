@@ -43,7 +43,7 @@ pub trait Rule: Send + Sync {
     /// Get the long-form explanation of the rule.
     fn explanation(&self) -> &'static str;
 
-    /// Get a list of examples that would trigger this lint rule.
+    /// Get a list of examples that would trigger this rule.
     fn examples(&self) -> &'static [&'static str];
 
     /// Denies the rule.

@@ -23,9 +23,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::collections::HashSet;
 use std::sync::LazyLock;
 
+use strum::VariantArray;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
@@ -64,15 +64,9 @@ pub static ALL_TAG_NAMES: LazyLock<Vec<String>> =
 
 /// All tags sorted alphabetically.
 pub static ALL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
-    let mut tags: HashSet<Tag> = HashSet::new();
-    for rule in rules(&Config::default()) {
-        for tag in rule.tags().iter() {
-            tags.insert(tag);
-        }
-    }
-    let mut tag_names: Vec<Tag> = tags.into_iter().collect();
-    tag_names.sort_by_cached_key(Tag::to_string);
-    tag_names
+    let mut tags: Vec<Tag> = Tag::VARIANTS.to_vec();
+    tags.sort_by_cached_key(Tag::to_string);
+    tags
 });
 
 /// A trait implemented by lint rules.
