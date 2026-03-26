@@ -12,7 +12,6 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
-use crate::inputs::target_names;
 
 /// Arguments for the `validate` subcommand.
 #[derive(Parser, Debug)]
@@ -68,52 +67,49 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     // above.
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    let (target, inputs) =
-        match Invocation::coalesce(&args.inputs, args.target.clone(), target_names(document))
-            .await
-            .with_context(|| {
-                format!(
-                    "failed to parse inputs from `{sources}`",
-                    sources = args.inputs.join("`, `")
-                )
-            })?
-            .into_engine_inputs(document)
-            .await?
-        {
-            Some((target, inputs)) => (target, inputs),
-            None => {
-                if let Some(name) = args.target {
-                    match (document.task_by_name(&name), document.workflow()) {
-                        (Some(_), _) => (name, EngineInputs::Task(Default::default())),
-                        (None, Some(workflow)) => {
-                            if workflow.name() == name {
-                                (name, EngineInputs::Workflow(Default::default()))
-                            } else {
-                                return Err(anyhow!(
-                                    "no task or workflow with name `{name}` was found in document \
-                                     `{path}`",
-                                    path = document.path()
-                                )
-                                .into());
-                            }
-                        }
-                        (None, None) => {
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+        .await
+        .with_context(|| {
+            format!(
+                "failed to parse inputs from `{sources}`",
+                sources = args.inputs.join("`, `")
+            )
+        })?
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (target, inputs),
+        None => {
+            if let Some(name) = args.target {
+                match (document.task_by_name(&name), document.workflow()) {
+                    (Some(_), _) => (name, EngineInputs::Task(Default::default())),
+                    (None, Some(workflow)) => {
+                        if workflow.name() == name {
+                            (name, EngineInputs::Workflow(Default::default()))
+                        } else {
                             return Err(anyhow!(
                                 "no task or workflow with name `{name}` was found in document \
                                  `{path}`",
-                                path = document.path(),
+                                path = document.path()
                             )
                             .into());
                         }
                     }
-                } else {
-                    return Err(anyhow!(
-                        "the `--target` option is required if no inputs are provided"
-                    )
-                    .into());
+                    (None, None) => {
+                        return Err(anyhow!(
+                            "no task or workflow with name `{name}` was found in document `{path}`",
+                            path = document.path(),
+                        )
+                        .into());
+                    }
                 }
+            } else {
+                return Err(
+                    anyhow!("the `--target` option is required if no inputs are provided").into(),
+                );
             }
-        };
+        }
+    };
 
     match inputs {
         EngineInputs::Task(inputs) => {

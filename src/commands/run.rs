@@ -54,7 +54,6 @@ use crate::config::DEFAULT_DATABASE_FILENAME;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
-use crate::inputs::target_names;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
@@ -627,34 +626,32 @@ pub async fn run(
 
     // Parse and resolve inputs. The `into_resolved_json()` method resolves
     // relative paths using per-input origins before serializing to JSON.
-    let (target, inputs) =
-        match Invocation::coalesce(&args.inputs, args.target.clone(), target_names(document))
-            .await
-            .with_context(|| {
-                format!(
-                    "failed to parse inputs from `{sources}`",
-                    sources = args.inputs.join("`, `")
-                )
-            })?
-            .into_engine_inputs(document)
-            .await?
-        {
-            Some((target, inputs)) => (
-                select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
-                inputs,
-            ),
-            None => {
-                let target =
-                    select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+        .await
+        .with_context(|| {
+            format!(
+                "failed to parse inputs from `{sources}`",
+                sources = args.inputs.join("`, `")
+            )
+        })?
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => (
+            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
+            inputs,
+        ),
+        None => {
+            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
 
-                let inputs = match target {
-                    Target::Task(_) => TaskInputs::default().into(),
-                    Target::Workflow(_) => WorkflowInputs::default().into(),
-                };
+            let inputs = match target {
+                Target::Task(_) => TaskInputs::default().into(),
+                Target::Workflow(_) => WorkflowInputs::default().into(),
+            };
 
-                (target, inputs)
-            }
-        };
+            (target, inputs)
+        }
+    };
 
     // Set up output directory structure
     let output_dir = OutputDirectory::new(

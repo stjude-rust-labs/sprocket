@@ -1,4 +1,0 @@
-error: failed to parse inputs from `inputs.json`
-
-Caused by:
-    input key `bar.name` is prefixed with target `bar`, which conflicts with the supplied target `foo`
