@@ -598,7 +598,7 @@ impl Evaluator {
             .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
-        if self.cancellation.state() == CancellationContextState::Canceling {
+        if self.cancellation.user_canceled() {
             return Err(EvaluationError::Canceled);
         }
 
