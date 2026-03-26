@@ -288,6 +288,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
+message = "ww-bedtools.wdl:162:24: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L162"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:51:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L51"
 
@@ -908,6 +913,41 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:49:22: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:134:20: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L134"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:135:17: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L135"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:136:28: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L136"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:137:31: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L137"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:138:25: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L138"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:139:19: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L139"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:75:7: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L75"
 
@@ -1083,6 +1123,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
+message = "ww-shapemapper.wdl:64:53: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
 message = "ww-shapemapper.wdl:70:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L70"
 
@@ -1145,6 +1190,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:60:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L60"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
+message = "ww-smoove.wdl:44:26: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L44"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
+message = "ww-smoove.wdl:45:32: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L45"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
+message = "ww-smoove.wdl:94:14: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
