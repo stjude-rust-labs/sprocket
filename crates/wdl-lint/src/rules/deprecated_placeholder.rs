@@ -109,6 +109,7 @@ workflow example {
 
     Array[String] names = ["James", "Jimmy", "John"]
     String names_separated = "~{sep="," names}"
+    String names_interpolated = "${names}"
 
     output {}
 }
@@ -123,6 +124,7 @@ workflow example {
 
     Array[String] names = ["James", "Jimmy", "John"]
     String names_separated = "~{sep(",", names)}"
+    String names_interpolated = "~{names}"
 
     output {}
 }
