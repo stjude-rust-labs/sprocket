@@ -2,7 +2,7 @@
 
 version 1.0
 
-# None of these lints other than the $ substitution rule should trigger 
+# None of these lints other than the $ interpolation rule should trigger 
 # as the version is WDL v1.0 (prior to placeholder options being deprecated).
 task a_task {
     #@ except: MetaDescription
@@ -15,7 +15,7 @@ task a_task {
     String bad_sep_option = "~{sep="," numbers}"
     String bad_true_false_option = "~{true="--enable-foo" false="" allow_foo}"
     String bad_default_option = "~{default="false" bar}"
-    String bad_substitution_option = "${bar}"
+    String bad_interpolation_option = "${bar}"
 
     #@ except: ShellCheck
     command <<<

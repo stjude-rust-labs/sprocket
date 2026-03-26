@@ -14,7 +14,7 @@ task a_failing_task {
     String bad_sep_option = "~{sep="," numbers}"
     String bad_true_false_option = "~{true="--enable-foo" false="" allow_foo}"
     String bad_default_option = "~{default="false" bar}"
-    String bad_substitution_option = "${bar}"
+    String bad_interpolation_option = "${bar}"
 
     command <<<
         python script.py ~{sep=" " numbers}
@@ -37,7 +37,7 @@ task a_better_task {
     String good_sep_option = "~{sep(",", numbers)}"
     String good_true_false_option = "~{if allow_foo then "--enable-foo" else ""}"
     String good_default_option = "~{select_first([bar, "false"])}"
-    String good_substitution_option = "~{bar}"
+    String good_interpolation_option = "~{bar}"
 
     command <<<
         python script.py ~{sep(" ", numbers)}
