@@ -50,6 +50,20 @@ impl Rule for EmptyDocCommentRule {
          remove it entirely."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[r#"```wdl
+version 1.2
+
+# This will render nothing!
+
+##
+struct Person {
+    String name
+    Int age
+}
+```"#]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Documentation])
     }
@@ -58,7 +72,7 @@ impl Rule for EmptyDocCommentRule {
         None
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["UnusedDocComments"]
     }
 }
