@@ -1,1 +1,1 @@
-{"name":"Clarity","applicable_lints":["CommandSectionIndentation","ConsistentNewlines","ContainerUri","DeclarationName","DenyGlobStar","DocCommentTabs","DoubleQuotes","ExceptDirectiveValid","HereDocCommands","ImportPlacement","KnownRules","MetaSections","PascalCase","SnakeCase"]}
+{"name":"Clarity","applicable_lints":["CommandSectionIndentation","ConsistentNewlines","ContainerUri","DeclarationName","DenyGlobStar","DocCommentTabs","DoubleQuotes","EmptyDocComment","ExceptDirectiveValid","HereDocCommands","ImportPlacement","KnownRules","MetaSections","PascalCase","SnakeCase"]}
