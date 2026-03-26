@@ -742,7 +742,7 @@ impl Value {
     /// `wdl_engine`. Expect this interface to change soon!
     pub(crate) async fn resolve_paths<F>(
         &self,
-        strict_explicit_files: bool,
+        must_exist: bool,
         optional: bool,
         base_dir: Option<&Path>,
         transferer: Option<&dyn Transferer>,
