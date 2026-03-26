@@ -62,3 +62,11 @@ warning[ContainerUri]: empty arrays are ambiguous and should contain at least on
     │
     = fix: add an entry or remove the entry altogether
 
+note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+    ┌─ tests/lints/container-value/source.wdl:219:21
+    │
+219 │         container: "${image}:latest"
+    │                     ^
+    │
+    = fix: replace the opening token `$` with `~`
+

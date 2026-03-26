@@ -22,26 +22,34 @@ note[DeprecatedPlaceholder]: use of the deprecated `default` placeholder option
    │
    = fix: replace the `default` placeholder option with a call to the `select_first()` standard library function
 
-note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option
-   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:19:28
+note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:17:39
    │
-19 │         python script.py ~{sep=" " numbers}
+17 │     String bad_substitution_option = "${bar}"
+   │                                       ^
+   │
+   = fix: replace the opening token `$` with `~`
+
+note[DeprecatedPlaceholder]: use of the deprecated `sep` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:20:28
+   │
+20 │         python script.py ~{sep=" " numbers}
    │                            ^^^^^^^
    │
    = fix: replace the `sep` placeholder option with a call to the `sep()` standard library function
 
 note[DeprecatedPlaceholder]: use of the deprecated `true`/`false` placeholder option
-   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:20:27
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:21:27
    │
-20 │         example-command ~{true="--enable-foo" false="" allow_foo}
+21 │         example-command ~{true="--enable-foo" false="" allow_foo}
    │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = fix: replace the `true`/`false` placeholder option with an `if`/`else` expression
 
 note[DeprecatedPlaceholder]: use of the deprecated `default` placeholder option
-   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:21:27
+   ┌─ tests/lints/deprecated-placeholder-options-v1.1/source.wdl:22:27
    │
-21 │         another-command ~{default="foobar" bar}
+22 │         another-command ~{default="foobar" bar}
    │                           ^^^^^^^^^^^^^^^^
    │
    = fix: replace the `default` placeholder option with a call to the `select_first()` standard library function

@@ -47,6 +47,16 @@ fn deprecated_sep_placeholder_option(span: Span) -> Diagnostic {
     )
 }
 
+/// Creates a diagnostic for the use of the deprecated `${}` placeholder option.
+fn deprecated_substitution_placeholder_option(span: Span) -> Diagnostic {
+    Diagnostic::note(String::from(
+        "use of the deprecated `${}` placeholder option",
+    ))
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("replace the opening token `$` with `~`")
+}
+
 /// Creates a diagnostic for the use of the deprecated `true`/`false`
 /// placeholder option.
 fn deprecated_true_false_placeholder_option(span: Span) -> Diagnostic {
@@ -82,6 +92,7 @@ impl Rule for DeprecatedPlaceholderRule {
          - `true/false` placeholder options should be replaced with `if`/`else` statements.
          - `default` placeholder options should be replaced by the `select_first()` standard \
          library function.
+         - `${}` substitution placeholders should be replaced by `~{}` substitution placeholders.
 
          This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this \
          was the version where the deprecation was introduced."
@@ -132,6 +143,15 @@ impl Visitor for DeprecatedPlaceholderRule {
     ) {
         if reason == VisitReason::Exit {
             return;
+        }
+
+        if !placeholder.has_tilde() {
+            let opening_token = Span::new(placeholder.span().start(), 0);
+            diagnostics.exceptable_add(
+                deprecated_substitution_placeholder_option(opening_token),
+                SyntaxElement::from(placeholder.inner().clone()),
+                &self.exceptable_nodes(),
+            );
         }
 
         // This rule only executes for WDL documents that have v1.1 or greater.
