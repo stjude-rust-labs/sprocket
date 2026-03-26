@@ -98,7 +98,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.6.21
       - uses: actions/cache@v4
         with:
           path: |
@@ -132,7 +134,17 @@ jobs:
           if [[ "${{ runner.os }}" != "Linux" ]]; then
             export RUSTFLAGS="--cfg docker_tests_disabled"
           fi
-          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast
+          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
+          comment:
+            behavior: once
+            require_changes: true
 
   docs:
     runs-on: ubuntu-latest

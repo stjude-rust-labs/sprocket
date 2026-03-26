@@ -57,6 +57,10 @@ impl Rule for ConsistentNewlinesRule {
          your project."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Portability, Tag::Clarity, Tag::Spacing])
     }
@@ -65,7 +69,7 @@ impl Rule for ConsistentNewlinesRule {
         Some(&[SyntaxKind::VersionStatementNode])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }
