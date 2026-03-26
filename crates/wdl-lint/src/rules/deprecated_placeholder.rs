@@ -267,7 +267,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::Zero)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::Zero)
+        ));
     }
 
     #[test]
@@ -286,7 +289,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
     }
 
     #[test]
@@ -351,7 +357,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
     }
 
     #[test]
@@ -371,7 +380,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::Zero)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::Zero)
+        ));
     }
 
     #[test]
@@ -391,7 +403,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
     }
 
     #[test]
@@ -411,7 +426,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
     }
 
     #[test]
@@ -431,7 +449,10 @@ task test {
 "#,
         );
         assert_eq!(placeholders.len(), 1);
-        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+        assert!(has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
     }
 
     #[test]
