@@ -78,13 +78,44 @@ impl Rule for DeprecatedPlaceholderRule {
         "Expression placeholder options were deprecated in WDL v1.1 and will be removed in the \
          next major WDL version.
 
-         - `sep` placeholder options should be replaced by the `sep()` standard library function.
-         - `true/false` placeholder options should be replaced with `if`/`else` statements.
-         - `default` placeholder options should be replaced by the `select_first()` standard \
-         library function.
+- `sep` placeholder options should be replaced by the `sep()` standard library function.
+- `true/false` placeholder options should be replaced with `if`/`else` statements.
+- `default` placeholder options should be replaced by the `select_first()` standard library \
+         function.
 
-         This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this \
-         was the version where the deprecation was introduced."
+This rule only evaluates for WDL V1 documents with a version of v1.1 or later, as this was the \
+         version where the deprecation was introduced."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep="," names}"
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    Array[String] names = ["James", "Jimmy", "John"]
+    String names_separated = "~{sep(",", names)}"
+
+    output {}
+}
+```"#,
+        ]
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {

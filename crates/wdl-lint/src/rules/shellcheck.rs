@@ -231,9 +231,40 @@ impl Rule for ShellCheckRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "ShellCheck (https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
+        "[ShellCheck](https://shellcheck.net) is a static analysis tool and linter for sh / bash. \
          The lints provided by ShellCheck help prevent common errors and pitfalls in your scripts. \
          Following its recommendations will increase the robustness of your command sections."
+    }
+
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    # Triggers SC2154
+    command <<<
+        echo "Hello $name"
+    >>>
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    meta {}
+
+    command <<<
+        name=World
+        echo "Hello $name"
+    >>>
+}
+```"#,
+        ]
     }
 
     fn tags(&self) -> TagSet {
