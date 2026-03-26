@@ -2744,8 +2744,8 @@ impl Coercible for CompoundValue {
 
                     if len != expected_len {
                         bail!(
-                            "cannot coerce a map of {len} element{s1} to struct {target:#} as the \
-                             struct has {expected_len} member{s2}",
+                            "cannot coerce a map of {len} element{s1} to {target:#} as the struct \
+                             has {expected_len} member{s2}",
                             s1 = if len == 1 { "" } else { "s" },
                             s2 = if expected_len == 1 { "" } else { "s" }
                         );
@@ -2760,9 +2760,8 @@ impl Coercible for CompoundValue {
                                     .coerce(context, &PrimitiveType::String.into())
                                     .with_context(|| {
                                         format!(
-                                            "cannot coerce a map of {map_type:#} to struct \
-                                             {target:#} as the key type cannot coerce to type \
-                                             `String`",
+                                            "cannot coerce a map of {map_type:#} to {target:#} as \
+                                             the key type cannot coerce to type `String`",
                                             map_type = v.ty()
                                         )
                                     })?
@@ -2770,9 +2769,8 @@ impl Coercible for CompoundValue {
                                 let ty =
                                     target_ty.members().get(k.as_ref()).with_context(|| {
                                         format!(
-                                            "cannot coerce a map with key `{k}` to struct \
-                                             {target:#} as the struct does not contain a member \
-                                             with that name"
+                                            "cannot coerce a map with key `{k}` to {target:#} as \
+                                             the struct does not contain a member with that name"
                                         )
                                     })?;
                                 let v = v.coerce(context, ty).with_context(|| {
@@ -4538,7 +4536,8 @@ mod test {
         .into();
         assert_eq!(
             format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            "cannot coerce a map of 2 elements to struct type `Foo` as the struct has 3 members"
+            "cannot coerce a map of 2 elements to an instance of struct `Foo` as the struct has 3 \
+             members"
         );
 
         // Map[String, File] -> Object

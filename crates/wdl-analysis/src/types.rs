@@ -403,6 +403,32 @@ impl fmt::Display for Type {
                     suffix = if f.alternate() { "`" } else { "" },
                 )
             }
+            Self::Compound(CompoundType::Custom(CustomType::Struct(ty)), optional) => {
+                write!(
+                    f,
+                    "{prefix}{ty}{opt}{suffix}",
+                    prefix = if f.alternate() {
+                        "an instance of struct `"
+                    } else {
+                        ""
+                    },
+                    opt = if *optional { "?" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
+            Self::Compound(CompoundType::Custom(CustomType::Enum(ty)), optional) => {
+                write!(
+                    f,
+                    "{prefix}{ty}{opt}{suffix}",
+                    prefix = if f.alternate() {
+                        "an instance of enum `"
+                    } else {
+                        ""
+                    },
+                    opt = if *optional { "?" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
+            }
             Self::Compound(ty, optional) => {
                 write!(
                     f,
@@ -432,7 +458,7 @@ impl fmt::Display for Type {
                 write!(
                     f,
                     "{prefix}Union{suffix}",
-                    prefix = if f.alternate() { "type `" } else { "" },
+                    prefix = if f.alternate() { "built-in type `" } else { "" },
                     suffix = if f.alternate() { "`" } else { "" },
                 )
             }
@@ -440,7 +466,7 @@ impl fmt::Display for Type {
                 write!(
                     f,
                     "{prefix}None{suffix}",
-                    prefix = if f.alternate() { "type `" } else { "" },
+                    prefix = if f.alternate() { "built-in type `" } else { "" },
                     suffix = if f.alternate() { "`" } else { "" },
                 )
             }
@@ -448,7 +474,7 @@ impl fmt::Display for Type {
                 write!(
                     f,
                     "{prefix}{ty}{suffix}",
-                    prefix = if f.alternate() { "hidden type `" } else { "" },
+                    prefix = if f.alternate() { "built-in type `" } else { "" },
                     suffix = if f.alternate() { "`" } else { "" },
                 )
             }

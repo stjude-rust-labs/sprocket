@@ -364,7 +364,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:108:70: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:108:70: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L108"
 
 [[diagnostics]]
@@ -379,7 +379,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:122:48: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:122:48: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L122"
 
 [[diagnostics]]
@@ -394,7 +394,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:51:53: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:51:53: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L51"
 
 [[diagnostics]]
@@ -409,7 +409,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:61:58: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:61:58: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L61"
 
 [[diagnostics]]
@@ -424,7 +424,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:77:55: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:77:55: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L77"
 
 [[diagnostics]]
@@ -439,7 +439,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:87:60: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:87:60: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L87"
 
 [[diagnostics]]
@@ -3174,7 +3174,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:65:32: error: type mismatch: expected type `VcfFile`, but found type `Map[String, String]`"
+message = "FunctionalEquivalence.wdl:65:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L65"
 
 [[diagnostics]]
@@ -3184,7 +3184,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:69:32: error: type mismatch: expected type `VcfFile`, but found type `Map[String, String]`"
+message = "FunctionalEquivalence.wdl:69:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L69"
 
 [[diagnostics]]
