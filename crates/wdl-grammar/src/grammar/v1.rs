@@ -864,16 +864,16 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
         marker,
         Some(Token::Comma),
         ENUM_SECTION_RECOVERY_SET,
-        enum_variant
+        enum_choice
     );
 
     marker.complete(parser, SyntaxKind::EnumDefinitionNode);
     Ok(())
 }
 
-/// Parses a variant in an enum definition.
-fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "enum variant name");
+/// Parses a choice in an enum definition.
+fn enum_choice(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    ident!(parser, marker, "enum choice name");
 
     // Optional value, i.e., `= <expr>`.
     if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
@@ -885,7 +885,7 @@ fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
         }
     }
 
-    marker.complete(parser, SyntaxKind::EnumVariantNode);
+    marker.complete(parser, SyntaxKind::EnumChoiceNode);
     Ok(())
 }
 

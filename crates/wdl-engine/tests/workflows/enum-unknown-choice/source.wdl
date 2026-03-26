@@ -7,5 +7,5 @@ enum Status {
 }
 
 workflow test {
-    Status s = Status.InvalidVariant
+    Status s = Status.InvalidChoice
 }

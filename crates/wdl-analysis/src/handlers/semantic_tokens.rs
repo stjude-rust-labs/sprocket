@@ -29,8 +29,8 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::EnumDefinition;
-use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralStruct;
@@ -284,8 +284,8 @@ fn resolve_identifier_ty(
 
             return Some(SemanticTokenType::VARIABLE);
         }
-        SyntaxKind::EnumVariantNode => {
-            let variant = EnumVariant::cast(parent.clone()).expect("should cast");
+        SyntaxKind::EnumChoiceNode => {
+            let variant = EnumChoice::cast(parent.clone()).expect("should cast");
             if variant.name().inner() == token {
                 add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
                 return Some(SemanticTokenType::ENUM_MEMBER);
@@ -407,7 +407,7 @@ fn resolve_identifier_ty(
                             return Some(SemanticTokenType::ENUM);
                         } else if ident_targets_rhs
                             && e.definition()
-                                .variants()
+                                .choices()
                                 .any(|v| v.name().text() == token.text())
                         {
                             return Some(SemanticTokenType::ENUM_MEMBER);

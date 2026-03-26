@@ -276,8 +276,8 @@ async fn compound_disk_size(
 
             Ok(size)
         }
-        CompoundValue::EnumVariant(_) => {
-            bail!("the size of an enum variant cannot be calculated")
+        CompoundValue::EnumChoice(_) => {
+            bail!("the size of an enum choice cannot be calculated")
         }
     }
 }
