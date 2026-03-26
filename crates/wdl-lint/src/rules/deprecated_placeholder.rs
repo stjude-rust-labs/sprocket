@@ -10,6 +10,7 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::TreeToken;
 use wdl_ast::v1::Placeholder;
 use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::version::V1;
@@ -180,9 +181,11 @@ impl Visitor for DeprecatedPlaceholderRule {
         }
 
         if !placeholder.has_tilde() {
-            let opening_token = Span::new(placeholder.span().start(), 0);
             diagnostics.exceptable_add(
-                deprecated_interpolation_placeholder_option(opening_token),
+                deprecated_interpolation_placeholder_option(Span::new(
+                    placeholder.open().span().start(),
+                    1,
+                )),
                 SyntaxElement::from(placeholder.inner().clone()),
                 &self.exceptable_nodes(),
             );
@@ -213,5 +216,247 @@ impl Visitor for DeprecatedPlaceholderRule {
                 &self.exceptable_nodes(),
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::AstNode as _;
+    use wdl_ast::Document;
+    use wdl_ast::SupportedVersion;
+    use wdl_ast::v1::Placeholder;
+    use wdl_ast::version::V1;
+
+    use super::*;
+
+    /// Parses a WDL document and collects all placeholders.
+    fn parse_placeholders(source: &str) -> (Vec<Placeholder>, Document) {
+        let (document, diagnostics) = Document::parse(source);
+        assert!(
+            diagnostics.is_empty(),
+            "document should parse without errors: {diagnostics:?}"
+        );
+        let placeholders: Vec<_> = document.descendants::<Placeholder>().collect();
+        (placeholders, document)
+    }
+
+    /// Runs the visitor's `placeholder()` method on a given placeholder with
+    /// the specified version and returns whether any diagnostics were emitted.
+    fn has_diagnostics(placeholder: &Placeholder, version: SupportedVersion) -> bool {
+        let mut rule = DeprecatedPlaceholderRule {
+            version: Some(version),
+        };
+        let mut diagnostics = Diagnostics::default();
+        rule.placeholder(&mut diagnostics, VisitReason::Enter, placeholder);
+        !diagnostics.is_empty()
+    }
+
+    #[test]
+    fn dollar_placeholder_fires_on_v1_0() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.0
+
+task test {
+    meta {}
+    String x = "${bar}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::Zero)));
+    }
+
+    #[test]
+    fn dollar_placeholder_fires_on_v1_1() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    String x = "${bar}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+    }
+
+    #[test]
+    fn tilde_placeholder_does_not_fire() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    String x = "~{bar}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(!has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::One)
+        ));
+    }
+
+    #[test]
+    fn sep_option_does_not_fire_on_v1_0() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.0
+
+task test {
+    meta {}
+    Array[String] xs = ["a"]
+    String x = "~{sep="," xs}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(!has_diagnostics(
+            &placeholders[0],
+            SupportedVersion::V1(V1::Zero)
+        ));
+    }
+
+    #[test]
+    fn sep_option_fires_on_v1_1() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    Array[String] xs = ["a"]
+    String x = "~{sep="," xs}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+    }
+
+    #[test]
+    fn dollar_with_sep_option_fires_on_v1_0() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.0
+
+task test {
+    meta {}
+    Array[String] xs = ["a"]
+    String x = "${sep="," xs}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::Zero)));
+    }
+
+    #[test]
+    fn dollar_with_sep_option_fires_on_v1_1() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    Array[String] xs = ["a"]
+    String x = "${sep="," xs}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+    }
+
+    #[test]
+    fn default_option_fires_on_v1_1() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    String bar = "bar"
+    String x = "~{default="baz" bar}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+    }
+
+    #[test]
+    fn true_false_option_fires_on_v1_1() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.1
+
+task test {
+    meta {}
+    Boolean flag = true
+    String x = "~{true="yes" false="no" flag}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+        assert!(has_diagnostics(&placeholders[0], SupportedVersion::V1(V1::One)));
+    }
+
+    #[test]
+    fn interpolation_diagnostic_highlights_single_character() {
+        let (placeholders, _) = parse_placeholders(
+            r#"
+version 1.0
+
+task test {
+    meta {}
+    String x = "${bar}"
+    command <<< >>>
+    output {}
+    runtime {}
+}
+"#,
+        );
+        assert_eq!(placeholders.len(), 1);
+
+        let diagnostic = deprecated_interpolation_placeholder_option(Span::new(
+            placeholders[0].open().span().start(),
+            1,
+        ));
+        let labels: Vec<_> = diagnostic.labels().collect();
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0].span().len(), 1);
     }
 }
