@@ -1,5 +1,5 @@
 RootNode@0..188
-  Comment@0..32 "## Test enum with mis ..."
+  Comment@0..32 "## Test enum with miss ..."
   Whitespace@32..34 "\n\n"
   VersionStatementNode@34..45
     VersionKeyword@34..41 "version"

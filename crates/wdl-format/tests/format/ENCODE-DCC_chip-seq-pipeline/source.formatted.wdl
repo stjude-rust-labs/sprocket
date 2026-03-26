@@ -164,7 +164,7 @@ workflow chip {
         fastqs_rep1_R1: {
             description: "Read1 FASTQs to be merged for a biological replicate 1.",
             group: "input_genomic_data",
-            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of inputs (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined. Especially for FASTQs, we have individual variable for each biological replicate to allow FASTQs of technical replicates can be merged. Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep1_R2). These FASTQs are usually technical replicates to be merged.",
+            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of inputs (e.g. FASTQs, BAMs, ...). Choose one type and fill parameters for that type and leave other undefined. Especially for FASTQs, we have individual variable for each biological replicate to allow FASTQs of technical replicates can be merged. Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep1_R2). These FASTQs are usually technical replicates to be merged.",
             example: [
                 "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep1-R1.subsampled.50.fastq.gz",
             ],
@@ -331,7 +331,7 @@ workflow chip {
         ctl_fastqs_rep1_R1: {
             description: "Read1 FASTQs to be merged for a control replicate 1.",
             group: "input_genomic_data_control",
-            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of controls (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined.  Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep1_R2).",
+            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of controls (e.g. FASTQs, BAMs, ...). Choose one type and fill parameters for that type and leave other undefined.  Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep1_R2).",
             example: [
                 "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl1-R1.subsampled.80.fastq.gz",
             ],
@@ -547,7 +547,7 @@ workflow chip {
         xcor_trim_bp: {
             description: "Trim experiment read1 FASTQ (for both SE and PE) for cross-correlation analysis.",
             group: "alignment",
-            help: "This does not affect alignment of experimental/control replicates. Pipeline additionaly aligns R1 FASTQ only for cross-correlation analysis only. This parameter is used for it.",
+            help: "This does not affect alignment of experimental/control replicates. Pipeline additionally aligns R1 FASTQ only for cross-correlation analysis only. This parameter is used for it.",
         }
         use_filt_pe_ta_for_xcor: {
             description: "Use filtered PE BAM for cross-correlation analysis.",
@@ -567,7 +567,7 @@ workflow chip {
         no_dup_removal: {
             description: "Disable removal of duplicate reads during filtering BAM.",
             group: "alignment",
-            help: "Duplicate reads are filtererd out during filtering BAMs to gerenate NODUP_BAM. This flag will keep all duplicate reads in NODUP_BAM. This flag does not affect naming of NODUP_BAM. NODUP_BAM will still have .nodup. suffix in its filename.",
+            help: "Duplicate reads are filtererd out during filtering BAMs to generate NODUP_BAM. This flag will keep all duplicate reads in NODUP_BAM. This flag does not affect naming of NODUP_BAM. NODUP_BAM will still have .nodup. suffix in its filename.",
         }
         mapq_thresh: {
             description: "Threshold for low MAPQ reads removal.",
@@ -577,7 +577,7 @@ workflow chip {
         filter_chrs: {
             description: "List of chromosomes to be filtered out while filtering BAM.",
             group: "alignment",
-            help: "It is empty by default, hence no filtering out of specfic chromosomes. It is case-sensitive. Use exact word for chromosome names.",
+            help: "It is empty by default, hence no filtering out of specific chromosomes. It is case-sensitive. Use exact word for chromosome names.",
         }
         subsample_reads: {
             description: "Subsample reads. Shuffle and subsample reads.",
@@ -1251,7 +1251,7 @@ workflow chip {
             fastqs_rep1_R1,
         ]
         else []
-    # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
+    # no need to do that for R2 (R1 array will be used to determine presence of fastq for each rep)
     Array[Array[File]] fastqs_R2 = [
         fastqs_rep1_R2,
         fastqs_rep2_R2,
@@ -1352,7 +1352,7 @@ workflow chip {
             ctl_fastqs_rep1_R1,
         ]
         else []
-    # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
+    # no need to do that for R2 (R1 array will be used to determine presence of fastq for each rep)
     Array[Array[File]] ctl_fastqs_R2 = [
         ctl_fastqs_rep1_R2,
         ctl_fastqs_rep2_R2,
@@ -2370,7 +2370,7 @@ workflow chip {
 
     if (!align_only_ && !true_rep_only && enable_idr) {
         scatter (i in range(num_rep)) {
-            # IDR on pseduo replicates
+            # IDR on pseudo replicates
             call idr as idr_pr { input:
                 prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1) + "-pr2",
                 peak1 = peak_pr1_[i],
@@ -2407,7 +2407,7 @@ workflow chip {
     }
 
     if (!align_only_ && !true_rep_only && num_rep > 1 && enable_idr) {
-        # IDR on pooled pseduo replicates
+        # IDR on pooled pseudo replicates
         call idr as idr_ppr { input:
             prefix = "pooled-pr1_vs_pooled-pr2",
             peak1 = peak_ppr1_,

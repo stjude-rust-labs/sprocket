@@ -6,7 +6,7 @@ RootNode@0..282
     Whitespace@49..50 " "
     Version@50..53 "1.3"
   Whitespace@53..55 "\n\n"
-  Comment@55..95 "# Missing variant nam ..."
+  Comment@55..95 "# Missing variant name ..."
   Whitespace@95..96 "\n"
   EnumDefinitionNode@96..139
     EnumKeyword@96..100 "enum"
