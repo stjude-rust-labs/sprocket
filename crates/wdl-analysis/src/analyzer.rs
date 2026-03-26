@@ -432,6 +432,7 @@ where
                 .standard_filters(false)
                 .parents(true)
                 .follow_links(true)
+                .git_ignore(true)
                 .build();
 
             for result in walker {
@@ -1203,4 +1204,5 @@ workflow test {
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
     }
+
 }

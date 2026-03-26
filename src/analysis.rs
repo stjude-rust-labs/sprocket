@@ -128,6 +128,7 @@ impl Analysis {
         self
     }
 
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
