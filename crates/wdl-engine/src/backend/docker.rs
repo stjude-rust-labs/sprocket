@@ -64,6 +64,9 @@ const GUEST_STDOUT_PATH: &str = "/mnt/task/stdout";
 /// The path to the container's stderr.
 const GUEST_STDERR_PATH: &str = "/mnt/task/stderr";
 
+/// The path to the container's temp directory.
+const GUEST_TMP_PATH: &str = "/tmp";
+
 /// Amount of CPU to request for the cleanup task.
 #[cfg(unix)]
 const CLEANUP_TASK_CPU: f64 = 0.1;
@@ -179,6 +182,51 @@ impl<'a> DockerTask<'a> {
                 .build(),
         );
 
+        // Bind container /tmp to a host path to avoid Docker's default
+        // ephemeral tmp behavior. Prefer paths backed by configured task disk
+        // storage when available, then fall back to the evaluation temp
+        // directory.
+        let host_tmp_dir = if self.request.constraints.disks.contains_key(GUEST_TMP_PATH)
+            || self
+                .request
+                .constraints
+                .disks
+                .contains_key(DEFAULT_DISK_MOUNT_POINT)
+        {
+            work_dir.join("tmp")
+        } else {
+            self.request.temp_dir.join("docker_tmp")
+        };
+
+        fs::create_dir_all(&host_tmp_dir).with_context(|| {
+            format!(
+                "failed to create directory for container /tmp at `{path}`",
+                path = host_tmp_dir.display()
+            )
+        })?;
+
+        #[cfg(unix)]
+        {
+            use std::fs::Permissions;
+            use std::fs::set_permissions;
+            use std::os::unix::fs::PermissionsExt;
+            set_permissions(&host_tmp_dir, Permissions::from_mode(0o770)).with_context(|| {
+                format!(
+                    "failed to set permissions for container /tmp directory `{path}`",
+                    path = host_tmp_dir.display()
+                )
+            })?;
+        }
+
+        inputs.push(
+            Input::builder()
+                .path(GUEST_TMP_PATH)
+                .contents(Contents::Path(host_tmp_dir))
+                .ty(InputType::Directory)
+                .read_only(false)
+                .build(),
+        );
+
         let stdout_path = self.request.stdout_path();
         let stderr_path = self.request.stderr_path();
 
@@ -203,8 +251,8 @@ impl<'a> DockerTask<'a> {
             .filter_map(|mp| {
                 // NOTE: the root mount point is already handled by the work
                 // directory mount, so we filter it here to avoid duplicate volume
-                // mapping.
-                if mp == DEFAULT_DISK_MOUNT_POINT {
+                // mapping. The /tmp mount point is also handled explicitly.
+                if mp == DEFAULT_DISK_MOUNT_POINT || mp == GUEST_TMP_PATH {
                     None
                 } else {
                     Some(mp.clone())
@@ -218,6 +266,10 @@ impl<'a> DockerTask<'a> {
                  will be created but sizes will not be limited"
             );
         }
+
+        let mut env = self.request.env.clone();
+        env.entry("TMPDIR".to_string())
+            .or_insert_with(|| GUEST_TMP_PATH.to_string());
 
         let task = Task::builder()
             .name(&self.name)
@@ -240,7 +292,7 @@ impl<'a> DockerTask<'a> {
                     )
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
-                    .env(self.request.env.clone())
+                    .env(env)
                     .stdout(GUEST_STDOUT_PATH)
                     .stderr(GUEST_STDERR_PATH)
                     .build(),
