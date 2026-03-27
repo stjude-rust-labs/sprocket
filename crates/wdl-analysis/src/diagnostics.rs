@@ -156,7 +156,7 @@ pub fn name_conflict(name: &str, conflicting: Context, first: Context) -> Diagno
 /// Constructs a "cannot index" diagnostic.
 pub fn cannot_index(actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error("indexing is only allowed on `Array` and `Map` types")
-        .with_label(format!("this is type `{actual}`"), span)
+        .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Creates an "unknown name" diagnostic.
@@ -407,10 +407,10 @@ pub fn type_mismatch(
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`"
+        "type mismatch: expected {expected:#}, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
-    .with_label(format!("this expects type `{expected}`"), expected_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
+    .with_label(format!("this expects {expected:#}"), expected_span)
 }
 
 /// Creates a "non-empty array assignment" diagnostic.
@@ -427,11 +427,11 @@ pub fn call_input_type_mismatch<T: TreeToken>(
     actual: &Type,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`",
+        "type mismatch: expected {expected:#}, but found {actual:#}",
     ))
     .with_label(
         format!(
-            "input `{name}` is type `{expected}`, but name `{name}` is type `{actual}`",
+            "input `{name}` is {expected:#}, but name `{name}` is {actual:#}",
             name = name.text(),
         ),
         name.span(),
@@ -449,11 +449,11 @@ pub fn no_common_type(
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: a type common to both type `{expected}` and type `{actual}` does not exist"
+        "type mismatch: a type common to both {expected:#} and {actual:#} does not exist"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
     .with_label(
-        format!("this and all prior elements had a common type `{expected}`"),
+        format!("this and all prior elements had a common {expected:#}"),
         expected_span,
     )
 }
@@ -466,13 +466,13 @@ pub fn multiple_type_mismatch(
     actual_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected {expected}, but found type `{actual}`",
+        "type mismatch: expected {expected:#}, but found {actual:#}",
         expected = display_types(expected),
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
     .with_label(
         format!(
-            "this expects {expected}",
+            "this expects {expected:#}",
             expected = display_types(expected)
         ),
         expected_span,
@@ -564,16 +564,16 @@ pub fn missing_struct_members<T: TreeToken>(
 pub fn map_key_not_primitive(span: Span, actual: &Type) -> Diagnostic {
     Diagnostic::error("expected map key to be a non-optional primitive type")
         .with_highlight(span)
-        .with_label(format!("this is type `{actual}`"), span)
+        .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Creates a "if conditional mismatch" diagnostic.
 pub fn if_conditional_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found type \
-         `{actual}`"
+        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found \
+         {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates an "else if not supported" diagnostic.
@@ -604,37 +604,34 @@ pub fn enum_not_supported(version: SupportedVersion, span: Span) -> Diagnostic {
 /// Creates a "logical not mismatch" diagnostic.
 pub fn logical_not_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected `logical not` operand to be type `Boolean`, but found type \
-         `{actual}`"
+        "type mismatch: expected `logical not` operand to be type `Boolean`, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates a "negation mismatch" diagnostic.
 pub fn negation_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected negation operand to be type `Int` or `Float`, but found type \
-         `{actual}`"
+        "type mismatch: expected negation operand to be type `Int` or `Float`, but found \
+         {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates a "logical or mismatch" diagnostic.
 pub fn logical_or_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected `logical or` operand to be type `Boolean`, but found type \
-         `{actual}`"
+        "type mismatch: expected `logical or` operand to be type `Boolean`, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates a "logical and mismatch" diagnostic.
 pub fn logical_and_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected `logical and` operand to be type `Boolean`, but found type \
-         `{actual}`"
+        "type mismatch: expected `logical and` operand to be type `Boolean`, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates a "comparison mismatch" diagnostic.
@@ -647,11 +644,11 @@ pub fn comparison_mismatch(
     rhs_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: operator `{op}` cannot compare type `{lhs}` to type `{rhs}`"
+        "type mismatch: operator `{op}` cannot compare {lhs:#} to {rhs:#}"
     ))
     .with_highlight(span)
-    .with_label(format!("this is type `{lhs}`"), lhs_span)
-    .with_label(format!("this is type `{rhs}`"), rhs_span)
+    .with_label(format!("this is {lhs:#}"), lhs_span)
+    .with_label(format!("this is {rhs:#}"), rhs_span)
 }
 
 /// Creates a "numeric mismatch" diagnostic.
@@ -664,19 +661,19 @@ pub fn numeric_mismatch(
     rhs_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: {op} operator is not supported for type `{lhs}` and type `{rhs}`"
+        "type mismatch: {op} operator is not supported for {lhs:#} and {rhs:#}"
     ))
     .with_highlight(span)
-    .with_label(format!("this is type `{lhs}`"), lhs_span)
-    .with_label(format!("this is type `{rhs}`"), rhs_span)
+    .with_label(format!("this is {lhs:#}"), lhs_span)
+    .with_label(format!("this is {rhs:#}"), rhs_span)
 }
 
 /// Creates a "string concat mismatch" diagnostic.
 pub fn string_concat_mismatch(actual: &Type, actual_span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: string concatenation is not supported for type `{actual}`"
+        "type mismatch: string concatenation is not supported for {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), actual_span)
+    .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates an "unknown function" diagnostic.
@@ -730,10 +727,9 @@ pub fn too_many_arguments(
 /// Constructs an "argument type mismatch" diagnostic.
 pub fn argument_type_mismatch(name: &str, expected: &str, actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: argument to function `{name}` expects type {expected}, but found type \
-         `{actual}`"
+        "type mismatch: argument to function `{name}` expects {expected}, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), span)
+    .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Constructs an "ambiguous argument" diagnostic.
@@ -747,29 +743,29 @@ pub fn ambiguous_argument(name: &str, span: Span, first: &str, second: &str) -> 
 /// Constructs an "index type mismatch" diagnostic.
 pub fn index_type_mismatch(expected: &Type, actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected index to be type `{expected}`, but found type `{actual}`"
+        "type mismatch: expected index to be {expected:#}, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), span)
+    .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Constructs an "type is not array" diagnostic.
 pub fn type_is_not_array(actual: &Type, span: Span) -> Diagnostic {
     Diagnostic::error(format!(
-        "type mismatch: expected an array type, but found type `{actual}`"
+        "type mismatch: expected an array type, but found {actual:#}"
     ))
-    .with_label(format!("this is type `{actual}`"), span)
+    .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Constructs a "cannot access" diagnostic.
 pub fn cannot_access(actual: &Type, actual_span: Span) -> Diagnostic {
-    Diagnostic::error(format!("cannot access type `{actual}`"))
-        .with_label(format!("this is type `{actual}`"), actual_span)
+    Diagnostic::error(format!("cannot access {actual:#}"))
+        .with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Constructs a "cannot coerce to string" diagnostic.
 pub fn cannot_coerce_to_string(actual: &Type, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("cannot coerce type `{actual}` to `String`"))
-        .with_label(format!("this is type `{actual}`"), span)
+    Diagnostic::error(format!("cannot coerce {actual:#} to type `String`"))
+        .with_label(format!("this is {actual:#}"), span)
 }
 
 /// Creates an "unknown task or workflow" diagnostic.
@@ -882,19 +878,19 @@ pub fn invalid_placeholder_option<N: TreeNode>(
     let message = match option {
         PlaceholderOption::Sep(_) => format!(
             "type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any \
-             primitive type, but found `{ty}`"
+             primitive type, but found {ty:#}"
         ),
         PlaceholderOption::Default(_) => format!(
             "type mismatch for placeholder option `default`: expected any primitive type, but \
-             found `{ty}`"
+             found {ty:#}"
         ),
         PlaceholderOption::TrueFalse(_) => format!(
             "type mismatch for placeholder option `true/false`: expected type `Boolean`, but \
-             found `{ty}`"
+             found {ty:#}"
         ),
     };
 
-    Diagnostic::error(message).with_label(format!("this is type `{ty}`"), span)
+    Diagnostic::error(message).with_label(format!("this is {ty:#}"), span)
 }
 
 /// Creates an invalid regex pattern diagnostic.
@@ -932,13 +928,13 @@ pub fn no_common_inferred_type_for_enum(
     Diagnostic::error(format!("cannot infer a common type for enum `{enum_name}`"))
         .with_label(
             format!(
-                "this is the first variant with type `{discordant_type}` that has no common type \
-                 with `{common_type}`"
+                "this is the first variant with {discordant_type:#} that has no common type with \
+                 {common_type:#}"
             ),
             discordant_span,
         )
         .with_label(
-            format!("this is the last variant with a common type `{common_type}`"),
+            format!("this is the last variant with a common {common_type:#}"),
             common_span,
         )
 }
@@ -953,8 +949,8 @@ pub fn enum_variant_does_not_coerce_to_type(
     actual: &Type,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from type `{actual}` to \
-         type `{expected}`"
+        "cannot coerce variant `{variant_name}` in enum `{enum_name}` from {actual:#} to \
+         {expected:#}"
     ))
     .with_label(format!("this is the `{enum_name}` enum"), enum_span)
     .with_label(
@@ -962,7 +958,7 @@ pub fn enum_variant_does_not_coerce_to_type(
         variant_span,
     )
     .with_fix(format!(
-        "change the value to something that coerces to type `{expected}` or explicitly set the \
-         enum's inner type"
+        "change the value to something that coerces to {expected:#} or explicitly set the enum's \
+         inner type"
     ))
 }

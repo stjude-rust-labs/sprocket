@@ -663,9 +663,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     let actual_key = match actual_key {
                         Value::Primitive(key) => key,
-                        _ => panic!(
-                            "key type `{actual_key}` is not primitive, but had a common type"
-                        ),
+                        _ => panic!("key {actual_key} is not primitive, but had a common type"),
                     };
 
                     elements.push((actual_key, actual_value));
@@ -2173,7 +2171,7 @@ pub(crate) mod test {
             .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
-            "cannot coerce type `Array[Int]` to `String`"
+            "cannot coerce type `Array[Int]` to type `String`"
         );
 
         let value = eval_v1_expr(
@@ -3580,8 +3578,8 @@ pub(crate) mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "type mismatch: argument to function `min` expects type `Int` or `Float`, but found \
-             type `String`"
+            "type mismatch: argument to function `min` expects type `Int` or type `Float`, but \
+             found type `String`"
         );
     }
 
