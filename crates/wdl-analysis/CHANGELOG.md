@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.0 - 2026-03-27
+
 #### Changed
 
 * Type mismatch diagnostics now distinguish between custom types and references
