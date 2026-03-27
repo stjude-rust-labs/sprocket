@@ -251,17 +251,6 @@ note[ShellCheck]: fasta_name is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:162:13
-    │
-162 │             ~{fusions} /
-    │             ^^^^^^^^^^
-    │             │
-    │             SC2086[info]: Double quote to prevent globbing and word splitting.
-    │             more info: https://www.shellcheck.net/wiki/SC2086
-    │
-    = fix: address the diagnostic as recommended in the message
-
 error: unknown name `fusions`
     ┌─ tests/lints/shellcheck-warn/source.wdl:162:15
     │
@@ -269,13 +258,13 @@ error: unknown name `fusions`
     │               ^^^^^^^
 
 note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:163:13
+    ┌─ tests/lints/shellcheck-warn/source.wdl:162:15
     │
-163 │             ~{prefix}.vcf
-    │             ^^^^^^^^^
-    │             │
-    │             SC2086[info]: Double quote to prevent globbing and word splitting.
-    │             more info: https://www.shellcheck.net/wiki/SC2086
+162 │             ~{fusions} /
+    │               ^^^^^^^
+    │               │
+    │               SC2086[info]: Double quote to prevent globbing and word splitting.
+    │               more info: https://www.shellcheck.net/wiki/SC2086
     │
     = fix: address the diagnostic as recommended in the message
 
@@ -284,6 +273,17 @@ error: unknown name `prefix`
     │
 163 │             ~{prefix}.vcf
     │               ^^^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:163:15
+    │
+163 │             ~{prefix}.vcf
+    │               ^^^^^^
+    │               │
+    │               SC2086[info]: Double quote to prevent globbing and word splitting.
+    │               more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
 
 error: unknown name `bams`
     ┌─ tests/lints/shellcheck-warn/source.wdl:165:32
@@ -341,22 +341,22 @@ note[ShellCheck]: outfile_name is referenced but not assigned.
     │
     = fix: address the diagnostic as recommended in the message
 
-note[ShellCheck]: Double quote to prevent globbing and word splitting.
-    ┌─ tests/lints/shellcheck-warn/source.wdl:177:41
-    │
-177 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
-    │                                         ^^^^^^^^^^^^^^^
-    │                                         │
-    │                                         SC2086[info]: Double quote to prevent globbing and word splitting.
-    │                                         more info: https://www.shellcheck.net/wiki/SC2086
-    │
-    = fix: address the diagnostic as recommended in the message
-
 error: unknown name `outfile_name`
     ┌─ tests/lints/shellcheck-warn/source.wdl:177:43
     │
 177 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
     │                                           ^^^^^^^^^^^^
+
+note[ShellCheck]: Double quote to prevent globbing and word splitting.
+    ┌─ tests/lints/shellcheck-warn/source.wdl:177:43
+    │
+177 │             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
+    │                                           ^^^^^^^^^^^^
+    │                                           │
+    │                                           SC2086[info]: Double quote to prevent globbing and word splitting.
+    │                                           more info: https://www.shellcheck.net/wiki/SC2086
+    │
+    = fix: address the diagnostic as recommended in the message
 
 note[ShellCheck]: Double quote to prevent globbing and word splitting.
     ┌─ tests/lints/shellcheck-warn/source.wdl:178:18
