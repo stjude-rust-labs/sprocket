@@ -126,13 +126,7 @@ impl TestContext {
 
     /// Creates a file URI for a path within the temporary workspace.
     pub fn doc_uri(&self, path: &str) -> Uri {
-        // `Url::from_file_path` doesn't do percent encoding unlike
-        // `Uri::from_file_path`, so we need to parse as a URL first. Mostly a
-        // problem on Windows with drive letters (e.g. `C:`).
-        Url::from_file_path(self.workspace.path().join(path))
-            .unwrap()
-            .try_into_uri()
-            .unwrap()
+        Uri::from_file_path(self.workspace.path().join(path)).unwrap()
     }
 
     /// Sends a raw JSON-RPC request to the server.
