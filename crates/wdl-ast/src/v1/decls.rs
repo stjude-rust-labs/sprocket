@@ -1026,6 +1026,7 @@ task test {
     }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());

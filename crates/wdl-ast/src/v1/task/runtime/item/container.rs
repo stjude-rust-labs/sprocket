@@ -66,6 +66,7 @@ task hello {
         container: "ubuntu"
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -95,6 +96,7 @@ task hello {
         foo: "ubuntu"
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -124,6 +126,7 @@ task hello {
         docker: "ubuntu"
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());

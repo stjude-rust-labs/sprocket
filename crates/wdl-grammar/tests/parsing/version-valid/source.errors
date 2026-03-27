@@ -1,0 +1,6 @@
+error: unsupported WDL version `1-DEVEL.foo`
+  ┌─ tests/parsing/version-valid/source.wdl:6:9
+  │
+6 │ version 1-DEVEL.foo
+  │         ^^^^^^^^^^^ this version of WDL is not supported
+

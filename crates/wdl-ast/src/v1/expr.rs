@@ -3384,6 +3384,7 @@ task test {
     Boolean b = false
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -3425,6 +3426,7 @@ task test {
     Int h = 9223372036854775809
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -3558,6 +3560,7 @@ task test {
     Float h = 1234.1234e1234
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -3694,6 +3697,7 @@ task test {
     >>>
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -3789,6 +3793,7 @@ task test {
     String placeholder = "~{empty}"
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -3840,6 +3845,7 @@ task test {
     Array[Array[Int]] c = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4046,6 +4052,7 @@ task test {
     Array[Pair[Int, String]] c = [(1, "hello"), (2, 'world'), (3, "!")]
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4185,6 +4192,7 @@ task test {
     Map[String, String] b = { "foo": "bar", "bar": "baz" }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4252,6 +4260,7 @@ task test {
     Object b = object { foo: "bar", bar: 1, baz: [1, 2, 3] }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4336,6 +4345,7 @@ task test {
     Bar b = Bar { bar: 1, baz: [1, 2, 3] }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4422,6 +4432,7 @@ task test {
     Boolean b = a == None
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4471,6 +4482,7 @@ task test {
     }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4597,6 +4609,7 @@ task test {
     }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4691,6 +4704,7 @@ task test {
     }
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4777,6 +4791,7 @@ task test {
     Int b = a
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4820,6 +4835,7 @@ task test {
     Int b = (10 - (5 + 5))
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4878,6 +4894,7 @@ task test {
     String b = if a > 0 then "yes" else "no"
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4927,6 +4944,7 @@ task test {
     Boolean b = !!!a
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -4983,6 +5001,7 @@ task test {
     Int b = ---a
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5042,6 +5061,7 @@ task test {
     Boolean c = a || b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5085,6 +5105,7 @@ task test {
     Boolean c = a && b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5128,6 +5149,7 @@ task test {
     Boolean c = a == b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5171,6 +5193,7 @@ task test {
     Boolean c = a != b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5214,6 +5237,7 @@ task test {
     Boolean c = a < b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5273,6 +5297,7 @@ task test {
     Boolean c = a <= b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5332,6 +5357,7 @@ task test {
     Boolean c = a > b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5391,6 +5417,7 @@ task test {
     Boolean c = a >= b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5450,6 +5477,7 @@ task test {
     Int c = a + b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5509,6 +5537,7 @@ task test {
     Int c = a - b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5568,6 +5597,7 @@ task test {
     Int c = a * b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5627,6 +5657,7 @@ task test {
     Int c = a / b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5686,6 +5717,7 @@ task test {
     Int c = a % b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5745,6 +5777,7 @@ task test {
     Int c = a ** b
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5803,6 +5836,7 @@ task test {
     String b = sep(" ", a)
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5885,6 +5919,7 @@ task test {
     Int b = a[1]
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -5955,6 +5990,7 @@ task test {
     String b = a.foo
 }
 "#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6007,6 +6043,7 @@ version 1.1
 task test {
     String a = "  foo  "
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6052,6 +6089,7 @@ task test {
             world
     >>>
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6133,6 +6171,7 @@ task test {
     !
     >>>
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6192,6 +6231,7 @@ task test {
     my name is Jeff.
     >>>
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6226,6 +6266,7 @@ task test {
     my name is Jeff.
     >>>
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -6253,6 +6294,7 @@ task test {
     fn whitespace_stripping_on_windows() {
         let (document, diagnostics) = Document::parse(
             "version 1.2\r\ntask test {\r\n    String s = <<<\r\n        hello\r\n    >>>\r\n}\r\n",
+            None,
         );
 
         assert!(diagnostics.is_empty());

@@ -1,0 +1,24 @@
+error: expected struct member name, but found `after` keyword
+  ┌─ tests/parsing/reserved-identifier-1-1/source.wdl:4:12
+  │
+4 │     String after
+  │            ^^^^^ unexpected `after` keyword
+
+error: expected struct member name, but found `None` keyword
+  ┌─ tests/parsing/reserved-identifier-1-1/source.wdl:5:12
+  │
+5 │     String None
+  │            ^^^^ unexpected `None` keyword
+
+error: expected input name, but found `after` keyword
+   ┌─ tests/parsing/reserved-identifier-1-1/source.wdl:10:13
+   │
+10 │         Int after
+   │             ^^^^^ unexpected `after` keyword
+
+error: expected metadata key, but found `None` keyword
+   ┌─ tests/parsing/reserved-identifier-1-1/source.wdl:14:9
+   │
+14 │         None: "xyz"
+   │         ^^^^ unexpected `None` keyword
+

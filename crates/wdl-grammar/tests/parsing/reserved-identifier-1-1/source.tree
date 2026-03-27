@@ -1,0 +1,71 @@
+RootNode@0..169
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.1"
+  Whitespace@11..13 "\n\n"
+  StructDefinitionNode@13..60
+    StructKeyword@13..19 "struct"
+    Whitespace@19..20 " "
+    Ident@20..23 "Foo"
+    Whitespace@23..24 " "
+    OpenBrace@24..25 "{"
+    Whitespace@25..30 "\n    "
+    UnboundDeclNode@30..42
+      PrimitiveTypeNode@30..36
+        StringTypeKeyword@30..36 "String"
+      Whitespace@36..37 " "
+      Ident@37..42 "after"
+    Whitespace@42..47 "\n    "
+    UnboundDeclNode@47..58
+      PrimitiveTypeNode@47..53
+        StringTypeKeyword@47..53 "String"
+      Whitespace@53..54 " "
+      Ident@54..58 "None"
+    Whitespace@58..59 "\n"
+    CloseBrace@59..60 "}"
+  Whitespace@60..62 "\n\n"
+  TaskDefinitionNode@62..168
+    TaskKeyword@62..66 "task"
+    Whitespace@66..67 " "
+    Ident@67..70 "foo"
+    Whitespace@70..71 " "
+    OpenBrace@71..72 "{"
+    Whitespace@72..77 "\n    "
+    InputSectionNode@77..108
+      InputKeyword@77..82 "input"
+      Whitespace@82..83 " "
+      OpenBrace@83..84 "{"
+      Whitespace@84..93 "\n        "
+      UnboundDeclNode@93..102
+        PrimitiveTypeNode@93..96
+          IntTypeKeyword@93..96 "Int"
+        Whitespace@96..97 " "
+        Ident@97..102 "after"
+      Whitespace@102..107 "\n    "
+      CloseBrace@107..108 "}"
+    Whitespace@108..114 "\n\n    "
+    MetadataSectionNode@114..146
+      MetaKeyword@114..118 "meta"
+      Whitespace@118..119 " "
+      OpenBrace@119..120 "{"
+      Whitespace@120..129 "\n        "
+      MetadataObjectItemNode@129..140
+        Ident@129..133 "None"
+        Colon@133..134 ":"
+        Whitespace@134..135 " "
+        LiteralStringNode@135..140
+          DoubleQuote@135..136 "\""
+          LiteralStringText@136..139 "xyz"
+          DoubleQuote@139..140 "\""
+      Whitespace@140..145 "\n    "
+      CloseBrace@145..146 "}"
+    Whitespace@146..152 "\n\n    "
+    CommandSectionNode@152..166
+      CommandKeyword@152..159 "command"
+      Whitespace@159..160 " "
+      OpenHeredoc@160..163 "<<<"
+      CloseHeredoc@163..166 ">>>"
+    Whitespace@166..167 "\n"
+    CloseBrace@167..168 "}"
+  Whitespace@168..169 "\n"
