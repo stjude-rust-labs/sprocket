@@ -6,6 +6,9 @@
     <a href="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml" target="_blank">
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
+    <a href="https://codecov.io/gh/stjude-rust-labs/sprocket" > 
+      <img src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
+    </a>
     <a href="https://crates.io/crates/sprocket" target="_blank">
       <img alt="crates.io version" src="https://img.shields.io/crates/v/sprocket">
     </a>
