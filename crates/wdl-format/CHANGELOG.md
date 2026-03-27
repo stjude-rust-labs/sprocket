@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Changed serialization for `MaxLineLength` and `Indent` configurations ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * `if...then...else...` statements now always occupy multiple lines ([#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 
 #### Fixed

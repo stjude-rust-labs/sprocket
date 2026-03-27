@@ -1,6 +1,5 @@
 //! Implementation of remote file downloads and uploads over HTTP.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs;
 use std::ops::Deref;
@@ -29,10 +28,6 @@ use tracing::debug;
 use url::Url;
 
 use crate::config::Config;
-use crate::config::cache_dir;
-
-/// The default cache subdirectory for the HTTP downloads cache.
-const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
 
 /// Represents a location of a downloaded file.
 #[derive(Debug, Clone)]
@@ -150,10 +145,7 @@ impl HttpTransferer {
         cancel: CancellationToken,
         events: Option<broadcast::Sender<TransferEvent>>,
     ) -> Result<Self> {
-        let cache_dir: Cow<'_, Path> = match &config.http.cache_dir {
-            Some(dir) => dir.into(),
-            None => cache_dir()?.join(DOWNLOADS_CACHE_SUBDIR).into(),
-        };
+        let cache_dir = config.http.cache_dir()?;
 
         let temp_dir = cache_dir.join("tmp");
         fs::create_dir_all(&temp_dir).with_context(|| {
@@ -202,7 +194,7 @@ impl HttpTransferer {
         let copy_config = cloud_copy::Config::builder()
             .with_link_to_cache(true)
             .with_overwrite(true)
-            .with_maybe_retries(config.http.retries)
+            .with_maybe_retries(config.http.retries.into())
             .with_azure(azure_config)
             .with_s3(s3_config)
             .with_google(google_config)
@@ -214,6 +206,7 @@ impl HttpTransferer {
             config
                 .http
                 .parallelism
+                .inner()
                 .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
         );
 

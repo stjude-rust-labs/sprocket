@@ -1,7 +1,7 @@
 [format]
-with_tabs = false
-indentation_size = 4
+indent = 4
 max_line_length = 90
+sort_imports = true
 sort_inputs = false
 trailing_commas = true
 
@@ -10,6 +10,7 @@ except = []
 deny_warnings = false
 deny_notes = false
 hide_notes = false
+hide_warnings = false
 all_lint_rules = false
 only_lint_tags = []
 filter_lint_tags = []
@@ -23,23 +24,33 @@ lint = false
 except = []
 
 [run]
+backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
 output_dir = "./out"
+events_capacity = 5000
 
 [run.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
 
 [run.workflow.scatter]
+concurrency = 1000
 
 [run.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
+
+[run.backends]
 
 [run.storage.azure]
 
@@ -54,26 +65,37 @@ allowed_origins = []
 output_directory = "./out"
 allowed_file_paths = []
 allowed_urls = []
+max_concurrent_runs = "unlimited"
 
 [server.database]
+url = "localized"
 
 [server.engine]
+backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
 
 [server.engine.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
 
 [server.engine.workflow.scatter]
+concurrency = 1000
 
 [server.engine.task]
+retries = "default"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
+cache_dir = "system"
 cache = "off"
 digests = "weak"
 excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
+
+[server.engine.backends]
 
 [server.engine.storage.azure]
 
@@ -89,4 +111,5 @@ color = "auto"
 report_mode = "full"
 
 [common.wdl]
+fallback_version = "none"
 

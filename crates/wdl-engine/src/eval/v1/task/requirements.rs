@@ -29,7 +29,6 @@ use crate::config::Config;
 use crate::units::StorageUnit;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::task::DEFAULT_GPU_COUNT;
-use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CONTAINER;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CPU;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MEMORY;
@@ -155,7 +154,7 @@ impl std::fmt::Display for ContainerSource {
 pub(crate) fn container(
     inputs: &TaskInputs,
     requirements: &HashMap<String, Value>,
-    default: Option<&str>,
+    default: &str,
 ) -> ContainerSource {
     let value: Cow<'_, str> = find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
@@ -187,11 +186,7 @@ pub(crate) fn container(
         // Treat `*` as the default.
         if v == "*" { None } else { Some(v) }
     })
-    .unwrap_or_else(|| {
-        default
-            .map(Into::into)
-            .unwrap_or(DEFAULT_TASK_REQUIREMENT_CONTAINER.into())
-    });
+    .unwrap_or_else(|| default.into());
 
     // SAFETY: `FromStr` for `ContainerSource` is infallible.
     value.parse().unwrap()
@@ -508,6 +503,7 @@ pub(crate) fn max_retries(
     Ok(config
         .task
         .retries
+        .inner()
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
@@ -518,6 +514,7 @@ mod tests {
     use super::ContainerSource;
     use super::*;
     use crate::PrimitiveValue;
+    use crate::config::DEFAULT_TASK_CONTAINER;
 
     fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
         let mut map = HashMap::new();
@@ -664,7 +661,7 @@ mod tests {
         requirements.insert("max_retries".to_string(), PrimitiveValue::from(1).into());
 
         assert_eq!(
-            container(&inputs, &requirements, None).to_string(),
+            container(&inputs, &requirements, DEFAULT_TASK_CONTAINER).to_string(),
             "foo:bar"
         );
 

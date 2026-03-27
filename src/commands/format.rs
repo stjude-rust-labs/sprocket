@@ -116,27 +116,27 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version;
+    let fallback_version = config.common.wdl.fallback_version.inner();
 
-    let indent = {
-        let with_tabs = args.with_tabs || config.format.with_tabs;
-        let num_spaces = args
-            .indentation_size
-            .unwrap_or(config.format.indentation_size);
-        Indent::try_new(with_tabs, if with_tabs { None } else { Some(num_spaces) })
+    let indent = if args.with_tabs || args.indentation_size.is_some() {
+        Indent::try_new(args.with_tabs, args.indentation_size)
             .context("failed to create indentation configuration")?
+    } else {
+        config.format.indent
     };
 
-    let max_line_length = MaxLineLength::try_new(
-        args.max_line_length
-            .unwrap_or(config.format.max_line_length),
-    )
-    .context("failed to create max line length configuration")?;
+    let max_line_length = if let Some(max) = args.max_line_length {
+        MaxLineLength::try_new(if max == 0 { None } else { Some(max) })
+            .context("failed to create max line length configuration")?
+    } else {
+        config.format.max_line_length
+    };
 
     let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
-        .sort_imports(config.format.sort_inputs)
+        .sort_inputs(config.format.sort_inputs)
+        .sort_imports(config.format.sort_imports)
         .trailing_commas(config.format.trailing_commas);
     let formatter = Formatter::new(config);
 

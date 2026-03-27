@@ -1,0 +1,4 @@
+error: parsing `bad.toml`
+
+Caused by:
+    expected a supported version or `none`, got `dev` for key `common.wdl.fallback_version`
