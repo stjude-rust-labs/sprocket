@@ -135,6 +135,10 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         tracing::warn!(
             "the `--with-doc-comments` flag is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
         );
+    } else if config.doc.with_doc_comments {
+        tracing::warn!(
+            "documentation comments support is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
+        );
     }
 
     let workspace = if let Source::Directory(workspace) = args.workspace.unwrap_or_default() {
@@ -209,19 +213,28 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .with_fallback_version(config.common.wdl.fallback_version)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
+
+    let homepage = args.homepage.or(config.doc.homepage);
+    let logo = args.logo.or(config.doc.logo);
+    let homepage_url = args.homepage_url.or(config.doc.homepage_url);
+    let github_url = args.github_url.or(config.doc.github_url);
+    let prioritize_workflows_view =
+        args.prioritize_workflows_view || config.doc.prioritize_workflows_view;
+    let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
+
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
-        .homepage(args.homepage)
+        .homepage(homepage)
         .init_light_mode(args.light_mode)
         .custom_theme(args.theme)
-        .custom_logo(args.logo)
+        .custom_logo(logo)
         .alt_logo(args.alt_light_logo)
         .external_urls(ExternalUrls {
-            homepage: args.homepage_url,
-            github: args.github_url,
+            homepage: homepage_url,
+            github: github_url,
         })
         .additional_javascript(addl_js)
-        .prefer_full_directory(!args.prioritize_workflows_view)
-        .enable_doc_comments(args.with_doc_comments);
+        .prefer_full_directory(!prioritize_workflows_view)
+        .enable_doc_comments(with_doc_comments);
 
     let mut counts = DiagnosticCounts::default();
     if let Err(e) = document_workspace(config).await {

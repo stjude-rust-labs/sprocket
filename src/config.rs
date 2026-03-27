@@ -95,6 +95,8 @@ pub struct Config {
     pub server: ServerConfig,
     /// Configuration for the `test` command.
     pub test: TestConfig,
+    /// Configuration for the `doc` command.
+    pub doc: DocConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
 }
@@ -355,6 +357,32 @@ impl Default for TestConfig {
     fn default() -> Self {
         Self { parallelism: 50 }
     }
+}
+
+/// `doc` command configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct DocConfig {
+    /// Path to a Markdown file to embed in the `<output>/index.html` file.
+    pub homepage: Option<PathBuf>,
+    /// Path to an SVG logo to embed on each page.
+    ///
+    /// If not supplied, the default Sprocket logo will be used.
+    pub logo: Option<PathBuf>,
+    /// An optional link to the project's homepage.
+    pub homepage_url: Option<Url>,
+    /// An optional link to the project's GitHub repository.
+    pub github_url: Option<Url>,
+    /// Initialize pages on the "Workflows" view instead of the "Full
+    /// Directory" view of the left nav bar.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub prioritize_workflows_view: bool,
+    /// Enables support for documentation comments
+    ///
+    /// This option is *experimental* and will be removed in a future major
+    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub with_doc_comments: bool,
 }
 
 impl Config {
