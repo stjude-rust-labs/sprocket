@@ -1049,6 +1049,7 @@ impl State {
         {
             value = value
                 .resolve_paths(
+                    false,
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
                     Some(self.transferer()),
@@ -1118,6 +1119,7 @@ impl State {
         {
             value = value
                 .resolve_paths(
+                    false,
                     expected_ty.is_optional(),
                     self.base_dir.as_local(),
                     Some(self.transferer()),
@@ -1175,6 +1177,7 @@ impl State {
         // Finally ensure output files exist
         value = value
             .resolve_paths(
+                false,
                 expected_ty.is_optional(),
                 self.base_dir.as_local(),
                 Some(self.transferer()),

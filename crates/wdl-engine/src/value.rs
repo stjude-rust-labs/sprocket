@@ -717,7 +717,17 @@ impl Value {
     /// paths transformed by the given `translate()` function.
     ///
     /// If a `File` or `Directory` value is optional and the path does not
-    /// exist, it is replaced with a WDL none value.
+    /// exist, it may be replaced with a WDL none value **only** when
+    /// `strict_explicit_files` is `false` (evaluation of WDL expressions, where
+    /// an optional file path that does not yet exist on disk is a valid
+    /// `None`).
+    ///
+    /// When `strict_explicit_files` is `true` (e.g. JSON or CLI inputs joined
+    /// via [`crate::inputs::TaskInputs::join_paths`]), an optional `File?` or
+    /// `Directory?` must still refer to an existing path if a path was
+    /// **explicitly** provided. Only a truly omitted input ([`Value::None`])
+    /// remains unset; a bad path is an error rather than silently coerced to
+    /// `None`.
     ///
     /// If a `File` or `Directory` value is required and the path does not
     /// exist, an error is returned.
@@ -732,6 +742,7 @@ impl Value {
     /// `wdl_engine`. Expect this interface to change soon!
     pub(crate) async fn resolve_paths<F>(
         &self,
+        must_exist: bool,
         optional: bool,
         base_dir: Option<&Path>,
         transferer: Option<&dyn Transferer>,
@@ -771,7 +782,7 @@ impl Value {
                         return Ok(Self::Primitive(v));
                     }
 
-                    if optional && !exists {
+                    if optional && !strict_explicit_files && !exists {
                         return Ok(Value::new_none(self.ty().optional()));
                     }
 
@@ -792,7 +803,7 @@ impl Value {
                                 return Ok(Self::Primitive(v));
                             }
 
-                            if optional && !exists {
+                            if optional && !strict_explicit_files && !exists {
                                 return Ok(Value::new_none(self.ty().optional()));
                             }
 
@@ -811,24 +822,22 @@ impl Value {
                     .map(|d| d.join(path.as_str()).into())
                     .unwrap_or_else(|| Path::new(path.as_str()).into());
                 if is_file && !exists_path.is_file() {
-                    if optional {
+                    if optional && !strict_explicit_files {
                         return Ok(Value::new_none(self.ty().optional()));
-                    } else {
-                        bail!("file `{}` does not exist", exists_path.display());
                     }
+                    bail!("file `{}` does not exist", exists_path.display());
                 } else if !is_file && !exists_path.is_dir() {
-                    if optional {
+                    if optional && !strict_explicit_files {
                         return Ok(Value::new_none(self.ty().optional()));
-                    } else {
-                        bail!("directory `{}` does not exist", exists_path.display())
                     }
+                    bail!("directory `{}` does not exist", exists_path.display());
                 }
 
                 let v = new_file_or_directory(is_file, path);
                 Ok(Self::Primitive(v))
             }
             Self::Compound(v) => Ok(Self::Compound(
-                v.resolve_paths(base_dir, transferer, translate)
+                v.resolve_paths(strict_explicit_files, base_dir, transferer, translate)
                     .boxed()
                     .await?,
             )),
@@ -2562,6 +2571,7 @@ impl CompoundValue {
     /// [`CompoundValue`]s.
     fn resolve_paths<'a, F>(
         &'a self,
+        strict_explicit_files: bool,
         base_dir: Option<&'a Path>,
         transferer: Option<&'a dyn Transferer>,
         translate: &'a F,
@@ -2578,12 +2588,24 @@ impl CompoundValue {
                     let fst = pair
                         .0
                         .left
-                        .resolve_paths(left_optional, base_dir, transferer, translate)
+                        .resolve_paths(
+                            strict_explicit_files,
+                            left_optional,
+                            base_dir,
+                            transferer,
+                            translate,
+                        )
                         .await?;
                     let snd = pair
                         .0
                         .right
-                        .resolve_paths(right_optional, base_dir, transferer, translate)
+                        .resolve_paths(
+                            strict_explicit_files,
+                            right_optional,
+                            base_dir,
+                            transferer,
+                            translate,
+                        )
                         .await?;
                     Ok(Self::Pair(Pair::new_unchecked(ty.clone(), fst, snd)))
                 }
@@ -2592,7 +2614,15 @@ impl CompoundValue {
                     let optional = ty.element_type().is_optional();
                     if !array.0.elements.is_empty() {
                         let resolved_elements = futures::stream::iter(array.0.elements.iter())
-                            .then(|v| v.resolve_paths(optional, base_dir, transferer, translate))
+                            .then(|v| {
+                                v.resolve_paths(
+                                    strict_explicit_files,
+                                    optional,
+                                    base_dir,
+                                    transferer,
+                                    translate,
+                                )
+                            })
                             .try_collect::<Vec<Value>>()
                             .await?;
                         Ok(Self::Array(Array::new_unchecked(
@@ -2611,13 +2641,25 @@ impl CompoundValue {
                         let resolved_elements = futures::stream::iter(map.0.elements.iter())
                             .then(async |(k, v)| {
                                 let resolved_key = Value::from(k.clone())
-                                    .resolve_paths(key_optional, base_dir, transferer, translate)
+                                    .resolve_paths(
+                                        strict_explicit_files,
+                                        key_optional,
+                                        base_dir,
+                                        transferer,
+                                        translate,
+                                    )
                                     .await?
                                     .as_primitive()
                                     .cloned()
                                     .expect("key should be primitive");
                                 let resolved_value = v
-                                    .resolve_paths(value_optional, base_dir, transferer, translate)
+                                    .resolve_paths(
+                                        strict_explicit_files,
+                                        value_optional,
+                                        base_dir,
+                                        transferer,
+                                        translate,
+                                    )
                                     .await?;
                                 Ok::<_, anyhow::Error>((resolved_key, resolved_value))
                             })
@@ -2635,7 +2677,13 @@ impl CompoundValue {
                         let resolved_members = futures::stream::iter(object.iter())
                             .then(async |(n, v)| {
                                 let resolved = v
-                                    .resolve_paths(false, base_dir, transferer, translate)
+                                    .resolve_paths(
+                                        strict_explicit_files,
+                                        false,
+                                        base_dir,
+                                        transferer,
+                                        translate,
+                                    )
                                     .await?;
                                 Ok::<_, anyhow::Error>((n.to_string(), resolved))
                             })
@@ -2651,6 +2699,7 @@ impl CompoundValue {
                         .then(async |(n, v)| {
                             let resolved = v
                                 .resolve_paths(
+                                    strict_explicit_files,
                                     ty.members()[n].is_optional(),
                                     base_dir,
                                     transferer,
@@ -2671,7 +2720,13 @@ impl CompoundValue {
                     let optional = e.enum_ty().inner_value_type().is_optional();
                     let value =
                         e.0.value
-                            .resolve_paths(optional, base_dir, transferer, translate)
+                            .resolve_paths(
+                                strict_explicit_files,
+                                optional,
+                                base_dir,
+                                transferer,
+                                translate,
+                            )
                             .await?;
                     Ok(Self::EnumVariant(EnumVariant::new(
                         e.0.enum_ty.clone(),
@@ -3966,6 +4021,7 @@ mod test {
     use wdl_analysis::types::ArrayType;
     use wdl_analysis::types::MapType;
     use wdl_analysis::types::PairType;
+    use wdl_analysis::types::PrimitiveType;
     use wdl_analysis::types::StructType;
     use wdl_ast::Diagnostic;
     use wdl_ast::Span;
@@ -4770,5 +4826,55 @@ mod test {
 
         let value = Value::TypeNameRef(TypeNameRefValue::new(enum_type));
         assert_eq!(value.to_string(), "Color");
+    }
+
+    #[tokio::test]
+    async fn resolve_paths_strict_optional_missing_file_errors() {
+        let v = Value::Primitive(PrimitiveValue::new_file(
+            "/nonexistent/absolute/path/for/wdl/engine/strict_optional_test.txt",
+        ));
+        let err = v
+            .resolve_paths(true, true, None, None, &|p| Ok(p.clone()))
+            .await
+            .unwrap_err();
+        assert!(
+            format!("{err:#}").contains("does not exist"),
+            "unexpected error: {err:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_paths_lenient_optional_missing_file_becomes_none() {
+        let v = Value::Primitive(PrimitiveValue::new_file(
+            "/nonexistent/absolute/path/for/wdl/engine/lenient_optional_test.txt",
+        ));
+        let got = v
+            .resolve_paths(false, true, None, None, &|p| Ok(p.clone()))
+            .await
+            .expect("should resolve");
+        assert!(got.is_none());
+    }
+
+    #[tokio::test]
+    async fn resolve_paths_omitted_optional_file_stays_none_under_strict() {
+        let v = Value::new_none(Type::from(PrimitiveType::File).optional());
+        let got = v
+            .resolve_paths(true, true, None, None, &|p| Ok(p.clone()))
+            .await
+            .expect("should resolve");
+        assert!(got.is_none());
+    }
+
+    #[tokio::test]
+    async fn resolve_paths_strict_optional_existing_file_ok() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let f = dir.path().join("ok.txt");
+        std::fs::write(&f, b"x").expect("write file");
+        let v = Value::Primitive(PrimitiveValue::new_file(f.to_str().expect("utf-8 path")));
+        let got = v
+            .resolve_paths(true, true, None, None, &|p| Ok(p.clone()))
+            .await
+            .expect("should resolve");
+        assert!(got.as_file().is_some());
     }
 }

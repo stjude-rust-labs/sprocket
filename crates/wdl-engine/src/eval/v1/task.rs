@@ -449,7 +449,9 @@ impl<'a> State<'a> {
         needs_local_inputs: bool,
     ) -> Result<()> {
         // For WDL 1.2 documents, start by ensuring paths exist.
-        // This will replace any non-existent optional paths with `None`
+        // Optional `File?` / `Directory?` values from evaluated expressions may
+        // still resolve to `None` when the path does not exist (see
+        // `Value::resolve_paths`).
         if self
             .document
             .version()
@@ -458,6 +460,7 @@ impl<'a> State<'a> {
         {
             *value = value
                 .resolve_paths(
+                    false,
                     is_optional,
                     self.base_dir.as_local(),
                     Some(transferer.as_ref()),
@@ -1866,6 +1869,7 @@ impl<'a> State<'a> {
             .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
         value = value
             .resolve_paths(
+                false,
                 ty.is_optional(),
                 self.base_dir.as_local(),
                 Some(self.transferer().as_ref()),
