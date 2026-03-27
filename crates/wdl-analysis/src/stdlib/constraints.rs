@@ -84,10 +84,7 @@ impl Constraint for StructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(
-            ty,
-            Type::Compound(CompoundType::Custom(CustomType::Struct(_)), _)
-        )
+        ty.as_struct().is_some()
     }
 }
 
@@ -102,7 +99,7 @@ impl Constraint for PrimitiveStructConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        if let Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) = ty {
+        if let Some(ty) = ty.as_struct() {
             return ty
                 .members()
                 .values()
@@ -219,10 +216,7 @@ impl Constraint for EnumVariantConstraint {
     }
 
     fn satisfied(&self, ty: &Type) -> bool {
-        matches!(
-            ty,
-            Type::Compound(CompoundType::Custom(CustomType::Enum(_)), _)
-        )
+        ty.as_enum().is_some()
     }
 }
 

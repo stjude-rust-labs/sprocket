@@ -58,15 +58,17 @@ task hello {
         let outputs_file = output_path.join("outputs.json");
         assert_eq!(
             str::from_utf8(&result.stdout).unwrap(),
-            format!(
-                "{{\n  \"hello.message\": \"hello world!\"\n}}\noutputs were also written to \
-                 `./out/runs/hello/{}`\n",
-                outputs_file.display()
-            )
+            "{\n  \"hello.message\": \"hello world!\"\n}\n"
         );
 
-        // Ensure stderr has at least one message at the level
-        assert!(str::from_utf8(&result.stderr).unwrap().contains(level));
+        // Ensure stderr has the outputs path message and at least one message
+        // at the level
+        let stderr = str::from_utf8(&result.stderr).unwrap();
+        assert!(stderr.contains(&format!(
+            "outputs were also written to `./out/runs/hello/{}`",
+            outputs_file.display()
+        )));
+        assert!(stderr.contains(level));
 
         // Ensure the log file in the run directory has at least one message
         // at the level

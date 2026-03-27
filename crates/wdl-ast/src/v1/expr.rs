@@ -2309,6 +2309,28 @@ impl<N: TreeNode> Placeholder<N> {
             .expect("should have a placeholder open token")
     }
 
+    /// Returns the placeholder open token (`${` or `~{`).
+    pub fn open(&self) -> N::Token {
+        self.0
+            .children_with_tokens()
+            .find_map(|c| {
+                c.into_token()
+                    .and_then(|t| (t.kind() == SyntaxKind::PlaceholderOpen).then_some(t))
+            })
+            .expect("should have a placeholder open token")
+    }
+
+    /// Returns the placeholder close token (`}`).
+    pub fn close(&self) -> N::Token {
+        self.0
+            .children_with_tokens()
+            .find_map(|c| {
+                c.into_token()
+                    .and_then(|t| (t.kind() == SyntaxKind::CloseBrace).then_some(t))
+            })
+            .expect("should have a close brace token")
+    }
+
     /// Gets the option for the placeholder.
     pub fn option(&self) -> Option<PlaceholderOption<N>> {
         self.child()
@@ -3731,6 +3753,8 @@ task test {
         assert_eq!(parts[0].clone().unwrap_text().text(), "Hello, ");
         let placeholder = parts[1].clone().unwrap_placeholder();
         assert!(!placeholder.has_tilde());
+        assert_eq!(placeholder.open().text(), "${");
+        assert_eq!(placeholder.close().text(), "}");
         assert_eq!(placeholder.expr().unwrap_name_ref().name().text(), "name");
         assert_eq!(parts[2].clone().unwrap_text().text(), "!");
 
@@ -3744,6 +3768,8 @@ task test {
         assert_eq!(parts[0].clone().unwrap_text().text(), "String");
         let placeholder = parts[1].clone().unwrap_placeholder();
         assert!(placeholder.has_tilde());
+        assert_eq!(placeholder.open().text(), "~{");
+        assert_eq!(placeholder.close().text(), "}");
         assert_eq!(
             placeholder
                 .expr()

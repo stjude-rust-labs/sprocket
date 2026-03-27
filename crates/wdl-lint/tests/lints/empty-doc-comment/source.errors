@@ -1,0 +1,36 @@
+note[EmptyDocComment]: empty doc comment block
+  ┌─ tests/lints/empty-doc-comment/source.wdl:5:1
+  │
+5 │ ##
+  │ ^^
+  │
+  = help: consider adding meaningful documentation text or removing the comment block
+
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
+   │  
+10 │ ╭ ##
+11 │ │ 
+12 │ │ ##
+   │ ╰──^
+   │  
+   = help: consider adding meaningful documentation text or removing the comment block
+
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:34:1
+   │
+34 │ ##   
+   │ ^^^^^
+   │
+   = help: consider adding meaningful documentation text or removing the comment block
+
+note[EmptyDocComment]: empty doc comment block
+   ┌─ tests/lints/empty-doc-comment/source.wdl:49:1
+   │  
+49 │ ╭ ##
+50 │ │ ##
+51 │ │ ##
+   │ ╰──^
+   │  
+   = help: consider adding meaningful documentation text or removing the comment block
+

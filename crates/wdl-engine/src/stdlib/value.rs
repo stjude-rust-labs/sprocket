@@ -47,6 +47,7 @@ pub const fn descriptor() -> Function {
 mod test {
     use std::sync::Arc;
 
+    use pretty_assertions::assert_eq;
     use wdl_analysis::types::EnumType;
     use wdl_analysis::types::PrimitiveType;
     use wdl_ast::Span;
@@ -138,8 +139,8 @@ mod test {
         let diagnostic = eval_v1_expr(&env, V1::Three, "value(s)").await.unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "type mismatch: argument to function `value` expects type `V` where `V`: any enum \
-             variant, but found type `String`"
+            "type mismatch: argument to function `value` expects generic type `V` where `V`: any \
+             enum variant, but found type `String`"
         );
     }
 }
