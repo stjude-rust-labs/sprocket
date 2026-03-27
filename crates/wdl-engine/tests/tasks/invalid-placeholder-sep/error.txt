@@ -1,4 +1,4 @@
-error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `Int`
+error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found type `Int`
    ┌─ tests/tasks/invalid-placeholder-sep/source.wdl:11:34
    │
 11 │         String out = "~{sep=', ' read_json("not-array.json")}"

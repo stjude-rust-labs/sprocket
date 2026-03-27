@@ -1,0 +1,8 @@
+error: type mismatch: expected an instance of struct `Resource`, but found type name `Resource`
+   ┌─ tests/analysis/type-name-mismatch/source.wdl:12:18
+   │
+12 │     Resource x = Resource
+   │              -   ^^^^^^^^ this is type name `Resource`
+   │              │    
+   │              this expects an instance of struct `Resource`
+

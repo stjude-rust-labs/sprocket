@@ -6,13 +6,13 @@ error: type mismatch: expected type `Object`, but found type `Map[Int, String]`
    │            │           
    │            this expects type `Object`
 
-error: type mismatch: expected type `Foo`, but found type `Map[Int, Int]`
+error: type mismatch: expected an instance of struct `Foo`, but found type `Map[Int, Int]`
    ┌─ tests/analysis/map-coercions/source.wdl:34:20
    │
 34 │     Foo invalid2 = { 1: 1, 2: 2 }
    │         --------   ^^^^^^^^^^^^^^ this is type `Map[Int, Int]`
    │         │           
-   │         this expects type `Foo`
+   │         this expects an instance of struct `Foo`
 
 error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
    ┌─ tests/analysis/map-coercions/source.wdl:35:30
@@ -22,11 +22,11 @@ error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
    │                   │           
    │                   this expects type `Map[Int, Int]`
 
-error: type mismatch: expected type `Map[Int, Int]`, but found type `Foo`
+error: type mismatch: expected type `Map[Int, Int]`, but found an instance of struct `Foo`
    ┌─ tests/analysis/map-coercions/source.wdl:36:30
    │
 36 │     Map[Int, Int] invalid4 = Foo { x: 1, y: 2}
-   │                   --------   ^^^^^^^^^^^^^^^^^ this is type `Foo`
+   │                   --------   ^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
    │                   │           
    │                   this expects type `Map[Int, Int]`
 
