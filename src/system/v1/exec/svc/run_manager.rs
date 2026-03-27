@@ -443,6 +443,14 @@ async fn cancel_run(
                 runs_guard.remove(&id);
             }
         }
+    } else if run.status == RunStatus::Canceling {
+        // The run is no longer in the active runs map but the DB status
+        // is still `Canceling`. This happens when the execution completes
+        // after a lazy cancellation (first cancel in slow mode) but
+        // before the second cancel arrives—the execution returns
+        // `Ok(None)` for the cancellation and removes itself from the
+        // map without updating the DB. Finalize the cancellation here.
+        db.cancel_run(id, Utc::now()).await?;
     }
 
     Ok(CancelRunResponse { id })

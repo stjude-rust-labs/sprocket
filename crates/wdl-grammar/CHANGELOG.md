@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* The `is_ident` utility function now properly checks that the parsed token is
+  `Token::Ident` ([#758](https://github.com/stjude-rust-labs/sprocket/pull/758)).
+
 ## 0.21.0 - 02-11-2026
 
 #### Added

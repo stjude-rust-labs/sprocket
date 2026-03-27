@@ -78,6 +78,39 @@ impl Rule for ExceptDirectiveValidRule {
          directives to ensure they are in the correct location."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {}
+
+    output {
+        # MatchingOutputMeta exceptions aren't valid
+        # in this context
+        #@ except: MatchingOutputMeta
+        String name = "Jimmy"
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+#@ except: MatchingOutputMeta
+workflow example {
+    meta {}
+
+    output {
+        String name = "Jimmy"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Clarity, Tag::Correctness, Tag::SprocketCompatibility])
     }
@@ -86,7 +119,7 @@ impl Rule for ExceptDirectiveValidRule {
         Some(&[SyntaxKind::VersionStatementNode])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }

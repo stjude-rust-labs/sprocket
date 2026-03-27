@@ -96,16 +96,20 @@ pub struct Args {
 
     /// The name of the task or workflow to run.
     ///
-    /// This argument is required if trying to run a task or workflow without
-    /// any inputs.
+    /// When no inputs are provided and `target` is not specified, the
+    /// target is inferred from the document: a workflow is selected if one
+    /// exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (e.g., multiple tasks and no workflow), an error is
+    /// returned.
     ///
-    /// If `target` is not specified, all inputs (from both files and
-    /// key-value pairs) are expected to be prefixed with the name of the
-    /// workflow or task being run.
+    /// If `target` is not specified but inputs are provided, all input
+    /// keys (from both files and key-value pairs) are expected to be
+    /// prefixed with the name of the workflow or task being run.
     ///
-    /// If `target` is specified, it will be appended with a `.` delimiter
-    /// and then prepended to all key-value pair inputs on the command line.
-    /// Keys specified within files are unchanged by this argument.
+    /// If `target` is specified, it is prepended (with a `.` delimiter)
+    /// to any input key that does not already carry the target prefix.
+    /// This applies to both file inputs and key-value pairs on the
+    /// command line.
     #[clap(short, long, value_name = "NAME")]
     pub target: Option<String>,
 
@@ -616,13 +620,7 @@ pub async fn run(
             inputs,
         ),
         None => {
-            // No inputs were provided, need explicit target
-            let target = args
-                .target
-                .as_ref()
-                .context("the `--target` option is required if no inputs are provided")?;
-
-            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
+            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
 
             let inputs = match target {
                 Target::Task(_) => TaskInputs::default().into(),

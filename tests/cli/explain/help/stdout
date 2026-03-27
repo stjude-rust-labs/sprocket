@@ -21,6 +21,15 @@ Options:
       --list-all-tags
           Lists all tags and exits
 
+  -f, --format <FORMAT>
+          The output format
+
+          Possible values:
+          - default: The default, human-readable output
+          - json:    Machine-readable JSON
+          
+          [default: default]
+
   -v, --verbose...
           Increase logging verbosity
 
@@ -65,6 +74,7 @@ Available rules:
   - DocCommentTabs
   - DocMetaStrings
   - DoubleQuotes
+  - EmptyDocComment
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
