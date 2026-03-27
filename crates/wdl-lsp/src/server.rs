@@ -1,6 +1,7 @@
 //! Implementation of the LSP server.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Formatter;
 use std::mem;
@@ -358,6 +359,45 @@ where
 pub type FilterReloadHandle<S> =
     tracing_subscriber::reload::Handle<tracing::metadata::LevelFilter, S>;
 
+/// Document URI mappings.
+///
+/// Manages mappings between client URIs and the normalized URLs used
+/// internally. Clients may provide URIs that need normalization, but we want to
+/// retain the original URI to return in responses.
+#[derive(Debug, Default)]
+pub struct Documents {
+    /// Original client URI -> normalized URL.
+    client_to_normalized: HashMap<Uri, Url>,
+    /// Normalized URL -> original client URI.
+    normalized_to_client: HashMap<Url, Uri>,
+}
+
+impl Documents {
+    /// Get the normalized URL for the given client URI.
+    fn get_url(&self, client_uri: &Uri) -> Option<Url> {
+        self.client_to_normalized.get(client_uri).cloned()
+    }
+
+    /// Get the original client URI for the given normalized URL.
+    fn get_client_uri(&self, normalized_url: &Url) -> Option<Uri> {
+        self.normalized_to_client.get(normalized_url).cloned()
+    }
+
+    /// Add a new normalized URL mapping for a client URI.
+    fn insert(&mut self, client_uri: Uri, normalized_url: Url) {
+        self.client_to_normalized
+            .insert(client_uri.clone(), normalized_url.clone());
+        self.normalized_to_client.insert(normalized_url, client_uri);
+    }
+
+    /// Remove a URI.
+    fn remove(&mut self, client_uri: &Uri) {
+        if let Some(normalized_url) = self.client_to_normalized.remove(client_uri) {
+            self.normalized_to_client.remove(&normalized_url);
+        }
+    }
+}
+
 /// Represents an LSP server for analyzing WDL documents.
 #[derive(Debug)]
 pub struct Server<S> {
@@ -367,6 +407,8 @@ pub struct Server<S> {
     client_support: OnceLock<ClientSupport>,
     /// The current set of workspace folders.
     folders: Arc<RwLock<Vec<WorkspaceFolder>>>,
+    /// Active document URI mappings.
+    documents: Arc<RwLock<Documents>>,
     /// Mutable configuration fields.
     config: Arc<tokio::sync::RwLock<ServerConfig>>,
     /// Level filter reload handle.
@@ -454,6 +496,7 @@ impl<S: 'static> Server<S> {
             client,
             client_support: Default::default(),
             folders: Default::default(),
+            documents: Default::default(),
             config: Arc::new(tokio::sync::RwLock::new(ServerConfig { options, analyzer })),
             log_handle,
         }
@@ -540,6 +583,41 @@ impl<S: 'static> Server<S> {
             .register_capability(registrations)
             .await
             .expect("failed to register capabilities with client");
+    }
+
+    /// Get the normalized URL for the client-provided URI.
+    fn normalized_url(&self, client_uri: &Uri) -> RpcResult<Url> {
+        if let Some(url) = self.documents.read().get_url(client_uri) {
+            return Ok(url);
+        }
+
+        let mut uri_clone = client_uri.clone();
+        normalize_uri_path(&mut uri_clone);
+        let url = uri_to_url(&uri_clone)?;
+
+        self.documents
+            .write()
+            .insert(client_uri.clone(), url.clone());
+
+        Ok(url)
+    }
+
+    /// Attempts to convert internal, normalized URLs to the original URI we
+    /// received.
+    fn restore_client_uri(&self, response_uri: &mut Uri) -> RpcResult<()> {
+        let internal_url = uri_to_url(response_uri)?;
+
+        let known_uris = self.documents.read();
+        if let Some(original_client_uri) = known_uris.get_client_uri(&internal_url) {
+            *response_uri = original_client_uri;
+        } else {
+            debug!(
+                "no mapping found for document `{}`, leaving as-is",
+                response_uri.as_str()
+            );
+        }
+
+        Ok(())
     }
 }
 
@@ -666,13 +744,11 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(())
     }
 
-    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let config = self.config.read().await;
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let url = match self.normalized_url(&params.text_document.uri) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -702,12 +778,9 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/didChange` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let url = match self.normalized_url(&params.text_document.uri) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -758,14 +831,11 @@ impl<S: 'static> LanguageServer for Server<S> {
         }
     }
 
-    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/didClose` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let url = match self.normalized_url(&params.text_document.uri) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -776,19 +846,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         if let Err(e) = config.analyzer.notify_change(url, true) {
             error!("failed to notify change: {e}");
         }
+
+        self.documents.write().remove(&params.text_document.uri);
     }
 
     async fn diagnostic(
         &self,
-        mut params: DocumentDiagnosticParams,
+        params: DocumentDiagnosticParams,
     ) -> RpcResult<DocumentDiagnosticReportResult> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document.uri)?;
 
         let results: Vec<wdl_analysis::AnalysisResult> = config
             .analyzer
@@ -1003,15 +1072,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn formatting(
         &self,
-        mut params: DocumentFormattingParams,
+        params: DocumentFormattingParams,
     ) -> RpcResult<Option<Vec<TextEdit>>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/formatting` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document.uri)?;
 
         let result = config
             .analyzer
@@ -1045,22 +1112,20 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn goto_definition(
         &self,
-        mut params: GotoDefinitionParams,
+        params: GotoDefinitionParams,
     ) -> RpcResult<Option<GotoDefinitionResponse>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         debug!("received `textDocument/gotoDefinition` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
         );
 
-        let result = config
+        let mut result = config
             .analyzer
             .goto_definition(url, position, SourcePositionEncoding::UTF16)
             .await
@@ -1070,24 +1135,40 @@ impl<S: 'static> LanguageServer for Server<S> {
                 data: None,
             })?;
 
+        if let Some(result) = result.as_mut() {
+            match result {
+                GotoDefinitionResponse::Scalar(location) => {
+                    self.restore_client_uri(&mut location.uri)?
+                }
+                GotoDefinitionResponse::Array(locs) => {
+                    for location in locs {
+                        self.restore_client_uri(&mut location.uri)?;
+                    }
+                }
+                GotoDefinitionResponse::Link(locs) => {
+                    for location in locs {
+                        self.restore_client_uri(&mut location.target_uri)?;
+                    }
+                }
+            }
+        }
+
         Ok(result)
     }
 
-    async fn references(&self, mut params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
+    async fn references(&self, params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/references` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
         );
 
-        let result = config
+        let mut result = config
             .analyzer
             .find_all_references(
                 url,
@@ -1102,20 +1183,19 @@ impl<S: 'static> LanguageServer for Server<S> {
                 data: None,
             })?;
 
+        for location in &mut result {
+            self.restore_client_uri(&mut location.uri)?;
+        }
+
         Ok(Some(result))
     }
 
-    async fn completion(
-        &self,
-        mut params: CompletionParams,
-    ) -> RpcResult<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> RpcResult<Option<CompletionResponse>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/completion` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1140,14 +1220,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn hover(&self, mut params: HoverParams) -> RpcResult<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> RpcResult<Option<Hover>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
         debug!("received `textDocument/hover` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1166,14 +1244,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn rename(&self, mut params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
+    async fn rename(&self, params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/rename` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1200,15 +1276,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn semantic_tokens_full(
         &self,
-        mut params: SemanticTokensParams,
+        params: SemanticTokensParams,
     ) -> RpcResult<Option<SemanticTokensResult>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document.uri)?;
 
         let result = config
             .analyzer
@@ -1225,15 +1299,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn document_symbol(
         &self,
-        mut params: DocumentSymbolParams,
+        params: DocumentSymbolParams,
     ) -> RpcResult<Option<DocumentSymbolResponse>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/documentSymbol` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document.uri)?;
 
         let result = config
             .analyzer
@@ -1272,15 +1344,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn signature_help(
         &self,
-        mut params: SignatureHelpParams,
+        params: SignatureHelpParams,
     ) -> RpcResult<Option<SignatureHelp>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         debug!("received `textDocument/signatureHelp` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1300,14 +1370,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn inlay_hint(&self, mut params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
+    async fn inlay_hint(&self, params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let url = self.normalized_url(&params.text_document.uri)?;
 
         // Analyze the document first to ensure we have up-to-date information
         config
