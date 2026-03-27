@@ -216,6 +216,6 @@ task l {
         #
         # TODO(clay): perhaps we can parse out just the tags in this particular
         # case where the placeholder gives the container image name?
-        container: "${image}:latest"
+        container: "~{image}:latest"
     }
 }
