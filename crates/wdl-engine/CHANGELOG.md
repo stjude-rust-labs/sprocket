@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.13.1 - 2026-03-27
+
 #### Fixed
 
 * Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
