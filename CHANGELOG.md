@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+* The following config paths are now shell-expanded: `run.output_dir`, `run.task.cache_dir`, `run.http.cache_dir` ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
 
 ### Fixed
 

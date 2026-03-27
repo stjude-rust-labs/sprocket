@@ -532,6 +532,32 @@ fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
     Ok(serde_json::to_string(&map)?)
 }
 
+/// Shell expand directory paths in `config.run`.
+pub(crate) fn expand_config_run_paths(config: &mut Config) -> CommandResult<()> {
+    for path in [
+        Some(&mut config.run.output_dir),
+        config.run.engine.task.cache_dir.as_mut(),
+        config.run.engine.http.cache_dir.as_mut(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        match shellexpand::path::full(path.as_path()) {
+            Ok(expanded) => *path = PathBuf::from(expanded),
+            Err(e) => {
+                return Err(anyhow!(
+                    "failed to expand `{}` in path `{path:?}`: {}",
+                    e.var_name.to_string_lossy(),
+                    e.cause
+                )
+                .into());
+            }
+        }
+    }
+
+    Ok(())
+}
+
 /// The main function for the `run` subcommand.
 pub async fn run(
     args: Args,
@@ -545,6 +571,7 @@ pub async fn run(
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
+    expand_config_run_paths(&mut config)?;
 
     let template = if colorize {
         "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
