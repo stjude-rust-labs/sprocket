@@ -90,8 +90,15 @@ fn normalize_uri_path(uri: &mut Uri) {
         path
     };
 
+    if let Ok(url) = Url::from_file_path(&*path)
+        && let Ok(u) = Uri::from_str(url.as_str())
+    {
+        *uri = u;
+        return;
+    }
+
     let mut path_str = path.to_string_lossy();
-    if cfg!(windows) && !path.is_absolute() {
+    if cfg!(windows) {
         path_str = Cow::Owned(path_str.replace('\\', "/"));
 
         // The leading slash on Windows is a shorthand for `localhost` (e.g. `file://localhost/C:/Windows` with the `localhost` omitted).
