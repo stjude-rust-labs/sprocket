@@ -369,10 +369,18 @@ pub struct DocConfig {
     ///
     /// If not supplied, the default Sprocket logo will be used.
     pub logo: Option<PathBuf>,
+    /// Path to an alternate light mode SVG logo to embed on each page.
+    ///
+    /// If not supplied, the `logo` SVG will be used; or if that is also not
+    /// supplied, the default Sprocket logo will be used.
+    pub alt_light_logo: Option<PathBuf>,
     /// An optional link to the project's homepage.
     pub homepage_url: Option<Url>,
     /// An optional link to the project's GitHub repository.
     pub github_url: Option<Url>,
+    /// Initialize pages in light mode instead of the default dark mode.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub light_mode: bool,
     /// Initialize pages on the "Workflows" view instead of the "Full
     /// Directory" view of the left nav bar.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -383,6 +391,22 @@ pub struct DocConfig {
     /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub with_doc_comments: bool,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately after the opening
+    /// `<head>` tag.
+    pub javascript_head_open: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately before the closing
+    /// `<head>` tag.
+    pub javascript_head_close: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately after the opening
+    /// `<body>` tag.
+    pub javascript_body_open: Option<PathBuf>,
+    /// Path to a `.js` file that should have its contents embedded in a
+    /// `<script>` tag for each HTML page, immediately before the closing
+    /// `<body>` tag.
+    pub javascript_body_close: Option<PathBuf>,
 }
 
 impl Config {

@@ -175,10 +175,18 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     let addl_js = match (
-        &args.javascript_head_open,
-        &args.javascript_head_close,
-        &args.javascript_body_open,
-        &args.javascript_body_close,
+        &args
+            .javascript_head_open
+            .or(config.doc.javascript_head_open),
+        &args
+            .javascript_head_close
+            .or(config.doc.javascript_head_close),
+        &args
+            .javascript_body_open
+            .or(config.doc.javascript_body_open),
+        &args
+            .javascript_body_close
+            .or(config.doc.javascript_body_close),
     ) {
         (Some(path), ..) => {
             let js = std::fs::read_to_string(path)
@@ -215,7 +223,9 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
     let homepage = args.homepage.or(config.doc.homepage);
+    let light_mode = args.light_mode || config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo);
+    let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo);
     let homepage_url = args.homepage_url.or(config.doc.homepage_url);
     let github_url = args.github_url.or(config.doc.github_url);
     let prioritize_workflows_view =
@@ -224,10 +234,10 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .homepage(homepage)
-        .init_light_mode(args.light_mode)
+        .init_light_mode(light_mode)
         .custom_theme(args.theme)
         .custom_logo(logo)
-        .alt_logo(args.alt_light_logo)
+        .alt_logo(alt_light_logo)
         .external_urls(ExternalUrls {
             homepage: homepage_url,
             github: github_url,
