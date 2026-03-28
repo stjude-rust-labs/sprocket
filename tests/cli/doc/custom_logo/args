@@ -1,1 +1,1 @@
-dev doc -c sprocket.toml
+dev doc --logo test-logo.svg
