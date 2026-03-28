@@ -24,7 +24,7 @@ pub struct Args {
 
     /// The output directory (default: `./out`).
     #[clap(short, long, value_name = "OUTPUT_DIR")]
-    pub output_directory: Option<PathBuf>,
+    pub output_dir: Option<PathBuf>,
 
     /// Allowed file paths for file-based workflows.
     #[arg(long)]
@@ -54,8 +54,8 @@ impl Args {
             config.server.database.url = Some(database_url);
         }
 
-        if let Some(output_directory) = self.output_directory {
-            config.server.output_directory = output_directory;
+        if let Some(output_dir) = self.output_dir {
+            config.server.output_dir = output_dir;
         }
 
         config
