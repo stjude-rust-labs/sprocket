@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
 * Renamed `output_directory` configuration setting to `output_dir` in `[server]`
   config table ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
+* Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
+  subcommand for consistency with `run` ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
 
 ### Fixed
 
