@@ -69,6 +69,10 @@ impl Rule for MetaDescriptionRule {
 version 1.2
 
 task say_hello {
+    meta {
+        author: "You"
+    }
+
     input {
         String name
     }

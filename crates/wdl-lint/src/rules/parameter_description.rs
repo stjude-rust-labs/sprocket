@@ -77,6 +77,16 @@ impl Rule for ParameterDescriptionRule {
 version 1.2
 
 task greet {
+    meta {
+        outputs: {
+            greeting: {}
+        }
+    }
+
+    parameter_meta {
+        name: {}
+    }
+
     input {
         String name
     }

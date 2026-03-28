@@ -58,7 +58,34 @@ impl Rule for ConsistentNewlinesRule {
     }
 
     fn examples(&self) -> &'static [&'static str] {
-        &[]
+        // Line endings are built with `concat!` so we can mix `\n` and `\r\n` in a `&'static str`
+        // (a plain multiline string would be normalized by the repo / editor).
+        &[
+            concat!(
+                "This file mixes Unix (`\\n`) and Windows (`\\r\\n`) line endings:\n\n",
+                "```wdl\n",
+                "version 1.2\n",
+                "\n",
+                "workflow example {\r\n",
+                "    meta {}\n",
+                "\n",
+                "    output {}\n",
+                "}\n",
+                "```"
+            ),
+            concat!(
+                "Use one line-ending style throughout:\n\n",
+                "```wdl\n",
+                "version 1.2\n",
+                "\n",
+                "workflow example {\n",
+                "    meta {}\n",
+                "\n",
+                "    output {}\n",
+                "}\n",
+                "```"
+            ),
+        ]
     }
 
     fn tags(&self) -> TagSet {

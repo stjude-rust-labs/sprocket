@@ -173,16 +173,16 @@ impl Rule for UnusedInputRule {
 
     fn examples(&self) -> &'static [&'static str] {
         &[r#"```wdl
-version 1.2
+version 1.1
 
 workflow example {
-    meta {}
-
     input {
         String unused
     }
 
-    output {}
+    output {
+        String out = "ok"
+    }
 }
 ```"#]
     }
