@@ -4,5 +4,5 @@ error: expected map key to be a non-optional primitive type
 12 │     Map[Int, String] a = { f: "foo" }
    │                            ^
    │                            │
-   │                            this is type `Foo`
+   │                            this is an instance of struct `Foo`
 

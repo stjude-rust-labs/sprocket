@@ -1,0 +1,8 @@
+note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option
+   ┌─ tests/lints/deprecated-placeholder-options-v1.0/source.wdl:18:40
+   │
+18 │     String bad_interpolation_option = "${bar}"
+   │                                        ^
+   │
+   = fix: replace the opening token `$` with `~`
+
