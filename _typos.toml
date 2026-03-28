@@ -31,6 +31,7 @@ extend-exclude = [
     "crates/wdl-engine/tests/workflows/map-to-array/",
     "crates/wdl-engine/tests/workflows/pair-to-array/",
     "crates/gauntlet/",
-    "crates/wdl-grammar/tests/parsing/"
+    "crates/wdl-grammar/tests/parsing/",
+    "crates/wdl-format/tests/format/ENCODE-DCC_chip-seq-pipeline/",
 ]
 ignore-hidden = true
