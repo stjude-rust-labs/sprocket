@@ -39,7 +39,7 @@ pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 const CONFIG_FILE_NAME: &str = "sprocket.toml";
 
 /// Default output directory function for serde.
-fn default_output_directory() -> PathBuf {
+fn default_output_dir() -> PathBuf {
     PathBuf::from(DEFAULT_OUTPUT_DIRECTORY)
 }
 
@@ -200,7 +200,7 @@ pub struct RunConfig {
     /// The output directory (default: `./out`).
     ///
     /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
-    #[serde(default = "default_output_directory")]
+    #[serde(default = "default_output_dir")]
     pub output_dir: PathBuf,
 
     /// The capacity of the events channel used to display progress statistics.
@@ -222,7 +222,7 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            output_dir: default_output_directory(),
+            output_dir: default_output_dir(),
             events_capacity: None,
         }
     }
@@ -255,8 +255,8 @@ pub struct ServerConfig {
     #[serde(default)]
     pub database: ServerDatabaseConfig,
     /// Directory for workflow outputs (default: `./out`).
-    #[serde(default = "default_output_directory")]
-    pub output_directory: PathBuf,
+    #[serde(default = "default_output_dir")]
+    pub output_dir: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[serde(default)]
     pub allowed_file_paths: Vec<PathBuf>,
@@ -280,7 +280,7 @@ impl Default for ServerConfig {
             port: DEFAULT_PORT,
             allowed_origins: Vec::new(),
             database: ServerDatabaseConfig::default(),
-            output_directory: default_output_directory(),
+            output_dir: default_output_dir(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: None,

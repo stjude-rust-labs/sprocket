@@ -55,7 +55,7 @@ impl Args {
         }
 
         if let Some(output_directory) = self.output_directory {
-            config.server.output_directory = output_directory;
+            config.server.output_dir = output_directory;
         }
 
         config
