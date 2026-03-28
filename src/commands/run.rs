@@ -63,6 +63,7 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
+use crate::system::v1::fs::FileSystemLock;
 use crate::system::v1::fs::OutputDirectory;
 
 /// The delay in showing the progress bar.
@@ -117,16 +118,20 @@ pub struct Args {
 
     /// The name of the task or workflow to run.
     ///
-    /// This argument is required if trying to run a task or workflow without
-    /// any inputs.
+    /// When no inputs are provided and `target` is not specified, the
+    /// target is inferred from the document: a workflow is selected if one
+    /// exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (e.g., multiple tasks and no workflow), an error is
+    /// returned.
     ///
-    /// If `target` is not specified, all inputs (from both files and
-    /// key-value pairs) are expected to be prefixed with the name of the
-    /// workflow or task being run.
+    /// If `target` is not specified but inputs are provided, all input
+    /// keys (from both files and key-value pairs) are expected to be
+    /// prefixed with the name of the workflow or task being run.
     ///
-    /// If `target` is specified, it will be appended with a `.` delimiter
-    /// and then prepended to all key-value pair inputs on the command line.
-    /// Keys specified within files are unchanged by this argument.
+    /// If `target` is specified, it is prepended (with a `.` delimiter)
+    /// to any input key that does not already carry the target prefix.
+    /// This applies to both file inputs and key-value pairs on the
+    /// command line.
     #[clap(short, long, value_name = "NAME")]
     pub target: Option<String>,
 
@@ -637,13 +642,7 @@ pub async fn run(
             inputs,
         ),
         None => {
-            // No inputs were provided, need explicit target
-            let target = args
-                .target
-                .as_ref()
-                .context("the `--target` option is required if no inputs are provided")?;
-
-            let target = select_target(document, Some(target)).map_err(|e| anyhow!(e))?;
+            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
 
             let inputs = match target {
                 Target::Task(_) => TaskInputs::default().into(),
@@ -660,6 +659,18 @@ pub async fn run(
             .clone()
             .unwrap_or_else(|| config.run.output_dir.clone()),
     );
+
+    // Acquire an exclusive lock on the output directory to serialize setup
+    // operations across concurrent processes (e.g., database creation,
+    // directory structure initialization, and symlink management).
+    //
+    // NOTE: this lock covers setup only. Post-setup operations on shared
+    // state (e.g., index symlink creation in `set_run_success`) are not
+    // covered—concurrent processes indexing on the same name can still
+    // race on symlinks. This is acceptable because each parallel test
+    // uses a unique target name.
+    let lock = FileSystemLock::acquire(output_dir.root())
+        .context("failed to acquire lock on output directory")?;
 
     // Create the run directory
     let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
@@ -720,6 +731,10 @@ pub async fn run(
     db.update_run_directory(run_id, run_dir_str)
         .await
         .context("failed to update run directory")?;
+
+    // Release the lock now that setup is complete—each process has its own
+    // timestamped run directory from this point forward.
+    drop(lock);
 
     let ctx = RunContext {
         run_id,
@@ -810,7 +825,7 @@ pub async fn run(
                             let outputs_json = std::fs::read_to_string(&outputs_file)
                                 .context("failed to read outputs file")?;
                             println!("{outputs_json}");
-                            println!("outputs were also written to `{path}`", path = outputs_file.display());
+                            eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
                         }
                         Ok(())
                     }

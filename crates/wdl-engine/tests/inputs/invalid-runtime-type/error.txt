@@ -1,1 +1,1 @@
-failed to parse input file `tests/inputs/invalid-runtime-type/inputs.json`: invalid input key `test.runtime.returnCodes`: expected type `Int`, type `String`, or type `Array[Int]` for runtime key `returnCodes`, but found type `None`
+failed to parse input file `tests/inputs/invalid-runtime-type/inputs.json`: invalid input key `test.runtime.returnCodes`: expected type `Int`, type `String`, or type `Array[Int]` for runtime key `returnCodes`, but found built-in type `None`

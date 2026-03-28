@@ -13,7 +13,6 @@ use wdl_ast::version::V1;
 use crate::types::ArrayType;
 use crate::types::Coercible;
 use crate::types::CompoundType;
-use crate::types::CustomType;
 use crate::types::MapType;
 use crate::types::Optional;
 use crate::types::PairType;
@@ -152,7 +151,12 @@ impl GenericType {
                                 }
                             }
                             None => {
-                                write!(f, "{name}")
+                                write!(
+                                    f,
+                                    "{prefix}{name}{suffix}",
+                                    prefix = if f.alternate() { "generic type `" } else { "" },
+                                    suffix = if f.alternate() { "`" } else { "" },
+                                )
                             }
                         }
                     }
@@ -308,15 +312,14 @@ impl GenericArrayType {
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "Array[")?;
-                self.ty.element_type.display(self.params).fmt(f)?;
-                write!(f, "]")?;
-
-                if self.ty.is_non_empty() {
-                    write!(f, "+")?;
-                }
-
-                Ok(())
+                write!(
+                    f,
+                    "{prefix}Array[{ty}]{plus}{suffix}",
+                    prefix = if f.alternate() { "generic type `" } else { "" },
+                    ty = self.ty.element_type.display(self.params),
+                    plus = if self.ty.is_non_empty() { "+" } else { "" },
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
         }
 
@@ -407,11 +410,14 @@ impl GenericPairType {
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "Pair[")?;
-                self.ty.left_type.display(self.params).fmt(f)?;
-                write!(f, ", ")?;
-                self.ty.right_type.display(self.params).fmt(f)?;
-                write!(f, "]")
+                write!(
+                    f,
+                    "{prefix}Pair[{left}, {right}]{suffix}",
+                    prefix = if f.alternate() { "generic type `" } else { "" },
+                    left = self.ty.left_type.display(self.params),
+                    right = self.ty.right_type.display(self.params),
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
         }
 
@@ -498,11 +504,14 @@ impl GenericMapType {
 
         impl fmt::Display for Display<'_> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(f, "Map[")?;
-                self.ty.key_type.display(self.params).fmt(f)?;
-                write!(f, ", ")?;
-                self.ty.value_type.display(self.params).fmt(f)?;
-                write!(f, "]")
+                write!(
+                    f,
+                    "{prefix}Map[{key}, {value}]{suffix}",
+                    prefix = if f.alternate() { "generic type `" } else { "" },
+                    key = self.ty.key_type.display(self.params),
+                    value = self.ty.value_type.display(self.params),
+                    suffix = if f.alternate() { "`" } else { "" },
+                )
             }
         }
 
@@ -584,10 +593,8 @@ impl GenericEnumInnerValueType {
                     .get(self.ty.param)
                     .expect("variant parameter should be present");
 
-                match variant_ty {
-                    Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                        enum_ty.inner_value_type().fmt(f)
-                    }
+                match variant_ty.as_ref().and_then(|t| t.as_enum()) {
+                    Some(enum_ty) => write!(f, "{}", enum_ty.inner_value_type()),
                     // NOTE: non-enums should gracefully fail.
                     _ => write!(f, "{}", self.ty.param),
                 }
@@ -603,13 +610,11 @@ impl GenericEnumInnerValueType {
             .get(self.param)
             .expect("variant parameter should be present");
 
-        match variant_ty {
-            Some(Type::Compound(CompoundType::Custom(CustomType::Enum(enum_ty)), _)) => {
-                Some(enum_ty.inner_value_type().clone())
-            }
-            // NOTE: non-enums should gracefully fail.
-            _ => None,
-        }
+        // NOTE: non-enums should gracefully fail.
+        variant_ty
+            .as_ref()
+            .and_then(|t| t.as_enum())
+            .map(|enum_ty| enum_ty.inner_value_type().clone())
     }
 
     /// Asserts that the type parameters referenced by the type are valid.
@@ -1112,7 +1117,7 @@ impl FunctionSignature {
                     if coerced && !argument.is_coercible_to(&ty) {
                         return Err(FunctionBindError::ArgumentTypeMismatch {
                             index: i,
-                            expected: format!("`{ty}`"),
+                            expected: format!("{ty:#}"),
                         });
                     }
                 }
@@ -1128,7 +1133,7 @@ impl FunctionSignature {
 
                     write!(
                         &mut expected,
-                        "`{param}`",
+                        "{param:#}",
                         param = parameter.ty.display(&type_parameters)
                     )
                     .unwrap();
@@ -5330,7 +5335,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Float`".into()
+                expected: "type `Float`".into()
             }
         );
 
@@ -5399,7 +5404,8 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Map[K, V]` where `K`: any non-optional primitive type".into()
+                expected: "generic type `Map[K, V]` where `K`: any non-optional primitive type"
+                    .into()
             }
         );
 
@@ -5539,7 +5545,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Int` or `Float`".into()
+                expected: "type `Int` or type `Float`".into()
             }
         );
 
@@ -5554,7 +5560,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 1,
-                expected: "`Int` or `Float`".into()
+                expected: "type `Int` or type `Float`".into()
             }
         );
 
@@ -5569,7 +5575,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Int` or `Float`".into()
+                expected: "type `Int` or type `Float`".into()
             }
         );
 
@@ -5584,7 +5590,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 1,
-                expected: "`Int` or `Float`".into()
+                expected: "type `Int` or type `Float`".into()
             }
         );
     }
@@ -5624,7 +5630,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 0,
-                expected: "`Array[X]`".into()
+                expected: "generic type `Array[X]`".into()
             }
         );
 
@@ -5657,7 +5663,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 1,
-                expected: "`String`".into()
+                expected: "type `String`".into()
             }
         );
 
@@ -5690,7 +5696,7 @@ mod test {
             e,
             FunctionBindError::ArgumentTypeMismatch {
                 index: 1,
-                expected: "`String`".into()
+                expected: "type `String`".into()
             }
         );
     }

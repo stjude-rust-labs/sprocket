@@ -1,4 +1,10 @@
 ## This is a test of an unused file input in workflows and tasks.
+##
+## `wdl-analysis` used to follow the behavior of `miniwdl`, which would
+## ignore `File` inputs with specific suffixes that only existed to localize
+## the files to the same directory.
+##
+## This was reverted after https://github.com/stjude-rust-labs/sprocket/issues/218
 
 version 1.1
 
