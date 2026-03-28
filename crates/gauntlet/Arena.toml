@@ -8,23 +8,8 @@ commit_hash = "60c4e506136dbebc687c3db7b1e8d3a745f488c8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:57:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L57"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:69:40: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L69"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `annotsv_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
-message = "testrun.wdl:83:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L83"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
@@ -33,33 +18,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:64:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L64"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:65:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L65"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:68:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L68"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
-message = "ww-annotsv.wdl:69:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L69"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
 message = "ww-annotsv.wdl:85:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L85"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:115:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L115"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
@@ -68,28 +28,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:59:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L59"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:67:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L67"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `annovar_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:74:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
-message = "testrun.wdl:94:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -100,6 +40,31 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `aws_sso_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L5"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:62:15: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:62:47: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:64:32: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:68:17: warning[OptionalInputSafety]: optional value `object_count` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L68"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
+message = "testrun.wdl:78:16: warning[OptionalInputSafety]: optional value `bucket_listing` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/testrun.wdl/#L78"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
@@ -153,21 +118,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:198:54: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L198"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:216:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L216"
 
@@ -203,16 +153,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:61:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L61"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
-message = "ww-aws-sso.wdl:69:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L69"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/ww-aws-sso.wdl"
 message = "ww-aws-sso.wdl:77:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-aws-sso/ww-aws-sso.wdl/#L77"
 
@@ -225,6 +165,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bcftools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
+message = "ww-bcftools.wdl:62:14: warning[OptionalInputSafety]: optional value `regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L62"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
+message = "ww-bcftools.wdl:63:52: warning[OptionalInputSafety]: optional value `regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L63"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
@@ -245,21 +195,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bedparse_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:42:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L42"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:43:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L43"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
-message = "ww-bedparse.wdl:44:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L44"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
@@ -298,11 +233,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
-message = "ww-bedtools.wdl:88:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L88"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:97:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L97"
 
@@ -317,14 +247,24 @@ message = "testrun.wdl:156:13: note[ContainerUri]: container URI uses a mutable 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L156"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:91:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L91"
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:101:12: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L101"
 
 [[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
-message = "testrun.wdl:92:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L92"
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:105:14: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L105"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:109:14: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L109"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:112:45: warning[OptionalInputSafety]: optional value `mates` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L112"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
@@ -348,43 +288,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:148:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L148"
+message = "ww-cnvkit.wdl:145:49: warning[OptionalInputSafety]: optional value `normal_bam` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L145"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:149:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:149:18: warning[OptionalInputSafety]: optional value `normal_bam` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L149"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:150:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L150"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:151:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:151:9: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L151"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:157:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L157"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:158:21: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L158"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:159:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:159:9: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L159"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:165:27: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L165"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -398,18 +318,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:50:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:50:22: note[DoubleQuotes]: string defined with single quotes"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:51:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L51"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -418,33 +328,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:71:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L71"
+message = "ww-cnvkit.wdl:68:15: warning[OptionalInputSafety]: optional value `target_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:73:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:73:19: warning[OptionalInputSafety]: optional value `target_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:74:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-cnvkit.wdl:74:9: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:75:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L75"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:82:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
-message = "ww-cnvkit.wdl:85:17: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L85"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -458,43 +353,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:64:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L64"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:65:18: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L65"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `delly_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L6"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:74:25: note[ShellCheck]: Use find instead of ls to better handle non-alphanumeric filenames."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/testrun.wdl"
-message = "testrun.wdl:76:25: note[ShellCheck]: Use find instead of ls to better handle non-alphanumeric filenames."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/testrun.wdl/#L76"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:57:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L57"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
-message = "ww-delly.wdl:64:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-delly/ww-delly.wdl/#L64"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
@@ -518,21 +378,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:45:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L45"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:46:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L46"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
-message = "ww-deseq2.wdl:47:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L47"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:58:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L58"
 
@@ -543,8 +388,53 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
-message = "ww-fastqc.wdl:77:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L77"
+message = "ww-fastqc.wdl:49:16: warning[OptionalInputSafety]: optional value `adapters` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:50:46: warning[OptionalInputSafety]: optional value `adapters` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L50"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:53:16: warning[OptionalInputSafety]: optional value `limits` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:54:44: warning[OptionalInputSafety]: optional value `limits` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L54"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:57:16: warning[OptionalInputSafety]: optional value `contaminants` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L57"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:58:50: warning[OptionalInputSafety]: optional value `contaminants` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L58"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:63:16: warning[OptionalInputSafety]: optional value `r1_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L63"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:64:47: warning[OptionalInputSafety]: optional value `r1_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L64"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:67:16: warning[OptionalInputSafety]: optional value `r2_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L67"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:68:47: warning[OptionalInputSafety]: optional value `r2_fastq` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L68"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
@@ -568,128 +458,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:346:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L346"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:361:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L361"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:371:52: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L371"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:381:44: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L381"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:391:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L391"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:401:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L401"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:411:50: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L411"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:420:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L420"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:421:47: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L421"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:430:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L430"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:431:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L431"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:440:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L440"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:441:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L441"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:450:34: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L450"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:451:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L451"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:461:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L461"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:470:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L470"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:479:49: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L479"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:486:56: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L486"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:486:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L486"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:496:55: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L496"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:506:51: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L506"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
-message = "testrun.wdl:515:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L515"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:529:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L529"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1009:13: note[ShellCheck]: Declare and assign separately to avoid masking return values."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1009"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -698,23 +468,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1065:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1065"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1077:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1077"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1128:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1128"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1129:16: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1129"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -725,16 +480,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1170:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1170"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1185:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1185"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:1186:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1186"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -753,11 +498,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:249:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L249"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:258:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L258"
 
@@ -768,13 +508,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:46:13: note[ContainerUri]: container URI uses a mutable tag"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L46"
+message = "ww-gatk.wdl:439:67: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L439"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:478:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L478"
+message = "ww-gatk.wdl:467:17: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L467"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:468:33: warning[OptionalInputSafety]: optional value `intervals` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L468"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:46:13: note[ContainerUri]: container URI uses a mutable tag"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -798,33 +548,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:775:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L775"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:787:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L787"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:822:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L822"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:832:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L832"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:893:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L893"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
-message = "ww-gatk.wdl:898:13: note[ShellCheck]: Declare and assign separately to avoid masking return values."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L898"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -843,13 +573,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:184:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L184"
+message = "ww-gdc.wdl:182:14: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L182"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:197:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L197"
+message = "ww-gdc.wdl:183:13: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L183"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -858,18 +588,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:54:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L54"
+message = "ww-gdc.wdl:65:14: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L65"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:66:13: note[ShellCheck]: Double quote to prevent globbing and word splitting."
+message = "ww-gdc.wdl:66:13: warning[OptionalInputSafety]: optional value `token_file` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L66"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
-message = "ww-gdc.wdl:78:10: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L78"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
@@ -963,11 +688,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
-message = "ww-manta.wdl:54:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L54"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:73:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L73"
 
@@ -983,16 +703,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:121:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L121"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
-message = "testrun.wdl:137:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L137"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:166:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L166"
 
@@ -1000,31 +710,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L17"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:104:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L104"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:105:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L105"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:106:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L106"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:113:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L113"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:113:42: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L113"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
@@ -1038,33 +723,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:160:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L160"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:162:18: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L162"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:194:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L194"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:36:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L36"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:58:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L58"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
-message = "ww-salmon.wdl:98:14: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L98"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
@@ -1088,18 +753,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:38:62: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L38"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:52:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L52"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
-message = "ww-samtools.wdl:86:39: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L86"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
@@ -1148,16 +803,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:109:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L109"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:120:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L120"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `smoove_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L12"
 
@@ -1165,21 +810,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:133:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L133"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:74:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L74"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:82:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L82"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
-message = "testrun.wdl:89:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L89"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
@@ -1198,8 +828,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
-message = "ww-smoove.wdl:60:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L60"
+message = "ww-smoove.wdl:73:25: warning[OptionalInputSafety]: optional value `target_regions_bed` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/ww-smoove.wdl/#L73"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
@@ -1223,6 +853,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:101:23: warning[OptionalInputSafety]: optional value `output_name` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L101"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:111:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L111"
 
@@ -1233,23 +868,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:47:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L47"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:50:59: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L50"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:59:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L59"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
-message = "ww-sourmash.wdl:99:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L99"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
@@ -1268,23 +888,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
+message = "ww-sra.wdl:32:3: note[ShellCheck]: running `shellcheck` on command section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L32"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
 message = "ww-sra.wdl:3:4: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L3"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:44:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L44"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
 message = "ww-sra.wdl:4:4: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L4"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
-message = "ww-sra.wdl:52:9: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L52"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -1328,23 +943,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:136:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L136"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:174:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L174"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:216:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L216"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:229:43: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L229"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -1353,13 +953,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:311:9: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L311"
+message = "testrun.wdl:313:21: warning[OptionalInputSafety]: optional value `germline_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L313"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
-message = "testrun.wdl:319:9: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L319"
+message = "testrun.wdl:321:21: warning[OptionalInputSafety]: optional value `somatic_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L321"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:337:49: warning[OptionalInputSafety]: optional value `germline_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L337"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:343:49: warning[OptionalInputSafety]: optional value `somatic_report` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L343"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
@@ -1368,88 +978,8 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:155:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L155"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:156:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L156"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:171:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L171"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:171:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L171"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:178:17: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L178"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = 'ww-strelka.wdl:178:41: note[ShellCheck]: Quote expansions in this for loop glob to prevent wordsplitting, e.g. "$dir"/*.txt .'
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L178"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:186:22: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L186"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:186:46: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L186"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:186:98: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L186"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:187:102: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L187"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:187:24: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L187"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:187:48: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L187"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:200:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L200"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:56:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L56"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:57:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L57"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:81:26: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L81"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
-message = "ww-strelka.wdl:81:67: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/ww-strelka.wdl/#L81"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -1503,16 +1033,6 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:169:23: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L169"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:169:61: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L169"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:180:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L180"
 
@@ -1538,28 +1058,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:470:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L470"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:485:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L485"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:518:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L518"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:532:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L532"
-
-[[diagnostics]]
-document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
-message = "ww-testdata.wdl:565:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L565"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1590,6 +1095,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:745:10: note[InputName]: declaration identifier starts with 'input'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L745"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:757:14: warning[OptionalInputSafety]: optional value `region` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L757"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:759:40: warning[OptionalInputSafety]: optional value `region` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L759"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1718,8 +1233,208 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:190:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L190"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:197:24: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L197"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:198:28: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L198"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:205:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L205"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:211:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L211"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:217:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L217"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:223:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L223"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:229:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L229"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:235:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L235"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:241:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L241"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:247:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L247"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:253:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L253"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:259:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L259"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:265:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L265"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:277:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L277"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:283:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L283"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:289:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L289"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:295:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L295"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:301:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L301"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:307:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L307"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:313:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L313"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:319:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L319"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:325:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L325"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:331:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L331"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:337:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L337"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:343:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L343"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:349:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L349"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:359:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L359"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:394:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L394"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:395:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L395"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:396:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L396"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:397:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L397"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:398:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L398"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:399:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L399"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:400:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L400"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:401:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L401"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:402:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L402"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:403:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L403"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:404:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L404"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:405:22: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L405"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:406:19: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L406"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
@@ -1730,6 +1445,36 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:146:20: note[KnownRules]: unknown rule `LineWidth`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L146"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:188:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L188"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:194:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L194"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:195:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L195"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:196:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L196"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:197:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L197"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:198:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L198"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1755,6 +1500,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/bwa.wdl"
 message = "bwa.wdl:196:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/bwa.wdl/#L196"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/bwa.wdl"
+message = "bwa.wdl:267:9: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/bwa.wdl/#L267"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/bwa.wdl"
@@ -1788,6 +1538,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fastp.wdl"
+message = "fastp.wdl:161:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fastp.wdl/#L161"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fastp.wdl"
 message = "fastp.wdl:228:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fastp.wdl/#L228"
 
@@ -1798,8 +1553,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:159:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L159"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:170:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L170"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:83:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L83"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -1903,8 +1668,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/mosdepth.wdl"
+message = "mosdepth.wdl:54:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/mosdepth.wdl/#L54"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/mosdepth.wdl"
 message = "mosdepth.wdl:72:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/mosdepth.wdl/#L72"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/multiqc.wdl"
+message = "multiqc.wdl:46:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/multiqc.wdl/#L46"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/multiqc.wdl"
@@ -1943,6 +1718,21 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:1035:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L1035"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:1036:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L1036"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:1037:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L1037"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:1049:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L1049"
 
@@ -1950,6 +1740,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:132:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L132"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:214:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L214"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2098,8 +1893,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:586:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L586"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:607:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L607"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:679:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L679"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
@@ -2150,6 +1955,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:308:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L308"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:32:18: warning[OptionalInputSafety]: optional value `md5sum` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L32"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:33:19: warning[OptionalInputSafety]: optional value `md5sum` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L33"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2205,6 +2020,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:194:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L194"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:239:13: warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L239"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
