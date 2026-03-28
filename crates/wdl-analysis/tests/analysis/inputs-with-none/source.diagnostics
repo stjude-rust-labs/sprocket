@@ -1,8 +1,8 @@
-error: type mismatch: expected type `Int`, but found type `None`
+error: type mismatch: expected type `Int`, but found built-in type `None`
    ┌─ tests/analysis/inputs-with-none/source.wdl:39:18
    │
 39 │         input4 = None, # Error
-   │         ------   ^^^^ this is type `None`
+   │         ------   ^^^^ this is built-in type `None`
    │         │         
    │         this expects type `Int`
 
@@ -12,11 +12,11 @@ error: missing required call input `input4` for task `t`
 43 │     call t as t3 {
    │          ^
 
-error: type mismatch: expected type `Int`, but found type `None`
+error: type mismatch: expected type `Int`, but found built-in type `None`
    ┌─ tests/analysis/inputs-with-none/source.wdl:57:18
    │
 57 │         input4 = None, # Error
-   │         ------   ^^^^ this is type `None`
+   │         ------   ^^^^ this is built-in type `None`
    │         │         
    │         this expects type `Int`
 

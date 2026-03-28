@@ -140,22 +140,43 @@ pub struct Invocation {
 }
 
 impl Invocation {
+    /// Prefixes a key with the target name if needed.
+    ///
+    /// When `self.target` is set:
+    ///
+    /// * If the key already starts with `"{target}."`, it is returned as-is.
+    /// * Otherwise the key is prefixed with `"{target}."`.
+    fn prefix_key(&self, key: String) -> String {
+        match &self.target {
+            Some(target) => {
+                if key
+                    .strip_prefix(target)
+                    .and_then(|r| r.strip_prefix('.'))
+                    .is_some()
+                {
+                    key
+                } else {
+                    format!("{target}.{key}")
+                }
+            }
+            None => key,
+        }
+    }
+
     /// Adds an input read from the command line.
     async fn add_input(&mut self, input: &str) -> Result<()> {
         match input.parse::<Input>()? {
             Input::File(url) => {
                 let inputs = file::read_input_file(&url).await?;
-                self.inputs.extend(inputs);
+                for (key, value) in inputs {
+                    self.inputs.insert(self.prefix_key(key), value);
+                }
             }
             Input::Pair { key, value } => {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = if let Some(prefix) = &self.target {
-                    format!("{prefix}.{key}")
-                } else {
-                    key
-                };
+                let key = self.prefix_key(key);
                 self.inputs.insert(
                     key,
                     LocatedJsonValue {
@@ -169,13 +190,14 @@ impl Invocation {
         Ok(())
     }
 
-    /// Attempts to coalesce a set of inputs into an [`Inputs`].
+    /// Attempts to coalesce a set of inputs into an [`Invocation`].
     ///
-    /// `target` is the task or workflow the inputs are for.
-    /// If `target` is `Some(_)` then it will be prefixed to each
-    /// [`Input::Pair`]. Keys inside a [`Input::File`] must always have this
-    /// common prefix specified. If `target` is `None` then all of the
-    /// inputs in `iter` must be prefixed with the task or workflow name.
+    /// `target` is the task or workflow the inputs are for. If `target` is
+    /// `Some(_)`, then all input keys—both from [`Input::Pair`] and
+    /// [`Input::File`]—that do not already start with `"{target}."` will be
+    /// automatically prefixed with the target name. If `target` is `None`,
+    /// all input keys must already be prefixed with the task or workflow
+    /// name.
     pub async fn coalesce<T, V>(iter: T, target: Option<String>) -> Result<Self>
     where
         T: IntoIterator<Item = V>,
@@ -401,11 +423,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(invocation.inputs.len(), 5);
-        check_string_value(&invocation, "foo", "bar");
-        check_float_value(&invocation, "baz", 128.0);
-        check_string_value(&invocation, "quux", "qil");
-        check_string_value(&invocation, "new.key", "foobarbaz");
-        check_string_value(&invocation, "new_two.key", "bazbarfoo");
+        check_string_value(&invocation, "foo.foo", "bar");
+        check_float_value(&invocation, "foo.baz", 128.0);
+        check_string_value(&invocation, "foo.quux", "qil");
+        check_string_value(&invocation, "foo.new.key", "foobarbaz");
+        check_string_value(&invocation, "foo.new_two.key", "bazbarfoo");
 
         // The opposite coalescing order.
         let invocation = Invocation::coalesce(
@@ -420,11 +442,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(invocation.inputs.len(), 5);
-        check_string_value(&invocation, "foo", "bar");
-        check_float_value(&invocation, "baz", 42.0);
-        check_string_value(&invocation, "quux", "qil");
-        check_string_value(&invocation, "new.key", "foobarbaz");
-        check_string_value(&invocation, "new_two.key", "bazbarfoo");
+        check_string_value(&invocation, "name_ex.foo", "bar");
+        check_float_value(&invocation, "name_ex.baz", 42.0);
+        check_string_value(&invocation, "name_ex.quux", "qil");
+        check_string_value(&invocation, "name_ex.new.key", "foobarbaz");
+        check_string_value(&invocation, "name_ex.new_two.key", "bazbarfoo");
 
         // An example with some random key-value pairs thrown in.
         let invocation = Invocation::coalesce(
@@ -535,5 +557,94 @@ mod tests {
         let (key, value) = r#"foo="bar=baz""#.parse::<Input>().unwrap().unwrap_pair();
         assert_eq!(key, "foo");
         assert_eq!(value.as_str().unwrap(), "bar=baz");
+    }
+
+    #[tokio::test]
+    async fn file_inputs_prefixed_with_target() {
+        let invocation = Invocation::coalesce(
+            ["./tests/fixtures/inputs_one.json"],
+            Some("mytask".to_string()),
+        )
+        .await
+        .unwrap();
+
+        for key in invocation.inputs.keys() {
+            assert!(
+                key.starts_with("mytask."),
+                "expected key `{key}` to be prefixed with `mytask.`"
+            );
+        }
+
+        assert!(invocation.inputs.contains_key("mytask.foo"));
+        assert!(invocation.inputs.contains_key("mytask.baz"));
+        assert!(invocation.inputs.contains_key("mytask.quux"));
+    }
+
+    #[tokio::test]
+    async fn file_inputs_already_prefixed_not_doubled() {
+        let invocation = Invocation::coalesce(
+            ["./tests/fixtures/inputs_two.json"],
+            Some("new".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            invocation.inputs.contains_key("new.key"),
+            "key `new.key` should not be double-prefixed"
+        );
+        assert!(
+            !invocation.inputs.contains_key("new.new.key"),
+            "key `new.key` was double-prefixed to `new.new.key`"
+        );
+        assert!(invocation.inputs.contains_key("new.baz"));
+        assert!(invocation.inputs.contains_key("new.quux"));
+    }
+
+    #[tokio::test]
+    async fn mixed_file_and_cli_inputs_with_target() {
+        let invocation = Invocation::coalesce(
+            ["./tests/fixtures/inputs_one.json", r#"extra="value""#],
+            Some("tgt".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert!(invocation.inputs.contains_key("tgt.foo"));
+        assert!(invocation.inputs.contains_key("tgt.baz"));
+        assert!(invocation.inputs.contains_key("tgt.quux"));
+        assert!(invocation.inputs.contains_key("tgt.extra"));
+    }
+
+    #[tokio::test]
+    async fn cli_inputs_already_prefixed_not_doubled() {
+        let invocation = Invocation::coalesce([r#"tgt.name="hello""#], Some("tgt".to_string()))
+            .await
+            .unwrap();
+
+        assert!(
+            invocation.inputs.contains_key("tgt.name"),
+            "key `tgt.name` should not be double-prefixed"
+        );
+        assert!(
+            !invocation.inputs.contains_key("tgt.tgt.name"),
+            "key `tgt.name` was double-prefixed to `tgt.tgt.name`"
+        );
+    }
+
+    #[tokio::test]
+    async fn dotted_key_with_different_target_prefixes_normally() {
+        // `inputs_two.json` contains `new.key`. The dotted key should be
+        // prefixed normally to `foo.new.key`.
+        let invocation = Invocation::coalesce(
+            ["./tests/fixtures/inputs_two.json"],
+            Some(String::from("foo")),
+        )
+        .await
+        .unwrap();
+
+        assert!(invocation.inputs.contains_key("foo.new.key"));
+        assert!(invocation.inputs.contains_key("foo.baz"));
+        assert!(invocation.inputs.contains_key("foo.quux"));
     }
 }

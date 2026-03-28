@@ -172,12 +172,6 @@
     margin-bottom: 0;
   }
   /**
-   * Header
-   */
-  .header__button {
-    @apply border border-slate-800 rounded-xl flex items-center justify-center text-slate-300 text-lg cursor-pointer hover:border-slate-700 hover:bg-slate-800 h-10 w-10;
-  }
-  /**
    * Left sidebar
    */
   .left-sidebar__indent {
