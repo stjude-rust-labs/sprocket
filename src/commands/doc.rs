@@ -137,7 +137,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         );
     } else if config.doc.with_doc_comments {
         tracing::warn!(
-            "documentation comments support is **experimental** and will be removed in a future major version. See https://github.com/openwdl/wdl/issues/757"
+            "documentation comments support is **experimental**. See https://github.com/openwdl/wdl/issues/757"
         );
     }
 
@@ -175,18 +175,10 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     let addl_js = match (
-        &args
-            .javascript_head_open
-            .or(config.doc.javascript_head_open),
-        &args
-            .javascript_head_close
-            .or(config.doc.javascript_head_close),
-        &args
-            .javascript_body_open
-            .or(config.doc.javascript_body_open),
-        &args
-            .javascript_body_close
-            .or(config.doc.javascript_body_close),
+        &args.javascript_head_open.or(config.doc.scripts.head_open),
+        &args.javascript_head_close.or(config.doc.scripts.head_close),
+        &args.javascript_body_open.or(config.doc.scripts.body_open),
+        &args.javascript_body_close.or(config.doc.scripts.body_close),
     ) {
         (Some(path), ..) => {
             let js = std::fs::read_to_string(path)

@@ -387,26 +387,33 @@ pub struct DocConfig {
     pub prioritize_workflows_view: bool,
     /// Enables support for documentation comments
     ///
-    /// This option is *experimental* and will be removed in a future major
-    /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+    /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub with_doc_comments: bool,
+    /// Configuration for custom scripts to embed in generated HTML pages.
+    pub scripts: DocScriptsConfig,
+}
+
+/// `doc.scripts` command configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub struct DocScriptsConfig {
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately after the opening
     /// `<head>` tag.
-    pub javascript_head_open: Option<PathBuf>,
+    pub head_open: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<head>` tag.
-    pub javascript_head_close: Option<PathBuf>,
+    pub head_close: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately after the opening
     /// `<body>` tag.
-    pub javascript_body_open: Option<PathBuf>,
+    pub body_open: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<body>` tag.
-    pub javascript_body_close: Option<PathBuf>,
+    pub body_close: Option<PathBuf>,
 }
 
 impl Config {
