@@ -349,11 +349,25 @@ pub struct TestConfig {
     /// Number of test executions to run in parallel. The default is `50`.
     #[serde(default)]
     pub parallelism: usize,
+    /// Directory containing test fixture files.
+    ///
+    /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fixtures_dir: Option<PathBuf>,
+    /// Directory to use for executing tests.
+    ///
+    /// If not set, runs are written to `<workspace>/test/runs`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_dir: Option<PathBuf>,
 }
 
 impl Default for TestConfig {
     fn default() -> Self {
-        Self { parallelism: 50 }
+        Self {
+            parallelism: 50,
+            fixtures_dir: None,
+            run_dir: None,
+        }
     }
 }
 
