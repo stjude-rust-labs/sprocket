@@ -16,7 +16,7 @@ pub struct ExternalUrls {
     pub github: Option<Url>,
 }
 
-/// The location to embed an arbitrary JaveScript `<script>` tag into each HTML
+/// The location to embed an arbitrary JavaScript `<script>` tag into each HTML
 /// page.
 #[derive(Debug)]
 pub enum AdditionalScript {

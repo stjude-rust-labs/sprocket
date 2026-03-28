@@ -11,8 +11,16 @@ env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
   IN_CI: 1
+  CLICOLOR: 1
 
 jobs:
+  spelling:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Spell Check Repo
+      uses: crate-ci/typos@v1.44.0
+
   format:
     runs-on: ubuntu-latest
     steps:

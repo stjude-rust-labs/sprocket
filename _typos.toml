@@ -1,0 +1,37 @@
+[default]
+# Enforce US English specifically
+locale = "en-us"
+
+[default.extend-words]
+# Add words here to ignore them (Case-sensitive)
+Ot = "Ot"
+BA = "BA"
+ot = "ot"
+UE = "UE"
+Ue = "Ue"
+fo = "fo"
+Fo = "Fo"
+Divable = "Divable"
+ba = "ba"
+thay = "thay"
+pilon = "pilon"
+bimap = "bimap"
+nam = "nam"
+
+[files]
+# Ignore folders that don't need spellchecking
+extend-exclude = [
+    "target/",
+    "Cargo.lock",
+    ".git/",
+    "*.bin",
+    "*.js",
+    "crates/wdl-engine/tests/workflows/concurrent-localization/",
+    "crates/wdl-engine/tests/workflow/localization/",
+    "crates/wdl-engine/tests/workflows/map-to-array/",
+    "crates/wdl-engine/tests/workflows/pair-to-array/",
+    "crates/gauntlet/",
+    "crates/wdl-grammar/tests/parsing/",
+    "crates/wdl-format/tests/format/ENCODE-DCC_chip-seq-pipeline/",
+]
+ignore-hidden = true

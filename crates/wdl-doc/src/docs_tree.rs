@@ -674,7 +674,7 @@ impl DocsTree {
 
     /// Get the [`HTMLPage`] associated with a path.
     ///
-    /// Can be an abolute path or a path relative to the root.
+    /// Can be an absolute path or a path relative to the root.
     fn get_page<P: AsRef<Path>>(&self, path: P) -> Option<&Rc<HTMLPage>> {
         self.get_node(path).and_then(|node| node.page())
     }
