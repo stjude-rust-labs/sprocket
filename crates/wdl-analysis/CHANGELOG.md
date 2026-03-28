@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Integration test that validates every analysis rule's `examples()` WDL snippets parse and emit the
+  corresponding rule diagnostic ([#771](https://github.com/stjude-rust-labs/sprocket/issues/771)).
+
 #### Changed
 
 * Type mismatch diagnostics now distinguish between custom types and references

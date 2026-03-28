@@ -251,7 +251,7 @@ For WDL v1.2 documents and later, this rule does not evaluate because `runtime` 
 
     fn examples(&self) -> &'static [&'static str] {
         &[
-            r#"The following is missing a mandatory key:
+            r#"The following is missing a mandatory key, and the next has a non-reserved key:
 
 ```wdl
 version 1.1
@@ -263,11 +263,9 @@ task missing_required_keys {
 
     output {}
 
-    runtime {}  # Missing `container` key
+    runtime {}
 }
 ```
-"#,
-            r#"The following has an unexpected key:
 
 ```wdl
 version 1.1
@@ -282,6 +280,24 @@ task unexpected_runtime_key {
     runtime {
         container: "ubuntu"
         foo: "bar"
+    }
+}
+```
+"#,
+            r#"Use only reserved runtime keys for WDL 1.1 (for example `container`):
+
+```wdl
+version 1.1
+
+task ok_runtime {
+    meta {}
+
+    command <<<>>>
+
+    output {}
+
+    runtime {
+        container: "ubuntu"
     }
 }
 ```

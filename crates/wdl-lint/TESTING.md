@@ -17,3 +17,8 @@ BLESS=1 cargo test [TEST_NAME]
 
 If a directory contains a `config.toml` file, the linter will be run twice. Once with the new config and once with the default
 config. The runs will generate `source.errors` and `source.errors.default` respectively.
+
+Rule documentation examples (`Rule::examples()`, Markdown fenced blocks tagged `wdl`) are checked by
+`tests/rule_examples.rs`: even-indexed examples must trigger the rule, odd-indexed must not (see that file’s module
+docs). `ShellCheck` examples are skipped when `shellcheck` is not on `PATH`.
+
