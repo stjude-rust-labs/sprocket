@@ -164,55 +164,11 @@ impl RunManagerSvc {
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::GetOutputs { .. } => unimplemented!(),
-                RunManagerCmd::GetSession { id, rx } => {
-                    trace!(?id, "received `GetSession` command");
-                    let result = get_session_for_run(&self.db, id).await;
-                    let _ = rx.send(result);
-                }
-                RunManagerCmd::ListSessions { limit, offset, rx } => {
-                    trace!(?limit, ?offset, "received `ListSessions` command");
-                    let result = list_sessions(&self.db, limit, offset).await;
-                    let _ = rx.send(result);
-                }
-                RunManagerCmd::ListTasks {
-                    run_id,
-                    status,
-                    limit,
-                    offset,
-                    rx,
-                } => {
-                    trace!(
-                        ?run_id,
-                        ?status,
-                        ?limit,
-                        ?offset,
-                        "received `ListTasks` command"
-                    );
-                    let result = list_tasks(&self.db, run_id, status, limit, offset).await;
-                    let _ = rx.send(result);
-                }
-                RunManagerCmd::GetTask { name, rx } => {
-                    trace!(?name, "received `GetTask` command");
-                    let result = get_task(&self.db, name).await;
-                    let _ = rx.send(result);
-                }
-                RunManagerCmd::GetTaskLogs {
-                    name,
-                    stream,
-                    limit,
-                    offset,
-                    rx,
-                } => {
-                    trace!(
-                        ?name,
-                        ?stream,
-                        ?limit,
-                        ?offset,
-                        "received `GetTaskLogs` command"
-                    );
-                    let result = get_task_logs(&self.db, name, stream, limit, offset).await;
-                    let _ = rx.send(result);
-                }
+                RunManagerCmd::GetSession { .. } => unimplemented!(),
+                RunManagerCmd::ListSessions { .. } => unimplemented!(),
+                RunManagerCmd::ListTasks { .. } => unimplemented!(),
+                RunManagerCmd::GetTask { .. } => unimplemented!(),
+                RunManagerCmd::GetTaskLogs { .. } => unimplemented!(),
                 RunManagerCmd::Shutdown { rx } => {
                     trace!("received `Shutdown` command");
                     info!("run manager service is shutting down");
@@ -468,7 +424,7 @@ pub(crate) async fn get_run_outputs(
 }
 
 /// Gets all sessions given the filter criteria.
-async fn list_sessions(
+pub(crate) async fn list_sessions(
     db: &Arc<dyn Database>,
     limit: Option<i64>,
     offset: Option<i64>,
@@ -490,7 +446,7 @@ pub enum GetSessionError {
 }
 
 /// Gets the session entry associated with a run.
-async fn get_session_for_run(
+pub(crate) async fn get_session_for_run(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<SessionResponse, GetSessionError> {
@@ -503,7 +459,7 @@ async fn get_session_for_run(
 }
 
 /// Gets all tasks given the filter criteria.
-async fn list_tasks(
+pub(crate) async fn list_tasks(
     db: &Arc<dyn Database>,
     run_id: Option<Uuid>,
     status: Option<TaskStatus>,
@@ -516,13 +472,16 @@ async fn list_tasks(
 }
 
 /// Gets a task with a given name.
-async fn get_task(db: &Arc<dyn Database>, name: String) -> Result<GetTaskResponse, DatabaseError> {
+pub(crate) async fn get_task(
+    db: &Arc<dyn Database>,
+    name: String,
+) -> Result<GetTaskResponse, DatabaseError> {
     let task = db.get_task(&name).await?;
     Ok(GetTaskResponse { task })
 }
 
 /// Gets the logs for a task with a name given the filter criteria.
-async fn get_task_logs(
+pub(crate) async fn get_task_logs(
     db: &Arc<dyn Database>,
     name: String,
     stream: Option<LogSource>,

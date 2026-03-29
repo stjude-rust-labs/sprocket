@@ -16,8 +16,6 @@ use uuid::Uuid;
 use super::AppState;
 use super::SprocketCommand;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
 
 /// Query parameters for listing sessions.
@@ -114,11 +112,11 @@ pub async fn list_sessions(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
+    let response = crate::system::v1::exec::svc::run_manager::list_sessions(
+        &state.db,
+        query.limit,
+        Some(offset),
+    )
     .await?;
 
     let next_offset = offset + limit;
@@ -152,10 +150,8 @@ pub async fn get_session(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<SessionResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetSession {
-        id,
-        rx,
-    })
-    .await?;
+    let response =
+        crate::system::v1::exec::svc::run_manager::get_session_for_run(&state.db, id).await?;
+
     Ok(Json(response.into()))
 }

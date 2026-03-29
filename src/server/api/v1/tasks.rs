@@ -17,8 +17,6 @@ use super::AppState;
 use super::LogSource;
 use super::TaskStatus;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
 
 /// Query parameters for listing tasks.
@@ -188,13 +186,13 @@ pub async fn list_tasks(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
-        run_id: query.run_uuid,
-        status: query.status,
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
+    let response = crate::system::v1::exec::svc::run_manager::list_tasks(
+        &state.db,
+        query.run_uuid,
+        query.status,
+        query.limit,
+        Some(offset),
+    )
     .await?;
 
     let next_offset = offset + limit;
@@ -228,12 +226,7 @@ pub async fn get_task(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> Result<Json<GetTaskResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTask {
-        name,
-        rx,
-    })
-    .await?;
-
+    let response = crate::system::v1::exec::svc::run_manager::get_task(&state.db, name).await?;
     Ok(Json(response.into()))
 }
 
@@ -271,13 +264,13 @@ pub async fn get_task_logs(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
+    let response = crate::system::v1::exec::svc::run_manager::get_task_logs(
+        &state.db,
         name,
-        stream: query.source,
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
+        query.source,
+        query.limit,
+        Some(offset),
+    )
     .await?;
 
     let next_offset = offset + limit;

@@ -14,7 +14,7 @@ pub mod v1;
 type RunManagerTx = mpsc::Sender<RunManagerCmd>;
 
 #[derive(Clone)]
-pub(crate) struct DbHandle(pub(crate) Arc<dyn Database>);
+pub struct DbHandle(pub(crate) Arc<dyn Database>);
 
 impl std::fmt::Debug for DbHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
