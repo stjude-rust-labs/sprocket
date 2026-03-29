@@ -156,31 +156,14 @@ impl RunManagerSvc {
                         .await;
                     let _ = rx.send(result);
                 }
-                RunManagerCmd::GetStatus { id, rx } => {
-                    trace!(?id, "received `GetStatus` command");
-                    let result = get_run(&self.db, id).await;
-                    let _ = rx.send(result);
-                }
-                RunManagerCmd::List {
-                    status,
-                    limit,
-                    offset,
-                    rx,
-                } => {
-                    trace!(?status, ?limit, ?offset, "received `List` command");
-                    let result = list_runs(&self.db, status, limit, offset).await;
-                    let _ = rx.send(result);
-                }
+                RunManagerCmd::GetStatus { .. } => unimplemented!(),
+                RunManagerCmd::List { .. } => unimplemented!(),
                 RunManagerCmd::Cancel { id, rx } => {
                     trace!(?id, "received `Cancel` command");
                     let result = cancel_run(&self.db, &self.runs, id).await;
                     let _ = rx.send(result);
                 }
-                RunManagerCmd::GetOutputs { id, rx } => {
-                    trace!(?id, "received `GetOutputs` command");
-                    let result = get_run_outputs(&self.db, id).await;
-                    let _ = rx.send(result);
-                }
+                RunManagerCmd::GetOutputs { .. } => unimplemented!(),
                 RunManagerCmd::GetSession { id, rx } => {
                     trace!(?id, "received `GetSession` command");
                     let result = get_session_for_run(&self.db, id).await;
@@ -357,7 +340,7 @@ pub enum GetRunError {
 }
 
 /// Gets a run by ID.
-async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRunError> {
+pub(crate) async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRunError> {
     let run = db.get_run(id).await?;
     match run {
         Some(run) => Ok(RunResponse { run }),
@@ -366,7 +349,7 @@ async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRun
 }
 
 /// Lists all runs given the filter criteria.
-async fn list_runs(
+pub(crate) async fn list_runs(
     db: &Arc<dyn Database>,
     status: Option<RunStatus>,
     limit: Option<i64>,
@@ -467,7 +450,7 @@ pub enum GetRunOutputsError {
 }
 
 /// Attempts to get the outputs for a run.
-async fn get_run_outputs(
+pub(crate) async fn get_run_outputs(
     db: &Arc<dyn Database>,
     id: Uuid,
 ) -> Result<RunOutputsResponse, GetRunOutputsError> {

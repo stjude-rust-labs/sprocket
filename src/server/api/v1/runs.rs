@@ -248,11 +248,7 @@ pub async fn get_run(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetStatus {
-        id,
-        rx,
-    })
-    .await?;
+    let response = crate::system::v1::exec::svc::run_manager::get_run(&state.db, id).await?;
     Ok(Json(response.into()))
 }
 
@@ -285,12 +281,12 @@ pub async fn list_runs(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::List {
-        status: query.status,
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
+    let response = crate::system::v1::exec::svc::run_manager::list_runs(
+        &state.db,
+        query.status,
+        query.limit,
+        Some(offset),
+    )
     .await?;
 
     let next_offset = offset + limit;
@@ -362,10 +358,8 @@ pub async fn get_run_outputs(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunOutputsResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetOutputs {
-        id,
-        rx,
-    })
-    .await?;
+    let response =
+        crate::system::v1::exec::svc::run_manager::get_run_outputs(&state.db, id).await?;
+
     Ok(Json(response.into()))
 }

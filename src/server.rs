@@ -65,9 +65,13 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     });
 
     let db = open_database(&db_path).await?;
-    let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
+    let (_, run_manager_tx) =
+        RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db.clone());
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .db(api::DbHandle(db))
+        .build();
 
     let mut cors_layer = CorsLayer::new();
     for origin in config.server.allowed_origins {
