@@ -97,7 +97,7 @@ excluded_cache_inputs = []
 [test]
 parallelism = 50
 
-[doc.scripts]
+[doc]
 
 [common]
 color = "auto"

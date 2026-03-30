@@ -391,6 +391,7 @@ pub struct DocConfig {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub with_doc_comments: bool,
     /// Configuration for custom scripts to embed in generated HTML pages.
+    #[serde(default, skip_serializing_if = "DocScriptsConfig::is_empty")]
     pub scripts: DocScriptsConfig,
 }
 
@@ -414,6 +415,19 @@ pub struct DocScriptsConfig {
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<body>` tag.
     pub body_close: Option<PathBuf>,
+}
+
+impl DocScriptsConfig {
+    fn is_empty(&self) -> bool {
+        let Self {
+            head_open,
+            head_close,
+            body_open,
+            body_close,
+        } = self;
+
+        head_open.is_none() && head_close.is_none() && body_open.is_none() && body_close.is_none()
+    }
 }
 
 impl Config {
