@@ -230,6 +230,7 @@ impl ProgressToken {
     }
 }
 
+// NOTE: Renamed camelCase to make it play nicely with the vscode extension.
 /// Represents options for running the LSP server.
 #[derive(Debug, Clone, Patch)]
 #[patch(attribute(derive(Debug, Default, Deserialize)))]
