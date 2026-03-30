@@ -116,6 +116,8 @@ excluded_cache_inputs = []
 [test]
 parallelism = 50
 
+[doc]
+
 [common]
 color = "auto"
 report_mode = "full"
