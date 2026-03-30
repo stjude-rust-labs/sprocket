@@ -64,7 +64,7 @@ cleanup = true
 host = "127.0.0.1"
 port = 8080
 allowed_origins = []
-output_directory = "./out"
+output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 

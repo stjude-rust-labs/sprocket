@@ -13,7 +13,7 @@ fn make_config(
     allowed_urls: Vec<String>,
 ) -> ServerConfig {
     ServerConfig {
-        output_directory,
+        output_dir: output_directory,
         allowed_file_paths,
         allowed_urls,
         ..Default::default()

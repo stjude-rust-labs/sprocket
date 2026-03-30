@@ -91,7 +91,7 @@ impl RunManagerSvc {
             .max_concurrent_runs
             .map(|max| Arc::new(Semaphore::new(max)));
 
-        let output_dir = OutputDirectory::new(&config.output_directory);
+        let output_dir = OutputDirectory::new(&config.output_dir);
 
         Self {
             config,
