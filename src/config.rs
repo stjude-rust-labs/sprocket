@@ -364,19 +364,24 @@ impl Default for TestConfig {
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocConfig {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage: Option<PathBuf>,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logo: Option<PathBuf>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `logo` SVG will be used; or if that is also not
     /// supplied, the default Sprocket logo will be used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alt_light_logo: Option<PathBuf>,
     /// An optional link to the project's homepage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage_url: Option<Url>,
     /// An optional link to the project's GitHub repository.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github_url: Option<Url>,
     /// Initialize pages in light mode instead of the default dark mode.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -402,22 +407,27 @@ pub struct DocScriptsConfig {
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately after the opening
     /// `<head>` tag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_open: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<head>` tag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_close: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately after the opening
     /// `<body>` tag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub body_open: Option<PathBuf>,
     /// Path to a `.js` file that should have its contents embedded in a
     /// `<script>` tag for each HTML page, immediately before the closing
     /// `<body>` tag.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub body_close: Option<PathBuf>,
 }
 
 impl DocScriptsConfig {
+    /// Returns `true` if all script paths are `None`.
     fn is_empty(&self) -> bool {
         let Self {
             head_open,
