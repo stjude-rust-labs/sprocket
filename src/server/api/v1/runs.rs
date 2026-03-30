@@ -17,9 +17,22 @@ use uuid::Uuid;
 use super::AppState;
 use super::RunStatus;
 use super::error::Error;
+use super::pagination::decode_token;
+use super::pagination::encode_token;
 use super::send_command;
+use crate::system::v1::db::RunCursor;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
+
+/// Cursor payload used for run pagination tokens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RunsCursorToken {
+    /// Creation time of the last run on the previous page.
+    created_at: DateTime<Utc>,
+    /// UUID of the last run on the previous page.
+    uuid: Uuid,
+}
 
 /// Request to submit a new run.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -57,7 +70,8 @@ pub struct ListRunsQueryParams {
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
-    /// previous response to retrieve the next page.
+    /// previous response to retrieve the next page. Legacy numeric tokens are
+    /// not supported.
     #[serde(default)]
     pub next_token: Option<String>,
 }
@@ -161,7 +175,9 @@ impl From<commands::RunResponse> for RunResponse {
 pub struct ListRunsResponse {
     /// The runs.
     pub runs: Vec<Run>,
-    /// Total count before pagination.
+    /// Total count matching filters before applying cursor pagination.
+    ///
+    /// This is retained for compatibility with existing clients.
     pub total: i64,
     /// Next token for pagination. Pass this value as `next_token` in the next
     /// request to retrieve the next page of results.
@@ -277,25 +293,47 @@ pub async fn list_runs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
+    let cursor = match query.next_token.as_deref() {
+        Some(token) => {
+            let parsed: RunsCursorToken = decode_token(token).map_err(Error::BadRequest)?;
+            Some(RunCursor {
+                created_at: parsed.created_at,
+                uuid: parsed.uuid,
+            })
+        }
+        None => None,
     };
-    let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::List {
+    let limit = query.limit.unwrap_or(100);
+    let db_limit = if limit > 0 {
+        Some(limit.saturating_add(1))
+    } else {
+        Some(limit)
+    };
+
+    let mut response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::List {
         status: query.status,
-        limit: query.limit,
-        offset: Some(offset),
+        limit: db_limit,
+        cursor,
         rx,
     })
     .await?;
 
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
+    let has_more = if limit > 0 && response.runs.len() > limit as usize {
+        response.runs.truncate(limit as usize);
+        true
+    } else {
+        false
+    };
+
+    let next_token = if has_more {
+        response.runs.last().and_then(|run| {
+            encode_token(&RunsCursorToken {
+                created_at: run.created_at,
+                uuid: run.uuid,
+            })
+            .ok()
+        })
     } else {
         None
     };

@@ -23,8 +23,12 @@ use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::LogSource;
+use crate::system::v1::db::RunCursor;
 use crate::system::v1::db::RunStatus;
+use crate::system::v1::db::SessionCursor;
 use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::db::TaskCursor;
+use crate::system::v1::db::TaskLogCursor;
 use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::ConfigError;
 use crate::system::v1::exec::JsonObject;
@@ -164,11 +168,11 @@ impl RunManagerSvc {
                 RunManagerCmd::List {
                     status,
                     limit,
-                    offset,
+                    cursor,
                     rx,
                 } => {
-                    trace!(?status, ?limit, ?offset, "received `List` command");
-                    let result = list_runs(&self.db, status, limit, offset).await;
+                    trace!(?status, ?limit, ?cursor, "received `List` command");
+                    let result = list_runs(&self.db, status, limit, cursor).await;
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::Cancel { id, rx } => {
@@ -186,26 +190,26 @@ impl RunManagerSvc {
                     let result = get_session_for_run(&self.db, id).await;
                     let _ = rx.send(result);
                 }
-                RunManagerCmd::ListSessions { limit, offset, rx } => {
-                    trace!(?limit, ?offset, "received `ListSessions` command");
-                    let result = list_sessions(&self.db, limit, offset).await;
+                RunManagerCmd::ListSessions { limit, cursor, rx } => {
+                    trace!(?limit, ?cursor, "received `ListSessions` command");
+                    let result = list_sessions(&self.db, limit, cursor).await;
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::ListTasks {
                     run_id,
                     status,
                     limit,
-                    offset,
+                    cursor,
                     rx,
                 } => {
                     trace!(
                         ?run_id,
                         ?status,
                         ?limit,
-                        ?offset,
+                        ?cursor,
                         "received `ListTasks` command"
                     );
-                    let result = list_tasks(&self.db, run_id, status, limit, offset).await;
+                    let result = list_tasks(&self.db, run_id, status, limit, cursor).await;
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::GetTask { name, rx } => {
@@ -217,17 +221,17 @@ impl RunManagerSvc {
                     name,
                     stream,
                     limit,
-                    offset,
+                    cursor,
                     rx,
                 } => {
                     trace!(
                         ?name,
                         ?stream,
                         ?limit,
-                        ?offset,
+                        ?cursor,
                         "received `GetTaskLogs` command"
                     );
-                    let result = get_task_logs(&self.db, name, stream, limit, offset).await;
+                    let result = get_task_logs(&self.db, name, stream, limit, cursor).await;
                     let _ = rx.send(result);
                 }
                 RunManagerCmd::Shutdown { rx } => {
@@ -370,9 +374,9 @@ async fn list_runs(
     db: &Arc<dyn Database>,
     status: Option<RunStatus>,
     limit: Option<i64>,
-    offset: Option<i64>,
+    cursor: Option<RunCursor>,
 ) -> Result<ListRunsResponse, DatabaseError> {
-    let runs = db.list_runs(status, limit, offset).await?;
+    let runs = db.list_runs(status, limit, cursor).await?;
     let total = db.count_runs(status).await?;
     Ok(ListRunsResponse { runs, total })
 }
@@ -488,9 +492,9 @@ async fn get_run_outputs(
 async fn list_sessions(
     db: &Arc<dyn Database>,
     limit: Option<i64>,
-    offset: Option<i64>,
+    cursor: Option<SessionCursor>,
 ) -> Result<ListSessionsResponse, DatabaseError> {
-    let sessions = db.list_sessions(limit, offset).await?;
+    let sessions = db.list_sessions(limit, cursor).await?;
     let total = db.count_sessions().await?;
     Ok(ListSessionsResponse { sessions, total })
 }
@@ -525,9 +529,9 @@ async fn list_tasks(
     run_id: Option<Uuid>,
     status: Option<TaskStatus>,
     limit: Option<i64>,
-    offset: Option<i64>,
+    cursor: Option<TaskCursor>,
 ) -> Result<ListTasksResponse, DatabaseError> {
-    let tasks = db.list_tasks(run_id, status, limit, offset).await?;
+    let tasks = db.list_tasks(run_id, status, limit, cursor).await?;
     let total = db.count_tasks(run_id, status).await?;
     Ok(ListTasksResponse { tasks, total })
 }
@@ -544,9 +548,9 @@ async fn get_task_logs(
     name: String,
     stream: Option<LogSource>,
     limit: Option<i64>,
-    offset: Option<i64>,
+    cursor: Option<TaskLogCursor>,
 ) -> Result<ListTaskLogsResponse, DatabaseError> {
-    let logs = db.get_task_logs(&name, stream, limit, offset).await?;
+    let logs = db.get_task_logs(&name, stream, limit, cursor).await?;
     let total = db.count_task_logs(&name, stream).await?;
     Ok(ListTaskLogsResponse { logs, total })
 }
