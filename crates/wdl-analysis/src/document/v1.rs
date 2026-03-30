@@ -1825,13 +1825,22 @@ fn set_struct_types(document: &mut DocumentData) {
 
         let offset = document.structs[index].offset;
         let mut converter = AstTypeConverter::new(Resolver { document, offset });
-        let ty = converter
-            .convert_struct_type(&definition)
-            .expect("struct type conversion should not fail");
+        match converter.convert_struct_type(&definition) {
+            Ok(ty) => {
+                let s = &mut document.structs[index];
+                assert!(s.ty.is_none(), "type should not already be present");
+                s.ty = Some(ty.into());
+            }
+            Err(mut diagnostic) => {
+                // Adjust each label in the diagnostic based on the struct offset
+                for label in diagnostic.labels_mut() {
+                    let span = label.span();
+                    label.set_span(Span::new(span.start() + offset, span.len()));
+                }
 
-        let s = &mut document.structs[index];
-        assert!(s.ty.is_none(), "type should not already be present");
-        s.ty = Some(ty.into());
+                document.analysis_diagnostics.push(diagnostic);
+            }
+        }
     }
 }
 
