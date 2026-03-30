@@ -1831,7 +1831,13 @@ fn set_struct_types(document: &mut DocumentData) {
                 assert!(s.ty.is_none(), "type should not already be present");
                 s.ty = Some(ty.into());
             }
-            Err(diagnostic) => {
+            Err(mut diagnostic) => {
+                // Adjust each label in the diagnostic based on the struct offset
+                for label in diagnostic.labels_mut() {
+                    let span = label.span();
+                    label.set_span(Span::new(span.start() + offset, span.len()));
+                }
+
                 document.analysis_diagnostics.push(diagnostic);
             }
         }
