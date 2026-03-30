@@ -882,9 +882,12 @@ pub async fn execute_target(
             set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
             Ok(())
         }
-        // NOTE: `Ok(None)` means the execution was canceled. The run manager
-        // handles transitioning the run status from `Canceling` to `Canceled`.
-        Ok(None) => Ok(()),
+        Ok(None) => {
+            if let Err(e) = db.cancel_run(ctx.run_id, Utc::now()).await {
+                tracing::error!("failed to record run cancellation: {e:#}");
+            }
+            Ok(())
+        }
         Err(e) => {
             let error = e.to_string();
             if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {

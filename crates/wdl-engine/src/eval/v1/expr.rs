@@ -340,9 +340,9 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 let valid = match option {
                     PlaceholderOption::Sep(_) => {
                         ty == Type::None
-                            || matches!(&ty,
-                        Type::Compound(CompoundType::Array(array_ty), _)
-                        if matches!(array_ty.element_type(), Type::Primitive(_, false)))
+                            || ty.as_array().is_some_and(|array_ty| {
+                                matches!(array_ty.element_type(), Type::Primitive(_, false))
+                            })
                     }
                     PlaceholderOption::Default(_) => {
                         matches!(ty, Type::Primitive(..) | Type::None)
@@ -663,9 +663,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
 
                     let actual_key = match actual_key {
                         Value::Primitive(key) => key,
-                        _ => panic!(
-                            "key type `{actual_key}` is not primitive, but had a common type"
-                        ),
+                        _ => panic!("key {actual_key} is not primitive, but had a common type"),
                     };
 
                     elements.push((actual_key, actual_value));
@@ -912,14 +910,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 }
             };
 
-            match ty {
-                Type::Compound(CompoundType::Custom(CustomType::Struct(ty)), _) => {
-                    struct_ty = Some(ty);
+            match ty.as_struct() {
+                Some(s) => {
+                    struct_ty = Some(s);
                 }
-                _ if segments.peek().is_some() => {
+                None if segments.peek().is_some() => {
                     return Err(not_a_struct(&segment, i == 0));
                 }
-                _ => {
+                None => {
                     // It's ok for the last one to not name a struct
                 }
             }
@@ -2173,7 +2171,7 @@ pub(crate) mod test {
             .expect_err("should fail");
         assert_eq!(
             diagnostic.message(),
-            "cannot coerce type `Array[Int]` to `String`"
+            "cannot coerce type `Array[Int]` to type `String`"
         );
 
         let value = eval_v1_expr(
@@ -3580,8 +3578,8 @@ pub(crate) mod test {
             .unwrap_err();
         assert_eq!(
             diagnostic.message(),
-            "type mismatch: argument to function `min` expects type `Int` or `Float`, but found \
-             type `String`"
+            "type mismatch: argument to function `min` expects type `Int` or type `Float`, but \
+             found type `String`"
         );
     }
 

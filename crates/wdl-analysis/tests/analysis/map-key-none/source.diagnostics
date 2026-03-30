@@ -12,5 +12,5 @@ error: expected map key to be a non-optional primitive type
 6 │     Map[String?, String] incorrect = { None: "wrong" }
   │                                        ^^^^
   │                                        │
-  │                                        this is type `None`
+  │                                        this is built-in type `None`
 

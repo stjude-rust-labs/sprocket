@@ -23,9 +23,9 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
-use std::collections::HashSet;
 use std::sync::LazyLock;
 
+use strum::VariantArray;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
@@ -37,6 +37,8 @@ mod tags;
 pub(crate) mod util;
 
 pub use config::Config;
+#[doc(hidden)]
+pub use config::ConfigField;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
@@ -57,16 +59,14 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// All tag names sorted alphabetically.
-pub static ALL_TAG_NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
-    let mut tags: HashSet<Tag> = HashSet::new();
-    for rule in rules(&Config::default()) {
-        for tag in rule.tags().iter() {
-            tags.insert(tag);
-        }
-    }
-    let mut tag_names: Vec<String> = tags.into_iter().map(|t| t.to_string()).collect();
-    tag_names.sort();
-    tag_names
+pub static ALL_TAG_NAMES: LazyLock<Vec<String>> =
+    LazyLock::new(|| ALL_TAGS.iter().map(|t| t.to_string()).collect());
+
+/// All tags sorted alphabetically.
+pub static ALL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    let mut tags: Vec<Tag> = Tag::VARIANTS.to_vec();
+    tags.sort_by_cached_key(Tag::to_string);
+    tags
 });
 
 /// A trait implemented by lint rules.
@@ -84,6 +84,9 @@ pub trait Rule: Visitor {
 
     /// Get the long-form explanation of the lint rule.
     fn explanation(&self) -> &'static str;
+
+    /// Get a list of examples that would trigger this lint rule.
+    fn examples(&self) -> &'static [&'static str];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;
@@ -103,7 +106,7 @@ pub trait Rule: Visitor {
     /// This can be used by tools (like `sprocket explain`) to suggest other
     /// relevant rules to the user based on potential logical connections or
     /// common co-occurrences of issues.
-    fn related_rules(&self) -> &[&'static str];
+    fn related_rules(&self) -> &'static [&'static str];
 }
 
 /// Gets all of the lint rules.
@@ -125,6 +128,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::MetaDescriptionRule>::default(),
         Box::<rules::DeprecatedPlaceholderRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
+        Box::<rules::EmptyDocCommentRule>::default(),
         Box::<rules::DocMetaStringsRule>::default(),
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
@@ -142,6 +146,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DescriptionLengthRule>::default(),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
+        Box::<rules::DenyGlobStar>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
