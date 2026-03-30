@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
+
 ### Fixed
 
 * Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
@@ -21,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+* Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
+  subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
+  ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
 
 ### Fixed
 
