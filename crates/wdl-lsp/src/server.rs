@@ -233,6 +233,7 @@ impl ProgressToken {
 /// Represents options for running the LSP server.
 #[derive(Debug, Clone, Patch)]
 #[patch(attribute(derive(Debug, Default, Deserialize)))]
+#[patch(attribute(serde(rename_all = "camelCase")))]
 #[patch(attribute(allow(missing_docs)))]
 pub struct ServerOptions {
     /// The name of the server.
