@@ -44,7 +44,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::run::expand_config_run_paths;
 use crate::diagnostics::DiagnosticCounts;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
@@ -794,7 +793,7 @@ pub async fn test(
     config.run.engine.task.cache = CallCachingMode::Off;
     config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-    expand_config_run_paths(&mut config)?;
+    config.validate()?;
 
     let runner = Runner {
         root: test_dir.join(RUNS_DIR),

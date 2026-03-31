@@ -29,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
   ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
 * The following config paths are now shell-expanded: `run.output_dir`, 
-  `run.task.cache_dir`, `run.http.cache_dir` 
-  ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
+  `run.task.cache_dir`, `run.http.cache_dir`, `server.output_dir`, `server.engine.http.cache_dir`,
+  `server.engine.task.cache_dir` ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
 
 ### Fixed
 

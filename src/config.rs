@@ -531,6 +531,31 @@ impl Config {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
 
+        // Shell-expand certain paths
+        for path in [
+            Some(&mut self.run.output_dir),
+            self.run.engine.task.cache_dir.as_mut(),
+            self.run.engine.http.cache_dir.as_mut(),
+            Some(&mut self.server.output_dir),
+            self.server.engine.task.cache_dir.as_mut(),
+            self.server.engine.http.cache_dir.as_mut(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            match shellexpand::path::full(path.as_path()) {
+                Ok(expanded) => *path = PathBuf::from(expanded),
+                Err(e) => {
+                    bail!(
+                        "failed to expand `{}` in path `{}`: {}",
+                        e.var_name.to_string_lossy(),
+                        path.display(),
+                        e.cause
+                    );
+                }
+            }
+        }
+
         // Validate server config
         self.server.validate()?;
 
