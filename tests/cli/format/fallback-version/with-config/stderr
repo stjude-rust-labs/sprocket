@@ -1,0 +1,9 @@
+--- input
++++ formatted
+@@ -1,5 +1,4 @@
+ version development
+ 
+ workflow test {
+-    
+ }
+error: failing due to previous 1 error
