@@ -115,6 +115,26 @@ impl fmt::Display for HostPath {
     }
 }
 
+/// Writes a string as the body of a double-quoted WDL literal.
+fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
+    let mut chars = s.char_indices().peekable();
+    while let Some((_, c)) = chars.next() {
+        let next_is_brace = chars.peek().map(|(_, n)| *n == '{').unwrap_or(false);
+        match c {
+            '\\' => f.write_str(r"\\")?,
+            '\n' => f.write_str(r"\n")?,
+            '\r' => f.write_str(r"\r")?,
+            '\t' => f.write_str(r"\t")?,
+            '"' => f.write_str("\\\"")?,
+            '$' if next_is_brace => f.write_str(r"\$")?,
+            '~' if next_is_brace => f.write_str(r"\~")?,
+            c if c.is_control() => write!(f, "\\x{code:02X}", code = c as u32)?,
+            c => write!(f, "{c}")?,
+        }
+    }
+    Ok(())
+}
+
 impl From<Arc<String>> for HostPath {
     fn from(path: Arc<String>) -> Self {
         Self(path)
@@ -1450,8 +1470,9 @@ impl fmt::Display for PrimitiveValue {
             Self::Integer(v) => write!(f, "{v}"),
             Self::Float(v) => write!(f, "{v:.6?}"),
             Self::String(s) | Self::File(HostPath(s)) | Self::Directory(HostPath(s)) => {
-                // TODO: handle necessary escape sequences
-                write!(f, "\"{s}\"")
+                f.write_str("\"")?;
+                write_escaped_wdl_string(f, s.as_str())?;
+                f.write_str("\"")
             }
         }
     }
@@ -4187,6 +4208,17 @@ mod test {
     fn string_display() {
         let value = PrimitiveValue::new_string("hello world!");
         assert_eq!(value.to_string(), "\"hello world!\"");
+    }
+
+    #[test]
+    fn string_display_escapes_special_characters() {
+        let value = PrimitiveValue::new_string(
+            "\u{1b}[31m${name} ~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user",
+        );
+        assert_eq!(
+            value.to_string(),
+            r#""\x1B[31m\${name} \~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user""#
+        );
     }
 
     #[test]
