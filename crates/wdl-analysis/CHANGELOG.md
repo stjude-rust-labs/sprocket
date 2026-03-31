@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Type mismatch diagnostics now distinguish between custom types and references
+  to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
+* The `UnusedInput` rule no longer ignores `File` and `Array[File]` inputs with specific names ([#741](https://github.com/stjude-rust-labs/sprocket/pull/741)).
+
 #### Fixed
 
+* Fixed a thread panic when analyzing struct definitions with invalid map key types ([#778](https://github.com/stjude-rust-labs/sprocket/pull/778)).
 * Added enum type coercion support
   ([#706](https://github.com/stjude-rust-labs/sprocket/issues/706),
   [#724](https://github.com/stjude-rust-labs/sprocket/pull/724)).

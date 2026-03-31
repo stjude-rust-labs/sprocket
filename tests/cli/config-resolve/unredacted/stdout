@@ -75,7 +75,7 @@ secret = "secret!"
 host = "127.0.0.1"
 port = 8080
 allowed_origins = []
-output_directory = "./out"
+output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 
@@ -107,6 +107,8 @@ excluded_cache_inputs = []
 
 [test]
 parallelism = 50
+
+[doc]
 
 [common]
 color = "auto"

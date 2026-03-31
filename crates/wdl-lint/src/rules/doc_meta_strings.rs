@@ -117,6 +117,35 @@ impl Rule for DocMetaStringsRule {
          generation."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: 123
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+workflow example {
+    meta {
+        description: "123"
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::SprocketCompatibility])
     }
@@ -130,11 +159,12 @@ impl Rule for DocMetaStringsRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[
             "MetaDescription",
             "MetaSections",
             "ParameterMetaMatched",
+            "ParameterDescription",
             "DescriptionLength",
         ]
     }

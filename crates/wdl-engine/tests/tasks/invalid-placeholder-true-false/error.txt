@@ -1,4 +1,4 @@
-error: type mismatch for placeholder option `true/false`: expected type `Boolean`, but found `Int`
+error: type mismatch for placeholder option `true/false`: expected type `Boolean`, but found type `Int`
    ┌─ tests/tasks/invalid-placeholder-true-false/source.wdl:11:44
    │
 11 │         String out = "~{true='y' false='n' read_json("not-bool.json")}"

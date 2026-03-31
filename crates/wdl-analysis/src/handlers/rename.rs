@@ -34,7 +34,7 @@ pub fn rename(
     new_name: String,
 ) -> Result<Option<WorkspaceEdit>> {
     if !is_ident(&new_name) {
-        bail!("name '{}' is not a valid WDL identifier.", new_name);
+        bail!("name `{new_name}` is not a valid WDL identifier");
     }
 
     let locations = handlers::find_all_references(graph, document_uri, position, encoding, true)?;

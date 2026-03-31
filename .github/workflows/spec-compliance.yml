@@ -1,0 +1,44 @@
+name: Spec Compliance
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  wdl-1_3:
+    name: WDL 1.3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Build `sprocket`
+        run: cargo build --locked --release
+
+      - name: Install `spectool`
+        run: |
+          gh release download --repo openwdl/spectool --pattern '*x86_64*linux*'
+          tar -xzf spectool*.tar.gz
+          chmod +x spectool
+          sudo mv spectool /usr/local/bin/
+          rm -rf spectool*.tar.gz
+          spectool --version
+
+      - name: Clone WDL spec
+        run: git clone --branch wdl-1.3 --depth 1 https://github.com/openwdl/wdl.git /tmp/wdl-spec
+
+      - name: Run `spectool` compliance tests
+        run: |
+          spectool test \
+            "${{ github.workspace }}/target/release/sprocket run ~{path} ~{input} -t ~{target} -o /tmp/out --index-on ~{target}" \
+            --output-file "/tmp/out/index/~{target}/outputs.json" \
+            --all-capabilities \
+            -s /tmp/wdl-spec -vv 2>&1
