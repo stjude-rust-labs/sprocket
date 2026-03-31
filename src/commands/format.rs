@@ -106,7 +106,7 @@ fn format_document(
 
     let ast = document
         .root()
-        .ast()
+        .ast_with_version_fallback(document.config().fallback_version())
         .into_v1()
         .expect("only WDL v1.x documents are supported");
     let element = Node::Ast(ast).into_format_element();
