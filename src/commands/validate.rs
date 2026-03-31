@@ -3,6 +3,7 @@
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use wdl::analysis::Document;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
@@ -48,31 +49,19 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 }
 
-/// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(
-            anyhow!("directory sources are not supported for the `validate` command").into(),
-        );
-    }
-
-    let results = Analysis::default()
-        .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
-        .run()
-        .await
-        .map_err(CommandError::from)?;
-
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let document = results.filter(&[&args.source]).next().unwrap().document();
-
-    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+/// Accepts an optional target and set of inputs, and resolves them for
+/// validation.
+pub async fn resolve_target_and_inputs(
+    input_args: &Vec<String>,
+    target_arg: Option<String>,
+    document: &Document,
+) -> CommandResult<(String, EngineInputs)> {
+    let (target, inputs) = match Invocation::coalesce(input_args, target_arg.clone())
         .await
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
-                sources = args.inputs.join("`, `")
+                sources = input_args.join("`, `")
             )
         })?
         .into_engine_inputs(document)
@@ -80,7 +69,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     {
         Some((target, inputs)) => (target, inputs),
         None => {
-            if let Some(name) = args.target {
+            if let Some(name) = target_arg {
                 match (document.task_by_name(&name), document.workflow()) {
                     (Some(_), _) => (name, EngineInputs::Task(Default::default())),
                     (None, Some(workflow)) => {
@@ -110,6 +99,29 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
             }
         }
     };
+
+    Ok((target, inputs))
+}
+
+/// The main function for the `validate` subcommand.
+pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
+    if let Source::Directory(_) = args.source {
+        return Err(
+            anyhow!("directory sources are not supported for the `validate` command").into(),
+        );
+    }
+
+    let results = Analysis::default()
+        .add_source(args.source.clone())
+        .fallback_version(config.common.wdl.fallback_version)
+        .run()
+        .await
+        .map_err(CommandError::from)?;
+
+    // SAFETY: this must exist, as we added it as the only source to be analyzed
+    // above.
+    let document = results.filter(&[&args.source]).next().unwrap().document();
+    let (target, inputs) = resolve_target_and_inputs(&args.inputs, args.target, document).await?;
 
     match inputs {
         EngineInputs::Task(inputs) => {
