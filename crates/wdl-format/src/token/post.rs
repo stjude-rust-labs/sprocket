@@ -359,6 +359,124 @@ pub struct Postprocessor {
 }
 
 impl Postprocessor {
+    /// Renders a pre-token stream into post-tokens using an isolated copy of
+    /// current postprocessor state.
+    fn render_pre_tokens(
+        &self,
+        stream: &TokenStream<PreToken>,
+        starting_indent: usize,
+        starting_temp_indent: Option<Rc<String>>,
+    ) -> TokenStream<PostToken> {
+        let mut renderer = Self {
+            position: LinePosition::StartOfLine,
+            indent_level: starting_indent,
+            interrupted: false,
+            line_spacing_policy: self.line_spacing_policy,
+            temp_indent: starting_temp_indent,
+        };
+        let mut output = TokenStream::<PostToken>::default();
+        let mut pre_buffer = stream.iter().peekable();
+        while let Some(token) = pre_buffer.next() {
+            let next = pre_buffer.peek().copied();
+            renderer.step(token.clone(), next, &mut output);
+        }
+        output
+    }
+
+    /// Returns a collapsed `if/then/else` stream when a simple multiline
+    /// expression is detected.
+    fn collapsed_simple_if_then_else(
+        &self,
+        in_stream: &TokenStream<PreToken>,
+    ) -> Option<TokenStream<PreToken>> {
+        let mut if_idx = None;
+        let mut line_before_then_idx = None;
+        let mut indent_start_idx = None;
+        let mut line_before_else_idx = None;
+        let mut line_before_indent_end_idx = None;
+        let mut indent_end_idx = None;
+
+        for (i, token) in in_stream.iter().enumerate() {
+            if matches!(
+                token,
+                PreToken::Trivia(_)
+                    | PreToken::BlankLine
+                    | PreToken::LineSpacingPolicy(_)
+                    | PreToken::TempIndentStart(_)
+                    | PreToken::TempIndentEnd
+            ) {
+                return None;
+            }
+
+            if let PreToken::Literal(_, kind) = token {
+                if *kind == SyntaxKind::IfKeyword {
+                    if if_idx.is_some() {
+                        return None;
+                    }
+                    if_idx = Some(i);
+                }
+            }
+        }
+
+        let if_idx = if_idx?;
+
+        let tokens = &in_stream.0;
+        for i in if_idx + 1..tokens.len().saturating_sub(2) {
+            if tokens[i] == PreToken::LineEnd
+                && tokens[i + 1] == PreToken::IndentStart
+                && matches!(
+                    tokens[i + 2],
+                    PreToken::Literal(_, kind) if kind == SyntaxKind::ThenKeyword
+                )
+            {
+                line_before_then_idx = Some(i);
+                indent_start_idx = Some(i + 1);
+                break;
+            }
+        }
+
+        let line_before_then_idx = line_before_then_idx?;
+        let indent_start_idx = indent_start_idx?;
+
+        for i in indent_start_idx + 1..tokens.len().saturating_sub(1) {
+            if tokens[i] == PreToken::LineEnd
+                && matches!(
+                    tokens[i + 1],
+                    PreToken::Literal(_, kind) if kind == SyntaxKind::ElseKeyword
+                )
+            {
+                line_before_else_idx = Some(i);
+                break;
+            }
+        }
+
+        let line_before_else_idx = line_before_else_idx?;
+
+        for i in line_before_else_idx + 1..tokens.len().saturating_sub(1) {
+            if tokens[i] == PreToken::LineEnd && tokens[i + 1] == PreToken::IndentEnd {
+                line_before_indent_end_idx = Some(i);
+                indent_end_idx = Some(i + 1);
+                break;
+            }
+        }
+
+        let line_before_indent_end_idx = line_before_indent_end_idx?;
+        let indent_end_idx = indent_end_idx?;
+
+        let mut collapsed = tokens.clone();
+        for idx in [
+            indent_end_idx,
+            line_before_indent_end_idx,
+            line_before_else_idx,
+            indent_start_idx,
+            line_before_then_idx,
+        ] {
+            collapsed.remove(idx);
+        }
+
+        Some(TokenStream::<PreToken>(collapsed))
+    }
+
     /// Runs the postprocessor.
     pub fn run(&mut self, input: TokenStream<PreToken>, config: &Config) -> TokenStream<PostToken> {
         let mut output = TokenStream::<PostToken>::default();
@@ -539,6 +657,17 @@ impl Postprocessor {
         while let Some(token) = pre_buffer.next() {
             let next = pre_buffer.peek().copied();
             self.step(token.clone(), next, &mut post_buffer);
+        }
+
+        if let Some(max_length) = config.max_line_length.get()
+            && let Some(collapsed_pre) = self.collapsed_simple_if_then_else(in_stream)
+        {
+            let collapsed_post =
+                self.render_pre_tokens(&collapsed_pre, starting_indent, starting_temp_indent.clone());
+            if collapsed_post.max_width(config) <= max_length {
+                out_stream.extend(collapsed_post);
+                return;
+            }
         }
 
         // If all lines are short enough, we can just add the post_buffer to the
