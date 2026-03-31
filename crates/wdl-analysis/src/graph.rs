@@ -422,8 +422,11 @@ impl DocumentGraphNode {
                                 "this version of WDL is not supported",
                                 version_token.span(),
                             )
-                            .with_fix("use a supported WDL version; configure common.wdl.fallback_version if intentional")
-                );
+                            .with_fix(
+                                "use a supported WDL version; configure \
+                                 common.wdl.fallback_version if intentional",
+                            ),
+                    );
                 }
             };
         }
