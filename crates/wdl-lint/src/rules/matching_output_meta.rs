@@ -130,6 +130,10 @@ impl Rule for MatchingOutputMetaRule<'_> {
 version 1.2
 
 task generate_greeting {
+    meta {
+        description: "Generates a greeting"
+    }
+
     input {
         String name
     }

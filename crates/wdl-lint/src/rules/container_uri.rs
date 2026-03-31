@@ -166,7 +166,7 @@ task say_hello {
     >>>
 
     requirements {
-        container: "ubuntu:latest"
+        container: "ubuntu@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
 }
 
@@ -180,7 +180,7 @@ task say_goodbye {
     >>>
 
     requirements {
-        container: "ubuntu:latest"
+        container: "ubuntu@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
 }
 ```"#,
