@@ -44,6 +44,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::config::TestConfig;
 use crate::diagnostics::DiagnosticCounts;
 use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
@@ -74,9 +75,6 @@ pub struct Args {
     /// Root of the workspace where the `test/` directory will be located. Test
     /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is
     /// present.
-    ///
-    /// If a `<workspace>/test/` directory does not exist, one will be created
-    /// and it will contain a `runs/` directory for test executions.
     ///
     /// If not specified and the `source` argument is a directory, it's assumed
     /// that directory is also the workspace. This can be specified in addition
@@ -116,6 +114,16 @@ pub struct Args {
     /// The number of test executions to run in parallel.
     #[clap(short, long)]
     pub parallelism: Option<usize>,
+    /// Directory containing fixture files used by tests.
+    ///
+    /// If not specified, defaults to `<workspace>/test/fixtures`.
+    #[clap(long)]
+    pub fixtures_dir: Option<PathBuf>,
+    /// Directory to execute tests in.
+    ///
+    /// If not specified, defaults to `<workspace>/test/runs`.
+    #[clap(long)]
+    pub run_dir: Option<PathBuf>,
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
@@ -686,6 +694,21 @@ async fn summarize_results(
     }
 }
 
+fn resolve_test_paths(workspace: &Path, config: &TestConfig, args: &Args) -> (PathBuf, PathBuf) {
+    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
+    let fixtures_dir = args
+        .fixtures_dir
+        .clone()
+        .or_else(|| config.fixtures_dir.clone())
+        .unwrap_or_else(|| test_dir.join(FIXTURES_DIR));
+    let run_dir = args
+        .run_dir
+        .clone()
+        .or_else(|| config.run_dir.clone())
+        .unwrap_or_else(|| test_dir.join(RUNS_DIR));
+    (fixtures_dir, run_dir)
+}
+
 /// Performs the `test` command.
 pub async fn test(
     args: Args,
@@ -787,8 +810,8 @@ pub async fn test(
         return Err(e.into());
     }
 
-    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
-    let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
+    let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config.test, &args);
+    let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
     let engine = {
         let mut engine = config.run.engine;
         engine.task.cache = CallCachingMode::Off;
@@ -798,7 +821,7 @@ pub async fn test(
     };
 
     let runner = Runner {
-        root: test_dir.join(RUNS_DIR),
+        root: run_dir,
         fixtures: fixture_origins.into(),
         engine_config: engine.into(),
         log_handle: handle,
@@ -832,4 +855,112 @@ pub async fn test(
     };
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args_with_overrides(fixtures_dir: Option<PathBuf>, run_dir: Option<PathBuf>) -> Args {
+        Args {
+            source: None,
+            workspace: None,
+            include_tag: Vec::new(),
+            filter_tag: Vec::new(),
+            no_clean: false,
+            clean_all: false,
+            parallelism: None,
+            fixtures_dir,
+            run_dir,
+            no_status: false,
+        }
+    }
+
+    #[test]
+    fn resolve_test_paths_defaults_to_workspace_test_layout() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(run_dir, workspace.join("test").join("runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_custom_fixtures_dir() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_fixtures = PathBuf::from("/custom-fixtures");
+        let args = args_with_overrides(Some(custom_fixtures.clone()), None);
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(run_dir, workspace.join("test").join("runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_custom_run_dir() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_run_dir = PathBuf::from("/custom-runs");
+        let args = args_with_overrides(None, Some(custom_run_dir.clone()));
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(run_dir, custom_run_dir);
+    }
+
+    #[test]
+    fn resolve_test_paths_can_set_both_independently() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_fixtures = PathBuf::from("/custom-fixtures");
+        let custom_run_dir = PathBuf::from("/custom-runs");
+        let args = args_with_overrides(Some(custom_fixtures.clone()), Some(custom_run_dir.clone()));
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(run_dir, custom_run_dir);
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_config_when_cli_not_set() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig {
+            parallelism: 50,
+            fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            run_dir: Some(PathBuf::from("/config-runs")),
+        };
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, PathBuf::from("/config-fixtures"));
+        assert_eq!(run_dir, PathBuf::from("/config-runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_cli_overrides_config() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(
+            Some(PathBuf::from("/cli-fixtures")),
+            Some(PathBuf::from("/cli-runs")),
+        );
+        let config = TestConfig {
+            parallelism: 50,
+            fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            run_dir: Some(PathBuf::from("/config-runs")),
+        };
+
+        let (fixtures_dir, run_dir) = resolve_test_paths(&workspace, &config, &args);
+
+        assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
+        assert_eq!(run_dir, PathBuf::from("/cli-runs"));
+    }
+
 }
