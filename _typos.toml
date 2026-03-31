@@ -3,20 +3,11 @@
 locale = "en-us"
 
 [default.extend-words]
-# Add words here to ignore them (Case-sensitive)
-Ot = "Ot"
-BA = "BA"
-ot = "ot"
-UE = "UE"
-Ue = "Ue"
-fo = "fo"
-Fo = "Fo"
-Divable = "Divable"
+# Add words here to ignore them (case-sensitive)
 ba = "ba"
-thay = "thay"
-pilon = "pilon"
 bimap = "bimap"
-nam = "nam"
+Divable = "Divable"
+FO = "FO"
 
 [files]
 # Ignore folders that don't need spellchecking
@@ -27,11 +18,11 @@ extend-exclude = [
     "*.bin",
     "*.js",
     "crates/wdl-engine/tests/workflows/concurrent-localization/",
-    "crates/wdl-engine/tests/workflow/localization/",
+    "crates/wdl-engine/tests/workflows/localization/",
     "crates/wdl-engine/tests/workflows/map-to-array/",
     "crates/wdl-engine/tests/workflows/pair-to-array/",
     "crates/gauntlet/",
-    "crates/wdl-grammar/tests/parsing/",
+    "crates/wdl-grammar/tests/parsing/**/*.tree",
     "crates/wdl-format/tests/format/ENCODE-DCC_chip-seq-pipeline/",
 ]
 ignore-hidden = true
