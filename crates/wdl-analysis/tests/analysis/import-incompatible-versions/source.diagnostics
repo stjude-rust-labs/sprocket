@@ -3,6 +3,8 @@ error: unsupported WDL version `2.0`
   │
 1 │ version 2.0
   │         ^^^ this version of WDL is not supported
+  │
+  = fix: use a supported WDL version; configure common.wdl.fallback_version if intentional
 
 error: imported document has incompatible version
   ┌─ tests/analysis/import-incompatible-versions/source.wdl:5:8
