@@ -21,6 +21,12 @@
         @apply w-72 max-xl:hidden mt-12 h-[calc(100vh-theme('spacing.12'))];
     }
     /**
+     * Header
+     */
+    .header__button {
+        @apply border border-slate-800 rounded-xl flex items-center justify-center text-slate-300 text-lg cursor-pointer hover:border-slate-700 hover:bg-slate-800 h-10 w-10;
+    }
+    /**
      * Main Content, Headers, and Text
      */
     .main__container {

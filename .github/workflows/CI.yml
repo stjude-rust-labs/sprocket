@@ -67,7 +67,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
       # Disabling cache as the size is now consistently running out of disk for certain actions
       # - uses: actions/cache@v4
       #   with:
@@ -93,7 +95,15 @@ jobs:
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
         shell: bash
-        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
+        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
+          exclude: "crates/gauntlet"
 
   engine-test:
     runs-on: ${{ matrix.os }}
@@ -105,7 +115,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
       - uses: actions/cache@v4
         with:
           path: |
@@ -139,7 +151,14 @@ jobs:
           if [[ "${{ runner.os }}" != "Linux" ]]; then
             export RUSTFLAGS="--cfg docker_tests_disabled"
           fi
-          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast
+          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
 
   docs:
     runs-on: ubuntu-latest

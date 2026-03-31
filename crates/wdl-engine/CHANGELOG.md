@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
+
+#### Changed
+
+* Type mismatch diagnostics now distinguish between custom types and references
+  to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
+
 ## 0.13.0 - 2026-03-12
 
 #### Changed

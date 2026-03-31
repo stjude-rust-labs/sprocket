@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
+
+### Fixed
+
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
+
 ### Changed
 
 * The outputs path message is now printed to stderr instead of stdout so
@@ -15,9 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+* Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
+  subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
+  ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
 
 ### Fixed
 
+* Fixed a bug where `--target` did not prefix input file keys, causing
+  `expected the key to be prefixed` errors when rerunning a task with
+  unprefixed inputs ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
+* `sprocket run` no longer requires `--target` when the document contains a
+  single workflow or a single task and no inputs are provided
+  ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
 * Added a filesystem lock to serialize setup operations across concurrent
   `sprocket run` processes sharing the same output directory
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).

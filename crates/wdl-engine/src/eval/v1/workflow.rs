@@ -629,7 +629,9 @@ impl Evaluator {
             .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
-        if self.cancellation.user_canceled() {
+        if self.cancellation.user_canceled()
+            && self.cancellation.state() == CancellationContextState::Canceling
+        {
             return Err(EvaluationError::Canceled);
         }
 
