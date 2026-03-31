@@ -49,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
-* Fixed a bug where commands format, run and inputs would not utilize the
-  configured fallback_version
+* Fixed a bug where commands format, run, lock and inputs would not 
+  utilize the configured fallback_version
   ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
 ## 0.22.0 - 2026-03-12

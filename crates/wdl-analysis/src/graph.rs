@@ -423,8 +423,8 @@ impl DocumentGraphNode {
                                 version_token.span(),
                             )
                             .with_fix(
-                                "use a supported WDL version; configure \
-                                 common.wdl.fallback_version if intentional",
+                                "either use a supported WDL version or configure \
+                                 `common.wdl.fallback_version` to set a fallback version",
                             ),
                     );
                 }
