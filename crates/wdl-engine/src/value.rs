@@ -117,46 +117,21 @@ impl fmt::Display for HostPath {
 
 /// Writes a string as the body of a double-quoted WDL literal.
 fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
-    let mut literal_start = 0;
     let mut chars = s.char_indices().peekable();
-
-    while let Some((i, c)) = chars.next() {
-        let next_is_placeholder_open = chars.peek().map(|(_, next)| *next == '{').unwrap_or(false);
-        let escape = match c {
-            '\\' => Some(r"\\"),
-            '\n' => Some(r"\n"),
-            '\r' => Some(r"\r"),
-            '\t' => Some(r"\t"),
-            '"' => Some("\\\""),
-            '$' if next_is_placeholder_open => Some(r"\$"),
-            '~' if next_is_placeholder_open => Some(r"\~"),
-            _ => None,
-        };
-
-        if let Some(escape) = escape {
-            if literal_start < i {
-                f.write_str(&s[literal_start..i])?;
-            }
-
-            f.write_str(escape)?;
-            literal_start = i + c.len_utf8();
-            continue;
-        }
-
-        if c.is_control() {
-            if literal_start < i {
-                f.write_str(&s[literal_start..i])?;
-            }
-
-            write!(f, "\\x{code:02X}", code = c as u32)?;
-            literal_start = i + c.len_utf8();
+    while let Some((_, c)) = chars.next() {
+        let next_is_brace = chars.peek().map(|(_, n)| *n == '{').unwrap_or(false);
+        match c {
+            '\\' => f.write_str(r"\\")?,
+            '\n' => f.write_str(r"\n")?,
+            '\r' => f.write_str(r"\r")?,
+            '\t' => f.write_str(r"\t")?,
+            '"' => f.write_str("\\\"")?,
+            '$' if next_is_brace => f.write_str(r"\$")?,
+            '~' if next_is_brace => f.write_str(r"\~")?,
+            c if c.is_control() => write!(f, "\\x{code:02X}", code = c as u32)?,
+            c => write!(f, "{c}")?,
         }
     }
-
-    if literal_start < s.len() {
-        f.write_str(&s[literal_start..])?;
-    }
-
     Ok(())
 }
 
