@@ -11,12 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
 
-### Fixed
-
-* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
-  results for in-flight tasks instead of discarding them as `Canceled`
-  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
-
 ### Changed
 
 * The outputs path message is now printed to stderr instead of stdout so
@@ -28,9 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
   subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
   ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
+* The following config paths are now shell-expanded: `run.output_dir`,
+  `run.task.cache_dir`, `run.http.cache_dir`, `server.output_dir`, `server.engine.http.cache_dir`,
+  `server.engine.task.cache_dir` ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
 
 ### Fixed
 
+* `PrimitiveValue::Display` now escapes special characters in `String`,
+  `File`, and `Directory` values
+  ([#768](https://github.com/stjude-rust-labs/sprocket/pull/768)).
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
 * Fixed a bug where `--target` did not prefix input file keys, causing
   `expected the key to be prefixed` errors when rerunning a task with
   unprefixed inputs ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).

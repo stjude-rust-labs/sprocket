@@ -2202,7 +2202,7 @@ task test {
     }
 
     command <<<
-            # other weird whitspace
+            # other weird whitespace
       ~{placeholder} "$trailing_pholder" ~{placeholder}
       ~{placeholder} somecommand.py "$leading_pholder"
     >>>
@@ -2224,7 +2224,7 @@ task test {
             StrippedCommandPart::Text(text) => text,
             _ => panic!("expected text"),
         };
-        assert_eq!(text, "      # other weird whitspace\n");
+        assert_eq!(text, "      # other weird whitespace\n");
 
         let _placeholder = match &stripped[1] {
             StrippedCommandPart::Placeholder(p) => p,

@@ -45,7 +45,7 @@ const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
 
-/// Gets tne default root cache directory for the user.
+/// Gets the default root cache directory for the user.
 pub(crate) fn cache_dir() -> Result<PathBuf> {
     /// The subdirectory within the user's cache directory for all caches
     const CACHE_DIR_ROOT: &str = "sprocket";
