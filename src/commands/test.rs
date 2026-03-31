@@ -689,7 +689,7 @@ async fn summarize_results(
 /// Performs the `test` command.
 pub async fn test(
     args: Args,
-    config: Config,
+    mut config: Config,
     handle: FilterReloadHandle,
     colorize: bool,
 ) -> CommandResult<()> {
@@ -789,18 +789,16 @@ pub async fn test(
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
-    let engine = {
-        let mut engine = config.run.engine;
-        engine.task.cache = CallCachingMode::Off;
-        engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine
-    };
+
+    config.run.engine.task.cache = CallCachingMode::Off;
+    config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    config.validate()?;
 
     let runner = Runner {
         root: test_dir.join(RUNS_DIR),
         fixtures: fixture_origins.into(),
-        engine_config: engine.into(),
+        engine_config: config.run.engine.into(),
         log_handle: handle,
         permits: parallelism,
     };
