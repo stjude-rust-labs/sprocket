@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * New lint rule `EmptyDocComment` to detect and flag empty documentation comments that serve no purpose ([#634](https://github.com/stjude-rust-labs/sprocket/pull/634)).
 * New lint rule `ParameterDescription` to ensure parameters and outputs have proper descriptions ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
 * New lint rule `DenyGlobStar` ([#749](https://github.com/stjude-rust-labs/sprocket/pull/749)).
+* Updated `DeprecatedPlaceholder` lint rule to deprecate `${}` ([#760](https://github.com/stjude-rust-labs/sprocket/pull/760)).
 
 #### Removed
 

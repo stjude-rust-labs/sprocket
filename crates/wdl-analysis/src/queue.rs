@@ -171,7 +171,7 @@ pub struct FindAllReferencesRequest {
     pub position: SourcePosition,
     /// The encoding used for the position.
     pub encoding: SourcePositionEncoding,
-    /// Wether to include the declaration in the results.
+    /// Whether to include the declaration in the results.
     pub include_declaration: bool,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Vec<Location>>,

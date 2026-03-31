@@ -15,7 +15,7 @@ static PEAK_ALLOC: peak_alloc::PeakAlloc = peak_alloc::PeakAlloc;
 /// process.
 ///
 /// Using a guard is not strictly necessary, but helps prevent unexpected early
-/// returns or future cancelations from interfering with the creation of this
+/// returns or future cancellations from interfering with the creation of this
 /// output.
 pub struct MemoryStatsGuard;
 

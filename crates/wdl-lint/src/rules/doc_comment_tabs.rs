@@ -41,6 +41,45 @@ impl Rule for DocCommentTabsRule {
          instead of tabs to ensure consistent rendering."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.3
+
+# Using tabs for alignment
+##  {
+##		"foo": 123,
+##		^^^^^
+##	}
+workflow example {
+    meta {
+        description: 123
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.3
+
+# Using spaces for alignment
+## {
+##     "foo": 123,
+##     ^^^^^
+## }
+workflow example {
+    meta {
+        description: "123"
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity])
     }
@@ -49,7 +88,7 @@ impl Rule for DocCommentTabsRule {
         None
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }

@@ -364,7 +364,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:108:70: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:108:70: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L108"
 
 [[diagnostics]]
@@ -379,7 +379,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:122:48: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:122:48: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L122"
 
 [[diagnostics]]
@@ -394,7 +394,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:51:53: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:51:53: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L51"
 
 [[diagnostics]]
@@ -409,7 +409,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:61:58: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:61:58: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L61"
 
 [[diagnostics]]
@@ -424,7 +424,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:77:55: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:77:55: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L77"
 
 [[diagnostics]]
@@ -439,7 +439,7 @@ permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469f
 
 [[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl"
-message = "backend_configuration.wdl:87:60: error: type mismatch: expected type `RuntimeAttributes`, but found type `Map[String, String]`"
+message = "backend_configuration.wdl:87:60: error: type mismatch: expected an instance of struct `RuntimeAttributes`, but found type `Map[String, String]`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/3469fa061b8dff57134513b3eb6a64ea1d8d5009/workflows/wdl-common/wdl/workflows/backend_configuration/backend_configuration.wdl/#L87"
 
 [[diagnostics]]
@@ -2799,7 +2799,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:513:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
+message = "BenchmarkSVs.wdl:513:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkSVs/BenchmarkSVs.wdl/#L513"
 
 [[diagnostics]]
@@ -2814,7 +2814,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:545:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
+message = "BenchmarkSVs.wdl:545:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkSVs/BenchmarkSVs.wdl/#L545"
 
 [[diagnostics]]
@@ -2824,7 +2824,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/BenchmarkSVs.wdl"
-message = "BenchmarkSVs.wdl:546:51: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
+message = "BenchmarkSVs.wdl:546:51: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkSVs/BenchmarkSVs.wdl/#L546"
 
 [[diagnostics]]
@@ -2884,7 +2884,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/QcSVs.wdl"
-message = "QcSVs.wdl:129:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
+message = "QcSVs.wdl:129:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkSVs/QcSVs.wdl/#L129"
 
 [[diagnostics]]
@@ -2894,7 +2894,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkSVs/QcSVs.wdl"
-message = "QcSVs.wdl:157:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[Int]`"
+message = "QcSVs.wdl:157:52: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[Int]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkSVs/QcSVs.wdl/#L157"
 
 [[diagnostics]]
@@ -2994,7 +2994,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:613:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "BenchmarkVCFs.wdl:613:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/BenchmarkVCFs.wdl/#L613"
 
 [[diagnostics]]
@@ -3004,7 +3004,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:621:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "BenchmarkVCFs.wdl:621:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/BenchmarkVCFs.wdl/#L621"
 
 [[diagnostics]]
@@ -3014,7 +3014,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:626:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "BenchmarkVCFs.wdl:626:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/BenchmarkVCFs.wdl/#L626"
 
 [[diagnostics]]
@@ -3024,7 +3024,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/BenchmarkVCFs/BenchmarkVCFs.wdl"
-message = "BenchmarkVCFs.wdl:631:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "BenchmarkVCFs.wdl:631:49: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/BenchmarkVCFs.wdl/#L631"
 
 [[diagnostics]]
@@ -3174,7 +3174,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:65:32: error: type mismatch: expected type `VcfFile`, but found type `Map[String, String]`"
+message = "FunctionalEquivalence.wdl:65:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L65"
 
 [[diagnostics]]
@@ -3184,7 +3184,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
-message = "FunctionalEquivalence.wdl:69:32: error: type mismatch: expected type `VcfFile`, but found type `Map[String, String]`"
+message = "FunctionalEquivalence.wdl:69:32: error: type mismatch: expected an instance of struct `VcfFile`, but found type `Map[String, String]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L69"
 
 [[diagnostics]]
@@ -3679,7 +3679,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
-message = "ComputeIntervalBamStats.wdl:223:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "ComputeIntervalBamStats.wdl:223:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L223"
 
 [[diagnostics]]
@@ -3689,7 +3689,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl"
-message = "ComputeIntervalBamStats.wdl:270:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[File]`"
+message = "ComputeIntervalBamStats.wdl:270:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[File]`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/IntervalFiles/ComputeIntervalBamStats.wdl/#L270"
 
 [[diagnostics]]
@@ -3769,7 +3769,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:51:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "CreateIGVSession.wdl:51:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/CreateIGVSession.wdl/#L51"
 
 [[diagnostics]]
@@ -3779,7 +3779,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:52:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "CreateIGVSession.wdl:52:50: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/CreateIGVSession.wdl/#L52"
 
 [[diagnostics]]
@@ -3789,7 +3789,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/CreateIGVSession.wdl"
-message = "CreateIGVSession.wdl:53:60: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "CreateIGVSession.wdl:53:60: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/CreateIGVSession.wdl/#L53"
 
 [[diagnostics]]
@@ -7439,7 +7439,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Funcotator.wdl"
-message = "Funcotator.wdl:163:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "Funcotator.wdl:163:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Funcotator.wdl/#L163"
 
 [[diagnostics]]
@@ -7449,7 +7449,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Funcotator.wdl"
-message = "Funcotator.wdl:164:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "Funcotator.wdl:164:118: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Funcotator.wdl/#L164"
 
 [[diagnostics]]
@@ -7459,7 +7459,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Funcotator.wdl"
-message = "Funcotator.wdl:165:121: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "Funcotator.wdl:165:121: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Funcotator.wdl/#L165"
 
 [[diagnostics]]
@@ -8104,7 +8104,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Qc.wdl"
-message = "Qc.wdl:434:46: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]?`"
+message = "Qc.wdl:434:46: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]?`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Qc.wdl/#L434"
 
 [[diagnostics]]
@@ -8424,12 +8424,12 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/sample_fastq.14.wdl"
-message = "sample_fastq.14.wdl:88:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `File`"
+message = "sample_fastq.14.wdl:88:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found type `File`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/sample_fastq.14.wdl/#L88"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/sample_fastq.14.wdl"
-message = "sample_fastq.14.wdl:89:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found `File`"
+message = "sample_fastq.14.wdl:89:19: error: type mismatch for placeholder option `sep`: expected type `Array[P]` where P: any primitive type, but found type `File`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/sample_fastq.14.wdl/#L89"
 
 [[diagnostics]]
@@ -8529,7 +8529,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyMetrics.wdl"
-message = "VerifyMetrics.wdl:87:117: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
+message = "VerifyMetrics.wdl:87:117: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/verification/VerifyMetrics.wdl/#L87"
 
 [[diagnostics]]
@@ -8664,7 +8664,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:102:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
+message = "VerifyUltimaGenomicsWholeGenomeCramOnly.wdl:102:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/verification/VerifyUltimaGenomicsWholeGenomeCramOnly.wdl/#L102"
 
 [[diagnostics]]
@@ -8694,7 +8694,7 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl"
-message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:187:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found `Array[String]`"
+message = "VerifyUltimaGenomicsWholeGenomeGermline.wdl:187:115: error: type mismatch for placeholder option `default`: expected any primitive type, but found type `Array[String]`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/verification/VerifyUltimaGenomicsWholeGenomeGermline.wdl/#L187"
 
 [[diagnostics]]

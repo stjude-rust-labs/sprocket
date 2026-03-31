@@ -58,7 +58,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
     let db_path = config.server.database.url.clone().unwrap_or_else(|| {
         config
             .server
-            .output_directory
+            .output_dir
             .join(crate::config::DEFAULT_DATABASE_FILENAME)
             .display()
             .to_string()

@@ -1796,7 +1796,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         return;
                     }
                     (
-                        format!("array element type `{ty}` is not optional"),
+                        format!("array element {ty:#} is not optional"),
                         spans.next().expect("should have span"),
                         "replace the function call with the array's first element",
                     )
@@ -1810,7 +1810,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         return;
                     }
                     (
-                        format!("array element type `{ty}` is not optional"),
+                        format!("array element {ty:#} is not optional"),
                         spans.next().expect("should have span"),
                         "replace the function call with the array itself",
                     )
@@ -1824,7 +1824,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                 }
 
                 (
-                    format!("type `{ty}` is not optional", ty = arguments[0]),
+                    format!("{ty:#} is not optional", ty = arguments[0]),
                     spans.next().expect("should have span"),
                     "replace the function call with `true`",
                 )

@@ -59,7 +59,7 @@ async fn should_hover_local_variable() {
 #[tokio::test]
 async fn should_hover_struct_definition() {
     let mut ctx = setup().await;
-    // Positon of `Person` in `struct Person`
+    // Position of `Person` in `struct Person`
     let response = hover_request(&mut ctx, "lib.wdl", Position::new(16, 7)).await;
     assert_hover_content(&response, "struct Person {");
     assert_hover_content(&response, "**Members**\n- **name**: `String`");
