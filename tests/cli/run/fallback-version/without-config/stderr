@@ -1,0 +1,7 @@
+error: unsupported WDL version `development`
+  ┌─ test.wdl:1:9
+  │
+1 │ version development
+  │         ^^^^^^^^^^^ this version of WDL is not supported
+
+error: aborting due to previous 1 error
