@@ -3,5 +3,7 @@
   [0m[36m│[0m
 [0m[36m3[0m [0m[36m│[0m version [0m[31mincorrect[0m
   [0m[36m│[0m         [0m[31m^^^^^^^^^[0m [0m[31mthis version of WDL is not supported[0m
+  [0m[36m│[0m
+  [0m[36m=[0m fix: use a supported WDL version; configure common.wdl.fallback_version if intentional
 
 error: failing due to 1 error

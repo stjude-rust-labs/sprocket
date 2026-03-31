@@ -3,5 +3,7 @@ error: unsupported WDL version `development`
   │
 1 │ version development
   │         ^^^^^^^^^^^ this version of WDL is not supported
+  │
+  = fix: use a supported WDL version; configure common.wdl.fallback_version if intentional
 
 error: failing due to 1 error
