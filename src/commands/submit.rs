@@ -30,7 +30,7 @@ pub struct SprocketClientConnectionArgs {
     host: Option<String>,
     /// The port of the running Sprocket server to talk to.
     /// If not provided, falls back to the value in the Sprocket Config.
-    #[arg(long)]
+    #[arg(short, long)]
     port: Option<u16>,
 }
 
@@ -198,4 +198,199 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     println!("{}", submit_response);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use anyhow::anyhow;
+    use tempfile::NamedTempFile;
+    use tokio::net::TcpListener;
+    use url::Url;
+
+    use crate::Config;
+    use crate::analysis::Source;
+    use crate::commands::CommandError;
+    use crate::commands::submit::Args;
+    use crate::commands::submit::SprocketClientConnectionArgs;
+    use crate::commands::submit::SubmitRunRequestArgs;
+    use crate::commands::submit::submit;
+    use crate::server::run_with_listener;
+
+    struct ServerTestFixture {
+        server_task: tokio::task::JoinHandle<anyhow::Result<()>>,
+        wdl_file: NamedTempFile,
+        port: u16,
+    }
+
+    async fn start_server(mut config: Config) -> anyhow::Result<ServerTestFixture> {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let wdl_file = NamedTempFile::new()?;
+
+        let prefix = wdl_file.path().parent().unwrap();
+
+        let allowed_url = Source::File(
+            Url::from_directory_path(prefix)
+                .map_err(|e| anyhow!("Failed to build Url from directory path: {:?}", e))?,
+        )
+        .to_string();
+
+        config.server.allowed_urls.push(allowed_url);
+
+        let db_path = tempfile::NamedTempFile::new()?;
+
+        config.server.database.url = Some(
+            db_path
+                .path()
+                .to_str()
+                .expect("Tempfile should have valid path")
+                .to_string(),
+        );
+
+        let port = listener.local_addr()?.port();
+        let server_task = tokio::task::spawn(async {
+            run_with_listener(config, listener).await?;
+            anyhow::Result::<()>::Ok(())
+        });
+
+        Ok(ServerTestFixture {
+            port,
+            wdl_file,
+            server_task,
+        })
+    }
+
+    const EXAMPLE_WDL_FILE: &str = r#"
+version 1.3
+
+task my_task {
+
+input {
+    String name
+}
+
+command <<<>>>
+}"#;
+
+    const INVALID_FILE: &str = r#"this is not valid wdl"#;
+
+    #[tokio::test]
+    pub async fn can_submit_simple_file() -> anyhow::Result<()> {
+        let ServerTestFixture {
+            server_task,
+            mut wdl_file,
+            port,
+        } = start_server(Config::default()).await?;
+
+        wdl_file.write_all(EXAMPLE_WDL_FILE.as_bytes())?;
+
+        let config = Config::default();
+        submit(
+            Args {
+                client_args: SprocketClientConnectionArgs {
+                    host: Some("127.0.0.1".to_string()),
+                    port: Some(port),
+                },
+                run_request_args: SubmitRunRequestArgs {
+                    source: Source::File(
+                        url::Url::from_file_path(wdl_file.path())
+                            .expect("tempfile path should work"),
+                    ),
+                    inputs: Vec::from(["name=Brendon".to_string()]),
+                    index_on: None,
+                    target: Some("my_task".to_string()),
+                    report_mode: None,
+                },
+            },
+            config,
+            false,
+        )
+        .await
+        .expect("Should be able to submit file");
+
+        assert!(!server_task.is_finished());
+        server_task.abort();
+        let _ = server_task.await;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn missing_input_fail() -> anyhow::Result<()> {
+        let mut wdl_file = NamedTempFile::new()?;
+        wdl_file.write_all(EXAMPLE_WDL_FILE.as_bytes())?;
+
+        let submit_result = submit(
+            Args {
+                client_args: SprocketClientConnectionArgs {
+                    host: Some("127.0.0.1".to_string()),
+                    port: Some(1234),
+                },
+                run_request_args: SubmitRunRequestArgs {
+                    source: Source::File(
+                        url::Url::from_file_path(wdl_file.path())
+                            .expect("tempfile path should work"),
+                    ),
+                    inputs: Vec::new(),
+                    index_on: None,
+                    target: Some("my_task".to_string()),
+                    report_mode: None,
+                },
+            },
+            Config::default(),
+            false,
+        )
+        .await;
+
+        let Err(CommandError::Single(err)) = submit_result else {
+            anyhow::bail!("Did not fail in expected way: {:?}", submit_result);
+        };
+
+        assert_eq!(
+            err.to_string(),
+            "missing required input `name` to task `my_task`".to_string()
+        );
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    pub async fn invalid_wdl_fails() -> anyhow::Result<()> {
+        let mut wdl_file = NamedTempFile::new()?;
+        wdl_file.write_all(INVALID_FILE.as_bytes())?;
+
+        let submit_result = submit(
+            Args {
+                client_args: SprocketClientConnectionArgs {
+                    host: Some("127.0.0.1".to_string()),
+                    port: Some(1234),
+                },
+                run_request_args: SubmitRunRequestArgs {
+                    source: Source::File(
+                        url::Url::from_file_path(wdl_file.path())
+                            .expect("tempfile path should work"),
+                    ),
+                    inputs: Vec::new(),
+                    index_on: None,
+                    target: Some("my_task".to_string()),
+                    report_mode: None,
+                },
+            },
+            Config::default(),
+            false,
+        )
+        .await;
+
+        let Err(CommandError::Single(err)) = submit_result else {
+            anyhow::bail!("Did not fail in expected way: {:?}", submit_result);
+        };
+
+        assert_eq!(
+            err.to_string(),
+            "Failed to submit WDL document to server due to analysis errors.".to_string()
+        );
+
+        Ok(())
+    }
 }
