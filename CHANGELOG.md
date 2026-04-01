@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* `--homepage` argument and config field for `doc` has been renamed to
+  `--index-page` to disambiguate it from `homepage_url` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * Changed the `--javascript-*` arguments for `doc` to more adaptable `--html-*` options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The outputs path message is now printed to stderr instead of stdout so
   that stdout contains only the JSON outputs
