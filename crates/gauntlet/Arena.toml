@@ -2117,16 +2117,6 @@ message = "samtools.wdl:964:20: note[ContainerUri]: container URI uses a mutable
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L964"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:143:20: note[ContainerUri]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L143"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:907:20: note[ContainerUri]: container URI uses a mutable tag"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L907"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:131:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L131"
