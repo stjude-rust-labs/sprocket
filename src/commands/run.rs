@@ -555,11 +555,10 @@ pub async fn run(
     // Validate the publish destination early so that the run does not proceed
     // if the destination already exists.
     let publish_destination = if let Some(ref name) = args.publish {
-        let base = config
-            .publish
-            .directory
-            .clone()
-            .unwrap_or_else(|| std::env::current_dir().expect("failed to get current directory"));
+        let base =
+            config.publish.directory.clone().unwrap_or_else(|| {
+                std::env::current_dir().expect("failed to get current directory")
+            });
         let dest = base.join(name);
 
         if dest.exists() {
@@ -957,18 +956,12 @@ fn symlink_run(source: &Path, destination: &Path) -> Result<()> {
 fn copy_run(source: &Path, destination: &Path) -> Result<()> {
     fn copy_recursive(src: &Path, dst: &Path) -> Result<()> {
         fs::create_dir_all(dst).with_context(|| {
-            format!(
-                "failed to create directory `{path}`",
-                path = dst.display()
-            )
+            format!("failed to create directory `{path}`", path = dst.display())
         })?;
 
-        for entry in fs::read_dir(src).with_context(|| {
-            format!(
-                "failed to read directory `{path}`",
-                path = src.display()
-            )
-        })? {
+        for entry in fs::read_dir(src)
+            .with_context(|| format!("failed to read directory `{path}`", path = src.display()))?
+        {
             let entry = entry?;
             let src_path = entry.path();
             let dst_path = dst.join(entry.file_name());
