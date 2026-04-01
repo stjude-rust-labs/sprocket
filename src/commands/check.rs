@@ -121,11 +121,11 @@ pub struct Common {
     pub show_remote_diagnostics: bool,
 
     /// Hide diagnostics with `note` severity.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["deny_notes"])]
     pub hide_notes: bool,
 
     /// Hide diagnostics with `warning` or `note` severity.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["deny_warnings"])]
     pub hide_warnings: bool,
 
     /// The report mode.

@@ -31,7 +31,7 @@ const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_DATABASE_FILENAME: &str = "sprocket.db";
 
 /// Sentinel value for using a local database.
-const SENTINEL_DATABASE_FILENAME: &str = "localized";
+const SENTINEL_DATABASE_FILENAME: &str = "default";
 
 /// Helper for `serde`.
 fn get_sentinel_database_name() -> String {
@@ -141,7 +141,7 @@ pub struct CommonConfig {
 }
 
 nullable_config_type!(
-    FallBackVersion,
+    FallbackVersion,
     SupportedVersion,
     "none",
     value,
@@ -156,7 +156,7 @@ nullable_config_type!(
 pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
-    pub fallback_version: FallBackVersion,
+    pub fallback_version: FallbackVersion,
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.

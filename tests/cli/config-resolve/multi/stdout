@@ -41,6 +41,7 @@ concurrency = 1000
 
 [run.task]
 retries = "default"
+container = "ubuntu:latest"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache_dir = "system"
@@ -78,7 +79,7 @@ allowed_urls = []
 max_concurrent_runs = "unlimited"
 
 [server.database]
-url = "localized"
+url = "default"
 
 [server.engine]
 backend = "default"
@@ -96,6 +97,7 @@ concurrency = 1000
 
 [server.engine.task]
 retries = "default"
+container = "ubuntu:latest"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache_dir = "system"

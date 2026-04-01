@@ -18,7 +18,7 @@ use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
 use crate::config::Config;
-use crate::config::FallBackVersion;
+use crate::config::FallbackVersion;
 use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
@@ -58,7 +58,7 @@ pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
     /// The fallback WDL version for documents with unrecognized versions.
-    fallback_version: FallBackVersion,
+    fallback_version: FallbackVersion,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.

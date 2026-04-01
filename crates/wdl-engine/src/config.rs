@@ -67,11 +67,6 @@ fn is_default_shell(shell: &str) -> bool {
 }
 
 /// Helper for `serde`.
-fn is_default_container(container: &str) -> bool {
-    container == DEFAULT_TASK_CONTAINER
-}
-
-/// Helper for `serde`.
 fn get_default_shell() -> String {
     DEFAULT_TASK_SHELL.to_string()
 }
@@ -920,10 +915,7 @@ pub struct TaskConfig {
     pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
-    #[serde(
-        default = "get_default_container",
-        skip_serializing_if = "is_default_container"
-    )]
+    #[serde(default = "get_default_container")]
     pub container: String,
     /// The default shell to use for tasks.
     ///
