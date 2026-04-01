@@ -62,7 +62,7 @@ excluded_cache_inputs = []
 host = "127.0.0.1"
 port = 8080
 allowed_origins = []
-output_directory = "./out"
+output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 max_concurrent_runs = "unlimited"
@@ -107,10 +107,10 @@ excluded_cache_inputs = []
 parallelism = 50
 
 [doc]
-homepage = "none"
+index_page = "none"
 logo = "none"
 alt_light_logo = "none"
-home_url = "none"
+homepage_url = "none"
 github_url = "none"
 light_mode = false
 with_doc_comments = false
