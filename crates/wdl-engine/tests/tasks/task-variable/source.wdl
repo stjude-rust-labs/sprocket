@@ -18,7 +18,7 @@ task test {
     String id = task.id
     String description = task.meta.description
     String? container = select_first([task.container, "ubuntu:latest"])
-    Int? return_code = task.return_code
+    Int return_code = task.return_code
   }
 
   requirements {
