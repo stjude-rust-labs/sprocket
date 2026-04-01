@@ -231,7 +231,7 @@ mod tests {
 
     /// Parses a WDL document and collects all placeholders.
     fn parse_placeholders(source: &str) -> (Vec<Placeholder>, Document) {
-        let (document, diagnostics) = Document::parse(source);
+        let (document, diagnostics) = Document::parse(source, None);
         assert!(
             diagnostics.is_empty(),
             "document should parse without errors: {diagnostics:?}"
