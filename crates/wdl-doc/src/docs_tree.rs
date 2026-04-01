@@ -224,7 +224,7 @@ pub struct DocsTreeBuilder {
     /// The root directory for the docs.
     root: PathBuf,
     /// The path to a Markdown file to embed in the `<root>/index.html` page.
-    homepage: Option<PathBuf>,
+    index_page: Option<PathBuf>,
     /// An optional path to a custom theme to use for the docs.
     custom_theme: Option<PathBuf>,
     /// The path to a custom dark theme logo to embed at the top of the left
@@ -252,7 +252,7 @@ impl DocsTreeBuilder {
             .clean();
         Self {
             root,
-            homepage: None,
+            index_page: None,
             custom_theme: None,
             logo: None,
             external_urls: ExternalUrls::default(),
@@ -262,15 +262,15 @@ impl DocsTreeBuilder {
         }
     }
 
-    /// Set the homepage for the docs with an option.
-    pub fn maybe_homepage(mut self, homepage: Option<impl Into<PathBuf>>) -> Self {
-        self.homepage = homepage.map(|hp| hp.into());
+    /// Set the index page for the docs with an option.
+    pub fn maybe_index_page(mut self, index_page: Option<impl Into<PathBuf>>) -> Self {
+        self.index_page = index_page.map(|hp| hp.into());
         self
     }
 
-    /// Set the homepage for the docs.
-    pub fn homepage(self, homepage: impl Into<PathBuf>) -> Self {
-        self.maybe_homepage(Some(homepage))
+    /// Set the index page for the docs.
+    pub fn index_page(self, index_page: impl Into<PathBuf>) -> Self {
+        self.maybe_index_page(Some(index_page))
     }
 
     /// Set the custom theme for the docs with an option.
@@ -353,7 +353,7 @@ impl DocsTreeBuilder {
         Ok(DocsTree {
             root: node,
             path: self.root,
-            homepage: self.homepage,
+            index_page: self.index_page,
             external_urls: self.external_urls,
             additional_html: self.additional_html,
             init_light_mode: self.init_light_mode,
@@ -530,7 +530,7 @@ pub struct DocsTree {
     path: PathBuf,
     /// An optional path to a Markdown file which will be embedded in the
     /// `<root>/index.html` page.
-    homepage: Option<PathBuf>,
+    index_page: Option<PathBuf>,
     /// External URLs related to the project, rendered as buttons in the header.
     external_urls: ExternalUrls,
     /// Optional extra HTML to embed in each page.
@@ -1185,18 +1185,18 @@ impl DocsTree {
             }
         }
 
-        self.write_homepage()?;
+        self.write_index_page()?;
 
         Ok(())
     }
 
-    /// Write the homepage to disk.
-    fn write_homepage(&self) -> DocResult<()> {
+    /// Write the root index page to disk.
+    fn write_index_page(&self) -> DocResult<()> {
         let index_path = self.root_abs_path().join("index.html");
 
         let left_sidebar = self.render_left_sidebar(&index_path);
         let content = html! {
-            @if let Some(homepage) = &self.homepage {
+            @if let Some(index_page) = &self.index_page {
                 div class="main__section" {
                     div
                         class="markdown-body"
@@ -1205,8 +1205,8 @@ impl DocsTree {
                         meta-img-light="home.light.svg"
                         data-pagefind-meta="image_dark[meta-img-dark], image_light[meta-img-light]"
                     {
-                        (Markdown(std::fs::read_to_string(homepage).map_err(Into::<DocError>::into).with_context(|| {
-                            format!("failed to read provided homepage file: `{}`", homepage.display())
+                        (Markdown(std::fs::read_to_string(index_page).map_err(Into::<DocError>::into).with_context(|| {
+                            format!("failed to read provided index page file: `{}`", index_page.display())
                         })?).render())
                     }
                 }
@@ -1220,7 +1220,7 @@ impl DocsTree {
             }
         };
 
-        let homepage_content = html! {
+        let index_page_content = html! {
             h5 class="main__homepage-header" {
                 "Home"
             }
@@ -1231,7 +1231,7 @@ impl DocsTree {
             "Home",
             self.render_layout(
                 left_sidebar,
-                homepage_content,
+                index_page_content,
                 self.render_right_sidebar(PageSections::default()),
                 None,
                 &self.assets_relative_to(self.root_abs_path()),
@@ -1243,7 +1243,12 @@ impl DocsTree {
         );
         std::fs::write(&index_path, html.into_string())
             .map_err(Into::<DocError>::into)
-            .with_context(|| format!("failed to write homepage to `{}`", index_path.display()))?;
+            .with_context(|| {
+                format!(
+                    "failed to write root index page to `{}`",
+                    index_path.display()
+                )
+            })?;
         Ok(())
     }
 

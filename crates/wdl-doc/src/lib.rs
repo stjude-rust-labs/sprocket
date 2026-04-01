@@ -390,7 +390,7 @@ async fn analyze_workspace(
 /// are already present.
 pub async fn document_workspace(config: Config) -> DocResult<()> {
     let workspace_abs_path = absolute(&config.workspace)?.clean();
-    let homepage = config.homepage.and_then(|p| absolute(p).ok());
+    let index_page = config.index_page.and_then(|p| absolute(p).ok());
 
     if !workspace_abs_path.is_dir() {
         return Err(
@@ -418,7 +418,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
     let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
-        .maybe_homepage(homepage)
+        .maybe_index_page(index_page)
         .init_light_mode(config.init_light_mode)
         .maybe_custom_theme(config.custom_theme)?
         .maybe_logo(config.custom_logo)

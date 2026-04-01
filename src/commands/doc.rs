@@ -35,7 +35,7 @@ pub struct Args {
     pub workspace: Option<Source>,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
-    pub homepage: Option<PathBuf>,
+    pub index_page: Option<PathBuf>,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
@@ -192,16 +192,16 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
-    let homepage = args.homepage.or(config.doc.homepage());
+    let index_page = args.index_page.or(config.doc.index_page());
     let light_mode = args.light_mode || config.doc.light_mode;
     let logo = args.logo.or(config.doc.logo());
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
-    let homepage_url = args.homepage_url.or(config.doc.home_url());
+    let homepage_url = args.homepage_url.or(config.doc.homepage_url());
     let github_url = args.github_url.or(config.doc.github_url());
     let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
-        .homepage(homepage)
+        .index_page(index_page)
         .init_light_mode(light_mode)
         .custom_theme(args.theme)
         .custom_logo(logo)

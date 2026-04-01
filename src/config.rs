@@ -406,7 +406,7 @@ fn get_sentinel_doc_config_value() -> String {
 pub struct DocConfig {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[serde(default = "get_sentinel_doc_config_value")]
-    pub homepage: String,
+    pub index_page: String,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
@@ -420,7 +420,7 @@ pub struct DocConfig {
     pub alt_light_logo: String,
     /// An optional link to the project's homepage.
     #[serde(default = "get_sentinel_doc_config_value")]
-    pub home_url: String,
+    pub homepage_url: String,
     /// An optional link to the project's GitHub repository.
     #[serde(default = "get_sentinel_doc_config_value")]
     pub github_url: String,
@@ -438,10 +438,10 @@ pub struct DocConfig {
 impl Default for DocConfig {
     fn default() -> Self {
         Self {
-            homepage: get_sentinel_doc_config_value(),
+            index_page: get_sentinel_doc_config_value(),
             logo: get_sentinel_doc_config_value(),
             alt_light_logo: get_sentinel_doc_config_value(),
-            home_url: get_sentinel_doc_config_value(),
+            homepage_url: get_sentinel_doc_config_value(),
             github_url: get_sentinel_doc_config_value(),
             light_mode: false,
             with_doc_comments: false,
@@ -451,12 +451,13 @@ impl Default for DocConfig {
 }
 
 impl DocConfig {
-    /// Get the path to the homepage file, if configured.
-    pub fn homepage(&self) -> Option<PathBuf> {
-        if self.homepage == SENTINEL_DOC_CONFIG_VALUE {
+    /// Get the path to the Markdown file to be embedded in the root index page,
+    /// if configured.
+    pub fn index_page(&self) -> Option<PathBuf> {
+        if self.index_page == SENTINEL_DOC_CONFIG_VALUE {
             None
         } else {
-            Some(PathBuf::from(&self.homepage))
+            Some(PathBuf::from(&self.index_page))
         }
     }
 
@@ -479,11 +480,11 @@ impl DocConfig {
     }
 
     /// Get the URL to the project's homepage, if configured.
-    pub fn home_url(&self) -> Option<Url> {
-        if self.home_url == SENTINEL_DOC_CONFIG_VALUE {
+    pub fn homepage_url(&self) -> Option<Url> {
+        if self.homepage_url == SENTINEL_DOC_CONFIG_VALUE {
             None
         } else {
-            match Url::from_str(&self.home_url) {
+            match Url::from_str(&self.homepage_url) {
                 Ok(url) => Some(url),
                 Err(e) => {
                     tracing::warn!("error while parsing configured home URL: {e}");

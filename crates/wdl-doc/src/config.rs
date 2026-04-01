@@ -65,8 +65,8 @@ pub struct Config {
     pub(crate) workspace: PathBuf,
     /// Output location for the documentation.
     pub(crate) output_dir: PathBuf,
-    /// An optional markdown file to embed in the homepage.
-    pub(crate) homepage: Option<PathBuf>,
+    /// An optional markdown file to embed in the root index page.
+    pub(crate) index_page: Option<PathBuf>,
     /// Initialize pages in light mode instead of the default dark mode.
     pub(crate) init_light_mode: bool,
     /// An optional custom theme directory.
@@ -95,7 +95,7 @@ impl Config {
             analysis_config,
             workspace: workspace.into(),
             output_dir: output_dir.into(),
-            homepage: None,
+            index_page: None,
             init_light_mode: false,
             custom_theme: None,
             custom_logo: None,
@@ -106,9 +106,9 @@ impl Config {
         }
     }
 
-    /// Overwrite the config's homepage with the new value.
-    pub fn homepage(mut self, homepage: Option<PathBuf>) -> Self {
-        self.homepage = homepage;
+    /// Overwrite the config's index page with the new value.
+    pub fn index_page(mut self, index_page: Option<PathBuf>) -> Self {
+        self.index_page = index_page;
         self
     }
 
