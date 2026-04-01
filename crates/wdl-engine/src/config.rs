@@ -542,11 +542,16 @@ impl HttpConfig {
     pub fn cache_dir(&self) -> Result<PathBuf> {
         const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
 
-        if self.cache_dir == CACHE_DIR_SENTINEL {
+        if self.using_system_cache_dir() {
             cache_dir().map(|d| d.join(DOWNLOADS_CACHE_SUBDIR))
         } else {
             Ok(PathBuf::from(&self.cache_dir))
         }
+    }
+
+    /// Is this configuration using a system cache dir?
+    pub fn using_system_cache_dir(&self) -> bool {
+        self.cache_dir == CACHE_DIR_SENTINEL
     }
 }
 

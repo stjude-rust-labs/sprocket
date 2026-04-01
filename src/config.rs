@@ -694,19 +694,9 @@ impl Config {
         }
 
         // Shell-expand certain paths
-        for path in [
-            Some(&mut self.run.output_dir),
-            self.run.engine.task.cache_dir().as_mut(),
-            self.run.engine.http.cache_dir().ok().as_mut(),
-            Some(&mut self.server.output_dir),
-            self.server.engine.task.cache_dir().as_mut(),
-            self.server.engine.http.cache_dir().ok().as_mut(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            match shellexpand::path::full(path.as_path()) {
-                Ok(expanded) => *path = PathBuf::from(expanded),
+        fn expand(path: &Path) -> Result<PathBuf> {
+            match shellexpand::path::full(path) {
+                Ok(expanded) => Ok(PathBuf::from(expanded)),
                 Err(e) => {
                     bail!(
                         "failed to expand `{}` in path `{}`: {}",
@@ -716,6 +706,46 @@ impl Config {
                     );
                 }
             }
+        }
+        self.run.output_dir = expand(&self.run.output_dir)?;
+        self.server.output_dir = expand(&self.server.output_dir)?;
+        self.run.engine.task.cache_dir = match self
+            .run
+            .engine
+            .task
+            .cache_dir()
+            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
+            .transpose()?
+        {
+            Some(s) => s,
+            None => self.run.engine.task.cache_dir.clone(),
+        };
+        if !self.run.engine.http.using_system_cache_dir() {
+            self.run.engine.http.cache_dir = self
+                .run
+                .engine
+                .http
+                .cache_dir()
+                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
+        }
+        self.server.engine.task.cache_dir = match self
+            .server
+            .engine
+            .task
+            .cache_dir()
+            .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))
+            .transpose()?
+        {
+            Some(s) => s,
+            None => self.server.engine.task.cache_dir.clone(),
+        };
+        if !self.server.engine.http.using_system_cache_dir() {
+            self.server.engine.http.cache_dir = self
+                .server
+                .engine
+                .http
+                .cache_dir()
+                .map(|p| expand(&p).map(|p| p.to_string_lossy().to_string()))??;
         }
 
         // Validate inner configs
