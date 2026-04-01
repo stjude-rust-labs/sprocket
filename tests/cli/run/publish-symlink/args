@@ -1,0 +1,1 @@
+-qq run --publish my-run hello.wdl -t hello -o out --config sprocket.toml
