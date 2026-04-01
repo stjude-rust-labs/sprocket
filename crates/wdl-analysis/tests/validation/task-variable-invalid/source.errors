@@ -1,0 +1,8 @@
+error: `task.return_code` cannot be used in this context
+  ┌─ tests/validation/task-variable-invalid/source.wdl:6:16
+  │
+6 │         echo ~{task.return_code}
+  │                ^^^^^^^^^^^^^^^^
+  │
+  = help: `task.return_code` is only available in `output` sections
+

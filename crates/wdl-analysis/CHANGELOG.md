@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* The type of `task.return_code` is now `Int` instead of `Int?` ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+
+#### Fixed
+
+* `task.return_code` can no longer be used outside of `output` sections ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+
 ## 0.19.0 - 2026-04-02
 
 #### Changed

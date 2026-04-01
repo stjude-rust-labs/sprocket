@@ -160,12 +160,12 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT | TASK_FIELD_RETURN_CODE => {
+            Some(PrimitiveType::Integer.into())
+        }
         TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
         TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
-        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
-            Some(Type::from(PrimitiveType::Integer).optional())
-        }
+        TASK_FIELD_END_TIME => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
         TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
