@@ -66,7 +66,7 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
 /// Default output directory function for serde.
-fn default_output_directory() -> PathBuf {
+fn default_output_dir() -> PathBuf {
     PathBuf::from(DEFAULT_OUTPUT_DIRECTORY)
 }
 
@@ -212,7 +212,7 @@ pub struct RunConfig {
     /// The output directory (default: `./out`).
     ///
     /// Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.
-    #[serde(default = "default_output_directory")]
+    #[serde(default = "default_output_dir")]
     pub output_dir: PathBuf,
 
     /// The capacity of the events channel used to display progress statistics.
@@ -234,7 +234,7 @@ impl Default for RunConfig {
     fn default() -> Self {
         Self {
             engine: EngineConfig::default(),
-            output_dir: default_output_directory(),
+            output_dir: default_output_dir(),
             events_capacity: DEFAULT_EVENTS_CHANNEL_CAPACITY,
         }
     }
@@ -283,8 +283,8 @@ pub struct ServerConfig {
     #[serde(default)]
     pub database: ServerDatabaseConfig,
     /// Directory for workflow outputs.
-    #[serde(default = "default_output_directory")]
-    pub output_directory: PathBuf,
+    #[serde(default = "default_output_dir")]
+    pub output_dir: PathBuf,
     /// Allowed file paths for file-based workflows.
     #[serde(default)]
     pub allowed_file_paths: Vec<PathBuf>,
@@ -304,7 +304,7 @@ impl Default for ServerConfig {
             port: DEFAULT_PORT,
             allowed_origins: Vec::new(),
             database: ServerDatabaseConfig::default(),
-            output_directory: default_output_directory(),
+            output_dir: default_output_dir(),
             allowed_file_paths: Vec::new(),
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
@@ -317,7 +317,7 @@ impl ServerConfig {
     /// Get the database URL.
     pub fn database_url(&self) -> String {
         if self.database.url == SENTINEL_DATABASE_FILENAME {
-            self.output_directory
+            self.output_dir
                 .join(DEFAULT_DATABASE_FILENAME)
                 .to_string_lossy()
                 .to_string()
@@ -684,6 +684,31 @@ impl Config {
 
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
+        }
+
+        // Shell-expand certain paths
+        for path in [
+            Some(&mut self.run.output_dir),
+            self.run.engine.task.cache_dir().as_mut(),
+            self.run.engine.http.cache_dir().ok().as_mut(),
+            Some(&mut self.server.output_dir),
+            self.server.engine.task.cache_dir().as_mut(),
+            self.server.engine.http.cache_dir().ok().as_mut(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            match shellexpand::path::full(path.as_path()) {
+                Ok(expanded) => *path = PathBuf::from(expanded),
+                Err(e) => {
+                    bail!(
+                        "failed to expand `{}` in path `{}`: {}",
+                        e.var_name.to_string_lossy(),
+                        path.display(),
+                        e.cause
+                    );
+                }
+            }
         }
 
         // Validate server config

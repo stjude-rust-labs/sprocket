@@ -38,7 +38,7 @@ async fn create_test_server(
     std::fs::create_dir(&wdl_dir).unwrap();
 
     let mut server_config = ServerConfig {
-        output_directory: temp.path().to_path_buf(),
+        output_dir: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir],
         max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
         engine: engine.unwrap_or_default(),
@@ -2000,7 +2000,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
     std::fs::create_dir(&wdl_dir).unwrap();
 
     let mut server_config = ServerConfig {
-        output_directory: temp.path().to_path_buf(),
+        output_dir: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir.clone()],
         ..Default::default()
     };

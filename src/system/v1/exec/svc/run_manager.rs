@@ -93,7 +93,7 @@ impl RunManagerSvc {
             .cloned()
             .map(|n| Arc::new(Semaphore::new(n)));
 
-        let output_dir = OutputDirectory::new(&config.output_directory);
+        let output_dir = OutputDirectory::new(&config.output_dir);
 
         Self {
             config,

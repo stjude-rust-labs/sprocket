@@ -372,10 +372,15 @@ impl InputProcessor {
                         let specified = call.specified();
 
                         fn get_task_def(document: &Document, name: &str) -> Result<TaskDefinition> {
-                            let ast = document.root().ast().into_v1().ok_or(anyhow!(
-                                "non-v1 WDL document `{}` cannot be processed with this subcommand",
-                                document.uri()
-                            ))?;
+                            let ast = document
+                                .root()
+                                .ast_with_version_fallback(document.config().fallback_version())
+                                .into_v1()
+                                .ok_or(anyhow!(
+                                    "non-v1 WDL document `{}` cannot be processed with this \
+                                     subcommand",
+                                    document.uri()
+                                ))?;
 
                             Ok(ast
                                 .tasks()
@@ -411,10 +416,14 @@ impl InputProcessor {
                             .expect("referenced namespace should be present")
                             .document();
 
-                        let ast = document.root().ast().into_v1().ok_or(anyhow!(
-                            "non-v1 WDL document `{}` cannot be processed with this subcommand",
-                            document.uri()
-                        ))?;
+                        let ast = document
+                            .root()
+                            .ast_with_version_fallback(document.config().fallback_version())
+                            .into_v1()
+                            .ok_or(anyhow!(
+                                "non-v1 WDL document `{}` cannot be processed with this subcommand",
+                                document.uri()
+                            ))?;
 
                         let workflow = ast
                             .workflows()
@@ -466,10 +475,14 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
         args.hide_defaults,
     );
 
-    let ast = document.root().ast().into_v1().ok_or(anyhow!(
-        "non-v1 WDL document `{}` cannot be processed with this subcommand",
-        document.uri()
-    ))?;
+    let ast = document
+        .root()
+        .ast_with_version_fallback(document.config().fallback_version())
+        .into_v1()
+        .ok_or(anyhow!(
+            "non-v1 WDL document `{}` cannot be processed with this subcommand",
+            document.uri()
+        ))?;
 
     if let Some(target) = args.target {
         let namespace = Key::new(target.to_owned());

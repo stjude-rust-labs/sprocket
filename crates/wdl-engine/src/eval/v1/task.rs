@@ -623,7 +623,11 @@ impl Evaluator {
             )
         })?;
 
-        let ast = match document.root().morph().ast() {
+        let ast = match document
+            .root()
+            .morph()
+            .ast_with_version_fallback(document.config().fallback_version())
+        {
             Ast::V1(ast) => ast,
             _ => {
                 return Err(

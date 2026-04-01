@@ -473,7 +473,9 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         let version_statement = ast
             .version_statement()
             .expect("document should have a version statement");
-        let ast = ast.ast().unwrap_v1();
+        let ast = ast
+            .ast_with_version_fallback(result.document().config().fallback_version())
+            .unwrap_v1();
 
         let mut local_pages = Vec::new();
 

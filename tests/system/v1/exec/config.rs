@@ -12,7 +12,7 @@ fn make_config(
     max_concurrent_runs: Option<usize>,
 ) -> ServerConfig {
     ServerConfig {
-        output_directory,
+        output_dir: output_directory,
         allowed_file_paths,
         allowed_urls,
         max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
@@ -150,7 +150,7 @@ fn validate_sorts_urls() {
 #[test]
 fn default_output_directory_is_out() {
     let config = ServerConfig::default();
-    assert_eq!(config.output_directory.to_str().unwrap(), "./out");
+    assert_eq!(config.output_dir.to_str().unwrap(), "./out");
 }
 
 #[test]

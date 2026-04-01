@@ -64,7 +64,12 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     for result in results {
         let doc = result.document().root();
 
-        for task in doc.ast().as_v1().expect("should be a v1 document").tasks() {
+        for task in doc
+            .ast_with_version_fallback(result.document().config().fallback_version())
+            .as_v1()
+            .expect("should be a v1 document")
+            .tasks()
+        {
             let task_name_token = task.name();
             let task_name = task_name_token.inner().text();
             let doc_path = result.document().path();
