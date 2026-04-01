@@ -123,6 +123,7 @@ pub fn document(
 fn unsupported_version(version: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unsupported WDL version `{version}`"))
         .with_label("this version of WDL is not supported", span)
+        .with_fix("either use a supported WDL version or configure a fallback version")
 }
 
 /// Parses the version statement of a WDL source file.
