@@ -342,7 +342,7 @@ impl ServerConfig {
     pub fn validate(&mut self) -> anyhow::Result<()> {
         // Validate max concurrent workflows is at least 1
         if let Some(max) = self.max_concurrent_runs.inner()
-            && max == 0
+            && *max == 0
         {
             anyhow::bail!("`max_concurrent_runs` must be at least 1");
         }
@@ -392,84 +392,177 @@ impl Default for TestConfig {
     }
 }
 
+/// Sentinel value used throughout DocConfig.
+const SENTINEL_DOC_CONFIG_VALUE: &str = "none";
+
+/// serde helper.
+fn get_sentinel_doc_config_value() -> String {
+    SENTINEL_DOC_CONFIG_VALUE.to_string()
+}
+
 /// `doc` command configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocConfig {
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub homepage: Option<PathBuf>,
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub homepage: String,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub logo: Option<PathBuf>,
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub logo: String,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `logo` SVG will be used; or if that is also not
     /// supplied, the default Sprocket logo will be used.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub alt_light_logo: Option<PathBuf>,
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub alt_light_logo: String,
     /// An optional link to the project's homepage.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub homepage_url: Option<Url>,
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub home_url: String,
     /// An optional link to the project's GitHub repository.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub github_url: Option<Url>,
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub github_url: String,
     /// Initialize pages in light mode instead of the default dark mode.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub light_mode: bool,
-    /// Initialize pages on the "Workflows" view instead of the "Full
-    /// Directory" view of the left nav bar.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub prioritize_workflows_view: bool,
     /// Enables support for documentation comments
     ///
     /// This option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub with_doc_comments: bool,
-    /// Configuration for custom scripts to embed in generated HTML pages.
-    #[serde(default, skip_serializing_if = "DocScriptsConfig::is_empty")]
-    pub scripts: DocScriptsConfig,
+    /// Configuration for custom HTML to embed in generated pages.
+    #[serde(default)]
+    pub extra_html: DocExtraHtmlConfig,
+}
+
+impl Default for DocConfig {
+    fn default() -> Self {
+        Self {
+            homepage: get_sentinel_doc_config_value(),
+            logo: get_sentinel_doc_config_value(),
+            alt_light_logo: get_sentinel_doc_config_value(),
+            home_url: get_sentinel_doc_config_value(),
+            github_url: get_sentinel_doc_config_value(),
+            light_mode: false,
+            with_doc_comments: false,
+            extra_html: DocExtraHtmlConfig::default(),
+        }
+    }
+}
+
+impl DocConfig {
+    /// Get the path to the homepage file, if configured.
+    pub fn homepage(&self) -> Option<PathBuf> {
+        if self.homepage == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.homepage))
+        }
+    }
+
+    /// Get the path to the logo file, if configured.
+    pub fn logo(&self) -> Option<PathBuf> {
+        if self.logo == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.logo))
+        }
+    }
+
+    /// Get the path to the alternate light mode logo file, if configured.
+    pub fn alt_light_logo(&self) -> Option<PathBuf> {
+        if self.alt_light_logo == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.alt_light_logo))
+        }
+    }
+
+    /// Get the URL to the project's homepage, if configured.
+    pub fn home_url(&self) -> Option<Url> {
+        if self.home_url == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            match Url::from_str(&self.home_url) {
+                Ok(url) => Some(url),
+                Err(e) => {
+                    tracing::warn!("error while parsing configured home URL: {e}");
+                    None
+                }
+            }
+        }
+    }
+
+    /// Get the URL to the project's GitHub, if configured.
+    pub fn github_url(&self) -> Option<Url> {
+        if self.github_url == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            match Url::from_str(&self.github_url) {
+                Ok(url) => Some(url),
+                Err(e) => {
+                    tracing::warn!("error while parsing configured GitHub URL: {e}");
+                    None
+                }
+            }
+        }
+    }
 }
 
 /// `doc.scripts` command configuration.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
-pub struct DocScriptsConfig {
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately after the opening
-    /// `<head>` tag.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub head_open: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately before the closing
-    /// `<head>` tag.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub head_close: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately after the opening
-    /// `<body>` tag.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body_open: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately before the closing
-    /// `<body>` tag.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body_close: Option<PathBuf>,
+pub struct DocExtraHtmlConfig {
+    /// Path to an HTML file that should have its contents embedded in each HTML
+    /// page, immediately before the closing `<head>` tag.
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub head: String,
+    /// Path to an HTML file that should have its contents embedded in each HTML
+    /// page, immediately after the opening `<body>` tag.
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub body_open: String,
+    /// Path to an HTML file that should have its contents embedded in each HTML
+    /// page, immediately before the closing `<body>` tag.
+    #[serde(default = "get_sentinel_doc_config_value")]
+    pub body_close: String,
 }
 
-impl DocScriptsConfig {
-    /// Returns `true` if all script paths are `None`.
-    fn is_empty(&self) -> bool {
-        let Self {
-            head_open,
-            head_close,
-            body_open,
-            body_close,
-        } = self;
+impl DocExtraHtmlConfig {
+    /// Get the path to the head open HTML file, if configured.
+    pub fn head(&self) -> Option<PathBuf> {
+        if self.head == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.head))
+        }
+    }
 
-        head_open.is_none() && head_close.is_none() && body_open.is_none() && body_close.is_none()
+    /// Get the path to the body open HTML file, if configured.
+    pub fn body_open(&self) -> Option<PathBuf> {
+        if self.body_open == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.body_open))
+        }
+    }
+
+    /// Get the path to the body close HTML file, if configured.
+    pub fn body_close(&self) -> Option<PathBuf> {
+        if self.body_close == SENTINEL_DOC_CONFIG_VALUE {
+            None
+        } else {
+            Some(PathBuf::from(&self.body_close))
+        }
+    }
+}
+
+impl Default for DocExtraHtmlConfig {
+    fn default() -> Self {
+        Self {
+            head: get_sentinel_doc_config_value(),
+            body_open: get_sentinel_doc_config_value(),
+            body_close: get_sentinel_doc_config_value(),
+        }
     }
 }
 

@@ -90,6 +90,7 @@ impl RunManagerSvc {
         let semaphore = config
             .max_concurrent_runs
             .inner()
+            .cloned()
             .map(|n| Arc::new(Semaphore::new(n)));
 
         let output_dir = OutputDirectory::new(&config.output_directory);
@@ -291,7 +292,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
-            .maybe_fallback_version(self.fallback_version.inner())
+            .maybe_fallback_version(self.fallback_version.inner().cloned())
             .source(source)
             .maybe_target(target)
             .inputs(inputs)

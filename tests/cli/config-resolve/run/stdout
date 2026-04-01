@@ -128,6 +128,18 @@ excluded_cache_inputs = []
 parallelism = 50
 
 [doc]
+homepage = "none"
+logo = "none"
+alt_light_logo = "none"
+home_url = "none"
+github_url = "none"
+light_mode = false
+with_doc_comments = false
+
+[doc.extra_html]
+head = "none"
+body_open = "none"
+body_close = "none"
 
 [common]
 color = "auto"

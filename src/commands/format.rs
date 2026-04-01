@@ -116,7 +116,7 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version.inner();
+    let fallback_version = config.common.wdl.fallback_version.inner().cloned();
 
     let indent = if args.with_tabs || args.indentation_size.is_some() {
         Indent::try_new(args.with_tabs, args.indentation_size)

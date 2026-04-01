@@ -16,7 +16,7 @@ use path_clean::PathClean;
 use pathdiff::diff_paths;
 use serde::Serialize;
 
-use crate::AdditionalScript;
+use crate::AdditionalHtml;
 use crate::DocError;
 use crate::Markdown;
 use crate::Render;
@@ -238,13 +238,8 @@ pub struct DocsTreeBuilder {
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
     alt_logo: Option<PathBuf>,
-    /// Optional JavaScript to embed in each HTML page.
-    additional_javascript: AdditionalScript,
-    /// Start on the "Full Directory" left sidebar view instead of the
-    /// "Workflows" view.
-    ///
-    /// Users can toggle the view. This only impacts the initialized value.
-    init_on_full_directory: bool,
+    /// Optional extra HTML to embed in each page.
+    additional_html: AdditionalHtml,
     /// Start in light mode instead of the default dark mode.
     init_light_mode: bool,
 }
@@ -262,8 +257,7 @@ impl DocsTreeBuilder {
             logo: None,
             external_urls: ExternalUrls::default(),
             alt_logo: None,
-            additional_javascript: AdditionalScript::None,
-            init_on_full_directory: crate::PREFER_FULL_DIRECTORY,
+            additional_html: AdditionalHtml::default(),
             init_light_mode: false,
         }
     }
@@ -333,16 +327,9 @@ impl DocsTreeBuilder {
         self.maybe_alt_logo(Some(logo))
     }
 
-    /// Set the additional javascript for each page.
-    pub fn additional_javascript(mut self, js: AdditionalScript) -> Self {
-        self.additional_javascript = js;
-        self
-    }
-
-    /// Set whether the "Full Directory" view should be initialized instead of
-    /// the "Workflows" view of the left sidebar.
-    pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
-        self.init_on_full_directory = prefer_full_directory;
+    /// Set the additional HTML for each page.
+    pub fn additional_html(mut self, html: AdditionalHtml) -> Self {
+        self.additional_html = html;
         self
     }
 
@@ -368,8 +355,7 @@ impl DocsTreeBuilder {
             path: self.root,
             homepage: self.homepage,
             external_urls: self.external_urls,
-            additional_javascript: self.additional_javascript,
-            init_on_full_directory: self.init_on_full_directory,
+            additional_html: self.additional_html,
             init_light_mode: self.init_light_mode,
         })
     }
@@ -547,11 +533,8 @@ pub struct DocsTree {
     homepage: Option<PathBuf>,
     /// External URLs related to the project, rendered as buttons in the header.
     external_urls: ExternalUrls,
-    /// Optional JavaScript to embed in each HTML page.
-    additional_javascript: AdditionalScript,
-    /// Initialize pages on the "Full Directory" view instead of the "Workflows"
-    /// view of the left sidebar.
-    init_on_full_directory: bool,
+    /// Optional extra HTML to embed in each page.
+    additional_html: AdditionalHtml,
     /// Initialize in light mode instead of the default dark mode.
     init_light_mode: bool,
 }
@@ -981,7 +964,7 @@ impl DocsTree {
 
         let data = format!(
             r#"{{
-                showWorkflows: $persist({}).using(sessionStorage),
+                showWorkflows: $persist(false).using(sessionStorage),
                 dirOpen: '{}',
                 dirClosed: '{}',
                 nodes: [{}],
@@ -1022,7 +1005,6 @@ impl DocsTree {
                     }});
                 }}
             }}"#,
-            !self.init_on_full_directory,
             self.get_asset(base, "chevron-up.svg"),
             self.get_asset(base, "chevron-down.svg"),
             all_nodes
@@ -1256,7 +1238,7 @@ impl DocsTree {
                 &index_path,
             ),
             self.root().path(),
-            &self.additional_javascript,
+            &self.additional_html,
             self.init_light_mode,
         );
         std::fs::write(&index_path, html.into_string())
@@ -1503,7 +1485,7 @@ impl DocsTree {
                 &path,
             ),
             self.root_relative_to(base),
-            &self.additional_javascript,
+            &self.additional_html,
             self.init_light_mode,
         );
         std::fs::write(&path, html.into_string())

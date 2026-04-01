@@ -205,8 +205,8 @@ macro_rules! nullable_config_type {
 
         impl $name {
             #[doc = concat!("Get the inner [`", stringify!($inner), "`].")]
-            pub fn inner(&self) -> Option<$inner> {
-                self.0
+            pub fn inner(&self) -> Option<&$inner> {
+                self.0.as_ref()
             }
 
             #[doc = concat!("Try to create a new `", stringify!($name), "` from a `", stringify!($inner), "`.")]
@@ -536,7 +536,7 @@ impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
         if let Some(parallelism) = self.parallelism.inner()
-            && parallelism == 0
+            && *parallelism == 0
         {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
@@ -1020,7 +1020,7 @@ impl Default for TaskConfig {
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
-        if self.retries.inner().unwrap_or(0) > MAX_RETRIES {
+        if self.retries.inner().cloned().unwrap_or(0) > MAX_RETRIES {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");
         }
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `additional_javascript` has been generalized to `additional_html` and now supports inserting HTML in multiple locations at once ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+
+#### Removed
+
+* `init_on_full_directory` configuration field has been removed. The "Full Directory" view is now always the initial view ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+
 ## 0.13.0 - 2026-03-12
 
 #### Added

@@ -537,7 +537,7 @@ pub async fn run(
 
     let results = Analysis::default()
         .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner())
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .init({
             let progress_bar = progress_bar.clone();
             Box::new(move || {

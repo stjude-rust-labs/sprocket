@@ -504,6 +504,7 @@ pub(crate) fn max_retries(
         .task
         .retries
         .inner()
+        .cloned()
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 

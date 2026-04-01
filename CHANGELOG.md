@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Changed the `--javascript-*` arguments for `doc` to more adaptable `--html-*` options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The outputs path message is now printed to stderr instead of stdout so
   that stdout contains only the JSON outputs
   ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
@@ -43,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+
+### Removed
+
+* Removed the `--prioritize-workflows-view` flag to `doc` subcommand ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 
 ## 0.22.0 - 2026-03-12
 

@@ -207,6 +207,7 @@ impl HttpTransferer {
                 .http
                 .parallelism
                 .inner()
+                .cloned()
                 .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
         );
 

@@ -256,7 +256,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .fallback_version(config.common.wdl.fallback_version.inner())
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;

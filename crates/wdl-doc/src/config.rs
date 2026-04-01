@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use ammonia::Url;
 use wdl_analysis::Config as AnalysisConfig;
 
-use crate::PREFER_FULL_DIRECTORY;
-
 /// External URLs related to the project.
 #[derive(Clone, Debug, Default)]
 pub struct ExternalUrls {
@@ -18,18 +16,44 @@ pub struct ExternalUrls {
 
 /// The location to embed an arbitrary JaveScript `<script>` tag into each HTML
 /// page.
-#[derive(Debug)]
-pub enum AdditionalScript {
-    /// Embed the contents immediately after the opening `<head>` tag.
-    HeadOpen(String),
+#[derive(Debug, Default)]
+pub struct AdditionalHtml {
     /// Embed the contents immediately before the closing `</head>` tag.
-    HeadClose(String),
+    head: Option<String>,
     /// Embed the contents immediately after the opening `<body>` tag.
-    BodyOpen(String),
+    body_open: Option<String>,
     /// Embed the contents immediately before the closing `</body>` tag.
-    BodyClose(String),
-    /// Don't embed any script.
-    None,
+    body_close: Option<String>,
+}
+
+impl AdditionalHtml {
+    /// Create a new [`AdditionalHtml`] struct.
+    pub fn new(
+        head: Option<String>,
+        body_open: Option<String>,
+        body_close: Option<String>,
+    ) -> Self {
+        Self {
+            head,
+            body_open,
+            body_close,
+        }
+    }
+
+    /// Get the HTML to add to the head.
+    pub fn head(&self) -> Option<&str> {
+        self.head.as_deref()
+    }
+
+    /// Get the HTML to add to the body open.
+    pub fn body_open(&self) -> Option<&str> {
+        self.body_open.as_deref()
+    }
+
+    /// Get the HTML to add to the body close.
+    pub fn body_close(&self) -> Option<&str> {
+        self.body_close.as_deref()
+    }
 }
 
 /// Configuration for documentation generation.
@@ -54,11 +78,8 @@ pub struct Config {
     /// An optional alternate (light mode) custom logo to embed in the left
     /// sidebar.
     pub(crate) alt_logo: Option<PathBuf>,
-    /// Optional JavaScript to embed in each HTML page.
-    pub(crate) additional_javascript: AdditionalScript,
-    /// Initialize pages on the "Full Directory" view instead of the "Workflows"
-    /// view of the left sidebar.
-    pub(crate) init_on_full_directory: bool,
+    /// Optional HTML to embed in each page.
+    pub(crate) additional_html: AdditionalHtml,
     /// (**EXPERIMENTAL**) Enable support for documentation comments.
     pub(crate) enable_doc_comments: bool,
 }
@@ -80,8 +101,7 @@ impl Config {
             custom_logo: None,
             external_urls: ExternalUrls::default(),
             alt_logo: None,
-            additional_javascript: AdditionalScript::None,
-            init_on_full_directory: PREFER_FULL_DIRECTORY,
+            additional_html: AdditionalHtml::default(),
             enable_doc_comments: false,
         }
     }
@@ -122,15 +142,9 @@ impl Config {
         self
     }
 
-    /// Overwrite the config's additional JS with the new value.
-    pub fn additional_javascript(mut self, additional_javascript: AdditionalScript) -> Self {
-        self.additional_javascript = additional_javascript;
-        self
-    }
-
-    /// Overwrite the config's init_on_full_directory with the new value.
-    pub fn prefer_full_directory(mut self, prefer_full_directory: bool) -> Self {
-        self.init_on_full_directory = prefer_full_directory;
+    /// Overwrite the config's additional HTML with the new value.
+    pub fn additional_html(mut self, additional_html: AdditionalHtml) -> Self {
+        self.additional_html = additional_html;
         self
     }
 
