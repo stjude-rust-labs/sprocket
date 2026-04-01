@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* If only one backend is configured in `backends` and it's name is not `"default"`,
+  it must be explicitly selected by setting `backend` to the appropriate name ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * Type mismatch diagnostics now distinguish between custom types and references
   to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
 
