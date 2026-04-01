@@ -14,8 +14,7 @@ pub struct ExternalUrls {
     pub github: Option<Url>,
 }
 
-/// The location to embed an arbitrary JavaScript `<script>` tag into each HTML
-/// page.
+/// Additional HTML to embed into each generated page.
 #[derive(Debug, Default)]
 pub struct AdditionalHtml {
     /// Embed the contents immediately before the closing `</head>` tag.

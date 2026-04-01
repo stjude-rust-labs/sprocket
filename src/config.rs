@@ -392,7 +392,7 @@ impl Default for TestConfig {
     }
 }
 
-/// Sentinel value used throughout DocConfig.
+/// Sentinel value used throughout `DocConfig`.
 const SENTINEL_DOC_CONFIG_VALUE: &str = "none";
 
 /// serde helper.
@@ -510,7 +510,7 @@ impl DocConfig {
     }
 }
 
-/// `doc.scripts` command configuration.
+/// `doc.extra_html` command configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DocExtraHtmlConfig {
