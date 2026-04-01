@@ -51,7 +51,7 @@ pub struct Args {
     /// The maximum line length (default is 90). 0 means do not use a maximum
     /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
-    pub max_line_length: Option<usize>,
+    pub max_line_length: Option<String>,
 
     /// Subcommand for the `format` command.
     #[command(subcommand)]
@@ -126,8 +126,14 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
     };
 
     let max_line_length = if let Some(max) = args.max_line_length {
-        MaxLineLength::try_new(if max == 0 { None } else { Some(max) })
-            .context("failed to create max line length configuration")?
+        let max = match max.as_str() {
+            "none" => None,
+            _ => Some(
+                max.parse::<usize>()
+                    .context("parsing `--max-line-length`")?,
+            ),
+        };
+        MaxLineLength::try_new(max).context("failed to create max line length configuration")?
     } else {
         config.format.max_line_length
     };
