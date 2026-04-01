@@ -51,6 +51,7 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::config::DEFAULT_DATABASE_FILENAME;
+use crate::config::PublishStrategy;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
@@ -215,6 +216,11 @@ pub struct Args {
     /// (from config or the current working directory) to form the destination.
     #[clap(long, value_name = "NAME")]
     pub publish: Option<String>,
+
+    /// The strategy to use when publishing. Overrides the
+    /// `publish.strategy` config value.
+    #[clap(long, value_name = "STRATEGY", requires = "publish")]
+    pub publish_strategy: Option<PublishStrategy>,
 }
 
 impl Args {
@@ -867,10 +873,13 @@ pub async fn run(
 
                         if let Some(ref dest) = publish_destination {
                             let run_path = run_dir.root();
+                            let strategy = args
+                                .publish_strategy
+                                .unwrap_or(config.publish.strategy);
                             if let Err(e) = publish_run(
                                 run_path,
                                 dest,
-                                config.publish.strategy,
+                                strategy,
                             ) {
                                 tracing::warn!(
                                     "failed to publish run to `{dest}`: {e}; \
@@ -909,10 +918,8 @@ pub async fn run(
 fn publish_run(
     source: &Path,
     destination: &Path,
-    strategy: crate::config::PublishStrategy,
+    strategy: PublishStrategy,
 ) -> Result<()> {
-    use crate::config::PublishStrategy;
-
     match strategy {
         PublishStrategy::Symlink => symlink_run(source, destination),
         PublishStrategy::Copy => copy_run(source, destination),

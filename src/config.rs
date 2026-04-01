@@ -80,7 +80,7 @@ impl std::fmt::Display for ColorMode {
 }
 
 /// The strategy used to publish run outputs.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum PublishStrategy {
     /// Create a symlink to the run directory. Fails if symlinking fails.
