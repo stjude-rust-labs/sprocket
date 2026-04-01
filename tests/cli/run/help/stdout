@@ -97,6 +97,9 @@ Options:
           
           [default: auto]
 
+      --publish <NAME>
+          Publish the run directory to a named location under the configured publish directory. The name is joined with the publish directory (from config or the current working directory) to form the destination
+
   -c, --config <CONFIG>
           Path to the configuration file
 

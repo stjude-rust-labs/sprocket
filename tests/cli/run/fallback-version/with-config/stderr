@@ -4,4 +4,4 @@ warning[UsingFallbackVersion]: unsupported WDL version `development`; interpreti
 1 │ version development
   │         ^^^^^^^^^^^ this version of WDL is not supported
 
-outputs were also written to `./out/runs/test/_TIMESTAMP_/outputs.json`
+outputs were also written to `./out/runs/test/2026-04-01_153424605754000/outputs.json`

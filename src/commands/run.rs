@@ -51,6 +51,7 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::config::DEFAULT_DATABASE_FILENAME;
+use crate::config::PublishStrategy;
 use crate::diagnostics::Mode;
 use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
@@ -209,6 +210,17 @@ pub struct Args {
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
     pub suffix: Option<String>,
+
+    /// Publish the run directory to a named location under the configured
+    /// publish directory. The name is joined with the publish directory
+    /// (from config or the current working directory) to form the destination.
+    #[clap(long, value_name = "NAME")]
+    pub publish: Option<String>,
+
+    /// The strategy to use when publishing. Overrides the
+    /// `publish.strategy` config value.
+    #[clap(long, value_name = "STRATEGY", requires = "publish")]
+    pub publish_strategy: Option<PublishStrategy>,
 }
 
 impl Args {
@@ -546,6 +558,37 @@ pub async fn run(
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
 
+    // Validate the publish destination early so that the run does not proceed
+    // if the destination already exists.
+    let publish_destination = if let Some(ref name) = args.publish {
+        let base =
+            config.publish.directory.clone().unwrap_or_else(|| {
+                std::env::current_dir().expect("failed to get current directory")
+            });
+        let dest = base.join(name);
+
+        if dest.exists() {
+            return Err(anyhow!(
+                "publish destination `{path}` already exists",
+                path = dest.display()
+            )
+            .into());
+        }
+
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "failed to create publish directory `{path}`",
+                    path = parent.display()
+                )
+            })?;
+        }
+
+        Some(dest)
+    } else {
+        None
+    };
+
     let template = if colorize {
         "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
     } else {
@@ -827,6 +870,26 @@ pub async fn run(
                             println!("{outputs_json}");
                             eprintln!("outputs were also written to `{path}`", path = outputs_file.display());
                         }
+
+                        if let Some(ref dest) = publish_destination {
+                            let run_path = run_dir.root();
+                            let strategy = args
+                                .publish_strategy
+                                .unwrap_or(config.publish.strategy);
+                            if let Err(e) = publish_run(
+                                run_path,
+                                dest,
+                                strategy,
+                            ) {
+                                tracing::warn!(
+                                    "failed to publish run to `{dest}`: {e}; \
+                                     outputs are available at `{run}`",
+                                    dest = dest.display(),
+                                    run = run_path.display()
+                                );
+                            }
+                        }
+
                         Ok(())
                     }
                     Err(EvaluationError::Canceled) => {
@@ -848,6 +911,81 @@ pub async fn run(
             },
         }
     }
+}
+
+/// Publishes a run directory to the given destination using the specified
+/// strategy.
+fn publish_run(source: &Path, destination: &Path, strategy: PublishStrategy) -> Result<()> {
+    match strategy {
+        PublishStrategy::Symlink => symlink_run(source, destination),
+        PublishStrategy::Copy => copy_run(source, destination),
+        PublishStrategy::SymlinkOrCopy => {
+            if let Err(e) = symlink_run(source, destination) {
+                tracing::warn!("symlinking failed ({e}), falling back to copy");
+                copy_run(source, destination)
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Creates a symlink at `destination` pointing to `source`.
+fn symlink_run(source: &Path, destination: &Path) -> Result<()> {
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(source, destination).with_context(|| {
+            format!(
+                "failed to create symlink from `{dest}` to `{src}`",
+                dest = destination.display(),
+                src = source.display()
+            )
+        })
+    }
+
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_dir(source, destination).with_context(|| {
+            format!(
+                "failed to create symlink from `{dest}` to `{src}`",
+                dest = destination.display(),
+                src = source.display()
+            )
+        })
+    }
+}
+
+/// Recursively copies the contents of `source` into `destination`.
+fn copy_run(source: &Path, destination: &Path) -> Result<()> {
+    fn copy_recursive(src: &Path, dst: &Path) -> Result<()> {
+        fs::create_dir_all(dst).with_context(|| {
+            format!("failed to create directory `{path}`", path = dst.display())
+        })?;
+
+        for entry in fs::read_dir(src)
+            .with_context(|| format!("failed to read directory `{path}`", path = src.display()))?
+        {
+            let entry = entry?;
+            let src_path = entry.path();
+            let dst_path = dst.join(entry.file_name());
+
+            if src_path.is_dir() {
+                copy_recursive(&src_path, &dst_path)?;
+            } else {
+                fs::copy(&src_path, &dst_path).with_context(|| {
+                    format!(
+                        "failed to copy `{src}` to `{dst}`",
+                        src = src_path.display(),
+                        dst = dst_path.display()
+                    )
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+
+    copy_recursive(source, destination)
 }
 
 /// Initializes logging to `output.log` in the given run directory.

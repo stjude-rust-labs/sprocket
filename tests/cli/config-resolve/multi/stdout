@@ -105,3 +105,6 @@ report_mode = "full"
 
 [common.wdl]
 
+[publish]
+strategy = "symlink"
+
