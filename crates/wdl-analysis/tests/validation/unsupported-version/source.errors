@@ -4,5 +4,5 @@ error: unsupported WDL version `100000.0`
 3 │ version 100000.0
   │         ^^^^^^^^ this version of WDL is not supported
   │
-  = fix: either use a supported WDL version or configure `common.wdl.fallback_version` to set a fallback version
+  = fix: either use a supported WDL version or configure a fallback version
 
