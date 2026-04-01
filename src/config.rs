@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use clap::ValueEnum;
 use serde::Deserialize;
@@ -484,13 +485,7 @@ impl DocConfig {
         if self.homepage_url == SENTINEL_DOC_CONFIG_VALUE {
             None
         } else {
-            match Url::from_str(&self.homepage_url) {
-                Ok(url) => Some(url),
-                Err(e) => {
-                    tracing::warn!("error while parsing configured home URL: {e}");
-                    None
-                }
-            }
+            Some(Url::from_str(&self.homepage_url).expect("validated already"))
         }
     }
 
@@ -499,14 +494,25 @@ impl DocConfig {
         if self.github_url == SENTINEL_DOC_CONFIG_VALUE {
             None
         } else {
-            match Url::from_str(&self.github_url) {
-                Ok(url) => Some(url),
-                Err(e) => {
-                    tracing::warn!("error while parsing configured GitHub URL: {e}");
-                    None
-                }
-            }
+            Some(Url::from_str(&self.github_url).expect("validated already"))
         }
+    }
+
+    /// Validates the configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.homepage_url != SENTINEL_DOC_CONFIG_VALUE {
+            match Url::from_str(&self.homepage_url) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(anyhow!("error while parsing configured homepage URL: {e}")),
+            }?;
+        }
+        if self.github_url != SENTINEL_DOC_CONFIG_VALUE {
+            match Url::from_str(&self.github_url) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(anyhow!("error while parsing configured GitHub URL: {e}")),
+            }?;
+        }
+        Ok(())
     }
 }
 
@@ -712,8 +718,9 @@ impl Config {
             }
         }
 
-        // Validate server config
+        // Validate inner configs
         self.server.validate()?;
+        self.doc.validate()?;
 
         Ok(())
     }
