@@ -915,11 +915,7 @@ pub async fn run(
 
 /// Publishes a run directory to the given destination using the specified
 /// strategy.
-fn publish_run(
-    source: &Path,
-    destination: &Path,
-    strategy: PublishStrategy,
-) -> Result<()> {
+fn publish_run(source: &Path, destination: &Path, strategy: PublishStrategy) -> Result<()> {
     match strategy {
         PublishStrategy::Symlink => symlink_run(source, destination),
         PublishStrategy::Copy => copy_run(source, destination),
