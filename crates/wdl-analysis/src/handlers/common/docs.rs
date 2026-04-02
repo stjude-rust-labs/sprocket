@@ -2,8 +2,8 @@
 
 use std::fmt::Write;
 
-use lsp_types::Documentation;
-use lsp_types::MarkupContent;
+use ls_types::Documentation;
+use ls_types::MarkupContent;
 use rowan::TextSize;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
@@ -31,7 +31,7 @@ use crate::document::Workflow;
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
     Some(Documentation::MarkupContent(MarkupContent {
-        kind: lsp_types::MarkupKind::Markdown,
+        kind: ls_types::MarkupKind::Markdown,
         value: definition,
     }))
 }

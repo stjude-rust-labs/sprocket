@@ -3,16 +3,16 @@
 mod common;
 
 use common::TestContext;
-use tower_lsp::lsp_types::DocumentSymbol;
-use tower_lsp::lsp_types::DocumentSymbolParams;
-use tower_lsp::lsp_types::DocumentSymbolResponse;
-use tower_lsp::lsp_types::SymbolInformation;
-use tower_lsp::lsp_types::SymbolKind;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::WorkspaceSymbolParams;
-use tower_lsp::lsp_types::WorkspaceSymbolResponse;
-use tower_lsp::lsp_types::request::DocumentSymbolRequest;
-use tower_lsp::lsp_types::request::WorkspaceSymbolRequest;
+use tower_lsp_server::ls_types::DocumentSymbol;
+use tower_lsp_server::ls_types::DocumentSymbolParams;
+use tower_lsp_server::ls_types::DocumentSymbolResponse;
+use tower_lsp_server::ls_types::SymbolInformation;
+use tower_lsp_server::ls_types::SymbolKind;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::WorkspaceSymbolParams;
+use tower_lsp_server::ls_types::WorkspaceSymbolResponse;
+use tower_lsp_server::ls_types::request::DocumentSymbolRequest;
+use tower_lsp_server::ls_types::request::WorkspaceSymbolRequest;
 
 async fn document_symbol_request(
     ctx: &mut TestContext,
