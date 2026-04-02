@@ -66,6 +66,8 @@ pub struct Config {
     pub(crate) output_dir: PathBuf,
     /// An optional markdown file to embed in the root index page.
     pub(crate) index_page: Option<PathBuf>,
+    /// Analyze the documents without producing an output.
+    pub(crate) check: bool,
     /// Initialize pages in light mode instead of the default dark mode.
     pub(crate) init_light_mode: bool,
     /// An optional custom theme directory.
@@ -95,6 +97,7 @@ impl Config {
             workspace: workspace.into(),
             output_dir: output_dir.into(),
             index_page: None,
+            check: false,
             init_light_mode: false,
             custom_theme: None,
             custom_logo: None,
@@ -108,6 +111,12 @@ impl Config {
     /// Overwrite the config's index page with the new value.
     pub fn index_page(mut self, index_page: Option<PathBuf>) -> Self {
         self.index_page = index_page;
+        self
+    }
+
+    /// Overwrite the config's check default with the new value.
+    pub fn check(mut self, check: bool) -> Self {
+        self.check = check;
         self
     }
 

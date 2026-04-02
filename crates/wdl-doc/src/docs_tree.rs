@@ -1322,7 +1322,7 @@ impl DocsTree {
                 }"
             {
                 div class="w-full grid grid-cols-3 items-center h-12 px-6" {
-                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
+                    a id="logo" href=(self.root_index_relative_to(base).to_string_lossy()) {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none hidden light:block" alt="Logo";
                     }
