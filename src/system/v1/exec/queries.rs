@@ -52,6 +52,7 @@ pub struct ListRunsResponse {
     pub total: i64,
 }
 
+/// Lists all runs given the filter criteria.
 pub(crate) async fn list_runs(
     db: &Arc<dyn Database>,
     status: Option<RunStatus>,

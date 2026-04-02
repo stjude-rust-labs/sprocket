@@ -190,7 +190,7 @@ pub async fn list_tasks(
         &state.db,
         query.run_uuid,
         query.status,
-        query.limit,
+        Some(limit),
         Some(offset),
     )
     .await?;
@@ -265,7 +265,7 @@ pub async fn get_task_logs(
     let limit = query.limit.unwrap_or(100);
 
     let response =
-        queries::get_task_logs(&state.db, name, query.source, query.limit, Some(offset)).await?;
+        queries::get_task_logs(&state.db, name, query.source, Some(limit), Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {

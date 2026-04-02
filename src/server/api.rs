@@ -19,6 +19,7 @@ type RunManagerTx = mpsc::Sender<RunManagerCmd>;
 pub struct AppState {
     /// The run manager command transmitter.
     run_manager_tx: RunManagerTx,
+    /// Database handle used for read-only API queries.
     pub(crate) db: Arc<dyn Database>,
 }
 

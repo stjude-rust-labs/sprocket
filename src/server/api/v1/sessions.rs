@@ -112,7 +112,7 @@ pub async fn list_sessions(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = queries::list_sessions(&state.db, query.limit, Some(offset)).await?;
+    let response = queries::list_sessions(&state.db, Some(limit), Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {

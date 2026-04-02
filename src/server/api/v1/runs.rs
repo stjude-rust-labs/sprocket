@@ -282,7 +282,7 @@ pub async fn list_runs(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = queries::list_runs(&state.db, query.status, query.limit, Some(offset)).await?;
+    let response = queries::list_runs(&state.db, query.status, Some(limit), Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {
