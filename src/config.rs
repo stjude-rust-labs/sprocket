@@ -245,8 +245,8 @@ impl Default for RunConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ServerDatabaseConfig {
-    /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db` in the output directory.
-    /// in the output directory.
+    /// Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`
+    /// in the output directory. in the output directory.
     #[serde(default = "get_sentinel_database_name")]
     pub url: String,
 }
