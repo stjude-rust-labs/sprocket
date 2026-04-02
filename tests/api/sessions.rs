@@ -61,7 +61,10 @@ async fn create_test_server(
         .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .db(db.clone())
+        .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())

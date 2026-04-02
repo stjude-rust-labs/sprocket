@@ -30,11 +30,18 @@ impl std::ops::Deref for DbHandle {
     }
 }
 
+impl Into<DbHandle> for Arc<dyn Database> {
+    fn into(self) -> DbHandle {
+        DbHandle(self)
+    }
+}
+
 /// Application state.
 #[derive(Builder, Clone, Debug)]
 pub struct AppState {
     /// The run manager command transmitter.
     run_manager_tx: RunManagerTx,
+    #[builder(into)]
     pub(crate) db: DbHandle,
 }
 
