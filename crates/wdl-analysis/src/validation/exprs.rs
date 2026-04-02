@@ -5,12 +5,15 @@ use std::fmt;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
+use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1;
 use wdl_ast::v1::HintsKeyword;
 use wdl_ast::v1::InputKeyword;
 use wdl_ast::v1::OutputKeyword;
+use wdl_ast::v1::OutputSection;
+use wdl_ast::v1::TASK_FIELD_RETURN_CODE;
 use wdl_ast::version::V1;
 
 use crate::Diagnostics;
@@ -36,6 +39,19 @@ fn literal_cannot_nest(nested: &Literal, outer: &Literal) -> Diagnostic {
         nested.span(),
     )
     .with_label(format!("the outer `{outer}` literal is here"), outer.span())
+}
+
+/// Creates an "output-only task member" diagnostic.
+fn output_only_task_member(member: &Ident, expr_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "`task.{}` cannot be used in this context",
+        member.text()
+    ))
+    .with_highlight(expr_span)
+    .with_help(format!(
+        "`task.{}` is only available in `output` sections",
+        member.text()
+    ))
 }
 
 /// Keeps track of the spans of a `hints`, `input`, or `output` literal.
@@ -76,54 +92,15 @@ pub struct ScopedExprVisitor {
     version: Option<SupportedVersion>,
     /// Whether or not we're currently in a `hints` section.
     in_hints_section: bool,
+    /// Whether or not we're currently in an `output` section.
+    in_output_section: bool,
     /// The stack of literals encountered.
     literals: Vec<Literal>,
 }
 
-impl Visitor for ScopedExprVisitor {
-    fn reset(&mut self) {
-        self.version = None;
-        self.in_hints_section = false;
-        self.literals.clear();
-    }
-
-    fn document(
-        &mut self,
-        _: &mut Diagnostics,
-        _: VisitReason,
-        _: &Document,
-        version: SupportedVersion,
-    ) {
-        self.version = Some(version);
-    }
-
-    fn task_hints_section(
-        &mut self,
-        _: &mut Diagnostics,
-        reason: VisitReason,
-        _: &v1::TaskHintsSection,
-    ) {
-        self.in_hints_section = reason == VisitReason::Enter;
-    }
-
-    fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &v1::Expr) {
-        // Only visit expressions for WDL >=1.2
-        if self.version.expect("should have a version") < SupportedVersion::V1(V1::Two) {
-            return;
-        }
-
-        if reason == VisitReason::Exit {
-            match expr {
-                v1::Expr::Literal(v1::LiteralExpr::Hints(_))
-                | v1::Expr::Literal(v1::LiteralExpr::Input(_))
-                | v1::Expr::Literal(v1::LiteralExpr::Output(_)) => {
-                    self.literals.pop();
-                }
-                _ => {}
-            }
-            return;
-        }
-
+impl ScopedExprVisitor {
+    /// Checks that `hints` sections are well-formed.
+    fn check_invalid_hints(&mut self, diagnostics: &mut Diagnostics, expr: &v1::Expr) {
         let literal = match expr {
             v1::Expr::Literal(v1::LiteralExpr::Hints(l)) => Literal::Hints(
                 l.token::<HintsKeyword<_>>()
@@ -164,5 +141,77 @@ impl Visitor for ScopedExprVisitor {
         }
 
         self.literals.push(literal);
+    }
+
+    /// Checks if a `task` member access is valid in the current context.
+    fn check_task_access(&mut self, diagnostics: &mut Diagnostics, expr: &v1::Expr) {
+        let v1::Expr::Access(access) = expr else {
+            return;
+        };
+
+        let (v1::Expr::NameRef(source), member) = access.operands() else {
+            return;
+        };
+
+        if source.name().text() != "task" {
+            return;
+        }
+
+        if member.text() == TASK_FIELD_RETURN_CODE && !self.in_output_section {
+            diagnostics.add(output_only_task_member(&member, expr.span()));
+        }
+    }
+}
+
+impl Visitor for ScopedExprVisitor {
+    fn reset(&mut self) {
+        self.version = None;
+        self.in_hints_section = false;
+        self.literals.clear();
+    }
+
+    fn document(
+        &mut self,
+        _: &mut Diagnostics,
+        _: VisitReason,
+        _: &Document,
+        version: SupportedVersion,
+    ) {
+        self.version = Some(version);
+    }
+
+    fn output_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &OutputSection) {
+        self.in_output_section = reason == VisitReason::Enter;
+    }
+
+    fn task_hints_section(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &v1::TaskHintsSection,
+    ) {
+        self.in_hints_section = reason == VisitReason::Enter;
+    }
+
+    fn expr(&mut self, diagnostics: &mut Diagnostics, reason: VisitReason, expr: &v1::Expr) {
+        // Only visit expressions for WDL >=1.2
+        if self.version.expect("should have a version") < SupportedVersion::V1(V1::Two) {
+            return;
+        }
+
+        if reason == VisitReason::Exit {
+            match expr {
+                v1::Expr::Literal(v1::LiteralExpr::Hints(_))
+                | v1::Expr::Literal(v1::LiteralExpr::Input(_))
+                | v1::Expr::Literal(v1::LiteralExpr::Output(_)) => {
+                    self.literals.pop();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        self.check_invalid_hints(diagnostics, expr);
+        self.check_task_access(diagnostics, expr);
     }
 }
