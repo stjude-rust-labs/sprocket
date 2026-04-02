@@ -822,8 +822,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
             }
         }
 
-        let container =
-            requirements::container(inputs, requirements, self.config.task.container.as_deref());
+        let container = requirements::container(inputs, requirements, &self.config.task.container);
         if let ContainerSource::Unknown(_) = &container {
             bail!("LSF Apptainer backend does not support unknown container source `{container:#}`")
         }
@@ -892,7 +891,7 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                 .apptainer
                 .generate_script(
                     &backend_config.apptainer_config,
-                    self.config.task.shell.as_deref(),
+                    &self.config.task.shell,
                     &request,
                     self.cancellation.first(),
                 )

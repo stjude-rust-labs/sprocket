@@ -30,7 +30,6 @@ use tracing::warn;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::config::ApptainerConfig;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::v1::requirements::ContainerSource;
 
 /// The name of the images cache directory.
@@ -97,7 +96,7 @@ impl ApptainerRuntime {
     pub async fn generate_script(
         &self,
         config: &ApptainerConfig,
-        shell: Option<&str>,
+        shell: &str,
         request: &ExecuteTaskRequest<'_>,
         token: CancellationToken,
     ) -> Result<Option<String>> {
@@ -131,7 +130,7 @@ impl ApptainerRuntime {
     async fn generate_apptainer_script(
         &self,
         config: &ApptainerConfig,
-        shell: Option<&str>,
+        shell: &str,
         container_sif: &Path,
         request: &ExecuteTaskRequest<'_>,
     ) -> Result<String> {
@@ -243,8 +242,7 @@ impl ApptainerRuntime {
         writeln!(
             &mut apptainer_command,
             "{shell} -c \"\\\"{GUEST_COMMAND_PATH}\\\" > \\\"{GUEST_STDOUT_PATH}\\\" 2> \
-             \\\"{GUEST_STDERR_PATH}\\\"\" \\",
-            shell = shell.unwrap_or(DEFAULT_TASK_SHELL)
+             \\\"{GUEST_STDERR_PATH}\\\"\" \\"
         )?;
         let attempt_dir = request.attempt_dir;
         let apptainer_stdout_path = attempt_dir.join("apptainer.stdout");
@@ -438,6 +436,7 @@ mod tests {
     use crate::TaskInputs;
     use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
+    use crate::config::DEFAULT_TASK_SHELL;
 
     #[tokio::test]
     async fn example_task_generates() {
@@ -451,7 +450,7 @@ mod tests {
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
-                None,
+                DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",
@@ -492,6 +491,8 @@ mod tests {
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
+        use crate::config::DEFAULT_TASK_SHELL;
+
         let root = TempDir::new().unwrap();
 
         let mut env = IndexMap::new();
@@ -502,7 +503,7 @@ mod tests {
         let script = runtime
             .generate_script(
                 &ApptainerConfig::default(),
-                None,
+                DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
                     id: "example-task",
                     command: "echo hello",

@@ -51,7 +51,7 @@ impl Args {
         }
 
         if let Some(database_url) = self.database_url {
-            config.server.database.url = Some(database_url);
+            config.server.database.url = database_url;
         }
 
         if let Some(output_dir) = self.output_dir {

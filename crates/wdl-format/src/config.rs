@@ -17,7 +17,7 @@ const TRAILING_COMMAS_DEFAULT: bool = true;
 
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// The indentation configuration.
     pub indent: Indent,

@@ -1,0 +1,1 @@
+-c good.toml -c good2.toml -c bad.toml config resolve

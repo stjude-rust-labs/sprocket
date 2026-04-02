@@ -718,7 +718,7 @@ pub async fn test(
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;

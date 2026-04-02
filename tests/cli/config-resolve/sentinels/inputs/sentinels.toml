@@ -1,0 +1,22 @@
+[format]
+indent = "tabs"
+max_line_length = "none"
+
+[run]
+backend = "default"
+
+[run.http]
+cache_dir = "system"
+parallelism = "available"
+
+[run.task]
+retries = "default"
+container = "ubuntu:latest"
+shell = "bash"
+cache_dir = "system"
+
+[server]
+max_concurrent_runs = "unlimited"
+
+[common.wdl]
+fallback_version = "none"
