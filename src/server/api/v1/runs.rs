@@ -18,6 +18,7 @@ use super::AppState;
 use super::RunStatus;
 use super::error::Error;
 use super::send_command;
+use crate::system::v1::exec::queries;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
 
@@ -148,8 +149,8 @@ pub struct RunResponse {
     pub run: Run,
 }
 
-impl From<commands::RunResponse> for RunResponse {
-    fn from(response: commands::RunResponse) -> Self {
+impl From<queries::RunResponse> for RunResponse {
+    fn from(response: queries::RunResponse) -> Self {
         Self {
             run: response.run.into(),
         }
@@ -189,8 +190,8 @@ pub struct RunOutputsResponse {
     pub outputs: Option<Value>,
 }
 
-impl From<commands::RunOutputsResponse> for RunOutputsResponse {
-    fn from(response: commands::RunOutputsResponse) -> Self {
+impl From<queries::RunOutputsResponse> for RunOutputsResponse {
+    fn from(response: queries::RunOutputsResponse) -> Self {
         Self {
             outputs: response.outputs,
         }
@@ -248,7 +249,7 @@ pub async fn get_run(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunResponse>, Error> {
-    let response = crate::system::v1::exec::svc::run_manager::get_run(&state.db, id).await?;
+    let response = queries::get_run(&state.db, id).await?;
     Ok(Json(response.into()))
 }
 
@@ -281,13 +282,7 @@ pub async fn list_runs(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = crate::system::v1::exec::svc::run_manager::list_runs(
-        &state.db,
-        query.status,
-        query.limit,
-        Some(offset),
-    )
-    .await?;
+    let response = queries::list_runs(&state.db, query.status, query.limit, Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {
@@ -358,8 +353,7 @@ pub async fn get_run_outputs(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<RunOutputsResponse>, Error> {
-    let response =
-        crate::system::v1::exec::svc::run_manager::get_run_outputs(&state.db, id).await?;
+    let response = queries::get_run_outputs(&state.db, id).await?;
 
     Ok(Json(response.into()))
 }

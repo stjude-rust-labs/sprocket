@@ -1,15 +1,10 @@
 //! Manager command types and responses.
 
 use anyhow::Result;
-use serde_json::Value;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::system::v1::db::Run;
-use crate::system::v1::db::Session;
-use crate::system::v1::db::Task;
-use crate::system::v1::db::TaskLog;
 use crate::system::v1::exec::JsonObject;
 
 /// Response for run submission.
@@ -25,75 +20,11 @@ pub struct SubmitResponse {
     pub handle: JoinHandle<()>,
 }
 
-/// Response for run status query.
-#[derive(Debug)]
-pub struct RunResponse {
-    /// The run data.
-    pub run: Run,
-}
-
-/// Response for run list query.
-#[derive(Debug)]
-pub struct ListRunsResponse {
-    /// The runs.
-    pub runs: Vec<Run>,
-    /// Total count before pagination.
-    pub total: i64,
-}
-
 /// Response for run cancellation.
 #[derive(Debug)]
 pub struct CancelRunResponse {
     /// The run ID.
     pub id: Uuid,
-}
-
-/// Response for run outputs query.
-#[derive(Debug)]
-pub struct RunOutputsResponse {
-    /// The run outputs as JSON.
-    pub outputs: Option<Value>,
-}
-
-/// Response for session query.
-#[derive(Debug)]
-pub struct SessionResponse {
-    /// The session data.
-    pub session: Session,
-}
-
-/// Response for session list query.
-#[derive(Debug)]
-pub struct ListSessionsResponse {
-    /// The sessions.
-    pub sessions: Vec<Session>,
-    /// Total count before pagination.
-    pub total: i64,
-}
-
-/// Response for task list query.
-#[derive(Debug)]
-pub struct ListTasksResponse {
-    /// The tasks.
-    pub tasks: Vec<Task>,
-    /// Total count before pagination.
-    pub total: i64,
-}
-
-/// Response for task query.
-#[derive(Debug)]
-pub struct GetTaskResponse {
-    /// The task.
-    pub task: Task,
-}
-
-/// Response for task logs query.
-#[derive(Debug)]
-pub struct ListTaskLogsResponse {
-    /// The task logs.
-    pub logs: Vec<TaskLog>,
-    /// Total count before pagination.
-    pub total: i64,
 }
 
 /// Commands sent to the run manager.

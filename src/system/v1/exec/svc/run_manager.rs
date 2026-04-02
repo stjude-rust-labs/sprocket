@@ -22,10 +22,8 @@ use crate::config::FallbackVersion;
 use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
-use crate::system::v1::db::LogSource;
 use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::SprocketCommand;
-use crate::system::v1::db::TaskStatus;
 use crate::system::v1::exec::ConfigError;
 use crate::system::v1::exec::JsonObject;
 use crate::system::v1::exec::RunnableExecutor;
@@ -278,38 +276,6 @@ pub enum SubmitRunError {
     Json(#[from] serde_json::Error),
 }
 
-/// Error type for getting a run.
-#[derive(Debug, Error)]
-pub enum GetRunError {
-    /// Database error.
-    #[error(transparent)]
-    Database(#[from] DatabaseError),
-    /// Run not found.
-    #[error("run not found: `{0}`")]
-    NotFound(Uuid),
-}
-
-/// Gets a run by ID.
-pub(crate) async fn get_run(db: &Arc<dyn Database>, id: Uuid) -> Result<RunResponse, GetRunError> {
-    let run = db.get_run(id).await?;
-    match run {
-        Some(run) => Ok(RunResponse { run }),
-        None => Err(GetRunError::NotFound(id)),
-    }
-}
-
-/// Lists all runs given the filter criteria.
-pub(crate) async fn list_runs(
-    db: &Arc<dyn Database>,
-    status: Option<RunStatus>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-) -> Result<ListRunsResponse, DatabaseError> {
-    let runs = db.list_runs(status, limit, offset).await?;
-    let total = db.count_runs(status).await?;
-    Ok(ListRunsResponse { runs, total })
-}
-
 /// Error type for canceling a run.
 #[derive(Debug, Error)]
 pub enum CancelRunError {
@@ -386,103 +352,4 @@ async fn cancel_run(
     }
 
     Ok(CancelRunResponse { id })
-}
-
-/// Error type for getting run outputs.
-#[derive(Debug, Error)]
-pub enum GetRunOutputsError {
-    /// Database error.
-    #[error("database error: {0}")]
-    Database(#[from] crate::system::v1::db::DatabaseError),
-    /// Run not found.
-    #[error("the run with id `{0}` was not found")]
-    NotFound(Uuid),
-}
-
-/// Attempts to get the outputs for a run.
-pub(crate) async fn get_run_outputs(
-    db: &Arc<dyn Database>,
-    id: Uuid,
-) -> Result<RunOutputsResponse, GetRunOutputsError> {
-    let run = db
-        .get_run(id)
-        .await?
-        .ok_or(GetRunOutputsError::NotFound(id))?;
-
-    let outputs = run
-        .outputs
-        .as_ref()
-        .and_then(|s| serde_json::from_str(s).ok());
-
-    Ok(RunOutputsResponse { outputs })
-}
-
-/// Gets all sessions given the filter criteria.
-pub(crate) async fn list_sessions(
-    db: &Arc<dyn Database>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-) -> Result<ListSessionsResponse, DatabaseError> {
-    let sessions = db.list_sessions(limit, offset).await?;
-    let total = db.count_sessions().await?;
-    Ok(ListSessionsResponse { sessions, total })
-}
-
-/// Error type for getting an session.
-#[derive(Debug, Error)]
-pub enum GetSessionError {
-    /// Database error.
-    #[error("database error: {0}")]
-    Database(#[from] crate::system::v1::db::DatabaseError),
-    /// Session not found.
-    #[error("the run with id `{0}` was not found")]
-    NotFound(Uuid),
-}
-
-/// Gets the session entry associated with a run.
-pub(crate) async fn get_session_for_run(
-    db: &Arc<dyn Database>,
-    id: Uuid,
-) -> Result<SessionResponse, GetSessionError> {
-    let session = db
-        .get_session(id)
-        .await?
-        .ok_or(GetSessionError::NotFound(id))?;
-
-    Ok(SessionResponse { session })
-}
-
-/// Gets all tasks given the filter criteria.
-pub(crate) async fn list_tasks(
-    db: &Arc<dyn Database>,
-    run_id: Option<Uuid>,
-    status: Option<TaskStatus>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-) -> Result<ListTasksResponse, DatabaseError> {
-    let tasks = db.list_tasks(run_id, status, limit, offset).await?;
-    let total = db.count_tasks(run_id, status).await?;
-    Ok(ListTasksResponse { tasks, total })
-}
-
-/// Gets a task with a given name.
-pub(crate) async fn get_task(
-    db: &Arc<dyn Database>,
-    name: String,
-) -> Result<GetTaskResponse, DatabaseError> {
-    let task = db.get_task(&name).await?;
-    Ok(GetTaskResponse { task })
-}
-
-/// Gets the logs for a task with a name given the filter criteria.
-pub(crate) async fn get_task_logs(
-    db: &Arc<dyn Database>,
-    name: String,
-    stream: Option<LogSource>,
-    limit: Option<i64>,
-    offset: Option<i64>,
-) -> Result<ListTaskLogsResponse, DatabaseError> {
-    let logs = db.get_task_logs(&name, stream, limit, offset).await?;
-    let total = db.count_task_logs(&name, stream).await?;
-    Ok(ListTaskLogsResponse { logs, total })
 }
