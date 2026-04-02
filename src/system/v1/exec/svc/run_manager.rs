@@ -13,12 +13,12 @@ use tokio::task::JoinHandle;
 use tracing::info;
 use tracing::trace;
 use uuid::Uuid;
-use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
 use crate::config::Config;
+use crate::config::FallbackVersion;
 use crate::config::ServerConfig;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
@@ -58,7 +58,7 @@ pub struct RunManagerSvc {
     /// The configuration for execution.
     config: ServerConfig,
     /// The fallback WDL version for documents with unrecognized versions.
-    fallback_version: Option<SupportedVersion>,
+    fallback_version: FallbackVersion,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -89,9 +89,11 @@ impl RunManagerSvc {
         let config = config.server;
         let semaphore = config
             .max_concurrent_runs
-            .map(|max| Arc::new(Semaphore::new(max)));
+            .inner()
+            .cloned()
+            .map(|n| Arc::new(Semaphore::new(n)));
 
-        let output_dir = OutputDirectory::new(&config.output_directory);
+        let output_dir = OutputDirectory::new(&config.output_dir);
 
         Self {
             config,
@@ -229,7 +231,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
-            .maybe_fallback_version(self.fallback_version)
+            .maybe_fallback_version(self.fallback_version.inner().cloned())
             .source(source)
             .maybe_target(target)
             .inputs(inputs)

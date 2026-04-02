@@ -421,6 +421,10 @@ impl DocumentGraphNode {
                             .with_label(
                                 "this version of WDL is not supported",
                                 version_token.span(),
+                            )
+                            .with_fix(
+                                "either use a supported WDL version or configure \
+                                 `common.wdl.fallback_version` to set a fallback version",
                             ),
                     );
                 }
@@ -491,7 +495,7 @@ pub struct DocumentGraph {
     /// Represents dependency edges that, if they were added to the document
     /// graph, would form a cycle.
     ///
-    /// The first in the pair is the dependant node and the second is the
+    /// The first in the pair is the dependent node and the second is the
     /// depended node.
     ///
     /// This is used to break import cycles; when analyzing the document, if the

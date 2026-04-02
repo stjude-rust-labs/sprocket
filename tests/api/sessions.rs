@@ -8,6 +8,7 @@ use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::json;
 use sprocket::Config;
+use sprocket::MaxConcurrentRuns;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
 use sprocket::server::create_router;
@@ -33,9 +34,9 @@ async fn create_test_server(
     std::fs::create_dir(&wdl_dir).unwrap();
 
     let mut server_config = ServerConfig {
-        output_directory: temp.path().to_path_buf(),
+        output_dir: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir],
-        max_concurrent_runs,
+        max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
         ..Default::default()
     };
     server_config.validate().unwrap();

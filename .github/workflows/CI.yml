@@ -13,10 +13,17 @@ env:
   IN_CI: 1
 
 jobs:
+  spelling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1.44.0
+
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
@@ -27,7 +34,7 @@ jobs:
   sort:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
@@ -42,7 +49,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install clippy
@@ -57,7 +64,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
@@ -96,6 +103,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json
           fail_ci_if_error: true
+          exclude: "crates/gauntlet"
 
   engine-test:
     runs-on: ${{ matrix.os }}
@@ -104,7 +112,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
@@ -155,7 +163,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: Update Rust
@@ -169,7 +177,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
@@ -182,7 +190,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - run: git config --global core.autocrlf false
       - name: Update Rust
@@ -192,7 +200,7 @@ jobs:
   workspace-lints-enabled:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-workspace-lints
@@ -201,7 +209,7 @@ jobs:
   deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-deny
@@ -210,7 +218,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install cargo-binstall
@@ -224,7 +232,7 @@ jobs:
   udeps:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps

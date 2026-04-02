@@ -1,6 +1,8 @@
 codecov:
   notify:
     after_n_builds: 6
+  ignore:
+    - "crates/gauntlet"
 
 comment:
   behavior: once

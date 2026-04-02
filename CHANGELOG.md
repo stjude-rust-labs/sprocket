@@ -7,23 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+## 0.23.0 - 2026-04-02
 
-* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
-  results for in-flight tasks instead of discarding them as `Canceled`
-  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
+### Added
+
+* New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
 
 ### Changed
 
+* Changed how defaults for many `sprocket.toml` entries are serialized and deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `format` table in `sprocket.toml` has been refactored and expanded with new options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Removed the `--prioritize-workflows-view` flag to `doc` subcommand ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `--homepage` argument and config field for `doc` has been renamed to
+  `--index-page` to disambiguate it from `homepage_url` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Changed the `--javascript-*` arguments for `doc` to more adaptable `--html-*` options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The outputs path message is now printed to stderr instead of stdout so
   that stdout contains only the JSON outputs
   ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
 * Renamed `--name` (`-n`) to `--target` (`-t`) on the `inputs` subcommand
   for consistency with `run` and `validate`
   ([#735](https://github.com/stjude-rust-labs/sprocket/pull/735)).
+* Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
+  subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
+  ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
+* The following config paths are now shell-expanded: `run.output_dir`,
+  `run.task.cache_dir`, `run.http.cache_dir`, `server.output_dir`, `server.engine.http.cache_dir`,
+  `server.engine.task.cache_dir` ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
 
 ### Fixed
 
+* `PrimitiveValue::Display` now escapes special characters in `String`,
+  `File`, and `Directory` values
+  ([#768](https://github.com/stjude-rust-labs/sprocket/pull/768)).
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
 * Fixed a bug where `--target` did not prefix input file keys, causing
   `expected the key to be prefixed` errors when rerunning a task with
   unprefixed inputs ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
@@ -39,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not 
+  utilize the configured `fallback_version`
+  ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
 ## 0.22.0 - 2026-03-12
 

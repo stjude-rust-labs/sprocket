@@ -1,0 +1,2 @@
+[server]
+max_concurrent_runs = "foobar"
