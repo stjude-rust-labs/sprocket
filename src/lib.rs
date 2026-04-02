@@ -144,7 +144,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Format(args) => commands::format::format(args, config, colorize).await,
         Commands::Inputs(args) => commands::inputs::inputs(args, config).await,
         Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
-        Commands::Run(args) => commands::run::run(args, config, colorize, file_handle).await,
+        Commands::Run(args) => {
+            commands::run::run(args, config, colorize, file_handle, writer).await
+        }
         Commands::Validate(args) => commands::validate::validate(args, config).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
@@ -162,16 +164,16 @@ async fn real_main() -> CommandResult<()> {
 }
 
 /// The type of the logging subscriber.
-pub type Subscriber = FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
+pub type Subscriber = FmtSubscriber<DefaultFields, Format, LevelFilter, IndicatifWriter>;
 
 /// Represents the type of the filter (i.e. controls logging output) layer.
-pub type FilterLayer = Layered<reload::Layer<LevelFilter, Subscriber>, Subscriber>;
+pub type FilterLayer = Layered<reload::Layer<EnvFilter, Subscriber>, Subscriber>;
 
 /// The handle type for the logging filter reload handle.
 ///
 /// This type is used to temporarily disable logging during `sprocket test`
 /// evaluation.
-pub type FilterReloadHandle = reload::Handle<LevelFilter, Subscriber>;
+pub type FilterReloadHandle = reload::Handle<EnvFilter, Subscriber>;
 
 /// The handle type for the logging file reload handle.
 ///
@@ -217,7 +219,7 @@ fn initialize_logging(
 
     // Set up a reload layer where we can change the level filter on the fly
     // This layer should always come first in the subscriber
-    let (filter_layer, filter_reload_handle) = reload::Layer::new(LevelFilter::from(verbosity));
+    let (filter_layer, filter_reload_handle) = reload::Layer::new(env_filter);
 
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
@@ -225,13 +227,14 @@ fn initialize_logging(
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
-        reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f)));
+        reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f).with_ansi(false)));
 
     // Build the subscriber and set it as the global default
     let subscriber = fmt::Subscriber::builder()
-        .with_env_filter(env_filter)
+        .with_max_level(LevelFilter::TRACE)
         .with_writer(indicatif_layer.get_stderr_writer())
         .with_ansi(colorize)
+        .with_ansi_sanitization(false)
         .finish()
         .with(filter_layer)
         .with(indicatif_layer)
