@@ -130,7 +130,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             "none" => None,
             _ => Some(
                 max.parse::<usize>()
-                    .context("parsing `--max-line-length`")?,
+                    .context("`--max-line-length` must be an integer")?,
             ),
         };
         MaxLineLength::try_new(max).context("failed to create max line length configuration")?
