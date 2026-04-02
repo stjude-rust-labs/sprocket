@@ -9428,6 +9428,51 @@ message = "picard.wdl:898:21: warning[UnusedInput]: unused input `vcfs_indexes`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/picard.wdl/#L898"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:209:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L209"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:240:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L240"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:246:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L246"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:274:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L274"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:310:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L310"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:319:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L319"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:352:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L352"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:370:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L370"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:385:17: error: expected metadata key, but found `None` keyword"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/star.wdl/#L385"
+
+[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/alignment/task_bwa.wdl"
 message = "task_bwa.wdl:196:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/alignment/task_bwa.wdl/#L196"

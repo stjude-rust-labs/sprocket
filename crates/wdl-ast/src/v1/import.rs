@@ -169,6 +169,7 @@ import "bar.wdl" as x
 import "baz.wdl" alias A as B alias C as D
 import "qux.wdl" as x alias A as B alias C as D
 "#,
+            None,
         );
         assert!(diagnostics.is_empty());
         match document.ast() {
