@@ -14,36 +14,21 @@ pub mod v1;
 /// A sender for run manager commands.
 type RunManagerTx = mpsc::Sender<RunManagerCmd>;
 
-#[derive(Clone)]
-pub struct DbHandle(pub(crate) Arc<dyn Database>);
-
-impl std::fmt::Debug for DbHandle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DbHandle").finish()
-    }
-}
-
-impl std::ops::Deref for DbHandle {
-    type Target = Arc<dyn Database>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Into<DbHandle> for Arc<dyn Database> {
-    fn into(self) -> DbHandle {
-        DbHandle(self)
-    }
-}
-
 /// Application state.
-#[derive(Builder, Clone, Debug)]
+#[derive(Builder, Clone)]
 pub struct AppState {
     /// The run manager command transmitter.
     run_manager_tx: RunManagerTx,
-    #[builder(into)]
-    pub(crate) db: DbHandle,
+    pub(crate) db: Arc<dyn Database>,
+}
+
+impl std::fmt::Debug for AppState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppState")
+            .field("run_manager_tx", &self.run_manager_tx)
+            .field("db", &"<dyn Database>")
+            .finish()
+    }
 }
 
 impl AppState {

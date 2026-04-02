@@ -158,19 +158,11 @@ impl RunManagerSvc {
                         .await;
                     let _ = rx.send(result);
                 }
-                RunManagerCmd::GetStatus { .. } => unimplemented!(),
-                RunManagerCmd::List { .. } => unimplemented!(),
                 RunManagerCmd::Cancel { id, rx } => {
                     trace!(?id, "received `Cancel` command");
                     let result = cancel_run(&self.db, &self.runs, id).await;
                     let _ = rx.send(result);
                 }
-                RunManagerCmd::GetOutputs { .. } => unimplemented!(),
-                RunManagerCmd::GetSession { .. } => unimplemented!(),
-                RunManagerCmd::ListSessions { .. } => unimplemented!(),
-                RunManagerCmd::ListTasks { .. } => unimplemented!(),
-                RunManagerCmd::GetTask { .. } => unimplemented!(),
-                RunManagerCmd::GetTaskLogs { .. } => unimplemented!(),
                 RunManagerCmd::Shutdown { rx } => {
                     trace!("received `Shutdown` command");
                     info!("run manager service is shutting down");

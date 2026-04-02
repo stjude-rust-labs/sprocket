@@ -63,7 +63,7 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
-        .db(api::DbHandle(db))
+        .db(db)
         .build();
 
     let mut cors_layer = CorsLayer::new();
