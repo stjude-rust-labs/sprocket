@@ -17,9 +17,7 @@ use super::AppState;
 use super::LogSource;
 use super::TaskStatus;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
-use crate::system::v1::exec::svc::run_manager::commands;
+use crate::system::v1::exec::queries;
 
 /// Query parameters for listing tasks.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
@@ -111,8 +109,8 @@ pub struct GetTaskResponse {
     pub task: Task,
 }
 
-impl From<commands::GetTaskResponse> for GetTaskResponse {
-    fn from(response: commands::GetTaskResponse) -> Self {
+impl From<queries::GetTaskResponse> for GetTaskResponse {
+    fn from(response: queries::GetTaskResponse) -> Self {
         Self {
             task: response.task.into(),
         }
@@ -188,13 +186,13 @@ pub async fn list_tasks(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
-        run_id: query.run_uuid,
-        status: query.status,
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
+    let response = queries::list_tasks(
+        &state.db,
+        query.run_uuid,
+        query.status,
+        Some(limit),
+        Some(offset),
+    )
     .await?;
 
     let next_offset = offset + limit;
@@ -228,12 +226,7 @@ pub async fn get_task(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> Result<Json<GetTaskResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTask {
-        name,
-        rx,
-    })
-    .await?;
-
+    let response = queries::get_task(&state.db, name).await?;
     Ok(Json(response.into()))
 }
 
@@ -271,14 +264,8 @@ pub async fn get_task_logs(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
-        name,
-        stream: query.source,
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
+    let response =
+        queries::get_task_logs(&state.db, name, query.source, Some(limit), Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {
