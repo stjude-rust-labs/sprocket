@@ -1,0 +1,24 @@
+warning[OptionalInputSafety]: optional value `optional_flag` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly
+   ┌─ tests/lints/optional-input-safety/source.wdl:20:23
+   │
+20 │         samtools sort ~{optional_flag} ~{input_bam}
+   │                       ^^^^^^^^^^^^^^^^
+   │
+   = fix: wrap the optional in `if defined(...) then ... else ...`, or use `select_first()` / `select_all()` so `None` is handled explicitly
+
+warning[OptionalInputSafety]: optional value `optional_flag` used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly
+   ┌─ tests/lints/optional-input-safety/source.wdl:41:24
+   │
+41 │         samtools sort "~{optional_flag}" ~{input_bam}
+   │                        ^^^^^^^^^^^^^^^^
+   │
+   = fix: wrap the optional in `if defined(...) then ... else ...`, or use `select_first()` / `select_all()` so `None` is handled explicitly
+
+warning[OptionalInputSafety]: optional value used in command placeholder without a guard; use `if defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` case explicitly
+    ┌─ tests/lints/optional-input-safety/source.wdl:163:14
+    │
+163 │         echo ~{x + ""}
+    │              ^^^^^^^^^
+    │
+    = fix: wrap the optional in `if defined(...) then ... else ...`, or use `select_first()` / `select_all()` so `None` is handled explicitly
+

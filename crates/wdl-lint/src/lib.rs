@@ -133,6 +133,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::TodoCommentRule>::default(),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
         Box::<rules::InputNameRule>::default(),
+        Box::<rules::OptionalInputSafetyRule>::default(),
         Box::<rules::OutputNameRule>::default(),
         Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
