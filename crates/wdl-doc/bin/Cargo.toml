@@ -15,10 +15,10 @@ anyhow.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 tokio.workspace = true
 tracing-subscriber.workspace = true
-wdl-analysis = { path = "../../wdl-analysis", version = "0.18.0" }
-wdl-ast = { path = "../../wdl-ast", version = "0.22.0" }
+wdl-analysis = { path = "../../wdl-analysis", version = "0.19.0" }
+wdl-ast = { path = "../../wdl-ast", version = "0.22.1" }
 wdl-diagnostics = { path = "../../wdl-diagnostics", version = "0.1.0" }
-wdl-doc = { path = "..", version = "0.13.0" }
+wdl-doc = { path = "..", version = "0.14.0" }
 
 [lints]
 workspace = true
