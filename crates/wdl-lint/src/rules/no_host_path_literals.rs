@@ -52,8 +52,8 @@ impl Rule for HostPathLiteralsRule {
     }
 
     fn explanation(&self) -> &'static str {
-        "`File` and `Directory` declarations with absolute path defaults are not portable \
-         across environments. Use relative paths or supply values at runtime."
+        "`File` and `Directory` declarations with absolute path defaults are not portable across \
+         environments. Use relative paths or supply values at runtime."
     }
 
     fn examples(&self) -> &'static [&'static str] {
