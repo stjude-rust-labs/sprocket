@@ -111,17 +111,19 @@ impl Visitor for KnownRulesRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(Directive::Except(ids)) = comment.directive() {
+        if let Some(Directive::Except(rules)) = comment.directive() {
             let start: usize = comment.span().start();
-            for id in ids {
+            for rule in rules {
+                let id = &rule.name;
+
                 // Check if the rule is known
-                if !ANALYSIS_RULES.contains(&id) && !LINT_RULES.contains(&id) {
+                if !ANALYSIS_RULES.contains(id) && !LINT_RULES.contains(id) {
                     // Since this rule can only be excepted in a document-wide fashion,
                     // if the rule is running we can directly add the diagnostic
                     // without checking for the exceptable nodes
                     diagnostics.add(unknown_rule(
-                        &id,
-                        Span::new(start + comment.text().find(&id).unwrap(), id.len()),
+                        id,
+                        Span::new(start + comment.text().find(id).unwrap(), id.len()),
                     ));
                 }
             }

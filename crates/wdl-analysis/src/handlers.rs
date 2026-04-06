@@ -1,9 +1,11 @@
 //! Language server protocol handlers.
 
 use wdl_ast::Span;
+use wdl_ast::TreeNode;
 
 use crate::DiagnosticsConfig;
 use crate::Document;
+use crate::Exceptable;
 use crate::diagnostics;
 use crate::document::ScopeRef;
 use crate::types::v1::EvaluationContext;
@@ -34,6 +36,8 @@ pub use inlay_hints::*;
 pub use rename::*;
 pub use semantic_tokens::*;
 pub use signature_help::*;
+use wdl_grammar::Diagnostic;
+use wdl_grammar::SyntaxKind;
 pub use workspace_symbol::*;
 
 /// Context for evaluating expression types during LSP operations.
@@ -118,4 +122,13 @@ impl EvaluationContext for TypeEvalContext<'_> {
     /// Diagnostics are collected and reported through separate mechanisms,
     /// so we don't need to accumulate them during expression evaluation.
     fn add_diagnostic(&mut self, _: wdl_ast::Diagnostic) {}
+
+    /// Same as above.
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        _: Diagnostic,
+        _: &N,
+        _: &Option<&'static [SyntaxKind]>,
+    ) {
+    }
 }

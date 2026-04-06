@@ -23,6 +23,7 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::Diagnostics;
 use crate::config::Config;
 use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
@@ -701,7 +702,7 @@ pub(crate) struct DocumentData {
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
-    analysis_diagnostics: Vec<Diagnostic>,
+    analysis_diagnostics: Diagnostics,
 }
 
 impl DocumentData {
@@ -1034,7 +1035,7 @@ impl Document {
     }
 
     /// Gets the analysis diagnostics for the document.
-    pub fn analysis_diagnostics(&self) -> &[Diagnostic] {
+    pub fn analysis_diagnostics(&self) -> &Diagnostics {
         &self.data.analysis_diagnostics
     }
 
@@ -1043,7 +1044,7 @@ impl Document {
         self.data
             .parse_diagnostics
             .iter()
-            .chain(self.data.analysis_diagnostics.iter())
+            .chain(self.data.analysis_diagnostics.diagnostics.iter())
     }
 
     /// Sorts the diagnostics for the document.
@@ -1064,10 +1065,10 @@ impl Document {
     /// # Panics
     ///
     /// Panics if there is more than one reference to the document.
-    pub fn extend_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) -> Self {
+    pub fn extend_diagnostics(&mut self, diagnostics: Diagnostics) -> Self {
         let data = &mut self.data;
         let inner = Arc::get_mut(data).expect("should only have one reference");
-        inner.analysis_diagnostics.extend(diagnostics);
+        inner.analysis_diagnostics.extend(diagnostics.diagnostics);
         Self { data: data.clone() }
     }
 

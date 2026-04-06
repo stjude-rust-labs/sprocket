@@ -1,18 +1,24 @@
 //! Validator for WDL documents.
 
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::ExceptRule;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
-use wdl_ast::SyntaxKind;
+use wdl_ast::TreeNode;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_grammar::SyntaxKind;
 
 use crate::Config;
 use crate::Exceptable;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::diagnostics::meaningless_lint_directive;
 use crate::document::Document;
 
 mod counts;
@@ -29,54 +35,117 @@ mod version;
 ///
 /// Validation visitors receive a diagnostics collection during
 /// visitation of the AST.
-#[derive(Debug, Default)]
-pub struct Diagnostics(pub(crate) Vec<Diagnostic>);
+#[derive(Clone, Debug)]
+pub struct Diagnostics {
+    /// Diagnostics to emit.
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    /// `#@ except:` directives discovered during traversal.
+    ///
+    /// `HashMap<Rule, applied>`
+    exceptions: HashMap<ExceptRule, bool>,
+}
 
 impl Diagnostics {
+    /// Creates a new `Diagnostics`.
+    pub fn new() -> Self {
+        Self {
+            diagnostics: Vec::new(),
+            exceptions: HashMap::new(),
+        }
+    }
+
     /// Adds a diagnostic to the collection.
     pub fn add(&mut self, diagnostic: Diagnostic) {
-        self.0.push(diagnostic);
+        self.diagnostics.push(diagnostic);
+    }
+
+    /// Adds rule exceptions to the collection.
+    pub fn add_exceptions(&mut self, exceptions: impl IntoIterator<Item = ExceptRule>) {
+        for e in exceptions {
+            self.exceptions.entry(e).or_insert(false);
+        }
     }
 
     /// Adds a diagnostic to the collection, unless the diagnostic is for an
     /// element that has an exception for the given rule.
     ///
     /// If the diagnostic does not have a rule, the diagnostic is always added.
-    pub fn exceptable_add(
+    pub fn exceptable_add<N: TreeNode + Exceptable>(
         &mut self,
         diagnostic: Diagnostic,
-        element: SyntaxElement,
+        element: &N,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     ) {
-        if let Some(rule) = diagnostic.rule() {
-            for node in element.ancestors().filter(|node| {
-                exceptable_nodes
-                    .as_ref()
-                    .is_none_or(|nodes| nodes.contains(&node.kind()))
-            }) {
-                if node.is_rule_excepted(rule) {
-                    // Rule is currently excepted, don't add the diagnostic
-                    return;
-                }
+        let Some(target_rule) = diagnostic.rule() else {
+            self.add(diagnostic);
+            return;
+        };
+
+        for node in element.ancestors().filter(|node| {
+            exceptable_nodes
+                .as_ref()
+                .is_none_or(|nodes| nodes.contains(&node.kind()))
+        }) {
+            let mut rule_excepted = false;
+            for rule in node
+                .rule_exceptions()
+                .into_iter()
+                .filter(|rule| rule.name == target_rule)
+            {
+                rule_excepted = true;
+                self.exceptions
+                    .entry(rule)
+                    .and_modify(|applied| *applied = true);
+            }
+
+            if rule_excepted {
+                return;
             }
         }
 
         self.add(diagnostic);
     }
 
-    /// Extends the collection with another collection of diagnostics.
-    pub fn extend(&mut self, diagnostics: Diagnostics) {
-        self.0.extend(diagnostics.0);
-    }
-
     /// Returns whether the collection is empty.
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.diagnostics.is_empty()
     }
 
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
-        self.0.sort();
+        self.diagnostics.sort();
+    }
+
+    /// Iterate the diagnostics emitted so far.
+    pub fn iter(&self) -> std::slice::Iter<'_, Diagnostic> {
+        self.diagnostics.iter()
+    }
+}
+
+impl Extend<Diagnostic> for Diagnostics {
+    fn extend<I: IntoIterator<Item = Diagnostic>>(&mut self, iter: I) {
+        self.diagnostics.extend(iter);
+    }
+}
+
+impl IntoIterator for Diagnostics {
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type Item = Diagnostic;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.diagnostics.into_iter()
+    }
+}
+
+impl Default for Diagnostics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<Diagnostics> for Vec<Diagnostic> {
+    fn from(input: Diagnostics) -> Self {
+        input.diagnostics
     }
 }
 
@@ -111,14 +180,27 @@ impl Validator {
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
-    pub fn validate(
-        &mut self,
-        document: &Document,
-        config: &Config,
-    ) -> Result<(), Vec<Diagnostic>> {
-        let mut diagnostics = Diagnostics::default();
+    pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
+        let mut diagnostics = Diagnostics::new();
+        diagnostics.exceptions = document.analysis_diagnostics().exceptions.clone();
+
         self.register(config);
         document.visit(&mut diagnostics, self);
+
+        let mut meaningless_lint_directives = Diagnostics::new();
+
+        // Try not to clash with `KnownRules`
+        let known_rules = self.known_rules();
+        for (exception, applied) in &diagnostics.exceptions {
+            if *applied || !known_rules.contains(&exception.name) {
+                continue;
+            }
+
+            meaningless_lint_directives
+                .add(meaningless_lint_directive(&exception.name, exception.span));
+        }
+
+        diagnostics.extend(meaningless_lint_directives.diagnostics);
 
         self.reset();
 
@@ -126,7 +208,7 @@ impl Validator {
             Ok(())
         } else {
             diagnostics.sort();
-            Err(diagnostics.0)
+            Err(diagnostics)
         }
     }
 }
@@ -151,6 +233,18 @@ impl Default for Validator {
 }
 
 impl Visitor for Validator {
+    fn known_rules(&self) -> HashSet<String> {
+        let mut known_rules: HashSet<String> = crate::ALL_RULE_IDS
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        for visitor in self.visitors.iter() {
+            known_rules.extend(visitor.known_rules());
+        }
+
+        known_rules
+    }
+
     fn register(&mut self, config: &crate::Config) {
         for visitor in self.visitors.iter_mut() {
             visitor.register(config);
@@ -193,6 +287,15 @@ impl Visitor for Validator {
         reason: VisitReason,
         stmt: &VersionStatement,
     ) {
+        if reason == VisitReason::Enter {
+            // Global exceptions are always considered applied
+            for (rule, applied) in &mut diagnostics.exceptions {
+                if rule.span < stmt.span() {
+                    *applied = true;
+                }
+            }
+        }
+
         for visitor in self.visitors.iter_mut() {
             visitor.version_statement(diagnostics, reason, stmt);
         }

@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use serde::Serialize;
 use wdl_ast::Severity;
+use wdl_grammar::SyntaxKind;
 
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
@@ -49,6 +50,11 @@ pub trait Rule: Send + Sync {
     /// Get a list of examples that would trigger this rule.
     fn examples(&self) -> &'static [Example];
 
+    /// Gets the nodes that are exceptable for this rule.
+    ///
+    /// If `None` is returned, all nodes are exceptable.
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]>;
+
     /// Denies the rule.
     ///
     /// Denying the rule treats any diagnostics it emits as an error.
@@ -68,6 +74,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<UnnecessaryFunctionCall>::default(),
         Box::<UsingFallbackVersion>::default(),
         Box::<MisleadingDeclarationOrderRule>::default(),
+        Box::<MeaninglessLintDirective>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -95,6 +102,11 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
 pub struct UnusedImportRule(Severity);
 
 impl UnusedImportRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::ImportStatementNode,
+    ]);
     /// The rule identifier for unused import warnings.
     pub const ID: &'static str = "UnusedImport";
 
@@ -147,6 +159,10 @@ workflow example {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -161,6 +177,14 @@ workflow example {
 pub struct UnusedInputRule(Severity);
 
 impl UnusedInputRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::BoundDeclNode,
+        SyntaxKind::UnboundDeclNode,
+    ]);
     /// The rule identifier for unused input warnings.
     pub const ID: &str = "UnusedInput";
 
@@ -216,6 +240,10 @@ workflow example {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -230,6 +258,14 @@ workflow example {
 pub struct UnusedDeclarationRule(Severity);
 
 impl UnusedDeclarationRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::BoundDeclNode,
+        SyntaxKind::UnboundDeclNode,
+    ]);
     /// The rule identifier for unused declaration warnings.
     pub const ID: &str = "UnusedDeclaration";
 
@@ -282,6 +318,10 @@ workflow example {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -296,6 +336,12 @@ workflow example {
 pub struct UnusedCallRule(Severity);
 
 impl UnusedCallRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::CallStatementNode,
+    ]);
     /// The rule identifier for unused call warnings.
     pub const ID: &str = "UnusedCall";
 
@@ -365,6 +411,10 @@ task do_work {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -379,6 +429,13 @@ task do_work {
 pub struct UnnecessaryFunctionCall(Severity);
 
 impl UnnecessaryFunctionCall {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = Some(&[
+        SyntaxKind::VersionStatementNode,
+        SyntaxKind::WorkflowDefinitionNode,
+        SyntaxKind::TaskDefinitionNode,
+        SyntaxKind::BoundDeclNode,
+    ]);
     /// The rule identifier for unnecessary function call warnings.
     pub const ID: &str = "UnnecessaryFunctionCall";
 
@@ -424,6 +481,10 @@ workflow example {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -438,6 +499,9 @@ workflow example {
 pub struct UsingFallbackVersion(Severity);
 
 impl UsingFallbackVersion {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
+        Some(&[SyntaxKind::VersionStatementNode]);
     /// The rule identifier for unsupported version fallback warnings.
     pub const ID: &str = "UsingFallbackVersion";
 
@@ -483,6 +547,114 @@ workflow example {
         }]
     }
 
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Represents the using fallback version rule.
+#[derive(Debug, Clone, Copy)]
+pub struct MeaninglessLintDirective(Severity);
+
+impl MeaninglessLintDirective {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
+        Some(&[SyntaxKind::VersionStatementNode]);
+    /// The rule identifier for meaningless lint directive warnings.
+    pub const ID: &str = "MeaninglessLintDirective";
+
+    /// Creates a new meaningless lint directive rule.
+    pub fn new() -> Self {
+        Self(Severity::Note)
+    }
+}
+
+impl Default for MeaninglessLintDirective {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for MeaninglessLintDirective {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Warns if an `#@ except:` comment doesn't actually suppress a lint."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "Unused `#@ except:` comments are likely leftovers of refactoring or debugging, and can \
+         reduce the clarity of the code. It is best to remove them."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
+
+task do_work {
+    command <<<
+        echo "Lots of hard work!"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+}
+
+# We except `UnusedCall` unnecessarily.
+workflow calculate {
+    #@ except: UnusedCall
+    call do_work
+
+    output {
+        # We're using the result here!
+        String result = do_work.result
+    }
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the unused exception"),
+                snippet: r#"version 1.3
+
+task do_work {
+    command <<<
+        echo "Lots of hard work!"
+    >>>
+
+    output {
+        String result = read_string(stdout())
+    }
+}
+
+workflow calculate {
+    call do_work
+
+    output {
+        String result = do_work.result
+    }
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
     fn deny(&mut self) {
         self.0 = Severity::Error;
     }
@@ -497,6 +669,9 @@ workflow example {
 pub struct MisleadingDeclarationOrderRule(Severity);
 
 impl MisleadingDeclarationOrderRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
+        Some(&[SyntaxKind::TaskDefinitionNode, SyntaxKind::BoundDeclNode]);
     /// The rule identifier for misleading declaration order warnings.
     pub const ID: &str = "MisleadingDeclarationOrder";
 
@@ -559,6 +734,10 @@ task greet {
 "#,
             }),
         }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
     }
 
     fn deny(&mut self) {

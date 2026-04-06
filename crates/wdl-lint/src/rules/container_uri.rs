@@ -12,8 +12,8 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::common::container::Kind;
@@ -240,7 +240,7 @@ impl Visitor for ContainerUriRule {
             check_container_value(
                 diagnostics,
                 value,
-                SyntaxElement::from(section.inner().clone()),
+                section.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -262,7 +262,7 @@ impl Visitor for ContainerUriRule {
             check_container_value(
                 diagnostics,
                 value,
-                SyntaxElement::from(section.inner().clone()),
+                section.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -274,23 +274,19 @@ impl Visitor for ContainerUriRule {
 fn check_container_value(
     diagnostics: &mut Diagnostics,
     value: Value,
-    syntax: SyntaxElement,
+    node: &SyntaxNode,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     if let Kind::Array(array) = value.kind() {
         if array.is_empty() {
-            diagnostics.exceptable_add(
-                empty_array(value.expr().span()),
-                syntax.clone(),
-                exceptable_nodes,
-            );
+            diagnostics.exceptable_add(empty_array(value.expr().span()), node, exceptable_nodes);
         } else if array.len() == 1 {
             // SAFETY: we just checked to ensure that exactly one element exists in the
             // vec, so this will always unwrap.
             let uri = array.iter().next().unwrap();
             diagnostics.exceptable_add(
                 array_to_string_literal(uri.literal_string().span()),
-                syntax.clone(),
+                node,
                 exceptable_nodes,
             );
         } else {
@@ -299,7 +295,7 @@ fn check_container_value(
             if anys.peek().is_some() {
                 diagnostics.exceptable_add(
                     array_containing_anys(anys.map(|any| any.literal_string().span())),
-                    syntax.clone(),
+                    node,
                     exceptable_nodes,
                 );
             }
@@ -311,13 +307,13 @@ fn check_container_value(
             if entry.tag().is_none() {
                 diagnostics.exceptable_add(
                     missing_tag(uri.literal_string().span()),
-                    syntax.clone(),
+                    node,
                     exceptable_nodes,
                 );
             } else if !entry.immutable() {
                 diagnostics.exceptable_add(
                     mutable_tag(uri.literal_string().span()),
-                    syntax.clone(),
+                    node,
                     exceptable_nodes,
                 );
             }

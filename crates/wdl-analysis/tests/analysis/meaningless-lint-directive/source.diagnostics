@@ -1,0 +1,18 @@
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedCall`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:16:16
+   │
+16 │     #@ except: UnusedCall
+   │                ^^^^^^^^^^
+
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnnecessaryFunctionCall`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:27:16
+   │
+27 │     #@ except: UnnecessaryFunctionCall, UnusedDeclaration
+   │                ^^^^^^^^^^^^^^^^^^^^^^^
+
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedDeclaration`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:27:41
+   │
+27 │     #@ except: UnnecessaryFunctionCall, UnusedDeclaration
+   │                                         ^^^^^^^^^^^^^^^^^
+

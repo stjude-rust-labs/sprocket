@@ -11,6 +11,5 @@ workflow bar {
         Array[String]? bar
     }
 
-    #@ except: UnusedCall
     call foo.foo { input: foo = bar }
 }

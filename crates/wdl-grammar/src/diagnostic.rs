@@ -7,7 +7,7 @@ use rowan::TextRange;
 use rowan::TextSize;
 
 /// Represents a span of source.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
     /// The start of the span.
     start: usize,
@@ -47,6 +47,20 @@ impl Span {
     /// Determines if the span contains the given offset.
     pub fn contains(&self, offset: usize) -> bool {
         offset >= self.start && offset < self.end
+    }
+
+    /// Whether this span is **fully** contained within `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use wdl_grammar::Span;
+    /// let parent = Span::new(0, 10);
+    /// let child = Span::new(5, 5);
+    /// assert!(child.within(parent));
+    /// ```
+    pub fn within(&self, other: Self) -> bool {
+        self.start >= other.start && self.end <= other.end
     }
 
     /// Calculates an intersection of two spans, if one exists.

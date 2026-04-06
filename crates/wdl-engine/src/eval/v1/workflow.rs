@@ -25,6 +25,7 @@ use tokio::sync::RwLock;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::trace;
+use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::only_one_namespace;
@@ -683,7 +684,7 @@ impl Evaluator {
             .expect("workflow should exist in the AST");
 
         // Build an evaluation graph for the workflow
-        let mut diagnostics = Vec::new();
+        let mut diagnostics = Diagnostics::new();
 
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided

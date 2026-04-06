@@ -83,6 +83,7 @@ Available rules:
   - InputName
   - KnownRules
   - MatchingOutputMeta
+  - MeaninglessLintDirective
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder

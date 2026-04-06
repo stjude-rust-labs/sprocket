@@ -8,6 +8,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::MeaninglessLintDirective;
 use crate::MisleadingDeclarationOrderRule;
 use crate::Rule;
 use crate::UnnecessaryFunctionCall;
@@ -290,6 +291,10 @@ pub struct DiagnosticsConfig {
     ///
     /// A value of `None` disables the diagnostic.
     pub misleading_declaration_order: Option<Severity>,
+    /// The severity for the meaningless lint directive diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    pub meaningless_lint_directive: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -308,6 +313,7 @@ impl DiagnosticsConfig {
         let mut unnecessary_function_call = None;
         let mut using_fallback_version = None;
         let mut misleading_declaration_order = None;
+        let mut meaningless_lint_directive = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -321,6 +327,7 @@ impl DiagnosticsConfig {
                 MisleadingDeclarationOrderRule::ID => {
                     misleading_declaration_order = Some(rule.severity())
                 }
+                MeaninglessLintDirective::ID => meaningless_lint_directive = Some(rule.severity()),
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -338,6 +345,7 @@ impl DiagnosticsConfig {
             unnecessary_function_call,
             using_fallback_version,
             misleading_declaration_order,
+            meaningless_lint_directive,
         }
     }
 
@@ -346,28 +354,18 @@ impl DiagnosticsConfig {
     pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
         let exceptions = node.rule_exceptions();
 
-        if exceptions.contains(UnusedImportRule::ID) {
-            self.unused_import = None;
-        }
-
-        if exceptions.contains(UnusedInputRule::ID) {
-            self.unused_input = None;
-        }
-
-        if exceptions.contains(UnusedDeclarationRule::ID) {
-            self.unused_declaration = None;
-        }
-
-        if exceptions.contains(UnusedCallRule::ID) {
-            self.unused_call = None;
-        }
-
-        if exceptions.contains(UnnecessaryFunctionCall::ID) {
-            self.unnecessary_function_call = None;
-        }
-
-        if exceptions.contains(UsingFallbackVersion::ID) {
-            self.using_fallback_version = None;
+        for exception in exceptions {
+            match &*exception.name {
+                UnusedImportRule::ID => self.unused_import = None,
+                UnusedInputRule::ID => self.unused_input = None,
+                UnusedDeclarationRule::ID => self.unused_declaration = None,
+                UnusedCallRule::ID => self.unused_call = None,
+                UnnecessaryFunctionCall::ID => self.unnecessary_function_call = None,
+                UsingFallbackVersion::ID => self.using_fallback_version = None,
+                MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = None,
+                MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
+                _ => {}
+            }
         }
 
         self
@@ -383,6 +381,7 @@ impl DiagnosticsConfig {
             unnecessary_function_call: None,
             using_fallback_version: None,
             misleading_declaration_order: None,
+            meaningless_lint_directive: None,
         }
     }
 }
