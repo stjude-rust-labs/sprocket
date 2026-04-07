@@ -1,9 +1,11 @@
 //! Implementation of the LSP server.
 
+use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::fmt::Formatter;
 use std::mem;
 use std::path::Component;
+use std::path::Path;
 use std::path::PathBuf;
 use std::path::Prefix;
 use std::str::FromStr;
@@ -18,17 +20,18 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde_json::to_value;
 use struct_patch::Patch;
-use tower_lsp::Client;
-use tower_lsp::LanguageServer;
-use tower_lsp::LspService;
-use tower_lsp::jsonrpc::Error as RpcError;
-use tower_lsp::jsonrpc::ErrorCode;
-use tower_lsp::jsonrpc::Result as RpcResult;
-use tower_lsp::lsp_types::request::WorkspaceConfiguration;
-use tower_lsp::lsp_types::*;
+use tower_lsp_server::Client;
+use tower_lsp_server::LanguageServer;
+use tower_lsp_server::LspService;
+use tower_lsp_server::jsonrpc::Error as RpcError;
+use tower_lsp_server::jsonrpc::ErrorCode;
+use tower_lsp_server::jsonrpc::Result as RpcResult;
+use tower_lsp_server::ls_types::request::WorkspaceConfiguration;
+use tower_lsp_server::ls_types::*;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
+use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -39,6 +42,7 @@ use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
 use wdl_analysis::Validator;
+use wdl_analysis::handlers::UriToUrl;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
@@ -51,41 +55,60 @@ use crate::proto;
 /// If the path contains percent encoded sequences, the sequences are decoded.
 ///
 /// Additionally, on Windows, this will normalize the drive letter to uppercase.
-fn normalize_uri_path(uri: &mut Url) {
-    if uri.scheme() != "file" {
+fn normalize_uri_path(uri: &mut Uri) {
+    if uri.scheme().as_str() != "file" {
         return;
     }
 
-    // Call `to_file_path` which will automatically decode any encoded sequences
-    if let Ok(path) = uri.to_file_path() {
-        // On windows we need to normalize any drive letter prefixes to uppercase
-        let path = if cfg!(windows) {
-            let mut comps = path.components();
-            match comps.next() {
-                Some(Component::Prefix(prefix)) => match prefix.kind() {
-                    Prefix::Disk(d) => {
-                        let mut path = PathBuf::new();
-                        path.push(format!("{}:", d.to_ascii_uppercase() as char));
-                        path.extend(comps);
-                        path
-                    }
-                    Prefix::VerbatimDisk(d) => {
-                        let mut path = PathBuf::new();
-                        path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
-                        path.extend(comps);
-                        path
-                    }
-                    _ => path,
-                },
-                _ => path,
-            }
-        } else {
-            path
-        };
+    *uri = Uri::from(uri.normalize());
+    let Some(path) = uri.to_file_path() else {
+        return;
+    };
 
-        if let Ok(u) = Url::from_file_path(path) {
-            *uri = u;
+    // On windows we need to normalize any drive letter prefixes to uppercase
+    let path = if cfg!(windows) {
+        let mut comps = path.components();
+        match comps.next() {
+            Some(Component::Prefix(prefix)) => match prefix.kind() {
+                Prefix::Disk(d) => {
+                    let mut path = PathBuf::new();
+                    path.push(format!("{}:", d.to_ascii_uppercase() as char));
+                    path.extend(comps);
+                    Cow::Owned(path)
+                }
+                Prefix::VerbatimDisk(d) => {
+                    let mut path = PathBuf::new();
+                    path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
+                    path.extend(comps);
+                    Cow::Owned(path)
+                }
+                _ => path,
+            },
+            _ => path,
         }
+    } else {
+        path
+    };
+
+    if let Ok(url) = Url::from_file_path(&*path)
+        && let Ok(u) = Uri::from_str(url.as_str())
+    {
+        *uri = u;
+        return;
+    }
+
+    let mut path_str = path.to_string_lossy();
+    if cfg!(windows) {
+        path_str = Cow::Owned(path_str.replace('\\', "/"));
+
+        // The leading slash on Windows is a shorthand for `localhost` (e.g. `file://localhost/C:/Windows` with the `localhost` omitted).
+        if !path_str.starts_with('/') {
+            path_str = Cow::Owned(format!("/{path_str}"));
+        }
+    }
+
+    if let Ok(u) = Uri::from_str(&format!("file://{path_str}")) {
+        *uri = u;
     }
 }
 
@@ -465,7 +488,7 @@ impl<S: 'static> Server<S> {
 
         let stdin = tokio::io::stdin();
         let stdout = tokio::io::stdout();
-        tower_lsp::Server::new(stdin, stdout, socket)
+        tower_lsp_server::Server::new(stdin, stdout, socket)
             .serve(service)
             .await;
 
@@ -522,7 +545,6 @@ impl<S: 'static> Server<S> {
     }
 }
 
-#[tower_lsp::async_trait]
 impl<S: 'static> LanguageServer for Server<S> {
     async fn initialize(&self, params: InitializeParams) -> RpcResult<InitializeResult> {
         debug!("received `initialize` request: {params:#?}");
@@ -532,12 +554,12 @@ impl<S: 'static> LanguageServer for Server<S> {
             for mut folder in folders {
                 normalize_uri_path(&mut folder.uri);
                 self.folders.write().push(folder.clone());
-                if let Ok(path) = folder.uri.to_file_path()
+                if let Some(path) = folder.uri.to_file_path()
                     && let Err(e) = config.analyzer.add_directory(path).await
                 {
                     error!(
                         "failed to add initial workspace directory {uri}: {e}",
-                        uri = folder.uri
+                        uri = folder.uri.as_str()
                     );
                 }
             }
@@ -647,25 +669,29 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 
     async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+        let config = self.config.read().await;
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        let config = self.config.read().await;
-        if let Err(e) = config
-            .analyzer
-            .add_document(params.text_document.uri.clone())
-            .await
-        {
+        let url = match uri_to_url(&params.text_document.uri) {
+            Ok(url) => url,
+            Err(e) => {
+                error!("{}", e.message);
+                return;
+            }
+        };
+
+        if let Err(e) = config.analyzer.add_document(url.clone()).await {
             error!(
                 "failed to add document {uri}: {e}",
-                uri = params.text_document.uri
+                uri = params.text_document.uri.as_str()
             );
             return;
         }
 
         if let Err(e) = config.analyzer.notify_incremental_change(
-            params.text_document.uri,
+            url,
             IncrementalChange {
                 version: params.text_document.version,
                 start: Some(params.text_document.text),
@@ -683,9 +709,17 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/didChange` request: {params:#?}");
 
+        let url = match uri_to_url(&params.text_document.uri) {
+            Ok(url) => url,
+            Err(e) => {
+                error!("{}", e.message);
+                return;
+            }
+        };
+
         debug!(
             "document `{uri}` is now client version {version}",
-            uri = params.text_document.uri,
+            uri = url,
             version = params.text_document.version
         );
 
@@ -704,7 +738,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         // Notify the analyzer that the document has changed
         if let Err(e) = config.analyzer.notify_incremental_change(
-            params.text_document.uri,
+            url,
             IncrementalChange {
                 version: params.text_document.version,
                 start,
@@ -732,10 +766,16 @@ impl<S: 'static> LanguageServer for Server<S> {
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didClose` request: {params:#?}");
-        if let Err(e) = config
-            .analyzer
-            .notify_change(params.text_document.uri, true)
-        {
+
+        let url = match uri_to_url(&params.text_document.uri) {
+            Ok(url) => url,
+            Err(e) => {
+                error!("{}", e.message);
+                return;
+            }
+        };
+
+        if let Err(e) = config.analyzer.notify_change(url, true) {
             error!("failed to notify change: {e}");
         }
     }
@@ -750,9 +790,11 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document.uri)?;
+
         let results: Vec<wdl_analysis::AnalysisResult> = config
             .analyzer
-            .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
+            .analyze_document(ProgressToken::default(), url)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -799,23 +841,27 @@ impl<S: 'static> LanguageServer for Server<S> {
         debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
 
         // Process the removed folders
-        if !params.event.removed.is_empty()
-            && let Err(e) = config
-                .analyzer
-                .remove_documents(
-                    params
-                        .event
-                        .removed
-                        .into_iter()
-                        .map(|mut f| {
-                            normalize_uri_path(&mut f.uri);
-                            f.uri
-                        })
-                        .collect(),
-                )
-                .await
-        {
-            error!("failed to remove documents from analyzer: {e}");
+        if !params.event.removed.is_empty() {
+            let removed = params
+                .event
+                .removed
+                .into_iter()
+                .map(|mut f| {
+                    normalize_uri_path(&mut f.uri);
+                    f.uri.try_into_url()
+                })
+                .collect::<std::result::Result<Vec<_>, _>>();
+
+            match removed {
+                Ok(removed) => {
+                    if let Err(e) = config.analyzer.remove_documents(removed).await {
+                        error!("failed to remove documents from analyzer: {e}");
+                    }
+                }
+                Err(e) => {
+                    error!("failed to convert document URI: {e}");
+                }
+            }
         }
 
         // Progress the added folders
@@ -863,8 +909,9 @@ impl<S: 'static> LanguageServer for Server<S> {
         debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
 
         /// Converts a URI into a WDL file path.
-        fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
-            if let Ok(path) = uri.to_file_path()
+        fn to_wdl_file_path(uri: &Uri) -> Option<Cow<'_, Path>> {
+            if uri.scheme().as_str() == "file"
+                && let Some(path) = uri.to_file_path()
                 && path.is_file()
                 && path.extension().and_then(OsStr::to_str) == Some("wdl")
             {
@@ -883,21 +930,39 @@ impl<S: 'static> LanguageServer for Server<S> {
             match event.typ {
                 FileChangeType::CREATED => {
                     if let Some(path) = to_wdl_file_path(&event.uri) {
-                        debug!("document `{uri}` has been created", uri = event.uri);
-                        added.push(path);
+                        debug!(
+                            "document `{uri}` has been created",
+                            uri = event.uri.as_str()
+                        );
+                        added.push(path.into_owned());
                     }
                 }
                 FileChangeType::CHANGED => {
                     if to_wdl_file_path(&event.uri).is_some() {
-                        debug!("document `{uri}` has been changed", uri = event.uri);
-                        if let Err(e) = config.analyzer.notify_change(event.uri, false) {
+                        debug!(
+                            "document `{uri}` has been changed",
+                            uri = event.uri.as_str()
+                        );
+
+                        let url = match uri_to_url(&event.uri) {
+                            Ok(url) => url,
+                            Err(e) => {
+                                error!("{}", e.message);
+                                return;
+                            }
+                        };
+
+                        if let Err(e) = config.analyzer.notify_change(url, false) {
                             error!("failed to notify change: {e}");
                         }
                     }
                 }
                 FileChangeType::DELETED => {
                     if to_wdl_file_path(&event.uri).is_some() {
-                        debug!("document `{uri}` has been deleted", uri = event.uri);
+                        debug!(
+                            "document `{uri}` has been deleted",
+                            uri = event.uri.as_str()
+                        );
                         deleted.push(event.uri);
                     }
                 }
@@ -919,10 +984,22 @@ impl<S: 'static> LanguageServer for Server<S> {
         }
 
         // Remove any documents from the analyzer
-        if !deleted.is_empty()
-            && let Err(e) = config.analyzer.remove_documents(deleted).await
-        {
-            error!("failed to remove documents from analyzer: {e}");
+        if !deleted.is_empty() {
+            let deleted_urls = deleted
+                .iter()
+                .map(UriToUrl::try_into_url)
+                .collect::<std::result::Result<Vec<_>, _>>();
+
+            match deleted_urls {
+                Ok(removed) => {
+                    if let Err(e) = config.analyzer.remove_documents(removed).await {
+                        error!("failed to remove documents from analyzer: {e}");
+                    }
+                }
+                Err(e) => {
+                    error!("failed to convert document URI: {e}");
+                }
+            }
         }
     }
 
@@ -936,9 +1013,11 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/formatting` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document.uri)?;
+
         let result = config
             .analyzer
-            .format_document(params.text_document.uri)
+            .format_document(url)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -976,6 +1055,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/gotoDefinition` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -983,11 +1064,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .goto_definition(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
+            .goto_definition(url, position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1005,6 +1082,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/references` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1013,7 +1092,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         let result = config
             .analyzer
             .find_all_references(
-                params.text_document_position.text_document.uri,
+                url,
                 position,
                 SourcePositionEncoding::UTF16,
                 params.context.include_declaration,
@@ -1038,6 +1117,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/completion` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1047,7 +1128,7 @@ impl<S: 'static> LanguageServer for Server<S> {
             .analyzer
             .completion(
                 ProgressToken::default(),
-                params.text_document_position.text_document.uri,
+                url,
                 position,
                 SourcePositionEncoding::UTF16,
             )
@@ -1068,6 +1149,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/hover` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1075,11 +1158,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .hover(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
+            .hover(url, position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1096,6 +1175,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/rename` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1104,7 +1185,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         let result = config
             .analyzer
             .rename(
-                params.text_document_position.text_document.uri,
+                url,
                 position,
                 SourcePositionEncoding::UTF16,
                 params.new_name,
@@ -1129,9 +1210,11 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document.uri)?;
+
         let result = config
             .analyzer
-            .semantic_tokens(params.text_document.uri)
+            .semantic_tokens(url)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1152,9 +1235,11 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/documentSymbol` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document.uri)?;
+
         let result = config
             .analyzer
-            .document_symbol(params.text_document.uri)
+            .document_symbol(url)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1168,7 +1253,7 @@ impl<S: 'static> LanguageServer for Server<S> {
     async fn symbol(
         &self,
         params: WorkspaceSymbolParams,
-    ) -> RpcResult<Option<Vec<SymbolInformation>>> {
+    ) -> RpcResult<Option<WorkspaceSymbolResponse>> {
         let config = self.config.read().await;
 
         debug!("received `workspace/symbol` request: {params:#?}");
@@ -1181,7 +1266,8 @@ impl<S: 'static> LanguageServer for Server<S> {
                 code: ErrorCode::InternalError,
                 message: e.to_string().into(),
                 data: None,
-            })?;
+            })?
+            .map(WorkspaceSymbolResponse::Flat);
 
         Ok(result)
     }
@@ -1196,6 +1282,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/signatureHelp` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1203,11 +1291,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .signature_help(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
+            .signature_help(url, position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1225,6 +1309,8 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");
 
+        let url = uri_to_url(&params.text_document.uri)?;
+
         // Analyze the document first to ensure we have up-to-date information
         config
             .analyzer
@@ -1238,7 +1324,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .inlay_hints(params.text_document.uri, params.range)
+            .inlay_hints(url, params.range)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1247,5 +1333,68 @@ impl<S: 'static> LanguageServer for Server<S> {
             })?;
 
         Ok(result)
+    }
+}
+
+/// Wrapper for [`UriToUrl`] to return consistent error messages.
+fn uri_to_url(uri: &Uri) -> RpcResult<Url> {
+    uri.try_into_url().map_err(|e| RpcError {
+        code: ErrorCode::InvalidParams,
+        message: format!(
+            "failed to convert document URI {uri}: {e}",
+            uri = uri.as_str()
+        )
+        .into(),
+        data: None,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use tower_lsp_server::ls_types::Uri;
+
+    use super::normalize_uri_path;
+
+    #[test]
+    fn url_normalization() {
+        let cases = vec![
+            (
+                Uri::from_str("http://example.com/foo.wdl").unwrap(),
+                "http://example.com/foo.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///at/root/../../../root.wdl").unwrap(),
+                "file:///root.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///too/far/../../../../../../not_real.wdl").unwrap(),
+                "file:///not_real.wdl",
+            ),
+            #[cfg(not(windows))]
+            (
+                Uri::from_str("file:///Users/dev%20user/./../././my%20app/test:40:00.wdl").unwrap(),
+                "file:///Users/my%20app/test:40:00.wdl",
+            ),
+            (
+                Uri::from_str("file:///C%3A/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl")
+                    .unwrap(),
+                "file:///C:/Users/RUNNER~1/AppData/Local/Temp/.tmpLhmz90/enum.wdl",
+            ),
+            #[cfg(windows)]
+            (
+                Uri::from_str("file:///d:/Users/Admin/Documents/foo.wdl").unwrap(),
+                "file:///D:/Users/Admin/Documents/foo.wdl",
+            ),
+        ];
+
+        for (original, expected) in cases {
+            let mut updated = original.clone();
+            normalize_uri_path(&mut updated);
+            assert_eq!(updated.as_str(), expected);
+        }
     }
 }
