@@ -1427,58 +1427,58 @@ fn add_call_statement(
         .unwrap_or_else(|| target_name.clone());
 
     let ty = match resolve_call_type(document, workflow_name, statement) {
-        Some(ty) => {
+        Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
             for input in statement.inputs() {
                 let input_name = input.name();
 
-                let (expected_ty, required) = ty
+                let (expected_input_ty, required) = call_ty
                     .inputs()
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
                         document.analysis_diagnostics.push(unknown_call_io(
-                            &ty,
+                            &call_ty,
                             &input_name,
                             Io::Input,
                         ));
                         (Type::Union, true)
                     });
 
+                // For WDL 1.2, we accept optional types for the input even if the input's
+                // type is non-optional; if the runtime value is `None` for a non-optional
+                // input, the default expression will be evaluated instead.
+                let expected_input_ty = if !required
+                    && document
+                        .version
+                        .map(|v| v >= SupportedVersion::V1(V1::Two))
+                        .unwrap_or(false)
+                {
+                    expected_input_ty.optional()
+                } else {
+                    expected_input_ty
+                };
+
                 match input.expr() {
                     Some(expr) => {
-                        // For WDL 1.2, we accept optional types for the input even if the input's
-                        // type is non-optional; if the runtime value is `None` for a non-optional
-                        // input, the default expression will be evaluated instead.
-                        let expected_ty = if !required
-                            && document
-                                .version
-                                .map(|v| v >= SupportedVersion::V1(V1::Two))
-                                .unwrap_or(false)
-                        {
-                            expected_ty.optional()
-                        } else {
-                            expected_ty
-                        };
-
                         type_check_expr(
                             config,
                             document,
                             scope.as_scope_ref(),
                             &expr,
-                            &expected_ty,
+                            &expected_input_ty,
                             input_name.span(),
                         );
                     }
                     None => match scope.lookup(input_name.text()) {
                         Some(name) => {
-                            if !matches!(expected_ty, Type::Union)
-                                && !name.ty.is_coercible_to(&expected_ty)
+                            if !matches!(expected_input_ty, Type::Union)
+                                && !name.ty.is_coercible_to(&expected_input_ty)
                             {
                                 document.analysis_diagnostics.push(call_input_type_mismatch(
                                     &input_name,
-                                    &expected_ty,
+                                    &expected_input_ty,
                                     &name.ty,
                                 ));
                             }
@@ -1494,10 +1494,10 @@ fn add_call_statement(
                 seen.insert(input_name.hashable());
             }
 
-            for (name, input) in ty.inputs() {
+            for (name, input) in call_ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
                     document.analysis_diagnostics.push(missing_call_input(
-                        ty.kind(),
+                        call_ty.kind(),
                         &target_name,
                         name,
                         nested_inputs_allowed,
@@ -1512,10 +1512,10 @@ fn add_call_statement(
                 .expect("should have workflow")
                 .calls;
             if !calls.contains_key(name.text()) {
-                calls.insert(name.text().to_string(), ty.clone());
+                calls.insert(name.text().to_string(), call_ty.clone());
             }
 
-            ty.into()
+            call_ty.into()
         }
         _ => Type::Union,
     };
