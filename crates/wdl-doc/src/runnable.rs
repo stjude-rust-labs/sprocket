@@ -411,7 +411,7 @@ mod tests {
         }
         "#;
 
-        let (doc, _) = Document::parse(wdl);
+        let (doc, _) = Document::parse(wdl, None);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let meta_map = parse_metadata_items(
             doc_item
@@ -467,7 +467,7 @@ mod tests {
         }
         "#;
 
-        let (doc, _) = Document::parse(wdl);
+        let (doc, _) = Document::parse(wdl, None);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let meta_map = parse_metadata_items(
             doc_item
@@ -519,7 +519,7 @@ mod tests {
         }
         "#;
 
-        let (doc, _) = Document::parse(wdl);
+        let (doc, _) = Document::parse(wdl, None);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let meta_map = parse_metadata_items(
             doc_item
@@ -577,7 +577,7 @@ mod tests {
         }
         "#;
 
-        let (doc, _) = Document::parse(wdl);
+        let (doc, _) = Document::parse(wdl, None);
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let meta_map = parse_metadata_items(
             doc_item
