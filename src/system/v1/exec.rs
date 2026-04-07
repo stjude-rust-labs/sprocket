@@ -50,6 +50,7 @@ use crate::system::v1::fs::RunDirectory;
 
 pub mod config;
 pub mod names;
+pub mod queries;
 pub mod source;
 pub mod svc;
 
