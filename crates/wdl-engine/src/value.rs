@@ -3564,14 +3564,12 @@ impl TaskPostEvaluationValue {
                         .expect("failed to get task field type"),
                 )
             })),
-            TASK_FIELD_RETURN_CODE => {
-                Some(self.0.return_code.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
+            TASK_FIELD_RETURN_CODE => Some(
+                self.0
+                    .return_code
+                    .map(Into::into)
+                    .expect("task return codes can only be accessed after being set"),
+            ),
             TASK_FIELD_META => Some(self.0.meta.clone().into()),
             TASK_FIELD_PARAMETER_META => Some(self.0.parameter_meta.clone().into()),
             TASK_FIELD_EXT => Some(self.0.ext.clone().into()),
