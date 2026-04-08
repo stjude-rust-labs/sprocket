@@ -541,7 +541,7 @@ mod tests {
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
         let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
-        let (script, _container) = runtime
+        let (script, _) = runtime
             .generate_script(
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
