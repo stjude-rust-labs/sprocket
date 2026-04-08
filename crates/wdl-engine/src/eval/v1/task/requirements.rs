@@ -177,7 +177,9 @@ pub(crate) fn container(
             .map(|v| {
                 // SAFETY: the WDL type checker guarantees that elements of
                 // a `container` array are `String`.
-                let s = v.as_string().expect("container array element should be a `String`");
+                let s = v
+                    .as_string()
+                    .expect("container array element should be a `String`");
                 let s = s.as_ref();
                 // SAFETY: `FromStr` for `ContainerSource` is infallible.
                 if s == WILDCARD_CONTAINER { default } else { s }

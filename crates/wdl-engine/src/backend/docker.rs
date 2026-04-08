@@ -390,8 +390,8 @@ async fn pull_first_available_docker_image(
             ContainerSource::Docker(_) => {}
             ContainerSource::Library(_) | ContainerSource::Oras(_) => {
                 let err = anyhow::anyhow!(
-                    "Docker backend does not support `{candidate:#}`; use a Docker registry \
-                     image instead"
+                    "Docker backend does not support `{candidate:#}`; use a Docker registry image \
+                     instead"
                 );
                 warn!("{err:#}");
                 results.insert(candidate.clone(), Err(err));
@@ -399,8 +399,8 @@ async fn pull_first_available_docker_image(
             }
             ContainerSource::SifFile(_) => {
                 let err = anyhow::anyhow!(
-                    "Docker backend does not support local SIF file `{candidate:#}`; use a \
-                     Docker registry image instead"
+                    "Docker backend does not support local SIF file `{candidate:#}`; use a Docker \
+                     registry image instead"
                 );
                 warn!("{err:#}");
                 results.insert(candidate.clone(), Err(err));
