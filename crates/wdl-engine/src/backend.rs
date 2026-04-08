@@ -120,7 +120,7 @@ impl Input {
 }
 
 /// The result of attempting to pull a single container image.
-pub type PullResult<T> = std::result::Result<T, anyhow::Error>;
+pub type PullResult<T> = anyhow::Result<T>;
 
 /// An ordered map of container pull attempts.
 ///
