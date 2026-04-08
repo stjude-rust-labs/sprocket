@@ -31,7 +31,7 @@ use tracing::info;
 use tracing::warn;
 use url::Url;
 
-use super::PullResultMap;
+use super::PullResults;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
@@ -376,14 +376,14 @@ impl CleanupTask {
 ///
 /// Iterates through the candidates in order, using the bollard API (via
 /// crankshaft) to ensure each image exists locally. Returns a
-/// [`PullResultMap`] containing the outcome of each attempt, stopping
-/// after the first success.
+/// [`PullResults`] containing the outcome of each attempt, stopping after the
+/// first success.
 async fn pull_first_available_docker_image(
     docker: &crankshaft::docker::Docker,
     candidates: &[ContainerSource],
     token: CancellationToken,
-) -> Option<PullResultMap<ContainerSource>> {
-    let mut results = PullResultMap::default();
+) -> Option<PullResults<ContainerSource>> {
+    let mut results = PullResults::default();
 
     for candidate in candidates {
         match candidate {
@@ -394,7 +394,7 @@ async fn pull_first_available_docker_image(
                      instead"
                 );
                 warn!("{err:#}");
-                results.insert(candidate.clone(), Err(err));
+                results.push(candidate.clone(), Err(err));
                 continue;
             }
             ContainerSource::SifFile(_) => {
@@ -403,7 +403,7 @@ async fn pull_first_available_docker_image(
                      registry image instead"
                 );
                 warn!("{err:#}");
-                results.insert(candidate.clone(), Err(err));
+                results.push(candidate.clone(), Err(err));
                 continue;
             }
             ContainerSource::Unknown(_) => {
@@ -411,7 +411,7 @@ async fn pull_first_available_docker_image(
                     "Docker backend does not support unknown container source `{candidate:#}`"
                 );
                 warn!("{err:#}");
-                results.insert(candidate.clone(), Err(err));
+                results.push(candidate.clone(), Err(err));
                 continue;
             }
         }
@@ -423,7 +423,7 @@ async fn pull_first_available_docker_image(
         {
             Ok(Some(())) => {
                 debug!("successfully pulled container image `{candidate:#}`");
-                results.insert(candidate.clone(), Ok(candidate.clone()));
+                results.push(candidate.clone(), Ok(candidate.clone()));
                 return Some(results);
             }
             Ok(None) => return None,
@@ -431,7 +431,7 @@ async fn pull_first_available_docker_image(
                 let err =
                     anyhow::anyhow!(e).context(format!("failed to pull image `{candidate:#}`"));
                 warn!("failed to pull container image `{candidate:#}`: {err:#}");
-                results.insert(candidate.clone(), Err(err));
+                results.push(candidate.clone(), Err(err));
             }
         }
     }

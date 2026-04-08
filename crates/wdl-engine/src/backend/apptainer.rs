@@ -29,7 +29,7 @@ use tracing::warn;
 
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::PullResultMap;
+use crate::backend::PullResults;
 use crate::config::ApptainerConfig;
 use crate::v1::requirements::ContainerSource;
 
@@ -361,7 +361,7 @@ impl ApptainerRuntime {
     /// Attempts to pull the first available image from a list of candidates.
     ///
     /// Iterates through the candidates in order, returning the path of the
-    /// first image that pulls successfully. Returns a [`PullResultMap`]
+    /// first image that pulls successfully. Returns a [`PullResults`]
     /// containing the outcome of each attempt, stopping after the first
     /// success. Returns `None` if a pull was cancelled.
     pub(crate) async fn pull_first_available_image(
@@ -369,21 +369,21 @@ impl ApptainerRuntime {
         executable: &str,
         candidates: &[ContainerSource],
         token: CancellationToken,
-    ) -> Option<PullResultMap<PathBuf>> {
-        let mut results = PullResultMap::default();
+    ) -> Option<PullResults<PathBuf>> {
+        let mut results = PullResults::default();
 
         for candidate in candidates {
             debug!("attempting to pull container image `{candidate:#}`");
             match self.pull_image(executable, candidate, token.clone()).await {
                 Ok(Some(path)) => {
                     debug!("successfully pulled container image `{candidate:#}`");
-                    results.insert(candidate.clone(), Ok(path));
+                    results.push(candidate.clone(), Ok(path));
                     return Some(results);
                 }
                 Ok(None) => return None,
                 Err(e) => {
                     warn!("failed to pull container image `{candidate:#}`: {e:#}");
-                    results.insert(candidate.clone(), Err(e));
+                    results.push(candidate.clone(), Err(e));
                 }
             }
         }

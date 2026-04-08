@@ -2,8 +2,6 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -119,22 +117,24 @@ impl Input {
     }
 }
 
-/// The result of attempting to pull a single container image.
-pub type PullResult<T> = anyhow::Result<T>;
-
-/// An ordered map of container pull attempts.
+/// An ordered list of container pull attempts.
 ///
-/// Entries appear in the order they were attempted. The map stops after the
+/// Entries appear in the order they were attempted. The list stops after the
 /// first success, so candidates after a successful pull do not appear.
-pub struct PullResultMap<T>(IndexMap<ContainerSource, PullResult<T>>);
+pub struct PullResults<T>(Vec<(ContainerSource, anyhow::Result<T>)>);
 
-impl<T> Default for PullResultMap<T> {
+impl<T> Default for PullResults<T> {
     fn default() -> Self {
-        Self(IndexMap::new())
+        Self(Vec::new())
     }
 }
 
-impl<T> PullResultMap<T> {
+impl<T> PullResults<T> {
+    /// Records the outcome of a pull attempt.
+    pub fn push(&mut self, source: ContainerSource, result: anyhow::Result<T>) {
+        self.0.push((source, result));
+    }
+
     /// Returns the first successful container and its associated value, if any.
     pub fn successful_container(&self) -> Option<(&ContainerSource, &T)> {
         self.0
@@ -150,21 +150,7 @@ impl<T> PullResultMap<T> {
     }
 }
 
-impl<T> Deref for PullResultMap<T> {
-    type Target = IndexMap<ContainerSource, PullResult<T>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for PullResultMap<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl<T> fmt::Display for PullResultMap<T> {
+impl<T> fmt::Display for PullResults<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "all container image candidates failed to pull:")?;
         for (source, error) in self.failures() {
@@ -329,50 +315,51 @@ mod tests {
     use super::*;
 
     #[test]
-    fn empty_pull_result_map_has_no_successful_container() {
-        let map: PullResultMap<String> = PullResultMap::default();
-        assert!(map.successful_container().is_none());
+    fn empty_pull_results_has_no_successful_container() {
+        let results: PullResults<String> = PullResults::default();
+        assert!(results.successful_container().is_none());
     }
 
     #[test]
-    fn pull_result_map_with_success() {
-        let mut map = PullResultMap::default();
+    fn pull_results_with_success() {
+        let mut results = PullResults::default();
         let source = ContainerSource::Docker("foo:latest".to_string());
-        map.insert(source.clone(), Ok("resolved".to_string()));
+        results.push(source.clone(), Ok("resolved".to_string()));
         assert_eq!(
-            map.successful_container()
+            results
+                .successful_container()
                 .map(|(s, v)| (s.clone(), v.clone())),
             Some((source, "resolved".to_string()))
         );
     }
 
     #[test]
-    fn pull_result_map_with_all_failures() {
-        let mut map: PullResultMap<String> = PullResultMap::default();
-        map.insert(
+    fn pull_results_with_all_failures() {
+        let mut results: PullResults<String> = PullResults::default();
+        results.push(
             ContainerSource::Docker("a:1".to_string()),
             Err(anyhow::anyhow!("not found")),
         );
-        map.insert(
+        results.push(
             ContainerSource::Docker("b:2".to_string()),
             Err(anyhow::anyhow!("timeout")),
         );
-        assert!(map.successful_container().is_none());
-        assert_eq!(map.failures().count(), 2);
+        assert!(results.successful_container().is_none());
+        assert_eq!(results.failures().count(), 2);
     }
 
     #[test]
-    fn pull_result_map_display_lists_failures() {
-        let mut map: PullResultMap<String> = PullResultMap::default();
-        map.insert(
+    fn pull_results_display_lists_failures() {
+        let mut results: PullResults<String> = PullResults::default();
+        results.push(
             ContainerSource::Docker("a:1".to_string()),
             Err(anyhow::anyhow!("not found")),
         );
-        map.insert(
+        results.push(
             ContainerSource::Docker("b:2".to_string()),
             Err(anyhow::anyhow!("timeout")),
         );
-        let display = map.to_string();
+        let display = results.to_string();
         assert!(display.contains("a:1"));
         assert!(display.contains("not found"));
         assert!(display.contains("b:2"));
@@ -380,16 +367,16 @@ mod tests {
     }
 
     #[test]
-    fn pull_result_map_failures_skips_successes() {
-        let mut map = PullResultMap::default();
-        map.insert(
+    fn pull_results_failures_skips_successes() {
+        let mut results = PullResults::default();
+        results.push(
             ContainerSource::Docker("a:1".to_string()),
             Err(anyhow::anyhow!("not found")),
         );
-        map.insert(
+        results.push(
             ContainerSource::Docker("b:2".to_string()),
             Ok("resolved".to_string()),
         );
-        assert_eq!(map.failures().count(), 1);
+        assert_eq!(results.failures().count(), 1);
     }
 }

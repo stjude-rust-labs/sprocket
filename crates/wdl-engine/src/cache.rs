@@ -31,6 +31,7 @@ use crate::cache::hash::hash_sequence;
 use crate::cache::lock::LockedFile;
 use crate::config::ContentDigestMode;
 use crate::http::Transferer;
+use crate::v1::requirements::ContainerSource;
 
 /// The current cache entry version.
 ///
@@ -157,8 +158,8 @@ pub struct CallCacheEntry {
     version: u32,
     /// The digest of the command's evaluated task.
     command: ArrayString<64>,
-    /// The container used by the task.
-    container: String,
+    /// The container candidates for the task.
+    container: Vec<String>,
     /// The shell used by the task.
     shell: String,
     /// The requirement digests of the task.
@@ -195,8 +196,8 @@ pub struct Key {
     key: ArrayString<64>,
     /// The digest of the command's evaluated task.
     command: ArrayString<64>,
-    /// The container used by the task.
-    container: String,
+    /// The container candidates for the task.
+    container: Vec<String>,
     /// The shell used by the task.
     shell: String,
     /// The requirement digests of the task.
@@ -319,10 +320,10 @@ pub struct KeyRequest<'a> {
     ///
     /// This field contributes to the digests stored in a cache entry.
     pub command: &'a str,
-    /// The container used by the task.
+    /// The container candidates for the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
-    pub container: &'a str,
+    pub container: &'a [ContainerSource],
     /// The shell used by the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
@@ -449,10 +450,12 @@ impl CallCache {
         );
         let key = hasher.finalize().to_hex();
 
+        let container: Vec<String> = request.container.iter().map(|c| format!("{c:#}")).collect();
+
         Ok(Key {
             key,
             command: command_digest,
-            container: request.container.into(),
+            container,
             shell: request.shell.into(),
             requirements: requirement_digests,
             hints: hint_digests,
@@ -507,11 +510,7 @@ impl CallCache {
             )
             .await?;
 
-        let container = if entry.container.is_empty() {
-            None
-        } else {
-            Some(entry.container.parse().unwrap())
-        };
+        let container = entry.container.first().map(|s| s.parse().unwrap());
 
         Ok(Some(TaskExecutionResult {
             container,
@@ -613,6 +612,7 @@ mod test {
         inputs: BTreeMap<String, Value>,
         requirements: HashMap<String, Value>,
         hints: HashMap<String, Value>,
+        container: Vec<ContainerSource>,
         backend_inputs: [Input; 1],
     }
 
@@ -638,6 +638,7 @@ mod test {
                     "foo".into(),
                     PrimitiveValue::new_string("bar").into(),
                 )]),
+                container: vec![ContainerSource::Docker("ubuntu:latest".to_string())],
                 backend_inputs: [Input::new(
                     ContentKind::File,
                     EvaluationPath::from_local_path(input),
@@ -655,7 +656,7 @@ mod test {
                 task_name: "test",
                 inputs: &self.inputs,
                 command: "cat /mnt/task/0/input",
-                container: "ubuntu:latest",
+                container: &self.container,
                 shell: "bash",
                 requirements: &self.requirements,
                 hints: &self.hints,
@@ -821,10 +822,11 @@ mod test {
         let request = ctx.task.key_request();
 
         // Check for modified container
+        let modified_container = vec![ContainerSource::Docker("modified!".to_string())];
         let key = ctx
             .cache
             .key(KeyRequest {
-                container: "modified!",
+                container: &modified_container,
                 ..request
             })
             .await

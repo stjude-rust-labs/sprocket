@@ -764,12 +764,7 @@ impl Evaluator {
                         command: &command,
                         requirements: &requirements,
                         hints: &hints,
-                        container: &constraints
-                            .container
-                            .as_ref()
-                            .and_then(|c| c.first())
-                            .map(|c| format!("{c:#}"))
-                            .unwrap_or_default(),
+                        container: constraints.container.as_deref().unwrap_or_default(),
                         shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
