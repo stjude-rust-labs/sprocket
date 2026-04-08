@@ -764,11 +764,7 @@ impl Evaluator {
                         command: &command,
                         requirements: &requirements,
                         hints: &hints,
-                        container: &constraints
-                            .container
-                            .as_ref()
-                            .map(|c| format!("{c:#}"))
-                            .unwrap_or_default(),
+                        container: constraints.container.as_deref().unwrap_or_default(),
                         shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
@@ -927,6 +923,9 @@ impl Evaluator {
                         task = state.task.name()
                     )
                 })?);
+                if let Some(container) = &result.container {
+                    task.set_container(container.to_string());
+                }
                 task.set_return_code(result.exit_code);
             }
 

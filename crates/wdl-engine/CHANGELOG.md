@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Support for container image fallback lists in task `container` requirements;
+  when an array of images is specified, each candidate is tried in order until
+  one pulls successfully ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+* The container image that was actually used during execution is now tracked in
+  `TaskExecutionResult` and stored in `TaskPostEvaluationData`
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+
 ## 0.13.1 - 2026-04-02
 
 #### Fixed
