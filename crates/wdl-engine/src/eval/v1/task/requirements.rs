@@ -175,7 +175,9 @@ pub(crate) fn container(
             .as_slice()
             .iter()
             .map(|v| {
-                let s = v.as_string().expect("type should be string");
+                // SAFETY: the WDL type checker guarantees that elements of
+                // a `container` array are `String`.
+                let s = v.as_string().expect("container array element should be a `String`");
                 let s = s.as_ref();
                 // SAFETY: `FromStr` for `ContainerSource` is infallible.
                 if s == WILDCARD_CONTAINER { default } else { s }
@@ -184,9 +186,12 @@ pub(crate) fn container(
             })
             .collect()
     } else {
+        // SAFETY: the WDL type checker guarantees that `container` is
+        // either `String` or `Array[String]`. Since we've ruled out the
+        // array case above, the value must be coercible to `String`.
         let s: Cow<'_, str> = value
             .coerce(None, &PrimitiveType::String.into())
-            .expect("type should coerce")
+            .expect("container value should be coercible to `String`")
             .unwrap_string()
             .as_ref()
             .clone()
