@@ -183,3 +183,69 @@ async fn should_rename_enum_variant() {
 
     assert_eq!(edits.len(), 2); // variant definition + one usage
 }
+
+#[tokio::test]
+async fn should_rename_imported_type_alias() {
+    let mut ctx = TestContext::new("rename");
+    ctx.initialize().await;
+
+    let edit = rename_request(&mut ctx, "aliases.wdl", Position::new(2, 39), "Patient")
+        .await
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    assert_eq!(changes.len(), 1);
+
+    let edits = changes
+        .get(&ctx.doc_uri("aliases.wdl"))
+        .expect("should have edits for aliases.wdl");
+
+    let expected_edits = vec![
+        TextEdit {
+            range: Range::new(Position::new(2, 37), Position::new(2, 42)),
+            new_text: "Patient".to_string(),
+        },
+        TextEdit {
+            range: Range::new(Position::new(7, 8), Position::new(7, 13)),
+            new_text: "Patient".to_string(),
+        },
+    ];
+
+    assert_eq!(edits.len(), expected_edits.len());
+    for edit in &expected_edits {
+        assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
+    }
+}
+
+#[tokio::test]
+async fn should_rename_call_alias() {
+    let mut ctx = TestContext::new("rename");
+    ctx.initialize().await;
+
+    let edit = rename_request(&mut ctx, "aliases.wdl", Position::new(10, 26), "job")
+        .await
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    assert_eq!(changes.len(), 1);
+
+    let edits = changes
+        .get(&ctx.doc_uri("aliases.wdl"))
+        .expect("should have edits for aliases.wdl");
+
+    let expected_edits = vec![
+        TextEdit {
+            range: Range::new(Position::new(10, 24), Position::new(10, 30)),
+            new_text: "job".to_string(),
+        },
+        TextEdit {
+            range: Range::new(Position::new(13, 24), Position::new(13, 30)),
+            new_text: "job".to_string(),
+        },
+    ];
+
+    assert_eq!(edits.len(), expected_edits.len());
+    for edit in &expected_edits {
+        assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
+    }
+}
