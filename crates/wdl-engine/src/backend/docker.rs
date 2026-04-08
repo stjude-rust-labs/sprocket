@@ -386,6 +386,36 @@ async fn pull_first_available_docker_image(
     let mut results = PullResultMap::default();
 
     for candidate in candidates {
+        match candidate {
+            ContainerSource::Docker(_) => {}
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support `{candidate:#}`; use a Docker registry \
+                     image instead"
+                );
+                warn!("{err:#}");
+                results.insert(candidate.clone(), Err(err));
+                continue;
+            }
+            ContainerSource::SifFile(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support local SIF file `{candidate:#}`; use a \
+                     Docker registry image instead"
+                );
+                warn!("{err:#}");
+                results.insert(candidate.clone(), Err(err));
+                continue;
+            }
+            ContainerSource::Unknown(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support unknown container source `{candidate:#}`"
+                );
+                warn!("{err:#}");
+                results.insert(candidate.clone(), Err(err));
+                continue;
+            }
+        }
+
         debug!("attempting to pull container image `{candidate:#}`");
         match docker
             .ensure_image(&candidate.to_string(), token.clone())
@@ -501,28 +531,6 @@ impl TaskExecutionBackend for DockerBackend {
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
         let containers = requirements::container(inputs, requirements, &self.config.task.container);
-        for container in &containers {
-            match container {
-                ContainerSource::Docker(_) => {}
-                ContainerSource::Library(_) | ContainerSource::Oras(_) => {
-                    bail!(
-                        "Docker backend does not support `{container:#}`; use a Docker registry \
-                         image instead"
-                    )
-                }
-                ContainerSource::SifFile(_) => {
-                    bail!(
-                        "Docker backend does not support local SIF file `{container:#}`; use a \
-                         Docker registry image instead"
-                    )
-                }
-                ContainerSource::Unknown(_) => {
-                    bail!(
-                        "Docker backend does not support unknown container source `{container:#}`"
-                    )
-                }
-            }
-        }
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
