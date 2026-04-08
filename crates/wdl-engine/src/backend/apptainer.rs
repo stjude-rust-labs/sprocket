@@ -24,11 +24,12 @@ use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
-use tracing::info;
+use tracing::debug;
 use tracing::warn;
 
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
+use crate::backend::PullResultMap;
 use crate::config::ApptainerConfig;
 use crate::v1::requirements::ContainerSource;
 
@@ -100,7 +101,7 @@ impl ApptainerRuntime {
         request: &ExecuteTaskRequest<'_>,
         token: CancellationToken,
     ) -> Result<Option<(String, ContainerSource)>> {
-        let (path, container) = match self
+        let results = match self
             .pull_first_available_image(
                 &config.executable,
                 request
@@ -110,11 +111,17 @@ impl ApptainerRuntime {
                     .ok_or_else(|| anyhow!("task does not use a container"))?,
                 token,
             )
-            .await?
+            .await
         {
-            Some(result) => result,
+            Some(results) => results,
             None => return Ok(None),
         };
+
+        let (container, path) = results
+            .successful_container()
+            .ok_or_else(|| anyhow!("{results}"))?;
+        let container = container.clone();
+        let path = path.clone();
 
         Ok(Some((
             self.generate_apptainer_script(config, shell, &path, request)
@@ -302,7 +309,7 @@ impl ApptainerRuntime {
             path.add_extension("sif");
 
             if path.exists() {
-                info!(path = %path.display(), "Apptainer image `{container:#}` already cached; using existing image");
+                debug!(path = %path.display(), "Apptainer image `{container:#}` already cached; using existing image");
                 return Ok(path);
             }
 
@@ -338,7 +345,7 @@ impl ApptainerRuntime {
             .await
             .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
 
-            info!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
+            debug!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
             Ok(path)
         });
 
@@ -351,33 +358,34 @@ impl ApptainerRuntime {
     /// Attempts to pull the first available image from a list of candidates.
     ///
     /// Iterates through the candidates in order, returning the path of the
-    /// first image that pulls successfully. If all candidates fail, returns
-    /// an error that includes the failure for each candidate.
+    /// first image that pulls successfully. Returns a [`PullResultMap`]
+    /// containing the outcome of each attempt, stopping after the first
+    /// success. Returns `None` if a pull was cancelled.
     pub(crate) async fn pull_first_available_image(
         &self,
         executable: &str,
         candidates: &[ContainerSource],
         token: CancellationToken,
-    ) -> Result<Option<(PathBuf, ContainerSource)>> {
-        let mut errors = Vec::new();
+    ) -> Option<PullResultMap<PathBuf>> {
+        let mut results = PullResultMap::default();
 
         for candidate in candidates {
+            debug!("attempting to pull container image `{candidate:#}`");
             match self.pull_image(executable, candidate, token.clone()).await {
-                Ok(Some(path)) => return Ok(Some((path, candidate.clone()))),
-                Ok(None) => return Ok(None),
+                Ok(Some(path)) => {
+                    debug!("successfully pulled container image `{candidate:#}`");
+                    results.insert(candidate.clone(), Ok(path));
+                    return Some(results);
+                }
+                Ok(None) => return None,
                 Err(e) => {
                     warn!("failed to pull container image `{candidate:#}`: {e:#}");
-                    errors.push((candidate.clone(), e));
+                    results.insert(candidate.clone(), Err(e));
                 }
             }
         }
 
-        let mut message = String::from("all container image candidates failed to pull:");
-        for (candidate, error) in &errors {
-            message.push_str(&format!("\n  - `{candidate:#}`: {error:#}"));
-        }
-
-        bail!("{message}")
+        Some(results)
     }
 
     /// Tries to pull an image.
@@ -397,7 +405,7 @@ impl ApptainerRuntime {
         image: &str,
         path: &Path,
     ) -> Result<(), RetryError<anyhow::Error>> {
-        info!("spawning `{executable}` to pull image `{image}`");
+        debug!("spawning `{executable}` to pull image `{image}`");
 
         let child = Command::new(executable)
             .stdin(Stdio::null())

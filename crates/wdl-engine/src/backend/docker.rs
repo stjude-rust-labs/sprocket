@@ -25,11 +25,13 @@ use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use url::Url;
 
+use super::PullResultMap;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
@@ -373,38 +375,38 @@ impl CleanupTask {
 /// candidates.
 ///
 /// Iterates through the candidates in order, using the bollard API (via
-/// crankshaft) to ensure each image exists locally. Returns the first
-/// image that is available or pulls successfully. If all fail, returns an
-/// error listing all failures.
+/// crankshaft) to ensure each image exists locally. Returns a
+/// [`PullResultMap`] containing the outcome of each attempt, stopping
+/// after the first success.
 async fn pull_first_available_docker_image(
     docker: &crankshaft::docker::Docker,
     candidates: &[ContainerSource],
-) -> Result<ContainerSource> {
-    let mut errors = Vec::new();
+    token: CancellationToken,
+) -> Option<PullResultMap<ContainerSource>> {
+    let mut results = PullResultMap::default();
 
     for candidate in candidates {
-        let image_str = candidate.to_string();
-        info!("attempting to pull Docker image `{image_str}`");
-
-        match docker.ensure_image(&image_str).await {
-            Ok(()) => {
-                info!("successfully pulled Docker image `{image_str}`");
-                return Ok(candidate.clone());
+        debug!("attempting to pull container image `{candidate:#}`");
+        match docker
+            .ensure_image(&candidate.to_string(), token.clone())
+            .await
+        {
+            Ok(Some(())) => {
+                debug!("successfully pulled container image `{candidate:#}`");
+                results.insert(candidate.clone(), Ok(candidate.clone()));
+                return Some(results);
             }
+            Ok(None) => return None,
             Err(e) => {
-                let err = anyhow::anyhow!(e).context(format!("failed to pull image `{image_str}`"));
-                warn!("failed to pull Docker image `{image_str}`: {err:#}");
-                errors.push((candidate.clone(), err));
+                let err =
+                    anyhow::anyhow!(e).context(format!("failed to pull image `{candidate:#}`"));
+                warn!("failed to pull container image `{candidate:#}`: {err:#}");
+                results.insert(candidate.clone(), Err(err));
             }
         }
     }
 
-    let mut message = String::from("all Docker image candidates failed to pull:");
-    for (candidate, error) in &errors {
-        message.push_str(&format!("\n  - `{candidate:#}`: {error:#}"));
-    }
-
-    bail!("{message}")
+    Some(results)
 }
 
 /// Represents the Docker backend.
@@ -621,15 +623,25 @@ impl TaskExecutionBackend for DockerBackend {
                 .map(|i| (i as u64).min(self.max_memory));
             let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
-            let container = pull_first_available_docker_image(
+            let results = match pull_first_available_docker_image(
                 self.inner.client(),
                 request
                     .constraints
                     .container
                     .as_ref()
                     .context("task does not use a container")?,
+                self.cancellation.second(),
             )
-            .await?;
+            .await
+            {
+                Some(results) => results,
+                None => return Ok(None),
+            };
+
+            let (_, container) = results
+                .successful_container()
+                .ok_or_else(|| anyhow::anyhow!("{results}"))?;
+            let container = container.clone();
 
             let name = format!(
                 "{id}-{generated}",

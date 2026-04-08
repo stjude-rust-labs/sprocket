@@ -1046,7 +1046,6 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=d1ccadb#d1ccadba84bf1585f8d1d3056d5fb23ffae83193"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -1057,7 +1056,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=d1ccadb#d1ccadba84bf1585f8d1d3056d5fb23ffae83193"
 dependencies = [
  "base64",
  "bon",
@@ -1072,7 +1070,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=d1ccadb#d1ccadba84bf1585f8d1d3056d5fb23ffae83193"
 dependencies = [
  "anyhow",
  "bollard",
@@ -1084,13 +1081,13 @@ dependencies = [
  "tokio",
  "tokio-retry2 0.7.0",
  "tokio-stream",
+ "tokio-util",
  "tracing",
 ]
 
 [[package]]
 name = "crankshaft-engine"
 version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=d1ccadb#d1ccadba84bf1585f8d1d3056d5fb23ffae83193"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1122,7 +1119,6 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=d1ccadb#d1ccadba84bf1585f8d1d3056d5fb23ffae83193"
 dependencies = [
  "bytes",
  "nonempty",

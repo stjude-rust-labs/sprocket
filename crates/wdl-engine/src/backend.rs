@@ -1,6 +1,9 @@
 //! Implementation of task execution backends.
 
 use std::collections::HashMap;
+use std::fmt;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -113,6 +116,66 @@ impl Input {
     /// This is used during localization to set a local path for remote inputs.
     pub fn set_location(&mut self, location: Location) {
         self.location = Some(location);
+    }
+}
+
+/// The result of attempting to pull a single container image.
+pub type PullResult<T> = std::result::Result<T, anyhow::Error>;
+
+/// An ordered map of container pull attempts.
+///
+/// Entries appear in the order they were attempted. The map stops after the
+/// first success, so candidates after a successful pull do not appear.
+pub struct PullResultMap<T>(IndexMap<ContainerSource, PullResult<T>>);
+
+impl<T> Default for PullResultMap<T> {
+    fn default() -> Self {
+        Self(IndexMap::new())
+    }
+}
+
+impl<T> PullResultMap<T> {
+    /// Returns the first successful container and its associated value, if any.
+    pub fn successful_container(&self) -> Option<(&ContainerSource, &T)> {
+        self.0
+            .iter()
+            .find_map(|(source, result)| result.as_ref().ok().map(|value| (source, value)))
+    }
+
+    /// Returns `true` if every attempt failed (or the map is empty).
+    pub fn all_failed(&self) -> bool {
+        self.0.values().all(|r| r.is_err())
+    }
+
+    /// Iterates over the failed pull attempts.
+    pub fn failures(&self) -> impl Iterator<Item = (&ContainerSource, &anyhow::Error)> {
+        self.0
+            .iter()
+            .filter_map(|(source, result)| result.as_ref().err().map(|e| (source, e)))
+    }
+}
+
+impl<T> Deref for PullResultMap<T> {
+    type Target = IndexMap<ContainerSource, PullResult<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for PullResultMap<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T> fmt::Display for PullResultMap<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "all container image candidates failed to pull:")?;
+        for (source, error) in self.failures() {
+            write!(f, "\n  - `{source:#}`: {error:#}")?;
+        }
+        Ok(())
     }
 }
 
@@ -264,4 +327,82 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
         transferer: &'a Arc<dyn Transferer>,
         request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_pull_result_map_has_no_successful_container() {
+        let map: PullResultMap<String> = PullResultMap::default();
+        assert!(map.successful_container().is_none());
+    }
+
+    #[test]
+    fn empty_pull_result_map_reports_all_failed() {
+        let map: PullResultMap<String> = PullResultMap::default();
+        assert!(map.all_failed());
+    }
+
+    #[test]
+    fn pull_result_map_with_success() {
+        let mut map = PullResultMap::default();
+        let source = ContainerSource::Docker("foo:latest".to_string());
+        map.insert(source.clone(), Ok("resolved".to_string()));
+        assert_eq!(
+            map.successful_container()
+                .map(|(s, v)| (s.clone(), v.clone())),
+            Some((source, "resolved".to_string()))
+        );
+        assert!(!map.all_failed());
+    }
+
+    #[test]
+    fn pull_result_map_with_all_failures() {
+        let mut map: PullResultMap<String> = PullResultMap::default();
+        map.insert(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        map.insert(
+            ContainerSource::Docker("b:2".to_string()),
+            Err(anyhow::anyhow!("timeout")),
+        );
+        assert!(map.successful_container().is_none());
+        assert!(map.all_failed());
+        assert_eq!(map.failures().count(), 2);
+    }
+
+    #[test]
+    fn pull_result_map_display_lists_failures() {
+        let mut map: PullResultMap<String> = PullResultMap::default();
+        map.insert(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        map.insert(
+            ContainerSource::Docker("b:2".to_string()),
+            Err(anyhow::anyhow!("timeout")),
+        );
+        let display = map.to_string();
+        assert!(display.contains("a:1"));
+        assert!(display.contains("not found"));
+        assert!(display.contains("b:2"));
+        assert!(display.contains("timeout"));
+    }
+
+    #[test]
+    fn pull_result_map_failures_skips_successes() {
+        let mut map = PullResultMap::default();
+        map.insert(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        map.insert(
+            ContainerSource::Docker("b:2".to_string()),
+            Ok("resolved".to_string()),
+        );
+        assert_eq!(map.failures().count(), 1);
+    }
 }
