@@ -142,11 +142,6 @@ impl<T> PullResultMap<T> {
             .find_map(|(source, result)| result.as_ref().ok().map(|value| (source, value)))
     }
 
-    /// Returns `true` if every attempt failed (or the map is empty).
-    pub fn all_failed(&self) -> bool {
-        self.0.values().all(|r| r.is_err())
-    }
-
     /// Iterates over the failed pull attempts.
     pub fn failures(&self) -> impl Iterator<Item = (&ContainerSource, &anyhow::Error)> {
         self.0
@@ -340,12 +335,6 @@ mod tests {
     }
 
     #[test]
-    fn empty_pull_result_map_reports_all_failed() {
-        let map: PullResultMap<String> = PullResultMap::default();
-        assert!(map.all_failed());
-    }
-
-    #[test]
     fn pull_result_map_with_success() {
         let mut map = PullResultMap::default();
         let source = ContainerSource::Docker("foo:latest".to_string());
@@ -355,7 +344,6 @@ mod tests {
                 .map(|(s, v)| (s.clone(), v.clone())),
             Some((source, "resolved".to_string()))
         );
-        assert!(!map.all_failed());
     }
 
     #[test]
@@ -370,7 +358,6 @@ mod tests {
             Err(anyhow::anyhow!("timeout")),
         );
         assert!(map.successful_container().is_none());
-        assert!(map.all_failed());
         assert_eq!(map.failures().count(), 2);
     }
 
