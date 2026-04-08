@@ -3374,6 +3374,10 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
+                // NOTE: initialized as `None` because the actual container
+                // used is not known until after execution completes. It is
+                // set via `set_container()` once the backend resolves which
+                // candidate image was pulled.
                 container: None,
                 cpu: constraints.cpu,
                 memory: constraints

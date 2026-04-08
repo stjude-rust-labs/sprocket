@@ -69,7 +69,6 @@ use crate::config::LsfApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
 use crate::v1::requirements;
-use crate::v1::requirements::ContainerSource;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -823,14 +822,6 @@ impl TaskExecutionBackend for LsfApptainerBackend {
         }
 
         let containers = requirements::container(inputs, requirements, &self.config.task.container);
-        for container in &containers {
-            if let ContainerSource::Unknown(_) = container {
-                bail!(
-                    "LSF Apptainer backend does not support unknown container source \
-                     `{container:#}`"
-                )
-            }
-        }
 
         Ok(TaskExecutionConstraints {
             container: Some(containers),

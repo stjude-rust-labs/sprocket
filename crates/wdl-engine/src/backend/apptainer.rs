@@ -87,6 +87,9 @@ impl ApptainerRuntime {
 
     /// Generates the script to run the given task using the Apptainer runtime.
     ///
+    /// Returns the generated script along with the [`ContainerSource`] that
+    /// was actually pulled and selected for execution.
+    ///
     /// # Shared filesystem assumptions
     ///
     /// The returned script should be run in an environment that shares a
