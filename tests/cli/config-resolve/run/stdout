@@ -127,8 +127,8 @@ excluded_cache_inputs = []
 [server.engine.storage.google]
 
 [test]
-parallelism = 25
-throttle = 150
+parallelism = 50
+throttle = 100
 
 [doc]
 index_page = "none"
