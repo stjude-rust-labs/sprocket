@@ -449,7 +449,11 @@ pub struct TestConfig {
     ///
     /// The default is `50`.
     pub parallelism: usize,
-    /// Delay between submitting test executions, in milliseconds.
+    /// Delay between submitting initial test executions, in milliseconds.
+    ///
+    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// ignored and new tests are submitted eagerly as prior tests complete and
+    /// free permits.
     pub throttle: u64,
     /// Directory containing test fixture files.
     ///
@@ -466,8 +470,8 @@ pub struct TestConfig {
 impl Default for TestConfig {
     fn default() -> Self {
         Self {
-            parallelism: 25,
-            throttle: 150,
+            parallelism: 50,
+            throttle: 100,
             fixtures_dir: None,
             run_dir: None,
         }
