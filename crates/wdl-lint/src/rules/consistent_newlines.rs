@@ -2,6 +2,7 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
@@ -57,7 +58,7 @@ impl Rule for ConsistentNewlinesRule {
          your project."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
+    fn examples(&self) -> &'static [Example] {
         &[]
     }
 

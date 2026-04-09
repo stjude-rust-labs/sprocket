@@ -2,6 +2,8 @@
 //! `wdl-doc`.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -54,23 +56,22 @@ impl Rule for DescriptionLengthRule {
          entries are never clipped and may be a better place for long form text."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
     meta {
         description: "This is an example workflow. It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
     }
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
     meta {
@@ -78,11 +79,10 @@ workflow example {
         # The `help` key can be used for extended descriptions
         help: "It is very important for documentation purposes, as it conveys a real workflow document without having to provide any implementation."
     }
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

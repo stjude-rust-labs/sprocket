@@ -1,6 +1,8 @@
 //! A lint rule that disallows redundant output names.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
@@ -71,41 +73,45 @@ Additionally, names with only 2 characters can lead to confusion and obfuscates 
 content of an output. Output names should be at least 3 characters long."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task generate_greeting {
     input {
         String name
     }
 
-    command <<<>>>
+    command <<<
+    >>>
 
     output {
         String output_greeting = "Hello, ~{name}!"
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task generate_greeting {
     input {
         String name
     }
 
-    command <<<>>>
+    command <<<
+    >>>
 
     output {
         String greeting = "Hello, ~{name}!"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

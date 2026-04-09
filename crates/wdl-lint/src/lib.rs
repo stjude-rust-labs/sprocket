@@ -25,7 +25,9 @@
 
 use std::sync::LazyLock;
 
+use dyn_clone::DynClone;
 use strum::VariantArray;
+use wdl_analysis::Example;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
@@ -70,7 +72,7 @@ pub static ALL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
 });
 
 /// A trait implemented by lint rules.
-pub trait Rule: Visitor {
+pub trait Rule: Visitor + DynClone {
     /// The unique identifier for the lint rule.
     ///
     /// The identifier is required to be pascal case.
@@ -86,7 +88,7 @@ pub trait Rule: Visitor {
     fn explanation(&self) -> &'static str;
 
     /// Get a list of examples that would trigger this lint rule.
-    fn examples(&self) -> &'static [&'static str];
+    fn examples(&self) -> &'static [Example];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;
@@ -109,9 +111,11 @@ pub trait Rule: Visitor {
     fn related_rules(&self) -> &'static [&'static str];
 }
 
+dyn_clone::clone_trait_object!(Rule);
+
 /// Gets all of the lint rules.
-pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
-    let rules: Vec<Box<dyn Rule>> = vec![
+pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
+    let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
         Box::new(rules::SnakeCaseRule::new(config)),

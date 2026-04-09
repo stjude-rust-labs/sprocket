@@ -6544,6 +6544,7 @@ dependencies = [
  "anyhow",
  "codespan-reporting",
  "convert_case 0.11.0",
+ "dyn-clone",
  "ftree",
  "indexmap 2.13.0",
  "libtest-mimic",
