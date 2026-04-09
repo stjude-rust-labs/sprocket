@@ -3,3 +3,6 @@ backend = "first"
 
 [run.backends.first]
 type = "docker"
+
+[format]
+indent = "tabs"

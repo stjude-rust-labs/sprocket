@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.3 - 2026-04-02
+
 ## 0.22.2 - 2026-03-12
 
 ## 0.22.1 - 2026-02-12
@@ -99,7 +101,7 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 #### Changed
 
-* Changed the behaviour of `cli` to accept case insensitive `--except` args ([#423](https://github.com/stjude-rust-labs/wdl/pull/423)).
+* Changed the behavior of `cli` to accept case insensitive `--except` args ([#423](https://github.com/stjude-rust-labs/wdl/pull/423)).
 * Removed the `wdl` binary and the `cli` module in favor of `sprocket` and the `wdl-cli` package respectively ([#430](https://github.com/stjude-rust-labs/wdl/pull/430)).
 
 ## 0.12.0 - 04-01-2025

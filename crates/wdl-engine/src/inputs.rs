@@ -54,7 +54,7 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
 
     let ty = value.ty();
     if !ty.is_coercible_to(&expected_ty) {
-        bail!("expected type `{expected_ty}` for input `{name}`, but found `{ty}`");
+        bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
     }
 
     Ok(())
@@ -188,7 +188,7 @@ impl TaskInputs {
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
                 if !expected.iter().any(|target| ty.is_coercible_to(target)) {
                     bail!(
-                        "expected {expected} for requirement `{name}`, but found type `{ty}`",
+                        "expected {expected:#} for requirement `{name}`, but found {ty:#}",
                         expected = display_types(expected),
                     );
                 }
@@ -206,7 +206,7 @@ impl TaskInputs {
                 && !expected.iter().any(|target| ty.is_coercible_to(target))
             {
                 bail!(
-                    "expected {expected} for hint `{name}`, but found type `{ty}`",
+                    "expected {expected:#} for hint `{name}`, but found {ty:#}",
                     expected = display_types(expected),
                 );
             }
@@ -275,7 +275,7 @@ impl TaskInputs {
                     }
 
                     bail!(
-                        "expected {expected} for {key} key `{remainder}`, but found type `{ty}`",
+                        "expected {expected:#} for {key} key `{remainder}`, but found {ty:#}",
                         expected = display_types(expected),
                         ty = value.ty()
                     );

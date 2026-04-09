@@ -71,6 +71,57 @@ impl Rule for ParameterDescriptionRule {
          containing a `description` key with a `String` value."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task greet {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}"
+    >>>
+
+    output {
+        String greeting = stdout()
+    }
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task greet {
+    meta {
+        outputs: {
+            greeting: "The generated greeting message."
+        }
+    }
+
+    parameter_meta {
+        name: "The name of the person to greet."
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}"
+    >>>
+
+    output {
+        String greeting = stdout()
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Documentation, Tag::Completeness])
     }
@@ -84,7 +135,7 @@ impl Rule for ParameterDescriptionRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["DescriptionLength", "MatchingOutputMeta", "MetaDescription"]
     }
 }

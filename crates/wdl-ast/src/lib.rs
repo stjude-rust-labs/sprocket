@@ -653,7 +653,7 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 }
 
 impl Comment {
-    /// Gets whether the comment starts with DIRECIVE_COMMENT_PREFIX.
+    /// Gets whether the comment starts with DIRECTIVE_COMMENT_PREFIX.
     pub fn is_directive(&self) -> bool {
         self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
     }

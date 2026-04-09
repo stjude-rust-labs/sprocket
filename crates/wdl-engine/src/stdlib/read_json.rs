@@ -190,8 +190,8 @@ mod test {
         assert_eq!(
             diagnostic.message(),
             "call to function `read_json` failed: failed to deserialize JSON file \
-             `bad_array.json`: a common element type does not exist between `Int` and `String` at \
-             line 1 column 11"
+             `bad_array.json`: a common element type does not exist between type `Int` and type \
+             `String` at line 1 column 11"
         );
     }
 

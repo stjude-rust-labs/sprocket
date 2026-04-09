@@ -55,14 +55,7 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 ///
 /// Returns an error if the server fails to start or bind to the address.
 pub async fn run(config: Config) -> anyhow::Result<()> {
-    let db_path = config.server.database.url.clone().unwrap_or_else(|| {
-        config
-            .server
-            .output_directory
-            .join(crate::config::DEFAULT_DATABASE_FILENAME)
-            .display()
-            .to_string()
-    });
+    let db_path = config.server.database_url();
 
     let db = open_database(&db_path).await?;
     let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
