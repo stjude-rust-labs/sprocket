@@ -385,15 +385,19 @@ impl ServerConfig {
 pub struct TestConfig {
     /// Number of test executions to run in parallel.
     pub parallelism: usize,
-    /// Delay between submitting test executions, in milliseconds.
+    /// Delay between submitting initial test executions, in milliseconds.
+    ///
+    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// ignored and new tests are submitted eagerly as prior tests complete and
+    /// free permits.
     pub throttle: u64,
 }
 
 impl Default for TestConfig {
     fn default() -> Self {
         Self {
-            parallelism: 25,
-            throttle: 150,
+            parallelism: 50,
+            throttle: 100,
         }
     }
 }
