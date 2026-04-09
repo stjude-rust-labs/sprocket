@@ -1,6 +1,8 @@
 //! A lint rule for flagging TODOs.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -48,18 +50,24 @@ impl Rule for TodoCommentRule {
          forgotten."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: Some("The following comment will be flagged"),
+                snippet: r#"version 1.2
 
-# The following comment will be flagged:
 # TODO: Implement this workflow
 workflow example {
-    meta {}
+    meta {
+    }
 
-    output {}
+    output {
+    }
 }
-```"#]
+"#,
+            },
+            revised: None,
+        }]
     }
 
     fn tags(&self) -> TagSet {

@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -78,13 +80,13 @@ impl Rule for ExceptDirectiveValidRule {
          directives to ensure they are in the correct location."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
 
     output {
         # MatchingOutputMeta exceptions aren't valid
@@ -93,22 +95,22 @@ workflow example {
         String name = "Jimmy"
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 #@ except: MatchingOutputMeta
 workflow example {
-    meta {}
 
     output {
         String name = "Jimmy"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

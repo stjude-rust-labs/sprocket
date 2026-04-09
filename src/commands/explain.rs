@@ -13,6 +13,7 @@ use colored::Colorize;
 use serde::Serialize;
 use serde_json::Value;
 use wdl::analysis;
+use wdl::analysis::Example;
 use wdl::lint;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::ALL_TAGS;
@@ -137,7 +138,7 @@ pub struct Rule {
     /// An extended description of the rule (possibly Markdown formatted).
     pub explanation: &'static str,
     /// Markdown-formatted examples that would trigger the rule.
-    pub examples: &'static [&'static str],
+    pub examples: &'static [Example],
     /// An optional URL associated with the rule.
     pub url: Option<&'static str>,
     /// A list of rule IDs related to this rule, if the crate supports them.

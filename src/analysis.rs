@@ -271,12 +271,17 @@ fn get_lint_visitor(
     exceptions: &HashSet<String>,
     lint_config: &wdl::lint::Config,
 ) -> Linter {
-    Linter::new(wdl::lint::rules(lint_config).into_iter().filter(|rule| {
-        is_rule_enabled(
-            enabled_lint_tags,
-            disabled_lint_tags,
-            exceptions,
-            rule.as_ref(),
-        )
-    }))
+    Linter::new(
+        wdl::lint::rules(lint_config)
+            .into_iter()
+            .filter_map(|rule| {
+                is_rule_enabled(
+                    enabled_lint_tags,
+                    disabled_lint_tags,
+                    exceptions,
+                    rule.as_ref(),
+                )
+                .then_some(rule as Box<dyn Rule>)
+            }),
+    )
 }
