@@ -72,13 +72,13 @@ error: struct member `foo` is not a struct
 129 │             baz.foo.wrong: hints {
     │                 ^^^
 
-error: type mismatch: expected type `hints`, but found type `String`
+error: type mismatch: expected built-in type `hints`, but found type `String`
     ┌─ tests/analysis/hints-section/source.wdl:132:18
     │
 132 │             foo: "wrong"
     │             ---  ^^^^^^^ this is type `String`
     │             │     
-    │             this expects type `hints`
+    │             this expects built-in type `hints`
 
 error: task `baz` does not have an output named `wrong`
     ┌─ tests/analysis/hints-section/source.wdl:135:13
@@ -98,11 +98,11 @@ error: struct member `foo` is not a struct
 141 │             corge.foo.wrong: hints {
     │                   ^^^
 
-error: type mismatch: expected type `hints`, but found type `String`
+error: type mismatch: expected built-in type `hints`, but found type `String`
     ┌─ tests/analysis/hints-section/source.wdl:144:18
     │
 144 │             qux: "wrong"
     │             ---  ^^^^^^^ this is type `String`
     │             │     
-    │             this expects type `hints`
+    │             this expects built-in type `hints`
 

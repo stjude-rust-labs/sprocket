@@ -236,7 +236,7 @@ fn warn_unknown_rules(exceptions: &HashSet<String>) {
     }
 }
 
-/// Gets the rules as a diagnositics configuration with the excepted rules
+/// Gets the rules as a diagnostics configuration with the excepted rules
 /// removed.
 fn get_diagnostics_config(exceptions: &HashSet<String>) -> DiagnosticsConfig {
     DiagnosticsConfig::new(wdl::analysis::rules().into_iter().filter(|rule| {
@@ -264,7 +264,7 @@ fn is_rule_enabled(
 ///
 /// `enabled_lint_tags` controls which rules are considered for being added to
 /// the visitor. `disabled_lint_tags` and `exceptions` act as filters on the set
-/// considerd by `enabled_lint_tags`.
+/// considered by `enabled_lint_tags`.
 fn get_lint_visitor(
     enabled_lint_tags: &TagSet,
     disabled_lint_tags: &TagSet,
