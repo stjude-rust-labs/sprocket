@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -22,6 +23,7 @@ use regex::Regex;
 use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::debug;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -378,6 +380,7 @@ struct Runner {
     engine_config: Arc<wdl::engine::Config>,
     log_handle: FilterReloadHandle,
     permits: usize,
+    throttle: u64,
 }
 
 impl Runner {
@@ -533,6 +536,7 @@ impl Runner {
                                 wdl_inputs,
                             )
                             .await;
+                            sleep(Duration::from_millis(self.throttle)).await;
                         } else {
                             let result = futures
                                 .join_next()
@@ -695,6 +699,7 @@ pub async fn test(
 ) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
+    let throttle = config.test.throttle;
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
@@ -801,6 +806,7 @@ pub async fn test(
         engine_config: config.run.engine.into(),
         log_handle: handle,
         permits: parallelism,
+        throttle,
     };
 
     let include_tags = HashSet::from_iter(args.include_tag.into_iter());
