@@ -253,10 +253,11 @@ fn collect_references_from_document(
 
 #[cfg(test)]
 mod tests {
-    use super::needs_transitive_importers;
     use wdl_ast::AstNode;
     use wdl_ast::Document;
     use wdl_ast::SyntaxKind;
+
+    use super::needs_transitive_importers;
 
     fn ident_token(source: &str, ident: &str) -> wdl_ast::SyntaxToken {
         let (document, diagnostics) = Document::parse(source);
