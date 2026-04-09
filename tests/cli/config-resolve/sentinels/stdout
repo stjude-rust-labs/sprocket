@@ -107,6 +107,7 @@ excluded_cache_inputs = []
 
 [test]
 parallelism = 50
+throttle = 100
 
 [doc]
 index_page = "none"
