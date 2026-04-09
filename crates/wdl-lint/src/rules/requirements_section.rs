@@ -2,6 +2,8 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -59,10 +61,11 @@ For tasks that _should_ contain a `requirements` section but a `runtime` section
          the `runtime` section is flagged as deprecated."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     input {
@@ -73,11 +76,11 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     input {
@@ -92,8 +95,9 @@ task say_hello {
         container: "ubuntu:latest"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

@@ -14,6 +14,7 @@ readme = "../README.md"
 [dependencies]
 anyhow = { workspace = true }
 convert_case = { workspace = true }
+dyn-clone = { workspace = true }
 ftree = { workspace = true }
 indexmap = { workspace = true }
 rand = { workspace = true }

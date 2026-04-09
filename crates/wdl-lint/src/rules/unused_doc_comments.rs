@@ -1,6 +1,8 @@
 //! A lint rule for misplaced doc comments that will not generate documentation.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -196,10 +198,11 @@ impl Rule for UnusedDocCommentsRule {
         - Enum Variants"
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
     # This isn't documenting anything!
@@ -214,11 +217,11 @@ workflow example {
         String greeting = "Hello, ~{name}!"
     }
 }
-```"#,
-            r#"Consider removing the comments or moving them to applicable items:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the comments or moving them to applicable items"),
+                snippet: r#"version 1.2
 
 workflow example {
     input {
@@ -231,8 +234,9 @@ workflow example {
         String greeting = "Hello, ~{name}!"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> crate::TagSet {

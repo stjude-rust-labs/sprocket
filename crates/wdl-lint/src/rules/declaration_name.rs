@@ -3,6 +3,8 @@
 use std::collections::HashSet;
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
@@ -35,7 +37,7 @@ fn decl_identifier_with_type(span: Span, decl_name: &str, type_name: &str) -> Di
 }
 
 /// A rule that identifies declaration names that include their type names.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclarationNameRule {
     /// Allowed names from the config.
     allowed_names: HashSet<String>,
@@ -66,37 +68,31 @@ impl Rule for DeclarationNameRule {
          struct types, which are not flagged by this rule."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task example {
-    meta {}
-
     input {
         Int total_count_int
     }
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task example {
-    meta {}
-
     input {
         Int total_count
     }
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

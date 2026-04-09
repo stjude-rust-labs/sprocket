@@ -40,11 +40,12 @@ clap_complete = "4.5.65"
 cloud-copy = { version = "0.7.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
-config = { version = "0.15.21", features = ["toml", "preserve_order"] }
+config = { version = "0.15.21", default-features = false, features = ["toml", "preserve_order"] }
 convert_case = "0.11.0"
 crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft", rev = "17c56c5", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
+dyn-clone = "1.0.20"
 faster-hex = "0.10.0"
 fs_extra = "1.3.0"
 ftree = "1.3.0"
@@ -228,6 +229,10 @@ workspace = true
 
 [[test]]
 name = "cli"
+harness = false
+
+[[test]]
+name = "lint_examples"
 harness = false
 
 [[bench]]
