@@ -13,6 +13,7 @@ readme = "../README.md"
 
 [dependencies]
 anyhow = { workspace = true }
+blake3 = { workspace = true }
 convert_case = { workspace = true }
 ftree = { workspace = true }
 indexmap = { workspace = true }
@@ -32,6 +33,7 @@ codespan-reporting = { workspace = true }
 libtest-mimic = { workspace = true }
 path-clean = { workspace = true }
 pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
 

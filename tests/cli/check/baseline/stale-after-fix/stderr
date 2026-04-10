@@ -1,0 +1,1 @@
+error: the baseline contains 3 stale entries for diagnostics that no longer exist; rerun with `--generate-baseline` to update it (if this is unexpected, make sure you run the command with the same arguments you used to generate the baseline)

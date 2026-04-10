@@ -1,0 +1,1 @@
+lint --generate-baseline --deny-notes source.wdl

@@ -1,0 +1,17 @@
+note[MetaSections]: workflow `test` is missing both `meta` and `parameter_meta` sections
+  ┌─ source.wdl:3:10
+  │
+3 │ workflow test {
+  │          ^^^^ this workflow is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
+
+note[InputName]: declaration identifier must be at least 3 characters
+  ┌─ source.wdl:5:13
+  │
+5 │         Int x
+  │             ^
+  │
+  = fix: rename the identifier to be at least 3 characters long
+
+error: the baseline contains 2 stale entries for diagnostics that no longer exist; rerun with `--generate-baseline` to update it (if this is unexpected, make sure you run the command with the same arguments you used to generate the baseline)

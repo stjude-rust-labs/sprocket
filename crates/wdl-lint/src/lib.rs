@@ -29,6 +29,7 @@ use strum::VariantArray;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
+pub mod baseline;
 mod config;
 pub(crate) mod fix;
 mod linter;
@@ -36,6 +37,8 @@ pub mod rules;
 mod tags;
 pub(crate) mod util;
 
+pub use baseline::Baseline;
+pub use baseline::BaselineEntry;
 pub use config::Config;
 #[doc(hidden)]
 pub use config::ConfigField;

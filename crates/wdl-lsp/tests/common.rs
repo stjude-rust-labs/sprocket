@@ -32,6 +32,7 @@ use tower_lsp::lsp_types::ClientCapabilities;
 use tower_lsp::lsp_types::InitializeParams;
 use tower_lsp::lsp_types::InitializedParams;
 use tower_lsp::lsp_types::WorkspaceDiagnosticParams;
+use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use tower_lsp::lsp_types::WorkspaceFolder;
 use tower_lsp::lsp_types::notification::Notification;
 use tower_lsp::lsp_types::request::Request;
@@ -75,29 +76,31 @@ pub struct TestContext {
 const MAX_BUF_SIZE: usize = 4096;
 
 impl TestContext {
-    /// Crates a new test context.
+    /// Creates a new test context.
     ///
     /// The `base` parameter is the name of a subdirectory in `tests/workspace`
     /// which contains the WDL files for the test. These files are copied
     /// into a temporary workspace directory.
     pub fn new(base: &str) -> Self {
+        Self::with_options(
+            base,
+            ServerOptions {
+                lint: LintOptions {
+                    enabled: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+    }
+
+    /// Creates a new test context with custom server options.
+    pub fn with_options(base: &str, options: ServerOptions) -> Self {
         let (request_tx, req_server) = duplex(MAX_BUF_SIZE);
         let (resp_server, response_rx) = duplex(MAX_BUF_SIZE);
         let response_rx = BufReader::new(response_rx);
 
-        let (service, socket) = LspService::new(|client| {
-            Server::<()>::new(
-                client,
-                ServerOptions {
-                    lint: LintOptions {
-                        enabled: true,
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-                None,
-            )
-        });
+        let (service, socket) = LspService::new(|client| Server::<()>::new(client, options, None));
         let server =
             tokio::spawn(tower_lsp::Server::new(req_server, resp_server, socket).serve(service));
 
@@ -236,8 +239,11 @@ impl TestContext {
         self.send(&notification).await;
     }
 
-    /// Performs the LSP initialization handshake.
-    pub async fn initialize(&mut self) -> lsp_types::InitializeResult {
+    /// Performs the LSP initialization handshake and returns the initial
+    /// workspace diagnostic report alongside the initialization result.
+    pub async fn initialize(
+        &mut self,
+    ) -> (lsp_types::InitializeResult, WorkspaceDiagnosticReportResult) {
         let workspace_url = Url::from_file_path(self.workspace.path()).unwrap();
         let capabilities = ClientCapabilities {
             text_document: Some(lsp_types::TextDocumentClientCapabilities {
@@ -290,14 +296,14 @@ impl TestContext {
         // After initialization, we immediately ask for a full workspace diagnostic.
         // This forces the server to do its initial analysis of all files found
         // in the workspace folders provided during `initialize`.
-        self.request::<WorkspaceDiagnosticRequest>(WorkspaceDiagnosticParams {
-            identifier: None,
-            previous_result_ids: Vec::new(),
-            partial_result_params: Default::default(),
-            work_done_progress_params: Default::default(),
-        })
-        .await;
-
-        result
+        let diagnostics = self
+            .request::<WorkspaceDiagnosticRequest>(WorkspaceDiagnosticParams {
+                identifier: None,
+                previous_result_ids: Vec::new(),
+                partial_result_params: Default::default(),
+                work_done_progress_params: Default::default(),
+            })
+            .await;
+        (result, diagnostics)
     }
 }
