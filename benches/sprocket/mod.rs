@@ -47,6 +47,8 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                         hide_notes: true,
                         hide_warnings: false,
                         report_mode: None,
+                        generate_baseline: false,
+                        no_baseline: false,
                     };
                     let check_args = sprocket::commands::check::CheckArgs { common, lint: true };
                     runtime
