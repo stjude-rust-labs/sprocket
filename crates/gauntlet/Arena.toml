@@ -512,6 +512,11 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `deseq2_example` is mi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
+message = "testrun.wdl:76:5: warning[NoInlineInstall]: inline installation of packages is discouraged"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L76"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:121:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L121"
@@ -1618,8 +1623,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:116:16: warning[NoInlineInstall]: inline installation of packages is discouraged"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L116"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:131:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L131"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:55:16: warning[NoInlineInstall]: inline installation of packages is discouraged"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L55"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"

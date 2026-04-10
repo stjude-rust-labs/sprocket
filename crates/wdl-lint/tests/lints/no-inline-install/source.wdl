@@ -45,7 +45,8 @@ task bad_install {
         set -euo pipefail
         pip install pysam
         python3 script.py "~{bam}"
-        apk add
+        npm -g install test
+        apk add test
     >>>
 
     output {
