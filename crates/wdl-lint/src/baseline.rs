@@ -53,6 +53,25 @@ impl BaselineEntry {
     }
 }
 
+/// Returns `true` if two paths refer to the same file.
+///
+/// Uses suffix matching so that a relative path like `tools/foo.wdl` matches
+/// an absolute path like `/home/user/project/tools/foo.wdl`. The shorter path
+/// must be a suffix of the longer path, aligned on a path separator boundary.
+fn paths_match(a: &str, b: &str) -> bool {
+    if a == b {
+        return true;
+    }
+
+    let (shorter, longer) = if a.len() <= b.len() { (a, b) } else { (b, a) };
+
+    longer.ends_with(shorter)
+        && longer
+            .as_bytes()
+            .get(longer.len() - shorter.len() - 1)
+            .is_some_and(|&c| c == b'/' || c == b'\\')
+}
+
 /// A diagnostic baseline loaded from a TOML file.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Baseline {
@@ -119,13 +138,18 @@ impl Baseline {
 
     /// Attempts to match a diagnostic against a baseline entry by rule, path,
     /// and the source text at the span. Returns `true` if a match was found.
+    ///
+    /// Path matching is suffix-based so that a baseline generated with
+    /// relative paths (e.g., `tools/foo.wdl`) still matches when the
+    /// document path is absolute (e.g., `/home/user/project/tools/foo.wdl`)
+    /// or vice versa.
     fn matches_entry(&mut self, rule: &str, path: &str, span_text: &str) -> bool {
         let hash = blake3::hash(span_text.trim().as_bytes());
         let hash_hex = hash.to_hex();
         for (i, entry) in self.diagnostic.iter().enumerate() {
             if !self.matched.contains(&i)
                 && entry.rule == rule
-                && entry.path == path
+                && paths_match(&entry.path, path)
                 && entry.source_hash == hash_hex.as_str()
             {
                 self.matched.insert(i);
@@ -281,5 +305,52 @@ mod tests {
         assert_eq!(baseline.diagnostic[0].path, "a.wdl");
         assert_eq!(baseline.diagnostic[0].rule, "RuleA");
         assert_eq!(baseline.diagnostic[2].path, "z.wdl");
+    }
+
+    #[test]
+    fn paths_match_exact() {
+        assert!(paths_match("tools/foo.wdl", "tools/foo.wdl"));
+    }
+
+    #[test]
+    fn paths_match_relative_to_absolute() {
+        assert!(paths_match(
+            "tools/foo.wdl",
+            "/home/user/project/tools/foo.wdl"
+        ));
+    }
+
+    #[test]
+    fn paths_match_absolute_to_relative() {
+        assert!(paths_match(
+            "/home/user/project/tools/foo.wdl",
+            "tools/foo.wdl"
+        ));
+    }
+
+    #[test]
+    fn paths_do_not_match_partial_filename() {
+        assert!(!paths_match("foo.wdl", "notfoo.wdl"));
+    }
+
+    #[test]
+    fn paths_do_not_match_different_files() {
+        assert!(!paths_match("tools/foo.wdl", "tools/bar.wdl"));
+    }
+
+    #[test]
+    fn matches_entry_with_absolute_path() {
+        let mut baseline = Baseline::new(vec![BaselineEntry::new(
+            "MissingRuntime",
+            "tasks/align.wdl",
+            "  runtime {}\n",
+            "missing runtime",
+        )]);
+
+        assert!(baseline.matches_entry(
+            "MissingRuntime",
+            "/home/user/project/tasks/align.wdl",
+            "  runtime {}\n"
+        ));
     }
 }
