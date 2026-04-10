@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* New lint rule `StructOverMap` to detect usage of `Map[String, ...]` types, encouraging the use of `struct`s when possible ([#850](https://github.com/stjude-rust-labs/sprocket/pull/850)).
+
 ## 0.24.0 - 2026-06-03
 
 ## 0.23.0 - 2026-05-14
