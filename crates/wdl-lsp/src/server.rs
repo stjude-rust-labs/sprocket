@@ -265,6 +265,10 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     #[patch(skip)]
     pub feature_flags: FeatureFlags,
+
+    /// The diagnostic baseline for suppressing known diagnostics.
+    #[patch(skip)]
+    pub baseline: Option<wdl_lint::Baseline>,
 }
 
 impl Default for ServerOptions {
@@ -277,6 +281,7 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            baseline: None,
         }
     }
 }
@@ -760,7 +765,9 @@ impl<S: 'static> LanguageServer for Server<S> {
                 data: None,
             })?;
 
-        proto::document_diagnostic_report(params, results, &self.info().await.name)
+        let mut config = self.config.write().await;
+        let name = self.info().await.name;
+        proto::document_diagnostic_report(params, results, &name, config.options.baseline.as_mut())
             .ok_or_else(RpcError::request_cancelled)
     }
 
@@ -768,7 +775,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         &self,
         params: WorkspaceDiagnosticParams,
     ) -> RpcResult<WorkspaceDiagnosticReportResult> {
-        let config = self.config.read().await;
+        let mut config = self.config.write().await;
 
         debug!("received `workspace/diagnostic` request: {params:#?}");
 
@@ -790,7 +797,12 @@ impl<S: 'static> LanguageServer for Server<S> {
             })?;
         progress.complete(&self.client, "analysis complete").await;
 
-        Ok(proto::workspace_diagnostic_report(params, results, &name))
+        Ok(proto::workspace_diagnostic_report(
+            params,
+            results,
+            &name,
+            config.options.baseline.as_mut(),
+        ))
     }
 
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {

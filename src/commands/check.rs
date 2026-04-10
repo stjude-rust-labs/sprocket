@@ -1,6 +1,7 @@
 //! Implementation of the `check` and `lint` subcommands.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::Context;
@@ -10,12 +11,16 @@ use clap::builder::PossibleValuesParser;
 use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::SimpleFiles;
 use strum::VariantArray;
+use tracing::debug;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::lint::ALL_TAG_NAMES;
+use wdl::lint::Baseline;
+use wdl::lint::BaselineEntry;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
+use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
@@ -131,6 +136,14 @@ pub struct Common {
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
+
+    /// Generate a baseline file from current diagnostics and exit.
+    #[arg(long)]
+    pub generate_baseline: bool,
+
+    /// Ignore the baseline file for this run.
+    #[arg(long)]
+    pub no_baseline: bool,
 }
 
 /// Arguments for the `check` subcommand.
@@ -212,6 +225,18 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         any_remote_sources || args.common.show_remote_diagnostics
     };
 
+    let baseline_path = config
+        .check
+        .baseline
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
+
+    let mut baseline = if args.common.no_baseline || args.common.generate_baseline {
+        None
+    } else {
+        Baseline::load(&baseline_path).context("failed to load diagnostic baseline")?
+    };
+
     report_unknown_rules(&except, report_mode, colorize)?;
 
     let provided_source_uris = sources
@@ -261,6 +286,79 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .await
         .map_err(CommandError::from)?;
 
+    // When generating a baseline, collect diagnostics that would cause failure
+    // given the current flags, write the file, and exit.
+    if args.common.generate_baseline {
+        let mut baseline_entries: Vec<BaselineEntry> = Vec::new();
+
+        for result in results.as_slice() {
+            match result.document().uri().scheme() {
+                "file" => {}
+                "http" | "https" => {
+                    if !show_remote_diagnostics {
+                        continue;
+                    }
+                }
+                _ => continue,
+            }
+
+            let path = result.document().path().to_string();
+            let source = result.document().root().text().to_string();
+            let uri = result.document().uri();
+
+            for d in result.document().diagnostics() {
+                match d.severity() {
+                    Severity::Error => {}
+                    Severity::Warning => {
+                        if args.common.suppress_imports && !provided_source_uris.contains(uri) {
+                            continue;
+                        }
+                        if !deny_warnings || hide_warnings {
+                            continue;
+                        }
+                    }
+                    Severity::Note => {
+                        if args.common.suppress_imports && !provided_source_uris.contains(uri) {
+                            continue;
+                        }
+                        if !deny_notes || hide_notes {
+                            continue;
+                        }
+                    }
+                }
+
+                if let Some(rule) = d.rule()
+                    && let Some(label) = d.labels().next()
+                {
+                    let span = label.span();
+                    let start = span.start();
+                    let end = span.end();
+                    if end <= source.len() {
+                        let source_slice = &source[start..end];
+                        baseline_entries.push(BaselineEntry::with_message(
+                            rule,
+                            &path,
+                            source_slice,
+                            d.message(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        let mut new_baseline = Baseline::new(baseline_entries);
+        new_baseline.sort();
+        new_baseline
+            .write(&baseline_path)
+            .context("failed to write baseline file")?;
+        eprintln!(
+            "generated baseline with {} diagnostic(s) at `{}`",
+            new_baseline.diagnostic.len(),
+            baseline_path.display()
+        );
+        return Ok(());
+    }
+
     let mut counts = DiagnosticCounts::default();
 
     for result in results {
@@ -276,54 +374,81 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
             v => todo!("unhandled uri scheme: {v}"),
         };
 
+        let path = result.document().path().to_string();
+        let source = result.document().root().text().to_string();
+
         let mut diagnostics = result.document().diagnostics().peekable();
 
         if diagnostics.peek().is_some() {
-            let path = result.document().path().to_string();
-            let source = result.document().root().text().to_string();
-
             emit_diagnostics(
                 &path,
-                source,
+                source.clone(),
                 diagnostics.filter(|d| {
-                    let severity = d.severity();
-
-                    match severity {
-                        Severity::Error => {
-                            counts.errors += 1;
-                            true
-                        }
+                    let would_fail = match d.severity() {
+                        Severity::Error => true,
                         Severity::Warning => {
                             if args.common.suppress_imports && !provided_source_uris.contains(uri) {
                                 return false;
                             }
-
-                            if !hide_warnings {
-                                counts.warnings += 1;
-                                true
-                            } else {
-                                false
+                            if hide_warnings {
+                                return false;
                             }
+                            deny_warnings
                         }
                         Severity::Note => {
                             if args.common.suppress_imports && !provided_source_uris.contains(uri) {
                                 return false;
                             }
-
-                            if !hide_notes {
-                                counts.notes += 1;
-                                true
-                            } else {
-                                false
+                            if hide_notes {
+                                return false;
                             }
+                            deny_notes
+                        }
+                    };
+
+                    if would_fail
+                        && let Some(baseline) = &mut baseline
+                        && baseline.suppresses(d, &path, &source)
+                    {
+                        return false;
+                    }
+
+                    if would_fail {
+                        match d.severity() {
+                            Severity::Error => counts.errors += 1,
+                            Severity::Warning => counts.warnings += 1,
+                            Severity::Note => counts.notes += 1,
                         }
                     }
+                    true
                 }),
                 &[],
                 report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
+        }
+    }
+
+    if let Some(baseline) = &baseline {
+        let stale = baseline.stale_entries();
+        for entry in &stale {
+            debug!(
+                rule = entry.rule,
+                path = entry.path,
+                message = entry.message,
+                "stale baseline entry"
+            );
+        }
+        if !stale.is_empty() {
+            return Err(anyhow!(
+                "the baseline contains {} stale entr{} for diagnostics that no longer exist; \
+                 rerun with `--generate-baseline` to update it (if this is unexpected, make sure \
+                 you run the command with the same arguments you used to generate the baseline)",
+                stale.len(),
+                if stale.len() == 1 { "y" } else { "ies" }
+            )
+            .into());
         }
     }
 

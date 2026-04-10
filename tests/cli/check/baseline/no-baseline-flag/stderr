@@ -1,0 +1,23 @@
+note[MetaSections]: workflow `test` is missing both `meta` and `parameter_meta` sections
+  ┌─ source.wdl:3:10
+  │
+3 │ workflow test {
+  │          ^^^^ this workflow is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
+
+note[InputName]: declaration identifier must be at least 3 characters
+  ┌─ source.wdl:5:13
+  │
+5 │         Int x
+  │             ^
+  │
+  = fix: rename the identifier to be at least 3 characters long
+
+warning[UnusedInput]: unused input `x`
+  ┌─ source.wdl:5:13
+  │
+5 │         Int x
+  │             ^
+
+error: failing due to 1 warning (`--deny-warnings` was specified)
