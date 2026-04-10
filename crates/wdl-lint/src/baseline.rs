@@ -96,32 +96,42 @@ impl Baseline {
     pub fn suppresses(
         &mut self,
         diagnostic: &wdl_ast::Diagnostic,
-        path: &str,
-        source: &str,
+        document: &wdl_analysis::Document,
     ) -> bool {
         if let Some(rule) = diagnostic.rule()
             && let Some(label) = diagnostic.labels().next()
         {
             let span = label.span();
-            let start = span.start();
-            let end = span.end();
-            if end <= source.len() {
-                let source_slice = &source[start..end];
-                let hash = blake3::hash(source_slice.trim().as_bytes());
-                let hash_hex = hash.to_hex();
-                for (i, entry) in self.diagnostic.iter().enumerate() {
-                    if !self.matched.contains(&i)
-                        && entry.rule == rule
-                        && entry.path == path
-                        && entry.source_hash == hash_hex.as_str()
-                    {
-                        self.matched.insert(i);
-                        return true;
-                    }
-                }
-            }
+            let root = document.root();
+            let syntax = wdl_ast::AstNode::inner(&root);
+            let span_text = syntax
+                .text()
+                .slice(rowan::TextRange::new(
+                    rowan::TextSize::from(span.start() as u32),
+                    rowan::TextSize::from(span.end() as u32),
+                ))
+                .to_string();
+            return self.matches_entry(rule, &document.path(), &span_text);
         }
 
+        false
+    }
+
+    /// Attempts to match a diagnostic against a baseline entry by rule, path,
+    /// and the source text at the span. Returns `true` if a match was found.
+    fn matches_entry(&mut self, rule: &str, path: &str, span_text: &str) -> bool {
+        let hash = blake3::hash(span_text.trim().as_bytes());
+        let hash_hex = hash.to_hex();
+        for (i, entry) in self.diagnostic.iter().enumerate() {
+            if !self.matched.contains(&i)
+                && entry.rule == rule
+                && entry.path == path
+                && entry.source_hash == hash_hex.as_str()
+            {
+                self.matched.insert(i);
+                return true;
+            }
+        }
         false
     }
 
@@ -155,92 +165,58 @@ impl Baseline {
 
 #[cfg(test)]
 mod tests {
-    use wdl_ast::Diagnostic;
-    use wdl_ast::Span;
-
     use super::*;
 
-    /// Helper to build a diagnostic with a rule and a label spanning the given
-    /// byte range in the source.
-    fn make_diagnostic(rule: &str, message: &str, start: usize, len: usize) -> Diagnostic {
-        Diagnostic::warning(message)
-            .with_rule(rule)
-            .with_label("here", Span::new(start, len))
-    }
-
     #[test]
-    fn suppresses_matching_diagnostic() {
-        let source = "  runtime {}\n";
-        let mut baseline = Baseline::new(vec![BaselineEntry::new(
-            "MissingRuntime",
-            "tasks/align.wdl",
-            source,
-            "missing runtime",
-        )]);
-        let d = make_diagnostic("MissingRuntime", "missing runtime", 0, source.len());
-
-        assert!(baseline.suppresses(&d, "tasks/align.wdl", source));
-    }
-
-    #[test]
-    fn does_not_suppress_different_content() {
+    fn matches_same_content() {
         let mut baseline = Baseline::new(vec![BaselineEntry::new(
             "MissingRuntime",
             "tasks/align.wdl",
             "  runtime {}\n",
             "missing runtime",
         )]);
-        let different_source = "  runtime { docker: \"ubuntu\" }\n";
-        let d = make_diagnostic(
-            "MissingRuntime",
-            "missing runtime",
-            0,
-            different_source.len(),
-        );
 
-        assert!(!baseline.suppresses(&d, "tasks/align.wdl", different_source));
+        assert!(baseline.matches_entry("MissingRuntime", "tasks/align.wdl", "  runtime {}\n"));
     }
 
     #[test]
-    fn does_not_suppress_different_rule() {
-        let source = "  runtime {}\n";
+    fn does_not_match_different_content() {
         let mut baseline = Baseline::new(vec![BaselineEntry::new(
             "MissingRuntime",
             "tasks/align.wdl",
-            source,
+            "  runtime {}\n",
             "missing runtime",
         )]);
-        let d = make_diagnostic("MissingOutput", "missing output", 0, source.len());
 
-        assert!(!baseline.suppresses(&d, "tasks/align.wdl", source));
+        assert!(!baseline.matches_entry(
+            "MissingRuntime",
+            "tasks/align.wdl",
+            "  runtime { docker: \"ubuntu\" }\n"
+        ));
     }
 
     #[test]
-    fn does_not_suppress_different_path() {
-        let source = "  runtime {}\n";
+    fn does_not_match_different_rule() {
         let mut baseline = Baseline::new(vec![BaselineEntry::new(
             "MissingRuntime",
             "tasks/align.wdl",
-            source,
+            "  runtime {}\n",
             "missing runtime",
         )]);
-        let d = make_diagnostic("MissingRuntime", "missing runtime", 0, source.len());
 
-        assert!(!baseline.suppresses(&d, "tasks/other.wdl", source));
+        assert!(!baseline.matches_entry("MissingOutput", "tasks/align.wdl", "  runtime {}\n"));
     }
 
     #[test]
-    fn does_not_suppress_diagnostic_without_rule() {
-        let source = "  runtime {}\n";
+    fn does_not_match_different_path() {
         let mut baseline = Baseline::new(vec![BaselineEntry::new(
             "MissingRuntime",
             "tasks/align.wdl",
-            source,
+            "  runtime {}\n",
             "missing runtime",
         )]);
-        let d = Diagnostic::warning("no rule").with_label("here", Span::new(0, source.len()));
 
-        assert!(!baseline.suppresses(&d, "tasks/align.wdl", source));
+        assert!(!baseline.matches_entry("MissingRuntime", "tasks/other.wdl", "  runtime {}\n"));
     }
 
     #[test]
@@ -271,15 +247,12 @@ mod tests {
 
     #[test]
     fn stale_entries_reported_when_unmatched() {
-        let source_a = "content a";
-        let source_b = "content b";
         let mut baseline = Baseline::new(vec![
-            BaselineEntry::new("RuleA", "a.wdl", source_a, "msg a"),
-            BaselineEntry::new("RuleB", "b.wdl", source_b, "msg b"),
+            BaselineEntry::new("RuleA", "a.wdl", "content a", "msg a"),
+            BaselineEntry::new("RuleB", "b.wdl", "content b", "msg b"),
         ]);
 
-        let d = make_diagnostic("RuleA", "msg", 0, source_a.len());
-        baseline.suppresses(&d, "a.wdl", source_a);
+        baseline.matches_entry("RuleA", "a.wdl", "content a");
 
         let stale = baseline.stale_entries();
         assert_eq!(stale.len(), 1);
@@ -288,11 +261,10 @@ mod tests {
 
     #[test]
     fn no_stale_entries_when_all_matched() {
-        let source = "content";
-        let mut baseline = Baseline::new(vec![BaselineEntry::new("RuleA", "a.wdl", source, "msg")]);
+        let mut baseline =
+            Baseline::new(vec![BaselineEntry::new("RuleA", "a.wdl", "content", "msg")]);
 
-        let d = make_diagnostic("RuleA", "msg", 0, source.len());
-        baseline.suppresses(&d, "a.wdl", source);
+        baseline.matches_entry("RuleA", "a.wdl", "content");
 
         assert!(baseline.stale_entries().is_empty());
     }

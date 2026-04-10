@@ -144,15 +144,12 @@ pub fn document_diagnostic_report(
         );
     }
 
-    let doc_source = format!("{}", wdl_ast::AstNode::text(&result.document().root()));
-    let doc_path = result.document().path().to_string();
-
     let items = result
         .document()
         .diagnostics()
         .filter(|d| {
             if let Some(baseline) = &mut baseline {
-                return !baseline.suppresses(d, &doc_path, &doc_source);
+                return !baseline.suppresses(d, result.document());
             }
             true
         })
@@ -223,15 +220,12 @@ pub fn workspace_diagnostic_report(
             uri = result.document().uri()
         );
 
-        let doc_source = format!("{}", wdl_ast::AstNode::text(&result.document().root()));
-        let doc_path = result.document().path().to_string();
-
         let diagnostics = result
             .document()
             .diagnostics()
             .filter(|d| {
                 if let Some(baseline) = &mut baseline {
-                    return !baseline.suppresses(d, &doc_path, &doc_source);
+                    return !baseline.suppresses(d, result.document());
                 }
                 true
             })

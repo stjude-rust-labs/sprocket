@@ -417,7 +417,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
                     if would_fail
                         && let Some(baseline) = &mut baseline
-                        && baseline.suppresses(d, &path, &source)
+                        && baseline.suppresses(d, result.document())
                     {
                         return false;
                     }
