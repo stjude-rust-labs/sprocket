@@ -73,3 +73,29 @@ task bad_piped_install {
         container: "ubuntu@sha256:foobar"
     }
 }
+
+task bad_install_excepted {
+    meta {
+        description: "This task should not be flagged as its excepted"
+    }
+
+    parameter_meta {
+        bam: "Input BAM file"
+    }
+
+    input {
+        File bam
+    }
+
+    #@ except: NoInlineInstall
+    command <<<
+        pip install pysam
+    >>>
+
+    output {
+    }
+
+    requirements {
+        container: "ubuntu@sha256:foobar"
+    }
+}
