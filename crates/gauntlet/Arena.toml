@@ -2767,6 +2767,11 @@ message = "quality-check-standard.wdl:550:20: note[ContainerUri]: container URI 
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L550"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:165:5: note[StructOverMap]: usage of `Map[String, String]`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L165"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:141:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L141"

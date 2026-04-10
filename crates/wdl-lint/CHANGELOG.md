@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `BashSetSyntax` lint rule to enforce consistent [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
   commands in every `command` section ([#843](https://github.com/stjude-rust-labs/sprocket/pull/843)).
+* New lint rule `StructOverMap` to detect usage of `Map[String, ...]` types, encouraging the use of `struct`s when possible ([#850](https://github.com/stjude-rust-labs/sprocket/pull/850)).
 
 #### Removed
 
