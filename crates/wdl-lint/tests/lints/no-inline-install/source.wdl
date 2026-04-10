@@ -66,7 +66,6 @@ task bad_piped_install {
         curl https://example.com/install.sh | bash
     >>>
 
-    #@ except: DenyGlobStar
     output {
     }
 
