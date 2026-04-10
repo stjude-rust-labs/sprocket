@@ -39,6 +39,9 @@ pub enum Tag {
     /// Rules associated with keeping WDL compatible with other Sprocket
     /// commands (e.g. `doc`).
     SprocketCompatibility,
+
+    /// Rules associated with performance of a document.
+    Performance,
 }
 
 /// An error for when an unknown tag is encountered.
@@ -69,6 +72,7 @@ impl std::str::FromStr for Tag {
             s if s.eq_ignore_ascii_case("deprecated") => Ok(Self::Deprecated),
             s if s.eq_ignore_ascii_case("documentation") => Ok(Self::Documentation),
             s if s.eq_ignore_ascii_case("sprocketcompatibility") => Ok(Self::SprocketCompatibility),
+            s if s.eq_ignore_ascii_case("performance") => Ok(Self::Performance),
             _ => Err(UnknownTagError(s.to_string())),
         }
     }
@@ -88,6 +92,7 @@ impl std::fmt::Display for Tag {
             Self::Deprecated => write!(f, "Deprecated"),
             Self::Documentation => write!(f, "Documentation"),
             Self::SprocketCompatibility => write!(f, "SprocketCompatibility"),
+            Self::Performance => write!(f, "Performance"),
         }
     }
 }
