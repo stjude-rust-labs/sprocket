@@ -66,7 +66,7 @@ task say_hello {
     meta {}
 
     command <<<
-        pip install --user somepackage
+        pip install --user pandas
         curl -sL https://example.com/install.sh | bash
     >>>
 }
@@ -82,7 +82,7 @@ task say_hello {
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Some(&[
             SyntaxKind::VersionStatementNode,
-            SyntaxKind::OutputSectionNode,
+            SyntaxKind::CommandSectionNode,
         ])
     }
 
