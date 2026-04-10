@@ -1,0 +1,32 @@
+warning[NoInlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/no-inline-install/source.wdl:46:9
+   │
+46 │         pip install pysam
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[NoInlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/no-inline-install/source.wdl:48:9
+   │
+48 │         npm -g install test
+   │         ^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[NoInlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/no-inline-install/source.wdl:49:9
+   │
+49 │         apk add test
+   │         ^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[NoInlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/no-inline-install/source.wdl:66:9
+   │
+66 │         curl https://example.com/install.sh | bash
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
