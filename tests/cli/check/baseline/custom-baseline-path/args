@@ -1,1 +1,1 @@
-lint --deny-warnings --deny-notes source.wdl
+--config sprocket.toml lint --deny-warnings --deny-notes source.wdl

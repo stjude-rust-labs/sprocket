@@ -225,6 +225,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         any_remote_sources || args.common.show_remote_diagnostics
     };
 
+    let baseline_is_configured = config.check.baseline.is_some();
     let baseline_path = config
         .check
         .baseline
@@ -237,8 +238,9 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         match Baseline::load(&baseline_path) {
             Ok(baseline) => Some(baseline),
             Err(e)
-                if e.downcast_ref::<std::io::Error>()
-                    .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
+                if !baseline_is_configured
+                    && e.downcast_ref::<std::io::Error>()
+                        .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
             {
                 None
             }
