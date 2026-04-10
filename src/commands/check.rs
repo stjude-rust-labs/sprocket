@@ -234,7 +234,16 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     let mut baseline = if args.common.no_baseline || args.common.generate_baseline {
         None
     } else {
-        Baseline::load(&baseline_path).context("failed to load diagnostic baseline")?
+        match Baseline::load(&baseline_path) {
+            Ok(baseline) => Some(baseline),
+            Err(e)
+                if e.downcast_ref::<std::io::Error>()
+                    .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
+            {
+                None
+            }
+            Err(e) => return Err(e.into()),
+        }
     };
 
     report_unknown_rules(&except, report_mode, colorize)?;
@@ -335,7 +344,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                     let end = span.end();
                     if end <= source.len() {
                         let source_slice = &source[start..end];
-                        baseline_entries.push(BaselineEntry::with_message(
+                        baseline_entries.push(BaselineEntry::new(
                             rule,
                             &path,
                             source_slice,

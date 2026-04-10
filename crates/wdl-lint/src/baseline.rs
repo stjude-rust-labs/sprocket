@@ -22,7 +22,13 @@ pub struct BaselineEntry {
     pub rule: String,
     /// The file path relative to the project root.
     pub path: String,
-    /// The blake3 hash of the trimmed source content at the diagnostic span.
+    /// A blake3 hash of the trimmed source text at the diagnostic's primary
+    /// label span.
+    ///
+    /// Because this is based on content rather than line numbers, the entry
+    /// survives insertions or deletions elsewhere in the file. If the flagged
+    /// code itself is edited, the hash changes and the entry no longer
+    /// matches.
     pub source_hash: String,
     /// The diagnostic message (for human readability, not used in matching).
     pub message: String,
@@ -30,21 +36,14 @@ pub struct BaselineEntry {
 
 impl BaselineEntry {
     /// Creates a new baseline entry by hashing the given source content.
-    pub fn new(rule: &str, path: &str, source_content: &str) -> Self {
+    pub fn new(rule: &str, path: &str, source_content: &str, message: &str) -> Self {
         let hash = blake3::hash(source_content.trim().as_bytes());
         Self {
             rule: rule.to_string(),
             path: path.to_string(),
             source_hash: hash.to_hex().to_string(),
-            message: String::new(),
+            message: message.to_string(),
         }
-    }
-
-    /// Creates a new baseline entry with a message.
-    pub fn with_message(rule: &str, path: &str, source_content: &str, message: &str) -> Self {
-        let mut entry = Self::new(rule, path, source_content);
-        entry.message = message.to_string();
-        entry
     }
 
     /// Returns `true` if this entry matches the given diagnostic parameters.
@@ -76,26 +75,18 @@ impl Baseline {
     }
 
     /// Loads a baseline from the given file path.
-    ///
-    /// Returns `Ok(None)` if the file does not exist.
-    pub fn load(path: &Path) -> Result<Option<Self>> {
-        if !path.exists() {
-            return Ok(None);
-        }
-
+    pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read baseline file `{}`", path.display()))?;
-        let baseline: Baseline = toml::from_str(&content)
-            .with_context(|| format!("failed to parse baseline file `{}`", path.display()))?;
-        Ok(Some(baseline))
+        toml::from_str(&content)
+            .with_context(|| format!("failed to parse baseline file `{}`", path.display()))
     }
 
     /// Writes the baseline to the given file path.
     pub fn write(&self, path: &Path) -> Result<()> {
         let content = toml::to_string_pretty(self).context("failed to serialize baseline")?;
         std::fs::write(path, content)
-            .with_context(|| format!("failed to write baseline file `{}`", path.display()))?;
-        Ok(())
+            .with_context(|| format!("failed to write baseline file `{}`", path.display()))
     }
 
     /// Returns `true` if the given diagnostic should be suppressed based on
@@ -184,6 +175,7 @@ mod tests {
             "MissingRuntime",
             "tasks/align.wdl",
             source,
+            "missing runtime",
         )]);
         let d = make_diagnostic("MissingRuntime", "missing runtime", 0, source.len());
 
@@ -196,6 +188,7 @@ mod tests {
             "MissingRuntime",
             "tasks/align.wdl",
             "  runtime {}\n",
+            "missing runtime",
         )]);
         let different_source = "  runtime { docker: \"ubuntu\" }\n";
         let d = make_diagnostic(
@@ -215,6 +208,7 @@ mod tests {
             "MissingRuntime",
             "tasks/align.wdl",
             source,
+            "missing runtime",
         )]);
         let d = make_diagnostic("MissingOutput", "missing output", 0, source.len());
 
@@ -228,6 +222,7 @@ mod tests {
             "MissingRuntime",
             "tasks/align.wdl",
             source,
+            "missing runtime",
         )]);
         let d = make_diagnostic("MissingRuntime", "missing runtime", 0, source.len());
 
@@ -241,6 +236,7 @@ mod tests {
             "MissingRuntime",
             "tasks/align.wdl",
             source,
+            "missing runtime",
         )]);
         let d = Diagnostic::warning("no rule").with_label("here", Span::new(0, source.len()));
 
@@ -252,7 +248,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("sprocket-baseline.toml");
 
-        let mut baseline = Baseline::new(vec![BaselineEntry::with_message(
+        let mut baseline = Baseline::new(vec![BaselineEntry::new(
             "MissingRuntime",
             "tasks/align.wdl",
             "  runtime {}\n",
@@ -261,15 +257,16 @@ mod tests {
         baseline.sort();
         baseline.write(&path).unwrap();
 
-        let loaded = Baseline::load(&path).unwrap().unwrap();
+        let loaded = Baseline::load(&path).unwrap();
         assert_eq!(loaded.diagnostic.len(), 1);
         assert_eq!(loaded.diagnostic[0].rule, "MissingRuntime");
     }
 
     #[test]
-    fn load_returns_none_for_missing_file() {
-        let result = Baseline::load(Path::new("/nonexistent/baseline.toml")).unwrap();
-        assert!(result.is_none());
+    fn load_returns_error_for_missing_file() {
+        let err = Baseline::load(Path::new("/nonexistent/baseline.toml")).unwrap_err();
+        let io_err = err.downcast_ref::<std::io::Error>().unwrap();
+        assert_eq!(io_err.kind(), std::io::ErrorKind::NotFound);
     }
 
     #[test]
@@ -277,8 +274,8 @@ mod tests {
         let source_a = "content a";
         let source_b = "content b";
         let mut baseline = Baseline::new(vec![
-            BaselineEntry::new("RuleA", "a.wdl", source_a),
-            BaselineEntry::new("RuleB", "b.wdl", source_b),
+            BaselineEntry::new("RuleA", "a.wdl", source_a, "msg a"),
+            BaselineEntry::new("RuleB", "b.wdl", source_b, "msg b"),
         ]);
 
         let d = make_diagnostic("RuleA", "msg", 0, source_a.len());
@@ -292,7 +289,7 @@ mod tests {
     #[test]
     fn no_stale_entries_when_all_matched() {
         let source = "content";
-        let mut baseline = Baseline::new(vec![BaselineEntry::new("RuleA", "a.wdl", source)]);
+        let mut baseline = Baseline::new(vec![BaselineEntry::new("RuleA", "a.wdl", source, "msg")]);
 
         let d = make_diagnostic("RuleA", "msg", 0, source.len());
         baseline.suppresses(&d, "a.wdl", source);
@@ -303,9 +300,9 @@ mod tests {
     #[test]
     fn sort_is_deterministic() {
         let mut baseline = Baseline::new(vec![
-            BaselineEntry::new("RuleB", "z.wdl", "content"),
-            BaselineEntry::new("RuleA", "a.wdl", "content"),
-            BaselineEntry::new("RuleA", "a.wdl", "other"),
+            BaselineEntry::new("RuleB", "z.wdl", "content", "msg"),
+            BaselineEntry::new("RuleA", "a.wdl", "content", "msg"),
+            BaselineEntry::new("RuleA", "a.wdl", "other", "msg"),
         ]);
         baseline.sort();
 

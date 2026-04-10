@@ -80,7 +80,7 @@ pub async fn analyzer(
                     .baseline
                     .clone()
                     .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
-                Baseline::load(&path).ok().flatten()
+                Baseline::load(&path).ok()
             },
         },
         Some(handle),
