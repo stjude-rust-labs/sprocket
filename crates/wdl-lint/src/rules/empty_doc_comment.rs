@@ -1,6 +1,8 @@
 //! A lint rule for empty documentation comments.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -50,9 +52,11 @@ impl Rule for EmptyDocCommentRule {
          remove it entirely."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 # This will render nothing!
 
@@ -60,8 +64,10 @@ version 1.2
 struct Person {
     String name
     Int age
-}
-```"#]
+}"#,
+            },
+            revised: None,
+        }]
     }
 
     fn tags(&self) -> TagSet {

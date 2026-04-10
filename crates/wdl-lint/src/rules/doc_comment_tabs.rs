@@ -1,6 +1,8 @@
 //! A lint rule for detecting tab characters in doc comments.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -41,12 +43,14 @@ impl Rule for DocCommentTabsRule {
          instead of tabs to ensure consistent rendering."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.3
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
 
 # Using tabs for alignment
+
 ##  {
 ##		"foo": 123,
 ##		^^^^^
@@ -55,16 +59,14 @@ workflow example {
     meta {
         description: 123
     }
-
-    output {}
-}
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.3
+}"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
 
 # Using spaces for alignment
+
 ## {
 ##     "foo": 123,
 ##     ^^^^^
@@ -73,11 +75,9 @@ workflow example {
     meta {
         description: "123"
     }
-
-    output {}
-}
-```"#,
-        ]
+}"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

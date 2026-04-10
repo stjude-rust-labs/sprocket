@@ -10,6 +10,8 @@ use std::sync::OnceLock;
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -203,7 +205,7 @@ pub struct ExpectedRuntimeKeysRule {
     /// current task.
     runtime_processed_for_task: bool,
     /// All keys encountered in the current runtime section.
-    encountered_keys: Vec<Ident>,
+    encountered_keys: Vec<String>,
     /// Allowed keys from the config.
     allowed_runtime_keys: HashSet<String>,
 }
@@ -249,43 +251,37 @@ For WDL v1.2 documents and later, this rule does not evaluate because `runtime` 
          deprecated in this version."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
+    fn examples(&self) -> &'static [Example] {
         &[
-            r#"The following is missing a mandatory key:
-
-```wdl
-version 1.1
+            Example {
+                negative: LabeledSnippet {
+                    label: Some("The following is missing a mandatory key"),
+                    snippet: r#"version 1.1
 
 task missing_required_keys {
-    meta {}
-
-    command <<<>>>
-
-    output {}
-
-    runtime {}  # Missing `container` key
+    runtime {
+    # Missing `container` key
+    }
 }
-```
 "#,
-            r#"The following has an unexpected key:
-
-```wdl
-version 1.1
+                },
+                revised: None,
+            },
+            Example {
+                negative: LabeledSnippet {
+                    label: Some("The following has an unexpected key"),
+                    snippet: r#"version 1.1
 
 task unexpected_runtime_key {
-    meta {}
-
-    command <<<>>>
-
-    output {}
-
     runtime {
         container: "ubuntu"
         foo: "bar"
     }
 }
-```
 "#,
+                },
+                revised: None,
+            },
         ]
     }
 
@@ -376,7 +372,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                     };
 
                     let missing_keys = recommended_keys
-                        .filter(|(key, _)| !self.encountered_keys.iter().any(|s| s.text() == *key))
+                        .filter(|(key, _)| !self.encountered_keys.iter().any(|s| s == *key))
                         .map(|(key, _)| key)
                         .collect::<Vec<_>>();
 
@@ -484,6 +480,6 @@ impl Visitor for ExpectedRuntimeKeysRule {
             }
         }
 
-        self.encountered_keys.push(key_name);
+        self.encountered_keys.push(key_name.text().to_string());
     }
 }

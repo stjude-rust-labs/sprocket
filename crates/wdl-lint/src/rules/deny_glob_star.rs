@@ -1,6 +1,8 @@
 //! A lint rule for disallowing the use of glob patterns with only star.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -47,10 +49,11 @@ impl Rule for DenyGlobStar {
          need, keeping tasks easier to debug/reproduce."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task generate_files {
     command <<<
@@ -62,11 +65,11 @@ task generate_files {
         Array[File] files = glob("*")
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task generate_files {
     command <<<
@@ -79,8 +82,9 @@ task generate_files {
         Array[File] files = glob("*.txt")
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

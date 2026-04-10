@@ -2,6 +2,8 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -100,37 +102,39 @@ This rule only evaluates for WDL V1 documents with a version of v1.1 or later, a
          version where the deprecation was introduced."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
-    Array[String] names = ["James", "Jimmy", "John"]
+    Array[String] names = [
+        "James",
+        "Jimmy",
+        "John",
+    ]
     String names_separated = "~{sep="," names}"
     String names_interpolated = "${names_separated}"
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
-    Array[String] names = ["James", "Jimmy", "John"]
+    Array[String] names = [
+        "James",
+        "Jimmy",
+        "John",
+    ]
     String names_separated = "~{sep(",", names)}"
     String names_interpolated = "~{names_separated}"
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {

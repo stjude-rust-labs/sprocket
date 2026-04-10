@@ -2,6 +2,7 @@
 
 use std::sync::LazyLock;
 
+use serde::Serialize;
 use wdl_ast::Severity;
 
 /// The rule identifier for unused import warnings.
@@ -29,6 +30,26 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     ids
 });
 
+/// A labeled WDL code snippet.
+#[derive(Copy, Clone, Debug, Serialize)]
+pub struct LabeledSnippet {
+    /// A label for the snippet.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<&'static str>,
+    /// A WDL code snippet.
+    pub snippet: &'static str,
+}
+
+/// A lint rule example.
+#[derive(Copy, Clone, Debug, Serialize)]
+pub struct Example {
+    /// A snippet that will trigger the target lint rule.
+    pub negative: LabeledSnippet,
+    /// A revision of the negative snippet that will no longer trigger the rule.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revised: Option<LabeledSnippet>,
+}
+
 /// A trait implemented by analysis rules.
 pub trait Rule: Send + Sync {
     /// The unique identifier for the rule.
@@ -44,7 +65,7 @@ pub trait Rule: Send + Sync {
     fn explanation(&self) -> &'static str;
 
     /// Get a list of examples that would trigger this rule.
-    fn examples(&self) -> &'static [&'static str];
+    fn examples(&self) -> &'static [Example];
 
     /// Denies the rule.
     ///
@@ -117,18 +138,20 @@ impl Rule for UnusedImportRule {
          impact parsing and evaluation performance."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
-import "example2.wdl"
+import "foo.wdl"
 
 workflow example {
-    meta {}
-
-    output {}
 }
-```"#]
+"#,
+            },
+            revised: None,
+        }]
     }
 
     fn deny(&mut self) {
@@ -171,20 +194,30 @@ impl Rule for UnusedInputRule {
          file inputs in tasks can also cause unnecessary file localizations."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     input {
         String unused
     }
-
-    output {}
 }
-```"#]
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the input entirely"),
+                snippet: r#"version 1.2
+
+workflow example {
+    input {
+    }
+}
+"#,
+            }),
+        }]
     }
 
     fn deny(&mut self) {
@@ -228,18 +261,26 @@ impl Rule for UnusedDeclarationRule {
          code."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     String unused = "this will produce a warning"
-
-    output {}
 }
-```"#]
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the declaration entirely"),
+                snippet: r#"version 1.2
+
+workflow example {
+}
+"#,
+            }),
+        }]
     }
 
     fn deny(&mut self) {
@@ -281,27 +322,45 @@ impl Rule for UnusedCallRule {
         "Unused calls may cause unnecessary consumption of compute resources."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     # The output of `do_work` is never used
     call do_work
-
-    output {}
 }
 
 task do_work {
-    command <<<>>>
+    command <<<
+    >>>
 
     output {
         Int x = 0
     }
 }
-```"#]
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the call entirely"),
+                snippet: r#"version 1.2
+
+workflow example {
+}
+
+task do_work {
+    command <<<
+    >>>
+
+    output {
+        Int x = 0
+    }
+}
+"#,
+            }),
+        }]
     }
 
     fn deny(&mut self) {
@@ -343,20 +402,21 @@ impl Rule for UnnecessaryFunctionCall {
         "Unnecessary function calls may impact evaluation performance."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     # Calls to `defined` on values that are statically
     # known to be non-None are unnecessary.
     Boolean exists = defined("hello")
-
-    output {}
 }
-```"#]
+"#,
+            },
+            revised: None,
+        }]
     }
 
     fn deny(&mut self) {
@@ -399,18 +459,20 @@ impl Rule for UsingFallbackVersion {
          a different version."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-# Not a valid version. If a fallback version is configured,
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"# Not a valid version. If a fallback version is configured,
 # the document will be interpreted as that version.
 version development
 
 workflow example {
-    meta {}
-
-    output {}
 }
-```"#]
+"#,
+            },
+            revised: None,
+        }]
     }
 
     fn deny(&mut self) {
