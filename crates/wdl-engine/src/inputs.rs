@@ -26,6 +26,7 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
+
 use crate::Coercible;
 use crate::EvaluationPath;
 use crate::Value;
