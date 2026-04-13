@@ -1,0 +1,103 @@
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:50:5
+   │  
+50 │ ╭     command <<<
+51 │ │         echo "Hello, World!"
+52 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:58:9
+   │
+58 │         set -eu
+   │         ^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:66:9
+   │
+66 │         set -eo pipefail
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:73:9
+   │
+73 │         set -eo pipefail && echo "Hello, World!"
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:79:9
+   │
+79 │         set
+   │         ^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:86:9
+   │
+86 │         set +e -uo pipefail
+   │         ^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/bash-set-syntax/source.wdl:92:5
+   │  
+92 │ ╭     command <<<
+93 │ │         echo "Hello, World!"
+94 │ │         set -euo pipefail
+95 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: unnecessary `set` option
+    ┌─ tests/lints/bash-set-syntax/source.wdl:101:16
+    │
+101 │         set -euHo pipefail -o emacs
+    │                ^
+    │
+    = help: option `-H` is only available in interactive mode
+    = fix: remove the option
+
+warning[BashSetSyntax]: unnecessary `set` option
+    ┌─ tests/lints/bash-set-syntax/source.wdl:101:28
+    │
+101 │         set -euHo pipefail -o emacs
+    │                            ^^^^^^^^
+    │
+    = help: option `-o emacs` is only available in interactive mode
+    = fix: remove the option
+
+warning[BashSetSyntax]: bad `set` command
+    ┌─ tests/lints/bash-set-syntax/source.wdl:108:9
+    │
+108 │         set -euov pipefail
+    │         ^^^^^^^^^
+    │
+    = help: the config expects the following options to be present: errexit, nounset, pipefail
+    = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/bash-set-syntax/source.wdl:114:5
+    │  
+114 │ ╭     command <<<
+115 │ │         setcap
+116 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
