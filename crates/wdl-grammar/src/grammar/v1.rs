@@ -562,7 +562,10 @@ fn ident(parser: &mut Parser<'_>, name: &str) -> Result<(), Diagnostic> {
 
         // WDL 1.2+
         Some((
-            kw @ (Token::DirectoryTypeKeyword | Token::HintsKeyword | Token::RequirementsKeyword),
+            kw @ (Token::DirectoryTypeKeyword
+            | Token::HintsKeyword
+            | Token::RequirementsKeyword
+            | Token::EnvKeyword),
             _,
         )) => {
             if parser.version() >= SupportedVersion::V1(V1::Two) {
