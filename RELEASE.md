@@ -45,9 +45,9 @@ Format each section so that it looks like:
 
 After the release is complete, the following tasks should be performed:
 
-- [ ] Merge the `next` branch in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio) if there are any pending documentation changes.
-- [ ] Update the Sprocket version in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action).
-- [ ] Merge any changes needed in [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode).
+- [ ] Merge the `next` branch in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio) if there are any pending documentation changes, then update the Sprocket version.
+- [ ] Update the Sprocket version in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action) and create a new release tag.
+- [ ] Merge any changes needed in [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode) and create a new release tag if applicable.
 - [ ] Release the latest version on the St. Jude HPC module system.
 - [ ] Update the official WDL documentation for the Sprocket entries if anything changed.
 - [ ] Post a message to Slack channels with the updated version.

@@ -13,7 +13,7 @@ use wdl::ast::Severity;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
-use wdl::doc::config::AdditionalScript;
+use wdl::doc::config::AdditionalHtml;
 use wdl::doc::config::ExternalUrls;
 use wdl::doc::document_workspace;
 use wdl::doc::error::DocErrorKind;
@@ -35,7 +35,7 @@ pub struct Args {
     pub workspace: Option<Source>,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
-    pub homepage: Option<PathBuf>,
+    pub index_page: Option<PathBuf>,
     /// Path to an SVG logo to embed on each page.
     ///
     /// If not supplied, the default Sprocket logo will be used.
@@ -56,10 +56,6 @@ pub struct Args {
     /// Initialize pages in light mode instead of the default dark mode.
     #[arg(short, long)]
     pub light_mode: bool,
-    /// Initialize pages on the "Workflows" view instead of the "Full
-    /// Directory" view of the left nav bar.
-    #[arg(short, long)]
-    pub prioritize_workflows_view: bool,
     /// Output directory for the generated documentation.
     /// If not specified, the documentation will be generated in
     /// `<workspace>/docs`.
@@ -76,32 +72,18 @@ pub struct Args {
     /// Open the generated documentation in the default web browser.
     #[arg(long)]
     pub open: bool,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately after the opening
-    /// `<head>` tag.
-    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
-        "javascript_head_close", "javascript_body_open", "javascript_body_close"
-    ])]
-    pub javascript_head_open: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately before the closing
-    /// `<head>` tag.
-    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
-        "javascript_body_open", "javascript_body_close"
-    ])]
-    pub javascript_head_close: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately after the opening
-    /// `<body>` tag.
-    #[arg(long, value_name = "JS FILE", conflicts_with_all = [
-        "javascript_body_close"
-    ])]
-    pub javascript_body_open: Option<PathBuf>,
-    /// Path to a `.js` file that should have its contents embedded in a
-    /// `<script>` tag for each HTML page, immediately before the closing
-    /// `<body>` tag.
-    #[arg(long, value_name = "JS FILE")]
-    pub javascript_body_close: Option<PathBuf>,
+    /// Path to an HTML file that should have its contents embedded in
+    /// each HTML page, immediately before the closing `<head>` tag.
+    #[arg(long, value_name = "FILE")]
+    pub html_head: Option<PathBuf>,
+    /// Path to an HTML file that should have its contents embedded in
+    /// each HTML page, immediately after the opening `<body>` tag.
+    #[arg(long, value_name = "FILE")]
+    pub html_body_open: Option<PathBuf>,
+    /// Path to an HTML file that should have its contents embedded in
+    /// each HTML page, immediately before the closing `<body>` tag.
+    #[arg(long, value_name = "FILE")]
+    pub html_body_close: Option<PathBuf>,
     /// An optional path to a custom theme directory.
     ///
     /// This argument is meant to be used by developers of the `wdl` crates;
@@ -120,7 +102,6 @@ pub struct Args {
     /// version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
     #[arg(long)]
     pub with_doc_comments: bool,
-
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
@@ -174,34 +155,31 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         })?;
     }
 
-    let addl_js = match (
-        &args.javascript_head_open.or(config.doc.scripts.head_open),
-        &args.javascript_head_close.or(config.doc.scripts.head_close),
-        &args.javascript_body_open.or(config.doc.scripts.body_open),
-        &args.javascript_body_close.or(config.doc.scripts.body_close),
-    ) {
-        (Some(path), ..) => {
-            let js = std::fs::read_to_string(path)
-                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
-            AdditionalScript::HeadOpen(js)
-        }
-        (_, Some(path), ..) => {
-            let js = std::fs::read_to_string(path)
-                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
-            AdditionalScript::HeadClose(js)
-        }
-        (_, _, Some(path), _) => {
-            let js = std::fs::read_to_string(path)
-                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
-            AdditionalScript::BodyOpen(js)
-        }
-        (_, _, _, Some(path)) => {
-            let js = std::fs::read_to_string(path)
-                .with_context(|| format!("failed to read JavaScript file: {}", path.display()))?;
-            AdditionalScript::BodyClose(js)
-        }
-        _ => AdditionalScript::None,
-    };
+    let head = args
+        .html_head
+        .or(config.doc.extra_html.head())
+        .map(|path| {
+            std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read HTML file: {}", path.display()))
+        })
+        .transpose()?;
+    let body_open = args
+        .html_body_open
+        .or(config.doc.extra_html.body_open())
+        .map(|path| {
+            std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read HTML file: {}", path.display()))
+        })
+        .transpose()?;
+    let body_close = args
+        .html_body_close
+        .or(config.doc.extra_html.body_close())
+        .map(|path| {
+            std::fs::read_to_string(&path)
+                .with_context(|| format!("failed to read HTML file: {}", path.display()))
+        })
+        .transpose()?;
+    let addl_html = AdditionalHtml::new(head, body_open, body_close);
 
     let docs_dir = args.output.unwrap_or(workspace.join(DEFAULT_OUTPUT_DIR));
 
@@ -210,22 +188,20 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     let analysis_config = AnalysisConfig::default()
-        .with_fallback_version(config.common.wdl.fallback_version)
+        .with_fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
-    let homepage = args.homepage.or(config.doc.homepage);
+    let index_page = args.index_page.or(config.doc.index_page());
     let light_mode = args.light_mode || config.doc.light_mode;
-    let logo = args.logo.or(config.doc.logo);
-    let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo);
-    let homepage_url = args.homepage_url.or(config.doc.homepage_url);
-    let github_url = args.github_url.or(config.doc.github_url);
-    let prioritize_workflows_view =
-        args.prioritize_workflows_view || config.doc.prioritize_workflows_view;
+    let logo = args.logo.or(config.doc.logo());
+    let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
+    let homepage_url = args.homepage_url.or(config.doc.homepage_url());
+    let github_url = args.github_url.or(config.doc.github_url());
     let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
-        .homepage(homepage)
+        .index_page(index_page)
         .init_light_mode(light_mode)
         .custom_theme(args.theme)
         .custom_logo(logo)
@@ -234,8 +210,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
             homepage: homepage_url,
             github: github_url,
         })
-        .additional_javascript(addl_js)
-        .prefer_full_directory(!prioritize_workflows_view)
+        .additional_html(addl_html)
         .enable_doc_comments(with_doc_comments);
 
     let mut counts = DiagnosticCounts::default();

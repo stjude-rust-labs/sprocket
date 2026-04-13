@@ -36,14 +36,20 @@ pub(crate) const MAX_RETRIES: u64 = 100;
 /// The default task shell.
 pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 
+/// The default task container.
+pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
+
 /// The default backend name.
-pub(crate) const DEFAULT_BACKEND_NAME: &str = "default";
+const DEFAULT_BACKEND_NAME: &str = "default";
 
 /// The maximum size, in bytes, for an LSF job name prefix.
 const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 
 /// The string that replaces redacted serialization fields.
 const REDACTED: &str = "<REDACTED>";
+
+/// Configuration sentinel value indicating use a system cache directory.
+const CACHE_DIR_SENTINEL: &str = "system";
 
 /// Gets the default root cache directory for the user.
 pub(crate) fn cache_dir() -> Result<PathBuf> {
@@ -53,6 +59,31 @@ pub(crate) fn cache_dir() -> Result<PathBuf> {
     Ok(dirs::cache_dir()
         .context("failed to determine user cache directory")?
         .join(CACHE_DIR_ROOT))
+}
+
+/// Helper for `serde`.
+fn is_default_shell(shell: &str) -> bool {
+    shell == DEFAULT_TASK_SHELL
+}
+
+/// Helper for `serde`.
+fn get_default_shell() -> String {
+    DEFAULT_TASK_SHELL.to_string()
+}
+
+/// Helper for `serde`.
+fn get_default_container() -> String {
+    DEFAULT_TASK_CONTAINER.to_string()
+}
+
+/// Helper for `serde`.
+fn get_default_backend_name() -> String {
+    DEFAULT_BACKEND_NAME.to_string()
+}
+
+/// Helper for `serde`.
+fn get_sentinel_cache_dir() -> String {
+    CACHE_DIR_SENTINEL.to_string()
 }
 
 /// Represents a secret string that is, by default, redacted for serialization.
@@ -148,6 +179,89 @@ impl<'de> serde::Deserialize<'de> for SecretString {
     }
 }
 
+/// Creates a new type, which can be nulled, for use in configuration structs.
+///
+/// The inner type cannot be a `String` or the sentinel value will never be
+/// recognized.
+#[macro_export]
+macro_rules! nullable_config_type {
+    (
+        $name:ident,
+        $inner:ty,
+        $sentinel:literal,
+        $value:ident,
+        $validation:expr,
+        $expected:literal,
+        $default:expr
+    ) => {
+        #[doc = concat!("Configuration for [`", stringify!($name), "`].")]
+        #[derive(Clone, Debug)]
+        pub struct $name(Option<$inner>);
+
+        impl $name {
+            #[doc = concat!("Get the inner [`", stringify!($inner), "`].")]
+            pub fn inner(&self) -> Option<&$inner> {
+                self.0.as_ref()
+            }
+
+            #[doc = concat!("Try to create a new `", stringify!($name), "` from a `", stringify!($inner), "`.")]
+            pub fn try_new(val: Option<$inner>) -> std::result::Result<Self, anyhow::Error> {
+                match val {
+                    None => Ok(Self(None)),
+                    Some($value) if $validation => Ok(Self(Some($value))),
+                    Some($value) => Err(anyhow::anyhow!(format!(
+                        "expected {}, got `{}`",
+                        $expected, $value
+                    ))),
+                }
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self($default)
+            }
+        }
+
+        impl Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                match self {
+                    $name(None) => $sentinel.serialize(serializer),
+                    $name(Some(i)) => i.serialize(serializer),
+                }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                #[derive(Deserialize)]
+                #[serde(untagged)]
+                enum Value {
+                    Inner($inner),
+                    Str(String),
+                    Null,
+                }
+
+                match Value::deserialize(deserializer)? {
+                    Value::Inner(i) => $name::try_new(Some(i)).map_err(serde::de::Error::custom),
+                    Value::Str(s) if s == $sentinel => Ok($name(None)),
+                    Value::Str($value) => Err(serde::de::Error::custom(format!(
+                        "expected {} or `{}`, got `{}`",
+                        $expected, $sentinel, $value
+                    ))),
+                    Value::Null => Ok($name(None)),
+                }
+            }
+        }
+    };
+}
+
 /// Represents how an evaluation error or cancellation should be handled by the
 /// engine.
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -173,7 +287,7 @@ pub enum FailureMode {
 /// secrets from being redacted.
 ///
 /// </div>
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct Config {
     /// HTTP configuration.
@@ -186,19 +300,13 @@ pub struct Config {
     #[serde(default)]
     pub task: TaskConfig,
     /// The name of the backend to use.
-    ///
-    /// If not specified and `backends` has multiple entries, it will use a name
-    /// of `default`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub backend: Option<String>,
+    #[serde(default = "get_default_backend_name")]
+    pub backend: String,
     /// Task execution backends configuration.
     ///
-    /// If the collection is empty and `backend` is not specified, the engine
-    /// default backend is used.
-    ///
-    /// If the collection has exactly one entry and `backend` is not specified,
-    /// the singular entry will be used.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    /// If the collection is empty and `backend` has the default value, the
+    /// engine default backend is used.
+    #[serde(default)]
     pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
     #[serde(default)]
@@ -237,6 +345,22 @@ pub struct Config {
     pub failure_mode: FailureMode,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            http: Default::default(),
+            workflow: Default::default(),
+            task: Default::default(),
+            backend: get_default_backend_name(),
+            backends: Default::default(),
+            storage: Default::default(),
+            suppress_env_specific_output: Default::default(),
+            experimental_features_enabled: Default::default(),
+            failure_mode: Default::default(),
+        }
+    }
+}
+
 impl Config {
     /// Validates the evaluation configuration.
     pub async fn validate(&self) -> Result<()> {
@@ -244,12 +368,10 @@ impl Config {
         self.workflow.validate()?;
         self.task.validate()?;
 
-        if self.backend.is_none() && self.backends.len() < 2 {
-            // This is OK, we'll use either the singular backends entry (1) or
-            // the default (0)
+        if self.backends.is_empty() && self.backend == DEFAULT_BACKEND_NAME {
+            // we'll use the default
         } else {
-            // Check the backends map for the backend name (or "default")
-            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
+            let backend = &self.backend;
             if !self.backends.contains_key(backend) {
                 bail!("a backend named `{backend}` is not present in the configuration");
             }
@@ -315,21 +437,14 @@ impl Config {
     /// Returns an error if the configuration specifies a named backend that
     /// isn't present in the configuration.
     pub fn backend(&self) -> Result<Cow<'_, BackendConfig>> {
-        if self.backend.is_some() || self.backends.len() >= 2 {
-            // Lookup the backend to use
-            let backend = self.backend.as_deref().unwrap_or(DEFAULT_BACKEND_NAME);
+        if !self.backends.is_empty() {
+            let backend = &self.backend;
             return Ok(Cow::Borrowed(self.backends.get(backend).ok_or_else(
                 || anyhow!("a backend named `{backend}` is not present in the configuration"),
             )?));
         }
-
-        if self.backends.len() == 1 {
-            // Use the singular entry
-            Ok(Cow::Borrowed(self.backends.values().next().unwrap()))
-        } else {
-            // Use the default
-            Ok(Cow::Owned(BackendConfig::default()))
-        }
+        // Use the default
+        Ok(Cow::Owned(BackendConfig::default()))
     }
 
     /// Creates a new task execution backend based on this configuration.
@@ -376,35 +491,67 @@ impl Config {
 }
 
 /// Represents HTTP configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cache_dir: Option<PathBuf>,
+    #[serde(default = "get_sentinel_cache_dir")]
+    pub cache_dir: String,
     /// The number of retries for transferring files.
-    ///
-    /// Defaults to `5`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub retries: Option<usize>,
+    pub retries: usize,
     /// The maximum parallelism for file transfers.
     ///
     /// Defaults to the host's available parallelism.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parallelism: Option<usize>,
+    pub parallelism: Parallelism,
+}
+
+nullable_config_type!(
+    Parallelism,
+    usize,
+    "available",
+    value,
+    value > 0,
+    "a positive number",
+    None
+);
+
+impl Default for HttpConfig {
+    fn default() -> Self {
+        Self {
+            cache_dir: get_sentinel_cache_dir(),
+            retries: 5, // Default as defined in `cloud_copy`.
+            parallelism: Default::default(),
+        }
+    }
 }
 
 impl HttpConfig {
     /// Validates the HTTP configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Some(parallelism) = self.parallelism
-            && parallelism == 0
+        if let Some(parallelism) = self.parallelism.inner()
+            && *parallelism == 0
         {
             bail!("configuration value `http.parallelism` cannot be zero");
         }
         Ok(())
+    }
+
+    /// Get the HTTP cache dir.
+    pub fn cache_dir(&self) -> Result<PathBuf> {
+        const DOWNLOADS_CACHE_SUBDIR: &str = "downloads";
+
+        if self.using_system_cache_dir() {
+            cache_dir().map(|d| d.join(DOWNLOADS_CACHE_SUBDIR))
+        } else {
+            Ok(PathBuf::from(&self.cache_dir))
+        }
+    }
+
+    /// Is this configuration using a system cache dir?
+    pub fn using_system_cache_dir(&self) -> bool {
+        self.cache_dir == CACHE_DIR_SENTINEL
     }
 }
 
@@ -628,8 +775,12 @@ impl WorkflowConfig {
     }
 }
 
+/// The default number of elements to concurrently process for a scatter
+/// statement.
+const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
+
 /// Represents scatter statement evaluation configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
@@ -684,16 +835,21 @@ pub struct ScatterConfig {
     /// Warning: nested scatter statements cause exponential memory usage based
     /// on this value, as each scatter statement evaluation requires allocating
     /// new scopes for scatter array elements being processed. </div>
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub concurrency: Option<u64>,
+    pub concurrency: u64,
+}
+
+impl Default for ScatterConfig {
+    fn default() -> Self {
+        Self {
+            concurrency: DEFAULT_SCATTER_CONCURRENCY,
+        }
+    }
 }
 
 impl ScatterConfig {
     /// Validates the scatter configuration.
     pub fn validate(&self) -> Result<()> {
-        if let Some(concurrency) = self.concurrency
-            && concurrency == 0
-        {
+        if self.concurrency == 0 {
             bail!("configuration value `workflow.scatter.concurrency` cannot be zero");
         }
 
@@ -755,25 +911,18 @@ pub enum ContentDigestMode {
 }
 
 /// Represents task evaluation configuration.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
-    ///
-    /// Defaults to 0 (no retries).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub retries: Option<u64>,
+    pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
-    ///
-    /// Defaults to `ubuntu:latest`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub container: Option<String>,
+    #[serde(default = "get_default_container")]
+    pub container: String,
     /// The default shell to use for tasks.
-    ///
-    /// Defaults to `bash`.
     ///
     /// <div class="warning">
     /// Warning: the use of a shell other than `bash` may lead to tasks that may
@@ -787,26 +936,25 @@ pub struct TaskConfig {
     ///
     /// If using this setting causes your tasks to fail, please do not file an
     /// issue. </div>
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub shell: Option<String>,
+    #[serde(
+        default = "get_default_shell",
+        skip_serializing_if = "is_default_shell"
+    )]
+    pub shell: String,
     /// The behavior when a task's `cpu` requirement cannot be met.
-    #[serde(default)]
     pub cpu_limit_behavior: TaskResourceLimitBehavior,
     /// The behavior when a task's `memory` requirement cannot be met.
-    #[serde(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cache_dir: Option<PathBuf>,
+    #[serde(default = "get_sentinel_cache_dir")]
+    pub cache_dir: String,
     /// The call caching mode to use for tasks.
-    #[serde(default)]
     pub cache: CallCachingMode,
     /// The content digest mode to use.
     ///
     /// Used as part of call caching.
-    #[serde(default)]
     pub digests: ContentDigestMode,
     /// Keys of task requirements to exclude from call cache checking.
     ///
@@ -838,14 +986,51 @@ pub struct TaskConfig {
     pub excluded_cache_inputs: HashSet<String>,
 }
 
+nullable_config_type!(
+    Retries,
+    u64,
+    "default",
+    value,
+    value <= MAX_RETRIES,
+    "a number less than or equal to 100",
+    None
+);
+
+impl Default for TaskConfig {
+    fn default() -> Self {
+        Self {
+            retries: Default::default(),
+            container: get_default_container(),
+            shell: get_default_shell(),
+            cpu_limit_behavior: Default::default(),
+            memory_limit_behavior: Default::default(),
+            cache_dir: get_sentinel_cache_dir(),
+            cache: Default::default(),
+            digests: Default::default(),
+            excluded_cache_requirements: Default::default(),
+            excluded_cache_hints: Default::default(),
+            excluded_cache_inputs: Default::default(),
+        }
+    }
+}
+
 impl TaskConfig {
     /// Validates the task evaluation configuration.
     pub fn validate(&self) -> Result<()> {
-        if self.retries.unwrap_or(0) > MAX_RETRIES {
+        if self.retries.inner().cloned().unwrap_or(0) > MAX_RETRIES {
             bail!("configuration value `task.retries` cannot exceed {MAX_RETRIES}");
         }
 
         Ok(())
+    }
+
+    /// Get the configured cache dir if it is set.
+    pub fn cache_dir(&self) -> Option<PathBuf> {
+        if self.cache_dir == CACHE_DIR_SENTINEL {
+            None
+        } else {
+            Some(PathBuf::from(&self.cache_dir))
+        }
     }
 }
 
@@ -1848,7 +2033,7 @@ mod test {
     async fn test_config_validate() {
         // Test invalid task config
         let mut config = Config::default();
-        config.task.retries = Some(1000000);
+        config.task.retries = Retries(Some(255));
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `task.retries` cannot exceed 100"
@@ -1856,7 +2041,7 @@ mod test {
 
         // Test invalid scatter concurrency config
         let mut config = Config::default();
-        config.workflow.scatter.concurrency = Some(0);
+        config.workflow.scatter.concurrency = 0;
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `workflow.scatter.concurrency` cannot be zero"
@@ -1864,7 +2049,7 @@ mod test {
 
         // Test invalid backend name
         let config = Config {
-            backend: Some("foo".into()),
+            backend: "foo".into(),
             ..Default::default()
         };
         assert_eq!(
@@ -1872,7 +2057,7 @@ mod test {
             "a backend named `foo` is not present in the configuration"
         );
         let config = Config {
-            backend: Some("bar".into()),
+            backend: "bar".into(),
             backends: [("foo".to_string(), BackendConfig::default())].into(),
             ..Default::default()
         };
@@ -1883,6 +2068,7 @@ mod test {
 
         // Test a singular backend
         let config = Config {
+            backend: "foo".to_string(),
             backends: [("foo".to_string(), BackendConfig::default())].into(),
             ..Default::default()
         };
@@ -2054,22 +2240,23 @@ mod test {
             .await
             .expect("configuration should validate");
 
+        // invalid Parallelism
         let mut config = Config::default();
-        config.http.parallelism = Some(0);
+        config.http.parallelism = Parallelism(Some(0));
         assert_eq!(
             config.validate().await.unwrap_err().to_string(),
             "configuration value `http.parallelism` cannot be zero"
         );
 
+        // valid Parallelism
         let mut config = Config::default();
-        config.http.parallelism = Some(5);
+        config.http.parallelism = Parallelism(Some(5));
         assert!(
             config.validate().await.is_ok(),
             "should pass for valid configuration"
         );
-
         let mut config = Config::default();
-        config.http.parallelism = None;
+        config.http.parallelism = Parallelism(None);
         assert!(
             config.validate().await.is_ok(),
             "should pass for default (None)"

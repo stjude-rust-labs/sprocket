@@ -53,17 +53,13 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::version::V1;
 
-use crate::config::AdditionalScript;
+use crate::config::AdditionalHtml;
 pub use crate::config::Config;
 pub use crate::error::DocError;
 use crate::error::DocErrorKind;
 use crate::error::DocResult;
 use crate::error::NpmError;
 use crate::error::ResultContextExt;
-
-/// Start on the "Full Directory" left sidebar view instead of the
-/// "Workflows" view.
-const PREFER_FULL_DIRECTORY: bool = true;
 
 /// Install the theme dependencies using npm.
 pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
@@ -161,7 +157,7 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
 pub fn build_search_index(dist_dir: &Path) -> DocResult<()> {
     let dist_dir = absolute(dist_dir)?;
     let output = std::process::Command::new(npx()?)
-        .arg("pagefind")
+        .arg("pagefind@1.5.0")
         .arg("--site")
         .arg(dist_dir)
         .output()?;
@@ -192,7 +188,7 @@ impl Render for Css<'_> {
 pub(crate) fn header<P: AsRef<Path>>(
     page_title: &str,
     root: P,
-    script: &AdditionalScript,
+    addl_html: &AdditionalHtml,
 ) -> Markup {
     let root = root.as_ref();
     let search_import = format!(
@@ -202,10 +198,6 @@ window.pagefind = import(pagefindPath)"#,
     );
     html! {
         head {
-            @match script {
-                AdditionalScript::HeadOpen(s) => script { (PreEscaped(s)) }
-                _ => {}
-            }
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
             title { (page_title) }
@@ -218,9 +210,8 @@ window.pagefind = import(pagefindPath)"#,
 
             script defer src=(root.join("index.js").to_string_lossy()) {}
             (Css(&root.join("style.css").to_string_lossy()))
-            @match script {
-                AdditionalScript::HeadClose(s) => script { (PreEscaped(s)) }
-                _ => {}
+            @if let Some(s) = addl_html.head() {
+                (PreEscaped(s))
             }
         }
     }
@@ -232,7 +223,7 @@ pub(crate) fn full_page<P: AsRef<Path>>(
     page_title: &str,
     body: Markup,
     root: P,
-    script: &AdditionalScript,
+    addl_html: &AdditionalHtml,
     init_light_mode: bool,
 ) -> Markup {
     html! {
@@ -243,16 +234,14 @@ pub(crate) fn full_page<P: AsRef<Path>>(
             x-bind:class="theme === 'light' ? 'light' : 'dark'"
             x-cloak
         {
-            (header(page_title, root, script))
+            (header(page_title, root, addl_html))
             body class="body--base" {
-                @match script {
-                    AdditionalScript::BodyOpen(s) => script { (PreEscaped(s)) }
-                    _ => {}
+                @if let Some(s) = addl_html.body_open() {
+                    (PreEscaped(s))
                 }
                 (body)
-                @match script {
-                    AdditionalScript::BodyClose(s) => script { (PreEscaped(s)) }
-                    _ => {}
+                @if let Some(s) = addl_html.body_close() {
+                    (PreEscaped(s))
                 }
             }
         }
@@ -401,7 +390,7 @@ async fn analyze_workspace(
 /// are already present.
 pub async fn document_workspace(config: Config) -> DocResult<()> {
     let workspace_abs_path = absolute(&config.workspace)?.clean();
-    let homepage = config.homepage.and_then(|p| absolute(p).ok());
+    let index_page = config.index_page.and_then(|p| absolute(p).ok());
 
     if !workspace_abs_path.is_dir() {
         return Err(
@@ -429,13 +418,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
     let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
 
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
-        .maybe_homepage(homepage)
+        .maybe_index_page(index_page)
         .init_light_mode(config.init_light_mode)
         .maybe_custom_theme(config.custom_theme)?
         .maybe_logo(config.custom_logo)
         .maybe_alt_logo(config.alt_logo)
-        .additional_javascript(config.additional_javascript)
-        .prefer_full_directory(config.init_on_full_directory)
+        .additional_html(config.additional_html)
         .external_urls(config.external_urls)
         .build()
         .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
