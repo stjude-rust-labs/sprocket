@@ -4,10 +4,7 @@ use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::fmt::Formatter;
 use std::mem;
-use std::path::Component;
 use std::path::Path;
-use std::path::PathBuf;
-use std::path::Prefix;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -31,7 +28,6 @@ use tower_lsp_server::ls_types::*;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
-use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -49,68 +45,7 @@ use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
 
 use crate::proto;
-
-/// Normalizes the path of a URI.
-///
-/// If the path contains percent encoded sequences, the sequences are decoded.
-///
-/// Additionally, on Windows, this will normalize the drive letter to uppercase.
-fn normalize_uri_path(uri: &mut Uri) {
-    if uri.scheme().as_str() != "file" {
-        return;
-    }
-
-    *uri = Uri::from(uri.normalize());
-    let Some(path) = uri.to_file_path() else {
-        return;
-    };
-
-    // On windows we need to normalize any drive letter prefixes to uppercase
-    let path = if cfg!(windows) {
-        let mut comps = path.components();
-        match comps.next() {
-            Some(Component::Prefix(prefix)) => match prefix.kind() {
-                Prefix::Disk(d) => {
-                    let mut path = PathBuf::new();
-                    path.push(format!("{}:", d.to_ascii_uppercase() as char));
-                    path.extend(comps);
-                    Cow::Owned(path)
-                }
-                Prefix::VerbatimDisk(d) => {
-                    let mut path = PathBuf::new();
-                    path.push(format!(r"\\?\{}:", d.to_ascii_uppercase() as char));
-                    path.extend(comps);
-                    Cow::Owned(path)
-                }
-                _ => path,
-            },
-            _ => path,
-        }
-    } else {
-        path
-    };
-
-    if let Ok(url) = Url::from_file_path(&*path)
-        && let Ok(u) = Uri::from_str(url.as_str())
-    {
-        *uri = u;
-        return;
-    }
-
-    let mut path_str = path.to_string_lossy();
-    if cfg!(windows) {
-        path_str = Cow::Owned(path_str.replace('\\', "/"));
-
-        // The leading slash on Windows is a shorthand for `localhost` (e.g. `file://localhost/C:/Windows` with the `localhost` omitted).
-        if !path_str.starts_with('/') {
-            path_str = Cow::Owned(format!("/{path_str}"));
-        }
-    }
-
-    if let Ok(u) = Uri::from_str(&format!("file://{path_str}")) {
-        *uri = u;
-    }
-}
+use crate::proto::NormalizedUri;
 
 /// LSP features supported by the client.
 #[derive(Clone, Copy, Debug, Default)]
@@ -551,10 +486,10 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         if let Some(folders) = params.workspace_folders {
             let config = self.config.read().await;
-            for mut folder in folders {
-                normalize_uri_path(&mut folder.uri);
+            for folder in folders {
+                let uri = NormalizedUri::try_from(folder.uri.clone())?;
                 self.folders.write().push(folder.clone());
-                if let Some(path) = folder.uri.to_file_path()
+                if let Some(path) = uri.into_uri().to_file_path()
                     && let Err(e) = config.analyzer.add_directory(path).await
                 {
                     error!(
@@ -668,13 +603,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(())
     }
 
-    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+    async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let config = self.config.read().await;
-        normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let uri = match NormalizedUri::try_from(params.text_document.uri.clone()) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -682,7 +616,7 @@ impl<S: 'static> LanguageServer for Server<S> {
             }
         };
 
-        if let Err(e) = config.analyzer.add_document(url.clone()).await {
+        if let Err(e) = config.analyzer.add_document(uri.url().clone()).await {
             error!(
                 "failed to add document {uri}: {e}",
                 uri = params.text_document.uri.as_str()
@@ -691,7 +625,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         }
 
         if let Err(e) = config.analyzer.notify_incremental_change(
-            url,
+            uri.into_url(),
             IncrementalChange {
                 version: params.text_document.version,
                 start: Some(params.text_document.text),
@@ -705,11 +639,9 @@ impl<S: 'static> LanguageServer for Server<S> {
     async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/didChange` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let uri = match NormalizedUri::try_from(params.text_document.uri) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -718,8 +650,8 @@ impl<S: 'static> LanguageServer for Server<S> {
         };
 
         debug!(
-            "document `{uri}` is now client version {version}",
-            uri = url,
+            "document `{url}` is now client version {version}",
+            url = uri.url(),
             version = params.text_document.version
         );
 
@@ -738,7 +670,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         // Notify the analyzer that the document has changed
         if let Err(e) = config.analyzer.notify_incremental_change(
-            url,
+            uri.into_url(),
             IncrementalChange {
                 version: params.text_document.version,
                 start,
@@ -760,14 +692,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         }
     }
 
-    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
+    async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didClose` request: {params:#?}");
 
-        let url = match uri_to_url(&params.text_document.uri) {
+        let uri = match NormalizedUri::try_from(params.text_document.uri) {
             Ok(url) => url,
             Err(e) => {
                 error!("{}", e.message);
@@ -775,26 +705,24 @@ impl<S: 'static> LanguageServer for Server<S> {
             }
         };
 
-        if let Err(e) = config.analyzer.notify_change(url, true) {
+        if let Err(e) = config.analyzer.notify_change(uri.into_url(), true) {
             error!("failed to notify change: {e}");
         }
     }
 
     async fn diagnostic(
         &self,
-        mut params: DocumentDiagnosticParams,
+        params: DocumentDiagnosticParams,
     ) -> RpcResult<DocumentDiagnosticReportResult> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document.uri)?;
 
         let results: Vec<wdl_analysis::AnalysisResult> = config
             .analyzer
-            .analyze_document(ProgressToken::default(), url)
+            .analyze_document(ProgressToken::default(), uri.url().clone())
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -802,8 +730,13 @@ impl<S: 'static> LanguageServer for Server<S> {
                 data: None,
             })?;
 
-        proto::document_diagnostic_report(params, results, &self.info().await.name)
-            .ok_or_else(RpcError::request_cancelled)
+        proto::document_diagnostic_report(
+            &uri,
+            params.previous_result_id,
+            results,
+            &self.info().await.name,
+        )
+        .ok_or_else(RpcError::request_cancelled)
     }
 
     async fn workspace_diagnostic(
@@ -846,10 +779,7 @@ impl<S: 'static> LanguageServer for Server<S> {
                 .event
                 .removed
                 .into_iter()
-                .map(|mut f| {
-                    normalize_uri_path(&mut f.uri);
-                    f.uri.try_into_url()
-                })
+                .map(|f| NormalizedUri::try_from(f.uri).map(NormalizedUri::into_url))
                 .collect::<std::result::Result<Vec<_>, _>>();
 
             match removed {
@@ -924,12 +854,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         let mut added = Vec::new();
         let mut deleted = Vec::new();
 
-        for mut event in params.changes {
-            normalize_uri_path(&mut event.uri);
+        for event in params.changes {
+            let uri = match NormalizedUri::try_from(event.uri.clone()) {
+                Ok(url) => url,
+                Err(e) => {
+                    error!("{}", e.message);
+                    continue;
+                }
+            };
 
             match event.typ {
                 FileChangeType::CREATED => {
-                    if let Some(path) = to_wdl_file_path(&event.uri) {
+                    if let Some(path) = to_wdl_file_path(uri.uri()) {
                         debug!(
                             "document `{uri}` has been created",
                             uri = event.uri.as_str()
@@ -944,21 +880,13 @@ impl<S: 'static> LanguageServer for Server<S> {
                             uri = event.uri.as_str()
                         );
 
-                        let url = match uri_to_url(&event.uri) {
-                            Ok(url) => url,
-                            Err(e) => {
-                                error!("{}", e.message);
-                                return;
-                            }
-                        };
-
-                        if let Err(e) = config.analyzer.notify_change(url, false) {
+                        if let Err(e) = config.analyzer.notify_change(uri.into_url(), false) {
                             error!("failed to notify change: {e}");
                         }
                     }
                 }
                 FileChangeType::DELETED => {
-                    if to_wdl_file_path(&event.uri).is_some() {
+                    if to_wdl_file_path(uri.uri()).is_some() {
                         debug!(
                             "document `{uri}` has been deleted",
                             uri = event.uri.as_str()
@@ -1005,19 +933,17 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn formatting(
         &self,
-        mut params: DocumentFormattingParams,
+        params: DocumentFormattingParams,
     ) -> RpcResult<Option<Vec<TextEdit>>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/formatting` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document.uri)?;
 
         let result = config
             .analyzer
-            .format_document(url)
+            .format_document(uri.into_url())
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1047,15 +973,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn goto_definition(
         &self,
-        mut params: GotoDefinitionParams,
+        params: GotoDefinitionParams,
     ) -> RpcResult<Option<GotoDefinitionResponse>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         debug!("received `textDocument/gotoDefinition` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1064,7 +988,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .goto_definition(url, position, SourcePositionEncoding::UTF16)
+            .goto_definition(uri.into_url(), position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1075,14 +999,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn references(&self, mut params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
+    async fn references(&self, params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/references` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1092,7 +1014,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         let result = config
             .analyzer
             .find_all_references(
-                url,
+                uri.into_url(),
                 position,
                 SourcePositionEncoding::UTF16,
                 params.context.include_declaration,
@@ -1107,17 +1029,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(Some(result))
     }
 
-    async fn completion(
-        &self,
-        mut params: CompletionParams,
-    ) -> RpcResult<Option<CompletionResponse>> {
+    async fn completion(&self, params: CompletionParams) -> RpcResult<Option<CompletionResponse>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/completion` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1128,7 +1045,7 @@ impl<S: 'static> LanguageServer for Server<S> {
             .analyzer
             .completion(
                 ProgressToken::default(),
-                url,
+                uri.into_url(),
                 position,
                 SourcePositionEncoding::UTF16,
             )
@@ -1142,14 +1059,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn hover(&self, mut params: HoverParams) -> RpcResult<Option<Hover>> {
+    async fn hover(&self, params: HoverParams) -> RpcResult<Option<Hover>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
         debug!("received `textDocument/hover` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1158,7 +1073,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .hover(url, position, SourcePositionEncoding::UTF16)
+            .hover(uri.into_url(), position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1168,14 +1083,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn rename(&self, mut params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
+    async fn rename(&self, params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
         debug!("received `textDocument/rename` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1185,7 +1098,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         let result = config
             .analyzer
             .rename(
-                url,
+                uri.into_url(),
                 position,
                 SourcePositionEncoding::UTF16,
                 params.new_name,
@@ -1202,19 +1115,17 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn semantic_tokens_full(
         &self,
-        mut params: SemanticTokensParams,
+        params: SemanticTokensParams,
     ) -> RpcResult<Option<SemanticTokensResult>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document.uri)?;
 
         let result = config
             .analyzer
-            .semantic_tokens(url)
+            .semantic_tokens(uri.into_url())
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1227,19 +1138,17 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn document_symbol(
         &self,
-        mut params: DocumentSymbolParams,
+        params: DocumentSymbolParams,
     ) -> RpcResult<Option<DocumentSymbolResponse>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document.uri);
-
         debug!("received `textDocument/documentSymbol` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document.uri)?;
 
         let result = config
             .analyzer
-            .document_symbol(url)
+            .document_symbol(uri.into_url())
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1274,15 +1183,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     async fn signature_help(
         &self,
-        mut params: SignatureHelpParams,
+        params: SignatureHelpParams,
     ) -> RpcResult<Option<SignatureHelp>> {
         let config = self.config.read().await;
 
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         debug!("received `textDocument/signatureHelp` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document_position_params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document_position_params.text_document.uri)?;
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1291,7 +1198,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .signature_help(url, position, SourcePositionEncoding::UTF16)
+            .signature_help(uri.into_url(), position, SourcePositionEncoding::UTF16)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1302,14 +1209,12 @@ impl<S: 'static> LanguageServer for Server<S> {
         Ok(result)
     }
 
-    async fn inlay_hint(&self, mut params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
+    async fn inlay_hint(&self, params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
         let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/inlayHint` request: {params:#?}");
 
-        let url = uri_to_url(&params.text_document.uri)?;
+        let uri = NormalizedUri::try_from(params.text_document.uri)?;
 
         // Analyze the document first to ensure we have up-to-date information
         config
@@ -1324,7 +1229,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         let result = config
             .analyzer
-            .inlay_hints(url, params.range)
+            .inlay_hints(uri.into_url(), params.range)
             .await
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
@@ -1336,26 +1241,13 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 }
 
-/// Wrapper for [`UriToUrl`] to return consistent error messages.
-fn uri_to_url(uri: &Uri) -> RpcResult<Url> {
-    uri.try_into_url().map_err(|e| RpcError {
-        code: ErrorCode::InvalidParams,
-        message: format!(
-            "failed to convert document URI {uri}: {e}",
-            uri = uri.as_str()
-        )
-        .into(),
-        data: None,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
     use tower_lsp_server::ls_types::Uri;
 
-    use super::normalize_uri_path;
+    use crate::server::NormalizedUri;
 
     #[test]
     fn url_normalization() {
@@ -1392,9 +1284,8 @@ mod tests {
         ];
 
         for (original, expected) in cases {
-            let mut updated = original.clone();
-            normalize_uri_path(&mut updated);
-            assert_eq!(updated.as_str(), expected);
+            let normalized = NormalizedUri::try_from(original.clone()).unwrap();
+            assert_eq!(normalized.uri().as_str(), expected);
         }
     }
 }
