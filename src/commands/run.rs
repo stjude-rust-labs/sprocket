@@ -31,6 +31,9 @@ use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
@@ -50,8 +53,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
@@ -584,7 +585,6 @@ pub async fn run(
                 &path,
                 source,
                 result.document().diagnostics(),
-                &[],
                 report_mode,
                 colorize,
             )
@@ -806,7 +806,7 @@ pub async fn run(
                         Err(anyhow!("evaluation was interrupted").into())
                     }
                     Err(EvaluationError::Source(e)) => {
-                        emit_diagnostics(
+                        emit_diagnostics_with_backtrace(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],

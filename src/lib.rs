@@ -52,7 +52,6 @@ pub mod analysis;
 #[doc(hidden)]
 pub mod commands;
 mod config;
-mod diagnostics;
 mod eval;
 mod inputs;
 pub mod server;
