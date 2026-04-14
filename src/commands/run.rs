@@ -193,7 +193,7 @@ pub struct Args {
 
     /// Show task stderr during execution.
     #[clap(long)]
-    pub stderr: bool,
+    pub show_task_stderr: bool,
 
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
@@ -615,7 +615,7 @@ pub async fn run(
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
-    if args.stderr {
+    if args.show_task_stderr {
         filter_handle
             .modify(|filter| {
                 let current_directives = filter.to_string();
@@ -720,7 +720,7 @@ pub async fn run(
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
-        args.stderr,
+        args.show_task_stderr,
         colorize,
         target.clone(),
         events
