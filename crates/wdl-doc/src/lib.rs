@@ -157,7 +157,7 @@ pub fn build_stylesheet(theme_dir: &Path) -> DocResult<()> {
 pub fn build_search_index(dist_dir: &Path) -> DocResult<()> {
     let dist_dir = absolute(dist_dir)?;
     let output = std::process::Command::new(npx()?)
-        .arg("pagefind@1.5.0")
+        .arg("pagefind")
         .arg("--site")
         .arg(dist_dir)
         .output()?;
