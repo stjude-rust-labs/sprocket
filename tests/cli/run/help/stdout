@@ -84,7 +84,7 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
-      --stderr
+      --show-task-stderr
           Show task stderr during execution
 
       --color <COLOR>
