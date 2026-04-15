@@ -70,6 +70,31 @@ impl FromStr for Input {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self> {
+        if let Some(path_str) = s.strip_prefix('@') {
+            let path: EvaluationPath = if is_supported_source_url(path_str) {
+                path_str
+                    .parse::<Url>()
+                    .map_err(|_| anyhow!("invalid inputs file URL `{path_str}`"))?
+                    .try_into()?
+            } else {
+                let path: EvaluationPath = path_str.parse()?;
+
+                if path.is_remote() {
+                    bail!("unsupported inputs file URL `{path_str}`");
+                }
+
+                if let Some(path) = path.as_local()
+                    && !path.exists()
+                {
+                    bail!("input file `{path_str}` was not found");
+                }
+
+                path
+            };
+
+            return Ok(Self::File(path));
+        }
+
         match s.split_once("=") {
             Some((key, value)) => {
                 if !IDENTIFIER_REGEX.is_match(key) {
@@ -94,30 +119,10 @@ impl FromStr for Input {
                 })
             }
             None => {
-                // For URLs, ensure it's a supported source URL
-                let path: EvaluationPath = if is_supported_source_url(s) {
-                    s.parse::<Url>()
-                        .map_err(|_| anyhow!("invalid inputs file URL `{s}`"))?
-                        .try_into()?
-                } else {
-                    let path: EvaluationPath = s.parse()?;
-
-                    // If it's a remote URL, it's unsupported
-                    if path.is_remote() {
-                        bail!("unsupported inputs file URL `{s}`");
-                    }
-
-                    // Ensure the path exists
-                    if let Some(path) = path.as_local()
-                        && !path.exists()
-                    {
-                        bail!("input file `{s}` was not found");
-                    }
-
-                    path
-                };
-
-                Ok(Self::File(path))
+                bail!(
+                    "unrecognized input `{s}`: use `@` prefix for input files or `key=value` for \
+                     inputs"
+                );
             }
         }
     }
@@ -125,7 +130,7 @@ impl FromStr for Input {
 
 /// The map structure used for parsed inputs that have not yet had their paths
 /// normalized and converted to engine values.
-type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
+type JsonInputMap = BTreeMap<String, Vec<LocatedJsonValue>>;
 
 /// A command-line invocation of a WDL workflow or task.
 ///
@@ -135,6 +140,12 @@ type JsonInputMap = BTreeMap<String, LocatedJsonValue>;
 pub struct Invocation {
     /// The actual inputs map.
     inputs: JsonInputMap,
+    /// The most recently added CLI key-value pair key.
+    ///
+    /// When a bare argument (no `=`) is encountered that is not a valid input
+    /// file, it is appended to this key's values. This supports shell glob
+    /// expansion where `files=*.txt` expands to `files=a.txt b.txt c.txt`.
+    last_pair_key: Option<String>,
     /// The name of the task or workflow these inputs are provided for.
     target: Option<String>,
 }
@@ -165,26 +176,42 @@ impl Invocation {
 
     /// Adds an input read from the command line.
     async fn add_input(&mut self, input: &str) -> Result<()> {
-        match input.parse::<Input>()? {
-            Input::File(url) => {
+        match input.parse::<Input>() {
+            Ok(Input::File(url)) => {
                 let inputs = file::read_input_file(&url).await?;
-                for (key, value) in inputs {
-                    self.inputs.insert(self.prefix_key(key), value);
+                for (key, values) in inputs {
+                    self.inputs.insert(self.prefix_key(key), values);
                 }
+                self.last_pair_key = None;
             }
-            Input::Pair { key, value } => {
+            Ok(Input::Pair { key, value }) => {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
-                let key = self.prefix_key(key);
-                self.inputs.insert(
-                    key,
-                    LocatedJsonValue {
+                let prefixed = self.prefix_key(key);
+                self.inputs
+                    .entry(prefixed.clone())
+                    .or_default()
+                    .push(LocatedJsonValue {
                         origin: cwd.as_path().into(),
                         value,
-                    },
-                );
+                    });
+                self.last_pair_key = Some(prefixed);
             }
+            Err(_) if self.last_pair_key.is_some() => {
+                let cwd = std::env::current_dir()
+                    .context("failed to determine the current working directory")?;
+
+                let key = self.last_pair_key.as_ref().unwrap();
+                self.inputs
+                    .entry(key.clone())
+                    .or_default()
+                    .push(LocatedJsonValue {
+                        origin: cwd.as_path().into(),
+                        value: JsonValue::String(input.to_owned()),
+                    });
+            }
+            Err(e) => return Err(e),
         };
 
         Ok(())
@@ -236,9 +263,18 @@ impl Invocation {
     ) -> Result<Option<(String, EngineInputs)>> {
         let (origins, values) = self.inputs.into_iter().fold(
             (BTreeMap::new(), serde_json::Map::new()),
-            |(mut origins, mut values), (key, LocatedJsonValue { origin, value })| {
-                origins.insert(key.clone(), origin);
-                values.insert(key, value);
+            |(mut origins, mut values), (key, located_values)| {
+                if located_values.len() == 1 {
+                    let lv = located_values.into_iter().next().unwrap();
+                    origins.insert(key.clone(), lv.origin);
+                    values.insert(key, lv.value);
+                } else {
+                    let first_origin = located_values[0].origin.clone();
+                    let json_array: Vec<JsonValue> =
+                        located_values.into_iter().map(|lv| lv.value).collect();
+                    origins.insert(key.clone(), first_origin);
+                    values.insert(key, JsonValue::Array(json_array));
+                }
                 (origins, values)
             },
         );
@@ -335,28 +371,36 @@ mod tests {
 
     #[test]
     fn file_parsing() {
-        // A valid JSON file path.
-        let input = "./tests/fixtures/inputs_one.json".parse::<Input>().unwrap();
+        // A valid JSON file path with `@` prefix.
+        let input = "@./tests/fixtures/inputs_one.json"
+            .parse::<Input>()
+            .unwrap();
         assert!(matches!(
             input,
             Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_one.json"
         ));
 
-        // A valid YAML file path.
-        let input = "tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
+        // A valid YAML file path with `@` prefix.
+        let input = "@tests/fixtures/inputs_three.yml".parse::<Input>().unwrap();
         assert!(matches!(
             input,
             Input::File(path) if path.to_string().replace("\\", "/") == "tests/fixtures/inputs_three.yml"
         ));
 
         // A missing file path.
-        let err = "./tests/fixtures/missing.json"
+        let err = "@./tests/fixtures/missing.json"
             .parse::<Input>()
             .unwrap_err();
         assert_eq!(
             err.to_string().replace("\\", "/"),
             "input file `./tests/fixtures/missing.json` was not found"
         );
+
+        // Without `@` prefix, a bare argument is not parsed as a file.
+        let err = "./tests/fixtures/inputs_one.json"
+            .parse::<Input>()
+            .unwrap_err();
+        assert!(err.to_string().contains("unrecognized input"));
     }
 
     #[test]
@@ -389,33 +433,33 @@ mod tests {
 
     #[tokio::test]
     async fn coalesce() {
-        // Helper functions.
+        // Helper functions that check the last value for a given key.
         fn check_string_value(invocation: &Invocation, key: &str, value: &str) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
-            assert_eq!(input.as_str().unwrap(), value);
+            let values = invocation.inputs.get(key).unwrap();
+            assert_eq!(values.last().unwrap().value.as_str().unwrap(), value);
         }
 
         fn check_float_value(invocation: &Invocation, key: &str, value: f64) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
-            assert_eq!(input.as_f64().unwrap(), value);
+            let values = invocation.inputs.get(key).unwrap();
+            assert_eq!(values.last().unwrap().value.as_f64().unwrap(), value);
         }
 
         fn check_boolean_value(invocation: &Invocation, key: &str, value: bool) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
-            assert_eq!(input.as_bool().unwrap(), value);
+            let values = invocation.inputs.get(key).unwrap();
+            assert_eq!(values.last().unwrap().value.as_bool().unwrap(), value);
         }
 
         fn check_integer_value(invocation: &Invocation, key: &str, value: i64) {
-            let LocatedJsonValue { value: input, .. } = invocation.inputs.get(key).unwrap();
-            assert_eq!(input.as_i64().unwrap(), value);
+            let values = invocation.inputs.get(key).unwrap();
+            assert_eq!(values.last().unwrap().value.as_i64().unwrap(), value);
         }
 
         // The standard coalescing order.
         let invocation = Invocation::coalesce(
             [
-                "./tests/fixtures/inputs_one.json",
-                "./tests/fixtures/inputs_two.json",
-                "./tests/fixtures/inputs_three.yml",
+                "@./tests/fixtures/inputs_one.json",
+                "@./tests/fixtures/inputs_two.json",
+                "@./tests/fixtures/inputs_three.yml",
             ],
             Some("foo".to_string()),
         )
@@ -432,9 +476,9 @@ mod tests {
         // The opposite coalescing order.
         let invocation = Invocation::coalesce(
             [
-                "./tests/fixtures/inputs_three.yml",
-                "./tests/fixtures/inputs_two.json",
-                "./tests/fixtures/inputs_one.json",
+                "@./tests/fixtures/inputs_three.yml",
+                "@./tests/fixtures/inputs_two.json",
+                "@./tests/fixtures/inputs_one.json",
             ],
             Some("name_ex".to_string()),
         )
@@ -452,10 +496,10 @@ mod tests {
         let invocation = Invocation::coalesce(
             [
                 r#"sandwich=-100"#,
-                "./tests/fixtures/inputs_one.json",
-                "./tests/fixtures/inputs_two.json",
+                "@./tests/fixtures/inputs_one.json",
+                "@./tests/fixtures/inputs_two.json",
                 r#"quux="jacks""#,
-                "./tests/fixtures/inputs_three.yml",
+                "@./tests/fixtures/inputs_three.yml",
                 r#"baz=false"#,
             ],
             None,
@@ -472,9 +516,10 @@ mod tests {
         check_integer_value(&invocation, "sandwich", -100);
 
         // An invalid key-value pair.
-        let error = Invocation::coalesce(["./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
-            .await
-            .unwrap_err();
+        let error =
+            Invocation::coalesce(["@./tests/fixtures/inputs_one.json", "foo=baz[bar"], None)
+                .await
+                .unwrap_err();
         assert_eq!(
             error.to_string(),
             "unable to deserialize `baz[bar` as a valid WDL value"
@@ -483,10 +528,10 @@ mod tests {
         // A missing file.
         let error = Invocation::coalesce(
             [
-                "./tests/fixtures/inputs_one.json",
-                "./tests/fixtures/inputs_two.json",
-                "./tests/fixtures/inputs_three.yml",
-                "./tests/fixtures/missing.json",
+                "@./tests/fixtures/inputs_one.json",
+                "@./tests/fixtures/inputs_two.json",
+                "@./tests/fixtures/inputs_three.yml",
+                "@./tests/fixtures/missing.json",
             ],
             None,
         )
@@ -504,8 +549,8 @@ mod tests {
             let invocation = Invocation::coalesce([format!("input={}", value)], None)
                 .await
                 .unwrap();
-            let LocatedJsonValue { value: input, .. } = invocation.inputs.get("input").unwrap();
-            assert_eq!(input.as_str().unwrap(), value);
+            let values = invocation.inputs.get("input").unwrap();
+            assert_eq!(values.last().unwrap().value.as_str().unwrap(), value);
         }
         async fn check_cannot_coalesce_string(value: &str) {
             let error = Invocation::coalesce([format!("input={}", value)], None)
@@ -562,7 +607,7 @@ mod tests {
     #[tokio::test]
     async fn file_inputs_prefixed_with_target() {
         let invocation = Invocation::coalesce(
-            ["./tests/fixtures/inputs_one.json"],
+            ["@./tests/fixtures/inputs_one.json"],
             Some("mytask".to_string()),
         )
         .await
@@ -583,7 +628,7 @@ mod tests {
     #[tokio::test]
     async fn file_inputs_already_prefixed_not_doubled() {
         let invocation = Invocation::coalesce(
-            ["./tests/fixtures/inputs_two.json"],
+            ["@./tests/fixtures/inputs_two.json"],
             Some("new".to_string()),
         )
         .await
@@ -604,7 +649,7 @@ mod tests {
     #[tokio::test]
     async fn mixed_file_and_cli_inputs_with_target() {
         let invocation = Invocation::coalesce(
-            ["./tests/fixtures/inputs_one.json", r#"extra="value""#],
+            ["@./tests/fixtures/inputs_one.json", r#"extra="value""#],
             Some("tgt".to_string()),
         )
         .await
@@ -637,7 +682,7 @@ mod tests {
         // `inputs_two.json` contains `new.key`. The dotted key should be
         // prefixed normally to `foo.new.key`.
         let invocation = Invocation::coalesce(
-            ["./tests/fixtures/inputs_two.json"],
+            ["@./tests/fixtures/inputs_two.json"],
             Some(String::from("foo")),
         )
         .await
@@ -646,5 +691,152 @@ mod tests {
         assert!(invocation.inputs.contains_key("foo.new.key"));
         assert!(invocation.inputs.contains_key("foo.baz"));
         assert!(invocation.inputs.contains_key("foo.quux"));
+    }
+
+    #[tokio::test]
+    async fn repeated_key_collects_into_array() {
+        let invocation = Invocation::coalesce(
+            ["files=a.txt", "files=b.txt", "files=c.txt"],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let values = invocation.inputs.get("task.files").unwrap();
+        assert_eq!(values.len(), 3);
+        assert_eq!(values[0].value.as_str().unwrap(), "a.txt");
+        assert_eq!(values[1].value.as_str().unwrap(), "b.txt");
+        assert_eq!(values[2].value.as_str().unwrap(), "c.txt");
+    }
+
+    #[tokio::test]
+    async fn single_key_remains_scalar() {
+        let invocation = Invocation::coalesce(["name=hello"], Some("task".to_string()))
+            .await
+            .unwrap();
+
+        let values = invocation.inputs.get("task.name").unwrap();
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].value.as_str().unwrap(), "hello");
+    }
+
+    #[tokio::test]
+    async fn repeated_dotted_key_collects_into_array() {
+        let invocation = Invocation::coalesce(["wf.task.files=a.txt", "wf.task.files=b.txt"], None)
+            .await
+            .unwrap();
+
+        let values = invocation.inputs.get("wf.task.files").unwrap();
+        assert_eq!(values.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn mixed_repeated_and_single_keys() {
+        let invocation = Invocation::coalesce(
+            ["files=a.txt", "files=b.txt", "name=hello"],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let files = invocation.inputs.get("task.files").unwrap();
+        assert_eq!(files.len(), 2);
+
+        let name = invocation.inputs.get("task.name").unwrap();
+        assert_eq!(name.len(), 1);
+        assert_eq!(name[0].value.as_str().unwrap(), "hello");
+    }
+
+    #[tokio::test]
+    async fn trailing_bare_args_append_to_last_key() {
+        let invocation =
+            Invocation::coalesce(["files=a.txt", "b.txt", "c.txt"], Some("task".to_string()))
+                .await
+                .unwrap();
+
+        let values = invocation.inputs.get("task.files").unwrap();
+        assert_eq!(values.len(), 3);
+        assert_eq!(values[0].value.as_str().unwrap(), "a.txt");
+        assert_eq!(values[1].value.as_str().unwrap(), "b.txt");
+        assert_eq!(values[2].value.as_str().unwrap(), "c.txt");
+    }
+
+    #[tokio::test]
+    async fn at_prefix_is_file() {
+        let invocation = Invocation::coalesce(
+            ["@./tests/fixtures/inputs_one.json"],
+            Some("foo".to_string()),
+        )
+        .await
+        .unwrap();
+
+        assert!(invocation.inputs.contains_key("foo.foo"));
+    }
+
+    #[tokio::test]
+    async fn bare_arg_with_no_prior_key_errors() {
+        let error = Invocation::coalesce(["not_a_file.txt"], Some("task".to_string()))
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("unrecognized input"));
+    }
+
+    #[tokio::test]
+    async fn bare_args_between_different_keys() {
+        let invocation = Invocation::coalesce(
+            ["files=a.txt", "b.txt", "names=hello", "world"],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let files = invocation.inputs.get("task.files").unwrap();
+        assert_eq!(files.len(), 2);
+
+        let names = invocation.inputs.get("task.names").unwrap();
+        assert_eq!(names.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn json_array_syntax_still_works() {
+        let invocation =
+            Invocation::coalesce([r#"files=["a.txt","b.txt"]"#], Some("task".to_string()))
+                .await
+                .unwrap();
+
+        let values = invocation.inputs.get("task.files").unwrap();
+        assert_eq!(values.len(), 1);
+        let arr = values[0].value.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn repeated_keys_with_file_inputs() {
+        let invocation = Invocation::coalesce(
+            ["@./tests/fixtures/inputs_one.json", "extra=a", "extra=b"],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let values = invocation.inputs.get("task.extra").unwrap();
+        assert_eq!(values.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn file_input_resets_last_pair_key() {
+        let error = Invocation::coalesce(
+            [
+                "files=a.txt",
+                "@./tests/fixtures/inputs_one.json",
+                "not_a_file.txt",
+            ],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains("unrecognized input"));
     }
 }
