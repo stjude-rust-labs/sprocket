@@ -341,6 +341,21 @@ impl TaskInputs {
                     return Ok(true);
                 }
 
+                // Auto-wrap a non-array value in a single-element array when the
+                // expected type is an array and the value is coercible to the
+                // element type.
+                let value = if let Some(arr_ty) = expected.as_array()
+                    && !matches!(&value, Value::Compound(CompoundValue::Array(_)))
+                    && value.ty().is_coercible_to(arr_ty.element_type())
+                {
+                    Value::Compound(CompoundValue::Array(Array::new_unchecked(
+                        expected.clone(),
+                        vec![value],
+                    )))
+                } else {
+                    value
+                };
+
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(true)
@@ -717,6 +732,21 @@ impl WorkflowInputs {
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(true);
                 }
+
+                // Auto-wrap a non-array value in a single-element array when
+                // the expected type is an array and the value is coercible to
+                // the element type.
+                let value = if let Some(arr_ty) = expected.as_array()
+                    && !matches!(&value, Value::Compound(CompoundValue::Array(_)))
+                    && value.ty().is_coercible_to(arr_ty.element_type())
+                {
+                    Value::Compound(CompoundValue::Array(Array::new_unchecked(
+                        expected.clone(),
+                        vec![value],
+                    )))
+                } else {
+                    value
+                };
 
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
