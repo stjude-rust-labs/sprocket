@@ -26,8 +26,6 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
-use wdl_ast::SupportedVersion;
-use wdl_ast::version::V1;
 
 use crate::Coercible;
 use crate::EvaluationPath;
@@ -37,16 +35,11 @@ use crate::Value;
 pub type JsonMap = serde_json::Map<String, JsonValue>;
 
 /// Checks that an input value matches the type of the input.
-fn check_input_type(document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
-    // For WDL 1.2, we accept optional values for the input even if the input's type
-    // is non-optional; if the runtime value is `None` for a non-optional input, the
-    // default expression will be evaluated instead
-    let expected_ty = if !input.required()
-        && document
-            .version()
-            .map(|v| v >= SupportedVersion::V1(V1::Two))
-            .unwrap_or(false)
-    {
+fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
+    // We accept optional values for the input even if the input's type is
+    // non-optional; if the runtime value is `None` for a non-optional input,
+    // the default expression will be evaluated instead.
+    let expected_ty = if !input.required() {
         input.ty().optional()
     } else {
         input.ty().clone()
