@@ -76,10 +76,14 @@ async fn resolve_with_origins(
         && let Value::Compound(CompoundValue::Array(ref array)) = value
     {
         let arr_ty = ty.as_array().expect("should be an array type");
+        assert_eq!(
+            origins.len(),
+            array.as_slice().len(),
+            "the number of origins should match the number of array elements"
+        );
         let optional = arr_ty.element_type().is_optional();
         let mut resolved = Vec::with_capacity(array.as_slice().len());
-        for (i, elem) in array.as_slice().iter().enumerate() {
-            let base_dir = &origins[i.min(origins.len() - 1)];
+        for (elem, base_dir) in array.as_slice().iter().zip(origins) {
             resolved.push(
                 elem.resolve_paths(optional, None, None, &|p| p.expand(base_dir))
                     .await?,
