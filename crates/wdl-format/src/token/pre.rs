@@ -177,9 +177,10 @@ impl TokenStream<PreToken> {
     fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
-        let mut documentation = String::new();
         let mut trivia = Vec::new();
         let mut exceptions = HashSet::new();
+
+        let mut docs_present = false;
         for token in preceding_trivia {
             match token.kind() {
                 SyntaxKind::Whitespace => {
@@ -193,8 +194,11 @@ impl TokenStream<PreToken> {
                     if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
                         // do not `trim()` the token as the whitespace may
                         // have syntactical meaning in markdown
-                        documentation.push_str(t);
-                        documentation.push_str(NEWLINE);
+                        let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(
+                            Rc::new(t.to_string() + NEWLINE),
+                        )));
+                        trivia.push(comment);
+                        docs_present = true;
                     } else if let Ok(directive) = token.text().parse::<Directive>() {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
@@ -211,23 +215,13 @@ impl TokenStream<PreToken> {
         }
 
         let mut trivia = trivia.into_iter().peekable();
+
+
         // Preserve any leading blank lines
         if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
             self.0.push(trivia.next().unwrap());
         }
-        let mut docs_present = false;
-        if !documentation.is_empty() {
-            docs_present = true;
-            let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(Rc::new(
-                documentation,
-            ))));
-            self.0.push(comment);
 
-            // don't allow documentation to "float" above the item being documented
-            if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
-                let _ = trivia.next();
-            }
-        }
         for token in trivia {
             self.0.push(token);
         }
