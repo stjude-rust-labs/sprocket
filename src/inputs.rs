@@ -894,6 +894,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn file_array_extended_by_cli() {
+        let invocation = Invocation::coalesce(
+            [
+                "@./tests/fixtures/inputs_with_array.json",
+                "files=c.txt",
+                "files=d.txt",
+            ],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let values = invocation.inputs.get("task.files").unwrap();
+        // The file contributes one entry (the JSON array) and the CLI
+        // contributes two scalar entries.
+        assert_eq!(values.len(), 3);
+
+        let file_entry = &values[0];
+        assert!(file_entry.from_file);
+        let arr = file_entry.value.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        assert_eq!(arr[0].as_str().unwrap(), "a.txt");
+        assert_eq!(arr[1].as_str().unwrap(), "b.txt");
+
+        assert_eq!(values[1].value.as_str().unwrap(), "c.txt");
+        assert!(!values[1].from_file);
+        assert_eq!(values[2].value.as_str().unwrap(), "d.txt");
+        assert!(!values[2].from_file);
+    }
+
+    #[tokio::test]
     async fn trailing_bare_args_mixed_types() {
         let invocation =
             Invocation::coalesce(["items=hello", "42", "true"], Some("task".to_string()))
